@@ -65,6 +65,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final List<Optional<String>> publisherFinalDirOwnerGroupsByBranches;
   protected final List<FsPermission> permissions;
   protected final Closer closer;
+  protected final Closer parallelRunnerCloser;
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
 
@@ -110,6 +111,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
     this.parallelRunnerThreads =
         state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
+    this.parallelRunnerCloser = Closer.create();
   }
 
   @Override
@@ -148,7 +150,11 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       for (int branchId = 0; branchId < this.numBranches; branchId++) {
         publishMultiTaskData(workUnitState, branchId, writerOutputPathsMoved);
       }
+    }
 
+    this.parallelRunnerCloser.close();
+
+    for (WorkUnitState workUnitState : states) {
       // Upon successfully committing the data to the final output directory, set states
       // of successful tasks to COMMITTED. leaving states of unsuccessful ones unchanged.
       // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
@@ -293,7 +299,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   private ParallelRunner getParallelRunner(FileSystem fs) {
     String uri = fs.getUri().toString();
     if (!this.parallelRunners.containsKey(uri)) {
-      this.parallelRunners.put(uri, this.closer.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
+      this.parallelRunners.put(uri, this.parallelRunnerCloser.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
     }
     return this.parallelRunners.get(uri);
   }
