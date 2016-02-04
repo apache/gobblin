@@ -125,7 +125,9 @@ public class ConfigClient {
     
     Map<URI, Config> result = new HashMap<>();
     Multimap<ConfigStoreAccessor, ConfigKeyPath> partitionedAccessor = ArrayListMultimap.create();
-    Map<ConfigStoreAccessor, URI> inputURI = new HashMap<>();
+    
+    // map contains the mapping between ConfigKeyPath back to original URI , partitioned by ConfigStoreAccessor
+    Map<ConfigStoreAccessor, Map<ConfigKeyPath, URI>> reverseMap = new HashMap<>();
     
     // partitioned the ConfigKeyPaths which belongs to the same store to one accessor 
     for(URI u: configKeyUris){
@@ -133,21 +135,19 @@ public class ConfigClient {
       ConfigKeyPath configKeypath = ConfigClientUtils.buildConfigKeyPath(u, accessor.configStore);
       partitionedAccessor.put(accessor, configKeypath);
       
-      /*
-       * Store the first ConfigKeyURI to the map, and the return format is based on it
-       */
-      if(!inputURI.containsKey(accessor)){
-        inputURI.put(accessor, u);
+      if(!reverseMap.containsKey(accessor)){
+        reverseMap.put(accessor, new HashMap<ConfigKeyPath, URI>());
       }
+      reverseMap.get(accessor).put(configKeypath, u);
     }
     
     for(Map.Entry<ConfigStoreAccessor, Collection<ConfigKeyPath>> entry: partitionedAccessor.asMap().entrySet()){
       Map<ConfigKeyPath, Config> batchResult= entry.getKey().valueInspector.getResolvedConfigs(entry.getValue());
-      // translate the ConfigKeyPath to URI
+
       for(Map.Entry<ConfigKeyPath, Config> resultEntry: batchResult.entrySet()){
-        URI formattedUri = ConfigClientUtils.buildURI(resultEntry.getKey(), inputURI.get(entry.getKey()),
-            entry.getKey().configStore);
-        result.put(formattedUri, resultEntry.getValue());
+        // get the original URI from reverseMap
+        URI orgURI = reverseMap.get(entry.getKey()).get(resultEntry.getKey());
+        result.put(orgURI, resultEntry.getValue());
       }
     }
     
@@ -207,7 +207,7 @@ public class ConfigClient {
       result = accessor.topologyInspector.getImportsRecursively(configKeypath);
     }
     
-    return ConfigClientUtils.buildURI(result, configKeyUri, accessor.configStore);
+    return ConfigClientUtils.buildUriInClientFormat(result, configKeyUri, accessor.configStore);
   }
 
   /**
@@ -234,7 +234,7 @@ public class ConfigClient {
       result = accessor.topologyInspector.getImportedByRecursively(configKeypath);
     }
     
-    return ConfigClientUtils.buildURI(result, configKeyUri, accessor.configStore);
+    return ConfigClientUtils.buildUriInClientFormat(result, configKeyUri, accessor.configStore);
   }
   
   private URI getMatchedFloorKeyFromCache(URI configKeyURI){

@@ -70,7 +70,7 @@ public class ConfigClientUtils {
    * with configKeyURI as etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest , then return
    * etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/tags/retention
    */
-  public static URI buildURI(ConfigKeyPath configKeyPath, URI configKeyURI, ConfigStore cs){
+  public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, URI configKeyURI, ConfigStore cs){
     checkMatchingSchemeAndAuthority(configKeyURI, cs);
 
     try {
@@ -92,10 +92,10 @@ public class ConfigClientUtils {
     }
   }
   
-  public static Collection<URI> buildURI(Collection<ConfigKeyPath> configKeyPaths, URI configKeyURI, ConfigStore cs){
+  public static Collection<URI> buildUriInClientFormat(Collection<ConfigKeyPath> configKeyPaths, URI configKeyURI, ConfigStore cs){
     Collection<URI> result = new ArrayList<>();
     for(ConfigKeyPath p: configKeyPaths){
-      result.add(buildURI(p, configKeyURI, cs));
+      result.add(buildUriInClientFormat(p, configKeyURI, cs));
     }
     return result;
   }

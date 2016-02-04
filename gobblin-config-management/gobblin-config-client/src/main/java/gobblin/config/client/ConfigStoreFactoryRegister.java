@@ -43,7 +43,8 @@ public class ConfigStoreFactoryRegister {
   }
   
   @SuppressWarnings("rawtypes")
-  public void register(String scheme, ConfigStoreFactory factory){
-    this.configStoreFactoryMap.put(scheme, factory);
+  public void register(ConfigStoreFactory factory){
+    this.configStoreFactoryMap.put(factory.getScheme(), factory);
+    LOG.info("Registered the config store factory with scheme name " + factory.getScheme());
   }
 }
