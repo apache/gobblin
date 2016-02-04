@@ -20,6 +20,7 @@ function print_usage(){
   echo "  --jars <comma-separated list of job jars>      Job jar(s): if not set, \"$FWDIR_LIB\" is examined"
   echo "  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from \${GOBBLIN_WORK_DIR}"
   echo "  --projectversion <version>                     Gobblin version to be used. If set, overrides the distribution build version"
+  echo "  --logdir <log dir>                             Gobblin's log directory: if not set, taken from \${GOBBLIN_LOG_DIR} if present. Otherwise \"$FWDIR/logs\" is used"
   echo "  --help                                         Display this help and exit"
 }
 
@@ -41,12 +42,16 @@ do
       FS_URL="$2"
       shift
       ;;
+    --jars)
+      JARS="$2"
+      shift
+      ;;
     --workdir)
       WORK_DIR="$2"
       shift
       ;;
-    --jars)
-      JARS="$2"
+    --logdir)
+      LOG_DIR="$2"
       shift
       ;;
     --conf)
@@ -82,6 +87,15 @@ fi
 
 if [ -z "$GOBBLIN_WORK_DIR" ]; then
   die "GOBBLIN_WORK_DIR is not set!"
+fi
+
+# User defined log directory overrides $GOBBLIN_LOG_DIR
+if [ -n "$LOG_DIR" ]; then
+  export GOBBLIN_LOG_DIR="$LOG_DIR"
+fi
+
+if [ -z "$GOBBLIN_LOG_DIR" ]; then
+  GOBBLIN_LOG_DIR="$FWDIR/logs"
 fi
 
 . $FWDIR_BIN/gobblin-env.sh
@@ -146,6 +160,8 @@ GOBBLIN_CONFIG_FILE=$FWDIR_CONF/gobblin-mapreduce.properties
 
 JT_COMMAND=$([ -z $JOB_TRACKER_URL ] && echo "" || echo "-jt $JOB_TRACKER_URL")
 FS_COMMAND=$([ -z $FS_URL ] && echo "" || echo "-fs $FS_URL")
+
+export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS -Dgobblin.logs.dir=$GOBBLIN_LOG_DIR -Dlog4j.configuration=file:$FWDIR_CONF/log4j-mapreduce.xml"
 
 # Launch the job to run on Hadoop
 $HADOOP_BIN_DIR/hadoop jar \
