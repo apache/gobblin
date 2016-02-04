@@ -48,6 +48,15 @@ dependencies {
     compile externalDependency.avroMapredH1
   }
 
+  testCompile externalDependency.hadoopCommonTest
+  testCompile externalDependency.hadoopMapRedClientJobClient
+  testCompile externalDependency.hadoopHdfs
+  testCompile externalDependency.hadoopHdfsTest
+
+  if (project.hasProperty('useHadoop2')) {
+    testCompile externalDependency.hadoopYarnMiniCluster 
+  }
+
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
