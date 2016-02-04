@@ -59,11 +59,11 @@ public class TestConfigClientUtils {
     
     ConfigKeyPath configKey = SingleLinkedListConfigKeyPath.ROOT.createChild("data").createChild("databases").createChild("Identity");
     // client app pass URI without authority
-    URI adjusted = ConfigClientUtils.buildUriInClientFormat(configKey, clientRelativeURI, mockConfigStore);
+    URI adjusted = ConfigClientUtils.buildUriInClientFormat(configKey, mockConfigStore, false);
     Assert.assertTrue(adjusted.toString().equals("etl-hdfs:/data/databases/Identity"));
     
     // client app pass URI with authority
-    adjusted = ConfigClientUtils.buildUriInClientFormat(configKey, mockConfigStore.getStoreURI(), mockConfigStore);
+    adjusted = ConfigClientUtils.buildUriInClientFormat(configKey, mockConfigStore, true);
     Assert.assertTrue(adjusted.toString().equals("etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/data/databases/Identity"));
   }
   

@@ -207,7 +207,7 @@ public class ConfigClient {
       result = accessor.topologyInspector.getImportsRecursively(configKeypath);
     }
     
-    return ConfigClientUtils.buildUriInClientFormat(result, configKeyUri, accessor.configStore);
+    return ConfigClientUtils.buildUriInClientFormat(result, accessor.configStore, configKeyUri.getAuthority()!=null);
   }
 
   /**
@@ -234,7 +234,7 @@ public class ConfigClient {
       result = accessor.topologyInspector.getImportedByRecursively(configKeypath);
     }
     
-    return ConfigClientUtils.buildUriInClientFormat(result, configKeyUri, accessor.configStore);
+    return ConfigClientUtils.buildUriInClientFormat(result, accessor.configStore, configKeyUri.getAuthority()!=null);
   }
   
   private URI getMatchedFloorKeyFromCache(URI configKeyURI){

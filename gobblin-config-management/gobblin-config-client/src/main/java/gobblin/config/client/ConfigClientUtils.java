@@ -59,26 +59,21 @@ public class ConfigClientUtils {
    * Build the URI based on the {@link ConfigStore} or input cnofigKeyURI
    * 
    * @param configKeyPath : relative path to the input config store cs
-   * @param configKeyURI  : normally is the URI pass in by client application, could be
-   * 1. etl-hdfs:///datasets/a1/a2 which missing the authority
-   * 2. etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/datasets/a1/a2 which has the authority
+   * @param returnURIWithAuthority  : return the URI with input config store's authority and absolute path
    * @param cs            : the config store of the input configKeyURI
    * @return              : return the URI of the same format with the input configKeyURI
    * 
    * for example, configKeyPath is /tags/retention, 
-   * with configKeyURI as etl-hdfs:///datasets/a1/a2, return "etl-hdfs:///tags/retention
-   * with configKeyURI as etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest , then return
+   * with returnURIWithAuthority as true, return "etl-hdfs:///tags/retention
+   * with returnURIWithAuthority as false , then return
    * etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/tags/retention
    */
-  public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, URI configKeyURI, ConfigStore cs){
-    checkMatchingSchemeAndAuthority(configKeyURI, cs);
+  public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, ConfigStore cs, boolean returnURIWithAuthority){
 
     try {
-      // configKeyURI is etl-hdfs:///datasets/a1/a2
-      if(configKeyURI.getAuthority()==null){
-        return new URI(configKeyURI.getScheme(), null, configKeyPath.getAbsolutePathString(), null, null);
+      if(!returnURIWithAuthority){
+        return new URI(cs.getStoreURI().getScheme(), null, configKeyPath.getAbsolutePathString(), null, null);
       }
-      // configKeyURI is etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/datasets/a1/a2
       // store Root is etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest
       // configKeyPath is /tags/retention
       else {
@@ -92,10 +87,10 @@ public class ConfigClientUtils {
     }
   }
   
-  public static Collection<URI> buildUriInClientFormat(Collection<ConfigKeyPath> configKeyPaths, URI configKeyURI, ConfigStore cs){
+  public static Collection<URI> buildUriInClientFormat(Collection<ConfigKeyPath> configKeyPaths, ConfigStore cs, boolean returnURIWithAuthority){
     Collection<URI> result = new ArrayList<>();
     for(ConfigKeyPath p: configKeyPaths){
-      result.add(buildUriInClientFormat(p, configKeyURI, cs));
+      result.add(buildUriInClientFormat(p, cs, returnURIWithAuthority));
     }
     return result;
   }
