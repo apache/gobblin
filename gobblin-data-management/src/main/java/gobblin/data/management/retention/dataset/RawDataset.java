@@ -29,7 +29,7 @@ import gobblin.data.management.retention.version.finder.VersionFinder;
 
 
 /**
- * {@link DatasetBase} for raw data.
+ * {@link CleanableDatasetBase} for raw data.
  *
  * A raw dataset is a dataset with a corresponding refined dataset. A version of a raw dataset is deletable only if
  * it satisfies certain conditions with the corresponding version of the refined dataset. For example,
@@ -37,13 +37,13 @@ import gobblin.data.management.retention.version.finder.VersionFinder;
  * refined dataset.
  */
 @Alpha
-public class RawDataset extends DatasetBase<DatasetVersion> {
+public class RawDataset extends CleanableDatasetBase<DatasetVersion> {
 
   public static final String DATASET_CLASS = "dataset.class";
   public static final String DATASET_RETENTION_POLICY_CLASS = "dataset.retention.policy.class";
 
   private final Path datasetRoot;
-  private final DatasetBase<DatasetVersion> embeddedDataset;
+  private final CleanableDatasetBase<DatasetVersion> embeddedDataset;
   private final RawDatasetRetentionPolicy retentionPolicy;
 
   public RawDataset(FileSystem fs, Properties props, Path datasetRoot) throws IOException {
@@ -57,11 +57,11 @@ public class RawDataset extends DatasetBase<DatasetVersion> {
     this.retentionPolicy = getRetentionPolicy(fs);
   }
 
-  private DatasetBase<DatasetVersion> getDataset(FileSystem fs, Properties props, Path datasetRoot) {
+  private CleanableDatasetBase<DatasetVersion> getDataset(FileSystem fs, Properties props, Path datasetRoot) {
     try {
       @SuppressWarnings("unchecked")
-      Class<? extends DatasetBase<DatasetVersion>> clazz =
-          (Class<? extends DatasetBase<DatasetVersion>>) Class.forName(DATASET_CLASS);
+      Class<? extends CleanableDatasetBase<DatasetVersion>> clazz =
+          (Class<? extends CleanableDatasetBase<DatasetVersion>>) Class.forName(DATASET_CLASS);
       return ConstructorUtils.invokeConstructor(clazz, fs, props, datasetRoot);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to instantiate dataset", e);
