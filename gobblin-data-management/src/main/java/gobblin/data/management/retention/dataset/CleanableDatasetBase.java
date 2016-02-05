@@ -77,7 +77,7 @@ import gobblin.util.PathUtils;
  * </p>
  *
  * <p>
- *  {@link DatasetBase} uses a {@link gobblin.data.management.retention.version.finder.DatasetVersionFinder} to find all
+ *  {@link CleanableDatasetBase} uses a {@link gobblin.data.management.retention.version.finder.DatasetVersionFinder} to find all
  *  subdirectories that are versions of this dataset. After that, for each dataset, it uses a
  *  {@link gobblin.data.management.retention.policy.RetentionPolicy} to decide which versions of the dataset should be
  *  deleted. For each version deleted, if {@link #deleteEmptyDirectories} it will also look at all parent directories
@@ -87,7 +87,7 @@ import gobblin.util.PathUtils;
  * @param <T> type of {@link gobblin.data.management.retention.version.DatasetVersion} supported by this
  *           {@link CleanableDataset}.
  */
-public abstract class DatasetBase<T extends DatasetVersion> implements CleanableDataset {
+public abstract class CleanableDatasetBase<T extends DatasetVersion> implements CleanableDataset {
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String SIMULATE_KEY = CONFIGURATION_KEY_PREFIX + "simulate";
@@ -118,7 +118,7 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Cleanable
    */
   public abstract RetentionPolicy<T> getRetentionPolicy();
 
-  public DatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
+  public CleanableDatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
     this(fs, props, Boolean.valueOf(props.getProperty(SIMULATE_KEY, SIMULATE_DEFAULT)), Boolean.valueOf(props
         .getProperty(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT)), Boolean.valueOf(props.getProperty(
         DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT)), Boolean.valueOf(props.getProperty(
@@ -126,7 +126,7 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Cleanable
   }
 
   /**
-   * Constructor for {@link DatasetBase}.
+   * Constructor for {@link CleanableDatasetBase}.
    * @param fs {@link org.apache.hadoop.fs.FileSystem} where files are located.
    * @param properties {@link java.util.Properties} for object.
    * @param simulate whether to simulate deletes.
@@ -136,7 +136,7 @@ public abstract class DatasetBase<T extends DatasetVersion> implements Cleanable
    * @param log logger to use.
    * @throws IOException
    */
-  public DatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
+  public CleanableDatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
       boolean deleteEmptyDirectories, boolean deleteAsOwner, Logger log) throws IOException {
     this.log = log;
     this.fs = fs;

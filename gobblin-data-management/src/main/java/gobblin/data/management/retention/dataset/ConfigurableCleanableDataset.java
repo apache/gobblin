@@ -29,7 +29,7 @@ import gobblin.data.management.retention.version.finder.VersionFinder;
 
 
 /**
- * {@link gobblin.data.management.retention.dataset.DatasetBase} that instantiates {@link VersionFinder} and
+ * {@link CleanableDatasetBase} that instantiates {@link VersionFinder} and
  * {@link RetentionPolicy} from classes read from an input {@link java.util.Properties}.
  *
  * <p>
@@ -37,7 +37,7 @@ import gobblin.data.management.retention.version.finder.VersionFinder;
  *   {@link RetentionPolicy} should be under key {@link #RETENTION_POLICY_CLASS_KEY}.
  * </p>
  */
-public class ConfigurableDataset<T extends DatasetVersion> extends DatasetBase<T> {
+public class ConfigurableCleanableDataset<T extends DatasetVersion> extends CleanableDatasetBase<T> {
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String VERSION_FINDER_CLASS_KEY = CONFIGURATION_KEY_PREFIX + "version.finder.class";
@@ -48,12 +48,12 @@ public class ConfigurableDataset<T extends DatasetVersion> extends DatasetBase<T
   private final VersionFinder<? extends T> versionFinder;
   private final RetentionPolicy<T> retentionPolicy;
 
-  public ConfigurableDataset(FileSystem fs, Properties props, Path datasetRoot) throws IOException {
-    this(fs, props, datasetRoot, LoggerFactory.getLogger(ConfigurableDataset.class));
+  public ConfigurableCleanableDataset(FileSystem fs, Properties props, Path datasetRoot) throws IOException {
+    this(fs, props, datasetRoot, LoggerFactory.getLogger(ConfigurableCleanableDataset.class));
   }
 
   @SuppressWarnings("unchecked")
-  public ConfigurableDataset(FileSystem fs, Properties props, Path datasetRoot, Logger log)
+  public ConfigurableCleanableDataset(FileSystem fs, Properties props, Path datasetRoot, Logger log)
       throws IOException {
     super(fs, props, log);
     this.datasetRoot = datasetRoot;
