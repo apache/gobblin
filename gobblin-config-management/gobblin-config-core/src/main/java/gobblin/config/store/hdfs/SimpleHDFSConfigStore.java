@@ -3,6 +3,7 @@ package gobblin.config.store.hdfs;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Serializable;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -284,7 +285,7 @@ public class SimpleHDFSConfigStore implements ConfigStore {
       FileStatus configFileStatus = this.fs.getFileStatus(mainConfFile);
       if (!configFileStatus.isDir()) {
         try (InputStream mainConfInputStream = this.fs.open(configFileStatus.getPath())) {
-          return ConfigFactory.parseReader(new InputStreamReader(mainConfInputStream));
+          return ConfigFactory.parseReader(new InputStreamReader(mainConfInputStream, Charsets.UTF_8));
         }
       } else {
         return ConfigFactory.empty();
@@ -348,7 +349,7 @@ public class SimpleHDFSConfigStore implements ConfigStore {
   /**
    * Implementation of {@link Comparator} that compares {@link FileStatus}es based on the path name.
    */
-  public static class FileStatusPathNameComparator implements Comparator<FileStatus> {
+  public static class FileStatusPathNameComparator implements Comparator<FileStatus>, Serializable {
 
     @Override
     public int compare(FileStatus fileStatus1, FileStatus fileStatus2) {
