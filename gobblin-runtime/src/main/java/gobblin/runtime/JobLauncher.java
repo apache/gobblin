@@ -15,6 +15,8 @@ package gobblin.runtime;
 import java.io.Closeable;
 import javax.annotation.Nullable;
 
+import gobblin.runtime.listeners.JobListener;
+
 
 /**
  * An interface for classes that launch a Gobblin job.

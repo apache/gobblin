@@ -54,12 +54,12 @@ import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.EmailNotificationJobListener;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
-import gobblin.runtime.JobListener;
-import gobblin.runtime.RunOnceJobListener;
+import gobblin.runtime.listeners.EmailNotificationJobListener;
+import gobblin.runtime.listeners.JobListener;
+import gobblin.runtime.listeners.RunOnceJobListener;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.SchedulerUtils;
@@ -174,7 +174,7 @@ public class JobScheduler extends AbstractIdleService {
    * </p>
    *
    * @param jobProps Job configuration properties
-   * @param jobListener {@link gobblin.runtime.JobListener} used for callback,
+   * @param jobListener {@link JobListener} used for callback,
    *                    can be <em>null</em> if no callback is needed.
    * @throws JobException when there is anything wrong
    *                      with scheduling the job
@@ -192,7 +192,7 @@ public class JobScheduler extends AbstractIdleService {
    * </p>
    *
    * @param jobProps Job configuration properties
-   * @param jobListener {@link gobblin.runtime.JobListener} used for callback,
+   * @param jobListener {@link JobListener} used for callback,
    *                    can be <em>null</em> if no callback is needed.
    * @param additionalJobData additional job data in a {@link Map}
    * @param jobClass Quartz job class

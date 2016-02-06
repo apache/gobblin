@@ -1,4 +1,4 @@
-package gobblin.runtime;
+package gobblin.runtime.listeners;
 
 import java.io.IOException;
 import java.util.List;
@@ -16,6 +16,7 @@ import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.runtime.JobContext;
 import gobblin.util.ExecutorsUtils;
 
 
@@ -59,13 +60,13 @@ public class JobListeners {
     }
 
     @Override
-    public void onJobCompletion(final JobState jobState) {
+    public void onJobPrepare(final JobContext jobContext) {
       for (final JobListener jobListener : jobListeners) {
         this.completionService.submit(new Callable<Void>() {
           @Override
           public Void call()
               throws Exception {
-            jobListener.onJobCompletion(jobState);
+            jobListener.onJobPrepare(jobContext);
             return null;
           }
         });
@@ -73,13 +74,55 @@ public class JobListeners {
     }
 
     @Override
-    public void onJobCancellation(final JobState jobState) {
+    public void onJobStart(final JobContext jobContext) {
       for (final JobListener jobListener : jobListeners) {
         this.completionService.submit(new Callable<Void>() {
           @Override
           public Void call()
               throws Exception {
-            jobListener.onJobCancellation(jobState);
+            jobListener.onJobStart(jobContext);
+            return null;
+          }
+        });
+      }
+    }
+
+    @Override
+    public void onJobCompletion(final JobContext jobContext) {
+      for (final JobListener jobListener : jobListeners) {
+        this.completionService.submit(new Callable<Void>() {
+          @Override
+          public Void call()
+              throws Exception {
+            jobListener.onJobCompletion(jobContext);
+            return null;
+          }
+        });
+      }
+    }
+
+    @Override
+    public void onJobCancellation(final JobContext jobContext) {
+      for (final JobListener jobListener : jobListeners) {
+        this.completionService.submit(new Callable<Void>() {
+          @Override
+          public Void call()
+              throws Exception {
+            jobListener.onJobCancellation(jobContext);
+            return null;
+          }
+        });
+      }
+    }
+
+    @Override
+    public void onJobFailure(final JobContext jobContext) {
+      for (final JobListener jobListener : jobListeners) {
+        this.completionService.submit(new Callable<Void>() {
+          @Override
+          public Void call()
+              throws Exception {
+            jobListener.onJobFailure(jobContext);
             return null;
           }
         });
