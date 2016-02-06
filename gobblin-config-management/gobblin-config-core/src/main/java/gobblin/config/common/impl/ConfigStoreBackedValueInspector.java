@@ -12,12 +12,16 @@
 
 package gobblin.config.common.impl;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.typesafe.config.Config;
 
 import gobblin.config.store.api.ConfigKeyPath;
 import gobblin.config.store.api.ConfigStore;
+import gobblin.config.store.api.ConfigStoreWithBatchFetches;
 import gobblin.config.store.api.ConfigStoreWithResolution;
 
 /**
@@ -61,6 +65,30 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
   @Override
   public Config getOwnConfig(ConfigKeyPath configKey) {
     return this.cs.getOwnConfig(configKey, version);
+  }
+  
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version
+   *   if the internal {@link ConfigStore} is {@link ConfigStoreWithBatchFetches}, otherwise, will call
+   *   configuration store for each config key path and put the result into {@link Map}
+   * </p>
+   */
+  @Override
+  public Map<ConfigKeyPath, Config> getOwnConfigs(Collection<ConfigKeyPath> configKeys) {
+    if(this.cs instanceof ConfigStoreWithBatchFetches){
+      ConfigStoreWithBatchFetches batchStore = (ConfigStoreWithBatchFetches)this.cs;
+      return batchStore.getOwnConfigs(configKeys, version);
+    }
+    
+    Map<ConfigKeyPath, Config> result = new HashMap<>();
+    for(ConfigKeyPath configKey: configKeys){
+      result.put(configKey, this.cs.getOwnConfig(configKey, version));
+    }
+    
+    return result;
   }
 
   /**
@@ -122,5 +150,30 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
 
     return initialConfig;
   }
+  
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version
+   *   if the internal {@link ConfigStore} is {@link ConfigStoreWithBatchFetches}, otherwise, will call
+   *   configuration store for each config key path and put the result into {@link Map}
+   * </p>
+   */
+  @Override
+  public Map<ConfigKeyPath, Config> getResolvedConfigs(Collection<ConfigKeyPath> configKeys) {
+    if(this.cs instanceof ConfigStoreWithBatchFetches){
+      ConfigStoreWithBatchFetches batchStore = (ConfigStoreWithBatchFetches)this.cs;
+      return batchStore.getResolvedConfigs(configKeys, version);
+    }
+    
+    Map<ConfigKeyPath, Config> result = new HashMap<>();
+    for(ConfigKeyPath configKey: configKeys){
+      result.put(configKey, this.getResolvedConfig(configKey));
+    }
+    
+    return result;
+  }
+
 }
 

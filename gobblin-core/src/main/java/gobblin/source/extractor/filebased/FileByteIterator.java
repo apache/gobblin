@@ -35,8 +35,7 @@ public class FileByteIterator implements Iterator<Byte> {
     try {
       return bufferedInputStream.available() > 0;
     } catch (IOException e) {
-      Throwables.propagate(e);
-      return false;
+      throw Throwables.propagate(e);
     }
   }
 
@@ -44,13 +43,12 @@ public class FileByteIterator implements Iterator<Byte> {
   public Byte next() {
     try {
       if (this.hasNext()) {
-        return new Byte((byte) bufferedInputStream.read());
+        return (byte) bufferedInputStream.read();
       } else {
         throw new NoSuchElementException("No more data left in the file");
       }
     } catch (IOException e) {
-      Throwables.propagate(e);
-      return null;
+      throw Throwables.propagate(e);
     }
   }
 

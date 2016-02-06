@@ -35,9 +35,19 @@ public interface ConfigStoreWithBatchFetches extends ConfigStore {
    *
    * @param  configKeys     the config keys whose {@link Config} objects are to be fetched
    * @param  version        the configuration version of the config keys
-   * @return the Map from the config key to its the {@link com.typesafe.config.Config} object
+   * @return the Map from the config key to its the own {@link com.typesafe.config.Config} object
    * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
    */
   public Map<ConfigKeyPath, Config> getOwnConfigs(Collection<ConfigKeyPath> configKeys, String version)
       throws VersionDoesNotExistException;
+  
+  /**
+  *
+  * @param  configKeys     the config keys whose {@link Config} objects are to be fetched
+  * @param  version        the configuration version of the config keys
+  * @return the Map from the config key to its the resolved {@link com.typesafe.config.Config} object
+  * @throws VersionDoesNotExistException if the requested config version does not exist (any longer)
+  */
+ public Map<ConfigKeyPath, Config> getResolvedConfigs(Collection<ConfigKeyPath> configKeys, String version)
+     throws VersionDoesNotExistException;
 }

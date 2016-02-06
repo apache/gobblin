@@ -29,12 +29,12 @@ import gobblin.data.management.retention.version.finder.WatermarkDatasetVersionF
 
 
 /**
- * {@link gobblin.data.management.retention.dataset.DatasetBase} for snapshot datasets.
+ * {@link CleanableDatasetBase} for snapshot datasets.
  *
  * Uses a {@link gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder} and a
  * {@link gobblin.data.management.retention.policy.NewestKRetentionPolicy}.
  */
-public class SnapshotDataset extends DatasetBase<DatasetVersion> {
+public class SnapshotDataset extends CleanableDatasetBase<DatasetVersion> {
 
   private final VersionFinder<StringDatasetVersion> versionFinder;
   private final RetentionPolicy<DatasetVersion> retentionPolicy;

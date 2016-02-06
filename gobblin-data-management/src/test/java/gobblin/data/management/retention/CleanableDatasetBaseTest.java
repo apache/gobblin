@@ -27,7 +27,7 @@ import com.google.common.collect.Lists;
 
 import static org.mockito.Mockito.*;
 
-import gobblin.data.management.retention.dataset.DatasetBase;
+import gobblin.data.management.retention.dataset.CleanableDatasetBase;
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.StringDatasetVersion;
@@ -37,7 +37,7 @@ import gobblin.data.management.trash.TestTrash;
 import gobblin.data.management.trash.Trash;
 
 
-public class DatasetBaseTest {
+public class CleanableDatasetBaseTest {
 
   @Test
   public void test() throws IOException {
@@ -167,7 +167,7 @@ public class DatasetBaseTest {
     }
   }
 
-  private class DatasetImpl extends DatasetBase {
+  private class DatasetImpl extends CleanableDatasetBase {
 
     public DatasetVersionFinder versionFinder = mock(DatasetVersionFinder.class);
     public RetentionPolicy retentionPolicy = new DeleteFirstRetentionPolicy();

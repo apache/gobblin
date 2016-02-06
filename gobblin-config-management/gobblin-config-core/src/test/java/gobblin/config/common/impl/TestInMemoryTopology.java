@@ -22,17 +22,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.mockito.Mockito;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 
 import gobblin.config.store.api.ConfigKeyPath;
@@ -61,7 +60,7 @@ public class TestInMemoryTopology {
       System.out.println("key: " + entry.getKey() + ", value: " + entry.getValue());
     }
   }
-  
+
   @BeforeClass
   public void setup(){
     // Topology for mock up config store
@@ -75,7 +74,7 @@ public class TestInMemoryTopology {
     //    └── tag2
     //        └── nertzTag2
 
-    
+
     mockConfigStore = mock(ConfigStore.class, Mockito.RETURNS_SMART_NULLS);
 
     when(mockConfigStore.getCurrentVersion()).thenReturn(version);
@@ -123,16 +122,16 @@ public class TestInMemoryTopology {
     List<ConfigKeyPath> espressoImports = new ArrayList<ConfigKeyPath>();
     espressoImports.add(nertzTag2);
     when(mockConfigStore.getOwnImports(espressoTag, version)).thenReturn(espressoImports);
-    
+
     mockupConfigValues();
   }
-  
+
   private void mockupConfigValues(){
     // mock up the configuration values for root
     Map<String, String> rootMap = new HashMap<>();
     rootMap.put("keyInRoot", "valueInRoot");
     when(mockConfigStore.getOwnConfig(SingleLinkedListConfigKeyPath.ROOT, version)).thenReturn(ConfigFactory.parseMap(rootMap));
-    
+
     Collection<ConfigKeyPath> currentLevel = mockConfigStore.getChildren(SingleLinkedListConfigKeyPath.ROOT, version);
     while(!currentLevel.isEmpty()){
       Collection<ConfigKeyPath> nextLevel = new ArrayList<ConfigKeyPath>();
@@ -140,17 +139,17 @@ public class TestInMemoryTopology {
         mockupConfigValueForKey(p);
         nextLevel.addAll(mockConfigStore.getChildren(p, version));
       }
-      
+
       currentLevel = nextLevel;
     }
   }
-  
+
   private void mockupConfigValueForKey(ConfigKeyPath configKey){
     final String generalKey = "generalKey";
     Map<String, String> valueMap = new HashMap<>();
     // key in all the nodes
     valueMap.put(generalKey, "valueOf_" +generalKey +"_"+configKey.getOwnPathName() );
-    
+
     // key in self node
     valueMap.put("keyOf_" + configKey.getOwnPathName(), "valueOf_" + configKey.getOwnPathName());
     when(mockConfigStore.getOwnConfig(configKey, version)).thenReturn(ConfigFactory.parseMap(valueMap));
@@ -185,7 +184,7 @@ public class TestInMemoryTopology {
     result = inMemory.getImportedBy(nertzTag2);
     Assert.assertTrue(result.size()==1);
     Assert.assertEquals(result.iterator().next(), espressoTag);
-    
+
     // test imported by recursively, as the imported by recursively do not care about
     // order, need to use HashSet to test
     result = inMemory.getImportedByRecursively(nertzTag2);
@@ -194,35 +193,87 @@ public class TestInMemoryTopology {
     expected.add(identity);
     Assert.assertTrue(result.size()==2);
     it = result.iterator();
-    
+
     while(it.hasNext()){
       ConfigKeyPath tmp = it.next();
       Assert.assertTrue(expected.contains(tmp));
       expected.remove(tmp);
     }
   }
-  
+
   @Test
   public void testNonRootValues() {
     ConfigStoreBackedTopology csTopology = new ConfigStoreBackedTopology(this.mockConfigStore, this.version);
     InMemoryTopology inMemory = new InMemoryTopology(csTopology);
-    
+
     ConfigStoreBackedValueInspector rawValueInspector = new ConfigStoreBackedValueInspector(this.mockConfigStore, this.version, inMemory);
     InMemoryValueInspector inMemoryStrongRef = new InMemoryValueInspector(rawValueInspector, true);
     InMemoryValueInspector inMemoryWeakRef = new InMemoryValueInspector(rawValueInspector, false);
 
-    testValues(rawValueInspector);
-    testValues(inMemoryStrongRef);
-    testValues(inMemoryWeakRef);
+    // test values for Identity
+    testValuesForIdentity(rawValueInspector);
+    testValuesForIdentity(inMemoryStrongRef);
+    testValuesForIdentity(inMemoryWeakRef);
+    
+    // test values for Espresso Tag
+    testValuesForEspressoTag(rawValueInspector);
+    testValuesForEspressoTag(inMemoryStrongRef);
+    testValuesForEspressoTag(inMemoryWeakRef);
+    
+    // test for batch
+    Collection<ConfigKeyPath> inputs = new ArrayList<ConfigKeyPath>();
+    inputs.add(espressoTag);
+    inputs.add(identity);
+    Map<ConfigKeyPath, Config> resultMap = rawValueInspector.getOwnConfigs(inputs);
+    Assert.assertEquals(resultMap.size(), 2);
+    testValuesForEspressoTagOwnConfig(resultMap.get(espressoTag));
+    checkValuesForIdentityOwnConfig(resultMap.get(identity));
+    
+    resultMap = rawValueInspector.getResolvedConfigs(inputs);
+    Assert.assertEquals(resultMap.size(), 2);
+    testValuesForEspressoTagResolvedConfig(resultMap.get(espressoTag));
+    checkValuesForIdentityResolvedConfig(resultMap.get(identity));
+  }
+
+  private void testValuesForEspressoTag(ConfigStoreValueInspector valueInspector){
+    Config config = valueInspector.getOwnConfig(this.espressoTag);
+    testValuesForEspressoTagOwnConfig(config);
+    
+    config = valueInspector.getResolvedConfig(this.espressoTag);
+    testValuesForEspressoTagResolvedConfig(config);
   }
   
-  private void testValues(ConfigStoreValueInspector valueInspector){
+  private void testValuesForEspressoTagOwnConfig(Config config){
+    Assert.assertTrue(config.entrySet().size() == 2 );
+    Assert.assertTrue(config.getString("keyOf_espressoTag").equals("valueOf_espressoTag"));
+    Assert.assertTrue(config.getString("generalKey").equals("valueOf_generalKey_espressoTag"));
+  }
+  
+  private void testValuesForEspressoTagResolvedConfig(Config config){
+    Assert.assertTrue(config.entrySet().size() == 6 );
+    Assert.assertTrue(config.getString("keyOf_espressoTag").equals("valueOf_espressoTag"));
+    Assert.assertTrue(config.getString("generalKey").equals("valueOf_generalKey_espressoTag"));
+    Assert.assertTrue(config.getString("keyInRoot").equals("valueInRoot"));
+    Assert.assertTrue(config.getString("keyOf_nertzTag2").equals("valueOf_nertzTag2"));
+    Assert.assertTrue(config.getString("keyOf_tag2").equals("valueOf_tag2"));
+    Assert.assertTrue(config.getString("keyOf_tag").equals("valueOf_tag"));
+  }
+  
+  private void testValuesForIdentity(ConfigStoreValueInspector valueInspector){
     Config ownConfig = valueInspector.getOwnConfig(identity);
+    checkValuesForIdentityOwnConfig(ownConfig);
+
+    Config resolvedConfig = valueInspector.getResolvedConfig(identity);
+    checkValuesForIdentityResolvedConfig(resolvedConfig);
+  }
+  
+  private void checkValuesForIdentityOwnConfig(Config ownConfig){
     Assert.assertTrue(ownConfig.entrySet().size() == 2 );
     Assert.assertTrue(ownConfig.getString("keyOf_identity").equals("valueOf_identity"));
     Assert.assertTrue(ownConfig.getString("generalKey").equals("valueOf_generalKey_identity"));
-    
-    Config resolvedConfig = valueInspector.getResolvedConfig(identity);
+  }
+  
+  private void checkValuesForIdentityResolvedConfig(Config resolvedConfig){
     Assert.assertTrue(resolvedConfig.entrySet().size() == 10 );
     Assert.assertTrue(resolvedConfig.getString("keyOf_data").equals("valueOf_data"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_identity").equals("valueOf_identity"));
@@ -235,6 +286,4 @@ public class TestInMemoryTopology {
     Assert.assertTrue(resolvedConfig.getString("keyOf_tag").equals("valueOf_tag"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_databases").equals("valueOf_databases"));
   }
-  
-
 }

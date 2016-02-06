@@ -123,4 +123,16 @@ public class PathUtils {
     }
     return new Path(pathStringBuilder.toString());
   }
+
+  public static Path combinePaths(String... paths) {
+    if (paths.length == 0) {
+      throw new IllegalArgumentException("Paths cannot be empty!");
+    }
+
+    Path path = new Path(paths[0]);
+    for (int i = 1; i < paths.length; i++) {
+      path = new Path(path, paths[i]);
+    }
+    return path;
+  }
 }
