@@ -88,16 +88,8 @@ public class JobContext {
   @Getter
   private final DeliverySemantics semantics;
 
-    public DeliverySemantics getSemantics() {
-        return semantics;
-    }
-
   @Getter
   private final Optional<CommitSequenceStore> commitSequenceStore;
-
-    public Optional<CommitSequenceStore> getCommitSequenceStore() {
-        return commitSequenceStore;
-    }
 
   private final Logger logger;
 
