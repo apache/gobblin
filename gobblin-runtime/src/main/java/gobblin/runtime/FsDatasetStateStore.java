@@ -63,14 +63,17 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
 
   public FsDatasetStateStore(String fsUri, String storeRootDir) throws IOException {
     super(fsUri, storeRootDir, JobState.DatasetState.class);
+    this.useTmpFileForPut = false;
   }
 
   public FsDatasetStateStore(FileSystem fs, String storeRootDir) throws IOException {
     super(fs, storeRootDir, JobState.DatasetState.class);
+    this.useTmpFileForPut = false;
   }
 
   public FsDatasetStateStore(String storeUrl) throws IOException {
     super(storeUrl, JobState.DatasetState.class);
+    this.useTmpFileForPut = false;
   }
 
   @Override
