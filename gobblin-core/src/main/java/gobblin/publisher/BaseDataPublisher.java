@@ -129,6 +129,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     for (int branchId = 0; branchId < this.numBranches; branchId++) {
       publishSingleTaskData(state, branchId);
     }
+    this.parallelRunnerCloser.close();
   }
 
   /**
