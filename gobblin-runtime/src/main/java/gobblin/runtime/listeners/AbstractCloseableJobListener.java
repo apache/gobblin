@@ -10,24 +10,13 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin.runtime.listeners;
 
 /**
- * An interface for classes used for callback on job state changes.
+ * Extension of {@link AbstractJobListener} that also extends {@link CloseableJobListener}.
+ *
+ * @see {@link AbstractJobListener}
+ * @author Joel Baranick
  */
-public interface JobListener {
-
-  /**
-   * Called when a job is completed.
-   *
-   * @param jobState a {@link JobState} object
-   */
-  public void onJobCompletion(JobState jobState);
-
-  /**
-   * Called when a job is cancelled.
-   *
-   * @param jobState a {@link JobState} object
-   */
-  public void onJobCancellation(JobState jobState);
+public abstract class AbstractCloseableJobListener extends AbstractJobListener implements CloseableJobListener {
 }

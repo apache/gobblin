@@ -13,14 +13,18 @@
 package gobblin.runtime;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +51,10 @@ import gobblin.metrics.Tag;
 import gobblin.metrics.event.EventNames;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.TimingEvent;
+import gobblin.runtime.listeners.CloseableJobListener;
+import gobblin.runtime.listeners.JobExecutionEventSubmitterListener;
+import gobblin.runtime.listeners.JobListener;
+import gobblin.runtime.listeners.JobListeners;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.WorkUnit;
@@ -174,17 +182,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     synchronized (this.cancellationExecution) {
-      try (CloseableJobListener parallelJobListener = getParallelCombinedJobListener(jobListener)) {
+      try {
         while (!this.cancellationExecuted) {
           // Wait for the cancellation to be executed
           this.cancellationExecution.wait();
         }
-
-        parallelJobListener.onJobCancellation(this.jobContext.getJobState());
+        notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_CANCEL,
+                new JobListenerAction() {
+                  @Override
+                  public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
+                    jobListener.onJobCancellation(jobContext);
+                  }
+                });
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt();
-      } catch (IOException e) {
-        throw new JobException("Failed to execute all JobListeners", e);
       }
     }
   }
@@ -206,6 +217,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         throw new JobException(String.format(
             "Previous instance of job %s is still running, skipping this scheduled run", this.jobContext.getJobName()));
       }
+
+      notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_PREPARE,
+              new JobListenerAction() {
+                @Override
+                public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
+                  jobListener.onJobPrepare(jobContext);
+                }
+              });
 
       if (this.jobContext.getSemantics() == DeliverySemantics.EXACTLY_ONCE) {
 
@@ -247,6 +266,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobState.setState(JobState.RunningState.RUNNING);
 
       LOG.info("Starting job " + jobId);
+
+      notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_START,
+              new JobListenerAction() {
+                @Override
+                public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
+                  jobListener.onJobStart(jobContext);
+                }
+              });
 
       TimingEvent workUnitsPreparationTimer =
           this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.WORK_UNITS_PREPARATION);
@@ -304,11 +331,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
 
-    try (CloseableJobListener parallelJobListener = getParallelCombinedJobListener(jobListener)) {
-      parallelJobListener.onJobCompletion(jobState);
-    } catch (IOException ioe) {
-      throw new JobException("Failed to execute all JobListeners", ioe);
-    }
+    notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_COMPLETE,
+            new JobListenerAction() {
+              @Override
+              public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
+                jobListener.onJobCompletion(jobContext);
+              }
+            });
 
     // Stop metrics reporting
     if (this.jobContext.getJobMetricsOptional().isPresent()) {
@@ -317,6 +346,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     if (jobState.getState() == JobState.RunningState.FAILED) {
+      notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_FAILED,
+              new JobListenerAction() {
+                @Override
+                public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
+                  jobListener.onJobFailure(jobContext);
+                }
+              });
       throw new JobException(String.format("Job %s failed", jobId));
     }
   }
@@ -333,6 +369,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       commitSequenceStore.delete(jobName, datasetUrn);
     }
   }
+
 
   /**
    * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
@@ -484,9 +521,26 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * {@link JobListeners#parallelJobListener(List)} to create a {@link CloseableJobListener} that will execute all
    * the {@link JobListener}s in parallel.
    */
-  private CloseableJobListener getParallelCombinedJobListener(JobListener jobListener) {
+  private CloseableJobListener getParallelCombinedJobListener(JobState jobState, JobListener jobListener) {
     List<JobListener> jobListeners = Lists.newArrayList(this.mandatoryJobListeners);
     jobListeners.add(jobListener);
+
+    Set<String> jobListenerClassNames = jobState.getPropAsSet(ConfigurationKeys.JOB_LISTENERS_KEY, StringUtils.EMPTY);
+    if (jobListenerClassNames != null) {
+      for (String jobListenerClassName : jobListenerClassNames) {
+          try {
+            @SuppressWarnings("unchecked")
+            Class<? extends JobListener> jobListenerClass =
+                    (Class<? extends JobListener>) Class.forName(jobListenerClassName);
+            Constructor<? extends JobListener> jobListenerConstructor = jobListenerClass.getConstructor();
+            jobListeners.add(jobListenerConstructor.newInstance());
+          } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException |
+                  IllegalAccessException | InvocationTargetException e) {
+              LOG.warn("JobListener %s could not be created due to %s", jobListenerClassName, e.getMessage());
+          }
+      }
+    }
+
     return JobListeners.parallelJobListener(jobListeners);
   }
 
@@ -698,8 +752,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * commit sequences.
    */
   private boolean canCleanStagingData(JobState jobState) throws IOException {
-    return !(this.jobContext.getSemantics() == DeliverySemantics.EXACTLY_ONCE
-        && this.jobContext.getCommitSequenceStore().get().exists(jobState.getJobName()));
+    return this.jobContext.getSemantics() != DeliverySemantics.EXACTLY_ONCE
+        || !this.jobContext.getCommitSequenceStore().get().exists(jobState.getJobName());
   }
 
   private static void cleanupStagingDataPerTask(JobState jobState) {
@@ -730,5 +784,24 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     } catch (IOException e) {
       LOG.error("Failed to clean staging data for job " + jobState.getJobId(), e);
     }
+  }
+
+  private void notifyListeners(JobContext jobContext, JobListener jobListener, String timerEventName,
+                               JobListenerAction action)
+          throws JobException {
+    TimingEvent timer =
+        this.eventSubmitter.getTimingEvent(timerEventName);
+    try (CloseableJobListener parallelJobListener =
+                 getParallelCombinedJobListener(this.jobContext.getJobState(), jobListener)) {
+      action.apply(parallelJobListener, jobContext);
+    } catch (Exception e) {
+      throw new JobException("Failed to execute all JobListeners", e);
+    } finally {
+        timer.stop();
+    }
+  }
+
+  private interface JobListenerAction {
+    void apply(JobListener jobListener, JobContext jobContext) throws Exception;
   }
 }

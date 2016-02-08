@@ -26,7 +26,7 @@ import org.quartz.JobExecutionException;
 
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobListener;
+import gobblin.runtime.listeners.JobListener;
 import gobblin.scheduler.JobScheduler;
 
 
