@@ -47,7 +47,7 @@ class ConcurrentBoundedWorkUnitList {
   /** Set to true the first time a file set is rejected (i.e. doesn't fit in the container) */
   private boolean rejectedFileSet;
 
-  private class AugmentedComparator implements Comparator<FileSet<CopyableFile>> {
+  private static class AugmentedComparator implements Comparator<FileSet<CopyableFile>> {
     private final Comparator<FileSet<CopyableFile>> userProvidedComparator;
 
     public AugmentedComparator(Comparator<FileSet<CopyableFile>> userProvidedComparator) {

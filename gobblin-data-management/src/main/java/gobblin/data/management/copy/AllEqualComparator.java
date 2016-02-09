@@ -12,13 +12,17 @@
 
 package gobblin.data.management.copy;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
 
 /**
  * Implementation of {@link java.util.Comparator} where all elements are equal.
  */
-public class AllEqualComparator<T> implements Comparator<T> {
+public class AllEqualComparator<T> implements Comparator<T>, Serializable {
+
+  private static final long serialVersionUID = 5144295901248792907L;
+
   @Override public int compare(T o1, T o2) {
     return 0;
   }
