@@ -306,6 +306,7 @@ public class JobContext {
   void storeJobExecutionInfo() {
     if (this.jobHistoryStoreOptional.isPresent()) {
       try {
+        this.logger.info("Writing job execution information to the job history store");
         this.jobHistoryStoreOptional.get().put(this.jobState.toJobExecutionInfo());
       } catch (IOException ioe) {
         this.logger.error("Failed to write job execution information to the job history store: " + ioe, ioe);
