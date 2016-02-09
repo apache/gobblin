@@ -18,7 +18,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import gobblin.admin.AdminWebServer;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
@@ -37,6 +36,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 
+import gobblin.admin.AdminWebServer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.rest.JobExecutionInfoServer;
 
@@ -72,18 +72,20 @@ public class SchedulerDaemon {
     List<Service> services = Lists.<Service>newArrayList(new JobScheduler(properties));
     boolean jobExecInfoServerEnabled = Boolean
         .valueOf(properties.getProperty(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
+    boolean adminUiServerEnabled = Boolean
+        .valueOf(properties.getProperty(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
     if (jobExecInfoServerEnabled) {
+      LOG.info("Starting the job execution info server since it is enabled");
       JobExecutionInfoServer executionInfoServer = new JobExecutionInfoServer(properties);
       services.add(executionInfoServer);
-      if (shouldRunAdminServer(properties)) {
+      if (adminUiServerEnabled) {
+        LOG.info("Starting the admin UI server since it is enabled");
         services.add(new AdminWebServer(properties, executionInfoServer.getServerUri()));
       }
+    }  else if (adminUiServerEnabled) {
+      LOG.warn("NOT starting the admin UI because the job execution info server is NOT enabled");
     }
     this.serviceManager = new ServiceManager(services);
-  }
-
-  private boolean shouldRunAdminServer(Properties properties) {
-    return Boolean.valueOf(properties.getProperty(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
   }
 
   /**
