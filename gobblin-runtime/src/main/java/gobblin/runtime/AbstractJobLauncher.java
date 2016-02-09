@@ -526,18 +526,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     jobListeners.add(jobListener);
 
     Set<String> jobListenerClassNames = jobState.getPropAsSet(ConfigurationKeys.JOB_LISTENERS_KEY, StringUtils.EMPTY);
-    if (jobListenerClassNames != null) {
-      for (String jobListenerClassName : jobListenerClassNames) {
-          try {
-            @SuppressWarnings("unchecked")
-            Class<? extends JobListener> jobListenerClass =
-                    (Class<? extends JobListener>) Class.forName(jobListenerClassName);
-            Constructor<? extends JobListener> jobListenerConstructor = jobListenerClass.getConstructor();
-            jobListeners.add(jobListenerConstructor.newInstance());
-          } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException |
-                  IllegalAccessException | InvocationTargetException e) {
-              LOG.warn("JobListener %s could not be created due to %s", jobListenerClassName, e.getMessage());
-          }
+    for (String jobListenerClassName : jobListenerClassNames) {
+      try {
+        @SuppressWarnings("unchecked")
+        Class<? extends JobListener> jobListenerClass =
+                (Class<? extends JobListener>) Class.forName(jobListenerClassName);
+        jobListeners.add(jobListenerClass.newInstance());
+      } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+        LOG.warn(String.format("JobListener could not be created due to %s", jobListenerClassName), e);
       }
     }
 
@@ -789,8 +785,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   private void notifyListeners(JobContext jobContext, JobListener jobListener, String timerEventName,
                                JobListenerAction action)
           throws JobException {
-    TimingEvent timer =
-        this.eventSubmitter.getTimingEvent(timerEventName);
+    TimingEvent timer = this.eventSubmitter.getTimingEvent(timerEventName);
     try (CloseableJobListener parallelJobListener =
                  getParallelCombinedJobListener(this.jobContext.getJobState(), jobListener)) {
       action.apply(parallelJobListener, jobContext);

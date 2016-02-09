@@ -131,15 +131,31 @@ public class JobListeners {
 
     @Override
     public void close()
-        throws IOException {
+      throws IOException {
       try {
+        boolean wasInterrupted = false;
+        IOException exception = null;
         for (int i = 0; i < this.jobListeners.size(); i++) {
-          this.completionService.take().get();
+          try {
+            if (wasInterrupted) {
+              this.completionService.take().cancel(true);
+            } else {
+              this.completionService.take().get();
+            }
+          } catch (InterruptedException ie) {
+            wasInterrupted = true;
+            if (exception == null) {
+              exception = new IOException(ie);
+            }
+          } catch (ExecutionException ee) {
+            if (exception == null) {
+              exception = new IOException(ee.getCause());
+            }
+          }
         }
-      } catch (InterruptedException ie) {
-        throw new IOException(ie);
-      } catch (ExecutionException ee) {
-        throw new IOException(ee);
+        if (exception != null) {
+          throw exception;
+        }
       } finally {
         ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(LOGGER));
       }

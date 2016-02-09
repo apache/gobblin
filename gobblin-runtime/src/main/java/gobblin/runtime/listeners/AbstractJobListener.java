@@ -23,6 +23,7 @@ import java.io.IOException;
  * @author Joel Baranick
  */
 public abstract class AbstractJobListener implements JobListener {
+
   @Override
   public void onJobPrepare(JobContext jobContext) throws Exception {
     // Nothing to do
