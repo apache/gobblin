@@ -23,25 +23,28 @@ import java.util.List;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+import gobblin.data.management.dataset.Dataset;
 
 /**
- * A collection of {@link File}s.
+ * A named subset of {@link File}s in a {@link Dataset}. (Useful for partitions, versions, etc.)
  */
 @Data
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class Partition<T extends File> {
+public class FileSet<T extends File> {
 
   public static class Builder<T extends File> {
 
     private final String name;
     private final List<T> files;
+    private final Dataset dataset;
 
-    public Builder(String name) {
+    public Builder(String name, Dataset dataset) {
       if (name == null) {
         throw new RuntimeException("Name cannot be null.");
       }
       this.name = name;
       this.files = Lists.newArrayList();
+      this.dataset = dataset;
     }
 
     public Builder<T> add(T t) {
@@ -54,12 +57,13 @@ public class Partition<T extends File> {
       return this;
     }
 
-    public Partition<T> build() {
-      return new Partition<T>(this.name, ImmutableList.copyOf(this.files));
+    public FileSet<T> build() {
+      return new FileSet<>(this.name, ImmutableList.copyOf(this.files), this.dataset);
     }
   }
 
   @NonNull private final String name;
   private final ImmutableList<T> files;
+  private final Dataset dataset;
 
 }

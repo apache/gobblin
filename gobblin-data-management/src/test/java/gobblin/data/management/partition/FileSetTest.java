@@ -21,8 +21,10 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
+import gobblin.data.management.dataset.DummyDataset;
 
-public class PartitionTest {
+
+public class FileSetTest {
 
   @Data
   private class TestFile implements File {
@@ -37,15 +39,15 @@ public class PartitionTest {
     String file1 = "file1";
     String file2 = "file2";
 
-    Partition<TestFile> partition = new Partition.Builder<TestFile>("test").
+    FileSet<TestFile> fileSet = new FileSet.Builder<TestFile>("test", new DummyDataset(new Path("/path"))).
         add(new TestFile(createFileStatus(file1))).
         add(Lists.newArrayList(new TestFile(createFileStatus(file2)))).
         build();
 
-    Assert.assertEquals(partition.getFiles().size(), 2);
-    Assert.assertEquals(partition.getName(), "test");
-    Assert.assertEquals(partition.getFiles().get(0).getFileStatus().getPath().toString(), file1);
-    Assert.assertEquals(partition.getFiles().get(1).getFileStatus().getPath().toString(), file2);
+    Assert.assertEquals(fileSet.getFiles().size(), 2);
+    Assert.assertEquals(fileSet.getName(), "test");
+    Assert.assertEquals(fileSet.getFiles().get(0).getFileStatus().getPath().toString(), file1);
+    Assert.assertEquals(fileSet.getFiles().get(1).getFileStatus().getPath().toString(), file2);
 
   }
 

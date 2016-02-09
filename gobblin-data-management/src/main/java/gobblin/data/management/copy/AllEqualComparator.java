@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -10,20 +10,16 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.partition;
+package gobblin.data.management.copy;
 
-import gobblin.data.management.dataset.Dataset;
-
-import java.util.Collection;
+import java.util.Comparator;
 
 
 /**
- * A {@link Dataset} that allows partitioning of files in the dataset.
+ * Implementation of {@link java.util.Comparator} where all elements are equal.
  */
-public interface PartitionableDataset<T extends File> extends Dataset {
-
-  public Collection<FileSet<T>> partitionFiles(Collection<? extends T> files);
-
-  public Class<?> fileClass();
-
+public class AllEqualComparator<T> implements Comparator<T> {
+  @Override public int compare(T o1, T o2) {
+    return 0;
+  }
 }
