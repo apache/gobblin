@@ -40,8 +40,8 @@ import gobblin.config.client.api.VersionStabilityPolicy;
  * @author mitu
  *
  */
-@Documented @Retention(value=RetentionPolicy.RUNTIME) @Target(value=ElementType.TYPE)
+//@Documented @Retention(value=RetentionPolicy.RUNTIME) @Target(value=ElementType.TYPE)
 @Alpha
-public @interface ConfigStoreWithStableVersioning {
+public interface ConfigStoreWithStableVersioning extends ConfigStore {
 
 }

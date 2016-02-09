@@ -43,12 +43,18 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   private final Map<ConfigKeyPath, Collection<ConfigKeyPath>> ownImportedByMap = new HashMap<>();
   private final Map<ConfigKeyPath, List<ConfigKeyPath>> recursiveImportMap = new HashMap<>();
   private final Map<ConfigKeyPath, Collection<ConfigKeyPath>> recursiveImportedByMap = new HashMap<>();
+  private boolean initialedTopologyFromFallBack = false;
 
   public InMemoryTopology(ConfigStoreTopologyInspector fallback) {
     this.fallback = fallback;
   }
 
   private void loadRawTopologyFromFallBack() {
+    // only initialize the topology once
+    if(this.initialedTopologyFromFallBack){
+      return;
+    }
+    
     // breath first search the whole topology to build ownImports map and ownImportedByMap
     // calls to retrieve cache / set cache if not present
     Collection<ConfigKeyPath> currentLevel = this.getChildren(SingleLinkedListConfigKeyPath.ROOT);
@@ -90,6 +96,8 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
         }
       }
     }
+    
+    this.initialedTopologyFromFallBack = true;
   }
 
   private List<ConfigKeyPath> buildImportsRecursiveFromCache(ConfigKeyPath configKey) {
@@ -297,8 +305,21 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
       return result;
     } catch (UnsupportedOperationException uoe) {
       loadRawTopologyFromFallBack();
+      return this.getImportsRecursivelyIncludePhantomFromCache(configKey);
+    }
+  }
+  
+  // for phantom node, need to return the result of the parent
+  private List<ConfigKeyPath> getImportsRecursivelyIncludePhantomFromCache (ConfigKeyPath configKey){
+    if(this.recursiveImportMap.containsKey(configKey)){
       return this.recursiveImportMap.get(configKey);
     }
+    
+    if(configKey.isRootPath()){
+      return Collections.emptyList();
+    }
+    
+    return getImportsRecursivelyIncludePhantomFromCache(configKey.getParent());
   }
 
   /**

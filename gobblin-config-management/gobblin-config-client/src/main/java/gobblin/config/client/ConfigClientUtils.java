@@ -89,6 +89,10 @@ public class ConfigClientUtils {
   
   public static Collection<URI> buildUriInClientFormat(Collection<ConfigKeyPath> configKeyPaths, ConfigStore cs, boolean returnURIWithAuthority){
     Collection<URI> result = new ArrayList<>();
+    if(configKeyPaths == null){
+      return result;
+    }
+    
     for(ConfigKeyPath p: configKeyPaths){
       result.add(buildUriInClientFormat(p, cs, returnURIWithAuthority));
     }
