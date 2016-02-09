@@ -23,6 +23,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import gobblin.annotation.Alpha;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.hive.HivePartition;
 import gobblin.hive.spec.HiveSpec;
@@ -39,8 +40,6 @@ import gobblin.hive.spec.SimpleHiveSpec;
  */
 @Alpha
 public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
-
-  public static final String HIVE_REGISTRATION_POLICY = "hive.registration.policy";
 
   public static final String HIVE_DATABASE_NAME = "hive.database.name";
   public static final String HIVE_DATABASE_REGEX = "hive.database.regex";
@@ -154,9 +153,9 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
    * takes a {@link State} object.
    */
   public static HiveRegistrationPolicy getPolicy(State props) {
-    Preconditions.checkArgument(props.contains(HIVE_REGISTRATION_POLICY));
+    Preconditions.checkArgument(props.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY));
 
-    String policyType = props.getProp(HIVE_REGISTRATION_POLICY);
+    String policyType = props.getProp(ConfigurationKeys.HIVE_REGISTRATION_POLICY);
     try {
       return (HiveRegistrationPolicy) ConstructorUtils.invokeConstructor(Class.forName(policyType), props);
     } catch (ReflectiveOperationException e) {

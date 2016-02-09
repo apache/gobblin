@@ -126,8 +126,7 @@ public class Task implements Runnable {
     InstrumentedExtractorBase extractor = null;
     RowLevelPolicyChecker rowChecker = null;
     try {
-      extractor =
-          closer.register(new InstrumentedExtractorDecorator(this.taskState, this.taskContext.getExtractor()));
+      extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState, this.taskContext.getExtractor()));
 
       converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
 
@@ -159,7 +158,7 @@ public class Task implements Runnable {
           this.forkCompletionService.submit(fork, fork);
           this.forks.add(Optional.of(fork));
         } else {
-          this.forks.add(Optional.<Fork>absent());
+          this.forks.add(Optional.<Fork> absent());
         }
       }
 
@@ -302,17 +301,15 @@ public class Task implements Runnable {
   private void publishTaskData() throws IOException {
     Closer closer = Closer.create();
     try {
-      @SuppressWarnings("unchecked")
-      Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
-          this.taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+      Class<? extends DataPublisher> dataPublisherClass = getTaskPublisherClass();
       SingleTaskDataPublisher publisher =
           closer.register(SingleTaskDataPublisher.getInstance(dataPublisherClass, this.taskState));
 
       LOG.info("Publishing data from task " + this.taskId);
       publisher.publish(this.taskState);
     } catch (ClassCastException e) {
-      LOG.error(String.format("To publish data in task, the publisher class (%s) must extend %s",
-          ConfigurationKeys.DATA_PUBLISHER_TYPE, SingleTaskDataPublisher.class.getSimpleName()), e);
+      LOG.error(String.format("To publish data in task, the publisher class must extend %s",
+          SingleTaskDataPublisher.class.getSimpleName()), e);
       this.taskState.setTaskFailureException(e);
       throw closer.rethrow(e);
     } catch (Throwable t) {
@@ -320,6 +317,17 @@ public class Task implements Runnable {
       throw closer.rethrow(t);
     } finally {
       closer.close();
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private Class<? extends DataPublisher> getTaskPublisherClass() throws ReflectiveOperationException {
+    if (this.taskState.contains(ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE)) {
+      return (Class<? extends DataPublisher>) Class
+          .forName(this.taskState.getProp(ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE));
+    } else {
+      return (Class<? extends DataPublisher>) Class.forName(
+          this.taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
     }
   }
 
@@ -507,7 +515,6 @@ public class Task implements Runnable {
     }
     return recordsWritten;
   }
-
 
   /**
    * Get the total number of bytes written by every {@link Fork}s of this {@link Task}.

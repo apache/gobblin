@@ -274,7 +274,14 @@ public class ConfigurationKeys {
    * Configuration properties for the data publisher.
    */
   public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
+
+  /**
+   * @deprecated Use {@link #TASK_DATA_PUBLISHER_TYPE} and {@link #JOB_DATA_PUBLISHER_TYPE}.
+   */
+  @Deprecated
   public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
+  public static final String JOB_DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".job.type";
+  public static final String TASK_DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".task.type";
   public static final String DEFAULT_DATA_PUBLISHER_TYPE = "gobblin.publisher.BaseDataPublisher";
   public static final String DATA_PUBLISHER_FILE_SYSTEM_URI = DATA_PUBLISHER_PREFIX + ".fs.uri";
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
@@ -285,6 +292,7 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";
   public static final String PUBLISH_DATA_AT_JOB_LEVEL = "publish.data.at.job.level";
   public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
+  public static final String PUBLISHER_DIRS = DATA_PUBLISHER_PREFIX + ".output.dirs";
 
   /**
    * Configuration properties used by the extractor.
@@ -513,10 +521,16 @@ public class ConfigurationKeys {
   public static final String AZKABAN_EXECUTION_DAYS_LIST = "azkaban.execution.days.list";
 
   /**
+   * Hive registration properties
+   */
+  public static final String HIVE_REGISTRATION_POLICY = "hive.registration.policy";
+
+  /**
    * Other configuration properties.
    */
   public static final String GOBBLIN_RUNTIME_DELIVERY_SEMANTICS = "gobblin.runtime.delivery.semantics";
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
   public static final int PERMISSION_PARSING_RADIX = 8;
+
 }

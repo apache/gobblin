@@ -12,13 +12,10 @@
 
 package gobblin.publisher;
 
-import com.google.common.base.Optional;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;

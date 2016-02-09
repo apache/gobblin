@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -47,13 +48,20 @@ import gobblin.util.WriterUtils;
  * to the final output directory.
  *
  * <p>
- *
  * The final output directory is specified by {@link ConfigurationKeys#DATA_PUBLISHER_FINAL_DIR}. The output of each
  * writer is written to this directory. Each individual writer can also specify a path in the config key
  * {@link ConfigurationKeys#WRITER_FILE_PATH}. Then the final output data for a writer will be
  * {@link ConfigurationKeys#DATA_PUBLISHER_FINAL_DIR}/{@link ConfigurationKeys#WRITER_FILE_PATH}. If the
  * {@link ConfigurationKeys#WRITER_FILE_PATH} is not specified, a default one is assigned. The default path is
  * constructed in the {@link gobblin.source.workunit.Extract#getOutputFilePath()} method.
+ * </p>
+ *
+ * <p>
+ * This publisher records all dirs it publishes to in property {@link ConfigurationKeys#PUBLISHER_DIRS}. Each time it
+ * publishes a {@link Path}, if the path is a directory, it records this path. If the path is a file, it records the
+ * parent directory of the path. To change this behavior one may override
+ * {@link #recordPublisherOutputDirs(Path, Path, int)}.
+ * </p>
  */
 public class BaseDataPublisher extends SingleTaskDataPublisher {
 
@@ -67,6 +75,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final Closer closer;
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
+  protected final Set<Path> publisherOutputDirs = Sets.newHashSet();
 
   public BaseDataPublisher(State state) throws IOException {
     super(state);
@@ -119,7 +128,13 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   @Override
   public void close() throws IOException {
-    this.closer.close();
+    try {
+      for (Path path : this.publisherOutputDirs) {
+        this.state.appendToSetProp(ConfigurationKeys.PUBLISHER_DIRS, path.toString());
+      }
+    } finally {
+      this.closer.close();
+    }
   }
 
   @Override
@@ -286,8 +301,21 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   protected void movePath(ParallelRunner parallelRunner, Path src, Path dst, int branchId) throws IOException {
     LOG.info(String.format("Moving %s to %s", src, dst));
+    this.publisherOutputDirs.addAll(recordPublisherOutputDirs(src, dst, branchId));
     parallelRunner.movePath(src, this.publisherFileSystemByBranches.get(branchId), dst,
         this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
+  }
+
+  @SuppressWarnings("deprecation")
+  protected Collection<Path> recordPublisherOutputDirs(Path src, Path dst, int branchId) throws IOException {
+
+    // Getting file status from src rather than dst, because at this time dst doesn't yet exist.
+    // If src is a dir, add dst to the set of paths. Otherwise, add dst's parent.
+    if (this.publisherFileSystemByBranches.get(branchId).getFileStatus(src).isDir()) {
+      return ImmutableList.<Path> of(dst);
+    } else {
+      return ImmutableList.<Path> of(dst.getParent());
+    }
   }
 
   private ParallelRunner getParallelRunner(FileSystem fs) {
