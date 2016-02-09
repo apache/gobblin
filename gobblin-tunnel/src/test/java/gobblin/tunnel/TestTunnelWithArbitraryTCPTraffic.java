@@ -40,6 +40,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
@@ -83,8 +84,14 @@ public class TestTunnelWithArbitraryTCPTraffic {
   }
 
   private MockServer startConnectProxyServer(final boolean largeResponse,
+                                             final boolean mixServerAndProxyResponse,
+                                             final int nBytesToCloseSocketAfter) throws IOException {
+    return new ConnectProxyServer(mixServerAndProxyResponse, largeResponse, nBytesToCloseSocketAfter).start();
+  }
+
+  private MockServer startConnectProxyServer(final boolean largeResponse,
                                              final boolean mixServerAndProxyResponse) throws IOException {
-    return new ConnectProxyServer(mixServerAndProxyResponse, largeResponse).start();
+    return startConnectProxyServer(largeResponse, mixServerAndProxyResponse, -1);
   }
 
   private MockServer startConnectProxyServer() throws IOException {
@@ -147,6 +154,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     } finally {
       proxyServer.stopServer();
       tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
     }
   }
 
@@ -171,6 +179,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     } finally {
       proxyServer.stopServer();
       tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
     }
   }
 
@@ -199,6 +208,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     } finally {
       proxyServer.stopServer();
       tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
     }
   }
 
@@ -242,6 +252,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     } finally {
       proxyServer.stopServer();
       tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
     }
   }
 
@@ -258,6 +269,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     } finally {
       proxyServer.stopServer();
       tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
     }
   }
 
@@ -274,6 +286,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     } finally {
       proxyServer.stopServer();
       tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
     }
   }
 
@@ -306,6 +319,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     } finally {
       proxyServer.stopServer();
       tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
     }
   }
 
@@ -400,6 +414,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
       if (tunnel != null) {
         proxyServer.stopServer();
         tunnel.close();
+        assertFalse(tunnel.isTunnelThreadAlive());
         assertEquals(proxyServer.getNumConnects(), nclients);
       }
 
@@ -493,6 +508,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     } finally {
       proxyServer.stopServer();
       tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
       assertEquals(proxyServer.getNumConnects(), 1);
     }
   }
@@ -518,6 +534,37 @@ public class TestTunnelWithArbitraryTCPTraffic {
       assertEquals(response0, "Hello\n");
       assertEquals(proxyServer.getNumConnects(), 1);
     } finally {
+      proxyServer.stopServer();
+      tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
+    }
+  }
+
+  @Test(timeOut = 5000, expectedExceptions = IOException.class)
+  public void testTunnelThreadDeadAfterUnexpectedException() throws IOException, InterruptedException {
+    MockServer proxyServer = startConnectProxyServer(false, false, 8);
+
+    Tunnel tunnel = Tunnel.build("localhost", doubleEchoServer.getServerSocketPort(),
+        "localhost", proxyServer.getServerSocketPort());
+
+    String response = "";
+    try {
+      int tunnelPort = tunnel.getPort();
+      SocketChannel client = SocketChannel.open();
+
+      client.connect(new InetSocketAddress("localhost", tunnelPort));
+      client.write(ByteBuffer.wrap("Knock\n".getBytes()));
+      response = readFromSocket(client);
+      LOG.info(response);
+
+      for (int i = 0; i < 5; i++) {
+        client.write(ByteBuffer.wrap("Hello\n".getBytes()));
+        Thread.sleep(100);
+      }
+      client.close();
+    } finally {
+      assertNotEquals(response, "Knock Knock\n");
+      assertEquals(proxyServer.getNumConnects(), 1);
       proxyServer.stopServer();
       tunnel.close();
       assertFalse(tunnel.isTunnelThreadAlive());
@@ -552,8 +599,8 @@ public class TestTunnelWithArbitraryTCPTraffic {
 
       while (resultSet.next()) {
         row++;
-        LOG.info("%s|%s|%s|%s|%s%n", row, resultSet.getString(1), resultSet.getString(2), resultSet.getString(3),
-            resultSet.getString(4));
+        LOG.info(String.format("%s|%s|%s|%s|%s%n", row, resultSet.getString(1), resultSet.getString(2), resultSet.getString(3),
+            resultSet.getString(4)));
 
       }
       assertEquals(row, 1000);
@@ -562,6 +609,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     finally {
       proxyServer.stopServer();
       tunnel.close();
+      assertFalse(tunnel.isTunnelThreadAlive());
     }
   }
 

@@ -15,6 +15,7 @@ package gobblin.tunnel;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.CancelledKeyException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -62,7 +63,7 @@ class ReadWriteHandler implements Callable<HandlerState> {
   public HandlerState call()
       throws Exception {
     try {
-      switch (state){
+      switch (state) {
         case READING:
           read();
           break;
@@ -70,6 +71,8 @@ class ReadWriteHandler implements Callable<HandlerState> {
           write();
           break;
       }
+    } catch (CancelledKeyException e) {
+      LOG.warn("Encountered canceled key while " + state, e);
     } catch (IOException ioe) {
       closeChannels();
       throw new IOException(String.format("Could not read/write between %s and %s", proxy, client), ioe);

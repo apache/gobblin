@@ -36,16 +36,19 @@ class ConnectProxyServer extends MockServer {
   private final boolean mixServerAndProxyResponse;
   private final boolean largeResponse;
   Pattern hostPortPattern;
+  int nBytesToCloseSocketAfter;
 
   /**
-   * @param largeResponse Force proxy to send a large response
    * @param mixServerAndProxyResponse Force proxy to send 200 OK and server response in single write such that both
    *                                  responses reach the tunnel in the same read. This can happen for a multitude of
    *                                  reasons, e.g. the proxy GC's, or the network hiccups, or the tunnel GC's.
+   * @param largeResponse Force proxy to send a large response
+   * @param nBytesToCloseSocketAfter
    */
-  public ConnectProxyServer(boolean mixServerAndProxyResponse, boolean largeResponse) {
+  public ConnectProxyServer(boolean mixServerAndProxyResponse, boolean largeResponse, int nBytesToCloseSocketAfter) {
     this.mixServerAndProxyResponse = mixServerAndProxyResponse;
     this.largeResponse = largeResponse;
+    this.nBytesToCloseSocketAfter = nBytesToCloseSocketAfter;
     hostPortPattern = Pattern.compile("Host: (.*):([0-9]+)");
   }
 
@@ -112,7 +115,26 @@ class ConnectProxyServer extends MockServer {
       }
     }.startThread());
     try {
-      IOUtils.copy(proxyToServerIn, clientToProxyOut);
+      if (nBytesToCloseSocketAfter > 0) {
+        // Simulate proxy abruptly closing connection
+        int leftToRead = nBytesToCloseSocketAfter;
+        byte [] buffer = new byte[leftToRead+ 256];
+        while (true) {
+          int numRead = proxyToServerIn.read(buffer, 0, leftToRead);
+          if (numRead < 0) {
+            break;
+          }
+          clientToProxyOut.write(buffer, 0, numRead);
+          clientToProxyOut.flush();
+          leftToRead -= numRead;
+          if (leftToRead <= 0) {
+            LOG.warn("Cutting connection after " + nBytesToCloseSocketAfter + " bytes");
+            break;
+          }
+        }
+      } else {
+        IOUtils.copy(proxyToServerIn, clientToProxyOut);
+      }
     } catch (IOException e) {
       LOG.warn("Exception " + e.getMessage() + " on " + getServerSocketPort());
     }

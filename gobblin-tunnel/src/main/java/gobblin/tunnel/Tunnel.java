@@ -158,7 +158,7 @@ public class Tunnel {
       try {
         attachment.call();
       } catch (Exception e) {
-        LOG.warn("exception handling event on {}",selectionKey.channel(), e);
+        LOG.error("exception handling event on {}",selectionKey.channel(), e);
       }
     }
   }

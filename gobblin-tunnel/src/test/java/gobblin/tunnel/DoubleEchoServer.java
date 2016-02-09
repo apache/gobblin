@@ -32,17 +32,22 @@ class DoubleEchoServer extends MockServer {
 
   @Override
   void handleClientSocket(Socket clientSocket) throws IOException {
-    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-    PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
-    String line = in.readLine();
-    while (line != null && isServerRunning()) {
-      if (delay > 0) {
-        sleepQuietly(delay);
+    try {
+      BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+      PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
+      String line = in.readLine();
+      while (line != null && isServerRunning()) {
+        if (delay > 0) {
+          sleepQuietly(delay);
+        }
+        out.println(line + " " + line);
+        out.flush();
+        line = in.readLine();
       }
-      out.println(line + " " + line);
-      out.flush();
-      line = in.readLine();
+    } catch (IOException ignored) {
+      // This gets thrown when the proxy abruptly closes a connection
+    } finally {
+      clientSocket.close();
     }
-    clientSocket.close();
   }
 }

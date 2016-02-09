@@ -77,7 +77,7 @@ abstract class MockServer {
               addSocket(clientSocket);
               handleClientSocket(clientSocket);
             } catch (IOException e) {
-              e.printStackTrace();
+              LOG.info("Exception in handleClientSocket, stopping server", e);
               stopServer();
             }
           }
