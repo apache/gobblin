@@ -371,9 +371,13 @@ public class MRCompactor implements Compactor {
    * Create compaction job properties for {@link Dataset}s.
    */
   private void createJobPropsForDatasets() {
-    for (Dataset dataset : datasets) {
-      createJobPropsForDataset(dataset);
+    final Set<Dataset> datasetsWithProps = Sets.newHashSet();
+    for (Dataset dataset: this.datasets) {
+      datasetsWithProps.addAll(createJobPropsForDataset(dataset));
     }
+
+    this.datasets.clear();
+    this.datasets.addAll(datasetsWithProps);
   }
 
   /**
@@ -381,20 +385,19 @@ public class MRCompactor implements Compactor {
    * Create compaction job properties for each given {@link Dataset}.
    * Update datasets based on the results of creating job props for them.
    */
-
-  private void createJobPropsForDataset(Dataset dataset) {
+  private List<Dataset> createJobPropsForDataset(Dataset dataset) {
     LOG.info("Creating compaction jobs for dataset " + dataset +  " with priority " + dataset.priority()
         + " and late data threshold for recompact " + dataset.lateDataThresholdForRecompact());
-    MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(dataset);
-    this.datasets.remove(dataset);
+    final MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(dataset);
+    List<Dataset> datasetsWithProps;
     try {
-      this.datasets.addAll(jobPropCreator.createJobProps());
+      datasetsWithProps = jobPropCreator.createJobProps();
     } catch (Throwable t) {
-
       // If a throwable is caught when creating job properties for a dataset, skip the topic and add the throwable
       // to the dataset.
-      this.datasets.add(jobPropCreator.createFailedJobProps(t));
+      datasetsWithProps = ImmutableList.<Dataset> of(jobPropCreator.createFailedJobProps(t));
     }
+    return datasetsWithProps;
   }
 
   /**
