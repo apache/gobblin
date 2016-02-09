@@ -93,7 +93,9 @@ import gobblin.util.PathUtils;
  *
  * @see {@link SimpleHDFSConfigStoreFactory}
  */
-public class SimpleHDFSConfigStore implements ConfigStoreWithStableVersioning {
+
+@ConfigStoreWithStableVersioning
+public class SimpleHDFSConfigStore implements ConfigStore{
 
   protected static final String CONFIG_STORE_NAME = "_CONFIG_STORE";
 

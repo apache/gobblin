@@ -12,6 +12,7 @@
 
 package gobblin.config.client;
 
+import java.lang.annotation.Annotation;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -20,6 +21,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+
+import org.apache.log4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ArrayListMultimap;
@@ -49,6 +52,8 @@ import gobblin.config.store.api.VersionDoesNotExistException;
  *
  */
 public class ConfigClient {
+  private static final Logger LOG = Logger.getLogger(ConfigClient.class);
+  
   private final VersionStabilityPolicy policy;
 
   /** Normally key is the ConfigStore.getStoreURI(), value is the ConfigStoreAccessor
@@ -255,11 +260,12 @@ public class ConfigClient {
   private ConfigStoreAccessor createNewConfigStoreAccessor(URI configKeyURI) throws ConfigStoreFactoryDoesNotExistsException,
   ConfigStoreCreationException, VersionDoesNotExistException{
     
+    LOG.info("Create new config store accessor for URI " + configKeyURI);
     ConfigStoreAccessor result;
     ConfigStoreFactory<ConfigStore> csFactory = this.getConfigStoreFactory(configKeyURI);
     ConfigStore cs = csFactory.createConfigStore(configKeyURI);
 
-    if (!(cs instanceof ConfigStoreWithStableVersioning)) {
+    if (!(this.isConfigStoreWithStableVersion(cs))) {
       if (this.policy == VersionStabilityPolicy.CROSS_JVM_STABILITY) {
         throw new RuntimeException(String.format(
             "with policy set to %s, can not connect to unstable config store %s",
@@ -277,7 +283,7 @@ public class ConfigClient {
     InMemoryValueInspector inMemoryValueInspector;
     
     // ConfigStoreWithStableVersioning always create Soft reference cache
-    if ( cs instanceof ConfigStoreWithStableVersioning || this.policy == VersionStabilityPolicy.WEAK_LOCAL_STABILITY ){
+    if ( this.isConfigStoreWithStableVersion(cs) || this.policy == VersionStabilityPolicy.WEAK_LOCAL_STABILITY ){
       inMemoryValueInspector = new InMemoryValueInspector(rawValueInspector, false);
       result = new ConfigStoreAccessor(cs, inMemoryValueInspector, inMemoryTopology);
     }
@@ -292,6 +298,15 @@ public class ConfigClient {
     }
     
     return result;
+  }
+  
+  private boolean isConfigStoreWithStableVersion(ConfigStore cs){
+    for (Annotation annotation : cs.getClass().getDeclaredAnnotations()) {
+      if(annotation instanceof ConfigStoreWithStableVersioning){
+        return true;
+      }
+    }
+    return false;
   }
   
   private ConfigStoreAccessor getConfigStoreAccessor(URI configKeyURI) throws ConfigStoreFactoryDoesNotExistsException,
