@@ -302,8 +302,10 @@ public class SimpleHDFSConfigStore implements ConfigStore{
    */
   private Path getDatasetDirForKey(ConfigKeyPath configKey, String version) throws VersionDoesNotExistException {
     String datasetFromConfigKey = getDatasetFromConfigKey(configKey);
-    if(datasetFromConfigKey==null || datasetFromConfigKey.trim().equals(""))
+    
+    if(StringUtils.isBlank(datasetFromConfigKey)){
       return getVersionRoot(version);
+    }
     
     return new Path(getVersionRoot(version), datasetFromConfigKey);
   }
