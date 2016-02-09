@@ -82,7 +82,7 @@ var app = app || {}
         recordsRead: []
       }
       var max = this.collection.size() < maxExecutions ? this.collection.size() : maxExecutions
-      for (var i = max; i >= 0; i--) {
+      for (var i = max - 1; i >= 0; i--) {
         var execution = this.collection.at(i)
         values.labels.push(execution.getJobStartTime())
         var time = execution.getDurationInSeconds() === '-' ? 0 : execution.getDurationInSeconds()
