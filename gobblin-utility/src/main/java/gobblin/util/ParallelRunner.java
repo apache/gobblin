@@ -323,6 +323,7 @@ public class ParallelRunner implements Closeable {
           LOGGER.warn("Task was interrupted: " + future.getName());
           wasInterrupted = true;
           if (exception == null) {
+            Thread.currentThread().interrupt();
             exception = new IOException(ie);
           }
         } catch (ExecutionException ee) {
