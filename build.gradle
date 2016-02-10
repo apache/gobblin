@@ -393,7 +393,7 @@ subprojects {
         }
 
         // Required to add JDK's tool jar, which is required to run byteman tests.
-        compile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
+        testCompile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
       }
     }
 
