@@ -196,7 +196,7 @@ ext.externalDependency = [
   "jdo2": "javax.jdo:jdo2-api:2.1",
   "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
   "commonsVfs": "org.apache.commons:commons-vfs2:2.0",
-  "mysqlConnector": "mysql:mysql-connector-java:6.0.2",
+  "mysqlConnector": "mysql:mysql-connector-java:5.1.38",
   "javaxInject": "javax.inject:javax.inject:1",
   "guice": "com.google.inject:guice:4.0",
   "derby": "org.apache.derby:derby:10.12.1.1",
@@ -243,7 +243,10 @@ ext.externalDependency = [
   "servlet-api": "javax.servlet:servlet-api:3.1.0",
   "guavaretrying": "com.github.rholder:guava-retrying:2.0.0",
   "jsonAssert": "org.skyscreamer:jsonassert:1.2.3",
-  "reflections" : "org.reflections:reflections:0.9.10"
+  "reflections" : "org.reflections:reflections:0.9.10",
+  "embeddedProcess": "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.0",
+  "testMysqlServer": "com.wix:wix-embedded-mysql:1.0.2",
+  "flyway": "org.flywaydb:flyway-core:3.2.1"
 ];
 
 if (!isDefaultEnvironment)
@@ -395,10 +398,10 @@ subprojects {
     plugins.apply('idea')
     plugins.apply('eclipse')
     plugins.apply('maven')
+    plugins.apply('findbugs')
 
     sourceCompatibility = JavaVersion.VERSION_1_7
 
-    plugins.apply('findbugs')
     findbugs {
       toolVersion = findBugsVersion
       ignoreFailures = false

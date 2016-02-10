@@ -1,4 +1,4 @@
--- Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+-- Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
 --
 -- Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 -- this file except in compliance with the License. You may obtain a copy of the
@@ -8,8 +8,11 @@
 -- under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 -- CONDITIONS OF ANY KIND, either express or implied.
 
-
--- MySQL DDL for the tables needed by the Gobblin job history store.
+--
+-- Version: 1.0.0
+--
+-- The initial schema for the job execution history MySql database.
+--
 
 CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 	job_name VARCHAR(128) NOT NULL,
@@ -21,7 +24,7 @@ CREATE TABLE IF NOT EXISTS gobblin_job_executions (
 	launched_tasks INT,
 	completed_tasks INT,
 	launcher_type ENUM('LOCAL', 'MAPREDUCE', 'YARN'),
-  tracking_url VARCHAR(512),
+	tracking_url VARCHAR(512),
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (job_id),
@@ -91,29 +94,29 @@ CREATE TABLE IF NOT EXISTS gobblin_task_metrics (
 );
 
 CREATE TABLE IF NOT EXISTS gobblin_job_properties (
-  property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
-  job_id VARCHAR(128) NOT NULL,
-  property_key VARCHAR(128) NOT NULL,
-  property_value TEXT NOT NULL,
+	property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
+	job_id VARCHAR(128) NOT NULL,
+	property_key VARCHAR(128) NOT NULL,
+	property_value TEXT NOT NULL,
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (property_id),
 	FOREIGN KEY (job_id)
-  REFERENCES gobblin_job_executions(job_id)
-  ON DELETE CASCADE,
-  INDEX (property_key)
+	REFERENCES gobblin_job_executions(job_id)
+	ON DELETE CASCADE,
+	INDEX (property_key)
 );
 
 CREATE TABLE IF NOT EXISTS gobblin_task_properties (
 	property_id BIGINT(21) NOT NULL AUTO_INCREMENT,
 	task_id VARCHAR(128) NOT NULL,
-  property_key VARCHAR(128) NOT NULL,
-  property_value TEXT NOT NULL,
+	property_key VARCHAR(128) NOT NULL,
+	property_value TEXT NOT NULL,
 	created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	last_modified_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (property_id),
 	FOREIGN KEY (task_id)
-  REFERENCES gobblin_task_executions(task_id)
-  ON DELETE CASCADE,
-  INDEX (property_key)
+	REFERENCES gobblin_task_executions(task_id)
+	ON DELETE CASCADE,
+	INDEX (property_key)
 );

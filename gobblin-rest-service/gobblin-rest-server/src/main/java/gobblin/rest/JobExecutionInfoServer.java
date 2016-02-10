@@ -23,6 +23,9 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import com.linkedin.r2.filter.compression.EncodingType;
+import com.linkedin.r2.filter.compression.ServerCompressionFilter;
+import com.linkedin.r2.filter.FilterChain;
 import com.linkedin.r2.filter.FilterChains;
 import com.linkedin.r2.transport.common.bridge.server.TransportDispatcher;
 import com.linkedin.r2.transport.http.server.HttpNettyServerFactory;
@@ -82,7 +85,11 @@ public class JobExecutionInfoServer extends AbstractIdleService {
 
     // Create and start the HTTP server
     TransportDispatcher dispatcher = new DelegatingTransportDispatcher(new RestLiServer(config, factory));
-    this.httpServer = Optional.of(new HttpNettyServerFactory(FilterChains.empty()).createServer(port, dispatcher));
+    FilterChain filterChain = FilterChains.create(new ServerCompressionFilter(new EncodingType[] {
+            EncodingType.SNAPPY,
+            EncodingType.GZIP
+    }));
+    this.httpServer = Optional.of(new HttpNettyServerFactory(filterChain).createServer(port, dispatcher));
     LOGGER.info("Starting the job execution information server");
     this.httpServer.get().start();
   }

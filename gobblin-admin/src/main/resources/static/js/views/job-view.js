@@ -47,6 +47,7 @@ var app = app || {}
         limit: self.table.getLimit(),
         includeTaskExecutions: false,
         includeTaskMetrics: false,
+        jobProperties: 'job.description,job.runonce,job.schedule',
         taskProperties: ''
       }
       self.collection.fetchCurrent('JOB_NAME', self.jobName, opts).done(function () {

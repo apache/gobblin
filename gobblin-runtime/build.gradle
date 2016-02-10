@@ -52,6 +52,7 @@ dependencies {
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
 
+  testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
