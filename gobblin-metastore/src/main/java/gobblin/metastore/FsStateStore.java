@@ -27,10 +27,13 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.DefaultCodec;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
+import gobblin.util.HadoopUtils;
 
 
 /**
@@ -52,8 +55,13 @@ import gobblin.configuration.State;
  */
 public class FsStateStore<T extends State> implements StateStore<T> {
 
+  public static final String TMP_FILE_PREFIX = "_tmp_";
+  private static final ImmutableCollection<String> FS_SCHEMES_NO_TMP_FILE_FOR_PUT =
+      ImmutableSortedSet.<String> orderedBy(String.CASE_INSENSITIVE_ORDER).add("s3").add("s3a").add("s3n").build();
+
   protected final Configuration conf;
   protected final FileSystem fs;
+  protected boolean useTmpFileForPut;
 
   // Root directory for the task state store
   protected final String storeRootDir;
@@ -61,41 +69,39 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;
 
-  public FsStateStore(String fsUri, String storeRootDir, Class<T> stateClass)
-      throws IOException {
+  public FsStateStore(String fsUri, String storeRootDir, Class<T> stateClass) throws IOException {
     this.conf = new Configuration();
     this.fs = FileSystem.get(URI.create(fsUri), this.conf);
+    this.useTmpFileForPut = !FS_SCHEMES_NO_TMP_FILE_FOR_PUT.contains(this.fs.getUri().getScheme());
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
   }
 
-  public FsStateStore(FileSystem fs, String storeRootDir, Class<T> stateClass)
-      throws IOException {
+  public FsStateStore(FileSystem fs, String storeRootDir, Class<T> stateClass) throws IOException {
     this.fs = fs;
+    this.useTmpFileForPut = !FS_SCHEMES_NO_TMP_FILE_FOR_PUT.contains(this.fs.getUri().getScheme());
     this.conf = this.fs.getConf();
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
   }
 
-  public FsStateStore(String storeUrl, Class<T> stateClass)
-      throws IOException {
+  public FsStateStore(String storeUrl, Class<T> stateClass) throws IOException {
     this.conf = new Configuration();
     Path storePath = new Path(storeUrl);
     this.fs = storePath.getFileSystem(this.conf);
+    this.useTmpFileForPut = !FS_SCHEMES_NO_TMP_FILE_FOR_PUT.contains(this.fs.getUri().getScheme());
     this.storeRootDir = storePath.toUri().getPath();
     this.stateClass = stateClass;
   }
 
   @Override
-  public boolean create(String storeName)
-      throws IOException {
+  public boolean create(String storeName) throws IOException {
     Path storePath = new Path(this.storeRootDir, storeName);
     return this.fs.exists(storePath) || this.fs.mkdirs(storePath);
   }
 
   @Override
-  public boolean create(String storeName, String tableName)
-      throws IOException {
+  public boolean create(String storeName, String tableName) throws IOException {
     Path storePath = new Path(this.storeRootDir, storeName);
     if (!this.fs.exists(storePath) && !create(storeName)) {
       return false;
@@ -110,8 +116,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public boolean exists(String storeName, String tableName)
-      throws IOException {
+  public boolean exists(String storeName, String tableName) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     return this.fs.exists(tablePath);
   }
@@ -125,23 +130,28 @@ public class FsStateStore<T extends State> implements StateStore<T> {
    * </p>
    */
   @Override
-  public void put(String storeName, String tableName, T state)
-      throws IOException {
-    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-    if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
-      throw new IOException("Failed to create a state file for table " + tableName);
+  public void put(String storeName, String tableName, T state) throws IOException {
+    String tmpTableName = this.useTmpFileForPut ? TMP_FILE_PREFIX + tableName : tableName;
+    Path tmpTablePath = new Path(new Path(this.storeRootDir, storeName), tmpTableName);
+
+    if (!this.fs.exists(tmpTablePath) && !create(storeName, tmpTableName)) {
+      throw new IOException("Failed to create a state file for table " + tmpTableName);
     }
 
     Closer closer = Closer.create();
     try {
-      SequenceFile.Writer writer =
-          closer.register(SequenceFile.createWriter(this.fs, this.conf, tablePath, Text.class, this.stateClass,
-              SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
+      SequenceFile.Writer writer = closer.register(SequenceFile.createWriter(this.fs, this.conf, tmpTablePath,
+          Text.class, this.stateClass, SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
       closer.close();
+    }
+
+    if (this.useTmpFileForPut) {
+      Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+      HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
     }
   }
 
@@ -154,18 +164,18 @@ public class FsStateStore<T extends State> implements StateStore<T> {
    * </p>
    */
   @Override
-  public void putAll(String storeName, String tableName, Collection<T> states)
-      throws IOException {
-    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-    if (!this.fs.exists(tablePath) && !create(storeName, tableName)) {
-      throw new IOException("Failed to create a state file for table " + tableName);
+  public void putAll(String storeName, String tableName, Collection<T> states) throws IOException {
+    String tmpTableName = this.useTmpFileForPut ? TMP_FILE_PREFIX + tableName : tableName;
+    Path tmpTablePath = new Path(new Path(this.storeRootDir, storeName), tmpTableName);
+
+    if (!this.fs.exists(tmpTablePath) && !create(storeName, tmpTableName)) {
+      throw new IOException("Failed to create a state file for table " + tmpTableName);
     }
 
     Closer closer = Closer.create();
     try {
-      SequenceFile.Writer writer =
-          closer.register(SequenceFile.createWriter(this.fs, this.conf, tablePath, Text.class, this.stateClass,
-              SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
+      SequenceFile.Writer writer = closer.register(SequenceFile.createWriter(this.fs, this.conf, tmpTablePath,
+          Text.class, this.stateClass, SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
       for (T state : states) {
         writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
       }
@@ -174,11 +184,15 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     } finally {
       closer.close();
     }
+
+    if (this.useTmpFileForPut) {
+      Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+      HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
+    }
   }
 
   @Override
-  public T get(String storeName, String tableName, String stateId)
-      throws IOException {
+  public T get(String storeName, String tableName, String stateId) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (!this.fs.exists(tablePath)) {
       return null;
@@ -209,8 +223,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public List<T> getAll(String storeName, String tableName)
-      throws IOException {
+  public List<T> getAll(String storeName, String tableName) throws IOException {
     List<T> states = Lists.newArrayList();
 
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
@@ -243,8 +256,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public List<T> getAll(String storeName)
-      throws IOException {
+  public List<T> getAll(String storeName) throws IOException {
     List<T> states = Lists.newArrayList();
 
     Path storePath = new Path(this.storeRootDir, storeName);
@@ -260,8 +272,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public void createAlias(String storeName, String original, String alias)
-      throws IOException {
+  public void createAlias(String storeName, String original, String alias) throws IOException {
     Path originalTablePath = new Path(new Path(this.storeRootDir, storeName), original);
     if (!this.fs.exists(originalTablePath)) {
       throw new IOException(String.format("State file %s does not exist for table %s", originalTablePath, original));
@@ -274,8 +285,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public void delete(String storeName, String tableName)
-      throws IOException {
+  public void delete(String storeName, String tableName) throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
     if (this.fs.exists(tablePath)) {
       this.fs.delete(tablePath, false);
@@ -283,8 +293,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public void delete(String storeName)
-      throws IOException {
+  public void delete(String storeName) throws IOException {
     Path storePath = new Path(this.storeRootDir, storeName);
     if (this.fs.exists(storePath)) {
       this.fs.delete(storePath, true);

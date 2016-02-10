@@ -31,6 +31,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.FsStateStore;
 import gobblin.util.ParallelRunner;
 
 
@@ -126,7 +127,8 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     FileStatus[] fileStatuses = this.fs.listStatus(this.outputTaskStateDir, new PathFilter() {
       @Override
       public boolean accept(Path path) {
-        return path.getName().endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX);
+        return path.getName().endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)
+            && !path.getName().startsWith(FsStateStore.TMP_FILE_PREFIX);
       }
     });
     if (fileStatuses == null || fileStatuses.length == 0) {
