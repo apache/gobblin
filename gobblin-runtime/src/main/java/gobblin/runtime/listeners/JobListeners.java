@@ -145,7 +145,6 @@ public class JobListeners {
           } catch (InterruptedException ie) {
             wasInterrupted = true;
             if (exception == null) {
-              Thread.currentThread().interrupt();
               exception = new IOException(ie);
             }
           } catch (ExecutionException ee) {
@@ -153,6 +152,9 @@ public class JobListeners {
               exception = new IOException(ee.getCause());
             }
           }
+        }
+        if (wasInterrupted) {
+          Thread.currentThread().interrupt();
         }
         if (exception != null) {
           throw exception;
