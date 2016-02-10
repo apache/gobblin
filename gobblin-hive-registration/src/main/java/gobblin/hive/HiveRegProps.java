@@ -18,9 +18,11 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
-import lombok.Getter;
 
 
 /**
@@ -29,6 +31,7 @@ import lombok.Getter;
  * @author ziliu
  */
 @Alpha
+@EqualsAndHashCode(callSuper = true)
 public class HiveRegProps extends State {
 
   public static final String HIVE_DB_ROOT_DIR = "hive.db.root.dir";
@@ -113,5 +116,4 @@ public class HiveRegProps extends State {
   public int getNumThreads() {
     return getPropAsInt(HIVE_REGISTER_THREADS, DEFAULT_HIVE_REGISTER_THREADS);
   }
-
 }
