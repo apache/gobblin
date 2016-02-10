@@ -59,7 +59,7 @@ public class RecursiveCopyableDatasetTest {
       Assert.assertTrue(paths.contains(originRelativePath));
       Assert.assertTrue(paths.contains(targetRelativePath));
       Assert.assertEquals(originRelativePath, targetRelativePath);
-      Assert.assertEquals(copyableFile.getAncestorsOwnerAndPermission().size(), originRelativePath.depth() - 1);
+      Assert.assertEquals(copyableFile.getAncestorsOwnerAndPermission().size(), copyableFile.getOrigin().getPath().depth());
     }
 
   }

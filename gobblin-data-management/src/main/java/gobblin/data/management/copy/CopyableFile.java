@@ -219,7 +219,7 @@ public class CopyableFile implements File, HasGuid {
       List<OwnerAndPermission> ancestorOwnerAndPermissions = Lists.newArrayList();
       try {
         Path currentPath = PathUtils.getPathWithoutSchemeAndAuthority(path);
-        while (currentPath != null && currentPath.getParent() != null && !currentPath.getParent().equals(rootPathTmp)) {
+        while (currentPath != null && currentPath.getParent() != null) {
           currentPath = currentPath.getParent();
           final Path thisPath = currentPath;
           OwnerAndPermission ownerAndPermission = this.configuration.getCopyContext().getOwnerAndPermissionCache()
