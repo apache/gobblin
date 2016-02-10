@@ -142,6 +142,7 @@ LIBJARS=(
   $FWDIR_LIB/joda-time-2.9.jar
   $FWDIR_LIB/data-1.15.9.jar
   $FWDIR_LIB/commons-lang3-3.4.jar
+  $FWDIR_LIB/config-1.2.1.jar
 )
 LIBJARS=$(join , "${LIBJARS[@]}")
 
