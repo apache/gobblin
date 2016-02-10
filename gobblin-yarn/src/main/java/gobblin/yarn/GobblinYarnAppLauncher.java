@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -82,6 +83,7 @@ import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.admin.AdminWebServer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.rest.JobExecutionInfoServer;
 import gobblin.util.ConfigUtils;
@@ -270,7 +272,15 @@ public class GobblinYarnAppLauncher {
         YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
     if (config.getBoolean(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY)) {
       LOGGER.info("Starting the job execution info server since it is enabled");
-      services.add(new JobExecutionInfoServer(ConfigUtils.configToProperties(config)));
+      Properties properties = ConfigUtils.configToProperties(config);
+      JobExecutionInfoServer executionInfoServer = new JobExecutionInfoServer(properties);
+      services.add(executionInfoServer);
+      if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
+        LOGGER.info("Starting the admin UI server since it is enabled");
+        services.add(new AdminWebServer(properties, executionInfoServer.getServerUri()));
+      }
+    } else if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
+      LOGGER.warn("NOT starting the admin UI because the job execution info server is NOT enabled");
     }
 
     this.serviceManager = Optional.of(new ServiceManager(services));
