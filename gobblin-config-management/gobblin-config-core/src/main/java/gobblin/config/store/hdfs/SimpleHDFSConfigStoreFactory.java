@@ -144,15 +144,22 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
     Path path = new Path(configKey.getPath());
 
     while (path != null) {
+      
       try {
-        for (FileStatus fileStatus : fs.listStatus(path)) {
-          if (fileStatus.isDir() && fileStatus.getPath().getName().equals(SimpleHDFSConfigStore.CONFIG_STORE_NAME)) {
-            return fs.getUri().resolve(fileStatus.getPath().getParent().toUri());
+        // the abs URI may point to an unexist path for
+        // 1. phantom node
+        // 2. as URI did not specify the version
+        if(fs.exists(path)){
+          for (FileStatus fileStatus : fs.listStatus(path)) {
+            if (fileStatus.isDir() && fileStatus.getPath().getName().equals(SimpleHDFSConfigStore.CONFIG_STORE_NAME)) {
+              return fs.getUri().resolve(fileStatus.getPath().getParent().toUri());
+            }
           }
         }
       } catch (IOException e) {
         throw new ConfigStoreCreationException(configKey, e);
       }
+
       path = path.getParent();
     }
     throw new ConfigStoreCreationException(configKey, "Cannot find the store root!");

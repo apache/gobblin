@@ -23,16 +23,13 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import lombok.AllArgsConstructor;
 
 import org.apache.commons.io.IOUtils;
-
 import org.apache.commons.lang.StringUtils;
-
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -40,6 +37,7 @@ import org.apache.hadoop.fs.Path;
 import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import gobblin.config.store.api.ConfigKeyPath;
 import gobblin.config.store.api.ConfigStore;
+import gobblin.config.store.api.ConfigStoreWithStableVersioning;
 import gobblin.config.store.api.VersionDoesNotExistException;
 import gobblin.util.PathUtils;
 
@@ -95,7 +93,9 @@ import gobblin.util.PathUtils;
  *
  * @see {@link SimpleHDFSConfigStoreFactory}
  */
-public class SimpleHDFSConfigStore implements ConfigStore {
+
+@ConfigStoreWithStableVersioning
+public class SimpleHDFSConfigStore implements ConfigStore{
 
   protected static final String CONFIG_STORE_NAME = "_CONFIG_STORE";
 
@@ -301,7 +301,13 @@ public class SimpleHDFSConfigStore implements ConfigStore {
    * datasets.
    */
   private Path getDatasetDirForKey(ConfigKeyPath configKey, String version) throws VersionDoesNotExistException {
-    return new Path(getVersionRoot(version), getDatasetFromConfigKey(configKey));
+    String datasetFromConfigKey = getDatasetFromConfigKey(configKey);
+    
+    if(StringUtils.isBlank(datasetFromConfigKey)){
+      return getVersionRoot(version);
+    }
+    
+    return new Path(getVersionRoot(version), datasetFromConfigKey);
   }
 
   /**

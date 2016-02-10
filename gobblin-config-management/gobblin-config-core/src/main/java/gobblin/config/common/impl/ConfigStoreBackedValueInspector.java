@@ -146,7 +146,7 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     }
     
     // merge with configs from parent for Non root
-    initialConfig = initialConfig.withFallback(this.getResolvedConfig(configKey.getParent()));
+    initialConfig = initialConfig.withFallback(this.getResolvedConfig(configKey.getParent())).resolve();
 
     return initialConfig;
   }
