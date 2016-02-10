@@ -142,6 +142,8 @@ public class TaskStateCollectorService extends AbstractScheduledService {
         stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(),
             taskStateQueue, true);
       }
+    } catch (IOException ioe) {
+      LOGGER.warn("Could not read all task state files.");
     }
 
     LOGGER.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));

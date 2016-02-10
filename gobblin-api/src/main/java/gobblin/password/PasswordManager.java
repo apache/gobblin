@@ -173,7 +173,7 @@ public class PasswordManager {
    * provided in the constructor. Otherwise, return the password as is.
    */
   public String readPassword(String password) {
-    if (!this.encryptor.isPresent()) {
+    if (password == null || !this.encryptor.isPresent()) {
       return password;
     }
     Matcher matcher = PASSWORD_PATTERN.matcher(password);

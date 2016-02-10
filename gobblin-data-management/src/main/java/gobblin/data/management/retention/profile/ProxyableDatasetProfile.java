@@ -24,7 +24,7 @@ import com.google.common.base.Preconditions;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.dataset.Dataset;
-import gobblin.data.management.retention.dataset.ConfigurableDataset;
+import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.util.ProxiedFileSystemCache;
 import gobblin.util.RateControlledFileSystem;
@@ -44,7 +44,7 @@ public class ProxyableDatasetProfile extends ConfigurableGlobDatasetFinder {
 
   @Override
   public Dataset datasetAtPath(Path path) throws IOException {
-    return new ConfigurableDataset<DatasetVersion>(this.getFsForDataset(path), this.props, path);
+    return new ConfigurableCleanableDataset<DatasetVersion>(this.getFsForDataset(path), this.props, path);
   }
 
   public FileSystem getFsForDataset(Path path) throws IOException {

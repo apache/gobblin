@@ -34,6 +34,9 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 
+import gobblin.commit.CommitSequence;
+import gobblin.commit.CommitSequenceStore;
+import gobblin.commit.DeliverySemantics;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.StateStore;
@@ -204,6 +207,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             "Previous instance of job %s is still running, skipping this scheduled run", this.jobContext.getJobName()));
       }
 
+      if (this.jobContext.getSemantics() == DeliverySemantics.EXACTLY_ONCE) {
+
+        // If exactly-once is used, commit sequences of the previous run must be successfully compelted
+        // before this run can make progress.
+        executeUnfinishedCommitSequences(jobState.getJobName());
+      }
+
       TimingEvent workUnitsCreationTimer =
           this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.WORK_UNITS_CREATION);
       // Generate work units of the job from the source
@@ -308,6 +318,19 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     if (jobState.getState() == JobState.RunningState.FAILED) {
       throw new JobException(String.format("Job %s failed", jobId));
+    }
+  }
+
+  private void executeUnfinishedCommitSequences(String jobName) throws IOException {
+    Preconditions.checkState(this.jobContext.getCommitSequenceStore().isPresent());
+    CommitSequenceStore commitSequenceStore = this.jobContext.getCommitSequenceStore().get();
+
+    for (String datasetUrn : commitSequenceStore.get(jobName)) {
+      Optional<CommitSequence> commitSequence = commitSequenceStore.get(jobName, datasetUrn);
+      if (commitSequence.isPresent()) {
+        commitSequence.get().execute();
+      }
+      commitSequenceStore.delete(jobName, datasetUrn);
     }
   }
 
@@ -457,52 +480,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Cleanup the left-over staging data possibly from the previous run of the job that may have failed
-   * and not cleaned up its staging data.
-   */
-  private void cleanLeftoverStagingData(List<WorkUnit> workUnits, JobState jobState) {
-    try {
-      if (this.jobContext.shouldCleanupStagingDataPerTask()) {
-        Closer closer = Closer.create();
-        Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
-        try {
-          for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
-            WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
-            fatWorkUnit.addAllIfNotExist(jobState);
-            JobLauncherUtils.cleanTaskStagingData(fatWorkUnit, LOG, closer, parallelRunners);
-          }
-        } catch (Throwable t) {
-          throw closer.rethrow(t);
-        } finally {
-          closer.close();
-        }
-      } else {
-        JobLauncherUtils.cleanJobStagingData(jobState, LOG);
-      }
-    } catch (Throwable t) {
-      // Catch Throwable instead of just IOException to make sure failure of this won't affect the current run
-      LOG.error("Failed to clean leftover staging data", t);
-    }
-  }
-
-  /**
-   * Cleanup the job's task staging data. This is not doing anything in case job succeeds
-   * and data is successfully committed because the staging data has already been moved
-   * to the job output directory. But in case the job fails and data is not committed,
-   * we want the staging data to be cleaned up.
-   *
-   * Property {@link ConfigurationKeys#CLEANUP_STAGING_DATA_PER_TASK} controls whether to cleanup
-   * staging data per task, or to cleanup entire job's staging data at once.
-   */
-  private void cleanupStagingData(JobState jobState) {
-    if (this.jobContext.shouldCleanupStagingDataPerTask()) {
-      cleanupStagingDataPerTask(jobState);
-    } else {
-      cleanupStagingDataForEntireJob(jobState);
-    }
-  }
-
-  /**
    * Combines the specified {@link JobListener} with the {@link #mandatoryJobListeners} for this job. Uses
    * {@link JobListeners#parallelJobListener(List)} to create a {@link CloseableJobListener} that will execute all
    * the {@link JobListener}s in parallel.
@@ -550,8 +527,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * @throws InterruptedException if the task execution gets cancelled
    */
   public static void runWorkUnits(String jobId, String containerId, List<WorkUnit> workUnits,
-      TaskStateTracker taskStateTracker,  TaskExecutor taskExecutor, StateStore<TaskState> taskStateStore,
-      Logger logger) throws IOException, InterruptedException {
+      TaskStateTracker taskStateTracker, TaskExecutor taskExecutor, StateStore<TaskState> taskStateStore, Logger logger)
+          throws IOException, InterruptedException {
 
     if (workUnits.isEmpty()) {
       logger.warn("No work units to run in container " + containerId);
@@ -570,11 +547,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
     List<Task> tasks = runWorkUnits(jobId, workUnits, taskStateTracker, taskExecutor, countDownLatch);
 
-    logger.info(String.format("Waiting for submitted tasks of job %s to complete in container %s...",
-        jobId, containerId));
+    logger.info(
+        String.format("Waiting for submitted tasks of job %s to complete in container %s...", jobId, containerId));
     while (countDownLatch.getCount() > 0) {
-      logger.info(String.format("%d out of %d tasks of job %s are running in container %s",
-          countDownLatch.getCount(), workUnits.size(), jobId, containerId));
+      logger.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
+          workUnits.size(), jobId, containerId));
       if (countDownLatch.await(10, TimeUnit.SECONDS)) {
         break;
       }
@@ -641,6 +618,88 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         .submit(EventNames.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
 
     return tasks;
+  }
+
+  /**
+   * Cleanup the left-over staging data possibly from the previous run of the job that may have failed
+   * and not cleaned up its staging data.
+   *
+   * Property {@link ConfigurationKeys#CLEANUP_STAGING_DATA_PER_TASK} controls whether to cleanup
+   * staging data per task, or to cleanup entire job's staging data at once.
+   *
+   * Staging data will not be cleaned if the job has unfinished {@link CommitSequence}s.
+   */
+  private void cleanLeftoverStagingData(List<WorkUnit> workUnits, JobState jobState) throws JobException {
+
+    try {
+      if (!canCleanStagingData(jobState)) {
+        LOG.error("Job " + jobState.getJobName() + " has unfinished commit sequences. Will not clean up staging data.");
+        return;
+      }
+    } catch (IOException e) {
+      throw new JobException("Failed to check unfinished commit sequences", e);
+    }
+
+    try {
+      if (this.jobContext.shouldCleanupStagingDataPerTask()) {
+        Closer closer = Closer.create();
+        Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
+        try {
+          for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
+            WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
+            fatWorkUnit.addAllIfNotExist(jobState);
+            JobLauncherUtils.cleanTaskStagingData(fatWorkUnit, LOG, closer, parallelRunners);
+          }
+        } catch (Throwable t) {
+          throw closer.rethrow(t);
+        } finally {
+          closer.close();
+        }
+      } else {
+        JobLauncherUtils.cleanJobStagingData(jobState, LOG);
+      }
+    } catch (Throwable t) {
+      // Catch Throwable instead of just IOException to make sure failure of this won't affect the current run
+      LOG.error("Failed to clean leftover staging data", t);
+    }
+  }
+
+  /**
+   * Cleanup the job's task staging data. This is not doing anything in case job succeeds
+   * and data is successfully committed because the staging data has already been moved
+   * to the job output directory. But in case the job fails and data is not committed,
+   * we want the staging data to be cleaned up.
+   *
+   * Property {@link ConfigurationKeys#CLEANUP_STAGING_DATA_PER_TASK} controls whether to cleanup
+   * staging data per task, or to cleanup entire job's staging data at once.
+   *
+   * Staging data will not be cleaned if the job has unfinished {@link CommitSequence}s.
+   */
+  private void cleanupStagingData(JobState jobState) throws JobException {
+
+    try {
+      if (!canCleanStagingData(jobState)) {
+        LOG.error("Job " + jobState.getJobName() + " has unfinished commit sequences. Will not clean up staging data.");
+        return;
+      }
+    } catch (IOException e) {
+      throw new JobException("Failed to check unfinished commit sequences", e);
+    }
+
+    if (this.jobContext.shouldCleanupStagingDataPerTask()) {
+      cleanupStagingDataPerTask(jobState);
+    } else {
+      cleanupStagingDataForEntireJob(jobState);
+    }
+  }
+
+  /**
+   * Staging data cannot be cleaned if exactly once semantics is used, and the job has unfinished
+   * commit sequences.
+   */
+  private boolean canCleanStagingData(JobState jobState) throws IOException {
+    return !(this.jobContext.getSemantics() == DeliverySemantics.EXACTLY_ONCE
+        && this.jobContext.getCommitSequenceStore().get().exists(jobState.getJobName()));
   }
 
   private static void cleanupStagingDataPerTask(JobState jobState) {

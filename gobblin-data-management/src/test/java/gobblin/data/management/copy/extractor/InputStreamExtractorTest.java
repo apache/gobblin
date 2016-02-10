@@ -18,8 +18,6 @@ import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.PreserveAttributes;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -29,35 +27,28 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-
 
 public class InputStreamExtractorTest {
 
   @Test
   public void testReadRecord() throws Exception {
-    List<CopyableFile> files = new ArrayList<CopyableFile>();
-    files.add(getTestCopyableFile("inputStreamExtractorTest/first.txt"));
-    files.add(getTestCopyableFile("inputStreamExtractorTest/second.txt"));
+    CopyableFile file = getTestCopyableFile("inputStreamExtractorTest/first.txt");
 
     FileAwareInputStreamExtractor extractor =
-        new FileAwareInputStreamExtractor(FileSystem.getLocal(new Configuration()), Lists.newArrayList(files).iterator());
+        new FileAwareInputStreamExtractor(FileSystem.getLocal(new Configuration()), file);
 
     FileAwareInputStream fileAwareInputStream = extractor.readRecord(null);
 
-    Assert.assertEquals(fileAwareInputStream.getFile().getOrigin().getPath(), files.get(0).getOrigin().getPath());
+    Assert.assertEquals(fileAwareInputStream.getFile().getOrigin().getPath(), file.getOrigin().getPath());
     Assert.assertEquals(IOUtils.toString(fileAwareInputStream.getInputStream()), "first");
 
-    fileAwareInputStream = extractor.readRecord(null);
-
-    Assert.assertEquals(fileAwareInputStream.getFile().getOrigin().getPath(), files.get(1).getOrigin().getPath());
-    Assert.assertEquals(IOUtils.toString(fileAwareInputStream.getInputStream()), "second");
+    Assert.assertNull(extractor.readRecord(null));
   }
 
   private CopyableFile getTestCopyableFile(String resourcePath) throws IOException {
     String filePath = getClass().getClassLoader().getResource(resourcePath).getFile();
     FileStatus status = new FileStatus(0l, false, 0, 0l, 0l, new Path(filePath));
     return CopyableFile.builder(FileSystem.getLocal(new Configuration()), status, new Path("/"),
-        new CopyConfiguration(new Path("/"), PreserveAttributes.fromMnemonicString(""), new CopyContext())).build();
+        CopyConfiguration.builder().targetRoot(new Path("/")).preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
   }
 }

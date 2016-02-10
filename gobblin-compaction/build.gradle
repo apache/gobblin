@@ -73,7 +73,7 @@ task createCompactionTar(type: Tar) {
   compression = Compression.GZIP
 
   into("gobblin-compaction_lib") { from configurations.runtime }
-  into(".") { from project.rootDir.path + "/build/gobblin-compaction/libs/gobblin-compaction.jar" }
+  into(".") { from "${project.rootDir}/build/${project.name}/libs/${project.name}-${project.version}.jar" }
   into(".") { from project.rootDir.path + "/conf/log4j-compaction.xml" rename ('log4j-compaction.xml', 'log4j.xml')}
 }
 

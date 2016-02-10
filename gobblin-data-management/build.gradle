@@ -13,10 +13,12 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
+  compile project(":gobblin-hive-registration")
   compile project(":gobblin-metrics")
   compile project(":gobblin-utility")
 
   compile externalDependency.commonsLang
+  compile externalDependency.commonsLang3
   compile externalDependency.guava
   compile externalDependency.slf4j
   compile externalDependency.log4j

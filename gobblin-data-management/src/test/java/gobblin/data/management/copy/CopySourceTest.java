@@ -45,7 +45,7 @@ public class CopySourceTest {
     Extract extract = workunits.get(0).getExtract();
 
     for (WorkUnit workUnit : workunits) {
-      CopyableFile copyableFile = CopySource.deserializeCopyableFiles(workUnit).get(0);
+      CopyableFile copyableFile = CopySource.deserializeCopyableFile(workUnit);
       Assert.assertTrue(copyableFile.getOrigin().getPath().toString().startsWith(TestCopyableDataset.ORIGIN_PREFIX));
       Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission(), TestCopyableDataset.OWNER_AND_PERMISSION);
       Assert.assertEquals(workUnit.getExtract(), extract);
@@ -74,7 +74,7 @@ public class CopySourceTest {
     Extract extractBelow = null;
 
     for (WorkUnit workUnit : workunits) {
-      CopyableFile copyableFile = CopySource.deserializeCopyableFiles(workUnit).get(0);
+      CopyableFile copyableFile = CopySource.deserializeCopyableFile(workUnit);
       Assert.assertTrue(copyableFile.getOrigin().getPath().toString().startsWith(TestCopyableDataset.ORIGIN_PREFIX));
       Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission(), TestCopyableDataset.OWNER_AND_PERMISSION);
 

@@ -15,6 +15,8 @@ package gobblin.data.management.copy;
 import gobblin.data.management.partition.File;
 import gobblin.data.management.copy.PreserveAttributes.Option;
 import gobblin.util.PathUtils;
+import gobblin.util.guid.Guid;
+import gobblin.util.guid.HasGuid;
 
 import java.io.IOException;
 import java.util.List;
@@ -53,7 +55,7 @@ import com.google.gson.reflect.TypeToken;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @EqualsAndHashCode
 @Builder(builderClassName = "Builder", builderMethodName = "_hiddenBuilder")
-public class CopyableFile implements File {
+public class CopyableFile implements File, HasGuid {
 
   private static final Gson GSON = new Gson();
 
@@ -95,6 +97,11 @@ public class CopyableFile implements File {
    * will be emitted for each fileSet when it is published.
    */
   private String fileSet;
+
+  /** Timestamp of file at its origin source. */
+  private long originTimestamp;
+  /** Timestamp of file as in upstream. */
+  private long upstreamTimestamp;
 
   /**
    * Get a {@link CopyableFile.Builder}.
@@ -170,7 +177,14 @@ public class CopyableFile implements File {
 
       if (this.destinationOwnerAndPermission == null) {
         String owner = this.preserve.preserve(Option.OWNER) ? this.origin.getOwner() : null;
-        String group = this.preserve.preserve(Option.GROUP) ? this.origin.getGroup() : null;
+
+        String group = null;
+        if (this.preserve.preserve(Option.GROUP)) {
+          group = this.origin.getGroup();
+        } else if (this.configuration.getTargetGroup().isPresent()) {
+          group = this.configuration.getTargetGroup().get();
+        }
+
         FsPermission permission = this.preserve.preserve(Option.PERMISSION) ? this.origin.getPermission() : null;
 
         this.destinationOwnerAndPermission =
@@ -186,9 +200,15 @@ public class CopyableFile implements File {
       if (this.fileSet == null) {
         this.fileSet = this.rootPath.toString();
       }
+      if (this.originTimestamp == 0) {
+        this.originTimestamp = origin.getModificationTime();
+      }
+      if (this.upstreamTimestamp == 0) {
+        this.upstreamTimestamp = origin.getModificationTime();
+      }
 
       return new CopyableFile(origin, destination, relativeDestination, destinationOwnerAndPermission,
-          ancestorsOwnerAndPermission, null, preserve, fileSet);
+          ancestorsOwnerAndPermission, checksum, preserve, fileSet, originTimestamp, upstreamTimestamp);
     }
 
     private List<OwnerAndPermission> replicateOwnerAndPermission(final FileSystem originFs, final Path path,
@@ -210,9 +230,15 @@ public class CopyableFile implements File {
                   return new OwnerAndPermission(fs.getOwner(), fs.getGroup(), fs.getPermission());
                 }
               });
+
+          String group = null;
+          if (this.preserve.preserve(Option.GROUP)) {
+            group = ownerAndPermission.getGroup();
+          } else if (this.configuration.getTargetGroup().isPresent()) {
+            group = this.configuration.getTargetGroup().get();
+          }
           ancestorOwnerAndPermissions.add(new OwnerAndPermission(
-              preserve.preserve(Option.OWNER) ? ownerAndPermission.getOwner() : null,
-              preserve.preserve(Option.GROUP) ? ownerAndPermission.getGroup() : null,
+              preserve.preserve(Option.OWNER) ? ownerAndPermission.getOwner() : null, group,
               preserve.preserve(Option.PERMISSION) ? ownerAndPermission.getFsPermission() : null));
         }
       } catch (ExecutionException ee) {
@@ -226,6 +252,18 @@ public class CopyableFile implements File {
   @Override
   public FileStatus getFileStatus() {
     return this.origin;
+  }
+
+  /**
+   * Generates a replicable guid to uniquely identify the origin of this {@link CopyableFile}.
+   * @return a guid uniquely identifying the origin file.
+   */
+  public Guid guid() throws IOException {
+    StringBuilder uniqueString = new StringBuilder();
+    uniqueString.append(getFileStatus().getModificationTime());
+    uniqueString.append(getFileStatus().getLen());
+    uniqueString.append(getFileStatus().getPath());
+    return Guid.fromStrings(uniqueString.toString());
   }
 
   /**

@@ -250,7 +250,7 @@ public class CopyDataPublisherTest {
 
       FileStatus file = new FileStatus(0, false, 0, 0, 0, new Path("/file"));
       this.copyableFile = CopyableFile.builder(FileSystem.getLocal(new Configuration()), file, new Path("/"),
-          new CopyConfiguration(new Path("/"), PreserveAttributes.fromMnemonicString(""), new CopyContext())).build();
+          CopyConfiguration.builder().targetRoot(new Path("/")).preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
 
       fs.mkdirs(testMethodTempPath);
       log.info("Created a temp directory for test at " + testMethodTempPath);
@@ -262,7 +262,7 @@ public class CopyDataPublisherTest {
           Lists.newArrayList(new WorkUnitState(), new WorkUnitState(), new WorkUnitState());
       for (WorkUnitState wus : workUnitStates) {
         CopySource.serializeCopyableDataset(wus, metadata);
-        CopySource.serializeCopyableFiles(wus, Lists.newArrayList(this.copyableFile));
+        CopySource.serializeCopyableFile(wus, this.copyableFile);
       }
       return workUnitStates;
     }

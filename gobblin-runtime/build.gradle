@@ -17,6 +17,7 @@ dependencies {
   compile project(":gobblin-metastore")
   compile project(":gobblin-utility")
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
+  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate', classifier: 'data-template')
 
   compile externalDependency.avro
   compile externalDependency.commonsConfiguration
@@ -28,6 +29,8 @@ dependencies {
   compile externalDependency.httpclient
   compile externalDependency.httpcore
   compile externalDependency.commonsLang
+  compile externalDependency.commonsLang3
+  compile externalDependency.log4j
   compile externalDependency.slf4j
   compile externalDependency.commonsCli
   compile externalDependency.gson
@@ -53,6 +56,21 @@ dependencies {
   testCompile externalDependency.bytemanBmunit
   testRuntime externalDependency.derby
 }
+
+// Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
+def installer = install.repositories.mavenInstaller
+[installer]*.pom*.whenConfigured {pom ->
+    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
+    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-data-template'
+}
+if (rootProject.publishToMaven) {
+    def deployer = uploadArchives.repositories.mavenDeployer
+    [deployer]*.pom*.whenConfigured {pom ->
+        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
+        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-data-template'
+    }
+}
+// End HACK
 
 task testJar(type: Jar, dependsOn: testClasses) {
     baseName = "test-${project.archivesBaseName}"

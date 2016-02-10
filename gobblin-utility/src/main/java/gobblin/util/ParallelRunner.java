@@ -12,6 +12,8 @@
 
 package gobblin.util;
 
+import lombok.Data;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
@@ -78,14 +80,40 @@ public class ParallelRunner implements Closeable {
   private final ExecutorService executor;
   private final FileSystem fs;
 
-  private final List<Future<?>> futures = Lists.newArrayList();
+  private final List<NamedFuture> futures = Lists.newArrayList();
 
   private final Striped<Lock> locks = Striped.lazyWeakLock(Integer.MAX_VALUE);
 
+  private final FailPolicy failPolicy;
+
   public ParallelRunner(int threads, FileSystem fs) {
+    this(threads, fs, FailPolicy.FAIL_ONE_FAIL_ALL);
+  }
+
+  public ParallelRunner(int threads, FileSystem fs, FailPolicy failPolicy) {
     this.executor = Executors.newFixedThreadPool(threads,
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ParallelRunner")));
     this.fs = fs;
+    this.failPolicy = failPolicy;
+  }
+
+  /**
+   * Policies indicating how {@link ParallelRunner} should handle failure of tasks.
+   */
+  public static enum FailPolicy {
+    /** If a task fails, a warning will be logged, but the {@link ParallelRunner} will still succeed.*/
+    ISOLATE_FAILURES,
+    /** If a task fails, all tasks will be tried, but {@link ParallelRunner#close} will throw the Exception.*/
+    FAIL_ONE_FAIL_ALL
+  }
+
+  /**
+   * A future with a name / message for reporting.
+   */
+  @Data
+  public static class NamedFuture {
+    private final Future<?> future;
+    private final String name;
   }
 
   /**
@@ -102,14 +130,14 @@ public class ParallelRunner implements Closeable {
    */
   public <T extends State> void serializeToFile(final T state, final Path outputFilePath) {
     // Use a Callable with a Void return type to allow exceptions to be thrown
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
 
       @Override
       public Void call() throws Exception {
         SerializationUtils.serializeState(fs, outputFilePath, state);
         return null;
       }
-    }));
+    }), "Serialize state to " + outputFilePath));
   }
 
   /**
@@ -125,14 +153,14 @@ public class ParallelRunner implements Closeable {
    * @param <T> the {@link State} object type
    */
   public <T extends State> void deserializeFromFile(final T state, final Path inputFilePath) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
 
       @Override
       public Void call() throws Exception {
         SerializationUtils.deserializeState(fs, inputFilePath, state);
         return null;
       }
-    }));
+    }), "Deserialize state from " + inputFilePath));
   }
 
   /**
@@ -151,7 +179,7 @@ public class ParallelRunner implements Closeable {
    */
   public <T extends State> void deserializeFromSequenceFile(final Class<? extends Writable> keyClass,
       final Class<T> stateClass, final Path inputFilePath, final Collection<T> states, final boolean deleteAfter) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         Closer closer = Closer.create();
@@ -176,7 +204,7 @@ public class ParallelRunner implements Closeable {
 
         return null;
       }
-    }));
+    }), "Deserialize state from file " + inputFilePath));
   }
 
   /**
@@ -190,7 +218,7 @@ public class ParallelRunner implements Closeable {
    * @param path path to be deleted.
    */
   public void deletePath(final Path path, final boolean recursive) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         Lock lock = locks.get(path.toString());
@@ -202,7 +230,7 @@ public class ParallelRunner implements Closeable {
           lock.unlock();
         }
       }
-    }));
+    }), "Delete path " + path));
   }
 
   /**
@@ -218,7 +246,7 @@ public class ParallelRunner implements Closeable {
    * @param group an optional group name for the destination path
    */
   public void renamePath(final Path src, final Path dst, final Optional<String> group) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         Lock lock = locks.get(src.toString());
@@ -238,7 +266,7 @@ public class ParallelRunner implements Closeable {
           lock.unlock();
         }
       }
-    }));
+    }), "Rename " + src + " to " + dst));
   }
 
   /**
@@ -255,7 +283,7 @@ public class ParallelRunner implements Closeable {
    * @param group an optional group name for the destination path
    */
   public void movePath(final Path src, final FileSystem dstFs, final Path dst, final Optional<String> group) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
         Lock lock = locks.get(src.toString());
@@ -275,20 +303,38 @@ public class ParallelRunner implements Closeable {
           lock.unlock();
         }
       }
-    }));
+    }), "Move " + src + " to " + dst));
   }
 
   @Override
   public void close() throws IOException {
+    // Wait for all submitted tasks to complete
     try {
-      // Wait for all submitted tasks to complete
-      for (Future<?> future : this.futures) {
-        future.get();
+      boolean wasInterrupted = false;
+      IOException exception = null;
+      for (NamedFuture future : this.futures) {
+        try {
+          if (wasInterrupted) {
+            future.getFuture().cancel(true);
+          } else {
+            future.getFuture().get();
+          }
+        } catch (InterruptedException ie) {
+          LOGGER.warn("Task was interrupted: " + future.getName());
+          wasInterrupted = true;
+          if (exception == null) {
+            exception = new IOException(ie);
+          }
+        } catch (ExecutionException ee) {
+          LOGGER.warn("Task failed: " + future.getName(), ee.getCause());
+          if (exception == null) {
+            exception = new IOException(ee.getCause());
+          }
+        }
       }
-    } catch (InterruptedException ie) {
-      throw new IOException(ie);
-    } catch (ExecutionException ee) {
-      throw new IOException(ee.getCause());
+      if (exception != null && this.failPolicy == FailPolicy.FAIL_ONE_FAIL_ALL) {
+        throw exception;
+      }
     } finally {
       ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(LOGGER));
     }

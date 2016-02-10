@@ -20,10 +20,10 @@ import gobblin.config.store.api.ConfigKeyPath;
 /**
  * The ConfigStoreTopology interface used to describe the topology of a configuration store.
  * 
- * Each node in the configuration store is represented as one {@ConfigKeyPath}, so the topology of 
+ * Each node in the configuration store is represented as one {@link ConfigKeyPath}, so the topology of 
  * any node includes:
  * 
- * 1. The link to it's parent ( already defined in {@ConfigKeyPath} )
+ * 1. The link to it's parent ( already defined in {@link ConfigKeyPath} )
  * 2. All the direct children of the node.
  * 3. The node's directly outgoing imports links. ( defined as getOwnImports() )
  * 4. Other nodes which directly imports the node. ( defined as getImportedBy() )

@@ -77,8 +77,10 @@ public class TarArchiveInputStreamDataWriterTest {
         new Path("/"));
     CopySource.serializeCopyableDataset(state, metadata);
 
-    TarArchiveInputStreamDataWriter dataWriter = new TarArchiveInputStreamDataWriter(state, 1, 0);
     FileAwareInputStream fileAwareInputStream = getCompressedInputStream(filePath, newFileName);
+    CopySource.serializeCopyableFile(state, fileAwareInputStream.getFile());
+
+    TarArchiveInputStreamDataWriter dataWriter = new TarArchiveInputStreamDataWriter(state, 1, 0);
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
 

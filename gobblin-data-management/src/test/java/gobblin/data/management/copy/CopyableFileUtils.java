@@ -32,7 +32,7 @@ public class CopyableFileUtils {
     FileStatus status = new FileStatus(0l, false, 0, 0l, 0l, new Path(resourcePath));
 
     return new CopyableFile(status, new Path(getRandomPath()), new Path(getRandomPath()), null, null, null,
-        PreserveAttributes.fromMnemonicString(""), "");
+        PreserveAttributes.fromMnemonicString(""), "", 0 ,0);
   }
 
   public static CopyableFile getTestCopyableFile() {
@@ -76,7 +76,7 @@ public class CopyableFileUtils {
     Path destinationRelativePath = new Path(relativePath);
 
     return new CopyableFile(status, new Path(destinationPath), destinationRelativePath, ownerAndPermission, null, null,
-        PreserveAttributes.fromMnemonicString(""), "");
+        PreserveAttributes.fromMnemonicString(""), "", 0, 0);
   }
 
   private static String getRandomPath() {

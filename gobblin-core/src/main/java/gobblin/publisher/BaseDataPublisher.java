@@ -65,6 +65,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final List<Optional<String>> publisherFinalDirOwnerGroupsByBranches;
   protected final List<FsPermission> permissions;
   protected final Closer closer;
+  protected final Closer parallelRunnerCloser;
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
 
@@ -92,9 +93,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
           ConfigurationKeys.LOCAL_FS_URI));
       this.writerFileSystemByBranches.add(FileSystem.get(writerUri, conf));
 
-      URI publisherUri = URI.create(this.getState().getProp(
-          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FILE_SYSTEM_URI, this.numBranches, i),
-          writerUri.toString()));
+      URI publisherUri = URI.create(this.getState().getProp(ForkOperatorUtils.getPropertyNameForBranch(
+          ConfigurationKeys.DATA_PUBLISHER_FILE_SYSTEM_URI, this.numBranches, i), writerUri.toString()));
       this.publisherFileSystemByBranches.add(FileSystem.get(publisherUri, conf));
 
       // The group(s) will be applied to the final publisher output directory(ies)
@@ -111,6 +111,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
     this.parallelRunnerThreads =
         state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
+    this.parallelRunnerCloser = Closer.create();
   }
 
   @Override
@@ -128,6 +129,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     for (int branchId = 0; branchId < this.numBranches; branchId++) {
       publishSingleTaskData(state, branchId);
     }
+    this.parallelRunnerCloser.close();
   }
 
   /**
@@ -149,7 +151,11 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       for (int branchId = 0; branchId < this.numBranches; branchId++) {
         publishMultiTaskData(workUnitState, branchId, writerOutputPathsMoved);
       }
+    }
 
+    this.parallelRunnerCloser.close();
+
+    for (WorkUnitState workUnitState : states) {
       // Upon successfully committing the data to the final output directory, set states
       // of successful tasks to COMMITTED. leaving states of unsuccessful ones unchanged.
       // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
@@ -217,9 +223,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
             publisherOutputDir.getParent(), this.permissions.get(branchId));
       }
 
-      LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
-      parallelRunner.movePath(writerOutputDir, this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputDir, this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
+      movePath(parallelRunner, writerOutputDir, publisherOutputDir, branchId);
       writerOutputPathsMoved.add(writerOutputDir);
     }
   }
@@ -250,7 +254,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       return;
     }
 
-    Iterable<String> taskOutputFiles = workUnitState.getPropAsList(outputFilePropName);
+    Iterable<String> taskOutputFiles = workUnitState.getPropAsSet(outputFilePropName);
     for (String taskOutputFile : taskOutputFiles) {
       Path taskOutputPath = new Path(taskOutputFile);
       if (!this.writerFileSystemByBranches.get(branchId).exists(taskOutputPath)) {
@@ -263,9 +267,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId),
           publisherOutputPath.getParent(), this.permissions.get(branchId));
 
-      LOG.info(String.format("Moving %s to %s", taskOutputFile, publisherOutputPath));
-      parallelRunner.movePath(taskOutputPath, this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputPath, Optional.<String> absent());
+      movePath(parallelRunner, taskOutputPath, publisherOutputPath, branchId);
     }
   }
 
@@ -285,16 +287,20 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
                       ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
           : new Path(publisherOutputDir, status.getPath().getName());
 
-      LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
-      parallelRunner.movePath(status.getPath(), this.publisherFileSystemByBranches.get(branchId),
-          finalOutputPath, Optional.<String> absent());
+      movePath(parallelRunner, status.getPath(), finalOutputPath, branchId);
     }
+  }
+
+  protected void movePath(ParallelRunner parallelRunner, Path src, Path dst, int branchId) throws IOException {
+    LOG.info(String.format("Moving %s to %s", src, dst));
+    parallelRunner.movePath(src, this.publisherFileSystemByBranches.get(branchId), dst,
+        this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
   }
 
   private ParallelRunner getParallelRunner(FileSystem fs) {
     String uri = fs.getUri().toString();
     if (!this.parallelRunners.containsKey(uri)) {
-      this.parallelRunners.put(uri, this.closer.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
+      this.parallelRunners.put(uri, this.parallelRunnerCloser.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
     }
     return this.parallelRunners.get(uri);
   }

@@ -131,6 +131,7 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
       throws FileBasedHelperException {
 
     String privateKey = PasswordManager.getInstance(state).readPassword(state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY));
+    String password = PasswordManager.getInstance(state).readPassword(state.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String knownHosts = state.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS);
 
     String userName = state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
@@ -151,24 +152,30 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
 
     try {
 
-      List<IdentityStrategy> identityStrategies =
-          ImmutableList.of(new LocalFileIdentityStrategy(), new DistributedCacheIdentityStrategy(),
-              new HDFSIdentityStrategy());
+      if (!Strings.isNullOrEmpty(privateKey)) {
+        List<IdentityStrategy> identityStrategies =
+            ImmutableList.of(new LocalFileIdentityStrategy(), new DistributedCacheIdentityStrategy(),
+                new HDFSIdentityStrategy());
 
-      for (IdentityStrategy identityStrategy : identityStrategies) {
-        if (identityStrategy.setIdentity(privateKey, jsch)) {
-          break;
+        for (IdentityStrategy identityStrategy : identityStrategies) {
+          if (identityStrategy.setIdentity(privateKey, jsch)) {
+            break;
+          }
         }
       }
 
       session = jsch.getSession(userName, hostName, port);
-      session.setConfig("PreferredAuthentications","publickey");
+      session.setConfig("PreferredAuthentications","publickey,password");
 
       if (Strings.isNullOrEmpty(knownHosts)) {
         log.info("Known hosts path is not set, StrictHostKeyChecking will be turned off");
         session.setConfig("StrictHostKeyChecking", "no");
       } else {
         jsch.setKnownHosts(knownHosts);
+      }
+
+      if (!Strings.isNullOrEmpty(password)) {
+        session.setPassword(password);
       }
 
       if (proxyHost != null && proxyPort >= 0) {

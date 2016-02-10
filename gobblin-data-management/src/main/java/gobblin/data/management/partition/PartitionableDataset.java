@@ -22,7 +22,7 @@ import java.util.Collection;
  */
 public interface PartitionableDataset<T extends File> extends Dataset {
 
-  public Collection<Partition<T>> partitionFiles(Collection<? extends T> files);
+  public Collection<FileSet<T>> partitionFiles(Collection<? extends T> files);
 
   public Class<?> fileClass();
 

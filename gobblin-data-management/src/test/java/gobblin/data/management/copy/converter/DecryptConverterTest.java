@@ -22,7 +22,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.jasypt.util.text.StrongTextEncryptor;
+import org.jasypt.util.text.BasicTextEncryptor;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -85,8 +85,8 @@ public class DecryptConverterTest {
     String masterPassword = UUID.randomUUID().toString();
     createMasterPwdFile(masterPassword);
     state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, this.masterPwdFile.toString());
-    state.setProp(ConfigurationKeys.ENCRYPT_USE_STRONG_ENCRYPTOR, true);
-    StrongTextEncryptor encryptor = new StrongTextEncryptor();
+    state.setProp(ConfigurationKeys.ENCRYPT_USE_STRONG_ENCRYPTOR, false);
+    BasicTextEncryptor encryptor = new BasicTextEncryptor();
     encryptor.setPassword(masterPassword);
     String encrypted = encryptor.encrypt(plainPassphrase);
     state.setProp("converter.decrypt.passphrase", "ENC(" + encrypted + ")");
@@ -105,4 +105,5 @@ public class DecryptConverterTest {
       Assert.fail();
     }
   }
+
 }

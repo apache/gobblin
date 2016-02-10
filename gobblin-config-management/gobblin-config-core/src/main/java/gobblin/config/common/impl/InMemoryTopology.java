@@ -28,7 +28,7 @@ import gobblin.config.store.api.ConfigKeyPath;
 
 
 /**
- * InMemoryTopology will return stale data if the internal config store is Not {@ConfigStoreWithStableVersioning}
+ * InMemoryTopology will return stale data if the internal config store is Not {@link ConfigStoreWithStableVersioning}
  * 
  * @author mitu
  *
@@ -37,7 +37,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
 
   private final ConfigStoreTopologyInspector fallback;
 
-  // can not use Guava {@com.google.common.collect.MultiMap} as MultiMap does not store entry pair if the value is empty
+  // can not use Guava {@link com.google.common.collect.MultiMap} as MultiMap does not store entry pair if the value is empty
   private final Map<ConfigKeyPath, Collection<ConfigKeyPath>> childrenMap = new HashMap<>();
   private final Map<ConfigKeyPath, List<ConfigKeyPath>> ownImportMap = new HashMap<>();
   private final Map<ConfigKeyPath, Collection<ConfigKeyPath>> ownImportedByMap = new HashMap<>();
@@ -254,7 +254,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    *   If the result is already in cache, return the result.
    *   Otherwise, delegate the functionality to the fallback object.
    *   
-   *   If the fallback did not support this operation, will build the entire topology of the {@ConfigStore}
+   *   If the fallback did not support this operation, will build the entire topology of the {@link ConfigStore}
    *   using default breath first search.
    * </p>
    */
@@ -281,7 +281,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    *   If the result is already in cache, return the result.
    *   Otherwise, delegate the functionality to the fallback object.
    *   
-   *   If the fallback did not support this operation, will build the entire topology of the {@ConfigStore}
+   *   If the fallback did not support this operation, will build the entire topology of the {@link ConfigStore}
    *   using default breath first search.
    * </p>
    */
@@ -308,7 +308,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    *   If the result is already in cache, return the result.
    *   Otherwise, delegate the functionality to the fallback object.
    *   
-   *   If the fallback did not support this operation, will build the entire topology of the {@ConfigStore}
+   *   If the fallback did not support this operation, will build the entire topology of the {@link ConfigStore}
    *   using default breath first search.
    * </p>
    */

@@ -22,6 +22,7 @@ configurations {
 }
 
 dependencies {
+  compile project(':gobblin-admin')
   compile project(':gobblin-azkaban')
   compile project(':gobblin-api')
   compile project(':gobblin-core')
@@ -47,7 +48,12 @@ task build(type: Tar, overwrite: true) {
   compression = Compression.GZIP
 
   into("conf") { from "../conf/" }
-  into("bin") { from "../bin/" }
+  into("bin") { 
+    from "../bin/" 
+    from project(':gobblin-utility').projectDir.path + '/src/main/bash/gobblin_password_encryptor.sh'
+    filter { String line -> line.replace("GOBBLIN_VERSION=@project.version@", 
+      "GOBBLIN_VERSION="+'"' + project.version + '"') }
+  }
   into("lib") {
     from configurations.runtime
   }
@@ -55,9 +61,8 @@ task build(type: Tar, overwrite: true) {
 
   doLast {
     copy {
-      from buildDir.path + '/distributions/gobblin-distribution-' + project.version + '.tar.gz'
+      from buildDir.path + '/distributions/' + baseName + '-' + project.version + '.tar.gz'
       into project.rootDir.path
-      rename ('gobblin-distribution-' + project.version + '.tar.gz', 'gobblin-dist.tar.gz')
     }
   }
 }
