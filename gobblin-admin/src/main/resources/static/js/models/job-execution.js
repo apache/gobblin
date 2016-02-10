@@ -56,10 +56,16 @@ var app = app || {}
       return '-'
     },
     getJobStartTime: function () {
-      return this._formatTime(this.attributes.startTime)
+      if (this.attributes.startTime) {
+        return this._formatTime(this.attributes.startTime)
+      }
+      return '-'
     },
     getJobEndTime: function () {
-      return this._formatTime(this.attributes.endTime)
+      if (this.attributes.endTime) {
+        return this._formatTime(this.attributes.endTime)
+      }
+      return '-'
     },
     getSchedule: function () {
       if (this.hasProperties()) {
