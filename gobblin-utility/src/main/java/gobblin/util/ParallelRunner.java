@@ -332,6 +332,9 @@ public class ParallelRunner implements Closeable {
           }
         }
       }
+      if (wasInterrupted) {
+        Thread.currentThread().interrupt();
+      }
       if (exception != null && this.failPolicy == FailPolicy.FAIL_ONE_FAIL_ALL) {
         throw exception;
       }

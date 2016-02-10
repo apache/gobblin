@@ -10,13 +10,15 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin.runtime.listeners;
 
 import org.apache.commons.mail.EmailException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.runtime.JobContext;
+import gobblin.runtime.JobState;
 import gobblin.util.EmailUtils;
 
 
@@ -25,12 +27,13 @@ import gobblin.util.EmailUtils;
  *
  * @author Yinan Li
  */
-public class EmailNotificationJobListener implements JobListener {
+public class EmailNotificationJobListener extends AbstractJobListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(EmailNotificationJobListener.class);
 
   @Override
-  public void onJobCompletion(JobState jobState) {
+  public void onJobCompletion(JobContext jobContext) {
+    JobState jobState = jobContext.getJobState();
     boolean alertEmailEnabled =
         Boolean.valueOf(jobState.getProp(ConfigurationKeys.ALERT_EMAIL_ENABLED_KEY, Boolean.toString(false)));
     boolean notificationEmailEnabled =
@@ -62,7 +65,8 @@ public class EmailNotificationJobListener implements JobListener {
   }
 
   @Override
-  public void onJobCancellation(JobState jobState) {
+  public void onJobCancellation(JobContext jobContext) {
+    JobState jobState = jobContext.getJobState();
     boolean notificationEmailEnabled =
         Boolean.valueOf(jobState.getProp(ConfigurationKeys.NOTIFICATION_EMAIL_ENABLED_KEY, Boolean.toString(false)));
 

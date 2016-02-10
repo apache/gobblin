@@ -41,6 +41,9 @@ import org.apache.hadoop.io.Writable;
  */
 public class State implements Writable {
 
+  private static final Joiner LIST_JOINER = Joiner.on(",");
+  private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
+
   private String id;
 
   private final Properties properties;
@@ -177,7 +180,7 @@ public class State implements Writable {
    */
   public synchronized void appendToListProp(String key, String value) {
     if (contains(key)) {
-      setProp(key, Joiner.on(",").join(getProp(key), value));
+      setProp(key, LIST_JOINER.join(getProp(key), value));
     } else {
       setProp(key, value);
     }
@@ -198,11 +201,11 @@ public class State implements Writable {
   public synchronized void appendToSetProp(String key, String value) {
       Set<String> set = value == null ?
               Sets.<String>newHashSet() :
-              Sets.newHashSet(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(value));
+              Sets.newHashSet(LIST_SPLITTER.splitToList(value));
       if (contains(key)) {
           set.addAll(getPropAsSet(key));
       }
-      setProp(key, Joiner.on(",").join(set));
+      setProp(key, LIST_JOINER.join(set));
   }
 
   /**
@@ -233,7 +236,7 @@ public class State implements Writable {
    * @return value associated with the key as a {@link List} of strings
    */
   public List<String> getPropAsList(String key) {
-    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key));
+    return LIST_SPLITTER.splitToList(getProperty(key));
   }
 
   /**
@@ -244,7 +247,7 @@ public class State implements Writable {
    * @return value (the default value if the property is not set) associated with the key as a list of strings
    */
   public List<String> getPropAsList(String key, String def) {
-    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key, def));
+    return LIST_SPLITTER.splitToList(getProp(key, def));
   }
 
   /**
@@ -254,7 +257,19 @@ public class State implements Writable {
    * @return value associated with the key as a {@link Set} of strings
    */
   public Set<String> getPropAsSet(String key) {
-      return Sets.newHashSet(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key)));
+      return Sets.newHashSet(LIST_SPLITTER.splitToList(getProp(key)));
+  }
+
+
+  /**
+   * Get the value of a comma separated property as a {@link Set} of strings.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value (the default value if the property is not set) associated with the key as a {@link Set} of strings
+   */
+  public Set<String> getPropAsSet(String key, String def) {
+      return Sets.newHashSet(LIST_SPLITTER.splitToList(getProp(key, def)));
   }
 
   /**
@@ -264,8 +279,7 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
-        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, LIST_SPLITTER.split(getProperty(key)));
   }
 
   /**
@@ -276,8 +290,7 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key, String def) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
-        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key, def)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, LIST_SPLITTER.split(getProperty(key, def)));
   }
 
   /**
