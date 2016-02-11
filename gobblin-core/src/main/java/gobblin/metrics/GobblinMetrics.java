@@ -569,6 +569,7 @@ public class GobblinMetrics {
               ((CustomCodahaleReporterFactory) clazz.getConstructor().newInstance());
           com.codahale.metrics.ScheduledReporter scheduledReporter = this.codahaleReportersCloser
               .register(customCodahaleReporterFactory.newScheduledReporter(this.metricContext, properties));
+          LOGGER.info("Will start reporting metrics to " + reporterClass);
           this.scheduledReporters.add(scheduledReporter);
 
         } else if (CustomReporterFactory.class.isAssignableFrom(clazz)) {
