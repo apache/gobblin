@@ -13,6 +13,7 @@ function print_usage() {
     echo -e "\t-local      Publish to local repository"
     echo -e "\t-noclean    Don't run gradlew clean (useful if re-running)"
     echo -e "\t-remote     Publish to Sonatype repository"
+    echo -e "\t-packages   a comma-separated list of gradle paths to publish (e.g. :gobblin-api,:gobblin-core)"
     echo
     echo -e "NOTES:"
     echo -e "\t1. You need the Gobblin PGP key to sign the artifacts. If you don't have it,"
@@ -48,9 +49,11 @@ install_target=
 hadoop_version=-PuseHadoop2
 gradle_args=
 noclean=
+declare -a packages
 
 # Parse command line
-for A in "$@" ; do
+while [ "$#" -gt 0 ] ; do
+    A="$1"
     case "$A" in
         -local)
             install_target=install
@@ -68,15 +71,33 @@ for A in "$@" ; do
             print_usage
             exit
             ;;
+        -packages)
+            shift
+            packages=( ${1//,/ } )
+            ;;
         *)
             gradle_args="$gradle_args $A"
             ;;
     esac
+    shift
 done
 
 if [ -z "${install_target}" ] ; then
     echo "${script_name}: missing install target"
     exit 1
+fi
+
+declare -a package_targets
+for P in "${packages[@]}" ; do
+    ptarget="$P:${install_target}"
+    if [ "${ptarget:0:1}" != ":" ] ; then
+        ptarget=":$ptarget"
+    fi
+    package_targets+=( "$ptarget" )
+done
+
+if [ "${#packages[@]}" -gt 0 ] ; then 
+    install_target="${package_targets[@]}"
 fi
 
 if [ -z "$noclean" ] ; then
