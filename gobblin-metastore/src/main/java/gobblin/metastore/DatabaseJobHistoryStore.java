@@ -73,50 +73,40 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseJobHistoryStore.class);
 
-  private static final String JOB_EXECUTION_INSERT_STATEMENT_TEMPLATE =
+  private static final String JOB_EXECUTION_UPSERT_STATEMENT_TEMPLATE =
       "INSERT INTO gobblin_job_executions (job_name,job_id,start_time,end_time,duration,state,"
-          + "launched_tasks,completed_tasks,launcher_type,tracking_url) VALUES(?,?,?,?,?,?,?,?,?,?)";
+          + "launched_tasks,completed_tasks,launcher_type,tracking_url) VALUES(?,?,?,?,?,?,?,?,?,?)"
+          + " ON DUPLICATE KEY UPDATE start_time=VALUES(start_time),end_time=VALUES(end_time),"
+          + "duration=VALUES(duration),state=VALUES(state),launched_tasks=VALUES(launched_tasks),"
+          + "completed_tasks=VALUES(completed_tasks),launcher_type=VALUES(launcher_type),"
+          + "tracking_url=VALUES(tracking_url)";
 
-  private static final String TASK_EXECUTION_INSERT_STATEMENT_TEMPLATE =
-      "INSERT INTO gobblin_task_executions (task_id,job_id,start_time,end_time,duration," +
-          "state,failure_exception,low_watermark,high_watermark,table_namespace,table_name,table_type) " +
-          "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
+  private static final String TASK_EXECUTION_UPSERT_STATEMENT_TEMPLATE =
+      "INSERT INTO gobblin_task_executions (task_id,job_id,start_time,end_time,duration,"
+          + "state,failure_exception,low_watermark,high_watermark,table_namespace,table_name,table_type) "
+          + "VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE start_time=VALUES(start_time),"
+          + "end_time=VALUES(end_time),duration=VALUES(duration),state=VALUES(state),"
+          + "failure_exception=VALUES(failure_exception),low_watermark=VALUES(low_watermark),"
+          + "high_watermark=VALUES(high_watermark),table_namespace=VALUES(table_namespace),"
+          + "table_name=VALUES(table_name),table_type=VALUES(table_type)";
 
-  private static final String JOB_METRIC_INSERT_STATEMENT_TEMPLATE =
+  private static final String JOB_METRIC_UPSERT_STATEMENT_TEMPLATE =
       "INSERT INTO gobblin_job_metrics (job_id,metric_group,metric_name,"
-          + "metric_type,metric_value) VALUES(?,?,?,?,?)";
+          + "metric_type,metric_value) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE "
+          + "metric_value=VALUES(metric_value)";
 
-  private static final String TASK_METRIC_INSERT_STATEMENT_TEMPLATE =
+  private static final String TASK_METRIC_UPSERT_STATEMENT_TEMPLATE =
       "INSERT INTO gobblin_task_metrics (task_id,metric_group,metric_name,"
-          + "metric_type,metric_value) VALUES(?,?,?,?,?)";
+          + "metric_type,metric_value) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE "
+          + "metric_value=VALUES(metric_value)";
 
-  private static final String JOB_PROPERTY_INSERT_STATEMENT_TEMPLATE =
-      "INSERT INTO gobblin_job_properties (job_id,property_key,property_value) VALUES(?,?,?)";
+  private static final String JOB_PROPERTY_UPSERT_STATEMENT_TEMPLATE =
+      "INSERT INTO gobblin_job_properties (job_id,property_key,property_value) VALUES(?,?,?)"
+          + " ON DUPLICATE KEY UPDATE property_value=VALUES(property_value)";
 
-  private static final String TASK_PROPERTY_INSERT_STATEMENT_TEMPLATE =
-      "INSERT INTO gobblin_task_properties (task_id,property_key,property_value) VALUES(?,?,?)";
-
-  private static final String JOB_EXECUTION_UPDATE_STATEMENT_TEMPLATE =
-      "UPDATE gobblin_job_executions SET start_time=?,end_time=?,duration=?,"
-          + "state=?,launched_tasks=?,completed_tasks=?,launcher_type=?,tracking_url=? WHERE job_id=?";
-
-  private static final String TASK_EXECUTION_UPDATE_STATEMENT_TEMPLATE =
-      "UPDATE gobblin_task_executions SET start_time=?,end_time=?,duration=?,state=?,failure_exception=?,"
-          + "low_watermark=?,high_watermark=?,table_namespace=?,table_name=?,table_type=? WHERE task_id=?";
-
-  private static final String JOB_METRIC_UPDATE_STATEMENT_TEMPLATE =
-      "UPDATE gobblin_job_metrics SET metric_value=? WHERE job_id=? AND "
-          + "metric_group=? AND metric_name=? AND metric_type=?";
-
-  private static final String TASK_METRIC_UPDATE_STATEMENT_TEMPLATE =
-      "UPDATE gobblin_task_metrics SET metric_value=? WHERE task_id=? AND "
-          + "metric_group=? AND metric_name=? AND metric_type=?";
-
-  private static final String JOB_PROPERTY_UPDATE_STATEMENT_TEMPLATE =
-      "UPDATE gobblin_job_properties SET property_value=? WHERE job_id=? AND property_key=?";
-
-  private static final String TASK_PROPERTY_UPDATE_STATEMENT_TEMPLATE =
-      "UPDATE gobblin_task_properties SET property_value=? WHERE task_id=? AND property_key=?";
+  private static final String TASK_PROPERTY_UPSERT_STATEMENT_TEMPLATE =
+      "INSERT INTO gobblin_task_properties (task_id,property_key,property_value) VALUES(?,?,?)"
+          + " ON DUPLICATE KEY UPDATE property_value=VALUES(property_value)";
 
   private static final String LIST_DISTINCT_JOB_EXECUTION_QUERY_TEMPLATE =
       "SELECT j.job_id FROM gobblin_job_executions j, "
@@ -136,17 +126,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   private static final String JOB_EXECUTION_QUERY_BY_JOB_ID_STATEMENT_TEMPLATE =
       "SELECT * FROM gobblin_job_executions WHERE job_id=?";
 
-  private static final String TASK_EXECUTION_EXIST_QUERY_STATEMENT_TEMPLATE =
-      "SELECT * FROM gobblin_task_executions WHERE task_id=?";
-
   private static final String TASK_EXECUTION_QUERY_STATEMENT_TEMPLATE =
       "SELECT * FROM gobblin_task_executions WHERE job_id=?";
-
-  private static final String JOB_METRIC_EXIST_QUERY_STATEMENT_TEMPLATE =
-      "SELECT * FROM gobblin_job_metrics " + "WHERE job_id=? AND metric_group=? AND metric_name=? AND metric_type=?";
-
-  private static final String TASK_METRIC_EXIST_QUERY_STATEMENT_TEMPLATE =
-      "SELECT * FROM gobblin_task_metrics " + "WHERE task_id=? AND metric_group=? AND metric_name=? AND metric_type=?";
 
   private static final String JOB_METRIC_QUERY_STATEMENT_TEMPLATE =
       "SELECT metric_group,metric_name,metric_type,metric_value FROM gobblin_job_metrics WHERE job_id=?";
@@ -154,19 +135,12 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   private static final String TASK_METRIC_QUERY_STATEMENT_TEMPLATE =
       "SELECT metric_group,metric_name,metric_type,metric_value FROM gobblin_task_metrics WHERE task_id=?";
 
-  private static final String JOB_PROPERTY_EXIST_QUERY_STATEMENT_TEMPLATE =
-      "SELECT * FROM gobblin_job_properties WHERE job_id=? AND property_key=?";
-
-  private static final String TASK_PROPERTY_EXIST_QUERY_STATEMENT_TEMPLATE =
-      "SELECT * FROM gobblin_task_properties WHERE task_id=? AND property_key=?";
-
   private static final String JOB_PROPERTY_QUERY_STATEMENT_TEMPLATE =
       "SELECT property_key, property_value FROM gobblin_job_properties WHERE job_id=?";
 
   private static final String TASK_PROPERTY_QUERY_STATEMENT_TEMPLATE =
       "SELECT property_key, property_value FROM gobblin_task_properties WHERE task_id=?";
 
-  private static final Timestamp DEFAULT_TIMESTAMP = new Timestamp(1000L);
   private static final int DEFAULT_VALIDATION_TIMEOUT = 5;
 
   private final DataSource dataSource;
@@ -186,66 +160,19 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
       connection.setAutoCommit(false);
 
       // Insert or update job execution information
-      if (existsJobExecutionInfo(connection, jobExecutionInfo)) {
-        updateJobExecutionInfo(connection, jobExecutionInfo);
-      } else {
-        insertJobExecutionInfo(connection, jobExecutionInfo);
-      }
-
-      // Insert or update job metrics
-      if (jobExecutionInfo.hasMetrics()) {
-        for (Metric metric : jobExecutionInfo.getMetrics()) {
-          boolean insert =
-              !existsMetric(connection, JOB_METRIC_EXIST_QUERY_STATEMENT_TEMPLATE, jobExecutionInfo.getJobId(), metric);
-          updateMetric(connection, insert ? JOB_METRIC_INSERT_STATEMENT_TEMPLATE : JOB_METRIC_UPDATE_STATEMENT_TEMPLATE,
-              jobExecutionInfo.getJobId(), metric, insert);
-        }
-      }
-
-      // Insert or update job properties
-      if (jobExecutionInfo.hasJobProperties()) {
-        for (Map.Entry<String, String> entry : jobExecutionInfo.getJobProperties().entrySet()) {
-          boolean insert =
-              !existsProperty(connection, JOB_PROPERTY_EXIST_QUERY_STATEMENT_TEMPLATE, jobExecutionInfo.getJobId(),
-                  entry.getKey());
-          updateProperty(connection,
-              insert ? JOB_PROPERTY_INSERT_STATEMENT_TEMPLATE : JOB_PROPERTY_UPDATE_STATEMENT_TEMPLATE,
-              jobExecutionInfo.getJobId(), entry.getKey(), entry.getValue(), insert);
-        }
-      }
+      upsertJobExecutionInfo(connection, jobExecutionInfo);
+      upsertJobMetrics(connection, jobExecutionInfo);
+      upsertJobProperties(connection, jobExecutionInfo);
 
       // Insert or update task execution information
       if (jobExecutionInfo.hasTaskExecutions()) {
-        for (TaskExecutionInfo info : jobExecutionInfo.getTaskExecutions()) {
-          // Insert or update task execution information
-          if (existsTaskExecutionInfo(connection, info)) {
-            updateTaskExecutionInfo(connection, info);
-          } else {
-            insertTaskExecutionInfo(connection, info);
-          }
-          // Insert or update task metrics
-          if (info.hasMetrics()) {
-            for (Metric metric : info.getMetrics()) {
-              boolean insert =
-                  !existsMetric(connection, TASK_METRIC_EXIST_QUERY_STATEMENT_TEMPLATE, info.getTaskId(), metric);
-              updateMetric(connection,
-                  insert ? TASK_METRIC_INSERT_STATEMENT_TEMPLATE : TASK_METRIC_UPDATE_STATEMENT_TEMPLATE,
-                  info.getTaskId(), metric, insert);
-            }
-          }
-
-          // Insert or update task properties
-          if (info.hasTaskProperties()) {
-            for (Map.Entry<String, String> entry : info.getTaskProperties().entrySet()) {
-              boolean insert =
-                  !existsProperty(connection, TASK_PROPERTY_EXIST_QUERY_STATEMENT_TEMPLATE, info.getTaskId(),
-                      entry.getKey());
-              updateProperty(connection,
-                  insert ? TASK_PROPERTY_INSERT_STATEMENT_TEMPLATE : TASK_PROPERTY_UPDATE_STATEMENT_TEMPLATE,
-                  info.getTaskId(), entry.getKey(), entry.getValue(), insert);
-            }
-          }
+        upsertTaskExecutionInfos(connection, jobExecutionInfo.getTaskExecutions());
+        upsertTaskMetrics(connection, jobExecutionInfo.getTaskExecutions());
+        StringMap jobProperties = null;
+        if (jobExecutionInfo.hasJobProperties()) {
+          jobProperties = jobExecutionInfo.getJobProperties();
         }
+        upsertTaskProperties(connection, jobProperties, jobExecutionInfo.getTaskExecutions());
       }
 
       connection.commit();
@@ -323,189 +250,191 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return this.dataSource.getConnection();
   }
 
-  private boolean existsJobExecutionInfo(Connection connection, JobExecutionInfo info)
-      throws SQLException {
-    Preconditions.checkArgument(info.hasJobId());
-
-    PreparedStatement queryStatement = connection.prepareStatement(JOB_EXECUTION_QUERY_BY_JOB_ID_STATEMENT_TEMPLATE);
-    queryStatement.setString(1, info.getJobId());
-    return queryStatement.executeQuery().next();
-  }
-
-  private void insertJobExecutionInfo(Connection connection, JobExecutionInfo info)
+  private void upsertJobExecutionInfo(Connection connection, JobExecutionInfo info)
       throws SQLException {
     Preconditions.checkArgument(info.hasJobName());
     Preconditions.checkArgument(info.hasJobId());
 
-    PreparedStatement insertStatement = connection.prepareStatement(JOB_EXECUTION_INSERT_STATEMENT_TEMPLATE);
-    int index = 0;
-    insertStatement.setString(++index, info.getJobName());
-    insertStatement.setString(++index, info.getJobId());
-    insertStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
-    insertStatement.setTimestamp(++index, info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP,
-        getCalendarUTCInstance());
-    insertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
-    insertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
-    insertStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
-    insertStatement.setInt(++index, info.hasCompletedTasks() ? info.getCompletedTasks() : -1);
-    insertStatement.setString(++index, info.hasLauncherType() ? info.getLauncherType().name() : null);
-    insertStatement.setString(++index, info.hasTrackingUrl() ? info.getTrackingUrl() : null);
-    insertStatement.executeUpdate();
+    try (PreparedStatement upsertStatement = connection.prepareStatement(JOB_EXECUTION_UPSERT_STATEMENT_TEMPLATE)) {
+      int index = 0;
+      upsertStatement.setString(++index, info.getJobName());
+      upsertStatement.setString(++index, info.getJobId());
+      upsertStatement.setTimestamp(++index, info.hasStartTime() ? new Timestamp(info.getStartTime()) : null,
+              getCalendarUTCInstance());
+      upsertStatement.setTimestamp(++index, info.hasEndTime() ? new Timestamp(info.getEndTime()) : null,
+              getCalendarUTCInstance());
+      upsertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
+      upsertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
+      upsertStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
+      upsertStatement.setInt(++index, info.hasCompletedTasks() ? info.getCompletedTasks() : -1);
+      upsertStatement.setString(++index, info.hasLauncherType() ? info.getLauncherType().name() : null);
+      upsertStatement.setString(++index, info.hasTrackingUrl() ? info.getTrackingUrl() : null);
+      upsertStatement.executeUpdate();
+    }
   }
 
-  private void updateJobExecutionInfo(Connection connection, JobExecutionInfo info)
-      throws SQLException {
-    Preconditions.checkArgument(info.hasJobId());
-
-    PreparedStatement updateStatement = connection.prepareStatement(JOB_EXECUTION_UPDATE_STATEMENT_TEMPLATE);
-    int index = 0;
-    updateStatement.setTimestamp(++index, info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP,
-        getCalendarUTCInstance());
-    updateStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
-    updateStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
-    updateStatement.setString(++index, info.hasState() ? info.getState().name() : null);
-    updateStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
-    updateStatement.setInt(++index, info.hasCompletedTasks() ? info.getCompletedTasks() : -1);
-    updateStatement.setString(++index, info.hasLauncherType() ? info.getLauncherType().name() : null);
-    updateStatement.setString(++index, info.hasTrackingUrl() ? info.getTrackingUrl() : null);
-    updateStatement.setString(++index, info.getJobId());
-    updateStatement.executeUpdate();
+  private void upsertTaskExecutionInfos(Connection connection, TaskExecutionInfoArray taskExecutions)
+          throws SQLException {
+    PreparedStatement upsertStatement = null;
+    int batchSize = 0;
+    for (TaskExecutionInfo taskExecution : taskExecutions) {
+      if (upsertStatement == null) {
+        upsertStatement = connection.prepareStatement(TASK_EXECUTION_UPSERT_STATEMENT_TEMPLATE);
+      }
+      upsertTaskExecutionInfo(upsertStatement, taskExecution);
+      if (batchSize++ > 1000) {
+        executeBatches(upsertStatement);
+        upsertStatement = null;
+      }
+    }
+    executeBatches(upsertStatement);
   }
 
-  private boolean existsTaskExecutionInfo(Connection connection, TaskExecutionInfo info)
-      throws SQLException {
-    Preconditions.checkArgument(info.hasTaskId());
 
-    PreparedStatement queryStatement = connection.prepareStatement(TASK_EXECUTION_EXIST_QUERY_STATEMENT_TEMPLATE);
-    queryStatement.setString(1, info.getTaskId());
-    return queryStatement.executeQuery().next();
+  private void upsertJobProperties(Connection connection, JobExecutionInfo jobExecutionInfo) throws SQLException {
+    if (jobExecutionInfo.hasJobProperties()) {
+      PreparedStatement upsertStatement = null;
+      int batchSize = 0;
+      for (Map.Entry<String, String> property : jobExecutionInfo.getJobProperties().entrySet()) {
+        if (upsertStatement == null) {
+          upsertStatement = connection.prepareStatement(JOB_PROPERTY_UPSERT_STATEMENT_TEMPLATE);
+        }
+        upsertProperty(upsertStatement, property.getKey(), property.getValue(), jobExecutionInfo.getJobId());
+        if (batchSize++ > 1000) {
+          executeBatches(upsertStatement);
+          upsertStatement = null;
+        }
+      }
+      executeBatches(upsertStatement);
+    }
   }
 
-  private void insertTaskExecutionInfo(Connection connection, TaskExecutionInfo info)
-      throws SQLException {
-    Preconditions.checkArgument(info.hasTaskId());
-    Preconditions.checkArgument(info.hasJobId());
-
-    PreparedStatement insertStatement = connection.prepareStatement(TASK_EXECUTION_INSERT_STATEMENT_TEMPLATE);
-    int index = 0;
-    insertStatement.setString(++index, info.getTaskId());
-    insertStatement.setString(++index, info.getJobId());
-    insertStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
-    insertStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
-    insertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
-    insertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
-    insertStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
-    insertStatement.setLong(++index, info.hasLowWatermark() ? info.getLowWatermark() : -1);
-    insertStatement.setLong(++index, info.hasHighWatermark() ? info.getHighWatermark() : -1);
-    insertStatement.setString(++index,
-        info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
-    insertStatement.setString(++index, info.hasTable() && info.getTable().hasName() ? info.getTable().getName() : null);
-    insertStatement.setString(++index,
-        info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
-    insertStatement.executeUpdate();
+  private void upsertTaskProperties(Connection connection, StringMap jobProperties,
+                                    TaskExecutionInfoArray taskExecutions)
+        throws SQLException {
+    PreparedStatement upsertStatement = null;
+    int batchSize = 0;
+    for (TaskExecutionInfo taskExecution : taskExecutions) {
+      if (taskExecution.hasTaskProperties()) {
+        for (Map.Entry<String, String> property : taskExecution.getTaskProperties().entrySet()) {
+          if (jobProperties == null || !jobProperties.containsKey(property.getKey()) ||
+                  !jobProperties.get(property.getKey()).equals(property.getValue())) {
+            if (upsertStatement == null) {
+              upsertStatement = connection.prepareStatement(TASK_PROPERTY_UPSERT_STATEMENT_TEMPLATE);
+            }
+            upsertProperty(upsertStatement, property.getKey(), property.getValue(), taskExecution.getTaskId());
+            if (batchSize++ > 1000) {
+              executeBatches(upsertStatement);
+              upsertStatement = null;
+            }
+          }
+        }
+      }
+    }
+    executeBatches(upsertStatement);
   }
 
-  private void updateTaskExecutionInfo(Connection connection, TaskExecutionInfo info)
-      throws SQLException {
-    Preconditions.checkArgument(info.hasTaskId());
-
-    PreparedStatement updateStatement = connection.prepareStatement(TASK_EXECUTION_UPDATE_STATEMENT_TEMPLATE);
-    int index = 0;
-    updateStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
-    updateStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
-    updateStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
-    updateStatement.setString(++index, info.hasState() ? info.getState().name() : null);
-    updateStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
-    updateStatement.setLong(++index, info.hasLowWatermark() ? info.getLowWatermark() : -1);
-    updateStatement.setLong(++index, info.hasHighWatermark() ? info.getHighWatermark() : -1);
-    updateStatement.setString(++index,
-        info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
-    updateStatement.setString(++index, info.hasTable() && info.getTable().hasName() ? info.getTable().getName() : null);
-    updateStatement.setString(++index,
-        info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
-    updateStatement.setString(++index, info.getTaskId());
-    updateStatement.executeUpdate();
-  }
-
-  private boolean existsMetric(Connection connection, String template, String id, Metric metric)
-      throws SQLException {
+  private void upsertProperty(PreparedStatement upsertStatement, String key, String value, String id)
+        throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
-    Preconditions.checkArgument(metric.hasGroup());
-    Preconditions.checkArgument(metric.hasName());
-    Preconditions.checkArgument(metric.hasType());
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(value));
 
-    PreparedStatement queryStatement = connection.prepareStatement(template);
     int index = 0;
-    queryStatement.setString(++index, id);
-    queryStatement.setString(++index, metric.getGroup());
-    queryStatement.setString(++index, metric.getName());
-    queryStatement.setString(++index, metric.getType().name());
-    return queryStatement.executeQuery().next();
+    upsertStatement.setString(++index, id);
+    upsertStatement.setString(++index, key);
+    upsertStatement.setString(++index, value);
+    upsertStatement.addBatch();
   }
 
-  private void updateMetric(Connection connection, String template, String id, Metric metric, boolean insert)
-      throws SQLException {
+  private void upsertJobMetrics(Connection connection, JobExecutionInfo jobExecutionInfo) throws SQLException {
+    if (jobExecutionInfo.hasMetrics()) {
+      PreparedStatement upsertStatement = null;
+      int batchSize = 0;
+      for (Metric metric : jobExecutionInfo.getMetrics()) {
+        if (upsertStatement == null) {
+          upsertStatement = connection.prepareStatement(JOB_METRIC_UPSERT_STATEMENT_TEMPLATE);
+        }
+        upsertMetric(upsertStatement, metric, jobExecutionInfo.getJobId());
+        if (batchSize++ > 1000) {
+          executeBatches(upsertStatement);
+          upsertStatement = null;
+        }
+      }
+      executeBatches(upsertStatement);
+    }
+  }
+
+  private void upsertTaskMetrics(Connection connection, TaskExecutionInfoArray taskExecutions)
+        throws SQLException {
+    PreparedStatement upsertStatement = null;
+    int batchSize = 0;
+    for (TaskExecutionInfo taskExecution : taskExecutions) {
+      if (taskExecution.hasMetrics()) {
+        for (Metric metric : taskExecution.getMetrics()) {
+          if (upsertStatement == null) {
+            upsertStatement = connection.prepareStatement(TASK_METRIC_UPSERT_STATEMENT_TEMPLATE);
+          }
+          upsertMetric(upsertStatement, metric, taskExecution.getTaskId());
+          if (batchSize++ > 1000) {
+            executeBatches(upsertStatement);
+            upsertStatement = null;
+          }
+        }
+      }
+    }
+    executeBatches(upsertStatement);
+  }
+
+  private void upsertMetric(PreparedStatement upsertStatement, Metric metric, String id) throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(metric.hasGroup());
     Preconditions.checkArgument(metric.hasName());
     Preconditions.checkArgument(metric.hasType());
     Preconditions.checkArgument(metric.hasValue());
 
-    PreparedStatement updateStatement = connection.prepareStatement(template);
     int index = 0;
-    if (insert) {
-      updateStatement.setString(++index, id);
-      updateStatement.setString(++index, metric.getGroup());
-      updateStatement.setString(++index, metric.getName());
-      updateStatement.setString(++index, metric.getType().name());
-      updateStatement.setString(++index, metric.getValue());
-    } else {
-      updateStatement.setString(++index, metric.getValue());
-      updateStatement.setString(++index, id);
-      updateStatement.setString(++index, metric.getGroup());
-      updateStatement.setString(++index, metric.getName());
-      updateStatement.setString(++index, metric.getType().name());
-    }
-    updateStatement.executeUpdate();
+    upsertStatement.setString(++index, id);
+    upsertStatement.setString(++index, metric.getGroup());
+    upsertStatement.setString(++index, metric.getName());
+    upsertStatement.setString(++index, metric.getType().name());
+    upsertStatement.setString(++index, metric.getValue());
+    upsertStatement.addBatch();
   }
 
-  private boolean existsProperty(Connection connection, String template, String id, String key)
-      throws SQLException {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
-
-    PreparedStatement queryStatement = connection.prepareStatement(template);
-    int index = 0;
-    queryStatement.setString(++index, id);
-    queryStatement.setString(++index, key);
-    return queryStatement.executeQuery().next();
+  private void executeBatches(PreparedStatement upsertStatement) throws SQLException {
+    if (upsertStatement != null) {
+      try {
+        upsertStatement.executeBatch();
+      } finally {
+        upsertStatement.close();
+      }
+    }
   }
 
-  private void updateProperty(Connection connection, String template, String id, String key, String value,
-      boolean insert)
+  private void upsertTaskExecutionInfo(PreparedStatement upsertStatement, TaskExecutionInfo info)
       throws SQLException {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(value));
+    Preconditions.checkArgument(info.hasTaskId());
+    Preconditions.checkArgument(info.hasJobId());
 
-    PreparedStatement updateStatement = connection.prepareStatement(template);
     int index = 0;
-    if (insert) {
-      updateStatement.setString(++index, id);
-      updateStatement.setString(++index, key);
-      updateStatement.setString(++index, value);
-    } else {
-      updateStatement.setString(++index, value);
-      updateStatement.setString(++index, id);
-      updateStatement.setString(++index, key);
-    }
-    updateStatement.executeUpdate();
+    upsertStatement.setString(++index, info.getTaskId());
+    upsertStatement.setString(++index, info.getJobId());
+    upsertStatement.setTimestamp(++index, info.hasStartTime() ? new Timestamp(info.getStartTime()) : null,
+            getCalendarUTCInstance());
+    upsertStatement.setTimestamp(++index, info.hasEndTime() ? new Timestamp(info.getEndTime()) : null,
+            getCalendarUTCInstance());
+    upsertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
+    upsertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
+    upsertStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
+    upsertStatement.setLong(++index, info.hasLowWatermark() ? info.getLowWatermark() : -1);
+    upsertStatement.setLong(++index, info.hasHighWatermark() ? info.getHighWatermark() : -1);
+    upsertStatement.setString(++index,
+        info.hasTable() && info.getTable().hasNamespace() ? info.getTable().getNamespace() : null);
+    upsertStatement.setString(++index, info.hasTable() && info.getTable().hasName() ? info.getTable().getName() : null);
+    upsertStatement.setString(++index,
+        info.hasTable() && info.getTable().hasType() ? info.getTable().getType().name() : null);
+    upsertStatement.addBatch();
   }
 
   private JobExecutionInfo processQueryById(Connection connection, String jobId, JobExecutionQuery query,
@@ -715,12 +644,18 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     jobExecutionInfo.setJobName(rs.getString("job_name"));
     jobExecutionInfo.setJobId(rs.getString("job_id"));
     try {
-      jobExecutionInfo.setStartTime(rs.getTimestamp("start_time").getTime());
+      Timestamp startTime = rs.getTimestamp("start_time");
+      if (startTime != null) {
+        jobExecutionInfo.setStartTime(startTime.getTime());
+      }
     } catch (SQLException se) {
       jobExecutionInfo.setStartTime(0);
     }
     try {
-      jobExecutionInfo.setEndTime(rs.getTimestamp("end_time").getTime());
+      Timestamp endTime = rs.getTimestamp("end_time");
+      if (endTime != null) {
+        jobExecutionInfo.setEndTime(endTime.getTime());
+      }
     } catch (SQLException se) {
       jobExecutionInfo.setEndTime(0);
     }
@@ -749,12 +684,18 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     taskExecutionInfo.setTaskId(rs.getString("task_id"));
     taskExecutionInfo.setJobId(rs.getString("job_id"));
     try {
-      taskExecutionInfo.setStartTime(rs.getTimestamp("start_time").getTime());
+      Timestamp startTime = rs.getTimestamp("start_time");
+      if (startTime != null) {
+        taskExecutionInfo.setStartTime(startTime.getTime());
+      }
     } catch (SQLException se) {
       taskExecutionInfo.setStartTime(0);
     }
     try {
-      taskExecutionInfo.setEndTime(rs.getTimestamp("end_time").getTime());
+      Timestamp endTime = rs.getTimestamp("end_time");
+      if (endTime != null) {
+          taskExecutionInfo.setEndTime(endTime.getTime());
+      }
     } catch (SQLException se) {
       taskExecutionInfo.setEndTime(0);
     }

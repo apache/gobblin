@@ -22,11 +22,13 @@ dependencies {
     compile externalDependency.guice
     compile externalDependency.javaxInject
     compile externalDependency.jodaTime
-    
+    compile externalDependency.httpclient
+    compile externalDependency.embeddedProcess
+    compile externalDependency.testMysqlServer
+
     runtime externalDependency.mysqlConnector
 
     testCompile externalDependency.testng
-    testRuntime externalDependency.derby
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client

@@ -1,5 +1,10 @@
 language: java
 
+addons:
+  apt:
+    packages:
+      - libaio-dev
+
 script:
   - ./gradlew clean check -PskipTestGroup=disabledOnTravis -i
   - ./gradlew clean check -PuseHadoop2 -PskipTestGroup=disabledOnTravis -i
