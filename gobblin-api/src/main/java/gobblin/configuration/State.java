@@ -15,7 +15,6 @@ package gobblin.configuration;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -24,11 +23,13 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSortedSet;
-
 import com.google.common.collect.Sets;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+
+import lombok.EqualsAndHashCode;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -39,6 +40,7 @@ import org.apache.hadoop.io.Writable;
  *
  * @author kgoodhop
  */
+@EqualsAndHashCode(exclude = {"jsonParser"})
 public class State implements Writable {
 
   private static final Joiner LIST_JOINER = Joiner.on(",");
@@ -506,26 +508,6 @@ public class State implements Writable {
       txt.set(properties.getProperty((String) key));
       txt.write(out);
     }
-  }
-
-  @Override
-  public boolean equals(Object object) {
-    if (!(object instanceof State)) {
-      return false;
-    }
-
-    State other = (State) object;
-    return ((this.id == null && other.id == null) || (this.id != null && this.id.equals(other.id)))
-        && this.properties.equals(other.properties);
-  }
-
-  @Override
-  public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + ((this.id == null) ? 0 : this.id.hashCode());
-    result = prime * result + ((this.properties == null) ? 0 : this.properties.hashCode());
-    return result;
   }
 
   @Override
