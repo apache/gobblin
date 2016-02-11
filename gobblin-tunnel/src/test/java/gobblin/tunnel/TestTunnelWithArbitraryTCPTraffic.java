@@ -540,7 +540,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     }
   }
 
-  @Test(timeOut = 5000, expectedExceptions = IOException.class)
+  @Test(groups = { "disabledOnTravis" }, timeOut = 5000, expectedExceptions = IOException.class)
   public void testTunnelThreadDeadAfterUnexpectedException() throws IOException, InterruptedException {
     MockServer proxyServer = startConnectProxyServer(false, false, 8);
 
@@ -563,10 +563,10 @@ public class TestTunnelWithArbitraryTCPTraffic {
       }
       client.close();
     } finally {
-      assertNotEquals(response, "Knock Knock\n");
-      assertEquals(proxyServer.getNumConnects(), 1);
       proxyServer.stopServer();
       tunnel.close();
+      assertNotEquals(response, "Knock Knock\n");
+      assertEquals(proxyServer.getNumConnects(), 1);
       assertFalse(tunnel.isTunnelThreadAlive());
     }
   }
