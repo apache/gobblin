@@ -316,24 +316,25 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
     if (ownerAndPermissionIterator.hasNext()) {
       OwnerAndPermission ownerAndPermission = ownerAndPermissionIterator.next();
+
       if (path.getParent() != null) {
         ensureDirectoryExists(fs, path.getParent(), ownerAndPermissionIterator);
       }
-      if (ownerAndPermission.getFsPermission() == null) {
-        // use default permissions
-        if (!fs.mkdirs(path)) {
-          // fs.mkdirs returns false if path already existed. Do not overwrite permissions
-          return;
-        }
-      } else {
-        if (!fs.mkdirs(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()))) {
-          // fs.mkdirs returns false if path already existed. Do not overwrite permissions
-          return;
-        }
+
+      if (!fs.mkdirs(path)) {
+        // fs.mkdirs returns false if path already existed. Do not overwrite permissions
+        return;
       }
+
+      if (ownerAndPermission.getFsPermission() != null) {
+        log.debug("Applying permissions %s to path %s.", ownerAndPermission.getFsPermission(), path);
+        fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
+      }
+
       String group = ownerAndPermission.getGroup();
       String owner = ownerAndPermission.getOwner();
       if (group != null || owner != null) {
+        log.debug("Applying owner %s and group %s to path %s.", owner, group, path);
         fs.setOwner(path, owner, group);
       }
     } else {

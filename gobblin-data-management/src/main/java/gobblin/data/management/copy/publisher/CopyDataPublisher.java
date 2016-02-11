@@ -38,14 +38,12 @@ import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
 import gobblin.publisher.UnpublishedHandling;
-import gobblin.util.PathUtils;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.publisher.DataPublisher;
 import gobblin.util.HadoopUtils;
-import gobblin.util.PathUtils;
 
 /**
  * A {@link DataPublisher} to {@link CopyableFile}s from task output to final destination.
@@ -146,13 +144,12 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     CopyableDatasetMetadata metadata = CopyableDatasetMetadata.deserialize(
         datasetWorkUnitStates.iterator().next().getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
-    Path datasetWriterOutputPath = new Path(new Path(writerOutputDir, datasetAndPartition.identifier()),
-        PathUtils.withoutLeadingSeparator(metadata.getDatasetTargetRoot()));
+    Path datasetWriterOutputPath = new Path(this.writerOutputDir, datasetAndPartition.identifier());
 
     log.info(String
         .format("Publishing fileSet from %s to %s", datasetWriterOutputPath, metadata.getDatasetTargetRoot()));
 
-    HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, metadata.getDatasetTargetRoot());
+    HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, findPathRoot(metadata.getDatasetTargetRoot()));
 
     fs.delete(datasetWriterOutputPath, true);
 
@@ -175,6 +172,13 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(eventSubmitter, datasetAndPartition,
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp));
+  }
+
+  private Path findPathRoot(Path path) {
+    while (path.getParent() != null) {
+      path = path.getParent();
+    }
+    return path;
   }
 
   private int persistFailedFileSet(Collection<? extends WorkUnitState> workUnitStates) throws IOException {

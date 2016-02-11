@@ -94,6 +94,7 @@ public class CopyableFileTest {
         CopyConfiguration.builder().targetRoot(new Path(targetRoot)).preserve(preserveAttributes).build();
 
     CopyableFile copyableFile = CopyableFile.builder(originFS, origin, datasetRoot, copyConfiguration)
+        .ancestorsOwnerAndPermission(Lists.<OwnerAndPermission>newArrayList()) // not testing ancestors
         .build();
 
     // Making sure all fields are populated correctly via CopyableFile builder
@@ -152,7 +153,9 @@ public class CopyableFileTest {
         .origin(origin)
         .preserve(preserveAttributes)
         .relativeDestination(relativePath)
-        .destination(targetPath).build();
+        .destination(targetPath)
+        .ancestorsOwnerAndPermission(Lists.<OwnerAndPermission>newArrayList())
+        .build();
 
     // Verify preserve attribute options
     Assert.assertEquals(copyableFile.getPreserve().toMnemonicString(), preserveAttributes.toMnemonicString());
