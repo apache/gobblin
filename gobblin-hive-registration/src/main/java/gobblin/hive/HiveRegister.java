@@ -46,8 +46,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
 import gobblin.hive.HiveStripedLocks.HiveLock;
-import gobblin.hive.policy.HiveRegistrationPolicy;
-import gobblin.hive.policy.HiveRegistrationPolicyBase;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.hive.spec.HiveSpecWithPostActivities;
 import gobblin.hive.spec.HiveSpecWithPreActivities;
@@ -160,22 +158,6 @@ public class HiveRegister implements Closeable {
 
     this.futures.add(future);
     return future;
-  }
-
-  /**
-   * Register the given {@link Path}s.
-   *
-   * @param paths The {@link Path}s to be registered.
-   * @param state A {@link State} which will be used to instantiate a {@link HiveRegister} and a
-   * {@link HiveRegistrationPolicy} for registering the given The {@link Path}s.
-   */
-  public static void register(Iterable<String> paths, State state) throws IOException {
-    try (HiveRegister hiveRegister = new HiveRegister(state)) {
-      HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(state);
-      for (String path : paths) {
-        hiveRegister.register(policy.getHiveSpec(new Path(path)));
-      }
-    }
   }
 
   private boolean evaluatePredicates(HiveSpecWithPredicates spec) {
