@@ -211,7 +211,9 @@ ext.externalDependency = [
           "org.eclipse.jetty:jetty-server:9.2.14.v20151106",
           "org.eclipse.jetty:jetty-servlet:9.2.14.v20151106"
   ],
-  "servlet-api": "javax.servlet:servlet-api:3.1.0"
+  "servlet-api": "javax.servlet:servlet-api:3.1.0",
+  "embeddedProcess": "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.0",
+  "testMysqlServer" : "com.wix:wix-embedded-mysql:1.0.2"
 ];
 
 if (!isDefaultEnvironment)

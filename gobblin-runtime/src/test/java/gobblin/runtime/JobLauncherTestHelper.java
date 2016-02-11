@@ -12,34 +12,21 @@
 
 package gobblin.runtime;
 
-import java.io.File;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import javax.sql.DataSource;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
-import com.google.common.io.Files;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
-import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.StateStore;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
@@ -312,38 +299,6 @@ public class JobLauncherTestHelper {
       for (TaskState taskState : datasetState.getTaskStates()) {
         Assert.assertEquals(taskState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
         Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
-      }
-    }
-  }
-
-  public void prepareJobHistoryStoreDatabase(Properties properties) throws Exception {
-    // Read the DDL statements
-    List<String> statementLines = Lists.newArrayList();
-    List<String> lines =
-        Files.readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
-            ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
-    for (String line : lines) {
-      // Skip a comment line
-      if (line.startsWith("--")) {
-        continue;
-      }
-      statementLines.add(line);
-    }
-    String statements = Joiner.on("\n").skipNulls().join(statementLines);
-
-    Optional<Connection> connectionOptional = Optional.absent();
-    try {
-      Injector injector = Guice.createInjector(new MetaStoreModule(properties));
-      DataSource dataSource = injector.getInstance(DataSource.class);
-      connectionOptional = Optional.of(dataSource.getConnection());
-      Connection connection = connectionOptional.get();
-      for (String statement : Splitter.on(";").omitEmptyStrings().trimResults().split(statements)) {
-        PreparedStatement preparedStatement = connection.prepareStatement(statement);
-        preparedStatement.execute();
-      }
-    } finally {
-      if (connectionOptional.isPresent()) {
-        connectionOptional.get().close();
       }
     }
   }

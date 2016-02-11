@@ -12,33 +12,25 @@
 
 package gobblin.metastore;
 
-import java.io.File;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import javax.sql.DataSource;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.Files;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
 import com.linkedin.data.template.StringMap;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.testing.TestMetastoreDatabase;
 import gobblin.rest.JobExecutionInfo;
 import gobblin.rest.JobExecutionQuery;
 import gobblin.rest.JobStateEnum;
@@ -52,7 +44,6 @@ import gobblin.rest.TableTypeEnum;
 import gobblin.rest.TaskExecutionInfo;
 import gobblin.rest.TaskExecutionInfoArray;
 import gobblin.rest.TaskStateEnum;
-import gobblin.configuration.ConfigurationKeys;
 
 
 /**
@@ -65,15 +56,15 @@ public class DatabaseJobHistoryStoreTest {
 
   private final List<JobExecutionInfo> expectedJobExecutionInfos = Lists.newArrayList();
 
+  private TestMetastoreDatabase testMetastoreDatabase;
   private JobHistoryStore jobHistoryStore;
 
   @BeforeClass
   public void setUp()
       throws Exception {
+    testMetastoreDatabase = new TestMetastoreDatabase();
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
-    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin;create=true");
-    prepareJobHistoryStoreDatabase(properties);
+    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, testMetastoreDatabase.getJdbcUrl());
     Injector injector = Guice.createInjector(new MetaStoreModule(properties));
     this.jobHistoryStore = injector.getInstance(JobHistoryStore.class);
   }
@@ -171,48 +162,13 @@ public class DatabaseJobHistoryStoreTest {
         this.expectedJobExecutionInfos.get(1).getTaskExecutions().get(1).getTable());
   }
 
-  @AfterClass
+  @AfterClass(alwaysRun = true)
   public void tearDown()
       throws Exception {
-    this.jobHistoryStore.close();
-    try {
-      DriverManager.getConnection("jdbc:derby:memory:gobblin;shutdown=true");
-    } catch (SQLException se) {
-      // An exception is expected when shutting down the database
+    if (this.jobHistoryStore != null) {
+      this.jobHistoryStore.close();
     }
-  }
-
-  private void prepareJobHistoryStoreDatabase(Properties properties)
-      throws Exception {
-    // Read the DDL statements
-    List<String> statementLines = Lists.newArrayList();
-    List<String> lines = Files.readLines(
-        new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
-        ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
-    for (String line : lines) {
-      // Skip a comment line
-      if (line.startsWith("--")) {
-        continue;
-      }
-      statementLines.add(line);
-    }
-    String statements = Joiner.on("\n").skipNulls().join(statementLines);
-
-    Optional<Connection> connectionOptional = Optional.absent();
-    try {
-      Injector injector = Guice.createInjector(new MetaStoreModule(properties));
-      DataSource dataSource = injector.getInstance(DataSource.class);
-      connectionOptional = Optional.of(dataSource.getConnection());
-      Connection connection = connectionOptional.get();
-      for (String statement : Splitter.on(";").omitEmptyStrings().trimResults().split(statements)) {
-        PreparedStatement preparedStatement = connection.prepareStatement(statement);
-        preparedStatement.execute();
-      }
-    } finally {
-      if (connectionOptional.isPresent()) {
-        connectionOptional.get().close();
-      }
-    }
+    this.testMetastoreDatabase.close();
   }
 
   private JobExecutionInfo create(int index, boolean differentTableType) {
