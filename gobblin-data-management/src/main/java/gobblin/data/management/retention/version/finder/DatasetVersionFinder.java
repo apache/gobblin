@@ -62,7 +62,8 @@ public abstract class DatasetVersionFinder<T extends DatasetVersion> implements 
     List<T> dataSetVersions = Lists.newArrayList();
     for(FileStatus dataSetVersionPath: dataSetVersionPaths) {
       T datasetVersion = getDatasetVersion(
-          PathUtils.relativizePath(dataSetVersionPath.getPath(), dataset.datasetRoot()), dataSetVersionPath.getPath());
+          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(dataSetVersionPath.getPath()),
+              PathUtils.getPathWithoutSchemeAndAuthority(dataset.datasetRoot())), dataSetVersionPath.getPath());
       if(datasetVersion != null) {
         dataSetVersions.add(datasetVersion);
       }
