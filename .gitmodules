@@ -1,0 +1,3 @@
+[submodule "gobblin-docs"]
+	path = gobblin-docs
+	url = https://github.com/linkedin/gobblin.wiki.git
