@@ -61,7 +61,7 @@ public class CopyEventSubmitterHelper {
    * Submit an sla event when a {@link CopyableFile} is published. The <code>workUnitState</code> passed should have the
    * required {@link SlaEventKeys} set.
    *
-   * @see {@link SlaEventSubmitter#submit()} for all the required {@link SlaEventKeys} to be set
+   * @see SlaEventSubmitter#submit()
    *
    * @param eventSubmitter
    * @param workUnitState

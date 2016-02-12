@@ -91,7 +91,7 @@ import gobblin.util.PathUtils;
  *   This class is not responsible for deploying configurations from an external source to HDFS, only for reading them.
  * </p>
  *
- * @see {@link SimpleHDFSConfigStoreFactory}
+ * @see SimpleHDFSConfigStoreFactory
  */
 
 @ConfigStoreWithStableVersioning

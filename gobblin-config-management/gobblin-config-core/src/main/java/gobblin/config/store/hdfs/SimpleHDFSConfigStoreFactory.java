@@ -20,7 +20,7 @@ import gobblin.config.store.api.ConfigStoreFactory;
  * An implementation of {@link ConfigStoreFactory} for creating {@link SimpleHDFSConfigStore}s. This class only works
  * the physical scheme {@link #HDFS_SCHEME_NAME}.
  *
- * @see {@link SimpleHDFSConfigStore}
+ * @see SimpleHDFSConfigStore
  */
 public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHDFSConfigStore> {
 

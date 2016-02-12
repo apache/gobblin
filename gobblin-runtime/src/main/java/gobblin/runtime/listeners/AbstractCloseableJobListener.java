@@ -15,7 +15,7 @@ package gobblin.runtime.listeners;
 /**
  * Extension of {@link AbstractJobListener} that also extends {@link CloseableJobListener}.
  *
- * @see {@link AbstractJobListener}
+ * @see AbstractJobListener
  * @author Joel Baranick
  */
 public abstract class AbstractCloseableJobListener extends AbstractJobListener implements CloseableJobListener {

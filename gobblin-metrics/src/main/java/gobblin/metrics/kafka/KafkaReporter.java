@@ -59,7 +59,7 @@ public class KafkaReporter extends MetricReportReporter {
   /**
    * A static factory class for obtaining new {@link gobblin.metrics.kafka.KafkaReporter.Builder}s
    *
-   * @see {@link gobblin.metrics.kafka.KafkaReporter.Builder}
+   * @see gobblin.metrics.kafka.KafkaReporter.Builder
    */
   public static class BuilderFactory {
 

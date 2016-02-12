@@ -292,7 +292,7 @@ public class JobContext {
    * {@link JobState.DatasetState} objects that represent the dataset states and store {@link TaskState}s
    * corresponding to the datasets.
    *
-   * @see {@link JobState#createDatasetStatesByUrns()}.
+   * @see JobState#createDatasetStatesByUrns().
    *
    * @return a {@link Map} from dataset URNs to {@link JobState.DatasetState}s representing the dataset states
    */

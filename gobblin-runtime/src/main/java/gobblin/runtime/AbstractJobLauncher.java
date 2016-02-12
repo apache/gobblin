@@ -544,7 +544,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Takes a {@link List} of {@link Tag}s and returns a new {@link List} with the original {@link Tag}s as well as any
    * additional {@link Tag}s returned by {@link ClusterNameTags#getClusterNameTags()}.
    *
-   * @see {@link ClusterNameTags}
+   * @see ClusterNameTags
    */
   private List<Tag<?>> addClusterNameTags(List<? extends Tag<?>> tags) {
     return ImmutableList.<Tag<?>>builder().addAll(tags).addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()))
