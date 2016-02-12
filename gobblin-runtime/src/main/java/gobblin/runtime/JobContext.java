@@ -166,9 +166,8 @@ public class JobContext {
 
     Preconditions.checkState(this.jobState.contains(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR));
 
-    FileSystem fs = FileSystem.get(
-        URI.create(
-            this.jobState.getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_FS_URI, ConfigurationKeys.LOCAL_FS_URI)),
+    FileSystem fs = FileSystem.get(URI.create(this.jobState
+        .getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_FS_URI, ConfigurationKeys.LOCAL_FS_URI)),
         HadoopUtils.getConfFromState(this.jobState));
 
     return Optional.<CommitSequenceStore> of(new FsCommitSequenceStore(fs,
@@ -354,17 +353,17 @@ public class JobContext {
       finalizeDatasetStateBeforeCommit(datasetState);
 
       Class<? extends DataPublisher> dataPublisherClass;
-      try(Closer closer = Closer.create()) {
-        dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
-            datasetState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+      try (Closer closer = Closer.create()) {
+        dataPublisherClass = getJobDataPublisherClass(datasetState);
         if (!canCommitDataset(datasetState)) {
           this.logger.warn(String.format("Not committing dataset %s of job %s with commit policy %s and state %s",
               datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
           allDatasetsCommit = false;
           if (UnpublishedHandling.class.isAssignableFrom(dataPublisherClass)) {
             DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
-            this.logger.info(String.format("Calling publisher to handle unpublished work units for dataset %s of job %s.",
-                datasetUrn, this.jobId));
+            this.logger
+                .info(String.format("Calling publisher to handle unpublished work units for dataset %s of job %s.",
+                    datasetUrn, this.jobId));
             ((UnpublishedHandling) publisher).handleUnpublishedWorkUnits(datasetState.getTaskStatesAsWorkUnitStates());
           }
           continue;
@@ -373,7 +372,7 @@ public class JobContext {
         throw new IOException(roe);
       }
 
-      try(Closer closer = Closer.create()) {
+      try (Closer closer = Closer.create()) {
 
         if (shouldCommitDataInJob) {
           this.logger.info(String.format("Committing dataset %s of job %s with commit policy %s and state %s",
@@ -390,7 +389,8 @@ public class JobContext {
         }
       } catch (ReflectiveOperationException roe) {
         this.logger.error(
-            String.format("Failed to instantiate data publisher for dataset %s of job %s.", datasetUrn, this.jobId), roe);
+            String.format("Failed to instantiate data publisher for dataset %s of job %s.", datasetUrn, this.jobId),
+            roe);
       } catch (IOException ioe) {
         this.logger.error(
             String.format("Failed to commit dataset state for dataset %s of job %s", datasetUrn, this.jobId), ioe);
@@ -421,6 +421,20 @@ public class JobContext {
     }
   }
 
+  @SuppressWarnings("unchecked")
+  private Class<? extends DataPublisher> getJobDataPublisherClass(JobState.DatasetState datasetState)
+      throws ReflectiveOperationException {
+    if (datasetState.contains(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE)) {
+      return (Class<? extends DataPublisher>) Class
+          .forName(datasetState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE));
+    } else {
+      LOG.warn("Property " + ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE + " not specified");
+      return (Class<? extends DataPublisher>) Class.forName(
+          datasetState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+    }
+
+  }
+
   /**
    * Whether data should be committed by the job (as opposed to being commited by the tasks).
    * Data should be committed by the job if either {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY} is set to "full",
@@ -431,7 +445,8 @@ public class JobContext {
         JobCommitPolicy.getCommitPolicy(state.getProperties()) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
     boolean publishDataAtJobLevel = state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
         ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
-    return jobCommitPolicyIsFull || publishDataAtJobLevel;
+    boolean jobDataPublisherSpecified = state.contains(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE);
+    return jobCommitPolicyIsFull || publishDataAtJobLevel || jobDataPublisherSpecified;
   }
 
   /**
@@ -478,7 +493,6 @@ public class JobContext {
   /**
    * Commit the output data of a dataset.
    */
-  @SuppressWarnings("unchecked")
   private void commitDataset(JobState.DatasetState datasetState, DataPublisher publisher) throws IOException {
 
     try {
