@@ -11,7 +11,7 @@ import com.google.common.collect.ImmutableMap;
 /**
  * Utility class for collecting metadata specific to the current Hadoop cluster.
  *
- * @see {@link ClustersNames}
+ * @see ClustersNames
  */
 public class ClusterNameTags {
 

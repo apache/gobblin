@@ -42,8 +42,8 @@ import com.google.common.io.Closer;
  * {@link FileSystem#get(org.apache.hadoop.conf.Configuration)} call. Closing is necessary as the file system maintains
  * a session with the remote server.
  *
- * @see {@link HadoopUtils#newConfiguration()}
- * @See {@link SftpLightWeightFileSystem}
+ * @see HadoopUtils#newConfiguration()
+ * @See SftpLightWeightFileSystem
  *      </p>
  */
 @Slf4j

@@ -47,7 +47,8 @@ public class PathUtils {
   /**
    * Removes the Scheme and Authority from a Path.
    *
-   * @see {@link Path}, {@link URI}
+   * @see Path
+   * @see URI
    */
   public static Path getPathWithoutSchemeAndAuthority(Path path) {
     return new Path(null, null, path.toUri().getPath());

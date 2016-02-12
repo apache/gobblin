@@ -44,7 +44,8 @@ import gobblin.configuration.State;
  *  {@link FileSystem}s using the {@link ProxiedFileSystemUtils} class.
  * </p>
  *
- * @see {@link Cache}, {@link ProxiedFileSystemUtils}
+ * @see Cache
+ * @see ProxiedFileSystemUtils
  */
 public class ProxiedFileSystemCache {
 

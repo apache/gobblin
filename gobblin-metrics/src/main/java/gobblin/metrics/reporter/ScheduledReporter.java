@@ -163,7 +163,7 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
 
   /***
    * @param isFinal true if this is the final time report will be called for this reporter, false otherwise
-   * @see {@link #report()}
+   * @see #report()
    */
   protected void report(boolean isFinal) {
     for (ReportableContext metricContext : getMetricContextsToReport()) {
@@ -180,7 +180,7 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
    * </p>
    *
    * @param context {@link InnerMetricContext} to report.
-   * @see {@link #report(ReportableContext, boolean)}
+   * @see #report(ReportableContext, boolean)
    */
   protected final void report(ReportableContext context) {
     report(context, false);
@@ -189,7 +189,7 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
   /**
    * @param context {@link InnerMetricContext} to report.
    * @param isFinal true if this is the final time report will be called for the given context, false otherwise
-   * @see {@link #report(ReportableContext)}
+   * @see #report(ReportableContext)
    */
   protected void report(ReportableContext context, boolean isFinal) {
     report(context.getGauges(this.metricFilter), context.getCounters(this.metricFilter),
@@ -217,7 +217,7 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
   }
 
   /**
-   * @see {@link #report(SortedMap, SortedMap, SortedMap, SortedMap, SortedMap, Map)}
+   * @see #report(SortedMap, SortedMap, SortedMap, SortedMap, SortedMap, Map)
    */
   protected abstract void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,

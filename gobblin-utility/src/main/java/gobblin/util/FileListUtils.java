@@ -18,7 +18,7 @@ import com.google.common.collect.Lists;
 /**
  * Utility class for listing files on a {@link FileSystem}.
  *
- * @see {@link FileSystem}
+ * @see FileSystem
  */
 public class FileListUtils {
   private static final Logger LOG = LoggerFactory.getLogger(FileListUtils.class);

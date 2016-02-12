@@ -37,7 +37,7 @@ import gobblin.metrics.Tag;
 /**
  * Package-private implementation of instrumentation for {@link gobblin.fork.ForkOperator}.
  *
- * @see {@link gobblin.instrumented.fork.InstrumentedForkOperator} for extensible class.
+ * @see gobblin.instrumented.fork.InstrumentedForkOperator for extensible class.
  */
 abstract class InstrumentedForkOperatorBase<S, D> implements Instrumentable, ForkOperator<S, D> {
 

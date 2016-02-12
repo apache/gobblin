@@ -133,7 +133,7 @@ public class StreamUtils {
   /**
    * Similiar to {@link #tar(FileSystem, Path, Path)} except the source and destination {@link FileSystem} can be different.
    *
-   * @see {@link #tar(FileSystem, Path, Path)}
+   * @see #tar(FileSystem, Path, Path)
    */
   public static void tar(FileSystem sourceFs, FileSystem destFs, Path sourcePath, Path destPath)
       throws IOException {
