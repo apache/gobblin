@@ -49,7 +49,7 @@ import static org.testng.Assert.assertTrue;
  *
  * @author kkandekar@linkedin.com
  */
-@Test(singleThreaded = true, groups = { "gobblin.tunnel" })
+@Test(singleThreaded = true, groups = { "gobblin.tunnel", "disabledOnTravis" })
 public class TestTunnelWithArbitraryTCPTraffic {
   private static final Logger LOG = LoggerFactory.getLogger(TestTunnelWithArbitraryTCPTraffic.class);
 
@@ -540,7 +540,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     }
   }
 
-  @Test(groups = { "disabledOnTravis" }, timeOut = 5000, expectedExceptions = IOException.class)
+  @Test(timeOut = 5000, expectedExceptions = IOException.class)
   public void testTunnelThreadDeadAfterUnexpectedException() throws IOException, InterruptedException {
     MockServer proxyServer = startConnectProxyServer(false, false, 8);
 
