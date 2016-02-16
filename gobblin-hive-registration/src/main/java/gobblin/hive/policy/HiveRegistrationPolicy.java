@@ -13,6 +13,7 @@
 package gobblin.hive.policy;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import org.apache.hadoop.fs.Path;
 
@@ -30,9 +31,9 @@ import gobblin.hive.spec.HiveSpec;
 public interface HiveRegistrationPolicy {
 
   /**
-   * Get a {@link HiveSpec} for a {@link Path}, which can be used by {@link HiveRegister}
+   * Get a collection of {@link HiveSpec} for a {@link Path}, which can be used by {@link HiveRegister}
    * to register the given {@link Path}.
    */
-  public HiveSpec getHiveSpec(Path path) throws IOException;
+  public Collection<HiveSpec> getHiveSpecs(Path path) throws IOException;
 
 }

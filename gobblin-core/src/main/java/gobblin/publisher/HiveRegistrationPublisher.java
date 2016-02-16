@@ -27,6 +27,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.hive.HiveRegister;
 import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
+import gobblin.hive.spec.HiveSpec;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -70,7 +71,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
     Set<String> pathsToRegister = getUniquePathsToRegister(states);
     log.info("Number of paths to be registered in Hive: " + pathsToRegister.size());
     for (String path : pathsToRegister) {
-      this.hiveRegister.register(this.policy.getHiveSpec(new Path(path)));
+      for (HiveSpec spec : this.policy.getHiveSpecs(new Path(path))) {
+        this.hiveRegister.register(spec);
+      }
     }
   }
 
