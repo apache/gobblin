@@ -113,7 +113,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   public enum Status {
     ABORTED,
     COMMITTED,
-    RUNNING;
+    RUNNING
   }
 
   protected final Dataset dataset;

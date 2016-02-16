@@ -31,6 +31,7 @@ import lombok.Getter;
 @Getter
 @Alpha
 public class HivePartition {
+
   private final List<FieldSchema> keys;
   private final List<String> values;
 

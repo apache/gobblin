@@ -92,7 +92,7 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
   }
 
   protected String getDatabaseOrTableName(Path path, String nameKey, String regexKey, Optional<Pattern> pattern) {
-    String name = null;
+    String name;
     if (this.props.contains(nameKey)) {
       name = this.props.getProp(nameKey);
     } else if (pattern.isPresent()) {
