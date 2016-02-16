@@ -48,7 +48,7 @@ import static org.testng.Assert.assertTrue;
  *
  * @author navteniev@linkedin.com
  */
-@Test(groups = { "gobblin.tunnel" })
+@Test(groups = { "gobblin.tunnel", "disabledOnTravis" })
 public class TunnelTest {
 
   private ClientAndServer mockServer;

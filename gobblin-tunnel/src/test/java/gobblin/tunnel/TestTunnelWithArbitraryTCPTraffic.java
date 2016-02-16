@@ -49,7 +49,7 @@ import static org.testng.Assert.assertTrue;
  *
  * @author kkandekar@linkedin.com
  */
-@Test(singleThreaded = true, groups = { "gobblin.tunnel", "disabledOnTravis" })
+@Test(singleThreaded = true, groups = { "gobblin.tunnel" })
 public class TestTunnelWithArbitraryTCPTraffic {
   private static final Logger LOG = LoggerFactory.getLogger(TestTunnelWithArbitraryTCPTraffic.class);
 
