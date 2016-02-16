@@ -7,7 +7,6 @@ public class KafkaRecord {
     private String payload;
 
     public KafkaRecord(long offset, String key, String payload) {
-        super();
         this.offset = offset;
         this.key = key;
         this.payload = payload;
