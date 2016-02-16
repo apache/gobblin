@@ -776,7 +776,9 @@ public class GobblinYarnAppLauncher {
         } catch (TimeoutException te) {
           LOGGER.error("Timeout in stopping the service manager", te);
         } finally {
-          gobblinYarnAppLauncher.sendEmailOnShutdown(Optional.<ApplicationReport>absent());
+          if (gobblinYarnAppLauncher.emailNotificationOnShutdown) {
+            gobblinYarnAppLauncher.sendEmailOnShutdown(Optional.<ApplicationReport>absent());
+          }
         }
       }
     });
