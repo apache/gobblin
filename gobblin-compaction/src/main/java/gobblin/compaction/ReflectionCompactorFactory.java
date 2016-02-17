@@ -43,7 +43,7 @@ public class ReflectionCompactorFactory implements CompactorFactory {
           .invokeConstructor(Class.forName(compactorClassName), properties, tags, compactorListener);
     } catch (ReflectiveOperationException e) {
       throw new CompactorCreationException(String
-          .format("Unable to create Compactor from key \"%s\" with value \"value\"", COMPACTION_COMPACTOR_CLASS,
+          .format("Unable to create Compactor from key \"%s\" with value \"%s\"", COMPACTION_COMPACTOR_CLASS,
               compactorClassName), e);
     }
   }

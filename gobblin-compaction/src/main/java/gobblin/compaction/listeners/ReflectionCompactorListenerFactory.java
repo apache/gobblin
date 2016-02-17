@@ -51,7 +51,7 @@ public class ReflectionCompactorListenerFactory implements CompactorListenerFact
             .invokeConstructor(Class.forName(listenerClassName), properties));
       } catch (ReflectiveOperationException e) {
         throw new CompactorListenerCreationException(String
-            .format("Unable to create CompactorListeners from key \"%s\" with value \"value\"", COMPACTOR_LISTENERS,
+            .format("Unable to create CompactorListeners from key \"%s\" with value \"%s\"", COMPACTOR_LISTENERS,
                 properties.getProperty(COMPACTOR_LISTENERS)), e);
       }
     }
