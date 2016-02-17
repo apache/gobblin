@@ -1,38 +1,17 @@
 package gobblin.source.extractor.extract.kafka;
 
+import lombok.Getter;
+
+@Getter
 public class KafkaRecord {
 
-    private long offset;
-    private String key;
-    private String payload;
+    private final long offset;
+    private final String key;
+    private final String payload;
 
     public KafkaRecord(long offset, String key, String payload) {
         this.offset = offset;
         this.key = key;
-        this.payload = payload;
-    }
-
-    public long getOffset() {
-        return offset;
-    }
-
-    public void setOffset(long offset) {
-        this.offset = offset;
-    }
-
-    public String getKey() {
-        return key;
-    }
-
-    public void setKey(String key) {
-        this.key = key;
-    }
-
-    public String getPayload() {
-        return payload;
-    }
-
-    public void setPayload(String payload) {
         this.payload = payload;
     }
 
