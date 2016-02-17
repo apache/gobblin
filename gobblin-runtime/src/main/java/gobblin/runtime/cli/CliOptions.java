@@ -13,6 +13,7 @@
 package gobblin.runtime.cli;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.Properties;
 
 import org.apache.commons.cli.CommandLine;
@@ -79,6 +80,8 @@ public class CliOptions {
       throw new IOException(pe);
     } catch (ConfigurationException ce) {
       throw new IOException(ce);
+    } catch (URISyntaxException use) {
+      throw new IOException(use);
     }
   }
 
