@@ -318,7 +318,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
     // Getting file status from src rather than dst, because at this time dst doesn't yet exist.
     // If src is a dir, add dst to the set of paths. Otherwise, add dst's parent.
-    if (this.publisherFileSystemByBranches.get(branchId).getFileStatus(src).isDir()) {
+    if (this.writerFileSystemByBranches.get(branchId).getFileStatus(src).isDir()) {
       return ImmutableList.<Path> of(dst);
     } else {
       return ImmutableList.<Path> of(dst.getParent());
