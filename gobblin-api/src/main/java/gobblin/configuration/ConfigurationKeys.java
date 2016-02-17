@@ -469,6 +469,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_REST_SERVER_HOST = "localhost";
   public static final String REST_SERVER_PORT_KEY = "rest.server.port";
   public static final String DEFAULT_REST_SERVER_PORT = "8080";
+  public static final String REST_SERVER_ADVERTISED_URI_KEY = "rest.server.advertised.uri";
 
   /**
    * Admin server configuration properties.

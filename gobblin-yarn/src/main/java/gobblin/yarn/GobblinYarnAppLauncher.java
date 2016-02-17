@@ -277,7 +277,7 @@ public class GobblinYarnAppLauncher {
       services.add(executionInfoServer);
       if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
         LOGGER.info("Starting the admin UI server since it is enabled");
-        services.add(new AdminWebServer(properties, executionInfoServer.getServerUri()));
+        services.add(new AdminWebServer(properties, executionInfoServer.getAdvertisedServerUri()));
       }
     } else if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
       LOGGER.warn("NOT starting the admin UI because the job execution info server is NOT enabled");
