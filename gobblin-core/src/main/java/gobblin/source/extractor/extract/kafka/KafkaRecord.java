@@ -1,15 +1,16 @@
-package gobblin.source.extractor.extract.kafka;
+package uk.gov.ipt.gobblin.kafka;
 
 import lombok.Getter;
 
 @Getter
-public class KafkaRecord {
+public class KafkaRecord implements Comparable<KafkaRecord> {
 
-    private final long offset;
+    private final Long offset;
     private final String key;
     private final String payload;
 
     public KafkaRecord(long offset, String key, String payload) {
+        super();
         this.offset = offset;
         this.key = key;
         this.payload = payload;
@@ -60,6 +61,10 @@ public class KafkaRecord {
             return false;
         }
         return true;
+    }
+
+    public int compareTo(KafkaRecord o) {
+        return this.offset.compareTo(o.offset);
     }
 
 }
