@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.RandomStringUtils;
@@ -69,8 +70,7 @@ public class FileAwareInputStreamDataWriterTest {
         new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
 
-    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")),
-        new Path("/"));
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
 
     WorkUnitState state = new WorkUnitState();
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
@@ -127,9 +127,13 @@ public class FileAwareInputStreamDataWriterTest {
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     ancestorOwnerAndPermissions.add(ownerAndPermission);
-    CopyableFile cf = CopyableFile.builder(this.fs, status, new Path("/dataset"),
-        CopyConfiguration.builder().targetRoot(new Path("/target")).preserve(PreserveAttributes.fromMnemonicString("")).build())
-        .destination(destination)
+
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
+
+    CopyableFile cf = CopyableFile.fromOriginAndDestination(this.fs, status, destination,
+        CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).publishDir(new Path("/target"))
+            .preserve(PreserveAttributes.fromMnemonicString("")).build())
         .destinationOwnerAndPermission(ownerAndPermission)
         .ancestorsOwnerAndPermission(ancestorOwnerAndPermissions)
         .build();
@@ -139,8 +143,7 @@ public class FileAwareInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir.toUri().getPath());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir.toUri().getPath());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
-    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")),
-        new Path("/"));
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
     CopySource.serializeCopyableFile(state, cf);
     CopySource.serializeCopyableDataset(state, metadata);
 

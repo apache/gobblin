@@ -12,7 +12,7 @@
 
 package gobblin.data.management.retention.profile;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.util.PathUtils;
@@ -56,7 +56,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
   public static final String DATASET_FINDER_PATTERN_KEY = CONFIGURATION_KEY_PREFIX + "dataset.pattern";
   public static final String DATASET_FINDER_BLACKLIST_KEY = CONFIGURATION_KEY_PREFIX + "dataset.blacklist";
 
-  private final Path datasetPattern;
+  protected final Path datasetPattern;
   private final Optional<Pattern> blacklist;
   private final Path commonRoot;
   protected final FileSystem fs;

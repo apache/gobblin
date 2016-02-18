@@ -12,7 +12,7 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 
 import java.io.IOException;
 import java.util.Collection;

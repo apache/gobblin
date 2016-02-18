@@ -23,7 +23,7 @@ import com.google.common.base.Preconditions;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.util.ProxiedFileSystemCache;

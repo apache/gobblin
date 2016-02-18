@@ -23,7 +23,7 @@ import java.util.List;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 
 /**
  * A named subset of {@link File}s in a {@link Dataset}. (Useful for partitions, versions, etc.)

@@ -73,8 +73,7 @@ public class TarArchiveInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, "writer_file_path_" + RandomStringUtils.randomAlphabetic(5));
-    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")),
-        new Path("/"));
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
     CopySource.serializeCopyableDataset(state, metadata);
 
     FileAwareInputStream fileAwareInputStream = getCompressedInputStream(filePath, newFileName);

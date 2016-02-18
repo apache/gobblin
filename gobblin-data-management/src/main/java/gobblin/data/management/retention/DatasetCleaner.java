@@ -142,14 +142,14 @@ public class DatasetCleaner implements Instrumentable, Closeable {
         @Override
         public void onFailure(Throwable throwable) {
           finishCleanSignal.get().countDown();
-          LOG.warn("Exception caught when cleaning " + dataset.datasetRoot() + ".", throwable);
+          LOG.warn("Exception caught when cleaning " + dataset.datasetURN() + ".", throwable);
           Instrumented.markMeter(datasetsCleanFailureMeter);
         }
 
         @Override
         public void onSuccess(Void arg0) {
           finishCleanSignal.get().countDown();
-          LOG.info("Successfully cleaned: " + dataset.datasetRoot());
+          LOG.info("Successfully cleaned: " + dataset.datasetURN());
           Instrumented.markMeter(datasetsCleanSuccessMeter);
         }
 

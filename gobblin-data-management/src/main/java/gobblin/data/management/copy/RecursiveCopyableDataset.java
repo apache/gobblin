@@ -13,6 +13,7 @@
 package gobblin.data.management.copy;
 
 import gobblin.data.management.dataset.DatasetUtils;
+import gobblin.dataset.FileSystemDataset;
 import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 
@@ -33,31 +34,41 @@ import com.google.common.collect.Lists;
  * Implementation of {@link CopyableDataset} that creates a {@link CopyableFile} for every file that is a descendant if
  * the root directory.
  */
-public class RecursiveCopyableDataset implements CopyableDataset {
+public class RecursiveCopyableDataset implements CopyableDataset, FileSystemDataset {
 
   private final Path rootPath;
   private final FileSystem fs;
   private final PathFilter pathFilter;
+  // Glob used to find this dataset
+  private final Path glob;
   private final CopyableFileFilter copyableFileFilter;
 
-  public RecursiveCopyableDataset(final FileSystem fs, Path rootPath, Properties properties) {
+  public RecursiveCopyableDataset(final FileSystem fs, Path rootPath, Properties properties, Path glob) {
 
     this.rootPath = PathUtils.getPathWithoutSchemeAndAuthority(rootPath);
     this.fs = fs;
 
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
     this.copyableFileFilter = DatasetUtils.instantiateCopyableFileFilter(properties);
+    this.glob = glob;
   }
 
   @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
+
+    Path nonGlobSearchPath = PathUtils.deepestNonGlobPath(this.glob);
 
     List<FileStatus> files = FileListUtils.listFilesRecursively(this.fs, this.rootPath, this.pathFilter);
 
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
     for (FileStatus file : files) {
-      copyableFiles.add(CopyableFile.builder(this.fs, file, this.rootPath, configuration).fileSet(file.getPath().getParent().toString()).build());
+      Path filePathRelativeToSearchPath = PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(file.getPath()),
+          PathUtils.getPathWithoutSchemeAndAuthority(nonGlobSearchPath));
+      Path targetPath = new Path(configuration.getPublishDir(), filePathRelativeToSearchPath);
+
+      copyableFiles.add(CopyableFile.fromOriginAndDestination(this.fs, file, targetPath, configuration).
+          fileSet(file.getPath().getParent().toString()).build());
     }
     return copyableFileFilter.filter(this.fs, targetFs, copyableFiles);
   }
@@ -67,4 +78,7 @@ public class RecursiveCopyableDataset implements CopyableDataset {
     return this.rootPath;
   }
 
+  @Override public String datasetURN() {
+    return datasetRoot().toString();
+  }
 }

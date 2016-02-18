@@ -12,7 +12,8 @@
 
 package gobblin.data.management.retention.dataset;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
+import gobblin.dataset.FileSystemDataset;
 
 import java.io.IOException;
 
@@ -21,7 +22,7 @@ import java.io.IOException;
  * An abstraction for a set of files where a simple {@link gobblin.data.management.retention.policy.RetentionPolicy}
  * can be applied.
  */
-public interface CleanableDataset extends Dataset {
+public interface CleanableDataset extends Dataset, FileSystemDataset {
 
   /**
    * Cleans the {@link CleanableDataset}. In general, this means to apply a

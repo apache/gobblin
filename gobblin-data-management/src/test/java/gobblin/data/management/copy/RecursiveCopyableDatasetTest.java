@@ -24,6 +24,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.PathUtils;
 
 
@@ -38,11 +39,13 @@ public class RecursiveCopyableDatasetTest {
     String destinationDir = getClass().getClassLoader().getResource("copyableDatasetTest/destination").getFile();
 
     Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
 
-    RecursiveCopyableDataset dataset = new RecursiveCopyableDataset(FileSystem.getLocal(new Configuration()), new Path(baseDir), properties);
+    RecursiveCopyableDataset dataset = new RecursiveCopyableDataset(FileSystem.getLocal(new Configuration()),
+        new Path(baseDir), properties, new Path(baseDir));
 
     CopyConfiguration copyConfiguration =
-        CopyConfiguration.builder().targetRoot(new Path(destinationDir))
+        CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).publishDir(new Path(destinationDir))
             .preserve(PreserveAttributes.fromMnemonicString("ugp")).build();
 
     Collection<CopyableFile> files = dataset.getCopyableFiles(FileSystem.getLocal(new Configuration()), copyConfiguration);

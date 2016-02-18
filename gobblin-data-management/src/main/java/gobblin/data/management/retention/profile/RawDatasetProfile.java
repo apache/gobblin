@@ -20,7 +20,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import gobblin.annotation.Alpha;
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 import gobblin.data.management.retention.dataset.RawDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 

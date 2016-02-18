@@ -19,6 +19,8 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.collect.Maps;
+
 
 /**
  * Utils class to generate dummy {@link CopyableFile}s for testing. Random strings are generated for null paths.
@@ -31,8 +33,8 @@ public class CopyableFileUtils {
 
     FileStatus status = new FileStatus(0l, false, 0, 0l, 0l, new Path(resourcePath));
 
-    return new CopyableFile(status, new Path(getRandomPath()), new Path(getRandomPath()), null, null, null,
-        PreserveAttributes.fromMnemonicString(""), "", 0 ,0);
+    return new CopyableFile(status, new Path(getRandomPath()), null, null, null,
+        PreserveAttributes.fromMnemonicString(""), "", 0 ,0, Maps.<String, Object>newHashMap());
   }
 
   public static CopyableFile getTestCopyableFile() {
@@ -75,8 +77,8 @@ public class CopyableFileUtils {
 
     Path destinationRelativePath = new Path(relativePath);
 
-    return new CopyableFile(status, new Path(destinationPath), destinationRelativePath, ownerAndPermission, null, null,
-        PreserveAttributes.fromMnemonicString(""), "", 0, 0);
+    return new CopyableFile(status, new Path(destinationPath), ownerAndPermission, null, null,
+        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, Object>newHashMap());
   }
 
   private static String getRandomPath() {

@@ -52,7 +52,7 @@ configurations {
 
 configurations {
   compile {
-    transitive = false
+    transitive = true
   }
 }
 

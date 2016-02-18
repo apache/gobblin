@@ -48,4 +48,8 @@ public class DummyDataset implements CopyableDataset, CleanableDataset {
   @Override public Path datasetRoot() {
     return this.datasetRoot;
   }
+
+  @Override public String datasetURN() {
+    return datasetRoot().toString();
+  }
 }

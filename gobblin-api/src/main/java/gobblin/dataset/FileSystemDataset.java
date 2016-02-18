@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,12 +12,14 @@
 
 package gobblin.dataset;
 
+import org.apache.hadoop.fs.Path;
+
+
 /**
- * Interface representing a dataset.
+ * {@link Dataset} in a file system, which can be characterized by a root {@link Path}.
  */
-public interface Dataset {
-  /**
-   * Deepest {@link org.apache.hadoop.fs.Path} that contains all files in the dataset.
-   */
-  public String datasetURN();
+public interface FileSystemDataset extends Dataset {
+
+  public Path datasetRoot();
+
 }
