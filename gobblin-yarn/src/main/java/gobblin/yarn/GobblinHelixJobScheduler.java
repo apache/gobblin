@@ -120,7 +120,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
       jobConfig.putAll(newJobArrival.getJobConfig());
       if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling new job " + newJobArrival.getJobName());
-        scheduleJob(newJobArrival.getJobConfig(), null);
+        scheduleJob(jobConfig, null);
       } else {
         LOGGER.info("No job schedule found, so running new job " + newJobArrival.getJobName());
         this.jobExecutor.execute(new NonScheduledJobRunner(jobConfig, null));
