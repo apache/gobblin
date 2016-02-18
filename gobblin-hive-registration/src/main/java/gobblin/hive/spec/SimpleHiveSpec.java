@@ -13,14 +13,13 @@
 package gobblin.hive.spec;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 
 import gobblin.annotation.Alpha;
-import gobblin.hive.HivePartition;
 import lombok.Getter;
 
 
@@ -34,68 +33,43 @@ import lombok.Getter;
 public class SimpleHiveSpec implements HiveSpec {
 
   protected final Path path;
-  protected final String dbName;
-  protected final String tableName;
-  protected final Optional<HivePartition> partition;
-  protected final StorageDescriptor sd;
+  protected final Table table;
+  protected final Optional<Partition> partition;
 
   protected SimpleHiveSpec(Builder<?> builder) {
     this.path = builder.path;
-    this.dbName = builder.dbName;
-    this.tableName = builder.tableName;
+    this.table = builder.table;
     this.partition = builder.partition;
-    this.sd = builder.sd;
   }
 
   public static class Builder<T extends Builder<?>> {
     private final Path path;
 
-    private String dbName;
-    private String tableName;
-    private Optional<HivePartition> partition = Optional.absent();
-    private StorageDescriptor sd;
+    private Table table;
+    private Optional<Partition> partition = Optional.absent();
 
     public Builder(Path path) {
       this.path = path;
     }
 
     @SuppressWarnings("unchecked")
-    public T withDbName(String dbName) {
-      this.dbName = dbName;
+    public T withTable(Table table) {
+      this.table = table;
       return (T) this;
     }
 
     @SuppressWarnings("unchecked")
-    public T withTableName(String tableName) {
-      this.tableName = tableName;
-      return (T) this;
-    }
-
-    @SuppressWarnings("unchecked")
-    public T withPartition(HivePartition partition) {
-      this.partition = Optional.of(partition);
-      return (T) this;
-    }
-
-    @SuppressWarnings("unchecked")
-    public T withPartition(Optional<HivePartition> partition) {
+    public T withPartition(Optional<Partition> partition) {
       this.partition = partition;
       return (T) this;
     }
 
-    @SuppressWarnings("unchecked")
-    public T withStorageDescriptor(StorageDescriptor sd) {
-      this.sd = sd;
-      return (T) this;
-    }
-
     public SimpleHiveSpec build() {
-      Preconditions.checkState(this.path != null);
-      Preconditions.checkState(!Strings.isNullOrEmpty(this.dbName));
-      Preconditions.checkState(!Strings.isNullOrEmpty(this.tableName));
-      Preconditions.checkState(this.sd != null);
+      Preconditions.checkNotNull(this.path);
+      Preconditions.checkNotNull(this.table);
 
       return new SimpleHiveSpec(this);
     }
   }
+
 }

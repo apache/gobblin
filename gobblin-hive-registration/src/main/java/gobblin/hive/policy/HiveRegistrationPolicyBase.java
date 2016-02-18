@@ -13,19 +13,21 @@
 package gobblin.hive.policy;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.hive.HivePartition;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.hive.spec.SimpleHiveSpec;
 
@@ -114,9 +116,9 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
     throw new IllegalStateException(name + " is not a valid Hive database or table name");
   }
 
-  protected abstract Optional<HivePartition> getPartition(Path path);
+  protected abstract Table getTable(Path path);
 
-  protected abstract StorageDescriptor getSd(Path path) throws IOException;
+  protected abstract Optional<Partition> getPartition(Path path);
 
   /**
    * Determine whether a database or table name is valid.
@@ -140,9 +142,9 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
   }
 
   @Override
-  public HiveSpec getHiveSpec(Path path) throws IOException {
-    return new SimpleHiveSpec.Builder<>(path).withDbName(getDatabaseName(path)).withTableName(getTableName(path))
-        .withPartition(getPartition(path)).withStorageDescriptor(getSd(path)).build();
+  public Collection<HiveSpec> getHiveSpecs(Path path) throws IOException {
+    return ImmutableList.<HiveSpec> of(
+        new SimpleHiveSpec.Builder<>(path).withTable(getTable(path)).withPartition(getPartition(path)).build());
   }
 
   /**

@@ -19,6 +19,7 @@ import org.apache.hadoop.fs.Path;
 import gobblin.configuration.State;
 import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
+import gobblin.hive.spec.HiveSpec;
 
 
 /**
@@ -37,7 +38,9 @@ public class HiveRegisterUtils {
     try (HiveRegister hiveRegister = new HiveRegister(state)) {
       HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(state);
       for (String path : paths) {
-        hiveRegister.register(policy.getHiveSpec(new Path(path)));
+        for (HiveSpec spec : policy.getHiveSpecs(new Path(path))) {
+          hiveRegister.register(spec);
+        }
       }
     }
   }

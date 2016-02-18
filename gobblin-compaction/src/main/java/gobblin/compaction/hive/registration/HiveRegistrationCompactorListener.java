@@ -21,6 +21,7 @@ import gobblin.configuration.State;
 import gobblin.hive.HiveRegister;
 import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
+import gobblin.hive.spec.HiveSpec;
 
 
 public class HiveRegistrationCompactorListener implements CompactorListener {
@@ -36,6 +37,8 @@ public class HiveRegistrationCompactorListener implements CompactorListener {
 
   @Override
   public void onDatasetCompactionCompletion(Dataset dataset) throws Exception {
-    this.hiveRegister.register(this.hiveRegistrationPolicy.getHiveSpec(dataset.outputPath()));
+    for (HiveSpec spec : this.hiveRegistrationPolicy.getHiveSpecs(dataset.outputPath())) {
+      this.hiveRegister.register(spec);
+    }
   }
 }
