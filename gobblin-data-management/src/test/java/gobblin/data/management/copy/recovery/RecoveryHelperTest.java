@@ -30,6 +30,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicates;
 import com.google.common.io.Files;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyContext;
@@ -78,6 +79,7 @@ public class RecoveryHelperTest {
 
     State state = new State();
     state.setProp(RecoveryHelper.PERSIST_DIR_KEY, this.tmpDir.getAbsolutePath());
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
 
     File recoveryDir = new File(RecoveryHelper.getPersistDir(state).get().toUri().getPath());
 
@@ -85,7 +87,7 @@ public class RecoveryHelperTest {
 
     CopyableFile copyableFile = CopyableFile.builder(fs,
         new FileStatus(0, false, 0, 0, 0, new Path("/file")), new Path("/dataset"),
-        CopyConfiguration.builder().targetRoot(new Path("/target")).preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
+        CopyConfiguration.builder(fs, state.getProperties()).preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
 
     CopySource.setWorkUnitGuid(state, Guid.fromHasGuid(copyableFile));
 

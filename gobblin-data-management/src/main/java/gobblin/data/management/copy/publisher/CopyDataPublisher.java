@@ -96,7 +96,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         this.publishFileSet(datasetAndPartition, datasets.get(datasetAndPartition));
       } catch (Throwable e) {
         CopyEventSubmitterHelper.submitFailedDatasetPublish(eventSubmitter, datasetAndPartition);
-        log.error("Failed to publish " + datasetAndPartition.getDataset().getDatasetTargetRoot(), e);
+        log.error("Failed to publish " + datasetAndPartition.getDataset().getDatasetURN(), e);
         allDatasetsPublished = false;
       }
     }
@@ -147,9 +147,10 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     Path datasetWriterOutputPath = new Path(this.writerOutputDir, datasetAndPartition.identifier());
 
     log.info(String
-        .format("Publishing fileSet from %s to %s", datasetWriterOutputPath, metadata.getDatasetTargetRoot()));
+        .format("Publishing fileSet from %s to %s", datasetWriterOutputPath, metadata.getDatasetURN()));
 
-    HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, findPathRoot(metadata.getDatasetTargetRoot()));
+    // Targets are always absolute, so we start moving from root (will skip any existing directories).
+    HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, new Path("/"));
 
     fs.delete(datasetWriterOutputPath, true);
 

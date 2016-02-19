@@ -18,7 +18,7 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
 import gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.partition.FileSet;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
@@ -103,8 +103,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
 
-    CopyContext copyContext = new CopyContext();
-
     try {
 
       FileSystem sourceFs = getSourceFileSystem(state);
@@ -127,11 +125,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       ListeningExecutorService service = MoreExecutors.listeningDecorator(executor);
       List<ListenableFuture<?>> futures = Lists.newArrayList();
 
+      CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
+
       for (CopyableDataset copyableDataset : copyableDatasets) {
-        Path targetRoot = getTargetRoot(state, datasetFinder, copyableDataset);
         futures.add(service.submit(
-            new DatasetWorkUnitGenerator(copyableDataset, sourceFs, targetFs, state, targetRoot,
-                copyContext, workUnitList)));
+            new DatasetWorkUnitGenerator(copyableDataset, sourceFs, targetFs, state, workUnitList, copyConfiguration)));
       }
 
       for (ListenableFuture<?> future : futures) {
@@ -175,9 +173,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     private final FileSystem originFs;
     private final FileSystem targetFs;
     private final State state;
-    private final Path targetRoot;
-    private final CopyContext copyContext;
     private final ConcurrentBoundedWorkUnitList workUnitList;
+    private final CopyConfiguration copyConfiguration;
 
     @Override public void run() {
 
@@ -188,11 +185,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       }
 
       try {
-        CopyConfiguration copyConfiguration =
-            CopyConfiguration.builder(this.state.getProperties()).targetRoot(this.targetRoot).
-                copyContext(this.copyContext).build();
 
-        Collection<CopyableFile> files = this.copyableDataset.getCopyableFiles(this.targetFs, copyConfiguration);
+        Collection<CopyableFile> files = this.copyableDataset.getCopyableFiles(this.targetFs, this.copyConfiguration);
         List<FileSet<CopyableFile>> fileSets = partitionCopyableFiles(this.copyableDataset, files);
 
         // Sort to optimize the insertion to work units list
@@ -203,7 +197,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
           for (CopyableFile copyableFile : fileSet.getFiles()) {
 
-            CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(this.copyableDataset, this.targetRoot);
+            CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(this.copyableDataset);
             CopyableFile.DatasetAndPartition datasetAndPartition = copyableFile.getDatasetAndPartition(metadata);
 
             WorkUnit workUnit = new WorkUnit(extract);
@@ -211,9 +205,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             serializeCopyableFile(workUnit, copyableFile);
             serializeCopyableDataset(workUnit, metadata);
             GobblinMetrics.addCustomTagToState(workUnit, new Tag<>(CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME,
-                this.copyableDataset.datasetRoot().toString()));
+                this.copyableDataset.datasetURN()));
             workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetAndPartition.toString());
-            workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, this.copyableDataset.datasetRoot());
+            workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, this.copyableDataset.datasetURN());
             workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getFileSet());
             computeAndSetWorkUnitGuid(workUnit);
             workUnitsForPartition.add(workUnit);
@@ -221,7 +215,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           this.workUnitList.addFileSet(fileSet, workUnitsForPartition);
         }
       } catch (IOException ioe) {
-        throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetRoot(), ioe);
+        throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetURN(), ioe);
       }
     }
   }
@@ -253,16 +247,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   private FileSystem getTargetFileSystem(State state) throws IOException {
     return getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
-  }
-
-  private Path getTargetRoot(State state, DatasetFinder<?> datasetFinder, CopyableDataset dataset) {
-    Preconditions.checkArgument(state.contains(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
-        "Missing property " + ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);
-    Path basePath = new Path(state.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR));
-    Path datasetRelativeToCommonRoot = PathUtils.relativizePath(
-        PathUtils.getPathWithoutSchemeAndAuthority(dataset.datasetRoot()),
-        PathUtils.getPathWithoutSchemeAndAuthority(datasetFinder.commonDatasetRoot()));
-    return new Path(basePath, datasetRelativeToCommonRoot);
   }
 
   private void computeAndSetWorkUnitGuid(WorkUnit workUnit) throws IOException {

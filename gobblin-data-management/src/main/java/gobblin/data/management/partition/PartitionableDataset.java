@@ -12,7 +12,7 @@
 
 package gobblin.data.management.partition;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 
 import java.util.Collection;
 

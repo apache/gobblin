@@ -24,6 +24,7 @@ import org.testng.annotations.Test;
 
 import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Splitter;
+import com.google.common.collect.Maps;
 
 import gobblin.data.management.dataset.DummyDataset;
 import gobblin.data.management.partition.FileSet;
@@ -117,8 +118,9 @@ public class ConcurrentBoundedWorkUnitListTest {
     FileStatus origin = new FileStatus(0, false, 0, 0, 0, originPath);
     Path targetPath = new Path(TARGET_PATH, fileNumber + ".file");
 
-    return new CopyableFile(origin, targetPath, targetPath, new OwnerAndPermission(null, null, null),
-        Lists.<OwnerAndPermission>newArrayList(), null, PreserveAttributes.fromMnemonicString(""), "", 0, 0);
+    return new CopyableFile(origin, targetPath, new OwnerAndPermission(null, null, null),
+        Lists.<OwnerAndPermission>newArrayList(), null, PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps
+        .<String, Object>newHashMap());
 
   }
 

@@ -63,7 +63,7 @@ public class DatasetUtils {
    * @throws IOException
    */
   @SuppressWarnings("unchecked")
-  public static <T extends Dataset> DatasetFinder<T> instantiateDatasetFinder(Properties props, FileSystem fs,
+  public static <T extends gobblin.dataset.Dataset> DatasetFinder<T> instantiateDatasetFinder(Properties props, FileSystem fs,
       String def) throws IOException {
     String className = def;
     if (props.containsKey(DATASET_PROFILE_CLASS_KEY)) {

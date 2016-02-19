@@ -18,8 +18,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
-import org.apache.hadoop.fs.Path;
-
 import com.google.gson.Gson;
 
 
@@ -32,15 +30,12 @@ import com.google.gson.Gson;
 @ToString
 public class CopyableDatasetMetadata {
 
-  public CopyableDatasetMetadata(CopyableDataset copyableDataset, Path datasetTargetRoot) {
-    this.datasetRoot = copyableDataset.datasetRoot();
-    this.datasetTargetRoot = datasetTargetRoot;
+  public CopyableDatasetMetadata(CopyableDataset copyableDataset) {
+    this.datasetURN = copyableDataset.datasetURN();
   }
 
   @Getter
-  private final Path datasetRoot;
-  @Getter
-  private final Path datasetTargetRoot;
+  private final String datasetURN;
   private static final Gson GSON = new Gson();
 
   /**

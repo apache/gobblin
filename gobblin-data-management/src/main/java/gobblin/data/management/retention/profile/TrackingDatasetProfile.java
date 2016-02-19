@@ -19,7 +19,7 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 import gobblin.data.management.retention.dataset.TrackingDataset;
 import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
 

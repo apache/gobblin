@@ -91,8 +91,6 @@ public abstract class DistcpConverter extends Converter<String, String, FileAwar
   private void modifyExtensionAtDestination(CopyableFile file) {
     if (extensionsToRemove().size() > 0) {
       file.setDestination(PathUtils.removeExtension(file.getDestination(), extensionsToRemove().toArray(new String[0])));
-      file.setRelativeDestination(PathUtils.removeExtension(file.getRelativeDestination(),
-          extensionsToRemove().toArray(new String[0])));
     }
   }
 }

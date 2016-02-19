@@ -12,7 +12,7 @@
 
 package gobblin.data.management.retention.dataset.finder;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 
 
 /**

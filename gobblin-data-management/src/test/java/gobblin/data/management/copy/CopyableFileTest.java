@@ -13,6 +13,7 @@ package gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -24,7 +25,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.PathUtils;
 
 public class CopyableFileTest {
@@ -34,9 +37,10 @@ public class CopyableFileTest {
 
     CopyableFile copyableFile =
         new CopyableFile(new FileStatus(10, false, 12, 100, 12345, new Path("/path")), new Path("/destination"),
-            new Path("/relative"), new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
+            new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
             Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission.getDefault())),
-            "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0);
+            "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps
+            .<String, Object>newHashMap());
 
     String s = CopyableFile.serialize(copyableFile);
     CopyableFile de = CopyableFile.deserialize(s);
@@ -48,9 +52,10 @@ public class CopyableFileTest {
   public void testSerializeDeserialzeNulls() throws Exception {
 
     CopyableFile copyableFile =
-        new CopyableFile(null, null, new Path("/relative"), new OwnerAndPermission("owner", "group",
+        new CopyableFile(null, null, new OwnerAndPermission("owner", "group",
             FsPermission.getDefault()), Lists.newArrayList(new OwnerAndPermission(null, "group2", FsPermission
-            .getDefault())), "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0);
+            .getDefault())), "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0,
+            Maps.<String, Object>newHashMap());
 
     String serialized = CopyableFile.serialize(copyableFile);
     CopyableFile deserialized = CopyableFile.deserialize(serialized);
@@ -90,10 +95,13 @@ public class CopyableFileTest {
     Path relativePath = PathUtils.relativizePath(originFile, datasetRoot);
     Path targetPath = new Path(targetRoot, relativePath);
 
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
     CopyConfiguration copyConfiguration =
-        CopyConfiguration.builder().targetRoot(new Path(targetRoot)).preserve(preserveAttributes).build();
+        CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).preserve(preserveAttributes).build();
 
     CopyableFile copyableFile = CopyableFile.builder(originFS, origin, datasetRoot, copyConfiguration)
+        .destination(targetPath)
         .ancestorsOwnerAndPermission(Lists.<OwnerAndPermission>newArrayList()) // not testing ancestors
         .build();
 
@@ -103,13 +111,12 @@ public class CopyableFileTest {
     Assert.assertEquals(copyableFile.getPreserve().toMnemonicString(), preserveAttributes.toMnemonicString());
 
     // Verify origin
-    Assert.assertEquals(copyableFile.getFileSet(), datasetRootDir);
+    Assert.assertEquals(copyableFile.getFileSet(), "");
     Assert.assertEquals(copyableFile.getOrigin(), origin);
 
     // Verify destination target, permissions and other attributes
     Assert.assertEquals(copyableFile.getChecksum().length, 0);
     Assert.assertEquals(copyableFile.getDestination().toString(), targetPath.toString());
-    Assert.assertEquals(copyableFile.getRelativeDestination().toString(), relativePath.toString());
     Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission().getGroup(), origin.getGroup());
     Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission().getOwner(), origin.getOwner());
     Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission().getFsPermission(),
@@ -136,8 +143,10 @@ public class CopyableFileTest {
     Path relativePath = PathUtils.relativizePath(originFile, datasetRoot);
     Path targetPath = new Path(targetRoot, relativePath);
 
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
     CopyConfiguration copyConfiguration =
-        CopyConfiguration.builder().targetRoot(new Path(targetRoot)).preserve(preserveAttributes).build();
+        CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).preserve(preserveAttributes).build();
 
     // Other attributes
     String fileSet = "fileset";
@@ -152,7 +161,6 @@ public class CopyableFileTest {
         .destinationOwnerAndPermission(ownerAndPermission)
         .origin(origin)
         .preserve(preserveAttributes)
-        .relativeDestination(relativePath)
         .destination(targetPath)
         .ancestorsOwnerAndPermission(Lists.<OwnerAndPermission>newArrayList())
         .build();
@@ -167,7 +175,6 @@ public class CopyableFileTest {
     // Verify destination target, permissions and other attributes
     Assert.assertEquals(copyableFile.getChecksum().length, 1);
     Assert.assertEquals(copyableFile.getDestination().toString(), targetPath.toString());
-    Assert.assertEquals(copyableFile.getRelativeDestination().toString(), relativePath.toString());
     Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission().getGroup(), ownerAndPermission.getGroup());
     Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission().getOwner(), ownerAndPermission.getOwner());
     Assert.assertEquals(copyableFile.getDestinationOwnerAndPermission().getFsPermission(),

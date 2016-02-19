@@ -57,7 +57,7 @@ class ConcurrentBoundedWorkUnitList {
     @Override public int compare(FileSet<CopyableFile> p1, FileSet<CopyableFile> p2) {
       int userProvidedCompare = this.userProvidedComparator.compare(p1, p2);
       if (userProvidedCompare == 0) {
-        int datasetCompare = p1.getDataset().datasetRoot().compareTo(p2.getDataset().datasetRoot());
+        int datasetCompare = p1.getDataset().datasetURN().compareTo(p2.getDataset().datasetURN());
         if (datasetCompare == 0) {
           return p1.getName().compareTo(p2.getName());
         }

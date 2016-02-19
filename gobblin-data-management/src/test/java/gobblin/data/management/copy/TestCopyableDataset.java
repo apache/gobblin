@@ -24,11 +24,13 @@ import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.collect.Lists;
 
+import gobblin.dataset.FileSystemDataset;
+
 
 /**
  * Implementation of {@link CopyableDataset} for testing.
  */
-public class TestCopyableDataset implements CopyableDataset {
+public class TestCopyableDataset implements CopyableDataset, FileSystemDataset {
 
   public static final int FILE_COUNT = 10;
   public static final String ORIGIN_PREFIX = "/test";
@@ -72,4 +74,7 @@ public class TestCopyableDataset implements CopyableDataset {
   protected void modifyCopyableFile(CopyableFile.Builder builder, FileStatus origin) {
   }
 
+  @Override public String datasetURN() {
+    return datasetRoot().toString();
+  }
 }

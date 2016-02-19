@@ -52,8 +52,7 @@ public class DeletingCopyDataPublisherTest {
     WorkUnitState wus = new WorkUnitState();
 
     CopyableDataset copyableDataset = new TestCopyableDataset(new Path("origin"));
-    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset,
-        new Path(testMethodTempPath, "testdataset"));
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset);
 
     CopyableFile cf = CopyableFileUtils.createTestCopyableFile(new Path(testMethodTempPath, "test.txt").toString());
 

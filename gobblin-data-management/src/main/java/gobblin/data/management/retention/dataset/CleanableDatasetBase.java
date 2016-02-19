@@ -32,6 +32,7 @@ import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.finder.VersionFinder;
 import gobblin.data.management.trash.ProxiedTrash;
 import gobblin.data.management.trash.TrashFactory;
+import gobblin.dataset.FileSystemDataset;
 import gobblin.util.PathUtils;
 
 
@@ -87,7 +88,7 @@ import gobblin.util.PathUtils;
  * @param <T> type of {@link gobblin.data.management.retention.version.DatasetVersion} supported by this
  *           {@link CleanableDataset}.
  */
-public abstract class CleanableDatasetBase<T extends DatasetVersion> implements CleanableDataset {
+public abstract class CleanableDatasetBase<T extends DatasetVersion> implements CleanableDataset, FileSystemDataset {
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String SIMULATE_KEY = CONFIGURATION_KEY_PREFIX + "simulate";
@@ -237,4 +238,7 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
     return datasetRoot().toString();
   }
 
+  @Override public String datasetURN() {
+    return this.datasetRoot().toString();
+  }
 }

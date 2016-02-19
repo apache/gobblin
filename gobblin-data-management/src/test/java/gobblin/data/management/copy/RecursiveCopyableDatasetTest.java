@@ -24,6 +24,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.PathUtils;
 
 
@@ -38,11 +39,13 @@ public class RecursiveCopyableDatasetTest {
     String destinationDir = getClass().getClassLoader().getResource("copyableDatasetTest/destination").getFile();
 
     Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
 
-    RecursiveCopyableDataset dataset = new RecursiveCopyableDataset(FileSystem.getLocal(new Configuration()), new Path(baseDir), properties);
+    RecursiveCopyableDataset dataset = new RecursiveCopyableDataset(FileSystem.getLocal(new Configuration()),
+        new Path(baseDir), properties, new Path(baseDir));
 
     CopyConfiguration copyConfiguration =
-        CopyConfiguration.builder().targetRoot(new Path(destinationDir))
+        CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).publishDir(new Path(destinationDir))
             .preserve(PreserveAttributes.fromMnemonicString("ugp")).build();
 
     Collection<CopyableFile> files = dataset.getCopyableFiles(FileSystem.getLocal(new Configuration()), copyConfiguration);
@@ -51,11 +54,9 @@ public class RecursiveCopyableDatasetTest {
 
     for (CopyableFile copyableFile : files) {
       Path originRelativePath =
-          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(copyableFile.getOrigin().getPath()),
-              PathUtils.getPathWithoutSchemeAndAuthority(new Path(baseDir)));
+          PathUtils.relativizePath(copyableFile.getOrigin().getPath(), new Path(baseDir));
       Path targetRelativePath =
-          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(copyableFile.getDestination()),
-              PathUtils.getPathWithoutSchemeAndAuthority(new Path(destinationDir)));
+          PathUtils.relativizePath(copyableFile.getDestination(), new Path(destinationDir));
       Assert.assertTrue(paths.contains(originRelativePath));
       Assert.assertTrue(paths.contains(targetRelativePath));
       Assert.assertEquals(originRelativePath, targetRelativePath);

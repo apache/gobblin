@@ -40,21 +40,18 @@ public class CopyEventSubmitterHelper {
   static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter, CopyableFile.DatasetAndPartition
       datasetAndPartition, String originTimestamp, String upstreamTimestamp) {
     SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(DATASET_PUBLISHED_EVENT_NAME)
-        .datasetUrn(datasetAndPartition.getDataset().getDatasetRoot().toString())
+        .datasetUrn(datasetAndPartition.getDataset().getDatasetURN())
         .partition(datasetAndPartition.getPartition())
         .originTimestamp(originTimestamp)
         .upstreamTimestamp(upstreamTimestamp)
-        .additionalMetadata(DATASET_TARGET_ROOT_METADATA_NAME,
-            datasetAndPartition.getDataset().getDatasetTargetRoot().toString()).build()
+        .build()
         .submit();
   }
 
   static void submitFailedDatasetPublish(EventSubmitter eventSubmitter,
       CopyableFile.DatasetAndPartition datasetAndPartition) {
     eventSubmitter.submit(DATASET_PUBLISHED_FAILED_EVENT_NAME, ImmutableMap.of(DATASET_ROOT_METADATA_NAME,
-        datasetAndPartition.getDataset().getDatasetRoot().toString(), DATASET_TARGET_ROOT_METADATA_NAME,
-        datasetAndPartition.getDataset().getDatasetTargetRoot().toString()));
-
+        datasetAndPartition.getDataset().getDatasetURN()));
   }
 
   /**
