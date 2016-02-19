@@ -54,11 +54,9 @@ public class RecursiveCopyableDatasetTest {
 
     for (CopyableFile copyableFile : files) {
       Path originRelativePath =
-          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(copyableFile.getOrigin().getPath()),
-              PathUtils.getPathWithoutSchemeAndAuthority(new Path(baseDir)));
+          PathUtils.relativizePath(copyableFile.getOrigin().getPath(), new Path(baseDir));
       Path targetRelativePath =
-          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(copyableFile.getDestination()),
-              PathUtils.getPathWithoutSchemeAndAuthority(new Path(destinationDir)));
+          PathUtils.relativizePath(copyableFile.getDestination(), new Path(destinationDir));
       Assert.assertTrue(paths.contains(originRelativePath));
       Assert.assertTrue(paths.contains(targetRelativePath));
       Assert.assertEquals(originRelativePath, targetRelativePath);

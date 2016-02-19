@@ -121,8 +121,7 @@ public class CopyableFile implements File, HasGuid {
   public static Builder builder(FileSystem originFs, FileStatus origin, Path datasetRoot,
       CopyConfiguration copyConfiguration) {
 
-    Path relativePath = PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(origin.getPath()),
-        PathUtils.getPathWithoutSchemeAndAuthority(datasetRoot));
+    Path relativePath = PathUtils.relativizePath(origin.getPath(), datasetRoot);
 
     Path targetRoot = new Path(copyConfiguration.getPublishDir(), datasetRoot.getName());
     Path targetPath = new Path(targetRoot, relativePath);

@@ -63,8 +63,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
     for (FileStatus file : files) {
-      Path filePathRelativeToSearchPath = PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(file.getPath()),
-          PathUtils.getPathWithoutSchemeAndAuthority(nonGlobSearchPath));
+      Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), nonGlobSearchPath);
       Path targetPath = new Path(configuration.getPublishDir(), filePathRelativeToSearchPath);
 
       copyableFiles.add(CopyableFile.fromOriginAndDestination(this.fs, file, targetPath, configuration).
