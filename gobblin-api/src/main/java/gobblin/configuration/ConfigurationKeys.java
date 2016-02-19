@@ -150,6 +150,9 @@ public class ConfigurationKeys {
    * Watermark interval related configuration properties.
    */
   public static final String WATERMARK_INTERVAL_VALUE_KEY = "watermark.interval.value";
+  // Skip Fetching Previous WaterMark
+  public static final String SKIP_PREVIOUS_WATERMARK = "skip.previous.watermark";
+  public static final boolean DEFAULT_SKIP_PREVIOUS_WATERMARK = false;
 
   /**
    * Extract related configuration properties.
