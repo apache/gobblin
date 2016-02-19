@@ -12,7 +12,6 @@
 
 package gobblin.data.management.copy;
 
-import junit.framework.Assert;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -20,11 +19,12 @@ import java.util.List;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Lists;
 
 import gobblin.data.management.dataset.DummyDataset;
 import gobblin.data.management.partition.FileSet;
