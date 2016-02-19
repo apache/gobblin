@@ -44,8 +44,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
 

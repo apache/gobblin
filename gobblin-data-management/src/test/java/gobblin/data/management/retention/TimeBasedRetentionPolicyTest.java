@@ -21,7 +21,7 @@ import org.joda.time.DateTimeUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Lists;
 
 import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
