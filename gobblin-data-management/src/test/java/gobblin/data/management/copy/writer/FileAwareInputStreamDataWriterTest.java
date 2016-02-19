@@ -14,7 +14,6 @@ package gobblin.data.management.copy.writer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
@@ -76,7 +75,7 @@ public class FileAwareInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
-    CopySource.serializeCopyableFile(state, cf);
+    CopySource.serializeCopyEntity(state, cf);
     CopySource.serializeCopyableDataset(state, metadata);
 
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
@@ -144,7 +143,7 @@ public class FileAwareInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir.toUri().getPath());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
-    CopySource.serializeCopyableFile(state, cf);
+    CopySource.serializeCopyEntity(state, cf);
     CopySource.serializeCopyableDataset(state, metadata);
 
     // create writer

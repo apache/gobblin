@@ -15,10 +15,10 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.TestCopyableDataset;
@@ -229,12 +229,12 @@ public class CopyDataPublisherTest {
     private Path writerOutputPath;
     private Path targetPath;
     private FileSystem fs;
-    private CopyableFile copyableFile;
+    private CopyEntity copyEntity;
 
     private void createDatasetFiles() throws IOException {
       // Create writer output files
       Path datasetWriterOutputPath =
-          new Path(writerOutputPath, copyableFile.getDatasetAndPartition(this.metadata).identifier());
+          new Path(writerOutputPath, copyEntity.getDatasetAndPartition(this.metadata).identifier());
       Path outputPathWithCurrentDirectory = new Path(datasetWriterOutputPath,
           PathUtils.withoutLeadingSeparator(this.targetPath));
       for (String path : relativeFilePaths) {
@@ -258,8 +258,9 @@ public class CopyDataPublisherTest {
 
       FileStatus file = new FileStatus(0, false, 0, 0, 0, new Path("/file"));
       FileSystem fs = FileSystem.getLocal(new Configuration());
-      this.copyableFile = CopyableFile.fromOriginAndDestination(fs, file, new Path("/destination"),
-          CopyConfiguration.builder(fs, state.getProperties()).preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
+      this.copyEntity = CopyableFile.fromOriginAndDestination(fs, file, new Path("/destination"),
+          CopyConfiguration.builder(fs, state.getProperties()).preserve(PreserveAttributes.fromMnemonicString(""))
+              .build()).build();
 
       fs.mkdirs(testMethodTempPath);
       log.info("Created a temp directory for test at " + testMethodTempPath);
@@ -271,7 +272,7 @@ public class CopyDataPublisherTest {
           Lists.newArrayList(new WorkUnitState(), new WorkUnitState(), new WorkUnitState());
       for (WorkUnitState wus : workUnitStates) {
         CopySource.serializeCopyableDataset(wus, metadata);
-        CopySource.serializeCopyableFile(wus, this.copyableFile);
+        CopySource.serializeCopyEntity(wus, this.copyEntity);
       }
       return workUnitStates;
     }

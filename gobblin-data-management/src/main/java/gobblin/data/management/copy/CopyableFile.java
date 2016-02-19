@@ -25,17 +25,11 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.Singular;
 
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,7 +38,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 
 /**
@@ -53,18 +46,16 @@ import com.google.gson.reflect.TypeToken;
  */
 @Getter
 @Setter
-@AllArgsConstructor(access = AccessLevel.PROTECTED)
-@NoArgsConstructor(access = AccessLevel.PRIVATE)
-@EqualsAndHashCode
-@Builder(builderClassName = "Builder", builderMethodName = "_hiddenBuilder")
-public class CopyableFile implements File, HasGuid {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@EqualsAndHashCode(callSuper = true)
+public class CopyableFile extends CopyEntity implements File {
 
   private static final Gson GSON = new Gson();
 
   /** {@link FileStatus} of the existing origin file. */
   private FileStatus origin;
 
-  /** Complete destination {@link Path} of the file. Dataset's final publish directory + {@link #relativeDestination} */
+  /** Complete destination {@link Path} of the file. */
   private Path destination;
 
   /** Desired {@link OwnerAndPermission} of the destination path. */
@@ -90,19 +81,25 @@ public class CopyableFile implements File, HasGuid {
   private byte[] checksum;
   /** Attributes to be preserved. */
   private PreserveAttributes preserve;
-  /**
-   * File set this file belongs to. {@link CopyableFile}s in the same fileSet and originating from the same
-   * {@link CopyableDataset} will be treated as a unit: they will be published nearly atomically, and a notification
-   * will be emitted for each fileSet when it is published.
-   */
-  private String fileSet;
-
   /** Timestamp of file at its origin source. */
   private long originTimestamp;
   /** Timestamp of file as in upstream. */
   private long upstreamTimestamp;
-  /** Contains arbitrary metadata usable by converters and/or publisher. */
-  @Singular(value = "metadata") private Map<String, Object> additionalMetadata;
+
+  @lombok.Builder(builderClassName = "Builder", builderMethodName = "_hiddenBuilder")
+  public CopyableFile(FileStatus origin, Path destination, OwnerAndPermission destinationOwnerAndPermission,
+      List<OwnerAndPermission> ancestorsOwnerAndPermission, byte[] checksum, PreserveAttributes preserve,
+      String fileSet, long originTimestamp, long upstreamTimestamp, Map<String, Object> additionalMetadata) {
+    super(fileSet, additionalMetadata);
+    this.origin = origin;
+    this.destination = destination;
+    this.destinationOwnerAndPermission = destinationOwnerAndPermission;
+    this.ancestorsOwnerAndPermission = ancestorsOwnerAndPermission;
+    this.checksum = checksum;
+    this.preserve = preserve;
+    this.originTimestamp = originTimestamp;
+    this.upstreamTimestamp = upstreamTimestamp;
+  }
 
   /**
    * Get a {@link CopyableFile.Builder}.
@@ -220,9 +217,9 @@ public class CopyableFile implements File, HasGuid {
         this.upstreamTimestamp = origin.getModificationTime();
       }
 
-      return new CopyableFile(this.origin, this.destination, this.destinationOwnerAndPermission,
-          this.ancestorsOwnerAndPermission, this.checksum, this.preserve, this.fileSet, this.originTimestamp,
-          this.upstreamTimestamp, this.additionalMetadata);
+      return new CopyableFile(this.origin, this.destination,
+          this.destinationOwnerAndPermission, this.ancestorsOwnerAndPermission, this.checksum, this.preserve, this.fileSet,
+          this.originTimestamp, this.upstreamTimestamp, this.additionalMetadata);
     }
 
     private List<OwnerAndPermission> replicateOwnerAndPermission(final FileSystem originFs, final Path path,
@@ -236,12 +233,12 @@ public class CopyableFile implements File, HasGuid {
           final Path thisPath = currentPath;
           OwnerAndPermission ownerAndPermission = this.configuration.getCopyContext().getOwnerAndPermissionCache()
               .get(originFs.makeQualified(currentPath),
-              new Callable<OwnerAndPermission>() {
-                @Override public OwnerAndPermission call() throws Exception {
-                  FileStatus fs = originFs.getFileStatus(thisPath);
-                  return new OwnerAndPermission(fs.getOwner(), fs.getGroup(), fs.getPermission());
-                }
-              });
+                  new Callable<OwnerAndPermission>() {
+                    @Override public OwnerAndPermission call() throws Exception {
+                      FileStatus fs = originFs.getFileStatus(thisPath);
+                      return new OwnerAndPermission(fs.getOwner(), fs.getGroup(), fs.getPermission());
+                    }
+                  });
 
           String group = null;
           if (this.preserve.preserve(Option.GROUP)) {
@@ -278,75 +275,4 @@ public class CopyableFile implements File, HasGuid {
     return Guid.fromStrings(uniqueString.toString());
   }
 
-  /**
-   * Serialize an instance of {@link CopyableFile} into a {@link String}.
-   *
-   * @param copyableFile to be serialized
-   * @return serialized string
-   */
-  public static String serialize(CopyableFile copyableFile) {
-    return GSON.toJson(copyableFile);
-  }
-
-  /**
-   * Serialize a {@link List} of {@link CopyableFile}s into a {@link String}.
-   *
-   * @param copyableFiles to be serialized
-   * @return serialized string
-   */
-  public static String serializeList(List<CopyableFile> copyableFiles) {
-    return GSON.toJson(copyableFiles, new TypeToken<List<CopyableFile>>(){}.getType());
-  }
-
-  /**
-   * Deserializes the serialized {@link CopyableFile} string.
-   *
-   * @param serialized string
-   * @return a new instance of {@link CopyableFile}
-   */
-  public static CopyableFile deserialize(String serialized) {
-    return GSON.fromJson(serialized, CopyableFile.class);
-  }
-
-  /**
-   * Deserializes the serialized {@link List} of {@link CopyableFile} string.
-   * Used together with {@link #serializeList(List)}
-   *
-   * @param serialized string
-   * @return a new {@link List} of {@link CopyableFile}s
-   */
-  public static List<CopyableFile> deserializeList(String serialized) {
-    return GSON.fromJson(serialized, new TypeToken<List<CopyableFile>>(){}.getType());
-  }
-
-  @Override
-  public String toString() {
-    return serialize(this);
-  }
-
-  /**
-   * Get a {@link DatasetAndPartition} instance for the dataset and fileSet this {@link CopyableFile} belongs to.
-   * @param metadata {@link CopyableDatasetMetadata} for the dataset this {@link CopyableFile} belongs to.
-   * @return an instance of {@link DatasetAndPartition}
-   */
-  public DatasetAndPartition getDatasetAndPartition(CopyableDatasetMetadata metadata) {
-    return new DatasetAndPartition(metadata, getFileSet());
-  }
-
-  /**
-   * Uniquely identifies a fileSet by also including the dataset metadata.
-   */
-  @Data
-  @EqualsAndHashCode
-  public static class DatasetAndPartition {
-    private final CopyableDatasetMetadata dataset;
-    private final String partition;
-
-    /**
-     * @return a unique string identifier for this {@link DatasetAndPartition}.
-     */
-    public String identifier() {
-      return Hex.encodeHexString(DigestUtils.sha(this.dataset.toString() + this.partition));
-    }
-  }
 }

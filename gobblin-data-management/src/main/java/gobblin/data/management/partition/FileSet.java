@@ -23,6 +23,7 @@ import java.util.List;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.dataset.Dataset;
 
 /**
@@ -30,9 +31,9 @@ import gobblin.dataset.Dataset;
  */
 @Data
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class FileSet<T extends File> {
+public class FileSet<T extends CopyEntity> {
 
-  public static class Builder<T extends File> {
+  public static class Builder<T extends CopyEntity> {
 
     private final String name;
     private final List<T> files;

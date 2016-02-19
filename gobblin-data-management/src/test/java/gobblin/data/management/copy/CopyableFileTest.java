@@ -42,8 +42,8 @@ public class CopyableFileTest {
             "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps
             .<String, Object>newHashMap());
 
-    String s = CopyableFile.serialize(copyableFile);
-    CopyableFile de = CopyableFile.deserialize(s);
+    String s = CopyEntity.serialize(copyableFile);
+    CopyEntity de = CopyEntity.deserialize(s);
 
     Assert.assertEquals(de, copyableFile);
   }
@@ -57,8 +57,8 @@ public class CopyableFileTest {
             .getDefault())), "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0,
             Maps.<String, Object>newHashMap());
 
-    String serialized = CopyableFile.serialize(copyableFile);
-    CopyableFile deserialized = CopyableFile.deserialize(serialized);
+    String serialized = CopyEntity.serialize(copyableFile);
+    CopyEntity deserialized = CopyEntity.deserialize(serialized);
 
     Assert.assertEquals(deserialized, copyableFile);
 
@@ -67,14 +67,14 @@ public class CopyableFileTest {
   @Test
   public void testSerializeDeserialzeList() throws Exception {
 
-    List<CopyableFile> copyableFiles =
-        ImmutableList.of(CopyableFileUtils.getTestCopyableFile(), CopyableFileUtils.getTestCopyableFile(),
+    List<CopyEntity> copyEntities =
+        ImmutableList.<CopyEntity>of(CopyableFileUtils.getTestCopyableFile(), CopyableFileUtils.getTestCopyableFile(),
             CopyableFileUtils.getTestCopyableFile());
 
-    String serialized = CopyableFile.serializeList(copyableFiles);
-    List<CopyableFile> deserialized = CopyableFile.deserializeList(serialized);
+    String serialized = CopyEntity.serializeList(copyEntities);
+    List<CopyEntity> deserialized = CopyEntity.deserializeList(serialized);
 
-    Assert.assertEquals(deserialized, copyableFiles);
+    Assert.assertEquals(deserialized, copyEntities);
 
   }
 

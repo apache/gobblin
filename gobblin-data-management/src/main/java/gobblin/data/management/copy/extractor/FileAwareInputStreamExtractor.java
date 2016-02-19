@@ -12,6 +12,7 @@
 
 package gobblin.data.management.copy.extractor;
 
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.source.extractor.DataRecordException;
@@ -22,11 +23,13 @@ import java.io.InputStream;
 
 import org.apache.hadoop.fs.FileSystem;
 
+import com.google.common.base.Optional;
+
 
 /**
  * An implementation of {@link Extractor} that extracts {@link InputStream}s. This extractor is suitable for copy jobs
  * where files from any source to a sink. The extractor extracts a {@link FileAwareInputStream} which encompasses an
- * {@link InputStream} and a {@link CopyableFile} for every file that needs to be copied.
+ * {@link InputStream} and a {@link gobblin.data.management.copy.CopyEntity} for every file that needs to be copied.
  *
  * <p>
  * In Gobblin {@link Extractor} terms, each {@link FileAwareInputStream} is a record. i.e one record per copyable file.
@@ -36,15 +39,15 @@ import org.apache.hadoop.fs.FileSystem;
 public class FileAwareInputStreamExtractor implements Extractor<String, FileAwareInputStream> {
 
   private final FileSystem fs;
-  private final CopyableFile file;
+  private final Optional<CopyableFile> file;
   /** True indicates the unique record has already been read. */
   private boolean recordRead;
 
-  public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file) throws IOException {
+  public FileAwareInputStreamExtractor(FileSystem fs, CopyEntity file) throws IOException {
 
     this.fs = fs;
-    this.file = file;
-    this.recordRead = false;
+    this.file = file instanceof CopyableFile ? Optional.of((CopyableFile) file) : Optional.<CopyableFile>absent();
+    this.recordRead = !this.file.isPresent();
   }
 
   /**
@@ -60,9 +63,9 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse) throws DataRecordException,
       IOException {
 
-    if (!this.recordRead) {
+    if (!this.recordRead && this.file.isPresent()) {
       this.recordRead = true;
-      return new FileAwareInputStream(this.file, fs.open(this.file.getFileStatus().getPath()));
+      return new FileAwareInputStream(this.file.get(), fs.open(this.file.get().getFileStatus().getPath()));
     } else {
       return null;
     }

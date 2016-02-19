@@ -67,9 +67,9 @@ public class CloseableFsCopySource extends CopySource {
   @Override
   public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
 
-    CopyableFile copyableFile = deserializeCopyableFile(state);
+    CopyEntity copyEntity = deserializeCopyEntity(state);
 
-    return new CloseableFsFileAwareInputStreamExtractor(getSourceFileSystem(state), copyableFile);
+    return new CloseableFsFileAwareInputStreamExtractor(getSourceFileSystem(state), copyEntity);
   }
 
 }

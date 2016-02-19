@@ -17,7 +17,7 @@ import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
-import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFileUtils;
 import gobblin.data.management.copy.TestCopyableDataset;
 
@@ -54,11 +54,11 @@ public class DeletingCopyDataPublisherTest {
     CopyableDataset copyableDataset = new TestCopyableDataset(new Path("origin"));
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset);
 
-    CopyableFile cf = CopyableFileUtils.createTestCopyableFile(new Path(testMethodTempPath, "test.txt").toString());
+    CopyEntity cf = CopyableFileUtils.createTestCopyableFile(new Path(testMethodTempPath, "test.txt").toString());
 
     CopySource.serializeCopyableDataset(wus, metadata);
 
-    CopySource.serializeCopyableFile(wus, cf);
+    CopySource.serializeCopyEntity(wus, cf);
 
     Assert.assertTrue(fs.exists(new Path(testMethodTempPath, "test.txt")));
 

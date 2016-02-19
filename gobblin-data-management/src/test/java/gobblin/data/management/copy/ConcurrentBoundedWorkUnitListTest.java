@@ -40,7 +40,7 @@ public class ConcurrentBoundedWorkUnitListTest {
   public void testBoundedAdd() throws IOException {
 
     ConcurrentBoundedWorkUnitList list = new ConcurrentBoundedWorkUnitList(10,
-        new AllEqualComparator<FileSet<CopyableFile>>());
+        new AllEqualComparator<FileSet<CopyEntity>>());
 
     Assert.assertTrue(addFiles(list, "fs", 6));
     Assert.assertFalse(list.hasRejectedFileSet());
@@ -86,8 +86,8 @@ public class ConcurrentBoundedWorkUnitListTest {
 
   // Compares names of partitions, but only parts of the name before first "-" character. For example, "a-foo" = "a-bar",
   // and "a-foo" < "b-bar".
-  private class NameComparator implements Comparator<FileSet<CopyableFile>> {
-    @Override public int compare(FileSet<CopyableFile> o1, FileSet<CopyableFile> o2) {
+  private class NameComparator implements Comparator<FileSet<CopyEntity>> {
+    @Override public int compare(FileSet<CopyEntity> o1, FileSet<CopyEntity> o2) {
       String o1Token = Splitter.on("-").limit(1).split(o1.getName()).iterator().next();
       String o2Token = Splitter.on("-").limit(1).split(o2.getName()).iterator().next();
 
@@ -97,22 +97,22 @@ public class ConcurrentBoundedWorkUnitListTest {
   }
 
   public boolean addFiles(ConcurrentBoundedWorkUnitList list, String fileSetName, int fileNumber) throws IOException {
-    FileSet.Builder<CopyableFile> partitionBuilder =
+    FileSet.Builder<CopyEntity> partitionBuilder =
         new FileSet.Builder<>(fileSetName, new DummyDataset(new Path("/path")));
     List<WorkUnit> workUnits = Lists.newArrayList();
 
     for (int i = 0; i < fileNumber; i++) {
-      CopyableFile cf = createCopyableFile(i);
+      CopyEntity cf = createCopyableFile(i);
       partitionBuilder.add(cf);
       WorkUnit workUnit = new WorkUnit();
-      CopySource.serializeCopyableFile(workUnit, cf);
+      CopySource.serializeCopyEntity(workUnit, cf);
       workUnits.add(workUnit);
     }
 
     return list.addFileSet(partitionBuilder.build(), workUnits);
   }
 
-  public CopyableFile createCopyableFile(int fileNumber) throws IOException {
+  public CopyEntity createCopyableFile(int fileNumber) throws IOException {
 
     Path originPath = new Path(ORIGIN_PATH, fileNumber + ".file");
     FileStatus origin = new FileStatus(0, false, 0, 0, 0, originPath);

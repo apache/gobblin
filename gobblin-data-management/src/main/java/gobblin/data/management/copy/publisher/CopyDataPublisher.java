@@ -33,9 +33,10 @@ import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.recovery.RecoveryHelper;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
-import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
 import gobblin.publisher.UnpublishedHandling;
 import gobblin.instrumented.Instrumented;
@@ -46,7 +47,7 @@ import gobblin.publisher.DataPublisher;
 import gobblin.util.HadoopUtils;
 
 /**
- * A {@link DataPublisher} to {@link CopyableFile}s from task output to final destination.
+ * A {@link DataPublisher} to {@link gobblin.data.management.copy.CopyEntity}s from task output to final destination.
  */
 @Slf4j
 public class CopyDataPublisher extends DataPublisher implements UnpublishedHandling {
@@ -88,10 +89,10 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
      * This mapping is used to set WorkingState of all {@link WorkUnitState}s to {@link
      * WorkUnitState.WorkingState#COMMITTED} after a {@link CopyableDataset} is successfully published
      */
-    Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> datasets = groupByFileSet(states);
+    Multimap<CopyEntity.DatasetAndPartition, WorkUnitState> datasets = groupByFileSet(states);
 
     boolean allDatasetsPublished = true;
-    for (CopyableFile.DatasetAndPartition datasetAndPartition : datasets.keySet()) {
+    for (CopyEntity.DatasetAndPartition datasetAndPartition : datasets.keySet()) {
       try {
         this.publishFileSet(datasetAndPartition, datasets.get(datasetAndPartition));
       } catch (Throwable e) {
@@ -116,14 +117,14 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    * {@link CopyableDataset}. This mapping is used to set WorkingState of all {@link WorkUnitState}s to
    * {@link WorkUnitState.WorkingState#COMMITTED} after a {@link CopyableDataset} is successfully published.
    */
-  private Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> groupByFileSet(
+  private Multimap<CopyEntity.DatasetAndPartition, WorkUnitState> groupByFileSet(
       Collection<? extends WorkUnitState> states)
       throws IOException {
-    Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> datasetRoots = ArrayListMultimap.create();
+    Multimap<CopyEntity.DatasetAndPartition, WorkUnitState> datasetRoots = ArrayListMultimap.create();
 
     for (WorkUnitState workUnitState : states) {
-      CopyableFile file = CopySource.deserializeCopyableFile(workUnitState);
-      CopyableFile.DatasetAndPartition datasetAndPartition = file.getDatasetAndPartition(
+      CopyEntity file = CopySource.deserializeCopyEntity(workUnitState);
+      CopyEntity.DatasetAndPartition datasetAndPartition = file.getDatasetAndPartition(
           CopyableDatasetMetadata.deserialize(workUnitState.getProp(CopySource.SERIALIZED_COPYABLE_DATASET)));
 
       datasetRoots.put(datasetAndPartition, workUnitState);
@@ -135,7 +136,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    * Publish data for a {@link CopyableDataset}.
    *
    */
-  private void publishFileSet(CopyableFile.DatasetAndPartition datasetAndPartition,
+  private void publishFileSet(CopyEntity.DatasetAndPartition datasetAndPartition,
       Collection<WorkUnitState> datasetWorkUnitStates)
       throws IOException {
 
@@ -160,14 +161,19 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     for (WorkUnitState wus : datasetWorkUnitStates) {
       if (wus.getWorkingState() == WorkingState.SUCCESSFUL) {
         wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-        CopyEventSubmitterHelper.submitSuccessfulFilePublish(eventSubmitter, wus);
       }
-      CopyableFile copyableFile = CopySource.deserializeCopyableFile(wus);
-      if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
-        datasetOriginTimestamp = copyableFile.getOriginTimestamp();
-      }
-      if (datasetUpstreamTimestamp > copyableFile.getUpstreamTimestamp()) {
-        datasetUpstreamTimestamp = copyableFile.getUpstreamTimestamp();
+      CopyEntity copyEntity = CopySource.deserializeCopyEntity(wus);
+      if (copyEntity instanceof CopyableFile) {
+        CopyableFile copyableFile = (CopyableFile) copyEntity;
+        if (wus.getWorkingState() == WorkingState.COMMITTED) {
+          CopyEventSubmitterHelper.submitSuccessfulFilePublish(eventSubmitter, copyableFile, wus);
+        }
+        if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
+          datasetOriginTimestamp = copyableFile.getOriginTimestamp();
+        }
+        if (datasetUpstreamTimestamp > copyableFile.getUpstreamTimestamp()) {
+          datasetUpstreamTimestamp = copyableFile.getUpstreamTimestamp();
+        }
       }
     }
 
@@ -187,13 +193,15 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     int filesPersisted = 0;
     for (WorkUnitState wu : workUnitStates) {
       if (wu.getWorkingState() == WorkingState.SUCCESSFUL) {
-        CopyableFile file = CopySource.deserializeCopyableFile(wu);
-        Path outputDir = FileAwareInputStreamDataWriter.getOutputDir(wu);
-        CopyableDatasetMetadata metadata = CopySource.deserializeCopyableDataset(wu);
-        Path outputPath = FileAwareInputStreamDataWriter.getOutputFilePath(file, outputDir,
-            file.getDatasetAndPartition(metadata));
-        if (recoveryHelper.persistFile(wu, file, outputPath)) {
-          filesPersisted++;
+        CopyEntity entity = CopySource.deserializeCopyEntity(wu);
+        if (entity instanceof CopyableFile) {
+          CopyableFile file = (CopyableFile) entity;
+          Path outputDir = FileAwareInputStreamDataWriter.getOutputDir(wu);
+          CopyableDatasetMetadata metadata = CopySource.deserializeCopyableDataset(wu);
+          Path outputPath = FileAwareInputStreamDataWriter.getOutputFilePath(file, outputDir, file.getDatasetAndPartition(metadata));
+          if (recoveryHelper.persistFile(wu, file, outputPath)) {
+            filesPersisted++;
+          }
         }
       }
     }
