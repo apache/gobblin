@@ -254,8 +254,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         if (helixJobState == org.apache.helix.task.TaskState.COMPLETED ||
             helixJobState == org.apache.helix.task.TaskState.FAILED ||
             helixJobState == org.apache.helix.task.TaskState.STOPPED) {
-          this.jobContext.getJobState().setStartTime(workflowContext.getStartTime());
-          this.jobContext.getJobState().setEndTime(workflowContext.getFinishTime());
           return;
         }
       }
