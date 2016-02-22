@@ -481,6 +481,8 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
       Log4jConfigurationHelper.updateLog4jConfiguration(GobblinWorkUnitRunner.class,
           Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
 
+      LOGGER.info(YarnHelixUtils.getJvmInputArguments());
+
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
       String applicationName = cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME);

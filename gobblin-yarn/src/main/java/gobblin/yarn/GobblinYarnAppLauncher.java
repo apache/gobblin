@@ -456,6 +456,7 @@ public class GobblinYarnAppLauncher {
     ApplicationSubmissionContext appSubmissionContext = gobblinYarnApp.getApplicationSubmissionContext();
     appSubmissionContext.setApplicationType(GOBBLIN_YARN_APPLICATION_TYPE);
     ApplicationId applicationId = appSubmissionContext.getApplicationId();
+    Optional<Integer> jmxPort = YarnHelixUtils.getJmxPort(config, GobblinYarnConfigurationKeys.APP_MASTER_JMX_ENABLED);
 
     GetNewApplicationResponse newApplicationResponse = gobblinYarnApp.getNewApplicationResponse();
     // Set up resource type requirements for ApplicationMaster
@@ -467,7 +468,8 @@ public class GobblinYarnAppLauncher {
     ContainerLaunchContext amContainerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     amContainerLaunchContext.setLocalResources(appMasterLocalResources);
     amContainerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
-    amContainerLaunchContext.setCommands(Lists.newArrayList(buildApplicationMasterCommand(resource.getMemory())));
+    amContainerLaunchContext.setCommands(
+            Lists.newArrayList(buildApplicationMasterCommand(resource.getMemory(), jmxPort)));
     if (UserGroupInformation.isSecurityEnabled()) {
       setupSecurityTokens(amContainerLaunchContext);
     }
@@ -622,10 +624,11 @@ public class GobblinYarnAppLauncher {
     YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.ARCHIVE, resourceMap);
   }
 
-  private String buildApplicationMasterCommand(int memoryMbs) {
+  private String buildApplicationMasterCommand(int memoryMbs, Optional<Integer> jmxPort) {
     String appMasterClassName = GobblinApplicationMaster.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
+        .append(YarnHelixUtils.getJmxJvmArguments(config, jmxPort))
         .append(" -Xmx").append(memoryMbs).append("M")
         .append(" ").append(this.appMasterJvmArgs.or(""))
         .append(" ").append(GobblinApplicationMaster.class.getName())

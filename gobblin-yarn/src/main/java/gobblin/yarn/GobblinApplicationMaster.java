@@ -545,6 +545,8 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
       Log4jConfigurationHelper.updateLog4jConfiguration(
           GobblinApplicationMaster.class, Log4jConfigurationHelper.LOG4J_CONFIGURATION_FILE_NAME);
 
+      LOGGER.info(YarnHelixUtils.getJvmInputArguments());
+
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
       GobblinApplicationMaster applicationMaster =

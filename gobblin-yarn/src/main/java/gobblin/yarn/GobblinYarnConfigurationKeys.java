@@ -29,6 +29,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String MAX_GET_APP_REPORT_FAILURES_KEY = GOBBLIN_YARN_PREFIX + "max.get.app.report.failures";
   public static final String EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY =
       GOBBLIN_YARN_PREFIX + "email.notification.on.shutdown";
+  public static final String JMX_CONFIGURATION = GOBBLIN_YARN_PREFIX + "jmx.configuration";
 
   // Gobblin Yarn ApplicationMaster configuration properties.
   public static final String APP_MASTER_MEMORY_MBS_KEY = GOBBLIN_YARN_PREFIX + "app.master.memory.mbs";
@@ -38,6 +39,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String APP_MASTER_FILES_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "app.master.files.remote";
   public static final String APP_MASTER_WORK_DIR_NAME = "appmaster";
   public static final String APP_MASTER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jvm.args";
+  public static final String APP_MASTER_JMX_ENABLED = GOBBLIN_YARN_PREFIX + "app.master.jmx.enabled";
 
   // Gobblin Yarn container configuration properties.
   public static final String INITIAL_CONTAINERS_KEY = GOBBLIN_YARN_PREFIX + "initial.containers";
@@ -49,6 +51,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String CONTAINER_WORK_DIR_NAME = "container";
   public static final String CONTAINER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "container.jvm.args";
   public static final String CONTAINER_HOST_AFFINITY_ENABLED = GOBBLIN_YARN_PREFIX + "container.affinity.enabled";
+  public static final String CONTAINER_JMX_ENABLED = GOBBLIN_YARN_PREFIX + "container.jmx.enabled";
 
   //Helix configuration properties.
   public static final String HELIX_CLUSTER_NAME_KEY = GOBBLIN_YARN_PREFIX + "helix.cluster.name";
@@ -82,6 +85,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String OUTPUT_TASK_STATE_DIR_NAME = "_taskstates";
   public static final String APP_LOGS_DIR_NAME = "_applogs";
   public static final String TAR_GZ_FILE_SUFFIX = ".tar.gz";
+  public static final String DEFAULT_JMX_CONFIGURATION = "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=127.0.0.1 -Dcom.sun.management.jmxremote.port=$JMX_PORT -Dcom.sun.management.jmxremote.rmi.port=$JMX_PORT";
 
   // Other misc configuration properties.
   public static final String TASK_SUCCESS_OPTIONAL_KEY = "TASK_SUCCESS_OPTIONAL";
