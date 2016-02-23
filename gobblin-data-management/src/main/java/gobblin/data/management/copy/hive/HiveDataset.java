@@ -18,22 +18,32 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
-import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileSplit;
+import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobConfigurable;
 import org.apache.thrift.TException;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 
 import gobblin.data.management.copy.CopyConfiguration;
@@ -41,7 +51,6 @@ import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.util.AutoReturnableObject;
 import gobblin.util.PathUtils;
-import gobblin.util.filters.HiddenFilter;
 
 
 /**
@@ -166,61 +175,84 @@ public class HiveDataset implements CopyableDataset {
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
     try(AutoReturnableObject<IMetaStoreClient> client = new AutoReturnableObject<>(this.clientPool)) {
+
       if (isPartitioned()) {
-        List<Partition> partitions = client.get().listPartitions(this.table.getDbName(), this.table.getTableName(),
-            Short.MAX_VALUE);
+
+        List<Partition> partitions = Lists.newArrayList();
+        for (org.apache.hadoop.hive.metastore.api.Partition p : client.get().listPartitions(this.table.getDbName(),
+            this.table.getTableName(), (short) -1)) {
+          partitions.add(new Partition(this.table, p));
+        }
+
         for (Partition partition : partitions) {
 
-          StorageDescriptor storage = partition.getSd();
+          InputFormat<?, ?> inputFormat = getInputFormat(partition.getTPartition().getSd());
 
-          for (CopyableFile.Builder builder : getCopyableFilesFromStorageDescriptor(storage, configuration,
-              Optional.of(partition))) {
+          for (CopyableFile.Builder builder : getCopyableFilesFromPaths(getPaths(inputFormat, partition.getLocation()),
+              configuration, Optional.of(partition))) {
             copyableFiles.add(builder.fileSet(gson.toJson(partition.getValues())).build());
           }
 
         }
       } else {
-        for (CopyableFile.Builder builder : getCopyableFilesFromStorageDescriptor(this.table.getSd(), configuration,
-            Optional.<Partition>absent())) {
+        InputFormat<?, ?> inputFormat = getInputFormat(this.table.getSd());
+        for (CopyableFile.Builder builder : getCopyableFilesFromPaths(getPaths(inputFormat, this.table.getSd().getLocation()),
+            configuration, Optional.<Partition>absent())) {
           copyableFiles.add(builder.build());
         }
       }
-    } catch (TException te) {
-      throw new IOException(te);
+    } catch (TException | HiveException te) {
+      throw new IOException("Hive Error", te);
     }
     return copyableFiles;
+  }
+
+  private InputFormat<?, ?> getInputFormat(StorageDescriptor sd) throws IOException {
+    try {
+      InputFormat<?, ?> inputFormat = ConstructorUtils.invokeConstructor(
+          (Class<? extends InputFormat>) Class.forName(sd.getInputFormat()));
+      if (inputFormat instanceof JobConfigurable) {
+        ((JobConfigurable) inputFormat).configure(new JobConf());
+      }
+      return inputFormat;
+    } catch (ReflectiveOperationException re) {
+      throw new IOException("Failed to instantiate input format.", re);
+    }
+  }
+
+  /**
+   * Get paths from a Hive location using the provided input format.
+   */
+  private Collection<Path> getPaths(InputFormat<?, ?> inputFormat, String location) throws IOException {
+    JobConf jobConf = new JobConf();
+
+    Set<Path> paths = Sets.newHashSet();
+
+    FileInputFormat.addInputPaths(jobConf, location);
+    InputSplit[] splits = inputFormat.getSplits(jobConf, 1000);
+    for (InputSplit split : splits) {
+      if (!(split instanceof FileSplit)) {
+        throw new IOException("Not a file split.");
+      }
+      FileSplit fileSplit = (FileSplit) split;
+      paths.add(fileSplit.getPath());
+    }
+
+    return paths;
   }
 
   /**
    * Get builders for a {@link CopyableFile} for each file referred to by a {@link StorageDescriptor}.
    */
-  private List<CopyableFile.Builder> getCopyableFilesFromStorageDescriptor(StorageDescriptor storageDescriptor,
+  private List<CopyableFile.Builder> getCopyableFilesFromPaths(Collection<Path> paths,
       CopyConfiguration configuration, Optional<Partition> partition)
       throws IOException {
     List<CopyableFile.Builder> builders = Lists.newArrayList();
     List<SourceAndDestination> dataFiles = Lists.newArrayList();
 
-    for (Path path : parseLocationIntoPaths(storageDescriptor.getLocation())) {
-
-      FileStatus[] statuses = this.fs.globStatus(path);
-      if (statuses == null) {
-        continue;
-      }
-
-      for (FileStatus status : statuses) {
-
-        if (status.isDir()) {
-          for (FileStatus dataFile : this.fs.listStatus(status.getPath(), new HiddenFilter())) {
-            if (!dataFile.isDir()) {
-              dataFiles.add(new SourceAndDestination(dataFile, getTargetPath(dataFile, partition)));
-            }
-          }
-        } else {
-          dataFiles.add(new SourceAndDestination(status, getTargetPath(status, partition)));
-        }
-
-      }
-
+    for (Path path : paths) {
+      FileStatus status = this.fs.getFileStatus(path);
+      dataFiles.add(new SourceAndDestination(status, getTargetPath(status, partition)));
     }
 
     for (SourceAndDestination sourceAndDestination : dataFiles) {
@@ -243,7 +275,7 @@ public class HiveDataset implements CopyableDataset {
   }
 
   public boolean isPartitioned() {
-    return this.table.isSetPartitionKeys() && this.table.getPartitionKeys().size() > 0;
+    return this.table.isPartitioned();
   }
 
   @Override public String datasetURN() {
@@ -274,7 +306,7 @@ public class HiveDataset implements CopyableDataset {
           "Cannot move paths to a new root unless table has exactly one location.");
       Preconditions.checkArgument(PathUtils.isAncestor(this.tableRootPath.get(), status.getPath()),
           "When moving paths to a new root, all locations must be descendants of the table root location. "
-              + "Table root location: %s, ");
+              + "Table root location: %s, file location: %s.", this.tableRootPath, status);
 
       Path relativePath = PathUtils.relativizePath(status.getPath(), this.tableRootPath.get());
       return new Path(this.targetTableRoot.get(), relativePath);

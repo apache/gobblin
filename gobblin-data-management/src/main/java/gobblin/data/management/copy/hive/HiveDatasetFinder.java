@@ -94,7 +94,8 @@ public class HiveDatasetFinder implements DatasetFinder<HiveDataset> {
     List<HiveDataset> datasets = Lists.newArrayList();
 
     for (Table table : getTables(this.db, this.tablePattern)) {
-      datasets.add(new HiveDataset(this.fs, this.clientPool, table, this.properties));
+      datasets.add(new HiveDataset(this.fs, this.clientPool, new org.apache.hadoop.hive.ql.metadata.Table(table),
+          this.properties));
     }
 
     return datasets;

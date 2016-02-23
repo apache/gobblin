@@ -56,6 +56,8 @@ public class AutoReturnableObject<T> implements AutoCloseable {
       this.pool.returnObject(this.object);
     } catch (Exception exc) {
       throw new IOException(exc);
+    } finally {
+      this.returned = true;
     }
   }
 }
