@@ -290,7 +290,7 @@ public class ParallelRunner implements Closeable {
         lock.lock();
         try {
           if (fs.exists(src)) {
-            HadoopUtils.movePath(fs, src, dstFs, dst);
+            HadoopUtils.movePath(fs, src, dstFs, dst, dstFs.getConf());
             if (group.isPresent()) {
               HadoopUtils.setGroup(dstFs, dst, group.get());
             }
