@@ -154,6 +154,7 @@ ext.externalDependency = [
   "kafkaClient": "org.apache.kafka:kafka-clients:0.8.2.1",
   "quartz": "org.quartz-scheduler:quartz:2.2.1",
   "testng": "org.testng:testng:6.9.6",
+  "mockserver":"org.mock-server:mockserver-netty:3.10.1",
   "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
   "jacksonMapper": "org.codehaus.jackson:jackson-mapper-asl:1.9.13",
   "jasypt": "org.jasypt:jasypt:1.9.2",
