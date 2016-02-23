@@ -13,14 +13,13 @@
 package gobblin.metrics.kafka;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.lang.reflect.ConstructorUtils;
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
