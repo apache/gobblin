@@ -16,6 +16,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.hadoop.fs.Path;
 
@@ -114,6 +115,15 @@ public class ConfigClientUtils {
       }
       result = result.createChild(p);
     }
+    return result;
+  }
+  
+  public static List<ConfigKeyPath> getConfigKeyPath(List<String> input){
+    List<ConfigKeyPath> result = new ArrayList<ConfigKeyPath>();
+    for(String s: input){
+      result.add(getConfigKeyPath(s));
+    }
+    
     return result;
   }
   
