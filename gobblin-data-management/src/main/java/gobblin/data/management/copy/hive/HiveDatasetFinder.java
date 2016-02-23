@@ -31,6 +31,7 @@ import com.google.common.collect.Lists;
 import gobblin.configuration.State;
 import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.hive.HiveMetaStoreClientFactory;
+import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HiveRegProps;
 import gobblin.util.AutoReturnableObject;
 
@@ -49,7 +50,7 @@ public class HiveDatasetFinder implements DatasetFinder<HiveDataset> {
 
   private final HiveRegProps hiveProps;
   private final Properties properties;
-  private final GenericObjectPool<IMetaStoreClient> clientPool;
+  private final HiveMetastoreClientPool clientPool;
   private final FileSystem fs;
   private final String db;
   private final String tablePattern;
@@ -59,13 +60,9 @@ public class HiveDatasetFinder implements DatasetFinder<HiveDataset> {
     Preconditions.checkArgument(properties.containsKey(DB_KEY));
 
     this.fs = fs;
-    this.hiveProps = new HiveRegProps(new State(properties));
-    GenericObjectPoolConfig config = new GenericObjectPoolConfig();
-    config.setMaxTotal(this.hiveProps.getNumThreads());
-    config.setMaxIdle(this.hiveProps.getNumThreads());
-    HiveMetaStoreClientFactory factory =
-        new HiveMetaStoreClientFactory(Optional.fromNullable(properties.getProperty(HIVE_METASTORE_URI_KEY)));
-    this.clientPool = new GenericObjectPool<>(factory, config);
+    this.clientPool = HiveMetastoreClientPool.get(properties,
+        Optional.fromNullable(properties.getProperty(HIVE_METASTORE_URI_KEY)));
+    this.hiveProps = this.clientPool.getHiveRegProps();
 
     this.db = properties.getProperty(DB_KEY);
     this.tablePattern = properties.getProperty(TABLE_PATTERN_KEY, DEFAULT_TABLE_PATTERN);
@@ -78,7 +75,7 @@ public class HiveDatasetFinder implements DatasetFinder<HiveDataset> {
   public Collection<Table> getTables(String db, String tablePattern) throws IOException {
     List<Table> tables = Lists.newArrayList();
 
-    try(AutoReturnableObject<IMetaStoreClient> client = new AutoReturnableObject<>(this.clientPool)) {
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       List<String> tableNames = client.get().getTables(db, tablePattern);
       for (String tableName : tableNames) {
         tables.add(client.get().getTable(db, tableName));
