@@ -29,6 +29,7 @@ configurations {
 test {
   useTestNG ()
   include '**/*Test*'
+  maxParallelForks = 1
 }
 
 classification="library"
