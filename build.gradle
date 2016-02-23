@@ -371,6 +371,12 @@ subprojects {
       if (project.hasProperty("printTestOutput")) {
         testLogging.showStandardStreams = true
       }
+      useTestNG () {
+        excludeGroups 'ignore'
+        if (project.hasProperty('skipTestGroup')) {
+          excludeGroups skipTestGroup
+        }
+      }
     }
 
     configurations {
