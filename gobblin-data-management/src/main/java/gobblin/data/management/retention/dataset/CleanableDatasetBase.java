@@ -157,7 +157,7 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
   }
 
   /**
-   * Perform the cleanup of old / deprecated dataset versions. See {@link gobblin.data.management.retention.DatasetCleaner}
+   * Perform the cleanup of old / deprecated dataset versions. See {@link gobblin.data.management.retention.DatasetCleanerNew}
    * javadoc for more information.
    * @throws java.io.IOException
    */
@@ -184,6 +184,11 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
 
     Collection<T> deletableVersions = getRetentionPolicy().listDeletableVersions(versions);
 
+    cleanImpl(deletableVersions);
+
+  }
+
+  protected void cleanImpl(Collection<T> deletableVersions) throws IOException {
     if (deletableVersions.isEmpty()) {
       this.log.warn("No deletable dataset version can be found. Ignoring.");
       return;
@@ -224,7 +229,6 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
       }
     }
   }
-
   private void deleteEmptyParentDirectories(Path datasetRoot, Path parent) throws IOException {
     if (PathUtils.isAncestor(datasetRoot, parent) && !datasetRoot.equals(parent) &&
         this.fs.listStatus(parent).length == 0) {
