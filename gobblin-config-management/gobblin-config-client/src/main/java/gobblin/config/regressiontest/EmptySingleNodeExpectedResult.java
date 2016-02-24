@@ -9,10 +9,14 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.config.store.api.ConfigKeyPath;
 
-public class EmptySingleNodeExpectedResult implements SingleNodeExpectedResultIntf{
 
-  public EmptySingleNodeExpectedResult() {
-  }
+/**
+ * This class is used as the place holder for the node which do NOT have the expected result specified.
+ * 
+ * @author mitu
+ *
+ */
+public class EmptySingleNodeExpectedResult implements SingleNodeExpectedResultIntf {
 
   @Override
   public Config getOwnConfig() {

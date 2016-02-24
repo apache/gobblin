@@ -2,37 +2,46 @@ package gobblin.config.regressiontest;
 
 import java.util.ArrayList;
 import java.util.List;
+
+
+/**
+ * The class represent a tree structure to mimic configuration nodes for specific version of a configuration store.
+ * 
+ * This class is used to validate the getChildren() function of the configuration store.
+ * @author mitu
+ *
+ */
 public class RawNode {
 
   private final String ownName;
   private List<RawNode> children = new ArrayList<>();
-  
-  public RawNode(String name){
+
+  public RawNode(String name) {
     this.ownName = name;
   }
-  
-  protected void addChild(RawNode child){
+
+  protected void addChild(RawNode child) {
     this.children.add(child);
   }
-  
-  protected RawNode getChild(String childName){
-    if(childName == null){
+
+  protected RawNode getChild(String childName) {
+    if (childName == null) {
       return null;
     }
-    
-    for(RawNode child: this.children){
-      if(child.getOwnName().equals(childName)){
+
+    for (RawNode child : this.children) {
+      if (child.getOwnName().equals(childName)) {
         return child;
       }
     }
-    
+
     return null;
   }
-  
-  public String getOwnName(){
+
+  public String getOwnName() {
     return this.ownName;
   }
-  
+
   protected List<RawNode> getChildren() {
     return this.children;
   }
