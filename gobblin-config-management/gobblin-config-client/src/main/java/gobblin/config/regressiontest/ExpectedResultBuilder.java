@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -37,7 +38,7 @@ public class ExpectedResultBuilder {
   public static final String EXPECTED_RESULT_FILE = "expected.conf";
   private final FileSystem fs;
   private RawNode rootNode;
-  private final Map<ConfigKeyPath, SingleNodeExpectedResult> cachedResult = new HashMap<>();
+  private final Map<ConfigKeyPath, SingleNodeExpectedResult> expectedValueCachedResult = new HashMap<>();
 
   /**
    * @param rootURI   : the root URI to build the expected result. This URI need to point to the absolute physical URI for the
@@ -72,7 +73,7 @@ public class ExpectedResultBuilder {
       else if (f.getPath().getName().equals(EXPECTED_RESULT_FILE)) {
         try (Reader r = new InputStreamReader(this.fs.open(f.getPath()))) {
           SingleNodeExpectedResult expected = new SingleNodeExpectedResult(r);
-          this.cachedResult.put(configKeyPath, expected);
+          this.expectedValueCachedResult.put(configKeyPath, expected);
         } catch (JsonSyntaxException jsonException) {
           LOG.error("Caught JsonException while parsing file " + f.getPath());
           throw jsonException;
@@ -82,31 +83,44 @@ public class ExpectedResultBuilder {
   }
 
   /**
-   * Used to 
-   * @param configKeyPath
-   * @return
+   * Used to get the expected result for the given {@link ConfigKeyPath}
+   * 
+   * @param configKeyPath : input {@link ConfigKeyPath} for the configuration store
+   * @return the specified expected result from parsing {@link #EXPECTED_RESULT_FILE}, 
+   * or {@link EmptySingleNodeExpectedResult} if not specified
    */
   public SingleNodeExpectedResultIntf getSingleNodeExpectedResult(ConfigKeyPath configKeyPath) {
-    if (this.cachedResult.containsKey(configKeyPath)) {
-      return this.cachedResult.get(configKeyPath);
+    if (this.expectedValueCachedResult.containsKey(configKeyPath)) {
+      return this.expectedValueCachedResult.get(configKeyPath);
     }
 
     return new EmptySingleNodeExpectedResult();
   }
 
+  /**
+   * Used to find the children {@link RawNode} based on the input {@link ConfigKeyPath}. This is used 
+   * to validate the topology
+   * 
+   * @param configKeyPath : input {@link ConfigKeyPath}
+   * @return the children {@link ConfigKeyPath} based on the {@link RawNode} topology
+   */
   public List<ConfigKeyPath> getChildren(ConfigKeyPath configKeyPath) {
     List<ConfigKeyPath> result = new ArrayList<>();
-    if (configKeyPath.isRootPath()) {
-      for (RawNode r : this.rootNode.getChildren()) {
-        result.add(configKeyPath.createChild(r.getOwnName()));
+    RawNode rawNode = this.rootNode;
+
+    Stack<String> paths = new Stack<>();
+    if (!configKeyPath.isRootPath()) {
+      String absPath = configKeyPath.getAbsolutePathString();
+      String[] content = absPath.split("/");
+      for (int i = content.length - 1; i >= 0; i--) {
+        if (!content[i].equals("")) {
+          paths.push(content[i]);
+        }
       }
-      return result;
+
+      rawNode = getRawNode(paths, this.rootNode);
     }
 
-    String absPath = configKeyPath.getAbsolutePathString();
-    String[] content = absPath.split("/");
-
-    RawNode rawNode = getRawNode(content, this.rootNode, 0);
     if (rawNode == null) {
       return result;
     }
@@ -117,21 +131,21 @@ public class ExpectedResultBuilder {
     return result;
   }
 
-  private RawNode getRawNode(String[] configKeyPath_absPath, RawNode rawNode, int index) {
-    if (configKeyPath_absPath[index].equals(rawNode.getOwnName())) {
-      if (index == configKeyPath_absPath.length - 1) {
-        return rawNode;
-      }
-
-      index++;
-      RawNode child = rawNode.getChild(configKeyPath_absPath[index]);
-      if (child == null) {
-        return null;
-      }
-
-      return getRawNode(configKeyPath_absPath, child, index);
+  /**
+   * Find the corresponding RawNode
+   * @param paths       : path starts from currentNode's children
+   */
+  private RawNode getRawNode(Stack<String> paths, RawNode currentNode) {
+    if (paths.isEmpty()) {
+      return currentNode;
     }
 
-    return null;
+    String childPath = paths.pop();
+    RawNode child = currentNode.getChild(childPath);
+    if (child == null) {
+      return null;
+    }
+
+    return getRawNode(paths, child);
   }
 }
