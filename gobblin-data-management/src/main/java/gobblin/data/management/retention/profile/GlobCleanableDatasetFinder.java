@@ -17,6 +17,7 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.LoggerFactory;
 
 import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -32,6 +33,6 @@ public class GlobCleanableDatasetFinder extends ConfigurableGlobDatasetFinder<Co
   }
 
   @Override public ConfigurableCleanableDataset<DatasetVersion> datasetAtPath(Path path) throws IOException {
-    return new ConfigurableCleanableDataset<>(this.fs, this.props, path);
+    return new ConfigurableCleanableDataset<>(this.fs, this.props, path, LoggerFactory.getLogger(ConfigurableCleanableDataset.class));
   }
 }

@@ -12,11 +12,6 @@
 
 package gobblin.data.management.retention.profile;
 
-import gobblin.dataset.Dataset;
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.util.PathUtils;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +26,15 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import gobblin.data.management.retention.DatasetCleaner;
+import gobblin.data.management.retention.dataset.finder.DatasetFinder;
+import gobblin.dataset.Dataset;
+import gobblin.util.PathUtils;
 
 
 /**
@@ -64,12 +65,14 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
 
   private static final Map<String, String> DEPRECATIONS = ImmutableMap.of(DATASET_FINDER_PATTERN_KEY,
       DATASET_PATTERN_KEY, DATASET_FINDER_BLACKLIST_KEY, DATASET_BLACKLIST_KEY);
-  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
+
+  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties jobProps, Config config) throws IOException {
     for (String property : requiredProperties()) {
-      Preconditions.checkArgument(props.containsKey(property) || props.containsKey(DEPRECATIONS.get(property)));
+      Preconditions.checkArgument(config.hasPath(property) || config.hasPath(DEPRECATIONS.get(property)));
     }
-    if (props.containsKey(DATASET_BLACKLIST_KEY) && !Strings.isNullOrEmpty(props.getProperty(DATASET_BLACKLIST_KEY))) {
-      this.blacklist = Optional.of(Pattern.compile(props.getProperty(DATASET_BLACKLIST_KEY)));
+
+    if (config.hasPath(DATASET_BLACKLIST_KEY)) {
+      this.blacklist = Optional.of(Pattern.compile(config.getString(DATASET_BLACKLIST_KEY)));
     } else {
       this.blacklist = Optional.absent();
     }
@@ -77,16 +80,20 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
     this.fs = fs;
 
     Path tmpDatasetPattern;
-    if (props.getProperty(DATASET_FINDER_PATTERN_KEY) != null) {
-      tmpDatasetPattern = new Path(props.getProperty(DATASET_FINDER_PATTERN_KEY));
+    if (config.getString(DATASET_FINDER_PATTERN_KEY) != null) {
+      tmpDatasetPattern = new Path(config.getString(DATASET_FINDER_PATTERN_KEY));
     } else {
-      tmpDatasetPattern = new Path(props.getProperty(DATASET_PATTERN_KEY));
+      tmpDatasetPattern = new Path(config.getString(DATASET_PATTERN_KEY));
     }
     this.datasetPattern = tmpDatasetPattern.isAbsolute() ? tmpDatasetPattern :
         new Path(this.fs.getWorkingDirectory(), tmpDatasetPattern);
 
-    this.props = props;
     this.commonRoot = PathUtils.deepestNonGlobPath(this.datasetPattern);
+    this.props = jobProps;
+  }
+
+  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
+    this(fs, props, ConfigFactory.parseProperties(props));
   }
 
   /**
