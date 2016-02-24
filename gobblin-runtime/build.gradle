@@ -93,11 +93,6 @@ artifacts {
 }
 
 test {
-    useTestNG () {
-      if (project.hasProperty('useHadoop2')) {
-        excludeGroups 'Hadoop1Only'
-      }
-    }
     workingDir rootProject.rootDir
     maxParallelForks = 1
 }
