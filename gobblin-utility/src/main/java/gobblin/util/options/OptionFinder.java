@@ -12,23 +12,14 @@
 
 package gobblin.util.options;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
@@ -39,7 +30,7 @@ import gobblin.util.options.annotations.Checked;
 
 
 /**
- * Created by ibuenros on 1/23/16.
+ * Finds all user options in a class and any other classes indicated by the root class.
  */
 public class OptionFinder {
 
@@ -56,6 +47,10 @@ public class OptionFinder {
     System.out.println(new OptionFinder().getJsonOptionsForClass(classToCheck));
   }
 
+  /**
+   * Get user options for input class as a Json string.
+   * @throws IOException
+   */
   public String getJsonOptionsForClass(Class<?> klazz) throws IOException {
     GsonBuilder builder = new GsonBuilder();
     builder.registerTypeAdapter(Class.class, new TypeAdapter<Class<?>>() {
@@ -75,6 +70,10 @@ public class OptionFinder {
     return builder.create().toJson(findOptionsForClass(klazz));
   }
 
+  /**
+   * Get user options of input class as a map from class to {@link UserOption}.
+   * @throws IOException
+   */
   public Map<Class<?>, List<UserOption>> findOptionsForClass(Class<?> klazz) throws IOException {
 
     Map<Class<?>, List<UserOption>> options = Maps.newConcurrentMap();
@@ -120,7 +119,7 @@ public class OptionFinder {
 
       return builder.build();
 
-    }catch (IllegalAccessException iae) {
+    } catch (IllegalAccessException iae) {
       // do nothing, this shouldn't happen
       throw new RuntimeException("This shouldn't happen.");
     }

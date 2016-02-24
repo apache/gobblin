@@ -13,7 +13,7 @@
 package gobblin.util.options;
 
 /**
- * Created by ibuenros on 1/23/16.
+ * Dummy enum.
  */
 public enum DummyEnum {
 }

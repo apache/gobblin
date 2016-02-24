@@ -12,8 +12,5 @@
 
 package gobblin.util.options.classes;
 
-/**
- * Created by ibuenros on 1/22/16.
- */
 public class Unchecked {
 }
