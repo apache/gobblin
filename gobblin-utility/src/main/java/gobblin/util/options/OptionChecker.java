@@ -30,7 +30,8 @@ import gobblin.util.options.annotations.Checked;
 
 
 /**
- * Created by ibuenros on 1/22/16.
+ * Checks {@link Properties} against the user properties of a class to determine whether the {@link Properties} object
+ * is valid.
  */
 public class OptionChecker {
 
@@ -51,12 +52,18 @@ public class OptionChecker {
     System.out.println(new OptionChecker().verify(classToCheck, properties));
   }
 
+  /**
+   * Verify that the input properties objects is a valid configuration for input class.
+   * @param klazz Class to check against. Class should be annotated with {@link Checked}.
+   * @param properties user {@link Properties} to check.
+   * @return true if configuration is valid.
+   * @throws IOException
+   */
   public Report verify(Class<?> klazz, Properties properties) throws IOException {
     Report.ReportBuilder reportBuilder = Report.builder();
     verify(klazz, properties, reportBuilder);
     return reportBuilder.build();
   }
-
 
   private void verify(Class<?> klazz, Properties properties, Report.ReportBuilder report)
       throws IOException {
@@ -100,6 +107,9 @@ public class OptionChecker {
 
   }
 
+  /**
+   * Contains the result of a configuration validation.
+   */
   @Getter
   public static class Report {
 
@@ -131,6 +141,9 @@ public class OptionChecker {
     }
   }
 
+  /**
+   * An entry for a {@link Report}.
+   */
   @AllArgsConstructor
   @Getter
   public static class ReportEntry {

@@ -16,9 +16,6 @@ import gobblin.util.options.annotations.Checked;
 import gobblin.util.options.UserOption;
 
 
-/**
- * Created by ibuenros on 1/22/16.
- */
 @Checked
 public class ClassWithReflectiveInstantiation {
 

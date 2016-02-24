@@ -19,9 +19,10 @@ import java.lang.annotation.Target;
 
 
 /**
- * Created by ibuenros on 1/22/16.
+ * Indicates that the annotated class is annotated with {@link UserOption}s.
  */
 @Retention(RetentionPolicy.RUNTIME) @Target(value= ElementType.TYPE)
 public @interface Checked {
+  /** Indicates that the classes in this array should also be checked. */
   Class<?>[] checkClasses() default {};
 }

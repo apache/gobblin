@@ -21,17 +21,27 @@ import com.google.common.collect.Sets;
 
 
 /**
- * Created by ibuenros on 1/22/16.
+ * A user option.
  */
 @Getter
 public class UserOption {
 
+  /** The key for this option. */
   private final String key;
+  /** Description for the option. */
   private final String description;
+  /** Whether option is required. */
   private final boolean required;
+  /**
+   * Indicates that an object with the class indicated by the value of this option will be instantiated, and that the
+   * instantiated class must be a subclass of this class.
+   */
   private final Class<?> instantiatesClass;
+  /** Indicates that the value of the option must be one of the values of this enum. */
   private final Class<? extends Enum<?>> values;
+  /** Stringification of {@link #values} */
   private final Set<String> valueStrings;
+  /** The class that declares this option. */
   private final Class<?> declaringClass;
 
   @Builder

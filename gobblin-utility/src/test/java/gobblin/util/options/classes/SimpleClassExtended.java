@@ -15,9 +15,6 @@ package gobblin.util.options.classes;
 import gobblin.util.options.annotations.Checked;
 
 
-/**
- * Created by ibuenros on 1/22/16.
- */
 @Checked
 public class SimpleClassExtended extends SimpleClass {
 

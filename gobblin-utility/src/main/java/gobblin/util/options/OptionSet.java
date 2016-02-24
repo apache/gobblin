@@ -22,7 +22,8 @@ import com.google.common.collect.Sets;
 
 
 /**
- * Created by ibuenros on 1/23/16.
+ * A set of user options.
+ * TODO: use it in {@link OptionFinder}.
  */
 @Getter
 public class OptionSet {

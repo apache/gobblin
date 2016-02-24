@@ -12,13 +12,16 @@
 
 package gobblin.util.options.annotations;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 
 /**
- * Created by ibuenros on 1/22/16.
+ * Indicates that when building the user option set for the containing class, the user option set should also
+ * contain all user options of the class of this field.
  */
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.RUNTIME) @Target(value= ElementType.FIELD)
 public @interface CheckProperties {
 }

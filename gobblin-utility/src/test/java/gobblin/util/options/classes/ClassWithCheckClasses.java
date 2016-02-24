@@ -15,9 +15,6 @@ package gobblin.util.options.classes;
 import gobblin.util.options.annotations.Checked;
 
 
-/**
- * Created by ibuenros on 1/22/16.
- */
 @Checked(checkClasses = {SimpleClass.class, Unchecked.class})
 public class ClassWithCheckClasses {
 

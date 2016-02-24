@@ -21,7 +21,10 @@ import gobblin.util.options.DummyEnum;
 
 
 /**
- * Created by ibuenros on 1/23/16.
+ * Used to annotate fields of type public static String, indicating that the class expects the input
+ * {@link java.util.Properties} object to contain a key-value pair with that key.
+ *
+ * See {@link gobblin.util.options.UserOption} for descriptions of the fields of this annotation.
  */
 @Retention(RetentionPolicy.RUNTIME) @Target(value= ElementType.FIELD)
 public @interface UserOption {
