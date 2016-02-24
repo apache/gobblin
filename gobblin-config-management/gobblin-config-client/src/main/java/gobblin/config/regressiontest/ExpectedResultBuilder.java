@@ -13,14 +13,17 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
 
 import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import gobblin.config.store.api.ConfigKeyPath;
 
 import com.google.common.base.Preconditions;
+import com.google.gson.JsonSyntaxException;
 
 public class ExpectedResultBuilder {
 
+  private static final Logger LOG = Logger.getLogger(ExpectedResultBuilder.class);
   public static final String EXPECTED_RESULT_FILE = "expected.conf";
   private final FileSystem fs;
   private final URI rootURI;
@@ -56,10 +59,14 @@ public class ExpectedResultBuilder {
       }
       // build expected result for current node
       else if (f.getPath().getName().equals(EXPECTED_RESULT_FILE)){
-        Reader r = new InputStreamReader(this.fs.open(f.getPath()));
-        SingleNodeExpectedResult expected = new SingleNodeExpectedResult(r);
-        this.cachedResult.put(configKeyPath, expected);
-        r.close();
+        try(Reader r = new InputStreamReader(this.fs.open(f.getPath()))){
+          SingleNodeExpectedResult expected = new SingleNodeExpectedResult(r);
+          this.cachedResult.put(configKeyPath, expected);
+        }
+        catch(JsonSyntaxException jsonException){
+          LOG.error("Caught JsonException while parsing file " + f.getPath());
+          throw jsonException;
+        }
       }
     }
   }

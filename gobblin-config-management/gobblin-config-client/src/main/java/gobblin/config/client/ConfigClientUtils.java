@@ -79,6 +79,10 @@ public class ConfigClientUtils {
       // configKeyPath is /tags/retention
       else {
         URI storeRoot = cs.getStoreURI();
+        if(configKeyPath.isRootPath()){
+          return storeRoot;
+        }
+        
         Path absPath = new Path(storeRoot.getPath(), configKeyPath.getAbsolutePathString().substring(1)); // remote the first "/";
         return new URI(storeRoot.getScheme(), storeRoot.getAuthority(), absPath.toString() , null, null);
       }       
