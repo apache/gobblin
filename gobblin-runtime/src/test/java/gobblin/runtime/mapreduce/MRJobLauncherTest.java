@@ -71,6 +71,10 @@ public class MRJobLauncherTest extends BMNGRunner {
 
     this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, datasetStateStore);
     this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
+
+    // Other tests may not clean up properly, clean up outputDir or some of these tests might fail.
+    String outputDir = this.launcherProps.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR);
+    FileUtils.deleteDirectory(new File(outputDir));
   }
 
   @Test
