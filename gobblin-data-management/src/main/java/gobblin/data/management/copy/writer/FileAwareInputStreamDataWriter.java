@@ -16,6 +16,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
@@ -72,7 +73,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   protected final RecoveryHelper recoveryHelper;
   /**
    * The copyable file in the WorkUnit might be modified by converters (e.g. output extensions added / removed).
-   * This field is set when {@link #write} is called, and points to the actual, possibly modified {@link CopyableFile}
+   * This field is set when {@link #write} is called, and points to the actual, possibly modified {@link gobblin.data.management.copy.CopyEntity}
    * that was written by this writer.
    */
   protected Optional<CopyableFile> actualProcessedCopyableFile;
@@ -103,6 +104,9 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   public final void write(FileAwareInputStream fileAwareInputStream) throws IOException {
     CopyableFile copyableFile = fileAwareInputStream.getFile();
     Path stagingFile = getStagingFilePath(copyableFile);
+    if (this.actualProcessedCopyableFile.isPresent()) {
+      throw new IOException(this.getClass().getCanonicalName() + " can only process one file.");
+    }
     this.actualProcessedCopyableFile = Optional.of(copyableFile);
     this.fs.mkdirs(stagingFile.getParent());
     writeImpl(fileAwareInputStream.getInputStream(), stagingFile, copyableFile);
@@ -121,7 +125,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    *
    * @param inputStream {@link FSDataInputStream} whose contents should be written to staging path.
    * @param writeAt {@link Path} at which contents should be written.
-   * @param copyableFile {@link CopyableFile} that generated this copy operation.
+   * @param copyableFile {@link gobblin.data.management.copy.CopyEntity} that generated this copy operation.
    * @throws IOException
    */
   protected void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
@@ -136,8 +140,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
         return input.getReplication() == replication && input.getBlockSize() == blockSize;
       }
     };
-    Optional<FileStatus> persistedFile = this.recoveryHelper.findPersistedFile(this.state,
-        copyableFile, fileStatusAttributesFilter);
+    Optional<FileStatus> persistedFile = this.recoveryHelper.findPersistedFile(this.state, copyableFile, fileStatusAttributesFilter);
 
     if (persistedFile.isPresent()) {
       log.info(String.format("Recovering persisted file %s to %s.", persistedFile.get().getPath(), writeAt));
@@ -168,12 +171,12 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   }
 
   protected static Path getPartitionOutputRoot(Path outputDir,
-      CopyableFile.DatasetAndPartition datasetAndPartition) {
+      CopyEntity.DatasetAndPartition datasetAndPartition) {
     return new Path(outputDir, datasetAndPartition.identifier());
   }
 
   public static Path getOutputFilePath(CopyableFile file, Path outputDir,
-      CopyableFile.DatasetAndPartition datasetAndPartition) {
+      CopyEntity.DatasetAndPartition datasetAndPartition) {
     return new Path(getPartitionOutputRoot(outputDir, datasetAndPartition),
         PathUtils.withoutLeadingSeparator(file.getDestination()));
   }
@@ -276,6 +279,10 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   @Override
   public void commit() throws IOException {
 
+    if (!this.actualProcessedCopyableFile.isPresent()) {
+      return;
+    }
+
     CopyableFile copyableFile = this.actualProcessedCopyableFile.get();
     Path stagingFilePath = getStagingFilePath(copyableFile);
     Path outputFilePath = getOutputFilePath(copyableFile, this.outputDir,
@@ -350,8 +357,9 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   @Override public State getFinalState() {
     try {
       State state = new State();
-      CopySource.serializeCopyableFile(state, this.actualProcessedCopyableFile.get());
-      state.setProp("did.i.actually.write.props", "yes");
+      if (this.actualProcessedCopyableFile.isPresent()) {
+        CopySource.serializeCopyEntity(state, this.actualProcessedCopyableFile.get());
+      }
       ConstructState constructState = new ConstructState();
       constructState.addOverwriteProperties(state);
       return constructState;

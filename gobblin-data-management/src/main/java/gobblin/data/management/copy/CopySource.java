@@ -26,7 +26,6 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
 import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.util.ExecutorsUtils;
-import gobblin.util.PathUtils;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
@@ -53,11 +52,9 @@ import javax.annotation.Nullable;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -88,13 +85,13 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * Does the following:
    * <li>Instantiate a {@link DatasetFinder}.
    * <li>Find all {@link Dataset} using {@link DatasetFinder}.
-   * <li>For each {@link CopyableDataset} get all {@link CopyableFile}s.
-   * <li>Create a {@link WorkUnit} per {@link CopyableFile}.
+   * <li>For each {@link CopyableDataset} get all {@link CopyEntity}s.
+   * <li>Create a {@link WorkUnit} per {@link CopyEntity}.
    * </ul>
    *
    * <p>
-   * In this implementation, one workunit is created for every {@link CopyableFile} found. But the extractor/converters
-   * and writers are built to support multiple {@link CopyableFile}s per workunit
+   * In this implementation, one workunit is created for every {@link CopyEntity} found. But the extractor/converters
+   * and writers are built to support multiple {@link CopyEntity}s per workunit
    * </p>
    *
    * @param state see {@link gobblin.configuration.SourceState}
@@ -116,7 +113,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       // be pluggable.
       ConcurrentBoundedWorkUnitList workUnitList =
           new ConcurrentBoundedWorkUnitList(state.getPropAsInt(MAX_FILES_COPIED_KEY, DEFAULT_MAX_FILES_COPIED),
-          new AllEqualComparator<FileSet<CopyableFile>>());
+          new AllEqualComparator<FileSet<CopyEntity>>());
 
       ExecutorService executor =
           ScalingThreadPoolExecutor.newScalingThreadPool(0,
@@ -186,29 +183,29 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       try {
 
-        Collection<CopyableFile> files = this.copyableDataset.getCopyableFiles(this.targetFs, this.copyConfiguration);
-        List<FileSet<CopyableFile>> fileSets = partitionCopyableFiles(this.copyableDataset, files);
+        Collection<? extends CopyEntity> files = this.copyableDataset.getCopyableFiles(this.targetFs, this.copyConfiguration);
+        List<FileSet<CopyEntity>> fileSets = partitionCopyableFiles(this.copyableDataset, files);
 
         // Sort to optimize the insertion to work units list
         Collections.sort(fileSets, this.workUnitList.getComparator());
 
-        for (FileSet<CopyableFile> fileSet : fileSets) {
+        for (FileSet<CopyEntity> fileSet : fileSets) {
           Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, fileSet.getName());
           List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
-          for (CopyableFile copyableFile : fileSet.getFiles()) {
+          for (CopyEntity copyEntity : fileSet.getFiles()) {
 
             CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(this.copyableDataset);
-            CopyableFile.DatasetAndPartition datasetAndPartition = copyableFile.getDatasetAndPartition(metadata);
+            CopyEntity.DatasetAndPartition datasetAndPartition = copyEntity.getDatasetAndPartition(metadata);
 
             WorkUnit workUnit = new WorkUnit(extract);
             workUnit.addAll(this.state);
-            serializeCopyableFile(workUnit, copyableFile);
+            serializeCopyEntity(workUnit, copyEntity);
             serializeCopyableDataset(workUnit, metadata);
             GobblinMetrics.addCustomTagToState(workUnit, new Tag<>(CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME,
                 this.copyableDataset.datasetURN()));
             workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetAndPartition.toString());
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, this.copyableDataset.datasetURN());
-            workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyableFile.getFileSet());
+            workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyEntity.getFileSet());
             computeAndSetWorkUnitGuid(workUnit);
             workUnitsForPartition.add(workUnit);
           }
@@ -229,9 +226,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   @Override
   public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
 
-    CopyableFile copyableFile = deserializeCopyableFile(state);
+    CopyEntity copyEntity = deserializeCopyEntity(state);
 
-    return new FileAwareInputStreamExtractor(getSourceFileSystem(state), copyableFile);
+    return new FileAwareInputStreamExtractor(getSourceFileSystem(state), copyEntity);
   }
 
   @Override
@@ -253,7 +250,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ?
         workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) :
         "");
-    setWorkUnitGuid(workUnit, guid.append(deserializeCopyableFile(workUnit)));
+    setWorkUnitGuid(workUnit, guid.append(deserializeCopyEntity(workUnit)));
   }
 
   /**
@@ -280,17 +277,17 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   }
 
   /**
-   * Serialize a {@link List} of {@link CopyableFile}s into a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
+   * Serialize a {@link List} of {@link CopyEntity}s into a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
    */
-  public static void serializeCopyableFile(State state, CopyableFile copyableFile) throws IOException {
-    state.setProp(SERIALIZED_COPYABLE_FILE, CopyableFile.serialize(copyableFile));
+  public static void serializeCopyEntity(State state, CopyEntity copyEntity) throws IOException {
+    state.setProp(SERIALIZED_COPYABLE_FILE, CopyEntity.serialize(copyEntity));
   }
 
   /**
-   * Deserialize a {@link List} of {@link CopyableFile}s from a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
+   * Deserialize a {@link List} of {@link CopyEntity}s from a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
    */
-  public static CopyableFile deserializeCopyableFile(State state) throws IOException {
-    return CopyableFile.deserialize(state.getProp(SERIALIZED_COPYABLE_FILE));
+  public static CopyEntity deserializeCopyEntity(State state) throws IOException {
+    return CopyEntity.deserialize(state.getProp(SERIALIZED_COPYABLE_FILE));
   }
 
   /**
@@ -307,17 +304,17 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return CopyableDatasetMetadata.deserialize(state.getProp(SERIALIZED_COPYABLE_DATASET));
   }
 
-  private List<FileSet<CopyableFile>> partitionCopyableFiles(Dataset dataset, Collection<CopyableFile> files) {
-    Map<String, FileSet.Builder<CopyableFile>> partitionBuildersMaps = Maps.newHashMap();
-    for (CopyableFile file : files) {
+  private List<FileSet<CopyEntity>> partitionCopyableFiles(Dataset dataset, Collection<? extends CopyEntity> files) {
+    Map<String, FileSet.Builder<CopyEntity>> partitionBuildersMaps = Maps.newHashMap();
+    for (CopyEntity file : files) {
       if (!partitionBuildersMaps.containsKey(file.getFileSet())) {
-        partitionBuildersMaps.put(file.getFileSet(), new FileSet.Builder<CopyableFile>(file.getFileSet(), dataset));
+        partitionBuildersMaps.put(file.getFileSet(), new FileSet.Builder<>(file.getFileSet(), dataset));
       }
       partitionBuildersMaps.get(file.getFileSet()).add(file);
     }
     return Lists.newArrayList(Iterables.transform(partitionBuildersMaps.values(),
-        new Function<FileSet.Builder<CopyableFile>, FileSet<CopyableFile>>() {
-          @Nullable @Override public FileSet<CopyableFile> apply(FileSet.Builder<CopyableFile> input) {
+        new Function<FileSet.Builder<CopyEntity>, FileSet<CopyEntity>>() {
+          @Nullable @Override public FileSet<CopyEntity> apply(FileSet.Builder<CopyEntity> input) {
             return input.build();
           }
         }));

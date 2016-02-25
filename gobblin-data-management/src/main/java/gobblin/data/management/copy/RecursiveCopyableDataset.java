@@ -53,7 +53,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     this.glob = glob;
   }
 
-  @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
+  @Override public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs,
+      CopyConfiguration configuration)
       throws IOException {
 
     Path nonGlobSearchPath = PathUtils.deepestNonGlobPath(this.glob);

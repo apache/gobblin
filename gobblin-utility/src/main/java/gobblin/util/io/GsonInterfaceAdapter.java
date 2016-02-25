@@ -52,12 +52,13 @@ public class GsonInterfaceAdapter<T> implements JsonSerializer<T>, JsonDeseriali
 
   private static final String OBJECT_TYPE = "object-type";
   private static final String OBJECT_DATA = "object-data";
+  private static final Gson PURE_GSON = new Gson();
 
   @Override
   public JsonElement serialize(T object, Type interfaceType, JsonSerializationContext context) {
     JsonObject wrapper = new JsonObject();
     wrapper.addProperty(OBJECT_TYPE, object.getClass().getName());
-    wrapper.add(OBJECT_DATA, context.serialize(object));
+    wrapper.add(OBJECT_DATA, PURE_GSON.toJsonTree(object));
     return wrapper;
   }
 
@@ -68,7 +69,7 @@ public class GsonInterfaceAdapter<T> implements JsonSerializer<T>, JsonDeseriali
     JsonElement typeName = get(wrapper, OBJECT_TYPE);
     JsonElement data = get(wrapper, OBJECT_DATA);
     Type actualType = typeForName(typeName);
-    return context.deserialize(data, actualType);
+    return PURE_GSON.fromJson(data, actualType);
   }
 
   private Type typeForName(JsonElement typeElem) {
@@ -86,6 +87,6 @@ public class GsonInterfaceAdapter<T> implements JsonSerializer<T>, JsonDeseriali
   }
 
   public static <T> Gson getGson(Class<T> clazz) {
-    return new GsonBuilder().registerTypeAdapter(clazz, new GsonInterfaceAdapter<T>()).create();
+    return new GsonBuilder().registerTypeHierarchyAdapter(clazz, new GsonInterfaceAdapter<T>()).create();
   }
 }

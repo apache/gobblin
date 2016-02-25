@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableList;
 
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.retention.dataset.CleanableDataset;
 
 
@@ -40,7 +40,8 @@ public class DummyDataset implements CopyableDataset, CleanableDataset {
     // Do nothing
   }
 
-  @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
+  @Override public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs,
+      CopyConfiguration configuration)
       throws IOException {
     return ImmutableList.of();
   }

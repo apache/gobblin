@@ -49,15 +49,16 @@ public class TestCopyableDataset implements CopyableDataset, FileSystemDataset {
     this.datasetRoot = new Path(ORIGIN_PREFIX);
   }
 
-  @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
+  @Override public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs,
+      CopyConfiguration configuration)
       throws IOException {
 
-    List<CopyableFile> files = Lists.newArrayList();
+    List<CopyEntity> files = Lists.newArrayList();
 
     for (int i = 0; i < FILE_COUNT; i++) {
       FileStatus origin = new FileStatus(10, false, 0, 0, 0, new Path(this.datasetRoot, Integer.toString(i)));
-      CopyableFile.Builder builder = CopyableFile.builder(FileSystem.getLocal(new Configuration()),
-          origin, datasetRoot(), configuration).destinationOwnerAndPermission(OWNER_AND_PERMISSION).
+      CopyableFile.Builder builder = CopyableFile
+          .builder(FileSystem.getLocal(new Configuration()), origin, datasetRoot(), configuration).destinationOwnerAndPermission(OWNER_AND_PERMISSION).
           ancestorsOwnerAndPermission(Lists.newArrayList(OWNER_AND_PERMISSION)).checksum("checksum".getBytes());
       modifyCopyableFile(builder, origin);
       files.add(builder.build());
