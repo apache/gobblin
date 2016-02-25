@@ -16,7 +16,6 @@ import gobblin.data.management.partition.File;
 import gobblin.data.management.copy.PreserveAttributes.Option;
 import gobblin.util.PathUtils;
 import gobblin.util.guid.Guid;
-import gobblin.util.guid.HasGuid;
 
 import java.io.IOException;
 import java.util.List;
@@ -37,7 +36,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
 
 
 /**
@@ -49,8 +47,6 @@ import com.google.gson.Gson;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode(callSuper = true)
 public class CopyableFile extends CopyEntity implements File {
-
-  private static final Gson GSON = new Gson();
 
   /** {@link FileStatus} of the existing origin file. */
   private FileStatus origin;

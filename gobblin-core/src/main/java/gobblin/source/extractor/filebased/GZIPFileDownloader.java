@@ -41,7 +41,7 @@ public class GZIPFileDownloader<D> extends FileDownloader<D> {
 
     try {
       InputStream inputStream = fileBasedExtractor.getCloser().register(fileBasedExtractor.getFsHelper().getFileStream(file));     
-      Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(new GZIPInputStream(inputStream), ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
+      Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(new GZIPInputStream(inputStream), ConfigurationKeys.DEFAULT_CHARSET_ENCODING.name());
       if (fileBasedExtractor.isShouldSkipFirstRecord() && fileItr.hasNext()) {
         fileItr.next();
       }

@@ -53,24 +53,28 @@ public class HiveStripedLocks {
    *
    * Supports operations {@link #lock()} and {@link #unlock()}.
    */
-  public static class HiveLock {
+  public static class HiveLock implements AutoCloseable {
     private final List<Lock> locks;
 
     private HiveLock(Lock... locks) {
       this.locks = Arrays.asList(locks);
+      this.lock();
     }
 
-    public void lock() {
+    private void lock() {
       for (Lock lock : this.locks) {
         lock.lock();
       }
     }
 
-    public void unlock() {
+    private void unlock() {
       for (int i = this.locks.size() - 1; i >= 0; i--) {
         this.locks.get(i).unlock();
       }
     }
 
+    @Override public void close() {
+      unlock();
+    }
   }
 }

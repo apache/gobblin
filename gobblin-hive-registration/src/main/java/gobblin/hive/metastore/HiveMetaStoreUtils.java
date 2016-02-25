@@ -101,6 +101,15 @@ public class HiveMetaStoreUtils {
   }
 
   /**
+   +   * Covert a {@link Table} into a {@link HiveTable} with customized value for {@link HiveConstants#LOCATION}.
+   +   */
+  public static HiveTable getHiveTableWithNewLocation(Table table, String location) {
+    HiveTable hiveTable = getHiveTable(table);
+    hiveTable.setStorageProp(HiveConstants.LOCATION, location);
+    return hiveTable;
+  }
+
+  /**
    * Convert a {@link HivePartition} into a {@link Partition}.
    */
   public static Partition getPartition(HivePartition hivePartition) {
@@ -133,6 +142,15 @@ public class HiveMetaStoreUtils {
     if (!partition.getSd().getCols().isEmpty()) {
       hivePartition.setColumns(getColumns(partition.getSd().getCols()));
     }
+    return hivePartition;
+  }
+
+  /**
+   * Covert a {@link Partition} into a {@link HivePartition} with customized value for {@link HiveConstants#LOCATION}.
+   */
+  public static HivePartition getHivePartitionWithNewLocation(Partition partition, String location) {
+    HivePartition hivePartition = getHivePartition(partition);
+    hivePartition.setStorageProp(HiveConstants.LOCATION, location);
     return hivePartition;
   }
 

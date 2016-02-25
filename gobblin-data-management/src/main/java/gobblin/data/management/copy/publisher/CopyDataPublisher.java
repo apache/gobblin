@@ -15,6 +15,9 @@ package gobblin.data.management.copy.publisher;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -22,10 +25,13 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.commit.CommitSequence;
+import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -34,6 +40,9 @@ import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.entities.CommitStepCopyEntity;
+import gobblin.data.management.copy.entities.PostPublishStep;
+import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.data.management.copy.recovery.RecoveryHelper;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
 import gobblin.data.management.copy.CopyEntity;
@@ -147,11 +156,18 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         datasetWorkUnitStates.iterator().next().getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     Path datasetWriterOutputPath = new Path(this.writerOutputDir, datasetAndPartition.identifier());
 
-    log.info(String.format("Publishing fileSet from %s for dataset %s", datasetWriterOutputPath,
-        metadata.getDatasetURN()));
+    log.info(String.format("[%s] Publishing fileSet from %s for dataset %s", datasetAndPartition.identifier(),
+        datasetWriterOutputPath, metadata.getDatasetURN()));
 
+    List<CommitStep> prePublish = getCommitSequence(datasetWorkUnitStates, PrePublishStep.class);
+    List<CommitStep> postPublish = getCommitSequence(datasetWorkUnitStates, PostPublishStep.class);
+    log.info(String.format("[%s] Found %d prePublish steps and %d postPublish steps.", datasetAndPartition.identifier(),
+        prePublish.size(), postPublish.size()));
+
+    executeCommitSequence(prePublish);
     // Targets are always absolute, so we start moving from root (will skip any existing directories).
     HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, new Path("/"));
+    executeCommitSequence(postPublish);
 
     fs.delete(datasetWriterOutputPath, true);
 
@@ -179,6 +195,37 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(eventSubmitter, datasetAndPartition,
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp));
+  }
+
+  private List<CommitStep> getCommitSequence(Collection<WorkUnitState> workUnits, Class<?> baseClass)
+      throws IOException {
+    List<CommitStepCopyEntity> steps = Lists.newArrayList();
+    for (WorkUnitState wus : workUnits) {
+      if (baseClass.isAssignableFrom(CopySource.copyEntityClass(wus))) {
+        CommitStepCopyEntity step = (CommitStepCopyEntity) CopySource.deserializeCopyEntity(wus);
+        steps.add(step);
+      }
+    }
+
+    Comparator<CommitStepCopyEntity> commitStepSorter = new Comparator<CommitStepCopyEntity>() {
+      @Override public int compare(CommitStepCopyEntity o1, CommitStepCopyEntity o2) {
+        return Integer.compare(o1.getPriority(), o2.getPriority());
+      }
+    };
+
+    Collections.sort(steps, commitStepSorter);
+    List<CommitStep> sequence = Lists.newArrayList();
+    for (CommitStepCopyEntity entity : steps) {
+      sequence.add(entity.getStep());
+    }
+
+    return sequence;
+  }
+
+  private void executeCommitSequence(List<CommitStep> steps) throws IOException {
+    for (CommitStep step : steps) {
+      step.execute();
+    }
   }
 
   private Path findPathRoot(Path path) {

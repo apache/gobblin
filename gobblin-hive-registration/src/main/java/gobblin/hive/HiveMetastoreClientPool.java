@@ -27,6 +27,8 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 
 import gobblin.configuration.State;
 import gobblin.util.AutoReturnableObject;
@@ -44,7 +46,14 @@ public class HiveMetastoreClientPool {
   @Getter
   private final HiveRegProps hiveRegProps;
 
-  private static final Cache<Optional<String>, HiveMetastoreClientPool> poolCache = CacheBuilder.newBuilder().build();
+  private static final Cache<Optional<String>, HiveMetastoreClientPool> poolCache =
+      CacheBuilder.newBuilder().removalListener(new RemovalListener<Optional<String>, HiveMetastoreClientPool>() {
+        @Override public void onRemoval(RemovalNotification<Optional<String>, HiveMetastoreClientPool> notification) {
+          if (notification.getValue() != null) {
+            notification.getValue().close();
+          }
+        }
+      }).build();
 
   /**
    * Get a {@link HiveMetastoreClientPool} for the requested metastore URI. Useful for using the same pools across
@@ -84,6 +93,10 @@ public class HiveMetastoreClientPool {
     this.factory = new HiveMetaStoreClientFactory(metastoreURI);
     this.pool = new GenericObjectPool<>(this.factory, config);
     this.hiveConf = this.factory.getHiveConf();
+  }
+
+  public void close() {
+    this.pool.close();
   }
 
   /**

@@ -128,7 +128,7 @@ public class FsCommitSequenceStore implements CommitSequenceStore {
     Path datasetPath = new Path(new Path(this.rootPath, jobName), sanitizeDatasetUrn(datasetUrn));
     try (InputStream is = this.fs.open(datasetPath)) {
       return Optional
-          .of(GSON.fromJson(IOUtils.toString(is, ConfigurationKeys.DEFAULT_CHARSET_ENCODING), CommitSequence.class));
+          .of(GSON.fromJson(IOUtils.toString(is, ConfigurationKeys.DEFAULT_CHARSET_ENCODING.name()), CommitSequence.class));
     }
   }
 
