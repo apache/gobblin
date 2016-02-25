@@ -14,11 +14,14 @@ package gobblin.source.extractor.filebased;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.io.IOUtils;
+import lombok.Getter;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,16 +46,15 @@ import gobblin.source.workunit.WorkUnit;
  * @param <D>
  *            type of data record
  */
-public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
+public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedExtractor.class);
 
   protected final WorkUnit workUnit;
   protected final WorkUnitState workUnitState;
-  protected final SizeAwareFileBasedHelper fsHelper;
-  protected final List<String> filesToPull;
 
-  protected final Closer closer = Closer.create();
+  protected final List<String> filesToPull;
+  protected final FileDownloader<D> fileDownloader;
 
   private final int statusCount;
   private long totalRecordCount = 0;
@@ -60,7 +62,13 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
   private Iterator<D> currentFileItr;
   private String currentFile;
   private boolean hasNext = false;
+
+  @Getter
+  protected final Closer closer = Closer.create();
+  @Getter
   private final boolean shouldSkipFirstRecord;
+  @Getter
+  protected final SizeAwareFileBasedHelper fsHelper;
 
   protected enum CounterNames {
     FileBytesRead;
@@ -68,6 +76,7 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
 
   protected Counters<CounterNames> counters = new Counters<CounterNames>();
 
+  @SuppressWarnings("unchecked")
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
     super(workUnitState);
     this.workUnitState = workUnitState;
@@ -89,6 +98,20 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
       this.fsHelper.connect();
     } catch (FileBasedHelperException e) {
       throw new RuntimeException(e);
+    }
+
+    if (workUnitState.contains(ConfigurationKeys.SOURCE_FILEBASED_OPTIONAL_DOWNLOADER_CLASS)) {
+      try {
+        this.fileDownloader =
+            (FileDownloader<D>) ConstructorUtils.invokeConstructor(
+                Class.forName(workUnitState.getProp(ConfigurationKeys.SOURCE_FILEBASED_OPTIONAL_DOWNLOADER_CLASS)),
+                this);
+      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+          | ClassNotFoundException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      this.fileDownloader = new SingleFileDownloader<D>(this);
     }
 
     this.counters.initialize(getMetricContext(), CounterNames.class, this.getClass());
@@ -184,20 +207,8 @@ public abstract class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, 
    * @return an iterator over the file
    * TODO Add support for different file formats besides text e.g. avro iterator, byte iterator, json iterator.
    */
-  @SuppressWarnings("unchecked")
   public Iterator<D> downloadFile(String file) throws IOException {
-    LOG.info("Beginning to download file: " + file);
-
-    try {
-      InputStream inputStream = this.closer.register(this.fsHelper.getFileStream(file));
-      Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(inputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
-      if (this.shouldSkipFirstRecord && fileItr.hasNext()) {
-        fileItr.next();
-      }
-      return fileItr;
-    } catch (FileBasedHelperException e) {
-      throw new IOException("Exception while downloading file " + file + " with message " + e.getMessage(), e);
-    }
+    return fileDownloader.downloadFile(file);
   }
 
   /**
