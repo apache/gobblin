@@ -27,7 +27,6 @@ configurations {
 }
 
 test {
-  useTestNG ()
   include '**/*Test*'
 }
 

@@ -373,9 +373,12 @@ subprojects {
         testLogging.showStandardStreams = true
       }
       useTestNG () {
-        excludeGroups 'ignore'
+        excludeGroups 'ignore', 'performance'
         if (project.hasProperty('skipTestGroup')) {
           excludeGroups skipTestGroup
+        }
+        if (project.hasProperty('useHadoop2')) {
+          excludeGroups 'Hadoop1Only'
         }
       }
     }
