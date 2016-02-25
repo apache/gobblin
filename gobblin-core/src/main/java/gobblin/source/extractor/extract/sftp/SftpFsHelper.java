@@ -29,6 +29,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.ProxyHTTP;
 import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpATTRS;
 import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
 import com.jcraft.jsch.UserInfo;
@@ -222,7 +223,9 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
       ChannelSftp channel = getSftpChannel();
       Vector<LsEntry> vector = channel.ls(path);
       for (LsEntry entry : vector) {
-        list.add(entry.getFilename());
+        SftpATTRS attrs = entry.getAttrs();
+        String modTime = attrs.getMtimeString().isEmpty() ? "0" : attrs.getMtimeString();
+        list.add(entry.getFilename() + ":::" + modTime);
       }
       channel.disconnect();
       return list;
