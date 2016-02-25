@@ -25,7 +25,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -96,9 +99,12 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
   public static final String SKIP_TRASH_KEY = CONFIGURATION_KEY_PREFIX + "skip.trash";
   public static final String SKIP_TRASH_DEFAULT = Boolean.toString(false);
   public static final String DELETE_EMPTY_DIRECTORIES_KEY = CONFIGURATION_KEY_PREFIX + "delete.empty.directories";
+  public static final String IS_DATASET_BLACKLISTED_KEY = CONFIGURATION_KEY_PREFIX + "dataset.is.blacklisted";
+
   public static final String DELETE_EMPTY_DIRECTORIES_DEFAULT = Boolean.toString(true);
   public static final String DELETE_AS_OWNER_KEY = CONFIGURATION_KEY_PREFIX + "delete.as.owner";
   public static final String DELETE_AS_OWNER_DEFAULT = Boolean.toString(true);
+  public static final String IS_DATASET_BLACKLISTED_DEFAULT = Boolean.toString(false);
 
   protected final FileSystem fs;
   protected final ProxiedTrash trash;
@@ -106,6 +112,7 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
   protected final boolean skipTrash;
   protected final boolean deleteEmptyDirectories;
   protected final boolean deleteAsOwner;
+  protected final boolean isDatasetBlacklisted;
 
   protected final Logger log;
 
@@ -119,11 +126,17 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
    */
   public abstract RetentionPolicy<T> getRetentionPolicy();
 
-  public CleanableDatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
+  public CleanableDatasetBase(final FileSystem fs, final Properties props, Config config, Logger log)
+      throws IOException {
     this(fs, props, Boolean.valueOf(props.getProperty(SIMULATE_KEY, SIMULATE_DEFAULT)), Boolean.valueOf(props
         .getProperty(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT)), Boolean.valueOf(props.getProperty(
         DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT)), Boolean.valueOf(props.getProperty(
-        DELETE_AS_OWNER_KEY, DELETE_AS_OWNER_DEFAULT)), log);
+        DELETE_AS_OWNER_KEY, DELETE_AS_OWNER_DEFAULT)), config.getBoolean(IS_DATASET_BLACKLISTED_KEY), log);
+  }
+
+  public CleanableDatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
+    this(fs, props, ConfigFactory.parseMap(ImmutableMap.<String, String> of(IS_DATASET_BLACKLISTED_KEY,
+        IS_DATASET_BLACKLISTED_DEFAULT)), log);
   }
 
   /**
@@ -135,10 +148,12 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
    * @param deleteEmptyDirectories if true, newly empty parent directories will be deleted.
    * @param deleteAsOwner if true, all deletions will be executed as the owner of the file / directory.
    * @param log logger to use.
+   * @param isDatasetBlacklisted if true, clean will be skipped for this dataset
+   *
    * @throws IOException
    */
   public CleanableDatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
-      boolean deleteEmptyDirectories, boolean deleteAsOwner, Logger log) throws IOException {
+      boolean deleteEmptyDirectories, boolean deleteAsOwner, boolean isDatasetBlacklisted, Logger log) throws IOException {
     this.log = log;
     this.fs = fs;
     this.simulate = simulate;
@@ -154,6 +169,13 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
     }
     this.trash = TrashFactory.createProxiedTrash(this.fs, thisProperties);
     this.deleteAsOwner = deleteAsOwner;
+    this.isDatasetBlacklisted = isDatasetBlacklisted;
+  }
+
+  public CleanableDatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
+      boolean deleteEmptyDirectories, boolean deleteAsOwner, Logger log) throws IOException {
+    this(fs, properties, simulate, skipTrash, deleteEmptyDirectories, deleteAsOwner, Boolean
+        .parseBoolean(IS_DATASET_BLACKLISTED_DEFAULT), log);
   }
 
   /**
@@ -163,6 +185,11 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
    */
   @Override
   public void clean() throws IOException {
+
+    if (this.isDatasetBlacklisted) {
+      log.info("Dataset blacklisted. Cleanup skipped for " + datasetRoot());
+      return;
+    }
 
     RetentionPolicy<T> retentionPolicy = getRetentionPolicy();
     VersionFinder<? extends T> versionFinder = getVersionFinder();
