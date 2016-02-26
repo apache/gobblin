@@ -39,10 +39,10 @@ dependencies {
   compile externalDependency.kafka
   compile externalDependency.kafkaClient
   compile externalDependency.scala
-  compile externalDependency.findBugs
   compile externalDependency.mockito
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
+  compile externalDependency.findBugsAnnotations
 
   runtime externalDependency.protobuf
 

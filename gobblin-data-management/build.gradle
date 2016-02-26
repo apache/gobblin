@@ -26,7 +26,6 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.log4j
   compile externalDependency.jodaTime
-  compile externalDependency.findBugs
   compile externalDependency.azkaban
   compile externalDependency.metricsCore
   compile externalDependency.commonsCodec
@@ -35,6 +34,7 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.commonsCodec
   compile externalDependency.typesafeConfig
+  compile externalDependency.findBugsAnnotations
 
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica

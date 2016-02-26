@@ -43,11 +43,11 @@ dependencies {
   compile externalDependency.jacksonMapper
   compile externalDependency.jodaTime
   compile externalDependency.influxdbJava
-  compile externalDependency.findBugs
   compile externalDependency.commonsHttpClient
   compile externalDependency.commonsCodec
   compile externalDependency.commonsLang3
   compile externalDependency.typesafeConfig
+  compile externalDependency.findBugsAnnotations
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
