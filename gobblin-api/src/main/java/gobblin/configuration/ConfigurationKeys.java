@@ -503,6 +503,7 @@ public class ConfigurationKeys {
   /**
    * Password encryption and decryption properties.
    */
+  public static final String ENCRYPT_KEY_FS_URI = "encrypt.key.fs.uri";
   public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
   public static final String ENCRYPT_USE_STRONG_ENCRYPTOR = "encrypt.use.strong.encryptor";
   public static final boolean DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR = false;
