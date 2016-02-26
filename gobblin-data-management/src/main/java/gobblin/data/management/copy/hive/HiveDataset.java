@@ -12,16 +12,19 @@
 
 package gobblin.data.management.copy.hive;
 
+import lombok.Builder;
 import lombok.Data;
+import lombok.Singular;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -43,12 +46,18 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 
+import gobblin.annotation.Alpha;
 import gobblin.data.management.copy.CopyConfiguration;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
+import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.hive.spec.HiveSpec;
+import gobblin.hive.spec.SimpleHiveSpec;
 import gobblin.util.AutoReturnableObject;
 import gobblin.util.PathUtils;
 
@@ -56,6 +65,8 @@ import gobblin.util.PathUtils;
 /**
  * Hive dataset implementing {@link CopyableDataset}.
  */
+@Slf4j
+@Alpha
 public class HiveDataset implements CopyableDataset {
 
   /**
@@ -79,13 +90,16 @@ public class HiveDataset implements CopyableDataset {
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.relocate.data.files";
   public static final String DEFAULT_RELOCATE_DATA_FILES = Boolean.toString(false);
 
+  public static final String TARGET_METASTORE_URI_KEY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.metastore.uri";
+  public static final String TARGET_DATABASE_KEY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.database";
+
   private static final Gson gson = new Gson();
   private static final String databaseToken = "$DB";
   private static final String tableToken = "$TABLE";
 
   private final Properties properties;
   private final FileSystem fs;
-  private final GenericObjectPool<IMetaStoreClient> clientPool;
+  private final HiveMetastoreClientPool clientPool;
   private final Table table;
   private final Splitter splitter = Splitter.on(",").omitEmptyStrings();
 
@@ -95,7 +109,10 @@ public class HiveDataset implements CopyableDataset {
   private final Optional<Path> targetTableRoot;
   private final boolean relocateDataFiles;
 
-  public HiveDataset(FileSystem fs, GenericObjectPool<IMetaStoreClient> clientPool, Table table, Properties properties) {
+  private final String tableIdentifier;
+
+
+  public HiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties properties) throws IOException {
     this.fs = fs;
     this.clientPool = clientPool;
     this.table = table;
@@ -110,6 +127,8 @@ public class HiveDataset implements CopyableDataset {
         Boolean.valueOf(properties.getProperty(RELOCATE_DATA_FILES_KEY, DEFAULT_RELOCATE_DATA_FILES));
     this.targetTableRoot = properties.containsKey(COPY_TARGET_TABLE_ROOT) ?
         Optional.of(resolvePath(properties.getProperty(COPY_TARGET_TABLE_ROOT))) : Optional.<Path>absent();
+
+    this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
   }
 
   /**
@@ -169,42 +188,179 @@ public class HiveDataset implements CopyableDataset {
    *     path.
    * </p>
    */
-  @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
+  @Override public Collection<CopyEntity> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
 
-    List<CopyableFile> copyableFiles = Lists.newArrayList();
+    List<CopyEntity> copyableFiles = Lists.newArrayList();
 
-    try(AutoReturnableObject<IMetaStoreClient> client = new AutoReturnableObject<>(this.clientPool)) {
+    HiveMetastoreClientPool targetClientPool = HiveMetastoreClientPool.get(this.properties,
+        Optional.fromNullable(properties.getProperty(TARGET_METASTORE_URI_KEY)));
+    String targetDatabase = Optional.fromNullable(this.properties.getProperty(TARGET_DATABASE_KEY)).or(this.table.getDbName());
 
-      if (isPartitioned()) {
+    try(AutoReturnableObject<IMetaStoreClient> sourceClient = this.clientPool.getClient();
+        AutoReturnableObject<IMetaStoreClient> targetClient = targetClientPool.getClient()) {
 
-        List<Partition> partitions = Lists.newArrayList();
-        for (org.apache.hadoop.hive.metastore.api.Partition p : client.get().listPartitions(this.table.getDbName(),
-            this.table.getTableName(), (short) -1)) {
-          partitions.add(new Partition(this.table, p));
-        }
+      Optional<Table> targetTable = Optional.absent();
+      if (targetClient.get().tableExists(targetDatabase, this.table.getTableName())) {
+        targetTable = Optional.of(new Table(targetClient.get().getTable(targetDatabase, this.table.getTableName())));
+      }
 
-        for (Partition partition : partitions) {
-
-          InputFormat<?, ?> inputFormat = getInputFormat(partition.getTPartition().getSd());
-
-          for (CopyableFile.Builder builder : getCopyableFilesFromPaths(getPaths(inputFormat, partition.getLocation()),
-              configuration, Optional.of(partition))) {
-            copyableFiles.add(builder.fileSet(gson.toJson(partition.getValues())).build());
-          }
-
+      if (targetTable.isPresent()) {
+        try {
+          checkTableCompatibility(this.table, targetTable.get());
+        } catch (IOException ioe) {
+          log.error("Source and target table are not compatible. Will not copy table.");
+          return Lists.newArrayList();
         }
       } else {
-        InputFormat<?, ?> inputFormat = getInputFormat(this.table.getSd());
-        for (CopyableFile.Builder builder : getCopyableFilesFromPaths(getPaths(inputFormat, this.table.getSd().getLocation()),
-            configuration, Optional.<Partition>absent())) {
-          copyableFiles.add(builder.build());
-        }
+        HiveSpec hiveSpec = new SimpleHiveSpec.Builder(this.table.getDataLocation()).withTable(this.table.getTTable()).
+            build();
+        // TODO: add hive registration step
       }
-    } catch (TException | HiveException te) {
+
+      if (isPartitioned(this.table)) {
+
+        Map<List<String>, Partition> sourcePartitions = getPartitions(sourceClient, this.table);
+        Map<List<String>, Partition> targetPartitions = targetTable.isPresent() ?
+            getPartitions(targetClient, targetTable.get()) : Maps.<List<String>, Partition>newHashMap();
+
+        for (Map.Entry<List<String>, Partition> partitionEntry : sourcePartitions.entrySet()) {
+          copyableFiles.addAll(getCopyEntitiesForPartition(targetFs, targetTable, partitionEntry.getValue(),
+              targetPartitions, configuration));
+        }
+
+        // Partitions that don't exist in source
+        for (Map.Entry<List<String>, Partition> partitionEntry : targetPartitions.entrySet()) {
+          // TODO: add partition deregistration step
+        }
+
+      } else {
+        copyableFiles.addAll(getCopyEntitiesForUnpartitionedTable(targetFs, targetTable, configuration));
+      }
+    } catch (TException te) {
       throw new IOException("Hive Error", te);
     }
     return copyableFiles;
+  }
+
+  private List<CopyEntity> getCopyEntitiesForPartition(FileSystem targetFs, Optional<Table> targetTable,
+      Partition partition, Map<List<String>, Partition> targetPartitions,
+      CopyConfiguration configuration) throws IOException {
+
+    List<CopyEntity> copyEntities = Lists.newArrayList();
+
+    InputFormat<?, ?> inputFormat = getInputFormat(partition.getTPartition().getSd());
+
+    Optional<Partition> targetPartition = Optional.fromNullable(targetPartitions.get(partition.getValues()));
+
+    if (targetPartition.isPresent()) {
+      targetPartitions.remove(partition.getValues());
+      try {
+        checkPartitionCompatibility(partition, targetPartition.get());
+      } catch (IOException ioe) {
+        log.warn("Source and target partitions are not compatible. Will override target partition.");
+        // TODO: add partition deregistration step
+        targetPartition = Optional.absent();
+      }
+    }
+
+    Collection<Path> sourcePaths = getPaths(inputFormat, partition.getLocation());
+    Collection<Path> targetExistingPaths = targetPartition.isPresent() ?
+        getPaths(inputFormat, targetPartition.get().getLocation()) : Sets.<Path>newHashSet();
+
+    DiffPathSet diffPathSet =
+        diffSourceAndTargetPaths(sourcePaths, targetExistingPaths, Optional.of(partition), targetFs);
+
+    // TODO: create delete work units for files that must be deleted on target
+
+    for (CopyableFile.Builder builder : getCopyableFilesFromPaths(diffPathSet.filesToCopy,
+        configuration, Optional.of(partition))) {
+      copyEntities.add(builder.fileSet(gson.toJson(partition.getValues())).build());
+    }
+
+    if (!targetPartition.isPresent()) {
+      HiveSpec partitionHiveSpec = new SimpleHiveSpec.Builder(this.table.getDataLocation()).
+          withTable(this.table.getTTable()).withPartition(Optional.of(partition.getTPartition())).build();
+      // TODO: add partition registration step
+    }
+
+    return copyEntities;
+
+  }
+
+  private List<CopyEntity> getCopyEntitiesForUnpartitionedTable(FileSystem targetFs,
+      Optional<Table> targetTable, CopyConfiguration configuration) throws IOException {
+
+    List<CopyEntity> copyEntities = Lists.newArrayList();
+
+    InputFormat<?, ?> inputFormat = getInputFormat(this.table.getSd());
+
+    Collection<Path> sourcePaths = getPaths(inputFormat, this.table.getSd().getLocation());
+    Collection<Path> targetExistingPaths = targetTable.isPresent() ?
+        getPaths(inputFormat, targetTable.get().getSd().getLocation()) : Sets.<Path>newHashSet();
+
+    DiffPathSet diffPathSet = diffSourceAndTargetPaths(sourcePaths, targetExistingPaths,
+        Optional.<Partition>absent(), targetFs);
+
+    // TODO: create delete work units for files that must be deleted on target
+
+    for (CopyableFile.Builder builder : getCopyableFilesFromPaths(diffPathSet.filesToCopy,
+        configuration, Optional.<Partition>absent())) {
+      copyEntities.add(builder.build());
+    }
+
+    return copyEntities;
+  }
+
+  private DiffPathSet diffSourceAndTargetPaths(Collection<Path> sourcePaths, Collection<Path> targetExistingPaths,
+      Optional<Partition> partition, FileSystem targetFs) throws IOException {
+    DiffPathSet.DiffPathSetBuilder builder = DiffPathSet.builder();
+
+    Set<Path> targetPathSet = Sets.newHashSet(targetExistingPaths);
+
+    for (Path sourcePath : sourcePaths) {
+      FileStatus status = this.fs.getFileStatus(sourcePath);
+      Path targetPath = targetFs.makeQualified(getTargetPath(status, partition));
+      if (targetPathSet.contains(targetPath)) {
+        FileStatus targetStatus = targetFs.getFileStatus(targetPath);
+        if (targetStatus.getLen() != status.getLen() || targetStatus.getModificationTime() < status.getModificationTime()) {
+          // We must replace target file
+          builder.deleteFile(targetPath);
+          builder.copyFile(status);
+        }
+        targetPathSet.remove(targetPath);
+      } else {
+        builder.copyFile(status);
+      }
+    }
+
+    // All leftover paths in target are not in source, should be deleted.
+    for (Path deletePath : targetPathSet) {
+      builder.deleteFile(deletePath);
+    }
+
+    return builder.build();
+  }
+
+  @Builder
+  private static class DiffPathSet {
+    @Singular(value = "copyFile") Collection<FileStatus> filesToCopy;
+    @Singular(value = "deleteFile") Collection<Path> pathsToDelete;
+  }
+
+  private Map<List<String>, Partition> getPartitions(AutoReturnableObject<IMetaStoreClient> client, Table table)
+      throws IOException {
+    try {
+      Map<List<String>, Partition> partitions = Maps.newHashMap();
+      for (org.apache.hadoop.hive.metastore.api.Partition p : client.get()
+          .listPartitions(table.getDbName(), table.getTableName(), (short) -1)) {
+        Partition partition = new Partition(this.table, p);
+        partitions.put(partition.getValues(), partition);
+      }
+      return partitions;
+    } catch (TException | HiveException te) {
+      throw new IOException("Hive Error", te);
+    }
   }
 
   private InputFormat<?, ?> getInputFormat(StorageDescriptor sd) throws IOException {
@@ -218,6 +374,24 @@ public class HiveDataset implements CopyableDataset {
     } catch (ReflectiveOperationException re) {
       throw new IOException("Failed to instantiate input format.", re);
     }
+  }
+
+  private void checkTableCompatibility(Table sourceTable, Table targetTable) throws IOException {
+
+    if (isPartitioned(sourceTable) != isPartitioned(targetTable)) {
+      throw new IOException(String.format(
+          "%s: Source table %s partitioned, target table %s partitioned. Tables are incompatible.",
+          this.tableIdentifier, isPartitioned(sourceTable) ? "is" : "is not", isPartitioned(targetTable) ? "is" : "is not"));
+    }
+    if (sourceTable.isPartitioned() && sourceTable.getPartitionKeys() != targetTable.getPartitionKeys()) {
+      throw new IOException(String.format("%s: Source table has partition keys %s, target table has partition  keys %s. "
+              + "Tables are incompatible.",
+          this.tableIdentifier, gson.toJson(sourceTable.getPartitionKeys()), gson.toJson(targetTable.getPartitionKeys())));
+    }
+  }
+
+  private void checkPartitionCompatibility(Partition sourcePartition, Partition targetPartition) throws IOException {
+
   }
 
   /**
@@ -244,14 +418,13 @@ public class HiveDataset implements CopyableDataset {
   /**
    * Get builders for a {@link CopyableFile} for each file referred to by a {@link StorageDescriptor}.
    */
-  private List<CopyableFile.Builder> getCopyableFilesFromPaths(Collection<Path> paths,
+  private List<CopyableFile.Builder> getCopyableFilesFromPaths(Collection<FileStatus> paths,
       CopyConfiguration configuration, Optional<Partition> partition)
       throws IOException {
     List<CopyableFile.Builder> builders = Lists.newArrayList();
     List<SourceAndDestination> dataFiles = Lists.newArrayList();
 
-    for (Path path : paths) {
-      FileStatus status = this.fs.getFileStatus(path);
+    for (FileStatus status : paths) {
       dataFiles.add(new SourceAndDestination(status, getTargetPath(status, partition)));
     }
 
@@ -274,8 +447,8 @@ public class HiveDataset implements CopyableDataset {
     private final Path destination;
   }
 
-  public boolean isPartitioned() {
-    return this.table.isPartitioned();
+  public static boolean isPartitioned(Table table) {
+    return table.isPartitioned();
   }
 
   @Override public String datasetURN() {

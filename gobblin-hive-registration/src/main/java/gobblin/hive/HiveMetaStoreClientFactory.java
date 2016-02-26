@@ -12,6 +12,8 @@
 
 package gobblin.hive;
 
+import lombok.Getter;
+
 import java.io.IOException;
 
 import org.apache.commons.pool2.BasePooledObjectFactory;
@@ -32,6 +34,7 @@ import com.google.common.base.Optional;
  */
 public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaStoreClient> {
 
+  @Getter
   private HiveConf hiveConf;
 
   public HiveMetaStoreClientFactory(Optional<String> hcatURI) throws IOException {
