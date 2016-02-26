@@ -45,7 +45,7 @@ import gobblin.source.workunit.Extract.TableType;
  */
 public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
   private static final Logger log = LoggerFactory.getLogger(FileBasedSource.class);
-  protected FileBasedHelper fsHelper;
+  protected TimestampAwareFileBasedHelper fsHelper;
 
   /**
    * Initialize the logger.
@@ -180,11 +180,13 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     try {
       log.info("Running ls command with input " + path);
       results = this.fsHelper.ls(path);
+      for (int i = 0; i < results.size(); i++) {
+        String filePath = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + results.get(i);
+        results.set(i, filePath + ":::" + this.fsHelper.getFileMTime(filePath));
+      }
     } catch (FileBasedHelperException e) {
-      log.error("Not able to run ls command due to " + e.getMessage() + " will not pull any files", e);
-    }
-    for (int i = 0; i < results.size(); i++) {
-      results.set(i, state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + results.get(i));
+      log.error("Not able to fetch the filename/file modified time to " + e.getMessage() + " will not pull any files",
+          e);
     }
     return results;
   }

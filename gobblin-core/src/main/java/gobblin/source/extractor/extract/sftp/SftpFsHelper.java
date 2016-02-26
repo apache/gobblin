@@ -29,7 +29,6 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.ProxyHTTP;
 import com.jcraft.jsch.Session;
-import com.jcraft.jsch.SftpATTRS;
 import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.SftpProgressMonitor;
 import com.jcraft.jsch.UserInfo;
@@ -48,14 +47,14 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.password.PasswordManager;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
-import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
+import gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
 
 
 /**
  * Connects to a source via SFTP and executes a given list of SFTP commands
  * @author stakiar
  */
-public class SftpFsHelper implements SizeAwareFileBasedHelper {
+public class SftpFsHelper implements TimestampAwareFileBasedHelper {
   private static Logger log = LoggerFactory.getLogger(SftpFsHelper.class);
   private Session session;
   private State state;
@@ -223,9 +222,7 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
       ChannelSftp channel = getSftpChannel();
       Vector<LsEntry> vector = channel.ls(path);
       for (LsEntry entry : vector) {
-        SftpATTRS attrs = entry.getAttrs();
-        String modTime = attrs.getMtimeString().isEmpty() ? "0" : attrs.getMtimeString();
-        list.add(entry.getFilename() + ":::" + modTime);
+        list.add(entry.getFilename());
       }
       channel.disconnect();
       return list;
@@ -448,6 +445,17 @@ public class SftpFsHelper implements SizeAwareFileBasedHelper {
   private static class DistributedCacheIdentityStrategy extends LocalFileIdentityStrategy {
     public boolean setIdentity(String privateKey, JSch jsch) {
       return super.setIdentity(new File(privateKey).getName(), jsch);
+    }
+  }
+
+  @Override
+  public long getFileMTime(String filePath) throws FileBasedHelperException {
+    try {
+      ChannelSftp channelSftp = getSftpChannel();
+      return channelSftp.lstat(filePath).getMTime();
+    } catch (SftpException e) {
+      throw new FileBasedHelperException(String.format(
+          "Failed to get modified timestamp for file at path %s due to error %s", filePath, e.getMessage()), e);
     }
   }
 }
