@@ -26,14 +26,11 @@ dependencies {
 
 configurations {
     compile {
-        transitive = false
+        transitive = true
     }
 }
 
 test {
-    useTestNG () {
-        excludeGroups 'ignore'
-    }
     workingDir rootProject.rootDir
 }
 

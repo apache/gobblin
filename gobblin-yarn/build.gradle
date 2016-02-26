@@ -86,12 +86,6 @@ artifacts {
 }
 
 test {
-  useTestNG () {
-    excludeGroups 'ignore'
-    if (project.hasProperty('skipTestGroup')) {
-      excludeGroups skipTestGroup
-    }
-  }
   workingDir rootProject.rootDir
   maxParallelForks = 1
 }

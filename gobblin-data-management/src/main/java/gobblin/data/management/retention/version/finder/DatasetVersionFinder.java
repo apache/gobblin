@@ -44,6 +44,10 @@ public abstract class DatasetVersionFinder<T extends DatasetVersion> implements 
     this.fs = fs;
   }
 
+  public DatasetVersionFinder(FileSystem fs) {
+    this(fs, new Properties());
+  }
+
   /**
    * Find dataset versions in the input {@link org.apache.hadoop.fs.Path}. Dataset versions are subdirectories of the
    * input {@link org.apache.hadoop.fs.Path} representing a single manageable unit in the dataset.
@@ -62,8 +66,7 @@ public abstract class DatasetVersionFinder<T extends DatasetVersion> implements 
     List<T> dataSetVersions = Lists.newArrayList();
     for(FileStatus dataSetVersionPath: dataSetVersionPaths) {
       T datasetVersion = getDatasetVersion(
-          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(dataSetVersionPath.getPath()),
-              PathUtils.getPathWithoutSchemeAndAuthority(dataset.datasetRoot())), dataSetVersionPath.getPath());
+          PathUtils.relativizePath(dataSetVersionPath.getPath(), dataset.datasetRoot()), dataSetVersionPath.getPath());
       if(datasetVersion != null) {
         dataSetVersions.add(datasetVersion);
       }

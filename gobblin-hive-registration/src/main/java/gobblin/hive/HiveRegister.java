@@ -15,7 +15,6 @@ package gobblin.hive;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -25,12 +24,10 @@ import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.thrift.TException;
 
@@ -38,7 +35,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -80,7 +76,6 @@ public class HiveRegister implements Closeable {
 
   private final HiveRegProps props;
   private final Optional<String> hiveDbRootDir;
-  private final Optional<String> hiveOwner;
   private final GenericObjectPool<IMetaStoreClient> clientPool;
 
   private final ListeningExecutorService executor;
@@ -90,7 +85,6 @@ public class HiveRegister implements Closeable {
   public HiveRegister(State state) throws IOException {
     this.props = new HiveRegProps(state);
     this.hiveDbRootDir = this.props.getDbRootDir();
-    this.hiveOwner = this.props.getHiveOwner();
 
     GenericObjectPoolConfig config = new GenericObjectPoolConfig();
     config.setMaxTotal(this.props.getNumThreads());
@@ -130,14 +124,13 @@ public class HiveRegister implements Closeable {
             }
           }
 
-          String dbName = spec.getDbName();
-          String tableName = spec.getTableName();
+          Table table = spec.getTable();
+          createDbIfNotExists(client, table.getDbName());
 
-          createDbIfNotExists(client, dbName);
-          Optional<HivePartition> partition = spec.getPartition();
-          Table table = createOrAlterTable(client, dbName, tableName, partition, spec.getSd());
+          Optional<Partition> partition = spec.getPartition();
+          createOrAlterTable(client, table);
 
-          if (!table.getPartitionKeys().isEmpty()) {
+          if (partition.isPresent()) {
 
             // Register a partition
             addOrAlterPartition(client, table, partition.get(), spec.getPath());
@@ -192,10 +185,10 @@ public class HiveRegister implements Closeable {
     }
   }
 
-  private Table createOrAlterTable(IMetaStoreClient client, String dbName, String tableName,
-      Optional<HivePartition> partition, StorageDescriptor sd) throws IOException {
+  private void createOrAlterTable(IMetaStoreClient client, Table table) throws IOException {
 
-    Table newTable = createTableWithoutRegistering(dbName, tableName, partition, sd);
+    String dbName = table.getDbName();
+    String tableName = table.getTableName();
 
     HiveLock lock = locks.getTableLock(dbName, tableName);
     lock.lock();
@@ -203,20 +196,17 @@ public class HiveRegister implements Closeable {
     try {
       if (client.tableExists(dbName, tableName)) {
         Table existingTable = client.getTable(dbName, tableName);
-        newTable.setCreateTime(existingTable.getCreateTime());
-        newTable.setLastAccessTime(existingTable.getLastAccessTime());
-        if (needToUpdateTable(existingTable, newTable)) {
-          client.alter_table(dbName, tableName, newTable);
+        table.setCreateTime(existingTable.getCreateTime());
+        table.setLastAccessTime(existingTable.getLastAccessTime());
+        if (needToUpdateTable(existingTable, table)) {
+          client.alter_table(dbName, tableName, table);
           log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
-          return newTable;
         } else {
           log.info(String.format("Hive table %s in db %s exists and no need to update", tableName, dbName));
-          return existingTable;
         }
       } else {
-        client.createTable(newTable);
+        client.createTable(table);
         log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
-        return newTable;
       }
     } catch (TException e) {
       throw new IOException(String.format("Error in creating or altering Hive table %s in db %s", tableName, dbName),
@@ -224,27 +214,6 @@ public class HiveRegister implements Closeable {
     } finally {
       lock.unlock();
     }
-  }
-
-  private Table createTableWithoutRegistering(String dbName, String tableName, Optional<HivePartition> partition,
-      StorageDescriptor sd) {
-    Map<String, String> parameters = Maps.newHashMap();
-    parameters.put("EXTERNAL", Boolean.TRUE.toString());
-    Table table = new Table();
-    table.setParameters(parameters);
-    table.setDbName(dbName);
-    table.setTableName(tableName);
-
-    Preconditions.checkArgument(this.hiveOwner.isPresent(), "Missing required property " + HiveRegProps.HIVE_OWNER);
-    table.setOwner(this.hiveOwner.get());
-    table.setTableType(TableType.EXTERNAL_TABLE.toString());
-
-    if (partition.isPresent()) {
-      table.setPartitionKeys(partition.get().getKeys());
-    }
-
-    table.setSd(sd);
-    return table;
   }
 
   private boolean needToUpdateTable(Table existingTable, Table newTable) {
@@ -330,11 +299,9 @@ public class HiveRegister implements Closeable {
     }
   }
 
-  private void addOrAlterPartition(IMetaStoreClient client, Table table, HivePartition partition,
-      Path partitionLocation) throws TException {
+  private void addOrAlterPartition(IMetaStoreClient client, Table table, Partition partition, Path partitionLocation)
+      throws TException {
     Preconditions.checkArgument(table.getPartitionKeysSize() == partition.getValues().size());
-
-    Partition newPartition = createNewPartitionWithoutRegistering(table, partition, partitionLocation);
 
     HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName());
     lock.lock();
@@ -344,39 +311,31 @@ public class HiveRegister implements Closeable {
       try {
         Partition existingPartition =
             client.getPartition(table.getDbName(), table.getTableName(), partition.getValues());
-        if (needToUpdatePartition(existingPartition, newPartition)) {
-          client.alter_partition(table.getDbName(), table.getTableName(), newPartition);
+        partition.setCreateTime(existingPartition.getCreateTime());
+        partition.setLastAccessTime(existingPartition.getLastAccessTime());
+        if (needToUpdatePartition(existingPartition, partition)) {
+          client.alter_partition(table.getDbName(), table.getTableName(), partition);
           log.info(String.format("Updated partition %s in table %s with location %s", partition, table.getTableName(),
-              newPartition.getSd().getLocation()));
+              partition.getSd().getLocation()));
         } else {
           log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
-              partition, table.getTableName(), newPartition.getSd().getLocation()));
+              partition, table.getTableName(), partition.getSd().getLocation()));
         }
       } catch (NoSuchObjectException e) {
-        client.add_partition(newPartition);
+        client.add_partition(partition);
         log.info(String.format("Added partition %s to table %s with location %s", partition, table.getTableName(),
-            newPartition.getSd().getLocation()));
+            partition.getSd().getLocation()));
       }
 
     } catch (AlreadyExistsException e) {
       // Partition already exists. Nothing to do.
     } catch (TException e) {
       log.error(String.format("Unable to add partition %s to table %s with location %s", partition,
-          table.getTableName(), newPartition.getSd().getLocation()), e);
+          table.getTableName(), partition.getSd().getLocation()), e);
       throw e;
     } finally {
       lock.unlock();
     }
-  }
-
-  private Partition createNewPartitionWithoutRegistering(Table table, HivePartition partition, Path partitionLocation) {
-    Partition newPartition = new Partition();
-    newPartition.setDbName(table.getDbName());
-    newPartition.setTableName(table.getTableName());
-    newPartition.setValues(partition.getValues());
-    newPartition.setSd(table.getSd());
-    newPartition.getSd().setLocation(partitionLocation.toString());
-    return newPartition;
   }
 
   private boolean needToUpdatePartition(Partition existingPartition, Partition newPartition) {

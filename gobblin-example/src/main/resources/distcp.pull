@@ -8,8 +8,13 @@ job.description=Test Gobblin job for copy
 # target location for copy
 data.publisher.final.dir=/tmp/gobblin-copy
 
-gobblin.dataset.profile.class=gobblin.data.management.copy.CopyableGlobDatasetFinder
+gobblin.dataset.profile.class=gobblin.data.management.copy.hive.HiveDatasetFinder
 gobblin.dataset.pattern=${env:HOME}/gobblin-copy
+
+
+hive.dataset.database=default
+hive.dataset.hive.site.uri=file:/Users/ibuenros/builds/hive/apache-hive-1.2.1-bin/conf/hive-site.xml
+hive.dataset.copy.target.table.root=/tmp/gobblin-copy
 
 # ====================================================================
 # Distcp configurations (do not change)

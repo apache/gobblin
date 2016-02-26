@@ -12,6 +12,11 @@
 
 package gobblin.data.management.retention.version.finder;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.data.management.retention.DatasetCleaner;
+import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.retention.version.TimestampedDatasetVersion;
+
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -21,11 +26,6 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
 
 /**

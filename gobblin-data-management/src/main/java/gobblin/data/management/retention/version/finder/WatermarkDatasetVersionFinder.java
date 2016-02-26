@@ -1,8 +1,14 @@
 package gobblin.data.management.retention.version.finder;
 
+import gobblin.data.management.retention.DatasetCleaner;
+import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.retention.version.StringDatasetVersion;
+
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.annotation.Nullable;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -11,12 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-
-import javax.annotation.Nullable;
-
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.StringDatasetVersion;
+import com.typesafe.config.Config;
 
 
 /**
@@ -45,16 +46,29 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
   public WatermarkDatasetVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);
     if(props.containsKey(WATERMARK_REGEX_KEY)) {
-      this.pattern = Optional.of(props.getProperty(WATERMARK_REGEX_KEY)).transform(new Function<String, Pattern>() {
-        @Nullable
-        @Override
-        public Pattern apply(String input) {
-          return Pattern.compile(input);
-        }
-      });
+      initPattern(props.getProperty(WATERMARK_REGEX_KEY));
     } else {
       this.pattern = Optional.absent();
     }
+  }
+
+  public WatermarkDatasetVersionFinder(FileSystem fs, Config config) {
+    super(fs);
+    if (config.hasPath(WATERMARK_REGEX_KEY)) {
+      initPattern(config.getString(WATERMARK_REGEX_KEY));
+    } else {
+      this.pattern = Optional.absent();
+    }
+  }
+
+  private void initPattern(String patternString) {
+    this.pattern = Optional.of(patternString).transform(new Function<String, Pattern>() {
+      @Nullable
+      @Override
+      public Pattern apply(String input) {
+        return Pattern.compile(input);
+      }
+    });
   }
 
   @Override

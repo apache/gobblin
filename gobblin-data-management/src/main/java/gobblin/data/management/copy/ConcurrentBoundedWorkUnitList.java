@@ -39,25 +39,25 @@ import gobblin.source.workunit.WorkUnit;
  */
 class ConcurrentBoundedWorkUnitList {
 
-  private final TreeMap<FileSet<CopyableFile>, List<WorkUnit>> workUnitsMap;
+  private final TreeMap<FileSet<CopyEntity>, List<WorkUnit>> workUnitsMap;
   @Getter
-  private final Comparator<FileSet<CopyableFile>> comparator;
+  private final Comparator<FileSet<CopyEntity>> comparator;
   private final int maxSize;
   private int currentSize;
   /** Set to true the first time a file set is rejected (i.e. doesn't fit in the container) */
   private boolean rejectedFileSet;
 
-  private static class AugmentedComparator implements Comparator<FileSet<CopyableFile>> {
-    private final Comparator<FileSet<CopyableFile>> userProvidedComparator;
+  private static class AugmentedComparator implements Comparator<FileSet<CopyEntity>> {
+    private final Comparator<FileSet<CopyEntity>> userProvidedComparator;
 
-    public AugmentedComparator(Comparator<FileSet<CopyableFile>> userProvidedComparator) {
+    public AugmentedComparator(Comparator<FileSet<CopyEntity>> userProvidedComparator) {
       this.userProvidedComparator = userProvidedComparator;
     }
 
-    @Override public int compare(FileSet<CopyableFile> p1, FileSet<CopyableFile> p2) {
+    @Override public int compare(FileSet<CopyEntity> p1, FileSet<CopyEntity> p2) {
       int userProvidedCompare = this.userProvidedComparator.compare(p1, p2);
       if (userProvidedCompare == 0) {
-        int datasetCompare = p1.getDataset().datasetRoot().compareTo(p2.getDataset().datasetRoot());
+        int datasetCompare = p1.getDataset().datasetURN().compareTo(p2.getDataset().datasetURN());
         if (datasetCompare == 0) {
           return p1.getName().compareTo(p2.getName());
         }
@@ -72,7 +72,7 @@ class ConcurrentBoundedWorkUnitList {
    * @param maxSize Maximum number of {@link WorkUnit}s to contain.
    * @param comparator {@link Comparator} for {@link gobblin.data.management.partition.FileSet}s to use for {@link gobblin.data.management.partition.FileSet} priority.
    */
-  public ConcurrentBoundedWorkUnitList(int maxSize, final Comparator<FileSet<CopyableFile>> comparator) {
+  public ConcurrentBoundedWorkUnitList(int maxSize, final Comparator<FileSet<CopyEntity>> comparator) {
     this.currentSize = 0;
     this.maxSize = maxSize;
     this.comparator = comparator;
@@ -82,11 +82,11 @@ class ConcurrentBoundedWorkUnitList {
 
   /**
    * Add a file set to the container.
-   * @param fileSet File set, expressed as a {@link gobblin.data.management.partition.FileSet} of {@link CopyableFile}s.
+   * @param fileSet File set, expressed as a {@link gobblin.data.management.partition.FileSet} of {@link CopyEntity}s.
    * @param workUnits List of {@link WorkUnit}s corresponding to this file set.
    * @return true if the file set was added to the container, false otherwise (i.e. has reached max size).
    */
-  public boolean addFileSet(FileSet<CopyableFile> fileSet, List<WorkUnit> workUnits) {
+  public boolean addFileSet(FileSet<CopyEntity> fileSet, List<WorkUnit> workUnits) {
     boolean addedWorkunits = addFileSetImpl(fileSet, workUnits);
     if (!addedWorkunits) {
       this.rejectedFileSet = true;
@@ -94,15 +94,15 @@ class ConcurrentBoundedWorkUnitList {
     return addedWorkunits;
   }
 
-  private synchronized boolean addFileSetImpl(FileSet<CopyableFile> fileSet, List<WorkUnit> workUnits) {
+  private synchronized boolean addFileSetImpl(FileSet<CopyEntity> fileSet, List<WorkUnit> workUnits) {
     if (this.currentSize + workUnits.size() > this.maxSize) {
       if (this.comparator.compare(this.workUnitsMap.lastKey(), fileSet) <= 0) {
         return false;
       }
       int tmpSize = this.currentSize;
-      Set<FileSet<CopyableFile>> partitionsToDelete = Sets.newHashSet();
+      Set<FileSet<CopyEntity>> partitionsToDelete = Sets.newHashSet();
 
-      for (FileSet<CopyableFile> existingFileSet : this.workUnitsMap.descendingKeySet()) {
+      for (FileSet<CopyEntity> existingFileSet : this.workUnitsMap.descendingKeySet()) {
         if (this.comparator.compare(existingFileSet, fileSet) <= 0) {
           return false;
         }
@@ -113,7 +113,7 @@ class ConcurrentBoundedWorkUnitList {
         }
       }
 
-      for (FileSet<CopyableFile> fileSetToRemove : partitionsToDelete) {
+      for (FileSet<CopyEntity> fileSetToRemove : partitionsToDelete) {
         List<WorkUnit> workUnitsRemoved = this.workUnitsMap.remove(fileSetToRemove);
         this.currentSize -= workUnitsRemoved.size();
       }

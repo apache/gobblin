@@ -80,7 +80,7 @@ public class SchedulerDaemon {
       services.add(executionInfoServer);
       if (adminUiServerEnabled) {
         LOG.info("Starting the admin UI server since it is enabled");
-        services.add(new AdminWebServer(properties, executionInfoServer.getServerUri()));
+        services.add(new AdminWebServer(properties, executionInfoServer.getAdvertisedServerUri()));
       }
     }  else if (adminUiServerEnabled) {
       LOG.warn("NOT starting the admin UI because the job execution info server is NOT enabled");

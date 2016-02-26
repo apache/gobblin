@@ -68,10 +68,10 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
   }
 
   /**
-   * Gets a default root directory if one is not specified. The default root dir is {@code /user/[current-user]/}.
+   * Gets a default root directory if one is not specified. The default root dir is {@code /jobs/[current-user]/}.
    */
   protected Path getDefaultRootDir() throws IOException {
-    return new Path("jobs", UserGroupInformation.getCurrentUser().getUserName());
+    return new Path("/jobs", UserGroupInformation.getCurrentUser().getUserName());
   }
 
   /**
@@ -144,7 +144,6 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
     Path path = new Path(configKey.getPath());
 
     while (path != null) {
-      
       try {
         // the abs URI may point to an unexist path for
         // 1. phantom node

@@ -78,9 +78,6 @@ artifacts {
 }
 
 test {
-    useTestNG () {
-      excludeGroups 'ignore', 'performance'
-    }
     workingDir rootProject.rootDir
     maxParallelForks = 1
 }

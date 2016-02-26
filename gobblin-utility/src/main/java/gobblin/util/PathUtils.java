@@ -31,7 +31,8 @@ public class PathUtils {
   }
 
   public static Path relativizePath(Path fullPath, Path pathPrefix) {
-    return new Path(pathPrefix.toUri().relativize(fullPath.toUri()));
+    return new Path(getPathWithoutSchemeAndAuthority(pathPrefix).toUri().
+        relativize(getPathWithoutSchemeAndAuthority(fullPath).toUri()));
   }
 
   /**

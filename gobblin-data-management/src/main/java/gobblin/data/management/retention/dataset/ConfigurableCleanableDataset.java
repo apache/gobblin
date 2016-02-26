@@ -16,12 +16,15 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
@@ -29,12 +32,12 @@ import gobblin.data.management.retention.version.finder.VersionFinder;
 
 
 /**
- * {@link CleanableDatasetBase} that instantiates {@link VersionFinder} and
- * {@link RetentionPolicy} from classes read from an input {@link java.util.Properties}.
+ * {@link CleanableDatasetBase} that instantiates {@link VersionFinder} and {@link RetentionPolicy} from classes read
+ * from an input {@link java.util.Properties}.
  *
  * <p>
- *   The class of {@link VersionFinder} should be under key {@link #VERSION_FINDER_CLASS_KEY}, while the class of
- *   {@link RetentionPolicy} should be under key {@link #RETENTION_POLICY_CLASS_KEY}.
+ * The class of {@link VersionFinder} should be under key {@link #VERSION_FINDER_CLASS_KEY}, while the class of
+ * {@link RetentionPolicy} should be under key {@link #RETENTION_POLICY_CLASS_KEY}.
  * </p>
  */
 public class ConfigurableCleanableDataset<T extends DatasetVersion> extends CleanableDatasetBase<T> {
@@ -48,39 +51,38 @@ public class ConfigurableCleanableDataset<T extends DatasetVersion> extends Clea
   private final VersionFinder<? extends T> versionFinder;
   private final RetentionPolicy<T> retentionPolicy;
 
+  /**
+   * Creates a new ConfigurableCleanableDataset configured through gobblin-config-management. The constructor expects
+   * {@link #VERSION_FINDER_CLASS_KEY} and {@link #RETENTION_POLICY_CLASS_KEY} to be available in the
+   * <code>config</code> passed.
+   */
+  @SuppressWarnings("unchecked")
+  public ConfigurableCleanableDataset(FileSystem fs, Properties jobProps, Path datasetRoot, Config config, Logger log)
+      throws IOException {
+
+    super(fs, jobProps, log);
+    this.datasetRoot = datasetRoot;
+
+    Preconditions.checkArgument(config.hasPath(VERSION_FINDER_CLASS_KEY), "Missing property " + VERSION_FINDER_CLASS_KEY);
+    Preconditions.checkArgument(config.hasPath(RETENTION_POLICY_CLASS_KEY), "Missing property " + RETENTION_POLICY_CLASS_KEY);
+
+    try {
+      this.versionFinder =
+          (VersionFinder<? extends T>) ConstructorUtils.invokeConstructor(Class.forName(config.getString(VERSION_FINDER_CLASS_KEY)),
+              this.fs, config);
+      this.retentionPolicy =
+          (RetentionPolicy<T>) ConstructorUtils.invokeConstructor(Class.forName(config.getString(RETENTION_POLICY_CLASS_KEY)), config);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
+      throw new IllegalArgumentException(e);
+    }
+  }
+
   public ConfigurableCleanableDataset(FileSystem fs, Properties props, Path datasetRoot) throws IOException {
     this(fs, props, datasetRoot, LoggerFactory.getLogger(ConfigurableCleanableDataset.class));
   }
 
-  @SuppressWarnings("unchecked")
-  public ConfigurableCleanableDataset(FileSystem fs, Properties props, Path datasetRoot, Logger log)
-      throws IOException {
-    super(fs, props, log);
-    this.datasetRoot = datasetRoot;
-
-    Preconditions.checkArgument(props.containsKey(VERSION_FINDER_CLASS_KEY),
-        "Missing property " + VERSION_FINDER_CLASS_KEY);
-    Preconditions.checkArgument(props.containsKey(RETENTION_POLICY_CLASS_KEY),
-        "Missing property " + RETENTION_POLICY_CLASS_KEY);
-
-    try {
-      Class<?> versionFinderClass = Class.forName(props.getProperty(VERSION_FINDER_CLASS_KEY));
-      Class<?> retentionPolicyClass = Class.forName(props.getProperty(RETENTION_POLICY_CLASS_KEY));
-      this.versionFinder = (VersionFinder) versionFinderClass.
-          getConstructor(FileSystem.class, Properties.class).newInstance(this.fs, props);
-      this.retentionPolicy = (RetentionPolicy) retentionPolicyClass.
-          getConstructor(Properties.class).newInstance(props);
-    } catch(ClassNotFoundException exception) {
-      throw new IOException(exception);
-    } catch(NoSuchMethodException exception) {
-      throw new IOException(exception);
-    } catch(InstantiationException exception) {
-      throw new IOException(exception);
-    } catch(IllegalAccessException exception) {
-      throw new IOException(exception);
-    } catch(InvocationTargetException exception) {
-      throw new IOException(exception);
-    }
+  public ConfigurableCleanableDataset(FileSystem fs, Properties props, Path datasetRoot, Logger log) throws IOException {
+    this(fs, props, datasetRoot, ConfigFactory.parseProperties(props), log);
   }
 
   @Override

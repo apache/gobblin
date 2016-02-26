@@ -18,9 +18,9 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
 
 import gobblin.metrics.notification.Notification;
 
