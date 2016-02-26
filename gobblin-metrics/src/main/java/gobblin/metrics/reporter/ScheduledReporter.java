@@ -39,6 +39,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.Synchronized;
 
 import gobblin.metrics.InnerMetricContext;
 import gobblin.metrics.context.ReportableContext;
@@ -59,7 +60,6 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
    */
   public static final String REPORTING_INTERVAL = "reporting.interval";
   public static final String DEFAULT_REPORTING_INTERVAL_PERIOD = "1M";
-  private static final Object syncObj = new Object();
 
   public static final PeriodFormatter PERIOD_FORMATTER = new PeriodFormatterBuilder().
       appendHours().appendSuffix("H").
@@ -105,13 +105,10 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
     ensureMetricFilterIsInitialized(config);
   }
 
+  @Synchronized
   private void ensureMetricFilterIsInitialized(Config config) {
     if (this.metricFilter == null) {
-      synchronized (this.syncObj) {
-        if (this.metricFilter == null) {
-          this.metricFilter = createMetricFilter(config);
-        }
-      }
+      this.metricFilter = createMetricFilter(config);
     }
   }
 
