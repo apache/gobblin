@@ -13,13 +13,13 @@
 package gobblin.hive.spec;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import gobblin.annotation.Alpha;
+import gobblin.hive.HivePartition;
+import gobblin.hive.HiveTable;
 import lombok.Getter;
 
 
@@ -33,8 +33,8 @@ import lombok.Getter;
 public class SimpleHiveSpec implements HiveSpec {
 
   protected final Path path;
-  protected final Table table;
-  protected final Optional<Partition> partition;
+  protected final HiveTable table;
+  protected final Optional<HivePartition> partition;
 
   protected SimpleHiveSpec(Builder<?> builder) {
     this.path = builder.path;
@@ -42,24 +42,24 @@ public class SimpleHiveSpec implements HiveSpec {
     this.partition = builder.partition;
   }
 
+  @Getter
   public static class Builder<T extends Builder<?>> {
-    private final Path path;
-
-    private Table table;
-    private Optional<Partition> partition = Optional.absent();
+    protected final Path path;
+    protected HiveTable table;
+    protected Optional<HivePartition> partition = Optional.absent();
 
     public Builder(Path path) {
       this.path = path;
     }
 
     @SuppressWarnings("unchecked")
-    public T withTable(Table table) {
+    public T withTable(HiveTable table) {
       this.table = table;
       return (T) this;
     }
 
     @SuppressWarnings("unchecked")
-    public T withPartition(Optional<Partition> partition) {
+    public T withPartition(Optional<HivePartition> partition) {
       this.partition = partition;
       return (T) this;
     }

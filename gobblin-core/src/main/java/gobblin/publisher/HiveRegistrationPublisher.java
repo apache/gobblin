@@ -25,6 +25,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.hive.HiveRegister;
+import gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
 import gobblin.hive.spec.HiveSpec;
@@ -52,7 +53,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
   public HiveRegistrationPublisher(State state) throws IOException {
     super(state);
-    this.hiveRegister = this.closer.register(new HiveRegister(state));
+    this.hiveRegister = this.closer.register(HiveRegister.get(state));
     this.policy = HiveRegistrationPolicyBase.getPolicy(state);
   }
 

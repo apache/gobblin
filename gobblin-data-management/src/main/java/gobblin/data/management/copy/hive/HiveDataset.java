@@ -56,6 +56,7 @@ import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.hive.spec.SimpleHiveSpec;
 import gobblin.util.AutoReturnableObject;
@@ -213,8 +214,8 @@ public class HiveDataset implements CopyableDataset {
           return Lists.newArrayList();
         }
       } else {
-        HiveSpec hiveSpec = new SimpleHiveSpec.Builder(this.table.getDataLocation()).withTable(this.table.getTTable()).
-            build();
+        HiveSpec hiveSpec = new SimpleHiveSpec.Builder(this.table.getDataLocation())
+            .withTable(HiveMetaStoreUtils.getHiveTable(this.table.getTTable())).build();
         // TODO: add hive registration step
       }
 
@@ -279,8 +280,9 @@ public class HiveDataset implements CopyableDataset {
     }
 
     if (!targetPartition.isPresent()) {
-      HiveSpec partitionHiveSpec = new SimpleHiveSpec.Builder(this.table.getDataLocation()).
-          withTable(this.table.getTTable()).withPartition(Optional.of(partition.getTPartition())).build();
+      HiveSpec partitionHiveSpec = new SimpleHiveSpec.Builder(this.table.getDataLocation())
+          .withTable(HiveMetaStoreUtils.getHiveTable(this.table.getTTable()))
+          .withPartition(Optional.of(partition.getTPartition())).build();
       // TODO: add partition registration step
     }
 

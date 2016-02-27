@@ -18,8 +18,6 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -28,6 +26,10 @@ import com.google.common.collect.ImmutableList;
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.hive.HivePartition;
+import gobblin.hive.HiveRegProps;
+import gobblin.hive.HiveSerDeManager;
+import gobblin.hive.HiveTable;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.hive.spec.SimpleHiveSpec;
 
@@ -41,7 +43,7 @@ import gobblin.hive.spec.SimpleHiveSpec;
  * @author ziliu
  */
 @Alpha
-public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
+public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
   public static final String HIVE_DATABASE_NAME = "hive.database.name";
   public static final String HIVE_DATABASE_REGEX = "hive.database.regex";
@@ -60,14 +62,14 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
    */
   private static final Pattern VALID_DB_TABLE_NAME_PATTERN_2 = Pattern.compile(".*[a-z_].*");
 
-  protected final State props;
+  protected final HiveRegProps props;
   protected final boolean sanitizeNameAllowed;
   protected final Optional<Pattern> dbNamePattern;
   protected final Optional<Pattern> tableNamePattern;
 
   protected HiveRegistrationPolicyBase(State props) {
     Preconditions.checkNotNull(props);
-    this.props = props;
+    this.props = new HiveRegProps(props);
     this.sanitizeNameAllowed = props.getPropAsBoolean(HIVE_SANITIZE_INVALID_NAMES, true);
     this.dbNamePattern = props.contains(HIVE_DATABASE_REGEX)
         ? Optional.of(Pattern.compile(props.getProp(HIVE_DATABASE_REGEX))) : Optional.<Pattern> absent();
@@ -116,9 +118,28 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
     throw new IllegalStateException(name + " is not a valid Hive database or table name");
   }
 
-  protected abstract Table getTable(Path path);
+  /**
+   * A base implementation for creating a {@link HiveTable} given a {@link Path}.
+   *
+   * @param path a {@link Path} used to create the {@link HiveTable}.
+   * @return a {@link HiveTable} for the given {@link Path}.
+   * @throws IOException
+   */
+  protected HiveTable getTable(Path path) throws IOException {
+    HiveTable table = new HiveTable.Builder().withDbName(getDatabaseName(path)).withTableName(getTableName(path))
+        .withSerdeManaager(HiveSerDeManager.get(this.props)).build();
 
-  protected abstract Optional<Partition> getPartition(Path path);
+    table.setLocation(path.toString());
+    table.setSerDeProps();
+    table.setProps(this.props.getTablePartitionProps());
+    table.setStorageProps(this.props.getStorageProps());
+    table.setSerDeProps(this.props.getSerdeProps());
+    return table;
+  }
+
+  protected Optional<HivePartition> getPartition(Path path) throws IOException {
+    return Optional.<HivePartition> absent();
+  }
 
   /**
    * Determine whether a database or table name is valid.

@@ -27,5 +27,5 @@ public interface HiveSpecWithPreActivities extends HiveSpec {
   /**
    * A {@link Collection} of {@link Activity}s that should be executed prior to the Hive registration.
    */
-  public Collection<Activity> getActivities();
+  public Collection<Activity> getPreActivities();
 }

@@ -31,7 +31,7 @@ public class HiveRegistrationCompactorListener implements CompactorListener {
 
   public HiveRegistrationCompactorListener(Properties properties) throws IOException {
     State state = new State(properties);
-    this.hiveRegister = new HiveRegister(state);
+    this.hiveRegister = HiveRegister.get(state);
     this.hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);
   }
 

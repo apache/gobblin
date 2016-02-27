@@ -13,10 +13,10 @@
 package gobblin.hive.spec.activity;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 
 import gobblin.hive.HiveRegister;
+import gobblin.hive.HiveRegistrationUnit.Column;
 import lombok.AllArgsConstructor;
 
 
@@ -26,17 +26,16 @@ import lombok.AllArgsConstructor;
  * @author ziliu
  */
 @AllArgsConstructor
-public class DropPartitionsActivity implements Activity {
+public class DropPartitionActivity implements Activity {
 
   protected final String dbName;
   protected final String tableName;
-  protected final Collection<List<String>> allPartitionValues;
+  protected final List<Column> partitionKeys;
+  protected final List<String> partitionValues;
 
   @Override
   public boolean execute(HiveRegister register) throws IOException {
-    for (List<String> partitionValues : allPartitionValues) {
-      register.dropPartitionIfExists(this.dbName, tableName, partitionValues);
-    }
+    register.dropPartitionIfExists(this.dbName, this.tableName, this.partitionKeys, this.partitionValues);
     return true;
   }
 
