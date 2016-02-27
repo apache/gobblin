@@ -13,7 +13,7 @@
 package gobblin.source.extractor.filebased;
 
 /**
- * A File helper that extends {@link SizeAwareFileBasedHelper} and has functionality to get file size.
+ * A File helper that extends {@link SizeAwareFileBasedHelper} and has functionality to get file modified time.
  *
  * This interface exists for backward compatibility of {@link SizeAwareFileBasedHelper}.
  */

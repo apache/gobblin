@@ -46,6 +46,7 @@ import gobblin.source.workunit.Extract.TableType;
 public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
   private static final Logger log = LoggerFactory.getLogger(FileBasedSource.class);
   protected TimestampAwareFileBasedHelper fsHelper;
+  private String splitPattern = ":::";
 
   /**
    * Initialize the logger.
@@ -108,7 +109,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     List<String> filesToPull = new ArrayList<String>();
     Iterator<String> it = filesWithTimeToPull.iterator();
     while (it.hasNext()) {
-      String filesWithoutTimeToPull[] = it.next().split(":::");
+      String filesWithoutTimeToPull[] = it.next().split(splitPattern);
       filesToPull.add(filesWithoutTimeToPull[0]);
     }
 
@@ -182,7 +183,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
       results = this.fsHelper.ls(path);
       for (int i = 0; i < results.size(); i++) {
         String filePath = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + results.get(i);
-        results.set(i, filePath + ":::" + this.fsHelper.getFileMTime(filePath));
+        results.set(i, filePath + splitPattern + this.fsHelper.getFileMTime(filePath));
       }
     } catch (FileBasedHelperException e) {
       log.error("Not able to fetch the filename/file modified time to " + e.getMessage() + " will not pull any files",
