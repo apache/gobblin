@@ -17,10 +17,11 @@ import java.io.IOException;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.io.Closer;
+
+import gobblin.util.HadoopUtils;
 
 
 /**
@@ -58,12 +59,12 @@ public class HdfsWriter extends HdfsIO {
   public static void moveSelectFiles(String extension, String source, String destination) throws IOException {
     FileSystem fs = getFileSystem();
     fs.mkdirs(new Path(destination));
-    //RemoteIterator<LocatedFileStatus> iterator = fs.listFiles(new Path(source), false);
     FileStatus[] fileStatuses = fs.listStatus(new Path(source));
     for (FileStatus fileStatus : fileStatuses) {
       Path path = fileStatus.getPath();
       if (!fileStatus.isDir() && path.toString().toLowerCase().endsWith(extension.toLowerCase())) {
-        FileUtil.copy(fs, path, fs, new Path(destination), false, true, getConfiguration());
+        HadoopUtils.deleteIfExists(fs, new Path(destination), true);
+        HadoopUtils.copyPath(fs, path, fs, new Path(destination), getConfiguration());
       }
     }
   }

@@ -121,6 +121,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
+    addInterruptedShutdownHook();
+
     // Make a copy for both the system and job configuration properties
     this.jobProps = new Properties();
     this.jobProps.putAll(jobProps);
@@ -798,5 +800,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   private interface JobListenerAction {
     void apply(JobListener jobListener, JobContext jobContext) throws Exception;
+  }
+
+  private void addInterruptedShutdownHook() {
+    final Thread mainThread = Thread.currentThread();
+
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
+      public void run() {
+        mainThread.interrupt();
+      }
+    });
   }
 }
