@@ -79,6 +79,10 @@ public class ContextAwareReporter implements Reporter, Closeable {
     }
   }
 
+  public boolean isStarted() {
+    return this.started;
+  }
+
   /**
    * Starts the {@link ContextAwareReporter}. If the {@link ContextAwareReporter} has been started
    * (and not stopped since), this is a no-op.

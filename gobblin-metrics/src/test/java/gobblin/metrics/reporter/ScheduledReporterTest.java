@@ -12,12 +12,6 @@
 
 package gobblin.metrics.reporter;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.context.ReportableContext;
-import gobblin.metrics.context.filter.ContextFilterFactory;
-import gobblin.util.ConfigUtils;
-
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -28,10 +22,14 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
+
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.context.ReportableContext;
+import gobblin.metrics.context.filter.ContextFilterFactory;
+import gobblin.util.ConfigUtils;
 
 
 /**
