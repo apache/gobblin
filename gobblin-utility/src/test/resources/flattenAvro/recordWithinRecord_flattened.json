@@ -1,0 +1,16 @@
+{
+  "type" : "record",
+  "name" : "parentRecordName",
+  "fields" : [ {
+    "name" : "parentFieldRecord__nestedFieldString",
+    "type" : "string",
+    "flatten_source" : "parentFieldRecord.nestedFieldString"
+  }, {
+    "name" : "parentFieldRecord__nestedFieldInt",
+    "type" : "int",
+    "flatten_source" : "parentFieldRecord.nestedFieldInt"
+  }, {
+    "name" : "parentFieldInt",
+    "type" : "int"
+  } ]
+}
