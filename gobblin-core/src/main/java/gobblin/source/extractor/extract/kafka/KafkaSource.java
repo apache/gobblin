@@ -140,13 +140,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     LOG.info("Begin using thread pool to create work units for topic size " + topics.size());
     
     for (KafkaTopic topic : topics) {
-      LOG.info("Using thread pool to create work units for topic " + topic.getName());
       threadPool.submit(new WorkUnitCreator(topic, state, Optional.fromNullable(topicSpecificStateMap.get(topic.getName())), workUnits));
     }
     
     ExecutorsUtils.shutdownExecutorService(threadPool, Optional.of(LOG), 1L, TimeUnit.HOURS);
     LOG.info("Done using thread pool to create work units. Total time used for creating work units is " 
-        + (System.currentTimeMillis()-startTimeOfCreatingWorkUnits) + " mill secons");
+        + (System.currentTimeMillis()-startTimeOfCreatingWorkUnits) + " milliseconds");
 
     // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
     // but aren't processed).
@@ -204,9 +203,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private void createEmptyWorkUnitsForSkippedPartitions(Map<String, List<WorkUnit>> workUnits,
       Map<String, State> topicSpecificStateMap, SourceState state) {
 
-    if(!this.doneGettingAllPreviousOffsets){
-      getAllPreviousOffsets(state);
-    }
+    // in case the previous offset not been set
+    getAllPreviousOffsets(state);
     
     // For each partition that has a previous offset, create an empty WorkUnit for it if
     // it is not in this.partitionsToBeProcessed.
@@ -547,13 +545,16 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     
     @Override
     public void run() {
-      try{
-        List<WorkUnit> oneTopicWorkUnits = 
+      try {
+        long curTime = System.currentTimeMillis();
+        LOG.info("Using thread pool to create work units for topic " + this.topic.getName());
+        List<WorkUnit> oneTopicWorkUnits =
             KafkaSource.this.getWorkUnitsForTopic(this.topic, this.state, topicSpecificState);
         this.allTopicWorkUnits.put(this.topic.getName(), oneTopicWorkUnits);
-        LOG.info("Done creating work unit for " + this.topic.getName() + ", created work unit size is " + oneTopicWorkUnits.size());
-      }
-      catch(Throwable t){
+        LOG.info("Done creating work unit for " + this.topic.getName() + ", created work unit size is "
+            + oneTopicWorkUnits.size() + ". Total time used for creating this topic is "
+            + (System.currentTimeMillis() - curTime) + " milliseconds");
+      } catch (Throwable t) {
         LOG.error("Caught error in creating work unit for " + this.topic.getName() + " : " + t.getMessage(), t);
         throw t;
       }
