@@ -212,7 +212,8 @@ ext.externalDependency = [
           "org.eclipse.jetty:jetty-server:9.2.14.v20151106",
           "org.eclipse.jetty:jetty-servlet:9.2.14.v20151106"
   ],
-  "servlet-api": "javax.servlet:servlet-api:3.1.0"
+  "servlet-api": "javax.servlet:servlet-api:3.1.0",
+  "reflections" : "org.reflections:reflections:0.9.9"
 ];
 
 if (!isDefaultEnvironment)
