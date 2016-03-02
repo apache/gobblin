@@ -107,8 +107,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    */
   @VisibleForTesting
   static final String KAFKA_TOPIC_SPECIFIC_STATE = "kafka.topic.specific.state";
-  public static final String KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS = "kafka.source.work.units.creation.threads"; 
-  public static final int DEFAULT_THREAD_COUNT = 30;
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -132,7 +130,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     Map<String, State> topicSpecificStateMap = getTopicSpecificState(topics, state);
     
     int numOfThreads =
-        state.getPropAsInt(KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS, DEFAULT_THREAD_COUNT);
+        state.getPropAsInt(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS, ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT);
     ExecutorService threadPool = Executors.newFixedThreadPool(numOfThreads,
         ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
     

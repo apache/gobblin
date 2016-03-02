@@ -484,6 +484,8 @@ public class ConfigurationKeys {
    * Kafka job configurations.
    */
   public static final String KAFKA_BROKERS = "kafka.brokers";
+  public static final String KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS = "kafka.source.work.units.creation.threads"; 
+  public static final int KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT = 30;
 
   /**
    * Job execution info server and history store configuration properties.
