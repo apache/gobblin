@@ -32,6 +32,7 @@ dependencies {
   compile externalDependency.log4j
   compile externalDependency.commonsCli
   compile externalDependency.gson
+  compile externalDependency.hiveCommon
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
   compile externalDependency.commonsIo
@@ -39,6 +40,7 @@ dependencies {
   compile externalDependency.pegasus.data
   compile externalDependency.findBugs
   compile externalDependency.typesafeConfig
+  compile externalDependency.hadoopClientCommon
   compile externalDependency.hadoopCommon
   compile externalDependency.hadoopYarnApi
   compile externalDependency.hadoopYarnCommon
