@@ -52,7 +52,7 @@ public class FsDeploymentConfig extends DeploymentConfig {
    * @param deployableConfigSource Source that provides the deployable configs
    * @param version to be used for this deployment
    */
-  public FsDeploymentConfig(@NonNull final DeployableConfigSource deployableConfigSource, @NonNull final String version) {
+  public FsDeploymentConfig(final DeployableConfigSource deployableConfigSource, final String version) {
     this(deployableConfigSource, version, DEFAULT_STORE_PERMISSIONS);
   }
 
