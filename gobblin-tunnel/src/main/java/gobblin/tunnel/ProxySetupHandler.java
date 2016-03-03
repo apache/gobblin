@@ -26,6 +26,9 @@ import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.configuration.ConfigurationKeys;
+
+
 /**
  * Handler for setting up the connection from the Tunnel to the intermediate proxy via HTTP CONNECT.
  */
@@ -33,10 +36,10 @@ class ProxySetupHandler implements Callable<HandlerState> {
   private static final Logger LOG = LoggerFactory.getLogger(Tunnel.class);
 
   public static final String HTTP_1_1_OK = "HTTP/1.1 200";
-  private static final ByteBuffer OK_REPLY = ByteBuffer.wrap(HTTP_1_1_OK.getBytes());
+  private static final ByteBuffer OK_REPLY = ByteBuffer.wrap(HTTP_1_1_OK.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
   public static final String HTTP_1_0_OK = "HTTP/1.0 200";
   private static final Set<ByteBuffer> OK_REPLIES = new HashSet<ByteBuffer>(
-      Arrays.asList(OK_REPLY, ByteBuffer.wrap(HTTP_1_0_OK.getBytes())));
+      Arrays.asList(OK_REPLY, ByteBuffer.wrap(HTTP_1_0_OK.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING))));
 
   private final SocketChannel client;
   private final Selector selector;
@@ -54,11 +57,11 @@ class ProxySetupHandler implements Callable<HandlerState> {
     this.client = client;
     this.selector = selector;
     buffer = ByteBuffer.wrap(
-        String.format("CONNECT %s:%d HTTP/1.1\r\nUser-Agent: GobblinTunnel\r\nservice-name: gobblin\r\n" +
-                "Connection: keep-alive\r\nHost: %s:%d\r\n\r\n",
+        String.format("CONNECT %s:%d HTTP/1.1\r%nUser-Agent: GobblinTunnel\r%nservice-name: gobblin\r%n" +
+                "Connection: keep-alive\r%nHost: %s:%d\r%n\r%n",
             config.getRemoteHost(), config.getRemotePort(),
             config.getRemoteHost(), config.getRemotePort())
-            .getBytes());
+            .getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
 
     //Blocking call
     proxy = SocketChannel.open();
@@ -90,6 +93,8 @@ class ProxySetupHandler implements Callable<HandlerState> {
         case READING:
           read();
           break;
+        default:
+          throw new IllegalStateException("ProxySetupHandler should not be in state " + state);
       }
     } catch (IOException ioe) {
       LOG.warn("Failed to establish a proxy connection for {}", client.getRemoteAddress(), ioe);
@@ -152,7 +157,7 @@ class ProxySetupHandler implements Callable<HandlerState> {
           }
         }
       } else {
-        LOG.error("Got non-200 response from proxy: [" + new String(temp, 0, OK_REPLY.limit())
+        LOG.error("Got non-200 response from proxy: [" + new String(temp, 0, OK_REPLY.limit(), ConfigurationKeys.DEFAULT_CHARSET_ENCODING)
             + "], closing connection.");
         closeChannels();
       }

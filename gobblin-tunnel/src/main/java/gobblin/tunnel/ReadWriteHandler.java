@@ -70,6 +70,8 @@ class ReadWriteHandler implements Callable<HandlerState> {
         case WRITING:
           write();
           break;
+        default:
+          throw new IllegalStateException("ReadWriteHandler should never be in state " + state);
       }
     } catch (CancelledKeyException e) {
       LOG.warn("Encountered canceled key while " + state, e);

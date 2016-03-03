@@ -11,7 +11,10 @@
 apply plugin: 'java'
 
 dependencies {
+  compile project(":gobblin-api")
+
   compile externalDependency.slf4j
+
   runtime externalDependency.slf4jLog4j
   runtime externalDependency.mysqlConnector
 
