@@ -15,6 +15,10 @@ package gobblin.compaction.mapreduce;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.primes.Primes;
@@ -48,9 +52,11 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventSubmitter;
+import gobblin.util.ExecutorsUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.RecordCountProvider;
+import gobblin.util.executors.ScalingThreadPoolExecutor;
 import gobblin.util.recordcount.LateFileRecordCountProvider;
 
 
@@ -90,6 +96,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private static final boolean DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = false;
   private static final String COMPACTION_JOB_ABORT_UPON_NEW_DATA = COMPACTION_JOB_PREFIX + "abort.upon.new.data";
   private static final boolean DEFAULT_COMPACTION_JOB_ABORT_UPON_NEW_DATA = false;
+  private static final String COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE = COMPACTION_JOB_PREFIX
+      + "copy.latedata.thread.pool.size";
+  private static final int DEFAULT_COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE = 20;
 
   // If true, the MR job will use either 1 reducer or a prime number of reducers.
   private static final String COMPACTION_JOB_USE_PRIME_REDUCERS = COMPACTION_JOB_PREFIX + "use.prime.reducers";
@@ -128,6 +137,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private final RecordCountProvider outputRecordCountProvider;
   private final LateFileRecordCountProvider lateInputRecordCountProvider;
   private final LateFileRecordCountProvider lateOutputRecordCountProvider;
+  private final int copyLateDataThreadPoolSize;
 
   private volatile Policy policy = Policy.DO_NOT_PUBLISH_DATA;
   private volatile Status status = Status.RUNNING;
@@ -153,6 +163,10 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     this.eventSubmitter = new EventSubmitter.Builder(
         GobblinMetrics.get(this.dataset.jobProps().getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
         MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
+
+    this.copyLateDataThreadPoolSize =
+        this.dataset.jobProps().getPropAsInt(COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE,
+            DEFAULT_COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE);
 
     try {
       this.inputRecordCountProvider = (RecordCountProvider) Class
@@ -270,16 +284,39 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     }
   }
 
-  private void copyDataFiles(Path outputDirectory, List<Path> inputFilePaths) throws IOException {
-    for (Path filePath : inputFilePaths) {
-      Path convertedFilePath = this.outputRecordCountProvider
-          .convertPath(this.lateInputRecordCountProvider.restoreFilePath(filePath), this.inputRecordCountProvider);
-      String targetFileName = convertedFilePath.getName();
-      Path outPath = this.lateOutputRecordCountProvider.constructLateFilePath(targetFileName, this.fs, outputDirectory);
-      HadoopUtils.copyPath(this.fs, filePath, this.fs, outPath, this.fs.getConf());
-      LOG.info(String.format("Copied %s to %s.", filePath, outPath));
+  private void copyDataFiles(final Path outputDirectory, List<Path> inputFilePaths) throws IOException {
+    ExecutorService executor =
+        ScalingThreadPoolExecutor.newScalingThreadPool(0,
+            this.copyLateDataThreadPoolSize, 100,
+            ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of(this.dataset.getName() + "-copy-data")));
+    List<Future<?>> futures = Lists.newArrayList();
+    for (final Path filePath : inputFilePaths) {
+      Future<Void> future = executor.submit(new Callable<Void>() {
+        @Override
+        public Void call() throws Exception {
+          Path convertedFilePath =
+              outputRecordCountProvider.convertPath(lateInputRecordCountProvider.restoreFilePath(filePath),
+                  inputRecordCountProvider);
+          String targetFileName = convertedFilePath.getName();
+          Path outPath = lateOutputRecordCountProvider.constructLateFilePath(targetFileName, fs, outputDirectory);
+          HadoopUtils.copyPath(fs, filePath, fs, outPath, fs.getConf());
+          LOG.info(String.format("Copied %s to %s.", filePath, outPath));
+          return null;
+        }
+      });
+      futures.add(future);
+    }
+    try {
+      for (Future<?> future : futures) {
+        future.get();
+      }
+    } catch (ExecutionException | InterruptedException e) {
+      throw new IOException("Failed to copy file.", e);
+    } finally {
+      ExecutorsUtils.shutdownExecutorService(executor, Optional.of(LOG));
     }
   }
+
 
   private boolean canOverwriteOutputDir() {
     return this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_OVERWRITE_OUTPUT_DIR,
