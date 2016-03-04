@@ -214,9 +214,12 @@ public class HiveDataset implements CopyableDataset {
           return Lists.newArrayList();
         }
       } else {
-        HiveSpec hiveSpec = new SimpleHiveSpec.Builder(this.table.getDataLocation())
-            .withTable(HiveMetaStoreUtils.getHiveTable(this.table.getTTable())).build();
-        // TODO: add hive registration step
+        // TODO Replace this with getTargetLocation.
+        Path targetLocation = this.tableRootPath.get();
+        HiveSpec tableHiveSpec =
+            new SimpleHiveSpec.Builder(targetLocation).withTable(
+                HiveMetaStoreUtils.getHiveTableWithNewLocation(this.table.getTTable(), targetLocation.toString()))
+                .build();
       }
 
       if (isPartitioned(this.table)) {
@@ -280,10 +283,15 @@ public class HiveDataset implements CopyableDataset {
     }
 
     if (!targetPartition.isPresent()) {
-      HiveSpec partitionHiveSpec = new SimpleHiveSpec.Builder(this.table.getDataLocation())
+
+      // TODO Replace this with getTargetLocation.
+      Path targetLocation = new Path(this.targetTableRoot.get(), partition.getValues().get(0));
+      HiveSpec partitionHiveSpec =
+          new SimpleHiveSpec.Builder(targetLocation)
           .withTable(HiveMetaStoreUtils.getHiveTable(this.table.getTTable()))
-          .withPartition(Optional.of(partition.getTPartition())).build();
-      // TODO: add partition registration step
+              .withPartition(
+                  Optional.of(HiveMetaStoreUtils.getHivePartitionWithNewLocation(partition.getTPartition(),
+                      targetLocation.toString()))).build();
     }
 
     return copyEntities;
