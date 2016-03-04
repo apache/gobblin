@@ -45,6 +45,7 @@ dependencies {
   compile externalDependency.influxdbJava
   compile externalDependency.findBugs
   compile externalDependency.commonsHttpClient
+  compile externalDependency.commonsPool
   compile externalDependency.commonsCodec
   compile externalDependency.commonsLang3
   compile externalDependency.typesafeConfig
