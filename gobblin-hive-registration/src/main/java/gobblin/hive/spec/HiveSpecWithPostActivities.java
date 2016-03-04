@@ -27,5 +27,5 @@ public interface HiveSpecWithPostActivities extends HiveSpec {
   /**
    * A {@link Collection} of {@link Activity}s that should be executed after the registration is complete.
    */
-  public Collection<Activity> getActivities();
+  public Collection<Activity> getPostActivities();
 }

@@ -23,6 +23,7 @@ import lombok.Getter;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
+import gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 
 
 /**
@@ -31,61 +32,68 @@ import gobblin.configuration.State;
  * @author ziliu
  */
 @Alpha
+@Getter
 @EqualsAndHashCode(callSuper = true)
 public class HiveRegProps extends State {
 
   public static final String HIVE_DB_ROOT_DIR = "hive.db.root.dir";
-  public static final String HIVE_OWNER = "hive.owner";
   public static final String HIVE_REGISTER_THREADS = "hive.register.threads";
   public static final int DEFAULT_HIVE_REGISTER_THREADS = 5;
-  public static final String HIVE_TABLE_PROPS = "hive.table.props";
+  public static final String HIVE_TABLE_PARTITION_PROPS = "hive.table.partition.props";
+  public static final String HIVE_STORAGE_PROPS = "hive.storage.props";
+  public static final String HIVE_SERDE_PROPS = "hive.serde.props";
 
-  private static final Splitter SPLITTER = Splitter.on('=').trimResults().omitEmptyStrings();
+  private static final Splitter SPLITTER = Splitter.on(':').trimResults().omitEmptyStrings();
 
-  @Getter
-  private final State tableProps;
+  private final State tablePartitionProps;
+  private final State storageProps;
+  private final State serdeProps;
 
   /**
-   * @param props A {@link State} object that includes both properties required by {@link HiveRegister} to do
+   * @param props A {@link State} object that includes both properties required by {@link HiveMetaStoreBasedRegister} to do
    * Hive registration, as well as the Hive properties that will be added to the Hive table when creating the table,
    * e.g., orc.compress=SNAPPY
    *
    * <p>
-   *   The Hive table properties should be a comma-separated list associated with {@link #HIVE_TABLE_PROPS} in the
+   *   The Hive table properties should be a comma-separated list associated with {@link #HIVE_TABLE_PARTITION_PROPS} in the
    *   given {@link State}.
    * </p>
    */
   public HiveRegProps(State props) {
     super(props);
-    this.tableProps = createTableProps();
+    this.tablePartitionProps = createHiveProps(HIVE_TABLE_PARTITION_PROPS);
+    this.storageProps = createHiveProps(HIVE_STORAGE_PROPS);
+    this.serdeProps = createHiveProps(HIVE_SERDE_PROPS);
   }
 
   /**
-   * @param props Properties required by {@link HiveRegister} to do Hive registration
+   * @param props Properties required by {@link HiveMetaStoreBasedRegister} to do Hive registration
    * @param tableProps Hive properties that will be added to the Hive table when creating the table,
    * e.g., orc.compress=SNAPPY
    */
-  public HiveRegProps(State props, State tableProps) {
+  public HiveRegProps(State props, State tableProps, State storageProps, State serdeProps) {
     super(props);
-    this.tableProps = tableProps;
+    this.tablePartitionProps = tableProps;
+    this.storageProps = storageProps;
+    this.serdeProps = serdeProps;
   }
 
   /**
    * Create a {@link State} object that contains Hive table properties. These properties are obtained from
-   * {@link #HIVE_TABLE_PROPS}, which is a list of comma-separated properties. Each property is in the form
+   * {@link #HIVE_TABLE_PARTITION_PROPS}, which is a list of comma-separated properties. Each property is in the form
    * of '[key]=[value]'.
    */
-  private State createTableProps() {
+  private State createHiveProps(String propKey) {
     State state = new State();
 
-    if (!contains(HIVE_TABLE_PROPS)) {
+    if (!contains(propKey)) {
       return state;
     }
 
-    for (String tableProp : getPropAsList(HIVE_TABLE_PROPS)) {
-      List<String> tokens = SPLITTER.splitToList(tableProp);
+    for (String propValue : getPropAsList(propKey)) {
+      List<String> tokens = SPLITTER.splitToList(propValue);
 
-      Preconditions.checkState(tokens.size() == 2, tableProp + " is not a valid Hive table property");
+      Preconditions.checkState(tokens.size() == 2, propValue + " is not a valid Hive table/partition property");
       state.setProp(tokens.get(0), tokens.get(1));
     }
     return state;
@@ -98,15 +106,6 @@ public class HiveRegProps extends State {
    */
   public Optional<String> getDbRootDir() {
     return Optional.fromNullable(getProp(HIVE_DB_ROOT_DIR));
-  }
-
-  /**
-   * Get Hive owner from {@link #HIVE_OWNER}.
-   *
-   * @return {@link Optional#absent()} if {@link #HIVE_OWNER} is not specified.
-   */
-  public Optional<String> getHiveOwner() {
-    return Optional.fromNullable(getProp(HIVE_OWNER));
   }
 
   /**

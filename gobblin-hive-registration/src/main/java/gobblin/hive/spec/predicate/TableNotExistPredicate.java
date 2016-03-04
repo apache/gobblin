@@ -13,8 +13,6 @@
 package gobblin.hive.spec.predicate;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
@@ -24,30 +22,23 @@ import lombok.AllArgsConstructor;
 
 
 /**
- * A {@link Predicate} that returns true if none of a collection of Hive partitions exists
- * in a {@link HiveRegister}.
+ * A {@link Predicate} that returns true if the given table does not exist.
  *
  * @author ziliu
  */
 @AllArgsConstructor
-public class PartitionsNotExistPredicate implements Predicate<HiveRegister> {
+public class TableNotExistPredicate implements Predicate<HiveRegister> {
 
   protected final String dbName;
   protected final String tableName;
-  protected final Collection<List<String>> allPartitionValues;
 
   @Override
   public boolean apply(HiveRegister register) {
-    for (List<String> partitionValues : this.allPartitionValues) {
-      try {
-        if (register.existsPartition(this.dbName, this.tableName, partitionValues)) {
-          return false;
-        }
-      } catch (IOException e) {
-        throw Throwables.propagate(e);
-      }
+    try {
+      return !register.existsTable(this.dbName, this.tableName);
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
     }
-    return true;
   }
 
 }

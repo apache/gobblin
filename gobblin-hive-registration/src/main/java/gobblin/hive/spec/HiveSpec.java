@@ -13,12 +13,12 @@
 package gobblin.hive.spec;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.google.common.base.Optional;
 
 import gobblin.annotation.Alpha;
+import gobblin.hive.HivePartition;
+import gobblin.hive.HiveTable;
 
 
 /**
@@ -33,15 +33,15 @@ public interface HiveSpec {
   public Path getPath();
 
   /**
-   * Get the Hive {@link Table} that the {@link Path} returned by {@link #getPath()} should be registered to.
+   * Get the Hive {@link HiveTable} that the {@link Path} returned by {@link #getPath()} should be registered to.
    */
-  public Table getTable();
+  public HiveTable getTable();
 
   /**
-   * Get the Hive {@link Partition} that the {@link Path} returned by {@link #getPath()} should be registered to.
+   * Get the Hive {@link HivePartition} that the {@link Path} returned by {@link #getPath()} should be registered to.
    *
    * @return {@link Optional#absent()} indicates the {@link Path} in this HiveSpec should be registered as
    * a Hive table. Otherwise, the {@link Path} should be registered as a Hive partition.
    */
-  public Optional<Partition> getPartition();
+  public Optional<HivePartition> getPartition();
 }

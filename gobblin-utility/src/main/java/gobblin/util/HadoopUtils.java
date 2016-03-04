@@ -325,6 +325,7 @@ public class HadoopUtils {
    * @param from path of the data to be moved
    * @param to path of the data to be moved
    */
+  @SuppressWarnings("deprecation")
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
     // Need this check for hadoop2
@@ -340,7 +341,7 @@ public class HadoopUtils {
       Path toFilePath = new Path(to, relativeFilePath);
 
       if (!safeRenameIfNotExists(fileSystem, fromFile.getPath(), toFilePath)) {
-        if(fromFile.isDir()) {
+        if (fromFile.isDir()) {
           renameRecursively(fileSystem, fromFile.getPath(), toFilePath);
         } else {
           log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
@@ -366,11 +367,11 @@ public class HadoopUtils {
    * @throws IOException if rename failed for reasons other than target exists.
    */
   public synchronized static boolean safeRenameIfNotExists(FileSystem fs, Path from, Path to) throws IOException {
-    if(!fs.exists(to)) {
-      if(!fs.exists(to.getParent())) {
+    if (!fs.exists(to)) {
+      if (!fs.exists(to.getParent())) {
         fs.mkdirs(to.getParent());
       }
-      if(!fs.rename(from, to)) {
+      if (!fs.rename(from, to)) {
         throw new IOException(String.format("Failed to rename %s to %s.", from, to));
       }
       return true;

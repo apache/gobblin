@@ -27,6 +27,9 @@ import gobblin.hive.spec.HiveSpec;
  */
 public class HiveRegisterUtils {
 
+  private HiveRegisterUtils() {
+  }
+
   /**
    * Register the given {@link Path}s.
    *
@@ -35,7 +38,7 @@ public class HiveRegisterUtils {
    * {@link HiveRegistrationPolicy} for registering the given The {@link Path}s.
    */
   public static void register(Iterable<String> paths, State state) throws IOException {
-    try (HiveRegister hiveRegister = new HiveRegister(state)) {
+    try (HiveRegister hiveRegister = HiveRegister.get(state)) {
       HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(state);
       for (String path : paths) {
         for (HiveSpec spec : policy.getHiveSpecs(new Path(path))) {

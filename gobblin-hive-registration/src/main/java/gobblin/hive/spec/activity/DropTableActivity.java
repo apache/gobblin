@@ -10,31 +10,29 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.hive;
+package gobblin.hive.spec.activity;
 
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.SerDeInfo;
+import java.io.IOException;
 
-import gobblin.annotation.Alpha;
-import gobblin.configuration.State;
+import gobblin.hive.HiveRegister;
+import lombok.AllArgsConstructor;
 
 
 /**
- * A {@link HiveSchemaManager} that does nothing. This should be used when registering a table
- * that does not require specifying schema properties.
+ * An {@link Activity} that drops a collection of Hive tables given a {@link HiveRegister}.
  *
  * @author ziliu
  */
-@Alpha
-public class HiveNopSchemaManager extends HiveSchemaManager {
+@AllArgsConstructor
+public class DropTableActivity implements Activity {
 
-  public HiveNopSchemaManager(State props) {
-    super(props);
-  }
+  protected final String dbName;
+  protected final String tableName;
 
   @Override
-  public void addSchemaProperties(SerDeInfo si, Path path) {
-    // Do nothing
+  public boolean execute(HiveRegister register) throws IOException {
+    register.dropTableIfExists(this.dbName, tableName);
+    return true;
   }
 
 }

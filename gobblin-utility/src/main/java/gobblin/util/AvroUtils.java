@@ -16,10 +16,10 @@ import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility
 import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -56,7 +56,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
-import com.google.common.primitives.Longs;
 
 
 /**
@@ -217,34 +216,45 @@ public class AvroUtils {
    * Parse Avro schema from a schema file.
    */
   public static Schema parseSchemaFromFile(Path filePath, FileSystem fs) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      InputStream in = closer.register(fs.open(filePath));
+    Preconditions.checkArgument(fs.exists(filePath), filePath + " does not exist");
+
+    try (InputStream in = fs.open(filePath)) {
       return new Schema.Parser().parse(in);
-    } finally {
-      closer.close();
+    }
+  }
+
+  public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite)
+      throws IOException {
+    if (!overwrite) {
+      Preconditions.checkState(!fs.exists(filePath), filePath + " already exists");
+    } else {
+      HadoopUtils.deletePath(fs, filePath, true);
+    }
+
+    try (DataOutputStream dos = fs.create(filePath)) {
+      dos.writeChars(schema.toString());
     }
   }
 
   /**
    * Get the latest avro schema for a directory
    * @param directory the input dir that contains avro files
-   * @param conf configuration
+   * @param fs the {@link FileSystem} for the given directory.
    * @param latest true to return latest schema, false to return oldest schema
    * @return the latest/oldest schema in the directory
    * @throws IOException
    */
-  public static Schema getDirectorySchema(Path directory, Configuration conf, boolean latest) throws IOException {
+  public static Schema getDirectorySchema(Path directory, FileSystem fs, boolean latest) throws IOException {
     Schema schema = null;
     Closer closer = Closer.create();
     try {
-      List<FileStatus> files = getDirectorySchemaHelper(directory, FileSystem.get(conf));
+      List<FileStatus> files = getDirectorySchemaHelper(directory, fs);
       if (files == null || files.size() == 0) {
         LOG.warn("There is no previous avro file in the directory: " + directory);
       } else {
         FileStatus file = latest ? files.get(0) : files.get(files.size() - 1);
         LOG.info("Path to get the avro schema: " + file);
-        FsInput fi = new FsInput(file.getPath(), conf);
+        FsInput fi = new FsInput(file.getPath(), fs.getConf());
         GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<GenericRecord>();
         schema = closer.register(new DataFileReader<GenericRecord>(fi, genReader)).getSchema();
       }
@@ -258,17 +268,24 @@ public class AvroUtils {
     return schema;
   }
 
+  /**
+   * Get the latest avro schema for a directory
+   * @param directory the input dir that contains avro files
+   * @param conf configuration
+   * @param latest true to return latest schema, false to return oldest schema
+   * @return the latest/oldest schema in the directory
+   * @throws IOException
+   */
+  public static Schema getDirectorySchema(Path directory, Configuration conf, boolean latest) throws IOException {
+    return getDirectorySchema(directory, FileSystem.get(conf), latest);
+  }
+
   private static List<FileStatus> getDirectorySchemaHelper(Path directory, FileSystem fs) throws IOException {
     List<FileStatus> files = Lists.newArrayList();
     if (fs.exists(directory)) {
       getAllNestedAvroFiles(fs.getFileStatus(directory), files, fs);
       if (files.size() > 0) {
-        Collections.sort(files, new Comparator<FileStatus>() {
-          @Override
-          public int compare(FileStatus file1, FileStatus file2) {
-            return Longs.compare(Long.valueOf(file2.getModificationTime()), Long.valueOf(file1.getModificationTime()));
-          }
-        });
+        Collections.sort(files, FileListUtils.LATEST_MOD_TIME_ORDER);
       }
     }
     return files;

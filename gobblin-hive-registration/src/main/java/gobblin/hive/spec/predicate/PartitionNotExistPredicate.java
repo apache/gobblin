@@ -13,39 +13,35 @@
 package gobblin.hive.spec.predicate;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.List;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 
 import gobblin.hive.HiveRegister;
+import gobblin.hive.HiveRegistrationUnit.Column;
 import lombok.AllArgsConstructor;
 
 
 /**
- * A {@link Predicate} that returns true if none of a collection of Hive tables exists
- * in a {@link HiveRegister}.
+ * A {@link Predicate} that returns true if the given Hive partition does not exist.
  *
  * @author ziliu
  */
 @AllArgsConstructor
-public class TablesNotExistPredicate implements Predicate<HiveRegister> {
+public class PartitionNotExistPredicate implements Predicate<HiveRegister> {
 
   protected final String dbName;
-  protected final Collection<String> tableNames;
+  protected final String tableName;
+  protected final List<Column> partitionKeys;
+  protected final List<String> partitionValues;
 
   @Override
   public boolean apply(HiveRegister register) {
-    for (String tableName : this.tableNames) {
-      try {
-        if (register.existsTable(this.dbName, tableName)) {
-          return false;
-        }
-      } catch (IOException e) {
-        throw Throwables.propagate(e);
-      }
+    try {
+      return !register.existsPartition(this.dbName, this.tableName, this.partitionKeys, this.partitionValues);
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
     }
-    return true;
   }
-
 }
