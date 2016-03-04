@@ -147,8 +147,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         datasetWorkUnitStates.iterator().next().getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     Path datasetWriterOutputPath = new Path(this.writerOutputDir, datasetAndPartition.identifier());
 
-    log.info(String
-        .format("Publishing fileSet from %s to %s", datasetWriterOutputPath, metadata.getDatasetURN()));
+    log.info(String.format("Publishing fileSet from %s for dataset %s", datasetWriterOutputPath,
+        metadata.getDatasetURN()));
 
     // Targets are always absolute, so we start moving from root (will skip any existing directories).
     HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, new Path("/"));
