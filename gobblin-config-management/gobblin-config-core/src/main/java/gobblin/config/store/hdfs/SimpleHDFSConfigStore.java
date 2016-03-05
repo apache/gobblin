@@ -275,7 +275,7 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
       if (!includesFileStatus.isDir()) {
         try (InputStream includesConfInStream = this.fs.open(includesFileStatus.getPath())) {
           configKeyPaths.addAll(Lists.newArrayList(
-              Iterables.transform(IOUtils.readLines(includesConfInStream, Charsets.UTF_8), new IncludesToConfigKey())));
+              Iterables.transform(IOUtils.readLines(includesConfInStream, Charsets.UTF_8.name()), new IncludesToConfigKey())));
         }
       }
     } catch (IOException e) {

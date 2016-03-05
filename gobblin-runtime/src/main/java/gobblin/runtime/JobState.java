@@ -324,7 +324,7 @@ public class JobState extends SourceState {
   public LauncherTypeEnum getLauncherType() {
     return Enums
         .getIfPresent(LauncherTypeEnum.class,
-            this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.LOCAL.name()))
+            this.getProp(JobLauncherFactory.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.LOCAL.name()))
         .or(LauncherTypeEnum.LOCAL);
   }
 
@@ -332,7 +332,7 @@ public class JobState extends SourceState {
    * Sets the {@link LauncherTypeEnum} for this {@link JobState}.
    */
   public void setJobLauncherType(LauncherTypeEnum jobLauncherType) {
-    this.setProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, jobLauncherType.name());
+    this.setProp(JobLauncherFactory.JOB_LAUNCHER_TYPE_KEY, jobLauncherType.name());
   }
 
   /**

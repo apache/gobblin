@@ -12,6 +12,8 @@
 
 package gobblin.runtime;
 
+import gobblin.util.options.annotations.CheckProperties;
+import gobblin.util.options.annotations.Checked;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -69,6 +71,9 @@ import gobblin.util.ParallelRunner;
  *
  * @author Yinan Li
  */
+@Checked(configurationClasses = {ConfigurationKeys.class}, userOptions = {
+    ConfigurationKeys.JOB_NAME_KEY
+})
 public abstract class AbstractJobLauncher implements JobLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractJobLauncher.class);
@@ -84,6 +89,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   protected final Properties jobProps;
 
   // This contains all job context information
+  @CheckProperties
   protected final JobContext jobContext;
 
   // This (optional) JobLock is used to prevent the next scheduled run
@@ -106,6 +112,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   protected final ExecutorService cancellationExecutor;
 
   // An MetricContext to track runtime metrics only if metrics are enabled.
+  @CheckProperties
   protected final Optional<MetricContext> runtimeMetricContext;
 
   // An EventBuilder with basic metadata.

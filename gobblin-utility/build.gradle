@@ -32,6 +32,7 @@ dependencies {
   compile externalDependency.bcprovJdk15on
   compile externalDependency.typesafeConfig
   compile externalDependency.commonsPool
+  compile externalDependency.jetty
 
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2

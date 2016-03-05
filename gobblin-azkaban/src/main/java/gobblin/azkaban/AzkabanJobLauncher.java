@@ -12,6 +12,7 @@
 
 package gobblin.azkaban;
 
+import gobblin.util.options.annotations.Checked;
 import java.util.List;
 import java.util.Properties;
 
@@ -44,11 +45,17 @@ import gobblin.util.TimeRangeChecker;
  * <p>
  *   By default, this class will use the {@link gobblin.runtime.mapreduce.MRJobLauncher} to launch and run
  *   the Gobblin job unless a different job launcher type is explicitly specified in the job configuration
- *   using {@link ConfigurationKeys#JOB_LAUNCHER_TYPE_KEY}.
+ *   using {@link JobLauncherFactory#JOB_LAUNCHER_TYPE_KEY}.
  * </p>
  *
  * @author Yinan Li
  */
+@Checked(shortName = "Azkaban Launcher",
+    checkClasses = {JobLauncherFactory.class},
+    configurationClasses = ConfigurationKeys.class,
+    userOptions = {
+        ConfigurationKeys.AZKABAN_EXECUTION_DAYS_LIST
+    })
 public class AzkabanJobLauncher extends AbstractJob {
 
   private static final Logger LOG = Logger.getLogger(AzkabanJobLauncher.class);
@@ -98,8 +105,8 @@ public class AzkabanJobLauncher extends AbstractJob {
 
     // If the job launcher type is not specified in the job configuration,
     // override the default to use the MAPREDUCE launcher.
-    if (!this.props.containsKey(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY)) {
-      this.props.setProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
+    if (!this.props.containsKey(JobLauncherFactory.JOB_LAUNCHER_TYPE_KEY)) {
+      this.props.setProperty(JobLauncherFactory.JOB_LAUNCHER_TYPE_KEY,
           JobLauncherFactory.JobLauncherType.MAPREDUCE.toString());
     }
 

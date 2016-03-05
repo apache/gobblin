@@ -12,6 +12,7 @@
 
 package gobblin.runtime.mapreduce;
 
+import gobblin.util.options.annotations.Checked;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -95,6 +96,7 @@ import gobblin.util.SerializationUtils;
  *
  * @author Yinan Li
  */
+@Checked(shortName = "MR Job Launcher")
 public class MRJobLauncher extends AbstractJobLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(MRJobLauncher.class);

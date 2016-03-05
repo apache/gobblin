@@ -25,4 +25,10 @@ import java.lang.annotation.Target;
 public @interface Checked {
   /** Indicates that the classes in this array should also be checked. */
   Class<?>[] checkClasses() default {};
+
+  Class<?>[] configurationClasses() default {};
+
+  String[] userOptions() default {};
+
+  String shortName() default "";
 }

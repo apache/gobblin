@@ -12,6 +12,9 @@
 
 package gobblin.configuration;
 
+import gobblin.publisher.DataPublisher;
+import gobblin.source.Source;
+import gobblin.util.options.annotations.UserOption;
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
@@ -42,8 +45,10 @@ public class ConfigurationKeys {
    * State store configuration properties.
    */
   // Root directory where task state files are stored
+  @UserOption(required = true, shortName = "State store root")
   public static final String STATE_STORE_ROOT_DIR_KEY = "state.store.dir";
   // File system URI for file-system-based task store
+  @UserOption(required = true, shortName = "State store URI")
   public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
 
   /**
@@ -78,17 +83,18 @@ public class ConfigurationKeys {
   /**
    * Common job configuration properties.
    */
+  @UserOption(required = true, shortName = "Job Name")
   public static final String JOB_NAME_KEY = "job.name";
   public static final String JOB_GROUP_KEY = "job.group";
   public static final String JOB_DESCRIPTION_KEY = "job.description";
-  // Job launcher type
-  public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
   public static final String JOB_SCHEDULE_KEY = "job.schedule";
   public static final String JOB_LISTENERS_KEY = "job.listeners";
   // Directory where job lock files are stored
   public static final String JOB_LOCK_DIR_KEY = "job.lock.dir";
   //Directory that stores task staging data and task output data.
+  @UserOption(advanced = true, shortName = "Task data directory")
   public static final String TASK_DATA_ROOT_DIR_KEY = "task.data.root.dir";
+  @UserOption(instantiates = Source.class, shortName = "Source class")
   public static final String SOURCE_CLASS_KEY = "source.class";
   public static final String CONVERTER_CLASSES_KEY = "converter.classes";
   public static final String FORK_OPERATOR_CLASS_KEY = "fork.operator.class";
@@ -102,6 +108,7 @@ public class ConfigurationKeys {
   public static final String JOB_JAR_FILES_KEY = "job.jars";
   public static final String JOB_LOCAL_FILES_KEY = "job.local.files";
   public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
+  @UserOption(shortName = "Job Lock Enabled", type = UserOption.OptionType.BOOLEAN)
   public static final String JOB_LOCK_ENABLED_KEY = "job.lock.enabled";
   public static final String JOB_MAX_FAILURES_KEY = "job.max.failures";
   public static final int DEFAULT_JOB_MAX_FAILURES = 1;
@@ -111,6 +118,7 @@ public class ConfigurationKeys {
   public static final long DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = 300;
   public static final String OVERWRITE_CONFIGS_IN_STATESTORE = "overwrite.configs.in.statestore";
   public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = false;
+  @UserOption(advanced = true, shortName = "Cleanup staging data per task", type = UserOption.OptionType.BOOLEAN)
   public static final String CLEANUP_STAGING_DATA_PER_TASK = "cleanup.staging.data.per.task";
   public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
 
@@ -190,6 +198,7 @@ public class ConfigurationKeys {
   /**
    * Fork operator configuration properties.
    */
+  @UserOption(advanced = true, shortName = "Number of fork branches", type = UserOption.OptionType.INT)
   public static final String FORK_BRANCHES_KEY = "fork.branches";
   public static final String FORK_BRANCH_NAME_KEY = "fork.branch.name";
   public static final String FORK_BRANCH_ID_KEY = "fork.branch.id";
@@ -208,7 +217,9 @@ public class ConfigurationKeys {
   public static final String WRITER_DESTINATION_TYPE_KEY = WRITER_PREFIX + ".destination.type";
   public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
+  @UserOption(required = true, shortName = "Writer staging directory")
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
+  @UserOption(required = true, shortName = "Writer output directory")
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
@@ -281,6 +292,7 @@ public class ConfigurationKeys {
    */
   @Deprecated
   public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
+  @UserOption(instantiates = DataPublisher.class, shortName = "Data publisher")
   public static final String JOB_DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".job.type";
   public static final String TASK_DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".task.type";
   public static final String DEFAULT_DATA_PUBLISHER_TYPE = "gobblin.publisher.BaseDataPublisher";
@@ -291,6 +303,7 @@ public class ConfigurationKeys {
   // This property is used to specify the owner group of the data publisher final output directory
   public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".final.dir.group";
   public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";
+  @UserOption(advanced = true, shortName = "Publish at job level", type = UserOption.OptionType.BOOLEAN)
   public static final String PUBLISH_DATA_AT_JOB_LEVEL = "publish.data.at.job.level";
   public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
   public static final String PUBLISHER_DIRS = DATA_PUBLISHER_PREFIX + ".output.dirs";
@@ -485,7 +498,7 @@ public class ConfigurationKeys {
    * Kafka job configurations.
    */
   public static final String KAFKA_BROKERS = "kafka.brokers";
-  public static final String KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS = "kafka.source.work.units.creation.threads"; 
+  public static final String KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS = "kafka.source.work.units.creation.threads";
   public static final int KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT = 30;
 
   /**
@@ -493,6 +506,7 @@ public class ConfigurationKeys {
    */
   // If job execution info server is enabled
   public static final String JOB_EXECINFO_SERVER_ENABLED_KEY = "job.execinfo.server.enabled";
+  @UserOption(type = UserOption.OptionType.BOOLEAN, shortName = "Enable job history store")
   public static final String JOB_HISTORY_STORE_ENABLED_KEY = "job.history.store.enabled";
   public static final String JOB_HISTORY_STORE_URL_KEY = "job.history.store.url";
   public static final String JOB_HISTORY_STORE_JDBC_DRIVER_KEY = "job.history.store.jdbc.driver";
@@ -524,6 +538,7 @@ public class ConfigurationKeys {
    * Azkaban properties.
    */
   public static final String AZKABAN_EXECUTION_TIME_RANGE = "azkaban.execution.time.range";
+  @UserOption(advanced = true)
   public static final String AZKABAN_EXECUTION_DAYS_LIST = "azkaban.execution.days.list";
 
   /**

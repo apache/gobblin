@@ -33,5 +33,12 @@ public @interface UserOption {
   Class<?> instantiates() default Void.class;
   Class<? extends Enum<?>> values() default DummyEnum.class;
   String description() default "";
+  String shortName() default "";
+  OptionType type() default OptionType.STRING;
+  boolean advanced() default false;
+
+  public static enum OptionType {
+    STRING, INT, BOOLEAN
+  }
 
 }

@@ -11,6 +11,8 @@
 apply plugin: 'java'
 
 dependencies {
+    compile externalDependency.jetty
+
     compile project(":gobblin-api")
     compile project(":gobblin-core")
     compile project(":gobblin-runtime")
@@ -22,6 +24,8 @@ dependencies {
     compile externalDependency.slf4j
     compile externalDependency.gson
     compile externalDependency.commonsVfs
+    compile externalDependency."servlet-api"
+
     if (project.hasProperty('useHadoop2')) {
       compile externalDependency.avroMapredH2
     } else {

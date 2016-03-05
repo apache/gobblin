@@ -12,14 +12,17 @@
 
 package gobblin.util.options.classes;
 
+import gobblin.util.options.annotations.CheckProperties;
 import gobblin.util.options.annotations.Checked;
-import gobblin.util.options.UserOption;
 
 
 @Checked
-public class ClassWithReflectiveInstantiation {
+public class ClassWithCheckedFields {
 
-  @gobblin.util.options.annotations.UserOption(instantiates = SimpleClass.class, required = true)
-  public static final String INSTANTIATED_CLASS = SimpleClass.class.getCanonicalName() + ".instantiated";
+  @gobblin.util.options.annotations.UserOption(required = true)
+  public static final String REQUIRED_OPT = ClassWithCheckedFields.class.getCanonicalName() + ".required";
+
+  @CheckProperties
+  private SimpleClass simpleClass;
 
 }

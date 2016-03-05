@@ -12,13 +12,17 @@
 
 package gobblin.runtime;
 
+import com.google.common.collect.ImmutableMap;
+import gobblin.util.options.annotations.Checked;
+import gobblin.util.options.annotations.ClassInstantiationMap;
+import gobblin.util.options.annotations.UserOption;
+import java.util.Map;
 import java.util.Properties;
 import javax.annotation.Nonnull;
 
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.local.LocalJobLauncher;
 import gobblin.runtime.mapreduce.MRJobLauncher;
 import gobblin.util.JobConfigurationUtils;
@@ -29,7 +33,12 @@ import gobblin.util.JobConfigurationUtils;
  *
  * @author Yinan Li
  */
+@Checked(shortName = "Job Launcher Factory")
 public class JobLauncherFactory {
+
+  // Job launcher type
+  @UserOption(required = true, values = JobLauncherFactory.JobLauncherType.class, shortName = "Launcher Type")
+  public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
 
   /**
    * Supported types of {@link JobLauncher}.
@@ -37,7 +46,11 @@ public class JobLauncherFactory {
   public enum JobLauncherType {
     LOCAL,
     MAPREDUCE,
-    YARN
+    YARN;
+
+    @ClassInstantiationMap
+    public static final Map<JobLauncherType, Class<?>> jobLauncherClass = ImmutableMap.<JobLauncherType, Class<?>>of(
+        LOCAL, LocalJobLauncher.class, MAPREDUCE, MRJobLauncher.class);
   }
 
   /**
@@ -54,7 +67,7 @@ public class JobLauncherFactory {
   public static @Nonnull JobLauncher newJobLauncher(Properties sysProps, Properties jobProps) throws Exception {
 
     String launcherTypeValue =
-        sysProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name());
+        sysProps.getProperty(JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name());
     Optional<JobLauncherType> launcherType = Enums.getIfPresent(JobLauncherType.class, launcherTypeValue);
 
     if (launcherType.isPresent()) {

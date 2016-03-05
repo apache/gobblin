@@ -68,16 +68,17 @@ public class OptionChecker {
   private void verify(Class<?> klazz, Properties properties, Report.ReportBuilder report)
       throws IOException {
 
-    Map<Class<?>, List<UserOption>> userOptions = this.finder.findOptionsForClass(klazz);
+    Map<Class<?>, OptionFinder.CheckedClass> userOptions =
+        this.finder.findOptionsForClass(klazz, properties);
 
-    for (Class<?> aClass : userOptions.keySet()) {
-      if (!aClass.isAnnotationPresent(Checked.class)) {
-        report.entry(new ReportEntry(aClass, null, IssueType.UNCHECKED, ""));
+    for (OptionFinder.CheckedClass checkedClass : userOptions.values()) {
+      if (!checkedClass.isChecked()) {
+        report.entry(new ReportEntry(checkedClass.getTheClass(), null, IssueType.UNCHECKED, ""));
       }
     }
 
-    for (List<UserOption> optionList : userOptions.values()) {
-      for (UserOption option : optionList) {
+    for (OptionFinder.CheckedClass checkedClass : userOptions.values()) {
+      for (UserOption option : checkedClass.getUserOptions()) {
         if (properties.containsKey(option.getKey())) {
           Class<?> requiredType;
           if ((requiredType = option.getInstantiatesClass()) != null) {
@@ -86,8 +87,6 @@ public class OptionChecker {
               if (!requiredType.isAssignableFrom(instantiated)) {
                 report.entry(new ReportEntry(klazz, option, IssueType.CLASS_WRONG_TYPE, String
                     .format("Expected: %s, found: %s", instantiated.getCanonicalName(), requiredType.getCanonicalName())));
-              } else {
-                verify(instantiated, properties, report);
               }
             } catch (ClassNotFoundException cnfe) {
               report.entry(new ReportEntry(klazz, option, IssueType.CLASS_NOT_EXISTS, properties.getProperty(option.getKey())));

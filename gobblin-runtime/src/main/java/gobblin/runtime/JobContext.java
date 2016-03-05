@@ -12,6 +12,7 @@
 
 package gobblin.runtime;
 
+import gobblin.util.options.annotations.Checked;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -64,6 +65,20 @@ import lombok.Getter;
  *
  * @author Yinan Li
  */
+@Checked(shortName = "Job Context", configurationClasses = {ConfigurationKeys.class}, userOptions = {
+    ConfigurationKeys.JOB_LOCK_ENABLED_KEY,
+    ConfigurationKeys.STATE_STORE_FS_URI_KEY,
+    ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
+    ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY,
+    ConfigurationKeys.SOURCE_CLASS_KEY,
+    ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY,
+    ConfigurationKeys.WRITER_STAGING_DIR,
+    ConfigurationKeys.WRITER_OUTPUT_DIR,
+    ConfigurationKeys.CLEANUP_STAGING_DATA_PER_TASK,
+    ConfigurationKeys.FORK_BRANCHES_KEY,
+    ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE,
+    ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL
+})
 public class JobContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobContext.class);

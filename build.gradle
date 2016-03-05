@@ -19,6 +19,8 @@ buildscript {
   }
 }
 
+ext.useHadoop2 = true
+
 apply plugin: 'org.inferred.processors'
 apply plugin: 'idea'
 
@@ -212,7 +214,7 @@ ext.externalDependency = [
           "org.eclipse.jetty:jetty-server:9.2.14.v20151106",
           "org.eclipse.jetty:jetty-servlet:9.2.14.v20151106"
   ],
-  "servlet-api": "javax.servlet:servlet-api:3.1.0",
+  "servlet-api": "javax.servlet:javax.servlet-api:3.1.0",
   "reflections" : "org.reflections:reflections:0.9.9"
 ];
 
@@ -385,6 +387,9 @@ subprojects {
     }
 
     configurations {
+      all*.exclude group: 'org.mortbay.jetty'
+      all*.exclude group: 'javax.servlet', module: 'servlet-api'
+
       compile
       dependencies {
         if (project.hasProperty('useHadoop2')) {
@@ -397,7 +402,9 @@ subprojects {
             compile externalDependency.hadoopClientCommon
           }
         } else {
-          compile externalDependency.hadoop
+          compile(externalDependency.hadoop) {
+            exclude group: "org.mortbay.jetty"
+          }
         }
         compile(externalDependency.guava) {
           force = true

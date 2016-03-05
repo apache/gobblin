@@ -13,7 +13,6 @@
 package gobblin.util.options.classes;
 
 import gobblin.util.options.annotations.Checked;
-import gobblin.util.options.UserOption;
 
 
 @Checked
