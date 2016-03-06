@@ -1,0 +1,63 @@
+// Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at  http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied.
+
+/**
+ * Adds integration with the <a href="https://docs.gradle.org/current/userguide/jacoco_plugin.html">Gradle JaCoCo Plugin</a>
+ * as well as with <a href="https://coveralls.io/">Coveralls</a>. The script uses the
+ * <a href="https://github.com/palantir/gradle-jacoco-coverage">JacocoFullReport</a> to aggregate the JaCoCo report for
+ * each Gradle sub-module into one master report. The Gradle JaCoCo plugin does not do the aggregation by default which
+ * is why this plugin is necessary. The master report is also needed for Coveralls integration which expects a single
+ * aggregated report in <code>xml</code> format. The aggregated report will be placed under
+ * <code>build/reports/jacocoFullReport/</code>.
+ */
+
+apply plugin: 'com.github.kt3k.coveralls'
+apply plugin: 'com.palantir.jacoco-full-report'
+apply plugin: 'jacoco'
+
+ext.jacocoVersion = '0.7.6.201602180812'
+
+jacoco {
+  toolVersion = jacocoVersion
+}
+
+repositories {
+  jcenter()
+}
+
+// Add the jacoco plugin to each project
+subprojects {
+  plugins.withType(JavaPlugin) {
+
+    plugins.apply('jacoco')
+
+    repositories {
+        jcenter()
+    }
+
+    jacoco {
+        toolVersion = jacocoVersion
+    }
+
+    jacocoTestReport {
+      reports {
+        html.enabled = true
+        xml.enabled = true
+        csv.enabled = false
+      }
+    }
+  }
+}
+
+// Configure the coveralls task to read the aggregated JaCoCo report
+coveralls {
+    sourceDirs = files(subprojects.findAll { subproject -> subproject.plugins.hasPlugin('java') }.sourceSets.main.allSource.srcDirs).files.absolutePath
+    jacocoReportPath = "${rootProject.buildDir}/build/reports/jacoco/jacocoFullReport/jacocoFullReport.xml"
+}

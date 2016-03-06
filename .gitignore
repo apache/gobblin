@@ -31,8 +31,6 @@ tmp
 out
 **/out
 output
-**/gradle/
-**/ligradle
 gobblin-test/basicTest
 gobblin-test/jobOutput
 gobblin-test/state-store

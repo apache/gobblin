@@ -16,11 +16,15 @@ buildscript {
   }
   dependencies {
     classpath 'gradle.plugin.org.inferred:gradle-processors:1.1.2'
+    classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.6.3'
+    classpath 'gradle.plugin.com.palantir:jacoco-coverage:0.3.0'
   }
 }
 
 apply plugin: 'org.inferred.processors'
 apply plugin: 'idea'
+
+apply from: rootProject.projectDir.path + '/gradle/scripts/jacoco-coveralls-support.gradle'
 
 idea.project {
   ext.languageLevel = JavaVersion.VERSION_1_7
