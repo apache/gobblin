@@ -119,8 +119,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
-    addInterruptedShutdownHook();
-
     // Make a copy for both the system and job configuration properties
     this.jobProps = new Properties();
     this.jobProps.putAll(jobProps);
@@ -204,9 +202,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   public void launchJob(JobListener jobListener) throws JobException {
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
-    if (this.jobContext.getJobMetricsOptional().isPresent()) {
-      this.jobContext.getJobMetricsOptional().get().startMetricReporting(this.jobProps);
-    }
+
     try {
       TimingEvent launchJobTimer =
           this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.FULL_JOB_EXECUTION);
@@ -336,6 +332,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
 
+<<<<<<< HEAD
       notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_COMPLETE,
               new JobListenerAction() {
                 @Override
@@ -343,6 +340,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                   jobListener.onJobCompletion(jobContext);
                 }
               });
+=======
+    // Stop metrics reporting
+    if (this.jobContext.getJobMetricsOptional().isPresent()) {
+      JobMetrics.remove(jobState);
+    }
+>>>>>>> (#792, #802) Adding ApplicationLauncher to manage app services, including GobblinMetrics lifecyle
 
       if (jobState.getState() == JobState.RunningState.FAILED) {
         notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_FAILED,
@@ -804,16 +807,5 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   private interface JobListenerAction {
     void apply(JobListener jobListener, JobContext jobContext) throws Exception;
-  }
-
-  private void addInterruptedShutdownHook() {
-    final Thread mainThread = Thread.currentThread();
-
-    Runtime.getRuntime().addShutdownHook(new Thread() {
-      @Override
-      public void run() {
-        mainThread.interrupt();
-      }
-    });
   }
 }

@@ -12,27 +12,86 @@
 
 package gobblin.runtime.local;
 
-import gobblin.runtime.cli.CliOptions;
-
+import java.io.IOException;
 import java.util.Properties;
+import java.util.UUID;
+
+import javax.annotation.Nullable;
+
+import com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import gobblin.runtime.JobException;
+import gobblin.runtime.JobLauncher;
+import gobblin.runtime.app.ApplicationException;
+import gobblin.runtime.app.ApplicationLauncher;
+import gobblin.runtime.app.ServiceBasedAppLauncher;
+import gobblin.runtime.cli.CliOptions;
+import gobblin.runtime.listeners.JobListener;
 
 
 /**
  * Launcher for creating a Gobblin job from command line or IDE.
  */
-public class CliLocalJobLauncher {
+public class CliLocalJobLauncher implements ApplicationLauncher, JobLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(CliLocalJobLauncher.class);
+
+  private final Closer closer = Closer.create();
+
+  private final ApplicationLauncher applicationLauncher;
+  private final LocalJobLauncher localJobLauncher;
+
+  private CliLocalJobLauncher(Properties properties) throws Exception {
+    this.applicationLauncher = this.closer.register(new ServiceBasedAppLauncher(properties,
+        properties.getProperty(ServiceBasedAppLauncher.APP_NAME, "CliLocalJob-" + UUID.randomUUID())));
+    this.localJobLauncher = this.closer.register(new LocalJobLauncher(properties));
+  }
+
+  public void run() throws ApplicationException, JobException, IOException {
+    try {
+      start();
+      launchJob(null);
+    } finally {
+      try {
+        stop();
+      } finally {
+        close();
+      }
+    }
+  }
 
   public static void main(String[] args) throws Exception {
     Properties jobProperties = CliOptions.parseArgs(CliLocalJobLauncher.class, args);
 
     LOG.debug(String.format("Running job with properties:%n%s", jobProperties));
-    try (LocalJobLauncher localJobLauncher = new LocalJobLauncher(jobProperties)) {
-      localJobLauncher.launchJob(null);
-    }
+    new CliLocalJobLauncher(jobProperties).run();
+  }
+
+  @Override
+  public void start() throws ApplicationException {
+    this.applicationLauncher.start();
+  }
+
+  @Override
+  public void stop() throws ApplicationException {
+    this.applicationLauncher.stop();
+  }
+
+  @Override
+  public void launchJob(@Nullable JobListener jobListener) throws JobException {
+    this.localJobLauncher.launchJob(jobListener);
+  }
+
+  @Override
+  public void cancelJob(@Nullable JobListener jobListener) throws JobException {
+    this.localJobLauncher.cancelJob(jobListener);
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.close();
   }
 }

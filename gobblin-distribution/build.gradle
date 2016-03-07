@@ -28,7 +28,6 @@ dependencies {
   compile project(':gobblin-core')
   compile project(':gobblin-compaction')
   compile project(':gobblin-runtime')
-  compile project(':gobblin-scheduler')
   compile project(':gobblin-utility')
   compile project(':gobblin-metastore')
   compile project(':gobblin-metrics')

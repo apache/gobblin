@@ -11,6 +11,7 @@
 apply plugin: 'java'
 
 dependencies {
+  compile project(":gobblin-admin")
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-hive-registration")
@@ -19,6 +20,7 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate', classifier: 'data-template')
+  compile project(":gobblin-rest-service:gobblin-rest-server")
 
   compile externalDependency.avro
   compile externalDependency.commonsConfiguration
@@ -36,6 +38,7 @@ dependencies {
   compile externalDependency.commonsCli
   compile externalDependency.gson
   compile externalDependency.metricsCore
+  compile externalDependency.metricsJvm
   compile externalDependency.commonsIo
   compile externalDependency.commonsEmail
   compile externalDependency.pegasus.data
