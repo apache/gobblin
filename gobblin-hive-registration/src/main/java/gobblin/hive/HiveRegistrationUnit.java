@@ -197,8 +197,9 @@ public class HiveRegistrationUnit {
    * </p>
    */
   public void setProps(State props) {
-    this.props.addAll(props);
-    populateTablePartitionFields();
+    for (String propKey : props.getPropertyNames()) {
+      setProp(propKey, props.getProp(propKey));
+    }
   }
 
   /**
@@ -215,8 +216,9 @@ public class HiveRegistrationUnit {
    * </p>
    */
   public void setStorageProps(State storageProps) {
-    this.storageProps.addAll(storageProps);
-    populateStorageFields();
+    for (String propKey : storageProps.getPropertyNames()) {
+      setStorageProp(propKey, storageProps.getProp(propKey));
+    }
   }
 
   /**
@@ -233,8 +235,9 @@ public class HiveRegistrationUnit {
    * </p>
    */
   public void setSerDeProps(State serdeProps) {
-    this.serDeProps.addAll(serdeProps);
-    populateSerDeFields();
+    for (String propKey : serdeProps.getPropertyNames()) {
+      setSerDeProp(propKey, serdeProps.getProp(propKey));
+    }
   }
 
   protected void updateTablePartitionFields(String key, Object value) {

@@ -16,8 +16,10 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.TableType;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -45,10 +47,15 @@ import gobblin.hive.spec.SimpleHiveSpec;
 @Alpha
 public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
+  public static final String HIVE_FS_URI = "hive.registration.fs.uri";
   public static final String HIVE_DATABASE_NAME = "hive.database.name";
   public static final String HIVE_DATABASE_REGEX = "hive.database.regex";
+  public static final String HIVE_DATABASE_NAME_PREFIX = "hive.database.name.prefix";
+  public static final String HIVE_DATABASE_NAME_SUFFIX = "hive.database.name.suffix";
   public static final String HIVE_TABLE_NAME = "hive.table.name";
   public static final String HIVE_TABLE_REGEX = "hive.table.regex";
+  public static final String HIVE_TABLE_NAME_PREFIX = "hive.table.name.prefix";
+  public static final String HIVE_TABLE_NAME_SUFFIX = "hive.table.name.suffix";
   public static final String HIVE_SANITIZE_INVALID_NAMES = "hive.sanitize.invalid.names";
 
   /**
@@ -66,6 +73,10 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final boolean sanitizeNameAllowed;
   protected final Optional<Pattern> dbNamePattern;
   protected final Optional<Pattern> tableNamePattern;
+  protected final String dbNamePrefix;
+  protected final String dbNameSuffix;
+  protected final String tableNamePrefix;
+  protected final String tableNameSuffix;
 
   protected HiveRegistrationPolicyBase(State props) {
     Preconditions.checkNotNull(props);
@@ -75,6 +86,10 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
         ? Optional.of(Pattern.compile(props.getProp(HIVE_DATABASE_REGEX))) : Optional.<Pattern> absent();
     this.tableNamePattern = props.contains(HIVE_TABLE_REGEX)
         ? Optional.of(Pattern.compile(props.getProp(HIVE_TABLE_REGEX))) : Optional.<Pattern> absent();
+    this.dbNamePrefix = props.getProp(HIVE_DATABASE_NAME_PREFIX, StringUtils.EMPTY);
+    this.dbNameSuffix = props.getProp(HIVE_DATABASE_NAME_SUFFIX, StringUtils.EMPTY);
+    this.tableNamePrefix = props.getProp(HIVE_TABLE_NAME_PREFIX, StringUtils.EMPTY);
+    this.tableNameSuffix = props.getProp(HIVE_TABLE_NAME_SUFFIX, StringUtils.EMPTY);
   }
 
   /**
@@ -83,7 +98,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * the first group of {@link #HIVE_DATABASE_REGEX}.
    */
   protected String getDatabaseName(Path path) {
-    return getDatabaseOrTableName(path, HIVE_DATABASE_NAME, HIVE_DATABASE_REGEX, this.dbNamePattern);
+    return this.dbNamePrefix + getDatabaseOrTableName(path, HIVE_DATABASE_NAME, HIVE_DATABASE_REGEX, this.dbNamePattern)
+        + this.dbNameSuffix;
   }
 
   /**
@@ -92,7 +108,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * the first group of {@link #HIVE_TABLE_REGEX}.
    */
   protected String getTableName(Path path) {
-    return getDatabaseOrTableName(path, HIVE_TABLE_NAME, HIVE_TABLE_REGEX, this.tableNamePattern);
+    return this.tableNamePrefix + getDatabaseOrTableName(path, HIVE_TABLE_NAME, HIVE_TABLE_REGEX, this.tableNamePattern)
+        + this.tableNameSuffix;
   }
 
   protected String getDatabaseOrTableName(Path path, String nameKey, String regexKey, Optional<Pattern> pattern) {
@@ -119,7 +136,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   }
 
   /**
-   * A base implementation for creating a {@link HiveTable} given a {@link Path}.
+   * A base implementation for creating a non bucketed, external {@link HiveTable} given a {@link Path}.
    *
    * @param path a {@link Path} used to create the {@link HiveTable}.
    * @return a {@link HiveTable} for the given {@link Path}.
@@ -129,16 +146,22 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     HiveTable table = new HiveTable.Builder().withDbName(getDatabaseName(path)).withTableName(getTableName(path))
         .withSerdeManaager(HiveSerDeManager.get(this.props)).build();
 
-    table.setLocation(path.toString());
+    table.setLocation(getTableLocation(path));
     table.setSerDeProps();
     table.setProps(this.props.getTablePartitionProps());
     table.setStorageProps(this.props.getStorageProps());
     table.setSerDeProps(this.props.getSerdeProps());
+    table.setNumBuckets(-1);
+    table.setTableType(TableType.EXTERNAL_TABLE.toString());
     return table;
   }
 
   protected Optional<HivePartition> getPartition(Path path) throws IOException {
     return Optional.<HivePartition> absent();
+  }
+
+  protected String getTableLocation(Path path) {
+    return path.toString();
   }
 
   /**

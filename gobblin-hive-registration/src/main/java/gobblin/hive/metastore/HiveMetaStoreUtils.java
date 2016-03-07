@@ -75,9 +75,9 @@ public class HiveMetaStoreUtils {
       table.setTableType(hiveTable.getTableType().get());
     } else {
       table.setTableType(DEFAULT_TABLE_TYPE.toString());
-      if (table.getTableType() == TableType.EXTERNAL_TABLE.toString()) {
-        table.getParameters().put(EXTERNAL, Boolean.TRUE.toString());
-      }
+    }
+    if (table.getTableType() == TableType.EXTERNAL_TABLE.toString()) {
+      table.getParameters().put(EXTERNAL, Boolean.TRUE.toString());
     }
     table.setPartitionKeys(getFieldSchemas(hiveTable.getPartitionKeys()));
     table.setSd(getStorageDescriptor(hiveTable));
