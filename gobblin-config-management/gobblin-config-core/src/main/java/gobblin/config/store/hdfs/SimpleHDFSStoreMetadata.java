@@ -82,7 +82,7 @@ public class SimpleHDFSStoreMetadata {
       HadoopUtils.deleteIfExists(fs, this.storeMetadataFilePath, true);
       HadoopUtils.renamePath(fs, storeMetadataFileBkpPath, this.storeMetadataFilePath);
       throw new IOException(String.format(
-          "Failed to write store metadata at %. Restored existing store metadata file from backup",
+          "Failed to write store metadata at %s. Restored existing store metadata file from backup",
           this.storeMetadataFilePath), e);
     }
   }
