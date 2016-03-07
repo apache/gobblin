@@ -45,8 +45,18 @@ public class ClasspathConfigSource implements DeployableConfigSource {
 
   private final String classpathRootName;
   private static final String DEFAULT_CONFIG_STORE_CLASSPATH_RESOURCE_NAME = "_CONFIG_STORE";
-  private static final String CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY = "gobblin.config.management.store.deploy.classpathresource";
+  public static final String CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY = "gobblin.config.management.store.deploy.classpathresource";
 
+  /**
+   * A {@link DeployableConfigSource} that reads configs to be deployed from classpath.
+   * Caller can set {@link #CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY} to the name of classpath resource under which deployable configs are available.
+   * If the property is not set the {@link #DEFAULT_CONFIG_STORE_CLASSPATH_RESOURCE_NAME} is used to search the classpath for deployable configs
+   * <p>
+   * It finds the config files in classpath under the
+   * <code>classpathRootName</code> directory. Every config file found will be deployed to the <code>storeUri</code> with
+   * a new <code>version</code>.
+   * </p>
+   */
   public ClasspathConfigSource(Properties props) {
     this.classpathRootName = props.getProperty(CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY, DEFAULT_CONFIG_STORE_CLASSPATH_RESOURCE_NAME);
   }
