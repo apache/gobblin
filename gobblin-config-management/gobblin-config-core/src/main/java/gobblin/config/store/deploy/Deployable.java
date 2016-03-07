@@ -21,9 +21,8 @@ import gobblin.config.store.api.ConfigStore;
  * be deployed using {@link StoreDeployer}
  *
  * @param <D> {@link DeploymentConfig} or its subclasses that has configs to deploy the store
- * @param <R> {@link RollbackConfig} or its subclasses that has configs to rollback
  */
-public interface Deployable<D extends DeploymentConfig, R extends RollbackConfig> {
+public interface Deployable<D extends DeploymentConfig> {
 
   /**
    * Deploy a version {@link DeploymentConfig#getNewVersion()} of configs provided by
@@ -32,11 +31,4 @@ public interface Deployable<D extends DeploymentConfig, R extends RollbackConfig
    * @param deploymentConfig to use for this deployment
    */
   public void deploy(D deploymentConfig) throws IOException;
-
-  /**
-   * Rollback to an older version of configs on the {@link ConfigStore} using {@link RollbackConfig}
-   *
-   * @param rollbackConfig to use for this rollback
-   */
-  public void rollback(R rollbackConfig) throws IOException;
 }

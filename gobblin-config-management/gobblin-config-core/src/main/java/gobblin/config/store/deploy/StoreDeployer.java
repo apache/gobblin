@@ -52,7 +52,7 @@ public class StoreDeployer {
 
         ConfigStore configStore = storeFactory.createConfigStore(storeUri);
 
-        if (configStore instanceof Deployable<?, ?>) {
+        if (configStore instanceof Deployable<?>) {
 
           ((Deployable) configStore).deploy(new FsDeploymentConfig(confgSource, version));
 

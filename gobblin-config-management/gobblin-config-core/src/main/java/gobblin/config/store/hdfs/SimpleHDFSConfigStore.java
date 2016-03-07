@@ -18,8 +18,8 @@ import gobblin.config.store.api.ConfigStoreWithStableVersioning;
 import gobblin.config.store.api.VersionDoesNotExistException;
 import gobblin.config.store.deploy.ConfigStream;
 import gobblin.config.store.deploy.Deployable;
+import gobblin.config.store.deploy.DeployableConfigSource;
 import gobblin.config.store.deploy.FsDeploymentConfig;
-import gobblin.config.store.deploy.RollbackConfig;
 import gobblin.util.FileListUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.io.SeekableFSInputStream;
@@ -28,38 +28,27 @@ import gobblin.util.io.StreamUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Serializable;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.regex.Pattern;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.reflections.Reflections;
-import org.reflections.scanners.ResourcesScanner;
-import org.reflections.util.ClasspathHelper;
-import org.reflections.util.ConfigurationBuilder;
-import org.reflections.util.FilterBuilder;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
@@ -123,7 +112,7 @@ import com.typesafe.config.ConfigFactory;
  */
 @Slf4j
 @ConfigStoreWithStableVersioning
-public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeploymentConfig, RollbackConfig> {
+public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeploymentConfig> {
 
   protected static final String CONFIG_STORE_NAME = "_CONFIG_STORE";
 
@@ -134,6 +123,7 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
   private final URI physicalStoreRoot;
   private final URI logicalStoreRoot;
   private final Cache<String, Path> versions;
+  private final SimpleHDFSStoreMetadata storeMetadata;
 
   /**
    * Constructs a {@link SimpleHDFSConfigStore} using a given {@link FileSystem} and a {@link URI} that points to the
@@ -161,36 +151,23 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
     this.physicalStoreRoot = physicalStoreRoot;
     this.logicalStoreRoot = logicalStoreRoot;
     this.versions = CacheBuilder.newBuilder().build();
+    this.storeMetadata = new SimpleHDFSStoreMetadata(fs, new Path(new Path(this.physicalStoreRoot), CONFIG_STORE_NAME));
   }
 
   /**
-   * Returns a {@link String} representation of the highest version stored in the {@link ConfigStore}. This method
-   * determines the highest version by doing an {@code ls} on the store root, and sorting the output based on the
-   * {@link FileStatus#getPath()}.
+   * Returns a {@link String} representation of the active version stored in the {@link ConfigStore}. This method
+   * determines the current active version by reading the {@link #CONFIG_STORE_METADATA_FILENAME} in
+   * {@link #CONFIG_STORE_NAME}
    *
-   * @return a {@link String} representing the current (highest) version of the {@link ConfigStore}.
+   * @return a {@link String} representing the current active version of the {@link ConfigStore}.
    */
   @Override
   public String getCurrentVersion() {
-    Path configStoreDir = new Path(new Path(this.physicalStoreRoot), CONFIG_STORE_NAME);
-
     try {
-      if (!this.fs.exists(configStoreDir)) {
-        throw new VersionDoesNotExistException(getStoreURI(), "CURRENT", "");
-      }
+      return storeMetadata.getCurrentVersion();
     } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Error while checking if the configStoreDir: \"%s\" exists", configStoreDir), e);
-    }
-
-    try {
-      FileStatus[] fileStatuses = Iterables.toArray(
-          Iterables.filter(Arrays.asList(this.fs.listStatus(configStoreDir)), new FileStatusIsDir()), FileStatus.class);
-      Arrays.sort(fileStatuses, new FileStatusPathNameComparator());
-      return fileStatuses[fileStatuses.length - 1].getPath().getName();
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Error while checking current version for configStoreDir: \"%s\"", configStoreDir), e);
+      Path configStoreDir = new Path(new Path(this.physicalStoreRoot), CONFIG_STORE_NAME);
+      throw new RuntimeException(String.format("Error while checking current version for configStoreDir: \"%s\"", configStoreDir), e);
     }
   }
 
@@ -381,17 +358,6 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
   }
 
   /**
-   * Implementation of {@link Comparator} that compares {@link FileStatus}es based on the path name.
-   */
-  public static class FileStatusPathNameComparator implements Comparator<FileStatus>, Serializable {
-
-    @Override
-    public int compare(FileStatus fileStatus1, FileStatus fileStatus2) {
-      return fileStatus1.getPath().getName().compareTo(fileStatus2.getPath().getName());
-    }
-  }
-
-  /**
    * Implementation of {@link Function} that translates a {@link String} in an {@link #INCLUDES_CONF_FILE_NAME} file to
    * a {@link ConfigKeyPath}.
    */
@@ -410,22 +376,19 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
     }
   }
 
-  private static class FileStatusIsDir implements Predicate<FileStatus> {
-
-    @Override
-    public boolean apply(FileStatus input) {
-      return input == null ? false : input.isDir();
-    }
-  }
-
   /**
-   * Deploy configs in classpath to HDFS. Finds all the files under
-   * {@link FsDeploymentConfig#getStoreRootNameInClasspath()} in the classpath. For each resource found, creates a
-   * resource on HDFS.
+   * Deploy configs provided by {@link FsDeploymentConfig#getDeployableConfigSource()} to HDFS.
+   * For each {@link ConfigStream} returned by {@link DeployableConfigSource#getConfigStreams()}, creates a resource on HDFS.
+   * <br>
+   * <ul> Does the following:
+   * <li> Read {@link ConfigStream}s and write them to HDFS
+   * <li> Create parent directories of {@link ConfigStream#getConfigPath()} if required
+   * <li> Set {@link FsDeploymentConfig#getStorePermissions()} to all resourced created on HDFS
+   * <li> Update current active version in the store metadata file.
+   * </ul>
    *
    * <p>
    *  For example: If "test-root" is a resource in classpath and all resources under it needs to be deployed,
-   *  {@link FsDeploymentConfig#getStoreRootNameInClasspath()} is set to "test-root"
    * <br>
    * <br>
    * <b>In Classpath:</b><br>
@@ -471,44 +434,42 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
 
     Path hdfsNewVersionPath = new Path(hdfsconfigStoreRoot, deploymentConfig.getNewVersion());
 
-    if (fs.exists(hdfsNewVersionPath)) {
-      log.warn(String.format("Version %s already exits at %s. Can not overwrite an existing version.",
-          deploymentConfig.getNewVersion(), hdfsNewVersionPath));
-    }
+    if (!fs.exists(hdfsNewVersionPath)) {
 
-    Set<ConfigStream> confStreams = deploymentConfig.getDeployableConfigSource().getConfigStreams();
+      fs.mkdirs(hdfsNewVersionPath, deploymentConfig.getStorePermissions());
 
-    for (ConfigStream confStream : confStreams) {
-      String confAtPath = confStream.getConfigPath();
+      Set<ConfigStream> confStreams = deploymentConfig.getDeployableConfigSource().getConfigStreams();
 
-      log.info("Copying resource at : " + confAtPath);
+      for (ConfigStream confStream : confStreams) {
+        String confAtPath = confStream.getConfigPath();
 
-      Path hdsfConfPath = new Path(hdfsNewVersionPath, confAtPath);
+        log.info("Copying resource at : " + confAtPath);
 
-      if (!fs.exists(hdsfConfPath.getParent())) {
-        fs.mkdirs(hdsfConfPath.getParent());
-      }
+        Path hdsfConfPath = new Path(hdfsNewVersionPath, confAtPath);
 
-      // If an empty directory needs to created it may not have a stream.
-      if (confStream.getInputStream().isPresent()) {
-        // Read the resource as a stream from the classpath and write it to HDFS
-        try (SeekableFSInputStream inputStream = new SeekableFSInputStream(confStream.getInputStream().get());
-            FSDataOutputStream os = this.fs.create(hdsfConfPath, false)) {
-          StreamUtils.copy(inputStream, os);
+        if (!fs.exists(hdsfConfPath.getParent())) {
+          fs.mkdirs(hdsfConfPath.getParent());
+        }
+
+        // If an empty directory needs to created it may not have a stream.
+        if (confStream.getInputStream().isPresent()) {
+          // Read the resource as a stream from the classpath and write it to HDFS
+          try (SeekableFSInputStream inputStream = new SeekableFSInputStream(confStream.getInputStream().get());
+              FSDataOutputStream os = this.fs.create(hdsfConfPath, false)) {
+            StreamUtils.copy(inputStream, os);
+          }
         }
       }
+
+      // Set permission for newly copied files
+      for (FileStatus fileStatus : FileListUtils.listPathsRecursively(this.fs, hdfsNewVersionPath, FileListUtils.NO_OP_PATH_FILTER)) {
+        this.fs.setPermission(fileStatus.getPath(), deploymentConfig.getStorePermissions());
+      }
+
     }
 
-    // Set permission for newly copied files
-    for (FileStatus fileStatus : FileListUtils.listPathsRecursively(this.fs, hdfsNewVersionPath, FileListUtils.NO_OP_PATH_FILTER)) {
-      this.fs.setPermission(fileStatus.getPath(), deploymentConfig.getStorePermissions());
-    }
+    storeMetadata.setCurrentVersion(deploymentConfig.getNewVersion());
 
     log.info(String.format("New version %s of config store deployed at %s", deploymentConfig.getNewVersion(), hdfsconfigStoreRoot));
-  }
-
-  @Override
-  public void rollback(RollbackConfig rollbackConfig) throws IOException {
-    throw new UnsupportedOperationException("Rollback is not supported yet.");
   }
 }
