@@ -28,7 +28,7 @@ dependencies {
   compile externalDependency.commonsIo
   compile externalDependency.commonsLang3
   compile externalDependency.commonsPool
-  compile externalDependency.findBugs
+  compile externalDependency.findBugsAnnotations
   compile externalDependency.lombok
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2

@@ -38,7 +38,6 @@ dependencies {
   compile externalDependency.commonsIo
   compile externalDependency.commonsEmail
   compile externalDependency.pegasus.data
-  compile externalDependency.findBugs
   compile externalDependency.typesafeConfig
   compile externalDependency.hadoopClientCommon
   compile externalDependency.hadoopCommon
@@ -50,6 +49,7 @@ dependencies {
   } else {
     compile externalDependency.avroMapredH1
   }
+  compile externalDependency.findBugsAnnotations
 
   testCompile project(":gobblin-example")
 

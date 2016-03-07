@@ -106,6 +106,7 @@ if (!project.hasProperty('bytemanVersion')) {
 
 ext.avroVersion = '1.7.7'
 ext.dropwizardMetricsVersion = '3.1.0'
+ext.findBugsVersion = '3.0.1'
 
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
@@ -128,7 +129,7 @@ ext.externalDependency = [
   "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:3.2.9",
   "guava": "com.google.guava:guava:15.0",
   "gson": "com.google.code.gson:gson:2.6.1",
-  "findBugs": "com.google.code.findbugs:jsr305:1.3.9",
+  "findBugsAnnotations": "com.google.code.findbugs:jsr305:" + findBugsVersion,
   "hadoop": "org.apache.hadoop:hadoop-core:" + hadoopVersion,
   "hadoopCommon": "org.apache.hadoop:hadoop-common:" + hadoopVersion,
   "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:" + hadoopVersion,
@@ -356,18 +357,16 @@ subprojects {
     plugins.apply('idea')
     plugins.apply('eclipse')
     plugins.apply('maven')
-// Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
-//  apply plugin: 'findbugs'
+    plugins.apply('findbugs')
 
     sourceCompatibility = JavaVersion.VERSION_1_7
 
-    /*
     findbugs {
+      toolVersion = findBugsVersion
       ignoreFailures = true
       effort = "max"
-      excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
+      excludeFilter = file(rootProject.projectDir.path + "/gradle/findbugs/findbugsExclude.xml")
     }
-    */
 
     test {
       if (project.hasProperty("printTestOutput")) {
