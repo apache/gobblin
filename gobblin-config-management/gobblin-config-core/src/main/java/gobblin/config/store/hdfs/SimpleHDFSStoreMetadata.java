@@ -26,6 +26,7 @@ import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.config.store.api.ConfigStore;
+import gobblin.config.store.deploy.FsDeploymentConfig;
 import gobblin.util.HadoopUtils;
 
 
@@ -75,7 +76,8 @@ public class SimpleHDFSStoreMetadata {
     }
 
     // Write new storeMetadataFile
-    try (FSDataOutputStream outputStream = this.fs.create(this.storeMetadataFilePath);) {
+    try (FSDataOutputStream outputStream =
+            FileSystem.create(this.fs, this.storeMetadataFilePath, FsDeploymentConfig.DEFAULT_STORE_PERMISSIONS);) {
       outputStream.write(config.root().render(ConfigRenderOptions.concise()).getBytes(Charsets.UTF_8));
     } catch (Exception e) {
       // Restore from backup
