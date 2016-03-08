@@ -10,16 +10,20 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.retention.version.finder;
+package gobblin.data.management.version;
 
-import gobblin.data.management.retention.version.DatasetVersion;
+import java.util.Set;
+
+import org.apache.hadoop.fs.Path;
 
 
 /**
- * @deprecated
- * See {@inheritDoc}.
+ * Wrapper around {@link java.lang.Comparable} for dataset versions.
  */
-@Deprecated
-public interface VersionFinder<T extends DatasetVersion> extends
-    gobblin.data.management.version.finder.VersionFinder<T> {
+public interface FileSystemDatasetVersion extends DatasetVersion, Comparable<FileSystemDatasetVersion> {
+
+  /**
+   * Get the set of {@link org.apache.hadoop.fs.Path}s that are included in this dataset version.
+   */
+  public Set<Path> getPaths();
 }

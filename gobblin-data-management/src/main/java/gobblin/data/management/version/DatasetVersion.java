@@ -10,16 +10,16 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.retention.version.finder;
-
-import gobblin.data.management.retention.version.DatasetVersion;
-
+package gobblin.data.management.version;
 
 /**
- * @deprecated
- * See {@inheritDoc}.
+ * Dataset version.
  */
-@Deprecated
-public interface VersionFinder<T extends DatasetVersion> extends
-    gobblin.data.management.version.finder.VersionFinder<T> {
+public interface DatasetVersion {
+
+  /**
+   * Get the version representation.
+   */
+  public Object getVersion();
+
 }

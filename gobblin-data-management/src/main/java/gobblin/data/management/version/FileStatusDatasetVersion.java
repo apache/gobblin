@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.retention.version;
+package gobblin.data.management.version;
 
 import java.util.Set;
 
@@ -23,12 +23,10 @@ import lombok.Data;
 
 
 /**
- * @deprecated
- * Extends {@link gobblin.data.management.version.FileStatusDatasetVersion} and implements
- * {@link gobblin.data.management.retention.version.DatasetVersion}.
+ * Implementation of {@link gobblin.data.management.version.DatasetVersion} that uses a single path per
+ * version and stores the {@link org.apache.hadoop.fs.FileStatus} of that path.
  */
 @Data
-@Deprecated
 public class FileStatusDatasetVersion extends StringDatasetVersion {
 
   protected final FileStatus fileStatus;
@@ -38,14 +36,15 @@ public class FileStatusDatasetVersion extends StringDatasetVersion {
     this.fileStatus = fileStatus;
   }
 
-  public int compareTo(DatasetVersion other) {
+  @Override
+  public int compareTo(FileSystemDatasetVersion other) {
     FileStatusDatasetVersion otherAsFileStatus = (FileStatusDatasetVersion) other;
     return this.fileStatus.getPath().compareTo(otherAsFileStatus.getFileStatus().getPath());
   }
 
   @Override
   public boolean equals(Object obj) {
-    return obj != null && this.getClass().equals(obj.getClass()) && compareTo((DatasetVersion) obj) == 0;
+    return obj != null && this.getClass().equals(obj.getClass()) && compareTo((FileSystemDatasetVersion) obj) == 0;
   }
 
   @Override
@@ -58,3 +57,4 @@ public class FileStatusDatasetVersion extends StringDatasetVersion {
     return Sets.newHashSet(this.fileStatus.getPath());
   }
 }
+

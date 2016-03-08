@@ -16,11 +16,15 @@ import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 
+import gobblin.data.management.version.FileSystemDatasetVersion;
+
 
 /**
- * Wrapper around {@link java.lang.Comparable} for dataset versions.
+ * @deprecated
+ * Extends {@link gobblin.data.management.version.FileSystemDatasetVersion}.
  */
-public interface DatasetVersion extends Comparable<DatasetVersion> {
+@Deprecated
+public interface DatasetVersion extends FileSystemDatasetVersion {
 
   /**
    * Get set of {@link org.apache.hadoop.fs.Path} that should be deleted to delete this dataset version.
@@ -35,5 +39,4 @@ public interface DatasetVersion extends Comparable<DatasetVersion> {
    * @return Minimal set of {@link org.apache.hadoop.fs.Path} to delete in order to remove the dataset version.
    */
   public Set<Path> getPathsToDelete();
-
 }
