@@ -22,7 +22,6 @@ import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import gobblin.commit.CommitStep;
-import gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import gobblin.hive.spec.HiveSpec;
 
 
@@ -37,13 +36,15 @@ public class HiveRegisterStep implements CommitStep {
   private final HiveSpec hiveSpec;
   private final HiveRegProps props;
 
-  @Override public boolean isCompleted() throws IOException {
+  @Override
+  public boolean isCompleted() throws IOException {
     // TODO: this is complicated due to preactivities, postactivities, etc. but unnecessary for now because exactly once
     // is not enabled.
     return false;
   }
 
-  @Override public void execute() throws IOException {
+  @Override
+  public void execute() throws IOException {
     HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI);
     log.info("Registering Hive Spec " + this.hiveSpec);
     ListenableFuture<Void> future = hiveRegister.register(this.hiveSpec);

@@ -15,7 +15,6 @@ package gobblin.hive;
 import lombok.Getter;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;

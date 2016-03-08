@@ -23,6 +23,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
@@ -83,35 +84,55 @@ public class HiveRegistrationUnit {
 
     this.serDeManager = builder.serDeManager;
 
-    populateTablePartitionFields();
-    populateStorageFields();
-    populateSerDeFields();
+    populateTablePartitionFields(this.props);
+    populateStorageFields(this.storageProps);
+    populateSerDeFields(this.serDeProps);
   }
 
-  protected void populateTablePartitionFields() {
-    this.createTime = this.props.contains(HiveConstants.CREATE_TIME)
-        ? Optional.of(this.props.getPropAsLong(HiveConstants.CREATE_TIME)) : Optional.<Long> absent();
-    this.lastAccessTime = this.props.contains(HiveConstants.LAST_ACCESS_TIME)
-        ? Optional.of(this.props.getPropAsLong(HiveConstants.LAST_ACCESS_TIME)) : Optional.<Long> absent();
+  @SuppressWarnings("serial")
+  protected void populateTablePartitionFields(State state) {
+    this.createTime = populateField(state, HiveConstants.CREATE_TIME, new TypeToken<Long>() {});
+    this.lastAccessTime = populateField(state, HiveConstants.LAST_ACCESS_TIME, new TypeToken<Long>() {});
   }
 
-  protected void populateStorageFields() {
-    this.location = Optional.fromNullable(this.storageProps.getProp(HiveConstants.LOCATION));
-    this.inputFormat = Optional.fromNullable(this.storageProps.getProp(HiveConstants.INPUT_FORMAT));
-    this.outputFormat = Optional.fromNullable(this.storageProps.getProp(HiveConstants.OUTPUT_FORMAT));
-    this.isCompressed = this.storageProps.contains(HiveConstants.COMPRESSED)
-        ? Optional.of(this.storageProps.getPropAsBoolean(HiveConstants.COMPRESSED)) : Optional.<Boolean> absent();
-    this.numBuckets = this.storageProps.contains(HiveConstants.NUM_BUCKETS)
-        ? Optional.of(this.storageProps.getPropAsInt(HiveConstants.NUM_BUCKETS)) : Optional.<Integer> absent();
-    this.bucketColumns = this.storageProps.contains(HiveConstants.BUCKET_COLUMNS)
-        ? Optional.of(this.storageProps.getPropAsList(HiveConstants.BUCKET_COLUMNS)) : Optional.<List<String>> absent();
-    this.isStoredAsSubDirs = this.storageProps.contains(HiveConstants.STORED_AS_SUB_DIRS)
-        ? Optional.of(this.storageProps.getPropAsBoolean(HiveConstants.STORED_AS_SUB_DIRS))
-        : Optional.<Boolean> absent();
+  @SuppressWarnings({ "serial" })
+  protected void populateStorageFields(State state) {
+    this.location = populateField(state, HiveConstants.LOCATION, new TypeToken<String>() {});
+    this.inputFormat = populateField(state, HiveConstants.INPUT_FORMAT, new TypeToken<String>() {});
+    this.outputFormat = populateField(state, HiveConstants.OUTPUT_FORMAT, new TypeToken<String>() {});
+    this.isCompressed = populateField(state, HiveConstants.COMPRESSED, new TypeToken<Boolean>() {});
+    this.numBuckets = populateField(state, HiveConstants.NUM_BUCKETS, new TypeToken<Integer>() {});
+    this.bucketColumns = populateField(state, HiveConstants.BUCKET_COLUMNS, new TypeToken<List<String>>() {});
+    this.isStoredAsSubDirs = populateField(state, HiveConstants.STORED_AS_SUB_DIRS, new TypeToken<Boolean>() {});
   }
 
-  protected void populateSerDeFields() {
-    this.serDeType = Optional.fromNullable(this.serDeProps.getProp(HiveConstants.SERDE_TYPE));
+  @SuppressWarnings("serial")
+  protected void populateSerDeFields(State state) {
+    this.serDeType = populateField(state, HiveConstants.SERDE_TYPE, new TypeToken<String>() {});
+  }
+
+  @SuppressWarnings({ "serial", "unchecked" })
+  protected <T> Optional<T> populateField(State state, String key, TypeToken<T> token) {
+    if (state.contains(key)) {
+      Optional<T> fieldValue;
+
+      if (new TypeToken<Boolean>() {}.isAssignableFrom(token)) {
+        fieldValue = (Optional<T>) Optional.of(state.getPropAsBoolean(key));
+      } else if (new TypeToken<Integer>() {}.isAssignableFrom(token)) {
+        fieldValue = (Optional<T>) Optional.of(state.getPropAsInt(key));
+      } else if (new TypeToken<Long>() {}.isAssignableFrom(token)) {
+        fieldValue = (Optional<T>) Optional.of(state.getPropAsLong(key));
+      } else if (new TypeToken<List<String>>() {}.isAssignableFrom(token)) {
+        fieldValue = (Optional<T>) Optional.of(state.getPropAsList(key));
+      } else {
+        fieldValue = (Optional<T>) Optional.of(state.getProp(key));
+      }
+
+      state.removeProp(key);
+      return fieldValue;
+    } else {
+      return Optional.<T> absent();
+    }
   }
 
   /**
@@ -144,7 +165,7 @@ public class HiveRegistrationUnit {
    */
   public void setProp(String key, Object value) {
     this.props.setProp(key, value);
-    updateTablePartitionFields(key, value);
+    updateTablePartitionFields(this.props, key, value);
   }
 
   /**
@@ -162,7 +183,7 @@ public class HiveRegistrationUnit {
    */
   public void setStorageProp(String key, Object value) {
     this.storageProps.setProp(key, value);
-    updateStorageFields(key, value);
+    updateStorageFields(this.storageProps, key, value);
   }
 
   /**
@@ -180,7 +201,7 @@ public class HiveRegistrationUnit {
    */
   public void setSerDeProp(String key, Object value) {
     this.serDeProps.setProp(key, value);
-    updateSerDeFields(key, value);
+    updateSerDeFields(this.serDeProps, key, value);
   }
 
   /**
@@ -240,7 +261,8 @@ public class HiveRegistrationUnit {
     }
   }
 
-  protected void updateTablePartitionFields(String key, Object value) {
+  protected void updateTablePartitionFields(State state, String key, Object value) {
+    boolean isExistingField = true;
     switch (key) {
       case HiveConstants.CREATE_TIME:
         this.createTime = Optional.of((long) value);
@@ -248,10 +270,16 @@ public class HiveRegistrationUnit {
       case HiveConstants.LAST_ACCESS_TIME:
         this.createTime = Optional.of((long) value);
         break;
+      default:
+        isExistingField = false;
+    }
+    if (isExistingField) {
+      state.removeProp(key);
     }
   }
 
-  protected void updateStorageFields(String key, Object value) {
+  protected void updateStorageFields(State state, String key, Object value) {
+    boolean isExistingField = true;
     switch (key) {
       case HiveConstants.LOCATION:
         this.location = Optional.of((String) value);
@@ -274,19 +302,30 @@ public class HiveRegistrationUnit {
       case HiveConstants.STORED_AS_SUB_DIRS:
         this.isStoredAsSubDirs = Optional.of((boolean) value);
         break;
+      default:
+        isExistingField = false;
+    }
+    if (isExistingField) {
+      state.removeProp(key);
     }
   }
 
-  protected void updateSerDeFields(String key, Object value) {
+  protected void updateSerDeFields(State state, String key, Object value) {
+    boolean isExistingField = true;
     switch (key) {
       case HiveConstants.SERDE_TYPE:
         this.serDeType = Optional.of((String) value);
         break;
+      default:
+        isExistingField = false;
+    }
+    if (isExistingField) {
+      state.removeProp(key);
     }
   }
 
   /**
-   * Setting serde parameters for a table/partition using the table/partition's {@link HiveSerDeManager}.
+   * Set serde properties for a table/partition using the table/partition's {@link HiveSerDeManager}.
    *
    * <p>
    *   Requires that the {@link HiveSerDeManager} of the table/partition must be specified in
@@ -294,8 +333,21 @@ public class HiveRegistrationUnit {
    *   either in {@link #setLocation(String)} or via {@link HiveConstants#LOCATION}.
    * </p>
    */
-  public void setSerDeProps() throws IOException {
-    this.serDeManager.get().addSerDeProperties(new Path(this.location.get()), this);
+  public void setSerDeProps(Path path) throws IOException {
+    this.serDeManager.get().addSerDeProperties(path, this);
+  }
+
+  /**
+   * Set serde properties for a table/partition using another table/partition's serde properties.
+   *
+   * <p>
+   *   A benefit of doing this is to avoid obtaining the schema multiple times when creating a table and a partition
+   *   with the same schema, or creating several tables and partitions with the same schema. After the first 
+   *   table/partition is created, one can use the same SerDe properties to create the other tables/partitions.
+   * </p>
+   */
+  public void setSerDeProps(HiveRegistrationUnit other) throws IOException {
+    this.serDeManager.get().addSerDeProperties(other, this);
   }
 
   public void setCreateTime(long createTime) {
@@ -395,6 +447,7 @@ public class HiveRegistrationUnit {
   @AllArgsConstructor
   @Getter
   public static class Column {
+
     private final String name;
     private final String type;
     private final String comment;

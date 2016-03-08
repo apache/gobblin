@@ -38,7 +38,7 @@ public class HiveRegProps extends State {
 
   public static final String HIVE_DB_ROOT_DIR = "hive.db.root.dir";
   public static final String HIVE_REGISTER_THREADS = "hive.register.threads";
-  public static final int DEFAULT_HIVE_REGISTER_THREADS = 5;
+  public static final int DEFAULT_HIVE_REGISTER_THREADS = 20;
   public static final String HIVE_TABLE_PARTITION_PROPS = "hive.table.partition.props";
   public static final String HIVE_STORAGE_PROPS = "hive.storage.props";
   public static final String HIVE_SERDE_PROPS = "hive.serde.props";

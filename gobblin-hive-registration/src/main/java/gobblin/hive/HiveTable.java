@@ -17,8 +17,10 @@ import java.util.List;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.reflect.TypeToken;
 
 import gobblin.annotation.Alpha;
+import gobblin.configuration.State;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -52,13 +54,13 @@ public class HiveTable extends HiveRegistrationUnit {
     this.partitionKeys = ImmutableList.<Column> copyOf(builder.partitionKeys);
   }
 
+  @SuppressWarnings("serial")
   @Override
-  protected void populateTablePartitionFields() {
-    super.populateTablePartitionFields();
-    this.owner = Optional.fromNullable(this.props.getProp(HiveConstants.OWNER));
-    this.tableType = Optional.fromNullable(this.props.getProp(HiveConstants.TABLE_TYPE));
-    this.retention = this.props.contains(HiveConstants.RETENTION)
-        ? Optional.of(this.props.getPropAsLong(HiveConstants.RETENTION)) : Optional.<Long> absent();
+  protected void populateTablePartitionFields(State state) {
+    super.populateTablePartitionFields(state);
+    this.owner = populateField(state, HiveConstants.OWNER, new TypeToken<String>() {});
+    this.tableType = populateField(state, HiveConstants.TABLE_TYPE, new TypeToken<String>() {});
+    this.retention = populateField(state, HiveConstants.RETENTION, new TypeToken<Long>() {});
   }
 
   public void setOwner(String owner) {
@@ -74,8 +76,9 @@ public class HiveTable extends HiveRegistrationUnit {
   }
 
   @Override
-  protected void updateTablePartitionFields(String key, Object value) {
-    super.updateTablePartitionFields(key, value);
+  protected void updateTablePartitionFields(State state, String key, Object value) {
+    super.updateTablePartitionFields(state, key, value);
+    boolean isExistingField = true;
     switch (key) {
       case HiveConstants.OWNER:
         this.owner = Optional.of((String) value);
@@ -86,6 +89,11 @@ public class HiveTable extends HiveRegistrationUnit {
       case HiveConstants.RETENTION:
         this.retention = Optional.of((long) value);
         break;
+      default:
+        isExistingField = false;
+    }
+    if (isExistingField) {
+      state.removeProp(key);
     }
   }
 
