@@ -68,7 +68,6 @@ public class HiveDataset implements CopyableDataset {
   protected static final Splitter splitter = Splitter.on(",").omitEmptyStrings();
   protected static final Joiner joiner = Joiner.on(",").skipNulls();
 
-  protected final List<Path> tableLocations;
   // Only set if table has exactly one location
   protected final Optional<Path> tableRootPath;
 
@@ -81,29 +80,11 @@ public class HiveDataset implements CopyableDataset {
     this.table = table;
     this.properties = properties;
 
-    this.tableLocations = parseLocationIntoPaths(this.table.getDataLocation());
-
-    this.tableRootPath = this.tableLocations.size() == 1 ?
-        Optional.of(PathUtils.deepestNonGlobPath(this.tableLocations.get(0))) : Optional.<Path>absent();
+    this.tableRootPath = PathUtils.isGlob(this.table.getDataLocation()) ? Optional.<Path>absent() :
+        Optional.of(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
     log.info("Created Hive dataset for table " + tableIdentifier);
-  }
-
-  /**
-   * Parse a location string from a {@link StorageDescriptor} into an actual list of globs.
-   */
-  protected static List<Path> parseLocationIntoPaths(Path sdLocation) {
-    List<Path> locations = Lists.newArrayList();
-
-    if (sdLocation == null) {
-      return locations;
-    }
-
-    for (String location : splitter.split(sdLocation.toString())) {
-      locations.add(new Path(location));
-    }
-    return locations;
   }
 
   /**
@@ -120,69 +101,8 @@ public class HiveDataset implements CopyableDataset {
     }
   }
 
-  protected static Map<List<String>, Partition> getPartitions(AutoReturnableObject<IMetaStoreClient> client, Table table)
-      throws IOException {
-    try {
-      Map<List<String>, Partition> partitions = Maps.newHashMap();
-      for (org.apache.hadoop.hive.metastore.api.Partition p : client.get()
-          .listPartitions(table.getDbName(), table.getTableName(), (short) -1)) {
-        Partition partition = new Partition(table, p);
-        partitions.put(partition.getValues(), partition);
-      }
-      return partitions;
-    } catch (TException | HiveException te) {
-      throw new IOException("Hive Error", te);
-    }
-  }
-
-  protected static InputFormat<?, ?> getInputFormat(StorageDescriptor sd) throws IOException {
-    try {
-      InputFormat<?, ?> inputFormat = ConstructorUtils.invokeConstructor(
-          (Class<? extends InputFormat>) Class.forName(sd.getInputFormat()));
-      if (inputFormat instanceof JobConfigurable) {
-        ((JobConfigurable) inputFormat).configure(new JobConf(getHadoopConfiguration()));
-      }
-      return inputFormat;
-    } catch (ReflectiveOperationException re) {
-      throw new IOException("Failed to instantiate input format.", re);
-    }
-  }
-
-  /**
-   * Get paths from a Hive location using the provided input format.
-   */
-  protected static Collection<Path> getPaths(InputFormat<?, ?> inputFormat, String location) throws IOException {
-    JobConf jobConf = new JobConf(getHadoopConfiguration());
-
-    Set<Path> paths = Sets.newHashSet();
-
-    FileInputFormat.addInputPaths(jobConf, location);
-    InputSplit[] splits = inputFormat.getSplits(jobConf, 1000);
-    for (InputSplit split : splits) {
-      if (!(split instanceof FileSplit)) {
-        throw new IOException("Not a file split.");
-      }
-      FileSplit fileSplit = (FileSplit) split;
-      paths.add(fileSplit.getPath());
-    }
-
-    return paths;
-  }
-
-  protected static Configuration getHadoopConfiguration() {
-    Configuration conf = new Configuration();
-    if (System.getenv("HADOOP_TOKEN_FILE_LOCATION") != null) {
-      conf.set("mapreduce.job.credentials.binary", System.getenv("HADOOP_TOKEN_FILE_LOCATION"));
-    }
-    return conf;
-  }
-
-  public static boolean isPartitioned(Table table) {
-    return table.isPartitioned();
-  }
-
   @Override public String datasetURN() {
-    return this.table.getDbName() + "." + this.table.getTableName();
+    return this.table.getCompleteName();
   }
 
 }

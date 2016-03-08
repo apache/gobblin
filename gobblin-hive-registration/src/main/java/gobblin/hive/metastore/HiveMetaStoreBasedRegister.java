@@ -69,10 +69,6 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   private final HiveMetastoreClientPool clientPool;
   private final HiveStripedLocks locks = new HiveStripedLocks();
 
-  public HiveMetaStoreBasedRegister(State state) throws IOException {
-    this(state, Optional.<String>absent());
-  }
-
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
 
@@ -158,7 +154,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
         HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName())) {
       try {
-        client.get().getPartition(table.getTableName(), table.getDbName(), partition.getValues());
+        client.get().getPartition(table.getDbName(), table.getTableName(), partition.getValues());
         return false;
       } catch (NoSuchObjectException e) {
         client.get().alter_partition(table.getDbName(), table.getTableName(),

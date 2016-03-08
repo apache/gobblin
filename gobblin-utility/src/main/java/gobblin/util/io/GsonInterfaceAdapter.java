@@ -39,24 +39,38 @@ import com.google.gson.stream.JsonWriter;
 
 
 /**
- * A {@link Gson} interface adapter that makes it possible to serialize and deserialize an object
- * with an interface or abstract field with {@link Gson}.
+ * A {@link Gson} interface adapter that makes it possible to serialize and deserialize polymorphic objects.
  *
  * <p>
- *    Suppose a class <pre>MyClass</pre> contains an interface field <pre>MyInterface field</pre>. To serialize
- *    and deserialize a <pre>MyClass</pre> object, do the following:
+ *   This adapter will capture all instances of {@link #baseClass} and write them as
+ *   {"object-type":"class.name", "object-data":"data"}, allowing for correct serialization and deserialization of
+ *   polymorphic objects. The following types will not be captured by the adapter (i.e. they will be written by the
+ *   default GSON writer):
+ *   - Primitives and boxed primitives
+ *   - Arrays
+ *   - Collections
+ *   - Maps
+ *   Additionally, generic classes (e.g. class MyClass<T>) cannot be correctly decoded.
+ * </p>
  *
+ * <p>
+ *   To use:
  *    <pre>
  *          {@code
  *            MyClass object = new MyClass();
- *            Gson gson = GsonInterfaceAdapter.getGson(MyInterface.class);
+ *            Gson gson = GsonInterfaceAdapter.getGson(MyBaseClass.class);
  *            String json = gson.toJson(object);
  *            Myclass object2 = gson.fromJson(json, MyClass.class);
  *          }
  *    </pre>
  * </p>
  *
- * @author ziliu
+ * <p>
+ *   Note: a useful case is GsonInterfaceAdapter.getGson(Object.class), which will correctly serialize / deserialize
+ *   all types except for java generics.
+ * </p>
+ *
+ * @author ziliu, ibuenros
  *
  * @param <T> The interface or abstract type to be serialized and deserialized with {@link Gson}.
  */

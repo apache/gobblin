@@ -298,7 +298,18 @@ public abstract class HiveRegister implements Closeable {
    * will be returned. This {@link State} object is also used to instantiate the {@link HiveRegister} object.
    */
   public static HiveRegister get(State props) {
-    return get(props.getProp(HIVE_REGISTER_TYPE, DEFAULT_HIVE_REGISTER_TYPE), props);
+    return get(props, Optional.<String>absent());
+  }
+
+  /**
+   * Get an instance of {@link HiveRegister}.
+   *
+   * @param props A {@link State} object. To get a specific implementation of {@link HiveRegister},
+   * specify property {@link #HIVE_REGISTER_TYPE} as the class name. Otherwise, {@link #DEFAULT_HIVE_REGISTER_TYPE}
+   * will be returned. This {@link State} object is also used to instantiate the {@link HiveRegister} object.
+   */
+  public static HiveRegister get(State props, Optional<String> metastoreURI) {
+    return get(props.getProp(HIVE_REGISTER_TYPE, DEFAULT_HIVE_REGISTER_TYPE), props, metastoreURI);
   }
 
   /**
@@ -307,9 +318,9 @@ public abstract class HiveRegister implements Closeable {
    * @param hiveRegisterType The name of a class that implements {@link HiveRegister}.
    * @param props A {@link State} object used to instantiate the {@link HiveRegister} object.
    */
-  public static HiveRegister get(String hiveRegisterType, State props) {
+  public static HiveRegister get(String hiveRegisterType, State props, Optional<String> metastoreURI) {
     try {
-      return (HiveRegister) ConstructorUtils.invokeConstructor(Class.forName(hiveRegisterType), props);
+      return (HiveRegister) ConstructorUtils.invokeConstructor(Class.forName(hiveRegisterType), props, metastoreURI);
     } catch (ReflectiveOperationException e) {
       throw Throwables.propagate(e);
     }

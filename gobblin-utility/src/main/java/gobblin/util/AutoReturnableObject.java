@@ -12,6 +12,9 @@
 
 package gobblin.util;
 
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.Closeable;
 import java.io.IOException;
 
 import org.apache.commons.pool2.impl.GenericObjectPool;
@@ -20,7 +23,8 @@ import org.apache.commons.pool2.impl.GenericObjectPool;
 /**
  * Borrow an object from a {@link GenericObjectPool} and returns it automatically on close. Useful for try with resource.
  */
-public class AutoReturnableObject<T> implements AutoCloseable {
+@Slf4j
+public class AutoReturnableObject<T> implements Closeable {
 
   private final T object;
   private final GenericObjectPool<T> pool;

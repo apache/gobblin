@@ -23,7 +23,7 @@ import com.google.common.base.Strings;
 
 public class PathUtils {
 
-  public static final Pattern GLOB_TOKENS = Pattern.compile("[\\?\\*\\[\\{]");
+  public static final Pattern GLOB_TOKENS = Pattern.compile("[,\\?\\*\\[\\{]");
 
   public static Path mergePaths(Path path1, Path path2) {
     String path2Str = path2.toUri().getPath();
@@ -69,10 +69,17 @@ public class PathUtils {
   public static Path deepestNonGlobPath(Path input) {
     Path commonRoot = input;
 
-    while(commonRoot != null && GLOB_TOKENS.matcher(commonRoot.toString()).find()) {
+    while(commonRoot != null && isGlob(commonRoot)) {
       commonRoot = commonRoot.getParent();
     }
     return commonRoot;
+  }
+
+  /**
+   * @return true if path has glob tokens (e.g. *, {, \, }, etc.)
+   */
+  public static boolean isGlob(Path path) {
+    return GLOB_TOKENS.matcher(path.toString()).find();
   }
 
   /**

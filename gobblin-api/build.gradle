@@ -19,6 +19,7 @@ dependencies {
     compile externalDependency.slf4j
     compile externalDependency.commonsCli
     compile externalDependency.lombok
+    compile externalDependency.commonsIo
 
     testCompile externalDependency.testng
     testCompile externalDependency.log4j

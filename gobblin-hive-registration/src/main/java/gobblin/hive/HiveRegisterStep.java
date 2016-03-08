@@ -44,7 +44,7 @@ public class HiveRegisterStep implements CommitStep {
   }
 
   @Override public void execute() throws IOException {
-    HiveRegister hiveRegister = new HiveMetaStoreBasedRegister(this.props, this.metastoreURI);
+    HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI);
     log.info("Registering Hive Spec " + this.hiveSpec);
     ListenableFuture<Void> future = hiveRegister.register(this.hiveSpec);
     try {

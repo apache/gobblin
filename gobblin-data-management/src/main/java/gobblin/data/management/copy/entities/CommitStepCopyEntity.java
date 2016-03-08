@@ -27,6 +27,7 @@ public class CommitStepCopyEntity extends CopyEntity {
 
   @Getter
   private final CommitStep step;
+  /** A priority value that can be used for sorting {@link CommitStepCopyEntity}s. Lower values are higher priority.*/
   @Getter
   private final int priority;
 

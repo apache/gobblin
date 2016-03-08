@@ -32,7 +32,7 @@ import gobblin.data.management.trash.TrashFactory;
 
 
 /**
- * {@link CommitStep} to delete a set of paths in HDFS.
+ * {@link CommitStep} to delete a set of paths in a {@link FileSystem}.
  */
 public class DeleteFileCommitStep implements CommitStep {
 
