@@ -76,7 +76,7 @@ public class JdbcProvider extends BasicDataSource {
     this.setUrl(connectionUrl);
     this.setInitialSize(0);
     this.setMaxIdle(numconn);
-    this.setMaxActive(timeout);
+    this.setMaxWait(timeout);
   }
 
   @Override
