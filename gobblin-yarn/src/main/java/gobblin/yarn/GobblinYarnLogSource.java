@@ -14,6 +14,7 @@ package gobblin.yarn;
 
 import java.io.IOException;
 
+import com.typesafe.config.Config;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -49,22 +50,26 @@ class GobblinYarnLogSource {
   /**
    * Build a {@link LogCopier} instance used to copy the logs out from this {@link GobblinYarnLogSource}.
    *
+   * @param config the {@link Config} use to create the {@link LogCopier}
    * @param containerId the {@link ContainerId} of the container the {@link LogCopier} runs in
    * @param destFs the destination {@link FileSystem}
    * @param appWorkDir the Gobblin Yarn application working directory on HDFS
    * @return a {@link LogCopier} instance
    * @throws IOException if it fails on any IO operation
    */
-  protected LogCopier buildLogCopier(ContainerId containerId, FileSystem destFs, Path appWorkDir)
+  protected LogCopier buildLogCopier(Config config, ContainerId containerId, FileSystem destFs, Path appWorkDir)
       throws IOException {
-    return LogCopier.newBuilder()
-        .useSrcFileSystem(FileSystem.getLocal(new Configuration()))
-        .useDestFileSystem(destFs)
-        .readFrom(getLocalLogDir())
-        .writeTo(getHdfsLogDir(containerId, destFs, appWorkDir))
-        .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR))
-        .useLogFileNamePrefix(containerId.toString())
-        .build();
+    LogCopier.Builder builder = LogCopier.newBuilder()
+            .useSrcFileSystem(FileSystem.getLocal(new Configuration()))
+            .useDestFileSystem(destFs)
+            .readFrom(getLocalLogDir())
+            .writeTo(getHdfsLogDir(containerId, destFs, appWorkDir))
+            .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR))
+            .useLogFileNamePrefix(containerId.toString());
+    if (config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_SCHEDULER)) {
+      builder.useScheduler(config.getString(GobblinYarnConfigurationKeys.LOG_COPIER_SCHEDULER));
+    }
+    return builder.build();
   }
 
   private Path getLocalLogDir() throws IOException {

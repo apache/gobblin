@@ -19,6 +19,7 @@ dependencies {
   compile externalDependency.commonsDbcp
   compile externalDependency.commonsEmail
   compile externalDependency.commonsIo
+  compile externalDependency.commonsLang
   compile externalDependency.guava
   compile externalDependency.slf4j
   compile externalDependency.avro

@@ -166,7 +166,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
     List<Service> services = Lists.newArrayList();
     if (isLogSourcePresent()) {
-      services.add(buildLogCopier(this.containerId, fs, appWorkDir));
+      services.add(buildLogCopier(config, this.containerId, fs, appWorkDir));
     }
     services.add(taskExecutor);
     services.add(taskStateTracker);
