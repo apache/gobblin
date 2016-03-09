@@ -12,8 +12,16 @@
 
 package gobblin.runtime.app;
 
+import gobblin.annotation.Alpha;
+
+
 /**
  * An {@link Exception} thrown by an {@link ApplicationLauncher}.
  */
+@Alpha
 public class ApplicationException extends Exception {
+
+  public ApplicationException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

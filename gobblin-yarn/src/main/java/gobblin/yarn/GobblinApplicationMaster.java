@@ -67,8 +67,9 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.Tag;
-import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.runtime.app.ApplicationException;
+import gobblin.runtime.app.ApplicationLauncher;
+import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.util.ConfigUtils;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
@@ -98,7 +99,7 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *
  * @author Yinan Li
  */
-public class GobblinApplicationMaster extends ServiceBasedAppLauncher {
+public class GobblinApplicationMaster implements ApplicationLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinApplicationMaster.class);
 
@@ -107,11 +108,20 @@ public class GobblinApplicationMaster extends ServiceBasedAppLauncher {
 
   private final HelixManager helixManager;
 
+  private final ServiceBasedAppLauncher applicationLauncher;
+
   private volatile boolean stopInProgress = false;
 
   public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
-    super(ConfigUtils.configToProperties(config), applicationName);
+
+    // Done to preserve backwards compatibility with the previously hard-coded timeout of 5 minutes
+    Properties properties = ConfigUtils.configToProperties(config);
+    if (!properties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
+      properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
+    }
+
+    this.applicationLauncher = new ServiceBasedAppLauncher(properties, applicationName);
 
     String applicationId = containerId.getApplicationAttemptId().getApplicationId().toString();
 
@@ -126,16 +136,18 @@ public class GobblinApplicationMaster extends ServiceBasedAppLauncher {
 
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {
-      addService(gobblinYarnLogSource.buildLogCopier(config, containerId, fs, appWorkDir));
+      this.applicationLauncher.addService(gobblinYarnLogSource.buildLogCopier(config, containerId, fs, appWorkDir));
     }
 
-    addService(buildYarnService(config, applicationName, applicationId, yarnConfiguration, fs));
-    addService(buildGobblinHelixJobScheduler(config, appWorkDir, getMetadataTags(applicationName, applicationId)));
-    addService(buildJobConfigurationManager(config));
+    this.applicationLauncher
+        .addService(buildYarnService(config, applicationName, applicationId, yarnConfiguration, fs));
+    this.applicationLauncher
+        .addService(buildGobblinHelixJobScheduler(config, appWorkDir, getMetadataTags(applicationName, applicationId)));
+    this.applicationLauncher.addService(buildJobConfigurationManager(config));
 
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      addService(buildYarnContainerSecurityManager(config, fs));
+      this.applicationLauncher.addService(buildYarnContainerSecurityManager(config, fs));
     }
   }
 
@@ -148,7 +160,7 @@ public class GobblinApplicationMaster extends ServiceBasedAppLauncher {
 
     this.eventBus.register(this);
     connectHelixManager();
-    super.start();
+    this.applicationLauncher.start();
   }
 
   /**
@@ -167,7 +179,7 @@ public class GobblinApplicationMaster extends ServiceBasedAppLauncher {
     // Send a shutdown request to the containers as a second guard in case Yarn could not stop the containers
     sendShutdownRequest();
     try {
-      super.stop();
+      this.applicationLauncher.stop();
     } catch (ApplicationException ae) {
       LOGGER.error("Error while stopping ApplicationMaster", ae);
     } finally {
@@ -189,9 +201,8 @@ public class GobblinApplicationMaster extends ServiceBasedAppLauncher {
    */
   private HelixManager buildHelixManager(Config config, String zkConnectionString) {
     String helixInstanceName = GobblinApplicationMaster.class.getSimpleName();
-    return HelixManagerFactory.getZKHelixManager(
-        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
-        InstanceType.CONTROLLER, zkConnectionString);
+    return HelixManagerFactory.getZKHelixManager(config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
+        helixInstanceName, InstanceType.CONTROLLER, zkConnectionString);
   }
 
   /**
@@ -299,6 +310,11 @@ public class GobblinApplicationMaster extends ServiceBasedAppLauncher {
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the participants", shutdownRequest.getMsgSubType()));
     }
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.applicationLauncher.close();
   }
 
   /**
@@ -483,10 +499,13 @@ public class GobblinApplicationMaster extends ServiceBasedAppLauncher {
 
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
-      GobblinApplicationMaster applicationMaster =
-          new GobblinApplicationMaster(cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME),
-              containerId, ConfigFactory.load(), new YarnConfiguration());
-      applicationMaster.start();
+
+      try (GobblinApplicationMaster applicationMaster = new GobblinApplicationMaster(
+          cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME), containerId,
+          ConfigFactory.load(), new YarnConfiguration())) {
+
+        applicationMaster.start();
+      }
     } catch (ParseException pe) {
       printUsage(options);
       System.exit(1);

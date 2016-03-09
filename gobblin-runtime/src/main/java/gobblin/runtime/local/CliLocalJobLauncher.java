@@ -18,10 +18,10 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
-import com.google.common.io.Closer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.io.Closer;
 
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
@@ -92,6 +92,6 @@ public class CliLocalJobLauncher implements ApplicationLauncher, JobLauncher {
 
   @Override
   public void close() throws IOException {
-    this.close();
+    this.closer.close();
   }
 }

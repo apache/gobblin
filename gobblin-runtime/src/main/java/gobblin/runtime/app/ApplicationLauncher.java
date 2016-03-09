@@ -14,6 +14,7 @@ package gobblin.runtime.app;
 
 import java.io.Closeable;
 
+import gobblin.annotation.Alpha;
 import gobblin.runtime.JobLauncher;
 
 
@@ -26,6 +27,7 @@ import gobblin.runtime.JobLauncher;
  *   An application can be started via the {@link #start()} method and then stopped via the {@link #stop()} method.
  * </p>
  */
+@Alpha
 public interface ApplicationLauncher extends Closeable {
 
   /**

@@ -18,13 +18,13 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
-import com.google.common.io.Closer;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+
+import com.google.common.io.Closer;
 
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;

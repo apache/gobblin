@@ -332,7 +332,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
 
-<<<<<<< HEAD
       notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_COMPLETE,
               new JobListenerAction() {
                 @Override
@@ -340,12 +339,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                   jobListener.onJobCompletion(jobContext);
                 }
               });
-=======
-    // Stop metrics reporting
-    if (this.jobContext.getJobMetricsOptional().isPresent()) {
-      JobMetrics.remove(jobState);
-    }
->>>>>>> (#792, #802) Adding ApplicationLauncher to manage app services, including GobblinMetrics lifecyle
 
       if (jobState.getState() == JobState.RunningState.FAILED) {
         notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_FAILED,
@@ -360,7 +353,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     } finally {
       // Stop metrics reporting
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
-        this.jobContext.getJobMetricsOptional().get().stopMetricsReporting();
         JobMetrics.remove(jobState);
       }
     }
