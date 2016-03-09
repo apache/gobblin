@@ -14,7 +14,7 @@ package gobblin.util.concurrent;
 
 import org.apache.commons.lang.StringUtils;
 import org.hamcrest.Matchers;
-import org.junit.Assert;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
