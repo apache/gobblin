@@ -11,25 +11,25 @@
  */
 package gobblin.data.management.retention.version.finder;
 
-import java.io.IOException;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.joda.time.DateTime;
 
-import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import gobblin.data.management.retention.version.DatasetVersion;
+
 
 /**
- * Finds {@link DatasetVersion}s using a glob pattern. Uses Modification time as the version.
+ * @deprecated
+ * See javadoc for {@link gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder}.
  */
+@Deprecated
 public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
-  private final Path globPattern;
-
+  private final gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder realVersionFinder;
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern) {
     super(fs);
-    this.globPattern = globPattern;
+    this.realVersionFinder =
+        new gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder(fs, globPattern);
   }
 
   @Override
@@ -39,15 +39,11 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
 
   @Override
   public Path globVersionPattern() {
-    return this.globPattern;
+    return this.globVersionPattern();
   }
 
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    try {
-      return new TimestampedDatasetVersion(new DateTime(fs.getFileStatus(fullPath).getModificationTime()), fullPath);
-    } catch (IOException e) {
-      return null;
-    }
+    return new TimestampedDatasetVersion(this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath));
   }
 }
