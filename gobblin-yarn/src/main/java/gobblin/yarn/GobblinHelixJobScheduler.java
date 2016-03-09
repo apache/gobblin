@@ -51,14 +51,12 @@ public class GobblinHelixJobScheduler extends JobScheduler {
   static final String HELIX_MANAGER_KEY = "helixManager";
   static final String APPLICATION_WORK_DIR_KEY = "applicationWorkDir";
   static final String METADATA_TAGS = "metadataTags";
-  static final String FILE_SYSTEM = "fileSystem";
 
   private final Properties properties;
   private final HelixManager helixManager;
   private final EventBus eventBus;
   private final Path appWorkDir;
   private final List<? extends Tag<?>> metadataTags;
-  private final FileSystem fs;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
       Path appWorkDir, List<? extends Tag<?>> metadataTags) throws Exception {
@@ -69,9 +67,6 @@ public class GobblinHelixJobScheduler extends JobScheduler {
 
     this.appWorkDir = appWorkDir;
     this.metadataTags = metadataTags;
-
-    URI fsUri = URI.create(properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
-    this.fs = FileSystem.get(fsUri, new Configuration());
   }
 
   @Override
@@ -86,7 +81,6 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     additionalJobDataMap.put(HELIX_MANAGER_KEY, this.helixManager);
     additionalJobDataMap.put(APPLICATION_WORK_DIR_KEY, this.appWorkDir);
     additionalJobDataMap.put(METADATA_TAGS, this.metadataTags);
-    additionalJobDataMap.put(FILE_SYSTEM, this.fs);
 
     try {
       scheduleJob(jobProps, jobListener, additionalJobDataMap, GobblinHelixJob.class);
@@ -107,7 +101,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
 
   private GobblinHelixJobLauncher buildGobblinHelixJobLauncher(Properties jobProps)
       throws Exception {
-    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.fs, this.appWorkDir, this.metadataTags);
+    return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.metadataTags);
   }
 
   @SuppressWarnings("unused")

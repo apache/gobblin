@@ -10,9 +10,10 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin.runtime.locks;
 
-import java.io.IOException;
+import java.io.Closeable;
+import java.util.Properties;
 
 
 /**
@@ -27,40 +28,53 @@ import java.io.IOException;
  *
  * @author Yinan Li
  */
-public interface JobLock {
+public abstract class JobLock implements Closeable {
+  public JobLock() {
+  }
+
+  /**
+   * Initializes the lock.
+   *
+   * @param properties  the job properties
+   * @param jobLockEventListener the listener for lock events
+   * @throws JobLockException thrown if the {@link JobLock} fails to initialize
+   */
+  public abstract void initialize(Properties properties, JobLockEventListener jobLockEventListener)
+      throws JobLockException;
 
   /**
    * Acquire the lock.
    *
-   * @throws IOException
+   * @throws JobLockException thrown if the {@link JobLock} fails to be acquired
    */
-  public void lock()
-      throws IOException;
+  public abstract void lock()
+      throws JobLockException;
 
   /**
    * Release the lock.
    *
-   * @throws IOException
+   * @throws JobLockException thrown if the {@link JobLock} fails to be released
    */
-  public void unlock()
-      throws IOException;
+  public abstract void unlock()
+      throws JobLockException;
 
   /**
    * Try locking the lock.
    *
    * @return <em>true</em> if the lock is successfully locked,
    *         <em>false</em> if otherwise.
-   * @throws IOException
+   * @throws JobLockException thrown if the {@link JobLock} fails to be acquired
    */
-  public boolean tryLock()
-      throws IOException;
+  public abstract boolean tryLock()
+      throws JobLockException;
 
   /**
    * Check if the lock is locked.
    *
    * @return if the lock is locked
-   * @throws IOException
+   * @throws JobLockException thrown if checking the status of the {@link JobLock} fails
    */
-  public boolean isLocked()
-      throws IOException;
+  public abstract boolean isLocked()
+      throws JobLockException;
+
 }

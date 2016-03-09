@@ -174,14 +174,20 @@ In additional to the common Gobblin configuration properties, documented in [`Co
 |`gobblin.yarn.lib.jars.dir`||The directory where library jars are stored, typically `gobblin-dist/lib`.|
 |`gobblin.yarn.job.conf.path`||The path to either a directory where Gobblin job configuration files are stored or a single job configuration file. Internally Gobblin Yarn will package the configuration files as a tarball so you don't need to.|
 |`gobblin.yarn.logs.sink.root.dir`||The directory on local filesystem on the driver/client side where the aggregated container logs of both the ApplicationMaster and WorkUnitRunner are stored.|
+|`gobblin.yarn.log.copier.max.file.size`|Unbounded|The maximum bytes per log file.  When this is exceeded a new log file will be created.|
+|`gobblin.yarn.log.copier.scheduler`|`ScheduledExecutorService`|The scheduler to use to copy the log files. Possible values: `ScheduledExecutorService`, `HashedWheelTimer`.  The `HashedWheelTimer` scheduler is experimental but is expected to become the default after a sufficient burn in period. 
 |`gobblin.yarn.keytab.file.path`||The path to the Kerberos keytab file used for keytab-based authentication/login.|
 |`gobblin.yarn.keytab.principal.name`||The principal name of the keytab.|
 |`gobblin.yarn.login.interval.minutes`|1440|The interval in minutes between two keytab logins.|
 |`gobblin.yarn.token.renew.interval.minutes`|720|The interval in minutes between two delegation token renews.|
 
+## Job Lock
+It is recommended to use zookeeper for maintaining job locks.  See [ZookeeperBasedJobLock Properties](Configuration-Properties-Glossary#ZookeeperBasedJobLock-Properties) for the relevant configuration properties.
+
 ## Configuration System
 
 The Gobblin Yarn application uses the [Typesafe Config](https://github.com/typesafehub/config) library to handle the application configuration. Following [Typesafe Config](https://github.com/typesafehub/config)'s model, the Gobblin Yarn application uses a single file named `application.conf` for all configuration properties and another file named `reference.conf` for default values. A sample `application.conf` is shown below: 
+
 ```
 # Yarn/Helix configuration properties
 gobblin.yarn.helix.cluster.name=GobblinYarnTest
@@ -217,8 +223,9 @@ state.store.dir=${gobblin.yarn.work.dir}/state-store
 # Directory where error files from the quality checkers are stored
 qualitychecker.row.err.file=${gobblin.yarn.work.dir}/err
 
-# Disable job locking for now
-job.lock.enabled=false
+# Use zookeeper for maintaining the job lock
+job.lock.enabled=true
+job.lock.type=gobblin.runtime.locks.ZookeeperBasedJobLock
 
 # Directory where job locks are stored
 job.lock.dir=${gobblin.yarn.work.dir}/locks
@@ -247,9 +254,10 @@ gobblin.yarn.helix.instance.max.retries=2
 gobblin.yarn.keytab.login.interval.minutes=1440
 gobblin.yarn.token.renew.interval.minutes=720
 gobblin.yarn.work.dir=/user/gobblin/gobblin-yarn
-gobblin.yarn.zk.connection.string="localhost:2181"
+gobblin.yarn.zk.connection.string=${zookeeper.connection.string}
 
 fs.uri="hdfs://localhost:9000"
+zookeeper.connection.string="localhost:2181"
 ```
 # Deployment
 

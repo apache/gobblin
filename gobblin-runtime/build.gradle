@@ -46,6 +46,9 @@ dependencies {
   compile externalDependency.guice
   compile externalDependency.javaxInject
   compile externalDependency.lombok
+  compile externalDependency.curatorFramework
+  compile externalDependency.curatorClient
+  compile externalDependency.curatorRecipes
   if (useHadoop2) {
     compile externalDependency.avroMapredH2
   } else {
@@ -59,6 +62,8 @@ dependencies {
   testCompile externalDependency.testng
   testCompile externalDependency.byteman
   testCompile externalDependency.bytemanBmunit
+  testCompile externalDependency.curatorClient
+  testCompile externalDependency.curatorTest
   testRuntime externalDependency.derby
 }
 

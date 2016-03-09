@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Properties;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSortedSet;
@@ -489,6 +490,14 @@ public class HadoopUtils {
       conf.set(propName, state.getProp(propName));
     }
     return conf;
+  }
+
+  public static Configuration getConfFromProperties(Properties properties) {
+      Configuration conf = newConfiguration();
+      for (String propName : properties.stringPropertyNames()) {
+          conf.set(propName, properties.getProperty(propName));
+      }
+      return conf;
   }
 
   public static State getStateFromConf(Configuration conf) {
