@@ -208,6 +208,8 @@ public class ConfigurationKeys {
   public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
+  public static final String WRITER_STAGING_TABLE = WRITER_PREFIX + ".staging.table";
+  public static final String WRITER_IS_STAGING_TABLE_CREATED = WRITER_PREFIX + ".staging.table.is.created";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
@@ -285,6 +287,15 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";
   public static final String PUBLISH_DATA_AT_JOB_LEVEL = "publish.data.at.job.level";
   public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
+
+  public static final String JDBC_PUBLISHER_PREFIX = "jdbc.publisher.";
+  public static final String JDBC_PUBLISHER_FINAL_TABLE_NAME = JDBC_PUBLISHER_PREFIX + "table.name";
+  public static final String JDBC_PUBLISHER_REPLACE_FINAL_TABLE = JDBC_PUBLISHER_PREFIX + "replace.table";
+  public static final String JDBC_PUBLISHER_USERNAME = JDBC_PUBLISHER_PREFIX + "username";
+  public static final String JDBC_PUBLISHER_PASSWORD = JDBC_PUBLISHER_PREFIX + "password";
+  public static final String JDBC_PUBLISHER_URL = JDBC_PUBLISHER_PREFIX + "url";
+  public static final String JDBC_PUBLISHER_TIMEOUT = JDBC_PUBLISHER_PREFIX + "timeout";
+  public static final String JDBC_PUBLISHER_DRIVER = JDBC_PUBLISHER_PREFIX + "driver";
 
   /**
    * Configuration properties used by the extractor.

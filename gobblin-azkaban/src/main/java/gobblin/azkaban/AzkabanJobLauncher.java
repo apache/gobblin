@@ -103,6 +103,7 @@ public class AzkabanJobLauncher extends AbstractJob {
           JobLauncherFactory.JobLauncherType.MAPREDUCE.toString());
     }
 
+    LOG.info("Properties: " + this.props);
     // Create a JobLauncher instance depending on the configuration. The same properties object is
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.
@@ -110,14 +111,21 @@ public class AzkabanJobLauncher extends AbstractJob {
   }
 
   @Override
-  public void run()
-      throws Exception {
+  public void run() throws Exception {
     try {
-      if (isCurrentTimeInRange()) {
-        this.jobLauncher.launchJob(this.jobListener);
+      try {
+        LOG.info("Launching Azkaban job");
+        if (isCurrentTimeInRange()) {
+          this.jobLauncher.launchJob(this.jobListener);
+        }
+        LOG.info("Completed launching Azkaban job");
+      } finally {
+        LOG.info("Closing launcher resources.");
+        this.closer.close();
       }
-    } finally {
-      this.closer.close();
+    } catch (Exception e) {
+      LOG.error("Azkaban Job failed: ", e);
+      throw e;
     }
   }
 
