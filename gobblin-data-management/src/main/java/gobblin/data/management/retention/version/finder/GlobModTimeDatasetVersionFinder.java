@@ -39,7 +39,7 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
 
   @Override
   public Path globVersionPattern() {
-    return this.globVersionPattern();
+    return this.realVersionFinder.globVersionPattern();
   }
 
   @Override

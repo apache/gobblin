@@ -18,7 +18,6 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 
-import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.dataset.Dataset;
@@ -32,7 +31,6 @@ import gobblin.dataset.Dataset;
 public class FileLevelTimestampVersionFinder implements VersionFinder<TimestampedDatasetVersion> {
 
   private final gobblin.data.management.version.finder.FileLevelTimestampVersionFinder realVersionFinder;
-  CleanableDataset cd;
   public FileLevelTimestampVersionFinder(FileSystem fs, Properties props) {
     this.realVersionFinder =
         new gobblin.data.management.version.finder.FileLevelTimestampVersionFinder(fs,props);
