@@ -33,10 +33,9 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
 import org.apache.thrift.TException;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import gobblin.util.AutoReturnableObject;
 
 
 /**
@@ -47,13 +46,14 @@ public class HiveUtils {
   /**
    * @return a map of values to {@link Partition} for input {@link Table}.
    */
-  public static Map<List<String>, Partition> getPartitionsMap(IMetaStoreClient client,
-      Table table)
-      throws IOException {
+  public static Map<List<String>, Partition> getPartitionsMap(IMetaStoreClient client, Table table,
+      Optional<String> filter) throws IOException {
     try {
       Map<List<String>, Partition> partitions = Maps.newHashMap();
-      for (org.apache.hadoop.hive.metastore.api.Partition p : client
-          .listPartitions(table.getDbName(), table.getTableName(), (short) -1)) {
+      List<org.apache.hadoop.hive.metastore.api.Partition> partitionsList = filter.isPresent() ?
+          client.listPartitionsByFilter(table.getDbName(), table.getTableName(), filter.get(), (short) -1) :
+          client.listPartitions(table.getDbName(), table.getTableName(), (short) -1);
+      for (org.apache.hadoop.hive.metastore.api.Partition p : partitionsList) {
         Partition partition = new Partition(table, p);
         partitions.put(partition.getValues(), partition);
       }

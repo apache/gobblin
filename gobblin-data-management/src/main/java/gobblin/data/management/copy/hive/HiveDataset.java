@@ -65,8 +65,6 @@ public class HiveDataset implements CopyableDataset {
   protected final FileSystem fs;
   protected final HiveMetastoreClientPool clientPool;
   protected final Table table;
-  protected static final Splitter splitter = Splitter.on(",").omitEmptyStrings();
-  protected static final Joiner joiner = Joiner.on(",").skipNulls();
 
   // Only set if table has exactly one location
   protected final Optional<Path> tableRootPath;
