@@ -16,6 +16,8 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
   compile project(":gobblin-core")
+  compile internalDependency."gobblin-hadoop"
+
   compile externalDependency.calciteCore
   compile externalDependency.calciteAvatica
   compile externalDependency.jhyde

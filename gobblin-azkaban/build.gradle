@@ -19,6 +19,7 @@ dependencies {
   compile project(":gobblin-core")
   compile project(":gobblin-metrics")
   compile project(":gobblin-utility")
+  compile internalDependency."gobblin-hadoop"
   if (useHadoop2) {
     compile project(":gobblin-yarn")
   }

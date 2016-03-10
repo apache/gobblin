@@ -108,6 +108,18 @@ ext.avroVersion = '1.7.7'
 ext.dropwizardMetricsVersion = '3.1.0'
 ext.findBugsVersion = '3.0.0'
 
+if (useHadoop2) {
+  println "Using Hadoop 2 adaptor."
+  ext.gobblinHadoop = ":gobblin-hadoop2"
+} else {
+  println "Using Hadoop 1 adaptor."
+  ext.gobblinHadoop = ":gobblin-hadoop1"
+}
+
+ext.internalDependency = [
+  "gobblin-hadoop": project(ext.gobblinHadoop)
+]
+
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
   "avro": "org.apache.avro:avro:" + avroVersion,

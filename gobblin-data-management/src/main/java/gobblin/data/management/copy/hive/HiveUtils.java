@@ -44,6 +44,10 @@ import com.google.common.collect.Sets;
 public class HiveUtils {
 
   /**
+   * @param client an {@link IMetaStoreClient} for the correct metastore.
+   * @param table the {@link Table} for which we should get partitions.
+   * @param filter an optional filter for partitions as would be used in Hive. Can only filter on String columns.
+   *               (e.g. "part = \"part1\"" or "date > \"2015\"".
    * @return a map of values to {@link Partition} for input {@link Table}.
    */
   public static Map<List<String>, Partition> getPartitionsMap(IMetaStoreClient client, Table table,

@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.yarn.token;
+package gobblin.hadoop.token;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -22,7 +22,6 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
@@ -43,7 +42,9 @@ import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.log4j.Logger;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import gobblin.configuration.State;
 
@@ -61,11 +62,11 @@ public class TokenUtils {
 
   private static final Logger LOG = Logger.getLogger(TokenUtils.class);
 
-  private static final String USER_TO_PROXY = "user.to.proxy";
-  private static final String OTHER_NAMENODES = "other.namenodes";
+  private static final String USER_TO_PROXY = "tokens.user.to.proxy";
   private static final String KEYTAB_USER = "keytab.user";
   private static final String KEYTAB_LOCATION = "keytab.location";
   private static final String HADOOP_SECURITY_AUTHENTICATION = "hadoop.security.authentication";
+  private static final String OTHER_NAMENODES = "other_namenodes";
   private static final String KERBEROS = "kerberos";
   private static final String YARN_RESOURCEMANAGER_PRINCIPAL = "yarn.resourcemanager.principal";
   private static final String YARN_RESOURCEMANAGER_ADDRESS = "yarn.resourcemanager.address";
@@ -73,32 +74,40 @@ public class TokenUtils {
   private static final String MAPREDUCE_JOBTRACKER_ADDRESS = "mapreduce.jobtracker.address";
 
   /**
-   * Get Hadoop tokens (tokens for job history server, job tracker and HDFS).
+   * Get Hadoop tokens (tokens for job history server, job tracker and HDFS) using Kerberos keytab.
    *
    * @param state A {@link State} object that should contain property {@link #USER_TO_PROXY},
    * {@link #KEYTAB_USER} and {@link #KEYTAB_LOCATION}. To obtain tokens for
    * other namenodes, use property {@link #OTHER_NAMENODES} with comma separated HDFS URIs.
+   * @return A {@link File} containing the negotiated credentials.
    */
-  public static void getHadoopTokens(final State state) throws IOException, InterruptedException {
+  public static File getHadoopTokens(final State state) throws IOException, InterruptedException {
 
-    Preconditions.checkArgument(state.contains(USER_TO_PROXY), "Missing required property " + USER_TO_PROXY);
     Preconditions.checkArgument(state.contains(KEYTAB_USER), "Missing required property " + KEYTAB_USER);
     Preconditions.checkArgument(state.contains(KEYTAB_LOCATION), "Missing required property " + KEYTAB_LOCATION);
 
+    Configuration configuration = new Configuration();
+    configuration.set(HADOOP_SECURITY_AUTHENTICATION, KERBEROS);
+    UserGroupInformation.setConfiguration(configuration);
     UserGroupInformation.loginUserFromKeytab(state.getProp(KEYTAB_USER), state.getProp(KEYTAB_LOCATION));
 
-    final String userToProxy = state.getProp(USER_TO_PROXY);
+    final Optional<String> userToProxy = Strings.isNullOrEmpty(state.getProp(USER_TO_PROXY)) ?
+        Optional.<String>absent() : Optional.fromNullable(state.getProp(USER_TO_PROXY));
     final Configuration conf = new Configuration();
     final Credentials cred = new Credentials();
 
     LOG.info("Getting tokens for " + userToProxy);
 
-    getJhToken(conf, userToProxy, cred);
+    getJhToken(conf, cred);
     getFsAndJtTokens(state, conf, userToProxy, cred);
-    persisteTokens(cred);
+
+    File tokenFile = File.createTempFile("mr-azkaban", ".token");
+    persistTokens(cred, tokenFile);
+
+    return tokenFile;
   }
 
-  private static void getJhToken(Configuration conf, String userToProxy, Credentials cred) throws IOException {
+  private static void getJhToken(Configuration conf, Credentials cred) throws IOException {
     YarnRPC rpc = YarnRPC.create(conf);
     final String serviceAddr = conf.get(JHAdminConfig.MR_HISTORY_ADDRESS);
 
@@ -110,14 +119,13 @@ public class TokenUtils {
     Token<?> jhToken = null;
     try {
       jhToken = getDelegationTokenFromHS(hsProxy, conf);
-    } catch (Exception e) {
-      LOG.error("Failed to fetch JH token", e);
-      throw new IOException("Failed to fetch JH token for " + userToProxy);
+    } catch (Exception exc) {
+      throw new IOException("Failed to fetch JH token.", exc);
     }
 
     if (jhToken == null) {
       LOG.error("getDelegationTokenFromHS() returned null");
-      throw new IOException("Unable to fetch JH token for " + userToProxy);
+      throw new IOException("Unable to fetch JH token.");
     }
 
     LOG.info("Created JH token: " + jhToken.toString());
@@ -128,35 +136,38 @@ public class TokenUtils {
     cred.addToken(jhToken.getService(), jhToken);
   }
 
-  private static void getFsAndJtTokens(final State state, final Configuration conf, final String userToProxy,
+  private static void getFsAndJtTokens(final State state, final Configuration conf, final Optional<String> userToProxy,
       final Credentials cred) throws IOException, InterruptedException {
-    UserGroupInformation.createProxyUser(userToProxy, UserGroupInformation.getLoginUser())
-        .doAs(new PrivilegedExceptionAction<Void>() {
-          @Override
-          public Void run() throws Exception {
-            getToken(userToProxy);
-            return null;
-          }
 
-          private void getToken(String userToProxy) throws InterruptedException, IOException {
-
-            getHdfsToken(conf, userToProxy, cred);
-            if (state.contains(OTHER_NAMENODES)) {
-              getOtherNamenodesToken(state.getPropAsList(OTHER_NAMENODES), conf, userToProxy, cred);
+    if (userToProxy.isPresent()) {
+      UserGroupInformation.createProxyUser(userToProxy.get(), UserGroupInformation.getLoginUser())
+          .doAs(new PrivilegedExceptionAction<Void>() {
+            @Override public Void run() throws Exception {
+              getFsAndJtTokensImpl(state, conf, cred);
+              return null;
             }
-            getJtToken(userToProxy, cred);
-
-          }
-        });
+          });
+    } else {
+      getFsAndJtTokensImpl(state, conf, cred);
+    }
   }
 
-  private static void getHdfsToken(Configuration conf, String userToProxy, Credentials cred) throws IOException {
+  private static void getFsAndJtTokensImpl(final State state, final Configuration conf, final Credentials cred)
+      throws IOException {
+    getHdfsToken(conf, cred);
+    if (state.contains(OTHER_NAMENODES)) {
+      getOtherNamenodesToken(state.getPropAsList(OTHER_NAMENODES), conf, cred);
+    }
+    getJtToken(cred);
+  }
+
+  private static void getHdfsToken(Configuration conf, Credentials cred) throws IOException {
     FileSystem fs = FileSystem.get(conf);
     LOG.info("Getting DFS token from " + fs.getUri());
     Token<?> fsToken = fs.getDelegationToken(getMRTokenRenewerInternal(new JobConf()).toString());
     if (fsToken == null) {
       LOG.error("Failed to fetch DFS token for ");
-      throw new IOException("Failed to fetch DFS token for " + userToProxy);
+      throw new IOException("Failed to fetch DFS token.");
     }
     LOG.info("Created DFS token: " + fsToken.toString());
     LOG.info("Token kind: " + fsToken.getKind());
@@ -166,8 +177,8 @@ public class TokenUtils {
     cred.addToken(fsToken.getService(), fsToken);
   }
 
-  private static void getOtherNamenodesToken(List<String> otherNamenodes, Configuration conf, String userToProxy,
-      Credentials cred) throws IOException {
+  private static void getOtherNamenodesToken(List<String> otherNamenodes, Configuration conf, Credentials cred)
+      throws IOException {
     LOG.info(OTHER_NAMENODES + ": " + otherNamenodes);
     Path[] ps = new Path[otherNamenodes.size()];
     for (int i = 0; i < ps.length; i++) {
@@ -177,30 +188,32 @@ public class TokenUtils {
     LOG.info("Successfully fetched tokens for: " + otherNamenodes);
   }
 
-  private static void getJtToken(String userToProxy, Credentials cred) throws IOException, InterruptedException {
-    JobConf jobConf = new JobConf();
-    JobClient jobClient = new JobClient(jobConf);
-    LOG.info("Pre-fetching JT token from JobTracker");
+  private static void getJtToken(Credentials cred) throws IOException {
+    try {
+      JobConf jobConf = new JobConf();
+      JobClient jobClient = new JobClient(jobConf);
+      LOG.info("Pre-fetching JT token from JobTracker");
 
-    Token<DelegationTokenIdentifier> mrdt = jobClient.getDelegationToken(getMRTokenRenewerInternal(jobConf));
-    if (mrdt == null) {
-      LOG.error("Failed to fetch JT token");
-      throw new IOException("Failed to fetch JT token for " + userToProxy);
+      Token<DelegationTokenIdentifier> mrdt = jobClient.getDelegationToken(getMRTokenRenewerInternal(jobConf));
+      if (mrdt == null) {
+        LOG.error("Failed to fetch JT token");
+        throw new IOException("Failed to fetch JT token.");
+      }
+      LOG.info("Created JT token: " + mrdt.toString());
+      LOG.info("Token kind: " + mrdt.getKind());
+      LOG.info("Token id: " + mrdt.getIdentifier());
+      LOG.info("Token service: " + mrdt.getService());
+      cred.addToken(mrdt.getService(), mrdt);
+    } catch (InterruptedException ie) {
+      throw new IOException(ie);
     }
-    LOG.info("Created JT token: " + mrdt.toString());
-    LOG.info("Token kind: " + mrdt.getKind());
-    LOG.info("Token id: " + mrdt.getIdentifier());
-    LOG.info("Token service: " + mrdt.getService());
-    cred.addToken(mrdt.getService(), mrdt);
   }
 
-  private static void persisteTokens(Credentials cred) throws IOException {
+  private static void persistTokens(Credentials cred, File tokenFile) throws IOException {
 
     FileOutputStream fos = null;
     DataOutputStream dos = null;
-    File tokenFile;
     try {
-      tokenFile = File.createTempFile("mr-azkaban", ".token");
       fos = new FileOutputStream(tokenFile);
       dos = new DataOutputStream(fos);
       cred.writeTokenStorageToStream(dos);
@@ -248,35 +261,4 @@ public class TokenUtils {
     return renewer;
   }
 
-  /**
-   * Get a {@link HiveConf} using the specified metastore Uri.
-   *
-   * @param state A {@link State} object that should contain properties {@link #KEYTAB_USER} and
-   * {@link #KEYTAB_LOCATION}.
-   * @param metastoreUri Uri of the Hive metastore
-   * @return a {@link HiveConf} for the specified Hive metastore.
-   */
-  public static HiveConf getHiveConf(State state, String metastoreUri) throws IOException {
-    Preconditions.checkArgument(state.contains(KEYTAB_USER), "Missing required property " + KEYTAB_USER);
-    Preconditions.checkArgument(state.contains(KEYTAB_LOCATION), "Missing required property " + KEYTAB_LOCATION);
-
-    return getHiveConf(state.getProp(KEYTAB_USER), state.getProp(KEYTAB_LOCATION), metastoreUri);
-  }
-
-  /**
-   * Get a {@link HiveConf} using the specified metastore Uri.
-   *
-   * @param keytabUser user name of the keytab used to log in via {@link UserGroupInformation}.
-   * @param keytabLocation location of the keytab used to log in via {@link UserGroupInformation}.
-   * @param metastoreUri Uri of the Hive metastore
-   * @return a {@link HiveConf} for the specified Hive metastore.
-   */
-  public static HiveConf getHiveConf(String keytabUser, String keytabLocation, String metastoreUri) throws IOException {
-    HiveConf hiveConf = new HiveConf();
-    hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, metastoreUri);
-    hiveConf.set(HADOOP_SECURITY_AUTHENTICATION, KERBEROS);
-    UserGroupInformation.setConfiguration(hiveConf);
-    UserGroupInformation.loginUserFromKeytab(keytabUser, keytabLocation);
-    return hiveConf;
-  }
 }

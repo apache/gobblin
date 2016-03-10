@@ -13,6 +13,7 @@
 package gobblin.hive.metastore;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
@@ -250,13 +251,16 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
         if (needToUpdatePartition(existingPartition, spec.getPartition().get())) {
           client.alter_partition(table.getDbName(), table.getTableName(), partition);
-          log.info(String.format("Updated partition %s in table %s with location %s", partition.getValues(),
-              table.getTableName(), partition.getSd().getLocation()));
+          log.info(String.format("Updated partition %s in table %s with location %s",
+              stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
+        } else {
+          log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
+              stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
         }
       } catch (NoSuchObjectException e) {
         client.add_partition(partition);
-        log.info(String.format("Added partition %s to table %s with location %s", partition.getValues(),
-            table.getTableName(), partition.getSd().getLocation()));
+        log.info(String.format("Added partition %s to table %s with location %s",
+            stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
       }
     } catch (AlreadyExistsException e) {
       // Partition already exists. Nothing to do.
@@ -264,6 +268,14 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       log.error(String.format("Unable to add partition %s to table %s with location %s", partition.getValues(),
           table.getTableName(), partition.getSd().getLocation()), e);
       throw e;
+    }
+  }
+
+  private String stringifyPartition(Partition partition) {
+    if (log.isDebugEnabled()) {
+      return partition.toString();
+    } else {
+      return Arrays.toString(partition.getValues().toArray());
     }
   }
 

@@ -38,10 +38,19 @@ public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaSto
   private HiveConf hiveConf;
 
   public HiveMetaStoreClientFactory(Optional<String> hcatURI) throws IOException {
-    this.hiveConf = new HiveConf();
+    this(getHiveConf(hcatURI));
+  }
+
+  private static HiveConf getHiveConf(Optional<String> hcatURI) {
+    HiveConf hiveConf = new HiveConf();
     if (hcatURI.isPresent()) {
       hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, hcatURI.get());
     }
+    return hiveConf;
+  }
+
+  public HiveMetaStoreClientFactory(HiveConf hiveConf) throws IOException {
+    this.hiveConf = hiveConf;
   }
 
   public HiveMetaStoreClientFactory() throws IOException {
