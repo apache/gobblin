@@ -106,7 +106,7 @@ if (!project.hasProperty('bytemanVersion')) {
 
 ext.avroVersion = '1.7.7'
 ext.dropwizardMetricsVersion = '3.1.0'
-ext.findBugsVersion = '3.0.1'
+ext.findBugsVersion = '3.0.0'
 
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
