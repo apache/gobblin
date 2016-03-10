@@ -24,7 +24,7 @@ import gobblin.util.test.TestClass;
 
 public class GsonInterfaceAdapterTest {
 
-  @Test
+  @Test(groups = {"gobblin.util.io"})
   public void test() {
     Gson gson = GsonInterfaceAdapter.getGson(Object.class);
 

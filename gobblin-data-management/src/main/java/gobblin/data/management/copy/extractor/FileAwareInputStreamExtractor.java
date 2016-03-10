@@ -12,7 +12,6 @@
 
 package gobblin.data.management.copy.extractor;
 
-import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.source.extractor.DataRecordException;
@@ -22,8 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.hadoop.fs.FileSystem;
-
-import com.google.common.base.Optional;
 
 
 /**
@@ -39,15 +36,15 @@ import com.google.common.base.Optional;
 public class FileAwareInputStreamExtractor implements Extractor<String, FileAwareInputStream> {
 
   private final FileSystem fs;
-  private final Optional<CopyableFile> file;
+  private final CopyableFile file;
   /** True indicates the unique record has already been read. */
   private boolean recordRead;
 
-  public FileAwareInputStreamExtractor(FileSystem fs, CopyEntity file) throws IOException {
+  public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file) throws IOException {
 
     this.fs = fs;
-    this.file = file instanceof CopyableFile ? Optional.of((CopyableFile) file) : Optional.<CopyableFile>absent();
-    this.recordRead = !this.file.isPresent();
+    this.file = file;
+    this.recordRead = false;
   }
 
   /**
@@ -63,9 +60,9 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse) throws DataRecordException,
       IOException {
 
-    if (!this.recordRead && this.file.isPresent()) {
+    if (!this.recordRead) {
       this.recordRead = true;
-      return new FileAwareInputStream(this.file.get(), fs.open(this.file.get().getFileStatus().getPath()));
+      return new FileAwareInputStream(this.file, fs.open(this.file.getFileStatus().getPath()));
     } else {
       return null;
     }

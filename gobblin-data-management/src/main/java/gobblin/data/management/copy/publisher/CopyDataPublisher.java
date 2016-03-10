@@ -30,7 +30,6 @@ import com.google.common.collect.Multimap;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.commit.CommitSequence;
 import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -201,7 +200,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       throws IOException {
     List<CommitStepCopyEntity> steps = Lists.newArrayList();
     for (WorkUnitState wus : workUnits) {
-      if (baseClass.isAssignableFrom(CopySource.copyEntityClass(wus))) {
+      if (baseClass.isAssignableFrom(CopySource.getCopyEntityClass(wus))) {
         CommitStepCopyEntity step = (CommitStepCopyEntity) CopySource.deserializeCopyEntity(wus);
         steps.add(step);
       }
