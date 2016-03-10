@@ -79,6 +79,8 @@ public class ConfigClientUtils {
       // configKeyPath is /tags/retention
       else {
         URI storeRoot = cs.getStoreURI();
+        // if configKeyPath is root, the configKeyPath.getAbsolutePathString().substring(1) will return "" and 
+        // will cause the Path creation failure if not handled here
         if(configKeyPath.isRootPath()){
           return storeRoot;
         }
