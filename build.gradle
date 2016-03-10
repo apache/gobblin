@@ -38,6 +38,10 @@ File getEnvironmentScript()
 
 apply from: environmentScript
 
+allprojects {
+  apply from: rootProject.projectDir.path + '/gradle/scripts/hadoop-version.gradle'
+}
+
 ext.publishToMaven = project.hasProperty('publishToMaven')
 if (ext.publishToMaven) {
     plugins.apply('maven')
@@ -76,21 +80,13 @@ if (!project.hasProperty('version') || project.version == 'unspecified') {
     else {
         project.version = tagStr
     }
-    if (!project.hasProperty('useHadoop2')) {
+    if (!useHadoop2) {
       project.version = project.version + "-hadoop1"
     }
 }
 
 println "name=" + project.name + " group=" + project.group
 println "project.version=" + project.version
-
-if (!project.hasProperty('hadoopVersion')) {
-  if (project.hasProperty('useHadoop2')) {
-    ext.hadoopVersion = '2.3.0'
-  } else {
-    ext.hadoopVersion = '1.2.1'
-  }
-}
 
 if (!project.hasProperty('hiveVersion')) {
   ext.hiveVersion = '1.0.1'
@@ -378,7 +374,7 @@ subprojects {
         if (project.hasProperty('skipTestGroup')) {
           excludeGroups skipTestGroup
         }
-        if (project.hasProperty('useHadoop2')) {
+        if (useHadoop2) {
           excludeGroups 'Hadoop1Only'
         }
       }
@@ -387,7 +383,7 @@ subprojects {
     configurations {
       compile
       dependencies {
-        if (project.hasProperty('useHadoop2')) {
+        if (useHadoop2) {
           compile(externalDependency.hadoopCommon) {
             exclude module: 'servlet-api'
           }
