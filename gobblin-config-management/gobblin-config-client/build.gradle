@@ -18,6 +18,8 @@ dependencies {
     compile externalDependency.slf4j
     compile externalDependency.log4j
     compile externalDependency.typesafeConfig
+    compile externalDependency.azkaban
+    compile externalDependency.gson
 
     testCompile externalDependency.testng
     testCompile externalDependency.mockito
