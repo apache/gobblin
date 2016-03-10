@@ -365,7 +365,8 @@ subprojects {
       toolVersion = findBugsVersion
       ignoreFailures = true
       effort = "max"
-      excludeFilter = file(rootProject.projectDir.path + "/gradle/findbugs/findbugsExclude.xml")
+      // The exclude filter file must be under "ligradle/findbugs/"
+      excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
     }
 
     test {
