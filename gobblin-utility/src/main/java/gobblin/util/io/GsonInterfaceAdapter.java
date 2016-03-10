@@ -12,81 +12,181 @@
 
 package gobblin.util.io;
 
-import java.lang.reflect.Type;
+import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
-import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.util.Collection;
+import java.util.Map;
+
+import org.apache.commons.lang3.ClassUtils;
+
+import com.google.common.base.Optional;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.TypeAdapter;
+import com.google.gson.TypeAdapterFactory;
+import com.google.gson.internal.Streams;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 
 /**
- * A {@link Gson} interface adapter that makes it possible to serialize and deserialize an object
- * with an interface or abstract field with {@link Gson}.
+ * A {@link Gson} interface adapter that makes it possible to serialize and deserialize polymorphic objects.
  *
  * <p>
- *    Suppose a class <pre>MyClass</pre> contains an interface field <pre>MyInterface field</pre>. To serialize
- *    and deserialize a <pre>MyClass</pre> object, do the following:
+ *   This adapter will capture all instances of {@link #baseClass} and write them as
+ *   {"object-type":"class.name", "object-data":"data"}, allowing for correct serialization and deserialization of
+ *   polymorphic objects. The following types will not be captured by the adapter (i.e. they will be written by the
+ *   default GSON writer):
+ *   - Primitives and boxed primitives
+ *   - Arrays
+ *   - Collections
+ *   - Maps
+ *   Additionally, generic classes (e.g. class MyClass<T>) cannot be correctly decoded.
+ * </p>
  *
+ * <p>
+ *   To use:
  *    <pre>
  *          {@code
  *            MyClass object = new MyClass();
- *            Gson gson = GsonInterfaceAdapter.getGson(MyInterface.class);
+ *            Gson gson = GsonInterfaceAdapter.getGson(MyBaseClass.class);
  *            String json = gson.toJson(object);
  *            Myclass object2 = gson.fromJson(json, MyClass.class);
  *          }
  *    </pre>
  * </p>
  *
- * @author ziliu
+ * <p>
+ *   Note: a useful case is GsonInterfaceAdapter.getGson(Object.class), which will correctly serialize / deserialize
+ *   all types except for java generics.
+ * </p>
+ *
+ * @author ziliu, ibuenros
  *
  * @param <T> The interface or abstract type to be serialized and deserialized with {@link Gson}.
  */
-public class GsonInterfaceAdapter<T> implements JsonSerializer<T>, JsonDeserializer<T> {
+@RequiredArgsConstructor
+public class GsonInterfaceAdapter implements TypeAdapterFactory {
 
-  private static final String OBJECT_TYPE = "object-type";
-  private static final String OBJECT_DATA = "object-data";
-  private static final Gson PURE_GSON = new Gson();
+  protected static final String OBJECT_TYPE = "object-type";
+  protected static final String OBJECT_DATA = "object-data";
 
-  @Override
-  public JsonElement serialize(T object, Type interfaceType, JsonSerializationContext context) {
-    JsonObject wrapper = new JsonObject();
-    wrapper.addProperty(OBJECT_TYPE, object.getClass().getName());
-    wrapper.add(OBJECT_DATA, PURE_GSON.toJsonTree(object));
-    return wrapper;
-  }
+  private final Class<?> baseClass;
 
-  @Override
-  public T deserialize(JsonElement elem, Type interfaceType, JsonDeserializationContext context)
-      throws JsonParseException {
-    JsonObject wrapper = (JsonObject) elem;
-    JsonElement typeName = get(wrapper, OBJECT_TYPE);
-    JsonElement data = get(wrapper, OBJECT_DATA);
-    Type actualType = typeForName(typeName);
-    return PURE_GSON.fromJson(data, actualType);
-  }
-
-  private Type typeForName(JsonElement typeElem) {
-    try {
-      return Class.forName(typeElem.getAsString());
-    } catch (ClassNotFoundException e) {
-      throw new JsonParseException(e);
+  @Override public <R> TypeAdapter<R> create(Gson gson, TypeToken<R> type) {
+    if (ClassUtils.isPrimitiveOrWrapper(type.getRawType()) ||
+        type.getType() instanceof GenericArrayType ||
+        CharSequence.class.isAssignableFrom(type.getRawType()) ||
+        (type.getType() instanceof ParameterizedType &&
+            (Collection.class.isAssignableFrom(type.getRawType()) || Map.class.isAssignableFrom(type.getRawType())))) {
+      // delegate primitives, arrays, collections, and maps
+      return null;
     }
+    if (!this.baseClass.isAssignableFrom(type.getRawType())) {
+      // delegate anything not assignable from base class
+      return null;
+    }
+    TypeAdapter<R> adapter = new InterfaceAdapter<>(gson, this, type);
+    return adapter;
   }
 
-  private JsonElement get(JsonObject wrapper, String memberName) {
-    JsonElement elem = wrapper.get(memberName);
-    Preconditions.checkNotNull(elem);
-    return elem;
+  @AllArgsConstructor
+  private class InterfaceAdapter<R> extends TypeAdapter<R> {
+
+    private final Gson gson;
+    private final TypeAdapterFactory factory;
+    private final TypeToken<R> typeToken;
+
+    @Override public void write(JsonWriter out, R value) throws IOException {
+      if (Optional.class.isAssignableFrom(typeToken.getRawType())) {
+        Optional opt = (Optional) value;
+        if (opt != null && opt.isPresent()) {
+          Object actualValue = opt.get();
+          writeObject(actualValue, out);
+        } else {
+          out.beginObject();
+          out.endObject();
+        }
+      } else {
+        writeObject(value, out);
+      }
+    }
+
+    @Override public R read(JsonReader in) throws IOException {
+      JsonElement element = Streams.parse(in);
+      if (element.isJsonNull()) {
+        return readNull();
+      }
+      JsonObject jsonObject = element.getAsJsonObject();
+
+      if (typeToken.getRawType() == Optional.class) {
+        if (jsonObject.has(OBJECT_TYPE)) {
+          return (R) Optional.of(readValue(jsonObject, null));
+        } else if (jsonObject.entrySet().isEmpty()) {
+          return (R) Optional.absent();
+        } else {
+          throw new IOException("No class found for Optional value.");
+        }
+      } else {
+        return this.readValue(jsonObject, this.typeToken);
+      }
+    }
+
+    private <S> S readNull() {
+      if (this.typeToken.getRawType() == Optional.class) {
+        return (S) Optional.absent();
+      } else {
+        return null;
+      }
+    }
+
+    private <S> void writeObject(S value, JsonWriter out) throws IOException {
+      if (value != null) {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.add(OBJECT_TYPE, new JsonPrimitive(value.getClass().getName()));
+        TypeAdapter<S> delegate = (TypeAdapter<S>) gson.getDelegateAdapter(this.factory, TypeToken.get(value.getClass()));
+        jsonObject.add(OBJECT_DATA, delegate.toJsonTree(value));
+        Streams.write(jsonObject, out);
+      } else {
+        out.nullValue();
+      }
+    }
+
+    private <S> S readValue(JsonObject jsonObject, TypeToken<S> defaultTypeToken) throws IOException {
+      try {
+        TypeToken<S> actualTypeToken;
+        if (jsonObject.isJsonNull()) {
+          return null;
+        } else if (jsonObject.has(OBJECT_TYPE)) {
+          String className = jsonObject.get(OBJECT_TYPE).getAsString();
+          Class<S> klazz = (Class<S>) Class.forName(className);
+          actualTypeToken = TypeToken.get(klazz);
+        } else if (defaultTypeToken != null) {
+          actualTypeToken = defaultTypeToken;
+        } else {
+          throw new IOException("Could not determine TypeToken.");
+        }
+        TypeAdapter<S> delegate = this.gson.getDelegateAdapter(this.factory, actualTypeToken);
+        S value = delegate.fromJsonTree(jsonObject.get(OBJECT_DATA));
+        return value;
+      } catch (ClassNotFoundException cnfe) {
+        throw new IOException(cnfe);
+      }
+    }
+
   }
 
   public static <T> Gson getGson(Class<T> clazz) {
-    return new GsonBuilder().registerTypeHierarchyAdapter(clazz, new GsonInterfaceAdapter<T>()).create();
+    Gson gson = new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(clazz)).create();
+    return gson;
   }
 }

@@ -22,8 +22,15 @@ import com.google.common.util.concurrent.Striped;
 
 
 /**
- * A striped lock class for Hive databases or tables, providing operations
- * {@link #getDbLock(String)} and {@link #getTableLock(String, String)}.
+ * A striped lock class for Hive databases or tables. To get a lock, use {@link #getDbLock} or {@link #getTableLock},
+ * which returns an {@link AutoCloseable} object which returns the lock on close. The recommended usage is:
+ *
+ * <pre>
+ *   HiveStripedLocks locks = new HiveStripedLocs();
+ *   try (HiveLock lock = locks.getDbLock("db")) {
+ *     ... do stuff
+ *   }
+ * </pre>
  *
  * This class uses a {@link Striped} object internally.
  *
@@ -53,24 +60,28 @@ public class HiveStripedLocks {
    *
    * Supports operations {@link #lock()} and {@link #unlock()}.
    */
-  public static class HiveLock {
+  public static class HiveLock implements AutoCloseable {
     private final List<Lock> locks;
 
     private HiveLock(Lock... locks) {
       this.locks = Arrays.asList(locks);
+      this.lock();
     }
 
-    public void lock() {
+    private void lock() {
       for (Lock lock : this.locks) {
         lock.lock();
       }
     }
 
-    public void unlock() {
+    private void unlock() {
       for (int i = this.locks.size() - 1; i >= 0; i--) {
         this.locks.get(i).unlock();
       }
     }
 
+    @Override public void close() {
+      unlock();
+    }
   }
 }

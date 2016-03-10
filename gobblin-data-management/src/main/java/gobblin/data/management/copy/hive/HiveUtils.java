@@ -1,0 +1,117 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
+package gobblin.data.management.copy.hive;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileSplit;
+import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobConfigurable;
+import org.apache.thrift.TException;
+
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
+import gobblin.util.AutoReturnableObject;
+
+
+/**
+ * Utilities for {@link org.apache.hadoop.hive.ql} classes.
+ */
+public class HiveUtils {
+
+  /**
+   * @return a map of values to {@link Partition} for input {@link Table}.
+   */
+  public static Map<List<String>, Partition> getPartitionsMap(IMetaStoreClient client,
+      Table table)
+      throws IOException {
+    try {
+      Map<List<String>, Partition> partitions = Maps.newHashMap();
+      for (org.apache.hadoop.hive.metastore.api.Partition p : client
+          .listPartitions(table.getDbName(), table.getTableName(), (short) -1)) {
+        Partition partition = new Partition(table, p);
+        partitions.put(partition.getValues(), partition);
+      }
+      return partitions;
+    } catch (TException | HiveException te) {
+      throw new IOException("Hive Error", te);
+    }
+  }
+
+  /**
+   * @return an instance of the {@link InputFormat} in this {@link StorageDescriptor}.
+   */
+  public static InputFormat<?, ?> getInputFormat(StorageDescriptor sd) throws IOException {
+    try {
+      InputFormat<?, ?> inputFormat = ConstructorUtils
+          .invokeConstructor((Class<? extends InputFormat>) Class.forName(sd.getInputFormat()));
+      if (inputFormat instanceof JobConfigurable) {
+        ((JobConfigurable) inputFormat).configure(new JobConf(getHadoopConfiguration()));
+      }
+      return inputFormat;
+    } catch (ReflectiveOperationException re) {
+      throw new IOException("Failed to instantiate input format.", re);
+    }
+  }
+
+  /**
+   * Get paths from a Hive location using the provided input format.
+   */
+  public static Set<Path> getPaths(InputFormat<?, ?> inputFormat, Path location) throws IOException {
+    JobConf jobConf = new JobConf(getHadoopConfiguration());
+
+    Set<Path> paths = Sets.newHashSet();
+
+    FileInputFormat.addInputPaths(jobConf, location.toString());
+    InputSplit[] splits = inputFormat.getSplits(jobConf, 1000);
+    for (InputSplit split : splits) {
+      if (!(split instanceof FileSplit)) {
+        throw new IOException("Not a file split. Found " + split.getClass().getName());
+      }
+      FileSplit fileSplit = (FileSplit) split;
+      paths.add(fileSplit.getPath());
+    }
+
+    return paths;
+  }
+
+  private static Configuration getHadoopConfiguration() {
+    Configuration conf = new Configuration();
+    if (System.getenv("HADOOP_TOKEN_FILE_LOCATION") != null) {
+      conf.set("mapreduce.job.credentials.binary", System.getenv("HADOOP_TOKEN_FILE_LOCATION"));
+    }
+    return conf;
+  }
+
+  /**
+   * @return true if {@link Table} is partitioned.
+   */
+  public static boolean isPartitioned(Table table) {
+    return table.isPartitioned();
+  }
+}

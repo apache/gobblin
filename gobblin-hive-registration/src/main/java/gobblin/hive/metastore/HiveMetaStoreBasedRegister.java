@@ -32,6 +32,7 @@ import com.google.common.base.Preconditions;
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
 import gobblin.hive.HiveMetaStoreClientFactory;
+import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HivePartition;
 import gobblin.hive.HiveRegProps;
 import gobblin.hive.HiveRegister;
@@ -40,6 +41,7 @@ import gobblin.hive.HiveRegistrationUnit.Column;
 import gobblin.hive.HiveTable;
 import gobblin.hive.HiveStripedLocks.HiveLock;
 import gobblin.hive.spec.HiveSpec;
+import gobblin.util.AutoReturnableObject;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,47 +66,41 @@ import lombok.extern.slf4j.Slf4j;
 @Alpha
 public class HiveMetaStoreBasedRegister extends HiveRegister {
 
-  private final GenericObjectPool<IMetaStoreClient> clientPool;
+  private final HiveMetastoreClientPool clientPool;
   private final HiveStripedLocks locks = new HiveStripedLocks();
 
-  public HiveMetaStoreBasedRegister(State state) throws IOException {
+  public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
 
     GenericObjectPoolConfig config = new GenericObjectPoolConfig();
     config.setMaxTotal(this.props.getNumThreads());
     config.setMaxIdle(this.props.getNumThreads());
-    this.clientPool = new GenericObjectPool<>(new HiveMetaStoreClientFactory(), config);
+    this.clientPool = HiveMetastoreClientPool.get(this.props.getProperties(), metastoreURI);
   }
 
   @Override
   protected void registerPath(HiveSpec spec) throws IOException {
-    IMetaStoreClient client = borrowClient();
-    try {
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       Table table = HiveMetaStoreUtils.getTable(spec.getTable());
-      createDbIfNotExists(client, table.getDbName());
+      createDbIfNotExists(client.get(), table.getDbName());
 
       Optional<HivePartition> partition = spec.getPartition();
-      createOrAlterTable(client, table);
+      createOrAlterTable(client.get(), table);
 
       if (partition.isPresent()) {
 
         // Register a partition
-        addOrAlterPartition(client, table, HiveMetaStoreUtils.getPartition(partition.get()), spec.getPath());
+        addOrAlterPartition(client.get(), table, HiveMetaStoreUtils.getPartition(partition.get()), spec.getPath());
       }
     } catch (TException e) {
       throw new IOException(e);
-    } finally {
-      this.clientPool.returnObject(client);
     }
   }
 
   @Override
   public boolean createDbIfNotExists(String dbName) throws IOException {
-    IMetaStoreClient client = borrowClient();
-    try {
-      return createDbIfNotExists(client, dbName);
-    } finally {
-      this.clientPool.returnObject(client);
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+      return createDbIfNotExists(client.get(), dbName);
     }
   }
 
@@ -112,14 +108,20 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     Database db = new Database();
     db.setName(dbName);
 
+    try {
+      client.getDatabase(db.getName());
+      return false;
+    } catch (NoSuchObjectException nsoe) {
+      // proceed with create
+    } catch (TException te) {
+      throw new IOException(te);
+    }
+
     Preconditions.checkState(this.hiveDbRootDir.isPresent(),
         "Missing required property " + HiveRegProps.HIVE_DB_ROOT_DIR);
     db.setLocationUri(new Path(this.hiveDbRootDir.get(), dbName + HIVE_DB_EXTENSION).toString());
 
-    HiveLock lock = locks.getDbLock(dbName);
-    lock.lock();
-
-    try {
+    try(HiveLock lock = locks.getDbLock(dbName)) {
       client.createDatabase(db);
       log.info("Created database " + dbName);
       return true;
@@ -127,52 +129,41 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       return false;
     } catch (TException e) {
       throw new IOException("Unable to create Hive database " + dbName, e);
-    } finally {
-      lock.unlock();
     }
   }
 
   @Override
   public boolean createTableIfNotExists(HiveTable table) throws IOException {
-    IMetaStoreClient client = borrowClient();
 
-    HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName());
-    lock.lock();
-    try {
-      if (client.tableExists(table.getDbName(), table.getTableName())) {
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName())) {
+      if (client.get().tableExists(table.getDbName(), table.getTableName())) {
         return false;
       }
-      client.createTable(HiveMetaStoreUtils.getTable(table));
+      client.get().createTable(HiveMetaStoreUtils.getTable(table));
       return true;
     } catch (TException e) {
       throw new IOException(String.format("Error in creating or altering Hive table %s in db %s", table.getTableName(),
           table.getDbName()), e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
     }
   }
 
   @Override
   public boolean addPartitionIfNotExists(HiveTable table, HivePartition partition) throws IOException {
-    IMetaStoreClient client = borrowClient();
 
-    HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName());
-    lock.lock();
-    try {
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName())) {
       try {
-        client.getPartition(table.getTableName(), table.getDbName(), partition.getValues());
+        client.get().getPartition(table.getDbName(), table.getTableName(), partition.getValues());
         return false;
       } catch (NoSuchObjectException e) {
-        client.alter_partition(table.getDbName(), table.getTableName(), HiveMetaStoreUtils.getPartition(partition));
+        client.get().alter_partition(table.getDbName(), table.getTableName(),
+            HiveMetaStoreUtils.getPartition(partition));
         return true;
       }
     } catch (TException e) {
       throw new IOException(String.format("Unable to add partition %s in table %s in db %s", partition.getValues(),
           table.getTableName(), table.getDbName()), e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
     }
   }
 
@@ -181,10 +172,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     String dbName = table.getDbName();
     String tableName = table.getTableName();
 
-    HiveLock lock = locks.getTableLock(dbName, tableName);
-    lock.lock();
-
-    try {
+    try (HiveLock lock = locks.getTableLock(dbName, tableName)){
       if (client.tableExists(dbName, tableName)) {
         Table existingTable = client.getTable(dbName, tableName);
         table.setCreateTime(existingTable.getCreateTime());
@@ -202,8 +190,6 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     } catch (TException e) {
       throw new IOException(String.format("Error in creating or altering Hive table %s in db %s", tableName, dbName),
           e);
-    } finally {
-      lock.unlock();
     }
   }
 
@@ -213,86 +199,58 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
   @Override
   public boolean existsTable(String dbName, String tableName) throws IOException {
-    IMetaStoreClient client = borrowClient();
-    HiveLock lock = locks.getTableLock(dbName, tableName);
-    lock.lock();
 
-    try {
-      return client.tableExists(dbName, tableName);
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(dbName, tableName)) {
+      return client.get().tableExists(dbName, tableName);
     } catch (TException e) {
       throw new IOException(String.format("Unable to check existence of table %s in db %s", tableName, dbName), e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
     }
   }
 
   @Override
   public boolean existsPartition(String dbName, String tableName, List<Column> partitionKeys,
       List<String> partitionValues) throws IOException {
-    IMetaStoreClient client = borrowClient();
-    HiveLock lock = locks.getTableLock(dbName, tableName);
-    lock.lock();
 
-    try {
-      client.getPartition(tableName, dbName, partitionValues);
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(dbName, tableName)) {
+      client.get().getPartition(tableName, dbName, partitionValues);
       return true;
     } catch (NoSuchObjectException e) {
       return false;
     } catch (TException e) {
       throw new IOException(String.format("Unable to check existence of partition %s in table %s in db %s",
           partitionValues, tableName, dbName), e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
     }
   }
 
   @Override
   public void dropTableIfExists(String dbName, String tableName) throws IOException {
-    IMetaStoreClient client = borrowClient();
-    HiveLock lock = locks.getTableLock(dbName, tableName);
-    lock.lock();
 
-    try {
-      if (client.tableExists(dbName, tableName)) {
-        client.dropTable(dbName, tableName);
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(dbName, tableName)) {
+      if (client.get().tableExists(dbName, tableName)) {
+        client.get().dropTable(dbName, tableName);
         log.info("Dropped table " + tableName + " in db " + dbName);
       }
     } catch (TException e) {
       throw new IOException(String.format("Unable to deregister table %s in db %s", tableName, dbName), e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
     }
   }
 
   @Override
   public void dropPartitionIfExists(String dbName, String tableName, List<Column> partitionKeys,
       List<String> partitionValues) throws IOException {
-    IMetaStoreClient client = borrowClient();
-    HiveLock lock = locks.getTableLock(dbName, tableName);
-    lock.lock();
 
-    try {
-      client.dropPartition(dbName, tableName, partitionValues, false);
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(dbName, tableName)) {
+      client.get().dropPartition(dbName, tableName, partitionValues, false);
       log.info("Dropped partition " + partitionValues + " in table " + tableName + " in db " + dbName);
     } catch (NoSuchObjectException e) {
       // Partition does not exist. Nothing to do
     } catch (TException e) {
       throw new IOException(String.format("Unable to check existence of Hive partition %s in table %s in db %s",
           partitionValues, tableName, dbName), e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
-    }
-  }
-
-  private IMetaStoreClient borrowClient() throws IOException {
-    try {
-      return this.clientPool.borrowObject();
-    } catch (Exception e) {
-      throw new IOException("Unable to borrow " + IMetaStoreClient.class.getSimpleName());
     }
   }
 
@@ -302,10 +260,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         String.format("Partition key size is %s but partition value size is %s", table.getPartitionKeys().size(),
             partition.getValues().size()));
 
-    HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName());
-    lock.lock();
-
-    try {
+    try(HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName())) {
 
       try {
         Partition existingPartition =
@@ -332,8 +287,6 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       log.error(String.format("Unable to add partition %s to table %s with location %s", partition,
           table.getTableName(), partition.getSd().getLocation()), e);
       throw e;
-    } finally {
-      lock.unlock();
     }
   }
 
@@ -343,75 +296,53 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
   @Override
   public Optional<HiveTable> getTable(String dbName, String tableName) throws IOException {
-    IMetaStoreClient client = borrowClient();
-
-    HiveLock lock = locks.getTableLock(dbName, tableName);
-    lock.lock();
-    try {
-      return Optional.of(HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName)));
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(dbName, tableName)) {
+      return Optional.of(HiveMetaStoreUtils.getHiveTable(client.get().getTable(dbName, tableName)));
     } catch (NoSuchObjectException e) {
       return Optional.<HiveTable> absent();
     } catch (TException e) {
       throw new IOException("Unable to get table " + tableName + " in db " + dbName, e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
     }
   }
 
   @Override
   public Optional<HivePartition> getPartition(String dbName, String tableName, List<Column> partitionKeys,
       List<String> partitionValues) throws IOException {
-    IMetaStoreClient client = borrowClient();
 
-    HiveLock lock = locks.getTableLock(dbName, tableName);
-    lock.lock();
-    try {
-      return Optional.of(HiveMetaStoreUtils.getHivePartition(client.getPartition(tableName, dbName, partitionValues)));
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(dbName, tableName)) {
+      return Optional.of(HiveMetaStoreUtils.getHivePartition(client.get().getPartition(tableName, dbName,
+          partitionValues)));
     } catch (NoSuchObjectException e) {
       return Optional.<HivePartition> absent();
     } catch (TException e) {
       throw new IOException(
           "Unable to get partition " + partitionValues + " from table " + tableName + " in db " + dbName, e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
     }
   }
 
   @Override
   public void alterTable(HiveTable table) throws IOException {
-    IMetaStoreClient client = borrowClient();
-
-    HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName());
-    lock.lock();
-    try {
-      if (!client.tableExists(table.getDbName(), table.getTableName())) {
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName())) {
+      if (!client.get().tableExists(table.getDbName(), table.getTableName())) {
         throw new IOException("Table " + table.getTableName() + " in db " + table.getDbName() + " does not exist");
       }
-      client.alter_table(table.getDbName(), table.getTableName(), HiveMetaStoreUtils.getTable(table));
+      client.get().alter_table(table.getDbName(), table.getTableName(), HiveMetaStoreUtils.getTable(table));
     } catch (TException e) {
       throw new IOException("Unable to alter table " + table.getTableName() + " in db " + table.getDbName(), e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
     }
   }
 
   @Override
   public void alterPartition(HiveTable table, HivePartition partition) throws IOException {
-    IMetaStoreClient client = borrowClient();
-
-    HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName());
-    lock.lock();
-    try {
-      client.alter_partition(table.getDbName(), table.getTableName(), HiveMetaStoreUtils.getPartition(partition));
+    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        HiveLock lock = locks.getTableLock(table.getDbName(), table.getTableName())) {
+      client.get().alter_partition(table.getDbName(), table.getTableName(), HiveMetaStoreUtils.getPartition(partition));
     } catch (TException e) {
       throw new IOException(String.format("Unable to alter partition %s in table %s in db %s", partition.getValues(),
           table.getTableName(), table.getDbName()), e);
-    } finally {
-      lock.unlock();
-      this.clientPool.returnObject(client);
     }
   }
 

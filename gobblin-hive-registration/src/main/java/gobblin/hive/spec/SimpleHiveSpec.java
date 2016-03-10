@@ -16,11 +16,20 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
 import gobblin.hive.HivePartition;
 import gobblin.hive.HiveTable;
+import gobblin.hive.HiveRegister;
+import gobblin.hive.spec.activity.Activity;
+
+import lombok.Builder;
 import lombok.Getter;
+import lombok.Singular;
+
+import java.util.Collection;
 
 
 /**
@@ -30,26 +39,49 @@ import lombok.Getter;
  */
 @Getter
 @Alpha
-public class SimpleHiveSpec implements HiveSpec {
+@Builder(builderClassName = "Builder")
+public class SimpleHiveSpec implements HiveSpec, HiveSpecWithPreActivities, HiveSpecWithPostActivities,
+    HiveSpecWithPredicates {
 
   protected final Path path;
   protected final HiveTable table;
   protected final Optional<HivePartition> partition;
+  @Singular @Getter
+  protected final Collection<Activity> preActivities;
+  @Singular @Getter
+  protected final Collection<Activity> postActivities;
+  @Singular @Getter
+  protected final Collection<Predicate<HiveRegister>> predicates;
 
   protected SimpleHiveSpec(Builder<?> builder) {
     this.path = builder.path;
     this.table = builder.table;
-    this.partition = builder.partition;
+    this.partition = builder.partition != null ? builder.partition : Optional.<HivePartition>absent();
+    this.preActivities = builder.preActivities;
+    this.postActivities = builder.postActivities;
+    this.predicates = builder.predicates;
   }
 
-  @Getter
+  private static Builder<Builder<?>> builder() {
+    return new Builder<>();
+  }
+
+  private static Builder<Builder<?>> builder(Path path) {
+    return new Builder<>(path);
+  }
+
   public static class Builder<T extends Builder<?>> {
-    protected final Path path;
-    protected HiveTable table;
-    protected Optional<HivePartition> partition = Optional.absent();
+    private Path path;
+
+    private Builder() {
+      this.path = null;
+    }
 
     public Builder(Path path) {
       this.path = path;
+      this.preActivities = Lists.newArrayList();
+      this.postActivities = Lists.newArrayList();
+      this.predicates = Lists.newArrayList();
     }
 
     @SuppressWarnings("unchecked")

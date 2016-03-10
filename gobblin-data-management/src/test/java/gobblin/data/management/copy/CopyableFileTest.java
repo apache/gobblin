@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.PathUtils;
 
+
 public class CopyableFileTest {
 
   @Test

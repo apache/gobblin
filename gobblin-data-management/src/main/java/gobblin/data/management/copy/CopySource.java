@@ -16,6 +16,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.extractor.EmptyExtractor;
 import gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
 import gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
 import gobblin.dataset.Dataset;
@@ -72,6 +73,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   public static final String DEFAULT_DATASET_PROFILE_CLASS_KEY = CopyableGlobDatasetFinder.class.getCanonicalName();
   public static final String SERIALIZED_COPYABLE_FILE = CopyConfiguration.COPY_PREFIX + ".serialized.copyable.file";
+  public static final String COPY_ENTITY_CLASS = CopyConfiguration.COPY_PREFIX + ".copy.entity.class";
   public static final String SERIALIZED_COPYABLE_DATASET = CopyConfiguration.COPY_PREFIX + ".serialized.copyable.datasets";
   public static final String WORK_UNIT_GUID = CopyConfiguration.COPY_PREFIX + ".work.unit.guid";
   public static final String MAX_CONCURRENT_LISTING_SERVICES = CopyConfiguration.COPY_PREFIX + ".max.concurrent.listing.services";
@@ -226,9 +228,19 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   @Override
   public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
 
-    CopyEntity copyEntity = deserializeCopyEntity(state);
+    Class<?> copyEntityClass = getCopyEntityClass(state);
 
-    return new FileAwareInputStreamExtractor(getSourceFileSystem(state), copyEntity);
+    if (CopyableFile.class.isAssignableFrom(copyEntityClass)) {
+      CopyableFile copyEntity = (CopyableFile) deserializeCopyEntity(state);
+      return extractorForCopyableFile(getSourceFileSystem(state), copyEntity);
+    } else {
+      return new EmptyExtractor<>("empty");
+    }
+  }
+
+  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf)
+      throws IOException {
+    return new FileAwareInputStreamExtractor(fs, cf);
   }
 
   @Override
@@ -281,6 +293,15 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    */
   public static void serializeCopyEntity(State state, CopyEntity copyEntity) throws IOException {
     state.setProp(SERIALIZED_COPYABLE_FILE, CopyEntity.serialize(copyEntity));
+    state.setProp(COPY_ENTITY_CLASS, copyEntity.getClass().getName());
+  }
+
+  public static Class<?> getCopyEntityClass(State state) throws IOException {
+    try {
+      return Class.forName(state.getProp(COPY_ENTITY_CLASS));
+    } catch (ClassNotFoundException cnfe) {
+      throw new IOException(cnfe);
+    }
   }
 
   /**

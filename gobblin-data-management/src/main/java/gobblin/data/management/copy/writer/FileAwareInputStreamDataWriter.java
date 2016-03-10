@@ -177,8 +177,9 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
   public static Path getOutputFilePath(CopyableFile file, Path outputDir,
       CopyEntity.DatasetAndPartition datasetAndPartition) {
+    Path destinationWithoutSchemeAndAuthority = PathUtils.getPathWithoutSchemeAndAuthority(file.getDestination());
     return new Path(getPartitionOutputRoot(outputDir, datasetAndPartition),
-        PathUtils.withoutLeadingSeparator(file.getDestination()));
+        PathUtils.withoutLeadingSeparator(destinationWithoutSchemeAndAuthority));
   }
 
   public static Path getOutputDir(State state) {

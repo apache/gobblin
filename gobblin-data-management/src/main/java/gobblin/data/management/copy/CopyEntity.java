@@ -46,7 +46,7 @@ import com.google.gson.reflect.TypeToken;
 @EqualsAndHashCode
 public class CopyEntity implements HasGuid {
 
-  private static final Gson GSON = GsonInterfaceAdapter.getGson(CopyEntity.class);
+  public static final Gson GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   /**
    * File set this file belongs to. {@link CopyEntity}s in the same fileSet and originating from the same
