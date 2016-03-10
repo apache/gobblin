@@ -283,27 +283,46 @@ public class ParallelRunner implements Closeable {
    * @param group an optional group name for the destination path
    */
   public void movePath(final Path src, final FileSystem dstFs, final Path dst, final Optional<String> group) {
-    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
-      @Override
-      public Void call() throws Exception {
-        Lock lock = locks.get(src.toString());
-        lock.lock();
-        try {
-          if (fs.exists(src)) {
-            HadoopUtils.movePath(fs, src, dstFs, dst, dstFs.getConf());
-            if (group.isPresent()) {
-              HadoopUtils.setGroup(dstFs, dst, group.get());
+    movePath(src, dstFs, dst, false, group);
+  }
+
+  /**
+   * Move a {@link Path}.
+   *
+   * <p>
+   *   This method submits a task to move a {@link Path} and returns immediately
+   *   after the task is submitted.
+   * </p>
+   *
+   * @param src path to be moved
+   * @param dstFs the destination {@link FileSystem}
+   * @param dst the destination path
+   * @param overwrite true to overwrite the destination
+   * @param group an optional group name for the destination path
+   */
+  public void movePath(final Path src, final FileSystem dstFs, final Path dst, final boolean overwrite,
+                       final Optional<String> group) {
+      this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
+        @Override
+        public Void call() throws Exception {
+          Lock lock = locks.get(src.toString());
+          lock.lock();
+          try {
+            if (fs.exists(src)) {
+              HadoopUtils.movePath(fs, src, dstFs, dst, overwrite, dstFs.getConf());
+              if (group.isPresent()) {
+                HadoopUtils.setGroup(dstFs, dst, group.get());
+              }
             }
+            return null;
+          } catch (FileAlreadyExistsException e) {
+            LOGGER.warn(String.format("Failed to move %s to %s: dst already exists", src, dst), e);
+            return null;
+          } finally {
+            lock.unlock();
           }
-          return null;
-        } catch (FileAlreadyExistsException e) {
-          LOGGER.warn(String.format("Failed to move %s to %s: dst already exists", src, dst), e);
-          return null;
-        } finally {
-          lock.unlock();
         }
-      }
-    }), "Move " + src + " to " + dst));
+      }), "Move " + src + " to " + dst));
   }
 
   @Override

@@ -59,7 +59,7 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
       WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId), outputPath.getParent(),
           this.permissions.get(branchId));
 
-      movePath(parallelRunner, status.getPath(), outputPath, branchId);
+      movePath(parallelRunner, workUnitState, status.getPath(), outputPath, branchId);
     }
   }
 }

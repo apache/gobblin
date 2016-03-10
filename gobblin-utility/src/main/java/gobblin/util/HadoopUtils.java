@@ -149,12 +149,26 @@ public class HadoopUtils {
    * {@link FileSystem#rename(Path, Path)} returns False.
    */
   public static void renamePath(FileSystem fs, Path oldName, Path newName) throws IOException {
+    renamePath(fs, oldName, newName, false);
+  }
+
+  /**
+   * A wrapper around {@link FileSystem#rename(Path, Path)} which throws {@link IOException} if
+   * {@link FileSystem#rename(Path, Path)} returns False.
+   */
+  public static void renamePath(FileSystem fs, Path oldName, Path newName, boolean overwrite) throws IOException {
     if (!fs.exists(oldName)) {
       throw new FileNotFoundException(String.format("Failed to rename %s to %s: src not found", oldName, newName));
     }
     if (fs.exists(newName)) {
-      throw new FileAlreadyExistsException(
-          String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
+      if (overwrite) {
+        if (!fs.delete(newName, true)) {
+          throw new IOException(String.format("Failed to delete %s while renaming %s to %s", newName, oldName, newName));
+        }
+      } else {
+        throw new FileAlreadyExistsException(
+                String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
+      }
     }
     if (!fs.rename(oldName, newName)) {
       throw new IOException(String.format("Failed to rename %s to %s", oldName, newName));
@@ -173,13 +187,32 @@ public class HadoopUtils {
    * @param dst the {@link Path} to move data to
    */
   public static void movePath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, Configuration conf)
+          throws IOException {
+
+    movePath(srcFs, src, dstFs, dst, false, conf);
+  }
+
+  /**
+   * Moves a src {@link Path} from a srcFs {@link FileSystem} to a dst {@link Path} on a dstFs {@link FileSystem}. If
+   * the srcFs and the dstFs have the same scheme, and neither of them or S3 schemes, then the {@link Path} is simply
+   * renamed. Otherwise, the data is from the src {@link Path} to the dst {@link Path}. So this method can handle copying
+   * data between different {@link FileSystem} implementations.
+   *
+   * @param srcFs the source {@link FileSystem} where the src {@link Path} exists
+   * @param src the source {@link Path} which will me moved
+   * @param dstFs the destination {@link FileSystem} where the dst {@link Path} should be created
+   * @param dst the {@link Path} to move data to
+   * @param overwrite true if the destination should be overwritten; otherwise, false
+   */
+  public static void movePath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, boolean overwrite,
+                              Configuration conf)
       throws IOException {
 
     if (srcFs.getUri().getScheme().equals(dstFs.getUri().getScheme()) && !FS_SCHEMES_NON_ATOMIC
         .contains(srcFs.getUri().getScheme()) && !FS_SCHEMES_NON_ATOMIC.contains(dstFs.getUri().getScheme())) {
       renamePath(srcFs, src, dst);
     } else {
-      copyPath(srcFs, src, dstFs, dst, conf);
+      copyPath(srcFs, src, dstFs, dst, true, overwrite, conf);
     }
   }
 
@@ -203,13 +236,44 @@ public class HadoopUtils {
    */
   public static void copyPath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, Configuration conf) throws IOException {
 
+    copyPath(srcFs, src, dstFs, dst, false, false, conf);
+  }
+
+  /**
+   * Copies data from a src {@link Path} to a dst {@link Path}.
+   *
+   * <p>
+   *   This method should be used in preference to
+   *   {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, boolean, Configuration)}, which does not handle
+   *   clean up of incomplete files if there is an error while copying data.
+   * </p>
+   *
+   * <p>
+   *   TODO this method does not handle cleaning up any local files leftover by writing to S3.
+   * </p>
+   *
+   * @param srcFs the source {@link FileSystem} where the src {@link Path} exists
+   * @param src the {@link Path} to copy from the source {@link FileSystem}
+   * @param dstFs the destination {@link FileSystem} where the dst {@link Path} should be created
+   * @param dst the {@link Path} to copy data to
+   * @param overwrite true if the destination should be overwritten; otherwise, false
+   */
+  public static void copyPath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, boolean overwrite,
+                              Configuration conf) throws IOException {
+
+    copyPath(srcFs, src, dstFs, dst, false, overwrite, conf);
+  }
+
+  private static void copyPath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, boolean deleteSource,
+                               boolean overwrite, Configuration conf) throws IOException {
+
     Preconditions.checkArgument(srcFs.exists(src),
-        String.format("Cannot copy from %s to %s because src does not exist", src, dst));
+            String.format("Cannot copy from %s to %s because src does not exist", src, dst));
     Preconditions
-        .checkArgument(!dstFs.exists(dst), String.format("Cannot copy from %s to %s because dst exists", src, dst));
+            .checkArgument(!dstFs.exists(dst), String.format("Cannot copy from %s to %s because dst exists", src, dst));
 
     try {
-      if (!FileUtil.copy(srcFs, src, dstFs, dst, false, false, conf)) {
+      if (!FileUtil.copy(srcFs, src, dstFs, dst, deleteSource, overwrite, conf)) {
         throw new IOException(String.format("Failed to copy %s to %s", src, dst));
       }
     } catch (Throwable t1) {

@@ -45,7 +45,6 @@ import lombok.extern.slf4j.Slf4j;
 @Alpha
 @Slf4j
 public class CommitSequencePublisher extends BaseDataPublisher {
-
   @Getter
   protected Optional<CommitSequence.Builder> commitSequenceBuilder = Optional.of(new CommitSequence.Builder());
 
@@ -73,11 +72,21 @@ public class CommitSequencePublisher extends BaseDataPublisher {
    * This method does not actually move data, but it creates an {@link FsRenameCommitStep}.
    */
   @Override
-  protected void movePath(ParallelRunner parallelRunner, Path src, Path dst, int branchId) throws IOException {
+  protected void movePath(ParallelRunner parallelRunner, State state, Path src, Path dst, int branchId) throws IOException {
     log.info(String.format("Creating CommitStep for moving %s to %s", src, dst));
-    this.commitSequenceBuilder.get().beginStep(FsRenameCommitStep.Builder.class).withProps(this.state).from(src)
-        .withSrcFs(this.writerFileSystemByBranches.get(branchId)).to(dst)
-        .withDstFs(this.publisherFileSystemByBranches.get(branchId)).endStep();
+    boolean overwrite = state.getPropAsBoolean(ConfigurationKeys.DATA_PUBLISHER_OVERWRITE_ENABLED, false);
+    FsRenameCommitStep.Builder builder = this.commitSequenceBuilder.get()
+            .beginStep(FsRenameCommitStep.Builder.class)
+            .withProps(this.state)
+            .from(src)
+            .withSrcFs(this.writerFileSystemByBranches.get(branchId))
+            .to(dst)
+            .withDstFs(this.publisherFileSystemByBranches.get(branchId));
+    if (overwrite) {
+      builder.overwrite();
+    }
+
+    builder.endStep();
   }
 
 }
