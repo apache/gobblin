@@ -8,7 +8,6 @@ import com.google.gson.Gson;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.kafka.KafkaSimpleExtractor;
 import kafka.message.MessageAndOffset;
 
 public class KafkaSimpleJsonExtractor extends KafkaSimpleExtractor implements Extractor<String, byte[]> {

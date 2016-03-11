@@ -1,4 +1,4 @@
-package uk.gov.ipt.gobblin.kafka;
+package gobblin.source.extractor.extract.kafka;
 
 import lombok.Getter;
 
