@@ -33,7 +33,9 @@ dependencies {
     runtime externalDependency.hadoop
   }
 
-  runtime externalDependency.hiveService
+  runtime(externalDependency.hiveService) {
+    exclude group: 'org.apache.hive', module: 'hive-exec'
+  }
   runtime externalDependency.hiveJdbc
   runtime externalDependency.hiveMetastore
   runtime externalDependency.antlrRuntime
