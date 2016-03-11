@@ -25,8 +25,10 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.hive.HiveRegister;
+import gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
+import gobblin.hive.spec.HiveSpec;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -51,7 +53,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
   public HiveRegistrationPublisher(State state) throws IOException {
     super(state);
-    this.hiveRegister = this.closer.register(new HiveRegister(state));
+    this.hiveRegister = this.closer.register(HiveRegister.get(state));
     this.policy = HiveRegistrationPolicyBase.getPolicy(state);
   }
 
@@ -70,7 +72,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
     Set<String> pathsToRegister = getUniquePathsToRegister(states);
     log.info("Number of paths to be registered in Hive: " + pathsToRegister.size());
     for (String path : pathsToRegister) {
-      this.hiveRegister.register(this.policy.getHiveSpec(new Path(path)));
+      for (HiveSpec spec : this.policy.getHiveSpecs(new Path(path))) {
+        this.hiveRegister.register(spec);
+      }
     }
   }
 

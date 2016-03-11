@@ -131,6 +131,6 @@ public class FsRenameCommitStep extends CommitStepBase {
       this.dstFs = getFileSystem(this.dstFsUri);
     }
     log.info(String.format("Moving %s to %s", this.srcPath, this.dstPath));
-    HadoopUtils.movePath(this.srcFs, this.srcPath, this.dstFs, this.dstPath);
+    HadoopUtils.movePath(this.srcFs, this.srcPath, this.dstFs, this.dstPath, this.dstFs.getConf());
   }
 }

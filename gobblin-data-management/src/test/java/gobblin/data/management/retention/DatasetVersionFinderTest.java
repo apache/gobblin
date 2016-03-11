@@ -22,7 +22,7 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Lists;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,6 +31,7 @@ import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.StringDatasetVersion;
 import gobblin.data.management.retention.version.finder.DatasetVersionFinder;
+import gobblin.dataset.FileSystemDataset;
 
 
 public class DatasetVersionFinderTest {
@@ -84,7 +85,7 @@ public class DatasetVersionFinderTest {
     }
   }
 
-  public static class MockDataset implements CleanableDataset {
+  public static class MockDataset implements CleanableDataset, FileSystemDataset {
     private final Path datasetRoot;
 
     public MockDataset(Path datasetRoot) {
@@ -100,6 +101,10 @@ public class DatasetVersionFinderTest {
     @Override
     public Path datasetRoot() {
       return this.datasetRoot;
+    }
+
+    @Override public String datasetURN() {
+      return datasetRoot().toString();
     }
   }
 

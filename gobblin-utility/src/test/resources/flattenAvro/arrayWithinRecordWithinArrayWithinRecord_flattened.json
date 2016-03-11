@@ -1,0 +1,21 @@
+{
+  "type":"record",
+  "name":"parentRecord",
+  "fields": [ {
+    "name":"parentRecordFieldName",
+    "type": {
+      "type":"array",
+      "items": {
+        "type":"record",
+        "name":"nestedRecord",
+        "fields": [ {
+          "name":"nestedRecordFieldName",
+          "type": {
+            "type":"array",
+            "items":"string"
+          }
+        } ]
+      }
+    }
+  } ]
+}

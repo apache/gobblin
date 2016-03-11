@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) 2015-16 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
 package gobblin.config.store.hdfs;
 
 import java.io.IOException;
@@ -68,10 +79,10 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
   }
 
   /**
-   * Gets a default root directory if one is not specified. The default root dir is {@code /user/[current-user]/}.
+   * Gets a default root directory if one is not specified. The default root dir is {@code /jobs/[current-user]/}.
    */
   protected Path getDefaultRootDir() throws IOException {
-    return new Path("jobs", UserGroupInformation.getCurrentUser().getUserName());
+    return new Path("/jobs", UserGroupInformation.getCurrentUser().getUserName());
   }
 
   /**
@@ -144,7 +155,6 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
     Path path = new Path(configKey.getPath());
 
     while (path != null) {
-      
       try {
         // the abs URI may point to an unexist path for
         // 1. phantom node

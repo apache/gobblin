@@ -13,19 +13,25 @@
 package gobblin.hive.policy;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.TableType;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.hive.HivePartition;
+import gobblin.hive.HiveRegProps;
+import gobblin.hive.HiveSerDeManager;
+import gobblin.hive.HiveTable;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.hive.spec.SimpleHiveSpec;
 
@@ -39,12 +45,17 @@ import gobblin.hive.spec.SimpleHiveSpec;
  * @author ziliu
  */
 @Alpha
-public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
+public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
+  public static final String HIVE_FS_URI = "hive.registration.fs.uri";
   public static final String HIVE_DATABASE_NAME = "hive.database.name";
   public static final String HIVE_DATABASE_REGEX = "hive.database.regex";
+  public static final String HIVE_DATABASE_NAME_PREFIX = "hive.database.name.prefix";
+  public static final String HIVE_DATABASE_NAME_SUFFIX = "hive.database.name.suffix";
   public static final String HIVE_TABLE_NAME = "hive.table.name";
   public static final String HIVE_TABLE_REGEX = "hive.table.regex";
+  public static final String HIVE_TABLE_NAME_PREFIX = "hive.table.name.prefix";
+  public static final String HIVE_TABLE_NAME_SUFFIX = "hive.table.name.suffix";
   public static final String HIVE_SANITIZE_INVALID_NAMES = "hive.sanitize.invalid.names";
 
   /**
@@ -58,19 +69,27 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
    */
   private static final Pattern VALID_DB_TABLE_NAME_PATTERN_2 = Pattern.compile(".*[a-z_].*");
 
-  protected final State props;
+  protected final HiveRegProps props;
   protected final boolean sanitizeNameAllowed;
   protected final Optional<Pattern> dbNamePattern;
   protected final Optional<Pattern> tableNamePattern;
+  protected final String dbNamePrefix;
+  protected final String dbNameSuffix;
+  protected final String tableNamePrefix;
+  protected final String tableNameSuffix;
 
   protected HiveRegistrationPolicyBase(State props) {
     Preconditions.checkNotNull(props);
-    this.props = props;
+    this.props = new HiveRegProps(props);
     this.sanitizeNameAllowed = props.getPropAsBoolean(HIVE_SANITIZE_INVALID_NAMES, true);
     this.dbNamePattern = props.contains(HIVE_DATABASE_REGEX)
         ? Optional.of(Pattern.compile(props.getProp(HIVE_DATABASE_REGEX))) : Optional.<Pattern> absent();
     this.tableNamePattern = props.contains(HIVE_TABLE_REGEX)
         ? Optional.of(Pattern.compile(props.getProp(HIVE_TABLE_REGEX))) : Optional.<Pattern> absent();
+    this.dbNamePrefix = props.getProp(HIVE_DATABASE_NAME_PREFIX, StringUtils.EMPTY);
+    this.dbNameSuffix = props.getProp(HIVE_DATABASE_NAME_SUFFIX, StringUtils.EMPTY);
+    this.tableNamePrefix = props.getProp(HIVE_TABLE_NAME_PREFIX, StringUtils.EMPTY);
+    this.tableNameSuffix = props.getProp(HIVE_TABLE_NAME_SUFFIX, StringUtils.EMPTY);
   }
 
   /**
@@ -79,7 +98,8 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
    * the first group of {@link #HIVE_DATABASE_REGEX}.
    */
   protected String getDatabaseName(Path path) {
-    return getDatabaseOrTableName(path, HIVE_DATABASE_NAME, HIVE_DATABASE_REGEX, this.dbNamePattern);
+    return this.dbNamePrefix + getDatabaseOrTableName(path, HIVE_DATABASE_NAME, HIVE_DATABASE_REGEX, this.dbNamePattern)
+        + this.dbNameSuffix;
   }
 
   /**
@@ -88,11 +108,12 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
    * the first group of {@link #HIVE_TABLE_REGEX}.
    */
   protected String getTableName(Path path) {
-    return getDatabaseOrTableName(path, HIVE_TABLE_NAME, HIVE_TABLE_REGEX, this.tableNamePattern);
+    return this.tableNamePrefix + getDatabaseOrTableName(path, HIVE_TABLE_NAME, HIVE_TABLE_REGEX, this.tableNamePattern)
+        + this.tableNameSuffix;
   }
 
   protected String getDatabaseOrTableName(Path path, String nameKey, String regexKey, Optional<Pattern> pattern) {
-    String name = null;
+    String name;
     if (this.props.contains(nameKey)) {
       name = this.props.getProp(nameKey);
     } else if (pattern.isPresent()) {
@@ -114,9 +135,34 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
     throw new IllegalStateException(name + " is not a valid Hive database or table name");
   }
 
-  protected abstract Optional<HivePartition> getPartition(Path path);
+  /**
+   * A base implementation for creating a non bucketed, external {@link HiveTable} given a {@link Path}.
+   *
+   * @param path a {@link Path} used to create the {@link HiveTable}.
+   * @return a {@link HiveTable} for the given {@link Path}.
+   * @throws IOException
+   */
+  protected HiveTable getTable(Path path) throws IOException {
+    HiveTable table = new HiveTable.Builder().withDbName(getDatabaseName(path)).withTableName(getTableName(path))
+        .withSerdeManaager(HiveSerDeManager.get(this.props)).build();
 
-  protected abstract StorageDescriptor getSd(Path path) throws IOException;
+    table.setLocation(getTableLocation(path));
+    table.setSerDeProps();
+    table.setProps(this.props.getTablePartitionProps());
+    table.setStorageProps(this.props.getStorageProps());
+    table.setSerDeProps(this.props.getSerdeProps());
+    table.setNumBuckets(-1);
+    table.setTableType(TableType.EXTERNAL_TABLE.toString());
+    return table;
+  }
+
+  protected Optional<HivePartition> getPartition(Path path) throws IOException {
+    return Optional.<HivePartition> absent();
+  }
+
+  protected String getTableLocation(Path path) {
+    return path.toString();
+  }
 
   /**
    * Determine whether a database or table name is valid.
@@ -140,9 +186,9 @@ public abstract class HiveRegistrationPolicyBase implements HiveRegistrationPoli
   }
 
   @Override
-  public HiveSpec getHiveSpec(Path path) throws IOException {
-    return new SimpleHiveSpec.Builder<>(path).withDbName(getDatabaseName(path)).withTableName(getTableName(path))
-        .withPartition(getPartition(path)).withStorageDescriptor(getSd(path)).build();
+  public Collection<HiveSpec> getHiveSpecs(Path path) throws IOException {
+    return ImmutableList.<HiveSpec> of(
+        new SimpleHiveSpec.Builder<>(path).withTable(getTable(path)).withPartition(getPartition(path)).build());
   }
 
   /**

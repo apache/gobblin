@@ -16,6 +16,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.hadoop.fs.Path;
 
@@ -78,6 +79,12 @@ public class ConfigClientUtils {
       // configKeyPath is /tags/retention
       else {
         URI storeRoot = cs.getStoreURI();
+        // if configKeyPath is root, the configKeyPath.getAbsolutePathString().substring(1) will return "" and 
+        // will cause the Path creation failure if not handled here
+        if(configKeyPath.isRootPath()){
+          return storeRoot;
+        }
+        
         Path absPath = new Path(storeRoot.getPath(), configKeyPath.getAbsolutePathString().substring(1)); // remote the first "/";
         return new URI(storeRoot.getScheme(), storeRoot.getAuthority(), absPath.toString() , null, null);
       }       
@@ -114,6 +121,15 @@ public class ConfigClientUtils {
       }
       result = result.createChild(p);
     }
+    return result;
+  }
+  
+  public static List<ConfigKeyPath> getConfigKeyPath(List<String> input){
+    List<ConfigKeyPath> result = new ArrayList<ConfigKeyPath>();
+    for(String s: input){
+      result.add(getConfigKeyPath(s));
+    }
+    
     return result;
   }
   

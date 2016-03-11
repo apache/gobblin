@@ -13,15 +13,23 @@
 package gobblin.hive.spec;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
 import gobblin.hive.HivePartition;
+import gobblin.hive.HiveTable;
+import gobblin.hive.HiveRegister;
+import gobblin.hive.spec.activity.Activity;
+
+import lombok.Builder;
 import lombok.Getter;
+import lombok.Singular;
+
+import java.util.Collection;
 
 
 /**
@@ -31,49 +39,54 @@ import lombok.Getter;
  */
 @Getter
 @Alpha
-public class SimpleHiveSpec implements HiveSpec {
+@Builder(builderClassName = "Builder")
+public class SimpleHiveSpec implements HiveSpec, HiveSpecWithPreActivities, HiveSpecWithPostActivities,
+    HiveSpecWithPredicates {
 
   protected final Path path;
-  protected final String dbName;
-  protected final String tableName;
+  protected final HiveTable table;
   protected final Optional<HivePartition> partition;
-  protected final StorageDescriptor sd;
+  @Singular @Getter
+  protected final Collection<Activity> preActivities;
+  @Singular @Getter
+  protected final Collection<Activity> postActivities;
+  @Singular @Getter
+  protected final Collection<Predicate<HiveRegister>> predicates;
 
   protected SimpleHiveSpec(Builder<?> builder) {
     this.path = builder.path;
-    this.dbName = builder.dbName;
-    this.tableName = builder.tableName;
-    this.partition = builder.partition;
-    this.sd = builder.sd;
+    this.table = builder.table;
+    this.partition = builder.partition != null ? builder.partition : Optional.<HivePartition>absent();
+    this.preActivities = builder.preActivities;
+    this.postActivities = builder.postActivities;
+    this.predicates = builder.predicates;
+  }
+
+  private static Builder<Builder<?>> builder() {
+    return new Builder<>();
+  }
+
+  private static Builder<Builder<?>> builder(Path path) {
+    return new Builder<>(path);
   }
 
   public static class Builder<T extends Builder<?>> {
-    private final Path path;
+    private Path path;
 
-    private String dbName;
-    private String tableName;
-    private Optional<HivePartition> partition = Optional.absent();
-    private StorageDescriptor sd;
+    private Builder() {
+      this.path = null;
+    }
 
     public Builder(Path path) {
       this.path = path;
+      this.preActivities = Lists.newArrayList();
+      this.postActivities = Lists.newArrayList();
+      this.predicates = Lists.newArrayList();
     }
 
     @SuppressWarnings("unchecked")
-    public T withDbName(String dbName) {
-      this.dbName = dbName;
-      return (T) this;
-    }
-
-    @SuppressWarnings("unchecked")
-    public T withTableName(String tableName) {
-      this.tableName = tableName;
-      return (T) this;
-    }
-
-    @SuppressWarnings("unchecked")
-    public T withPartition(HivePartition partition) {
-      this.partition = Optional.of(partition);
+    public T withTable(HiveTable table) {
+      this.table = table;
       return (T) this;
     }
 
@@ -83,19 +96,12 @@ public class SimpleHiveSpec implements HiveSpec {
       return (T) this;
     }
 
-    @SuppressWarnings("unchecked")
-    public T withStorageDescriptor(StorageDescriptor sd) {
-      this.sd = sd;
-      return (T) this;
-    }
-
     public SimpleHiveSpec build() {
-      Preconditions.checkState(this.path != null);
-      Preconditions.checkState(!Strings.isNullOrEmpty(this.dbName));
-      Preconditions.checkState(!Strings.isNullOrEmpty(this.tableName));
-      Preconditions.checkState(this.sd != null);
+      Preconditions.checkNotNull(this.path);
+      Preconditions.checkNotNull(this.table);
 
       return new SimpleHiveSpec(this);
     }
   }
+
 }

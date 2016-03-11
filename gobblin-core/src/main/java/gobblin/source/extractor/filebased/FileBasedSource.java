@@ -14,6 +14,8 @@ package gobblin.source.extractor.filebased;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 
 import gobblin.source.extractor.extract.AbstractSource;
@@ -43,7 +45,8 @@ import gobblin.source.workunit.Extract.TableType;
  */
 public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
   private static final Logger log = LoggerFactory.getLogger(FileBasedSource.class);
-  protected FileBasedHelper fsHelper;
+  protected TimestampAwareFileBasedHelper fsHelper;
+  private String splitPattern = ":::";
 
   /**
    * Initialize the logger.
@@ -92,17 +95,23 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     List<WorkUnitState> previousWorkunits = Lists.newArrayList(state.getPreviousWorkUnitStates());
     List<String> prevFsSnapshot = Lists.newArrayList();
 
-    // Get list of files seen in the previous run
-    if (!previousWorkunits.isEmpty() && previousWorkunits.get(0).getWorkunit()
-        .contains(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT)) {
+   // Get list of files seen in the previous run
+    if (!previousWorkunits.isEmpty()
+        && previousWorkunits.get(0).getWorkunit().contains(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT)) {
       prevFsSnapshot =
           previousWorkunits.get(0).getWorkunit().getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT);
     }
 
     // Get list of files that need to be pulled
     List<String> currentFsSnapshot = this.getcurrentFsSnapshot(state);
-    List<String> filesToPull = Lists.newArrayList(currentFsSnapshot);
-    filesToPull.removeAll(prevFsSnapshot);
+    HashSet<String> filesWithTimeToPull = new HashSet<String>(currentFsSnapshot);
+    filesWithTimeToPull.removeAll(prevFsSnapshot);
+    List<String> filesToPull = new ArrayList<String>();
+    Iterator<String> it = filesWithTimeToPull.iterator();
+    while (it.hasNext()) {
+      String filesWithoutTimeToPull[] = it.next().split(splitPattern);
+      filesToPull.add(filesWithoutTimeToPull[0]);
+    }
 
     List<WorkUnit> workUnits = Lists.newArrayList();
     if (!filesToPull.isEmpty()) {
@@ -172,11 +181,13 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     try {
       log.info("Running ls command with input " + path);
       results = this.fsHelper.ls(path);
+      for (int i = 0; i < results.size(); i++) {
+        String filePath = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + results.get(i);
+        results.set(i, filePath + splitPattern + this.fsHelper.getFileMTime(filePath));
+      }
     } catch (FileBasedHelperException e) {
-      log.error("Not able to run ls command due to " + e.getMessage() + " will not pull any files", e);
-    }
-    for (int i = 0; i < results.size(); i++) {
-      results.set(i, state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + results.get(i));
+      log.error("Not able to fetch the filename/file modified time to " + e.getMessage() + " will not pull any files",
+          e);
     }
     return results;
   }

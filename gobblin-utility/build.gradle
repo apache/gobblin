@@ -19,6 +19,7 @@ dependencies {
   compile externalDependency.commonsDbcp
   compile externalDependency.commonsEmail
   compile externalDependency.commonsIo
+  compile externalDependency.commonsLang
   compile externalDependency.guava
   compile externalDependency.slf4j
   compile externalDependency.avro
@@ -31,6 +32,7 @@ dependencies {
   compile externalDependency.bcpgJdk15on
   compile externalDependency.bcprovJdk15on
   compile externalDependency.typesafeConfig
+  compile externalDependency.commonsPool
 
   if (project.hasProperty('useHadoop2')) {
     compile externalDependency.avroMapredH2
@@ -56,9 +58,6 @@ configurations {
 }
 
 test {
-    useTestNG () {
-        excludeGroups 'ignore'
-    }
     workingDir rootProject.rootDir
 }
 
@@ -67,7 +66,7 @@ ext.classification="library"
 
 task utilityTar(type: Tar) {
   //there seems to be a bug in the Gradle signing module where X.tar.gz will generate
-  // a signature X.gz.asc instead of X.tar.gz.asc. Therefore, we have to use the .tgz 
+  // a signature X.gz.asc instead of X.tar.gz.asc. Therefore, we have to use the .tgz
   // extension
   extension = 'tgz'
   baseName = project.name

@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.configuration.State;
+import gobblin.dataset.FileSystemDataset;
 
 
 /**
@@ -35,7 +36,7 @@ import gobblin.configuration.State;
  * @author ziliu
  */
 @Slf4j
-public class Dataset implements Comparable<Dataset>, gobblin.dataset.Dataset {
+public class Dataset implements Comparable<Dataset>, FileSystemDataset {
 
   public static final double DEFAULT_PRIORITY = 1.0;
   public static final double DEFAULT_PRIORITY_REDUCTION_FACTOR = 1.0 / 3.0;
@@ -376,5 +377,9 @@ public class Dataset implements Comparable<Dataset>, gobblin.dataset.Dataset {
   @Override
   public Path datasetRoot() {
     return this.outputPath;
+  }
+
+  @Override public String datasetURN() {
+    return this.datasetRoot().toString();
   }
 }

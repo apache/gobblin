@@ -32,13 +32,14 @@ dependencies {
   compile externalDependency.log4j
   compile externalDependency.commonsCli
   compile externalDependency.gson
+  compile externalDependency.hiveCommon
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
   compile externalDependency.commonsIo
   compile externalDependency.commonsEmail
   compile externalDependency.pegasus.data
-  compile externalDependency.findBugs
   compile externalDependency.typesafeConfig
+  compile externalDependency.hadoopClientCommon
   compile externalDependency.hadoopCommon
   compile externalDependency.hadoopYarnApi
   compile externalDependency.hadoopYarnCommon
@@ -48,6 +49,7 @@ dependencies {
   } else {
     compile externalDependency.avroMapredH1
   }
+  compile externalDependency.findBugsAnnotations
 
   testCompile project(":gobblin-example")
 
@@ -86,12 +88,6 @@ artifacts {
 }
 
 test {
-  useTestNG () {
-    excludeGroups 'ignore'
-    if (project.hasProperty('skipTestGroup')) {
-      excludeGroups skipTestGroup
-    }
-  }
   workingDir rootProject.rootDir
   maxParallelForks = 1
 }

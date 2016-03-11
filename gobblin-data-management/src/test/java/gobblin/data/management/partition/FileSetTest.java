@@ -21,13 +21,18 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
+import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.dataset.DummyDataset;
 
 
 public class FileSetTest {
 
-  @Data
-  private class TestFile implements File {
+  private class TestFile extends CopyableFile {
+    public TestFile(FileStatus fileStatus) {
+      super();
+      this.fileStatus = fileStatus;
+    }
+
     private final FileStatus fileStatus;
     @Override public FileStatus getFileStatus() {
       return this.fileStatus;

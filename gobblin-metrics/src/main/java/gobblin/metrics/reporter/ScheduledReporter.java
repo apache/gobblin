@@ -93,19 +93,21 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
     return config.withValue(REPORTING_INTERVAL, ConfigValueFactory.fromAnyRef(seconds + "S"));
   }
 
-  private final ScheduledExecutorService executor;
-  private final MetricFilter metricFilter;
+  private ScheduledExecutorService executor;
+  private MetricFilter metricFilter;
 
   private Optional<ScheduledFuture> scheduledTask;
   private int reportingPeriodSeconds;
 
   public ScheduledReporter(String name, Config config) {
     super(name, config);
-    this.executor = Executors.newSingleThreadScheduledExecutor(
-        ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("metrics-" + name + "-scheduler")));
-    this.reportingPeriodSeconds = parsePeriodToSeconds(
-        config.hasPath(REPORTING_INTERVAL) ? config.getString(REPORTING_INTERVAL) : DEFAULT_REPORTING_INTERVAL_PERIOD);
-    this.metricFilter = createMetricFilter(this.config);
+    ensureMetricFilterIsInitialized(config);
+  }
+
+  private synchronized void ensureMetricFilterIsInitialized(Config config) {
+    if (this.metricFilter == null) {
+      this.metricFilter = createMetricFilter(config);
+    }
   }
 
   private MetricFilter createMetricFilter(Config config) {
@@ -124,6 +126,11 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
 
   @Override
   public void startImpl() {
+    this.executor = Executors.newSingleThreadScheduledExecutor(
+            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("metrics-" + name + "-scheduler")));
+    this.reportingPeriodSeconds = parsePeriodToSeconds(
+            config.hasPath(REPORTING_INTERVAL) ? config.getString(REPORTING_INTERVAL) : DEFAULT_REPORTING_INTERVAL_PERIOD);
+    ensureMetricFilterIsInitialized(config);
     this.scheduledTask = Optional.<ScheduledFuture>of(this.executor.scheduleAtFixedRate(new Runnable() {
       @Override public void run() {
         report();

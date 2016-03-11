@@ -12,10 +12,6 @@
 
 package gobblin.data.management.retention.policy;
 
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.version.DatasetVersion;
-
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
@@ -24,6 +20,10 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -31,6 +31,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import gobblin.data.management.retention.DatasetCleaner;
+import gobblin.data.management.retention.version.DatasetVersion;
 
 
 /**
@@ -67,25 +70,35 @@ public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
   private final List<RetentionPolicy<DatasetVersion>> retentionPolicies;
   private final DeletableCombineOperation combineOperation;
 
+  public CombineRetentionPolicy(List<RetentionPolicy<DatasetVersion>> retentionPolicies, DeletableCombineOperation combineOperation) throws IOException {
+    this.combineOperation = combineOperation;
+    this.retentionPolicies = retentionPolicies;
+  }
+
+  @SuppressWarnings("unchecked")
   public CombineRetentionPolicy(Properties props) throws IOException {
 
     Preconditions.checkArgument(props.containsKey(DELETE_SETS_COMBINE_OPERATION), "Combine operation not specified.");
 
     ImmutableList.Builder<RetentionPolicy<DatasetVersion>> builder = ImmutableList.builder();
 
-    for(String property : props.stringPropertyNames()) {
-      if(property.startsWith(RETENTION_POLICIES_PREFIX)) {
-        builder.add(instantiateRetentionPolicy(props.getProperty(property), props));
+    for (String property : props.stringPropertyNames()) {
+      if (property.startsWith(RETENTION_POLICIES_PREFIX)) {
+
+        try {
+          builder.add((RetentionPolicy<DatasetVersion>) ConstructorUtils.invokeConstructor(Class.forName(props.getProperty(property)), props));
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
+          throw new IllegalArgumentException(e);
+        }
       }
     }
 
     this.retentionPolicies = builder.build();
-    if(this.retentionPolicies.size() == 0) {
+    if (this.retentionPolicies.size() == 0) {
       throw new IOException("No retention policies specified for " + CombineRetentionPolicy.class.getCanonicalName());
     }
 
-    this.combineOperation = DeletableCombineOperation.valueOf(props.getProperty(DELETE_SETS_COMBINE_OPERATION).
-        toUpperCase());
+    this.combineOperation = DeletableCombineOperation.valueOf(props.getProperty(DELETE_SETS_COMBINE_OPERATION).toUpperCase());
 
   }
 
@@ -171,24 +184,5 @@ public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
       outputSet = Sets.union(outputSet, it.next());
     }
     return outputSet;
-  }
-
-  private RetentionPolicy<DatasetVersion> instantiateRetentionPolicy(String className, Properties props)
-      throws IOException {
-    try {
-      Class<?> klazz = Class.forName(className);
-      return  (RetentionPolicy) klazz.
-          getConstructor(Properties.class).newInstance(props);
-    } catch(ClassNotFoundException exception) {
-      throw new IOException(exception);
-    } catch(NoSuchMethodException exception) {
-      throw new IOException(exception);
-    } catch(InstantiationException exception) {
-      throw new IOException(exception);
-    } catch(IllegalAccessException exception) {
-      throw new IOException(exception);
-    } catch(InvocationTargetException exception) {
-      throw new IOException(exception);
-    }
   }
 }

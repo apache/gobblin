@@ -26,7 +26,7 @@ import org.apache.hadoop.fs.FileSystem;
 /**
  * An implementation of {@link Extractor} that extracts {@link InputStream}s. This extractor is suitable for copy jobs
  * where files from any source to a sink. The extractor extracts a {@link FileAwareInputStream} which encompasses an
- * {@link InputStream} and a {@link CopyableFile} for every file that needs to be copied.
+ * {@link InputStream} and a {@link gobblin.data.management.copy.CopyEntity} for every file that needs to be copied.
  *
  * <p>
  * In Gobblin {@link Extractor} terms, each {@link FileAwareInputStream} is a record. i.e one record per copyable file.

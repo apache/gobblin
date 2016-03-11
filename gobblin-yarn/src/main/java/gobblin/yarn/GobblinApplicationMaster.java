@@ -143,7 +143,7 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     List<Service> services = Lists.newArrayList();
 
     if (isLogSourcePresent()) {
-      services.add(buildLogCopier(containerId, fs, appWorkDir));
+      services.add(buildLogCopier(config, containerId, fs, appWorkDir));
     }
 
     services.add(buildYarnService(config, applicationName, applicationId, yarnConfiguration, fs));

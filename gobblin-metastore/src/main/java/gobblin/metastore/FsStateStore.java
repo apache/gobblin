@@ -12,6 +12,8 @@
 
 package gobblin.metastore;
 
+import static gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -20,15 +22,12 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.DefaultCodec;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableCollection;
-import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
@@ -56,8 +55,6 @@ import gobblin.util.HadoopUtils;
 public class FsStateStore<T extends State> implements StateStore<T> {
 
   public static final String TMP_FILE_PREFIX = "_tmp_";
-  private static final ImmutableCollection<String> FS_SCHEMES_NO_TMP_FILE_FOR_PUT =
-      ImmutableSortedSet.<String> orderedBy(String.CASE_INSENSITIVE_ORDER).add("s3").add("s3a").add("s3n").build();
 
   protected final Configuration conf;
   protected final FileSystem fs;
@@ -72,14 +69,14 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   public FsStateStore(String fsUri, String storeRootDir, Class<T> stateClass) throws IOException {
     this.conf = new Configuration();
     this.fs = FileSystem.get(URI.create(fsUri), this.conf);
-    this.useTmpFileForPut = !FS_SCHEMES_NO_TMP_FILE_FOR_PUT.contains(this.fs.getUri().getScheme());
+    this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
   }
 
   public FsStateStore(FileSystem fs, String storeRootDir, Class<T> stateClass) throws IOException {
     this.fs = fs;
-    this.useTmpFileForPut = !FS_SCHEMES_NO_TMP_FILE_FOR_PUT.contains(this.fs.getUri().getScheme());
+    this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
     this.conf = this.fs.getConf();
     this.storeRootDir = storeRootDir;
     this.stateClass = stateClass;
@@ -89,7 +86,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     this.conf = new Configuration();
     Path storePath = new Path(storeUrl);
     this.fs = storePath.getFileSystem(this.conf);
-    this.useTmpFileForPut = !FS_SCHEMES_NO_TMP_FILE_FOR_PUT.contains(this.fs.getUri().getScheme());
+    this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
     this.storeRootDir = storePath.toUri().getPath();
     this.stateClass = stateClass;
   }
@@ -279,9 +276,10 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     }
 
     Path aliasTablePath = new Path(new Path(this.storeRootDir, storeName), alias);
+    Path tmpAliasTablePath = new Path(aliasTablePath.getParent(), new Path(TMP_FILE_PREFIX, aliasTablePath.getName()));
     // Make a copy of the original table as a work-around because
     // Hadoop version 1.2.1 has no support for symlink yet.
-    FileUtil.copy(this.fs, originalTablePath, this.fs, aliasTablePath, false, true, this.conf);
+    HadoopUtils.copyFile(this.fs, originalTablePath, this.fs, aliasTablePath, tmpAliasTablePath, true, this.conf);
   }
 
   @Override

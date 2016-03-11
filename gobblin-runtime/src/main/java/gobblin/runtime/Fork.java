@@ -153,12 +153,13 @@ public class Fork implements Closeable, Runnable, FinalState {
      * Create a {@link GobblinMetrics} for this {@link Fork} instance so that all new {@link MetricContext}s returned by
      * {@link Instrumented#setMetricContextName(State, String)} will be children of the forkMetrics.
      */
-    GobblinMetrics forkMetrics = GobblinMetrics
-        .get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
-            taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
-    this.closer.register(forkMetrics.getMetricContext());
-
-    Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
+    if (GobblinMetrics.isEnabled(this.taskState)) {
+      GobblinMetrics forkMetrics = GobblinMetrics
+          .get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
+              taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
+      this.closer.register(forkMetrics.getMetricContext());
+      Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
+    }
   }
 
   @Override
@@ -185,9 +186,13 @@ public class Fork implements Closeable, Runnable, FinalState {
   @Override
   public State getFinalState() {
     ConstructState state = new ConstructState();
-    state.addConstructState(Constructs.CONVERTER, new ConstructState(this.converter.getFinalState()));
-    state.addConstructState(Constructs.ROW_QUALITY_CHECKER,
-        new ConstructState(this.rowLevelPolicyChecker.getFinalState()));
+    if (this.converter != null) {
+      state.addConstructState(Constructs.CONVERTER, new ConstructState(this.converter.getFinalState()));
+    }
+    if (this.rowLevelPolicyChecker != null) {
+      state.addConstructState(Constructs.ROW_QUALITY_CHECKER,
+          new ConstructState(this.rowLevelPolicyChecker.getFinalState()));
+    }
     if (this.writer.isPresent() && this.writer.get() instanceof FinalState) {
       state.addConstructState(Constructs.WRITER, new ConstructState(((FinalState) this.writer.get()).getFinalState()));
     }
@@ -307,6 +312,11 @@ public class Fork implements Closeable, Runnable, FinalState {
    */
   public boolean isSucceeded() {
     return this.forkState.compareAndSet(ForkState.SUCCEEDED, ForkState.SUCCEEDED);
+  }
+
+  @Override
+  public String toString() {
+    return "Fork: TaskId = \"" + this.taskId + "\" Index: \"" + this.index + "\" State: \"" + this.forkState + "\"";
   }
 
   @Override

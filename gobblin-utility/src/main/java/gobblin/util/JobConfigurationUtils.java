@@ -13,15 +13,19 @@
 package gobblin.util;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Properties;
 
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import gobblin.configuration.State;
-import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -78,10 +82,19 @@ public class JobConfigurationUtils {
    * @param fileName the name of the file to load properties from
    * @return a new {@link Properties} instance
    */
-  public static Properties fileToProperties(String fileName) throws IOException, ConfigurationException {
-    Path filePath = new Path(fileName);
+  public static Properties fileToProperties(String fileName)
+      throws IOException, ConfigurationException, URISyntaxException {
+
     PropertiesConfiguration propsConfig = new PropertiesConfiguration();
-    propsConfig.load(filePath.getFileSystem(new Configuration()).open(filePath));
+    Configuration conf = new Configuration();
+    Path filePath = new Path(fileName);
+    URI fileURI = filePath.toUri();
+
+    if (fileURI.getScheme() == null && fileURI.getAuthority() == null) {
+      propsConfig.load(FileSystem.getLocal(conf).open(filePath));
+    } else {
+      propsConfig.load(filePath.getFileSystem(conf).open(filePath));
+    }
     return ConfigurationConverter.getProperties(propsConfig);
   }
 }

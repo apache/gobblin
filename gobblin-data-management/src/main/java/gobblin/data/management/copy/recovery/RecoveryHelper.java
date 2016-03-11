@@ -28,6 +28,7 @@ import com.google.common.base.Predicate;
 
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.util.guid.Guid;
 
@@ -69,7 +70,7 @@ public class RecoveryHelper {
    * persisted file.
    *
    * @param state {@link State} containing job information.
-   * @param file {@link CopyableFile} from which input {@link Path} originated.
+   * @param file {@link gobblin.data.management.copy.CopyEntity} from which input {@link Path} originated.
    * @param path {@link Path} to persist.
    * @return true if persist was successful.
    * @throws IOException
@@ -95,14 +96,14 @@ public class RecoveryHelper {
   }
 
   /**
-   * Searches the persist directory to find {@link Path}s matching the input {@link CopyableFile}.
+   * Searches the persist directory to find {@link Path}s matching the input {@link gobblin.data.management.copy.CopyEntity}.
    * @param state {@link State} containing job information.
-   * @param file {@link CopyableFile} for which persisted {@link Path}s should be found.
+   * @param file {@link gobblin.data.management.copy.CopyEntity} for which persisted {@link Path}s should be found.
    * @param filter {@link com.google.common.base.Predicate} used to filter found paths.
-   * @return Optionally, a {@link Path} in the {@link FileSystem} that is the desired copy of the {@link CopyableFile}.
+   * @return Optionally, a {@link Path} in the {@link FileSystem} that is the desired copy of the {@link gobblin.data.management.copy.CopyEntity}.
    * @throws IOException
    */
-  public Optional<FileStatus> findPersistedFile(State state, CopyableFile file, Predicate<FileStatus> filter)
+  public Optional<FileStatus> findPersistedFile(State state, CopyEntity file, Predicate<FileStatus> filter)
       throws IOException {
     if (!this.persistDir.isPresent() || !this.fs.exists(this.persistDir.get())) {
       return Optional.absent();
@@ -142,7 +143,7 @@ public class RecoveryHelper {
     return replaced.substring(0, bytesPerHalf) + "..." + replaced.substring(replaced.length() - bytesPerHalf);
   }
 
-  private static String computeGuid(State state, CopyableFile file) throws IOException {
+  private static String computeGuid(State state, CopyEntity file) throws IOException {
     Optional<Guid> stateGuid = CopySource.getWorkUnitGuid(state);
     if (stateGuid.isPresent()) {
       return Guid.combine(file.guid(), stateGuid.get()).toString();
