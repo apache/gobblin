@@ -16,19 +16,20 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.finder.VersionFinder;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -67,12 +68,18 @@ public class ConfigurableCleanableDataset<T extends DatasetVersion> extends Clea
     Preconditions.checkArgument(config.hasPath(RETENTION_POLICY_CLASS_KEY), "Missing property " + RETENTION_POLICY_CLASS_KEY);
 
     try {
+
       this.versionFinder =
-          (VersionFinder<? extends T>) ConstructorUtils.invokeConstructor(Class.forName(config.getString(VERSION_FINDER_CLASS_KEY)),
-              this.fs, config);
+          (VersionFinder<? extends T>) GobblinConstructorUtils.invokeFirstConstructor(
+              Class.forName(config.getString(VERSION_FINDER_CLASS_KEY)), ImmutableList.<Object> of(this.fs, config),
+              ImmutableList.<Object> of(this.fs, jobProps));
       this.retentionPolicy =
-          (RetentionPolicy<T>) ConstructorUtils.invokeConstructor(Class.forName(config.getString(RETENTION_POLICY_CLASS_KEY)), config);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
+          (RetentionPolicy<T>) GobblinConstructorUtils.invokeFirstConstructor(
+              Class.forName(config.getString(RETENTION_POLICY_CLASS_KEY)), ImmutableList.<Object> of(config),
+              ImmutableList.<Object> of(jobProps));
+
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
       throw new IllegalArgumentException(e);
     }
   }
