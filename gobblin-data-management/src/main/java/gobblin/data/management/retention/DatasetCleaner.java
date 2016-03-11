@@ -21,12 +21,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
@@ -35,6 +37,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import gobblin.util.AzkabanTags;
 import gobblin.configuration.State;
 import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.profile.MultiCleanableDatasetFinder;
@@ -45,6 +48,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.RateControlledFileSystem;
 import gobblin.util.executors.ScalingThreadPoolExecutor;
@@ -72,6 +76,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
   private final Closer closer;
   private final boolean isMetricEnabled;
   private MetricContext metricContext;
+  private final EventSubmitter eventSubmitter;
   private Optional<Meter> datasetsCleanSuccessMeter = Optional.absent();
   private Optional<Meter> datasetsCleanFailureMeter = Optional.absent();
   private Optional<CountDownLatch> finishCleanSignal;
@@ -100,9 +105,12 @@ public class DatasetCleaner implements Instrumentable, Closeable {
             Optional.of("Dataset-cleaner-pool-%d")));
     this.service = MoreExecutors.listeningDecorator(executor);
 
+    List<Tag<?>> tags = Lists.newArrayList();
+    tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
     // TODO -- Remove the dependency on gobblin-core after new Gobblin Metrics does not depend on gobblin-core.
-    this.metricContext = this.closer.register(Instrumented.getMetricContext(new State(props), DatasetCleaner.class));
+    this.metricContext = this.closer.register(Instrumented.getMetricContext(new State(props), DatasetCleaner.class, tags));
     this.isMetricEnabled = GobblinMetrics.isEnabled(props);
+    this.eventSubmitter = new EventSubmitter.Builder(metricContext, RetentionEvents.NAMESPACE).build();
   }
 
   /**
@@ -128,6 +136,9 @@ public class DatasetCleaner implements Instrumentable, Closeable {
           finishCleanSignal.get().countDown();
           LOG.warn("Exception caught when cleaning " + dataset.datasetURN() + ".", throwable);
           Instrumented.markMeter(datasetsCleanFailureMeter);
+          eventSubmitter.submit(RetentionEvents.CleanFailed.EVENT_NAME,
+              ImmutableMap.of(RetentionEvents.CleanFailed.FAILURE_CONTEXT_METADATA_KEY, ExceptionUtils.getFullStackTrace(throwable),
+              RetentionEvents.DATASET_URN_METADATA_KEY, dataset.datasetURN()));
         }
 
         @Override
