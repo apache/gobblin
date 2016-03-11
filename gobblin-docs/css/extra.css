@@ -1,0 +1,13 @@
+/* Work around until the TOC becomes collapsable */
+
+a.toctree-l4 {
+  display: none;
+}
+
+a.toctree-l5 {
+  display: none;
+}
+
+a.toctree-l6 {
+  display: none;
+}
