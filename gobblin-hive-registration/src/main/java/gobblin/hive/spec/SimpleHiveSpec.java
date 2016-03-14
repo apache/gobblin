@@ -40,38 +40,40 @@ import java.util.Collection;
 @Getter
 @Alpha
 @Builder(builderClassName = "Builder")
-public class SimpleHiveSpec implements HiveSpec, HiveSpecWithPreActivities, HiveSpecWithPostActivities,
-    HiveSpecWithPredicates {
+public class SimpleHiveSpec
+    implements HiveSpec, HiveSpecWithPreActivities, HiveSpecWithPostActivities, HiveSpecWithPredicates {
 
   protected final Path path;
   protected final HiveTable table;
   protected final Optional<HivePartition> partition;
-  @Singular @Getter
+  @Singular
+  @Getter
   protected final Collection<Activity> preActivities;
-  @Singular @Getter
+  @Singular
+  @Getter
   protected final Collection<Activity> postActivities;
-  @Singular @Getter
+  @Singular
+  @Getter
   protected final Collection<Predicate<HiveRegister>> predicates;
 
   protected SimpleHiveSpec(Builder<?> builder) {
     this.path = builder.path;
     this.table = builder.table;
-    this.partition = builder.partition != null ? builder.partition : Optional.<HivePartition>absent();
+    this.partition = builder.partition != null ? builder.partition : Optional.<HivePartition> absent();
     this.preActivities = builder.preActivities;
     this.postActivities = builder.postActivities;
     this.predicates = builder.predicates;
   }
 
-  private static Builder<Builder<?>> builder() {
-    return new Builder<>();
-  }
-
-  private static Builder<Builder<?>> builder(Path path) {
-    return new Builder<>(path);
-  }
-
   public static class Builder<T extends Builder<?>> {
+    @Getter
     private Path path;
+
+    @Getter
+    private HiveTable table;
+
+    @Getter
+    private Optional<HivePartition> partition;
 
     private Builder() {
       this.path = null;

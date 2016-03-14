@@ -184,7 +184,7 @@ ext.externalDependency = [
   "lombok":"org.projectlombok:lombok:1.16.8",
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
   "xerces":"xerces:xercesImpl:2.11.0",
-  "typesafeConfig": "com.typesafe:config:1.3.0",
+  "typesafeConfig": "com.typesafe:config:1.2.1",
   "byteman": "org.jboss.byteman:byteman:" + bytemanVersion,
   "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:" + bytemanVersion,
   "bcpgJdk15on": "org.bouncycastle:bcpg-jdk15on:1.52",
