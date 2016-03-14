@@ -123,6 +123,10 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
       throw new IllegalStateException("Missing required property " + nameKey + " or " + regexKey);
     }
 
+    return sanitizeAndValidateName(name);
+  }
+
+  protected String sanitizeAndValidateName(String name) {
     name = name.toLowerCase();
 
     if (this.sanitizeNameAllowed && !isNameValid(name)) {
@@ -131,9 +135,9 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
     if (isNameValid(name)) {
       return name;
+    } else {
+      throw new IllegalStateException(name + " is not a valid Hive database or table name");
     }
-
-    throw new IllegalStateException(name + " is not a valid Hive database or table name");
   }
 
   /**
