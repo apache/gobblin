@@ -12,15 +12,20 @@
 
 package gobblin.azkaban;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
+
+import javax.annotation.Nullable;
+
+import azkaban.jobExecutor.AbstractJob;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
+
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-
-import azkaban.jobExecutor.AbstractJob;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -30,8 +35,12 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.Tag;
+import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
+import gobblin.runtime.app.ApplicationException;
+import gobblin.runtime.app.ApplicationLauncher;
+import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.runtime.listeners.EmailNotificationJobListener;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.runtime.util.JobMetrics;
@@ -49,7 +58,7 @@ import gobblin.util.TimeRangeChecker;
  *
  * @author Yinan Li
  */
-public class AzkabanJobLauncher extends AbstractJob {
+public class AzkabanJobLauncher extends AbstractJob implements ApplicationLauncher, JobLauncher {
 
   private static final Logger LOG = Logger.getLogger(AzkabanJobLauncher.class);
 
@@ -62,6 +71,7 @@ public class AzkabanJobLauncher extends AbstractJob {
   private final JobLauncher jobLauncher;
   private final JobListener jobListener = new EmailNotificationJobListener();
   private final Properties props;
+  private final ApplicationLauncher applicationLauncher;
 
   public AzkabanJobLauncher(String jobId, Properties props)
       throws Exception {
@@ -107,17 +117,26 @@ public class AzkabanJobLauncher extends AbstractJob {
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.
     this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(this.props, this.props));
+
+    // Since Java classes cannot extend multiple classes and Azkaban jobs must extend AbstractJob, we must use composition
+    // verses extending ServiceBasedAppLauncher
+    this.applicationLauncher = this.closer.register(new ServiceBasedAppLauncher(this.props, "Azkaban-" + UUID.randomUUID()));
   }
 
   @Override
   public void run()
       throws Exception {
-    try {
-      if (isCurrentTimeInRange()) {
-        this.jobLauncher.launchJob(this.jobListener);
+    if (isCurrentTimeInRange()) {
+      try {
+        start();
+        launchJob(this.jobListener);
+      } finally {
+        try {
+          stop();
+        } finally {
+          close();
+        }
       }
-    } finally {
-      this.closer.close();
     }
   }
 
@@ -125,10 +144,39 @@ public class AzkabanJobLauncher extends AbstractJob {
   public void cancel()
       throws Exception {
     try {
-      this.jobLauncher.cancelJob(this.jobListener);
+      cancelJob(this.jobListener);
     } finally {
-      this.closer.close();
+      try {
+        stop();
+      } finally {
+        close();
+      }
     }
+  }
+
+  @Override
+  public void start() throws ApplicationException {
+    this.applicationLauncher.start();
+  }
+
+  @Override
+  public void stop() throws ApplicationException {
+    this.applicationLauncher.stop();
+  }
+
+  @Override
+  public void launchJob(@Nullable JobListener jobListener) throws JobException {
+    this.jobLauncher.launchJob(jobListener);
+  }
+
+  @Override
+  public void cancelJob(@Nullable JobListener jobListener) throws JobException {
+    this.jobLauncher.cancelJob(jobListener);
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.closer.close();
   }
 
   /**

@@ -15,13 +15,11 @@ package gobblin.yarn;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -55,32 +53,23 @@ import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.codahale.metrics.JmxReporter;
-import com.codahale.metrics.Metric;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.MetricSet;
-import com.codahale.metrics.jvm.FileDescriptorRatioGauge;
-import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
-import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
-import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.Service;
-import com.google.common.util.concurrent.ServiceManager;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.Tag;
+import gobblin.runtime.app.ApplicationException;
+import gobblin.runtime.app.ApplicationLauncher;
+import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.util.ConfigUtils;
 import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
@@ -110,25 +99,30 @@ import gobblin.yarn.event.DelegationTokenUpdatedEvent;
  *
  * @author Yinan Li
  */
-public class GobblinApplicationMaster extends GobblinYarnLogSource {
+public class GobblinApplicationMaster implements ApplicationLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinApplicationMaster.class);
 
   // An EventBus used for communications between services running in the ApplicationMaster
   private final EventBus eventBus = new EventBus(GobblinApplicationMaster.class.getSimpleName());
 
-  private final ServiceManager serviceManager;
-
   private final HelixManager helixManager;
 
-  private final MetricRegistry metricRegistry;
-
-  private final JmxReporter jmxReporter;
+  private final ServiceBasedAppLauncher applicationLauncher;
 
   private volatile boolean stopInProgress = false;
 
   public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
+
+    // Done to preserve backwards compatibility with the previously hard-coded timeout of 5 minutes
+    Properties properties = ConfigUtils.configToProperties(config);
+    if (!properties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
+      properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
+    }
+
+    this.applicationLauncher = new ServiceBasedAppLauncher(properties, applicationName);
+
     String applicationId = containerId.getApplicationAttemptId().getApplicationId().toString();
 
     String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
@@ -140,57 +134,39 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     FileSystem fs = buildFileSystem(config);
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(fs, applicationName, applicationId);
 
-    List<Service> services = Lists.newArrayList();
-
-    if (isLogSourcePresent()) {
-      services.add(buildLogCopier(config, containerId, fs, appWorkDir));
+    GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
+    if (gobblinYarnLogSource.isLogSourcePresent()) {
+      this.applicationLauncher.addService(gobblinYarnLogSource.buildLogCopier(config, containerId, fs, appWorkDir));
     }
 
-    services.add(buildYarnService(config, applicationName, applicationId, yarnConfiguration, fs));
-    services.add(buildGobblinHelixJobScheduler(config, appWorkDir, getMetadataTags(applicationName, applicationId)));
-    services.add(buildJobConfigurationManager(config));
+    this.applicationLauncher
+        .addService(buildYarnService(config, applicationName, applicationId, yarnConfiguration, fs));
+    this.applicationLauncher
+        .addService(buildGobblinHelixJobScheduler(config, appWorkDir, getMetadataTags(applicationName, applicationId)));
+    this.applicationLauncher.addService(buildJobConfigurationManager(config));
 
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      services.add(buildYarnContainerSecurityManager(config, fs));
+      this.applicationLauncher.addService(buildYarnContainerSecurityManager(config, fs));
     }
-
-    this.serviceManager = new ServiceManager(services);
-
-    this.metricRegistry = new MetricRegistry();
-    this.jmxReporter = JmxReporter.forRegistry(this.metricRegistry)
-        .convertRatesTo(TimeUnit.SECONDS)
-        .convertDurationsTo(TimeUnit.MILLISECONDS)
-        .build();
   }
 
   /**
    * Start the ApplicationMaster.
    */
+  @Override
   public void start() {
     LOGGER.info("Starting the Gobblin Yarn ApplicationMaster");
 
-    // Add a shutdown hook so the task scheduler gets properly shutdown
-    addShutdownHook();
-
     this.eventBus.register(this);
-
     connectHelixManager();
-
-    // Register JVM metrics to collect and report
-    registerJvmMetrics();
-
-    // Start metric reporting
-    this.jmxReporter.start();
-
-    // Start all the services running in the ApplicationMaster
-    this.serviceManager.startAsync();
-    this.serviceManager.awaitHealthy();
+    this.applicationLauncher.start();
   }
 
   /**
    * Stop the ApplicationMaster.
    */
+  @Override
   public synchronized void stop() {
     if (this.stopInProgress) {
       return;
@@ -202,17 +178,12 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
     // Send a shutdown request to the containers as a second guard in case Yarn could not stop the containers
     sendShutdownRequest();
-
     try {
-      // Give the services 5 minutes to stop to ensure that we are responsive to shutdown requests
-      this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.MINUTES);
-    } catch (TimeoutException te) {
-      LOGGER.error("Timeout in stopping the service manager", te);
+      this.applicationLauncher.stop();
+    } catch (ApplicationException ae) {
+      LOGGER.error("Error while stopping ApplicationMaster", ae);
     } finally {
       disconnectHelixManager();
-
-      // Stop metric reporting
-      this.jmxReporter.stop();
     }
   }
 
@@ -230,9 +201,8 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
    */
   private HelixManager buildHelixManager(Config config, String zkConnectionString) {
     String helixInstanceName = GobblinApplicationMaster.class.getSimpleName();
-    return HelixManagerFactory.getZKHelixManager(
-        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
-        InstanceType.CONTROLLER, zkConnectionString);
+    return HelixManagerFactory.getZKHelixManager(config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
+        helixInstanceName, InstanceType.CONTROLLER, zkConnectionString);
   }
 
   /**
@@ -320,29 +290,6 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     return this.helixManager.isConnected();
   }
 
-  private void registerJvmMetrics() {
-    registerMetricSetWithPrefix("jvm.gc", new GarbageCollectorMetricSet());
-    registerMetricSetWithPrefix("jvm.memory", new MemoryUsageGaugeSet());
-    registerMetricSetWithPrefix("jvm.threads", new ThreadStatesGaugeSet());
-    this.metricRegistry.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
-  }
-
-  private void registerMetricSetWithPrefix(String prefix, MetricSet metricSet) {
-    for (Map.Entry<String, Metric> entry : metricSet.getMetrics().entrySet()) {
-      this.metricRegistry.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
-    }
-  }
-
-  private void addShutdownHook() {
-    Runtime.getRuntime().addShutdownHook(new Thread() {
-
-      @Override
-      public void run() {
-        GobblinApplicationMaster.this.stop();
-      }
-    });
-  }
-
   @VisibleForTesting
   void sendShutdownRequest() {
     Criteria criteria = new Criteria();
@@ -363,6 +310,11 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the participants", shutdownRequest.getMsgSubType()));
     }
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.applicationLauncher.close();
   }
 
   /**
@@ -547,10 +499,13 @@ public class GobblinApplicationMaster extends GobblinYarnLogSource {
 
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
-      GobblinApplicationMaster applicationMaster =
-          new GobblinApplicationMaster(cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME),
-              containerId, ConfigFactory.load(), new YarnConfiguration());
-      applicationMaster.start();
+
+      try (GobblinApplicationMaster applicationMaster = new GobblinApplicationMaster(
+          cmd.getOptionValue(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME), containerId,
+          ConfigFactory.load(), new YarnConfiguration())) {
+
+        applicationMaster.start();
+      }
     } catch (ParseException pe) {
       printUsage(options);
       System.exit(1);

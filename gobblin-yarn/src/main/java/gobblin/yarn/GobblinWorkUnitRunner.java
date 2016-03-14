@@ -52,15 +52,6 @@ import org.apache.helix.task.TaskStateModelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.codahale.metrics.JmxReporter;
-import com.codahale.metrics.Metric;
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.MetricSet;
-import com.codahale.metrics.jvm.FileDescriptorRatioGauge;
-import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
-import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
-import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -79,6 +70,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.runtime.services.JMXReportingService;
 import gobblin.util.ConfigUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
@@ -130,10 +122,6 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
   private final Optional<ContainerMetrics> containerMetrics;
 
-  private final MetricRegistry metricRegistry;
-
-  private final JmxReporter jmxReporter;
-
   private volatile boolean stopInProgress = false;
   private volatile boolean isStopped = false;
 
@@ -174,6 +162,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
       LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
       services.add(new YarnContainerSecurityManager(config, fs, this.eventBus));
     }
+    services.add(new JMXReportingService());
 
     this.serviceManager = new ServiceManager(services);
 
@@ -185,10 +174,6 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
         new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker, fs, appWorkDir));
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine().registerStateModelFactory("Task", this.taskStateModelFactory);
-
-    this.metricRegistry = new MetricRegistry();
-    this.jmxReporter = JmxReporter.forRegistry(this.metricRegistry).convertRatesTo(TimeUnit.SECONDS)
-        .convertDurationsTo(TimeUnit.MILLISECONDS).build();
   }
 
   /**
@@ -202,11 +187,7 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
 
     connectHelixManager();
 
-    // Register JVM metrics to collect and report
-    registerJvmMetrics();
-
     // Start metric reporting
-    this.jmxReporter.start();
     if (this.containerMetrics.isPresent()) {
       this.containerMetrics.get()
           .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.config), this.containerId.toString());
@@ -226,7 +207,6 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
     LOGGER.info("Stopping the Gobblin Yarn WorkUnit runner");
 
     // Stop metric reporting
-    this.jmxReporter.stop();
     if (this.containerMetrics.isPresent()) {
       this.containerMetrics.get().stopMetricsReporting();
     }
@@ -281,19 +261,6 @@ public class GobblinWorkUnitRunner extends GobblinYarnLogSource {
         GobblinWorkUnitRunner.this.stop();
       }
     });
-  }
-
-  private void registerJvmMetrics() {
-    registerMetricSetWithPrefix("jvm.gc", new GarbageCollectorMetricSet());
-    registerMetricSetWithPrefix("jvm.memory", new MemoryUsageGaugeSet());
-    registerMetricSetWithPrefix("jvm.threads", new ThreadStatesGaugeSet());
-    this.metricRegistry.register("jvm.fileDescriptorRatio", new FileDescriptorRatioGauge());
-  }
-
-  private void registerMetricSetWithPrefix(String prefix, MetricSet metricSet) {
-    for (Map.Entry<String, Metric> entry : metricSet.getMetrics().entrySet()) {
-      this.metricRegistry.register(MetricRegistry.name(prefix, entry.getKey()), entry.getValue());
-    }
   }
 
   private FileSystem buildFileSystem(Config config, Configuration conf) throws IOException {
