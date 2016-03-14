@@ -19,12 +19,10 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
 import gobblin.hive.avro.HiveAvroSerDeManager;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -32,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
  *
  * @author ziliu
  */
-@Slf4j
 @Alpha
 public abstract class HiveSerDeManager {
 
@@ -54,10 +51,27 @@ public abstract class HiveSerDeManager {
   public abstract void addSerDeProperties(Path path, HiveRegistrationUnit hiveUnit) throws IOException;
 
   /**
+   * Add the appropriate SerDe properties (including schema properties) to the target {@link HiveRegistrationUnit}
+   * using the SerDe properties from the source {@link HiveRegistrationUnit}.
+   *
+   * <p>
+   *   A benefit of doing this is to avoid obtaining the schema multiple times when creating a table and a partition
+   *   with the same schema, or creating several tables and partitions with the same schema. After the first 
+   *   table/partition is created, one can use the same SerDe properties to create the other tables/partitions.
+   * </p>
+   */
+  public abstract void addSerDeProperties(HiveRegistrationUnit source, HiveRegistrationUnit target) throws IOException;
+
+  /**
    * Update the schema in the existing {@link HiveRegistrationUnit} into the schema in the new
    * {@link HiveRegistrationUnit}.
    */
   public abstract void updateSchema(HiveRegistrationUnit existingUnit, HiveRegistrationUnit newUnit) throws IOException;
+
+  /**
+   * Whether two {@link HiveRegistrationUnit} have the same schema.
+   */
+  public abstract boolean haveSameSchema(HiveRegistrationUnit unit1, HiveRegistrationUnit unit2) throws IOException;
 
   public enum Implementation {
     AVRO(HiveAvroSerDeManager.class.getName());
@@ -88,22 +102,17 @@ public abstract class HiveSerDeManager {
   public static HiveSerDeManager get(State props) {
     String type = props.getProp(HIVE_ROW_FORMAT, Implementation.AVRO.name());
     Optional<Implementation> implementation = Enums.getIfPresent(Implementation.class, type.toUpperCase());
-    if (implementation.isPresent()) {
-      try {
+
+    try {
+      if (implementation.isPresent()) {
         return (HiveSerDeManager) ConstructorUtils.invokeConstructor(Class.forName(implementation.get().toString()),
             props);
-      } catch (ReflectiveOperationException e) {
-        throw new RuntimeException(
-            "Unable to instantiate " + HiveSerDeManager.class.getSimpleName() + " with type " + type, e);
+      } else {
+        return (HiveSerDeManager) ConstructorUtils.invokeConstructor(Class.forName(type), props);
       }
-    } else {
-      log.info(String.format("%s with type %s does not exist. Using %s", HiveSerDeManager.class.getSimpleName(), type,
-          HiveAvroSerDeManager.class.getSimpleName()));
-      try {
-        return new HiveAvroSerDeManager(props);
-      } catch (IOException e) {
-        throw Throwables.propagate(e);
-      }
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(
+          "Unable to instantiate " + HiveSerDeManager.class.getSimpleName() + " with type " + type, e);
     }
   }
 

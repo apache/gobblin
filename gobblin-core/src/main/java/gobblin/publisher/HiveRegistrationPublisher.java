@@ -15,20 +15,28 @@ package gobblin.publisher;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.hive.HiveRegProps;
 import gobblin.hive.HiveRegister;
-import gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
 import gobblin.hive.spec.HiveSpec;
+import gobblin.util.ExecutorsUtils;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -50,16 +58,23 @@ public class HiveRegistrationPublisher extends DataPublisher {
   private final Closer closer = Closer.create();
   private final HiveRegister hiveRegister;
   private final HiveRegistrationPolicy policy;
+  private final ExecutorService hivePolicyExecutor;
 
   public HiveRegistrationPublisher(State state) throws IOException {
     super(state);
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
     this.policy = HiveRegistrationPolicyBase.getPolicy(state);
+    this.hivePolicyExecutor = Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d")));
   }
 
   @Override
   public void close() throws IOException {
-    this.closer.close();
+    try {
+      ExecutorsUtils.shutdownExecutorService(this.hivePolicyExecutor, Optional.of(log));
+    } finally {
+      this.closer.close();
+    }
   }
 
   @Deprecated
@@ -69,13 +84,33 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
+    CompletionService<Collection<HiveSpec>> completionService =
+        new ExecutorCompletionService<>(this.hivePolicyExecutor);
+
     Set<String> pathsToRegister = getUniquePathsToRegister(states);
     log.info("Number of paths to be registered in Hive: " + pathsToRegister.size());
-    for (String path : pathsToRegister) {
-      for (HiveSpec spec : this.policy.getHiveSpecs(new Path(path))) {
-        this.hiveRegister.register(spec);
+    for (final String path : pathsToRegister) {
+      completionService.submit(new Callable<Collection<HiveSpec>>() {
+
+        @Override
+        public Collection<HiveSpec> call() throws Exception {
+          return HiveRegistrationPublisher.this.policy.getHiveSpecs(new Path(path));
+        }
+      });
+
+    }
+
+    for (int i = 0; i < pathsToRegister.size(); i++) {
+      try {
+        for (HiveSpec spec : completionService.take().get()) {
+          this.hiveRegister.register(spec);
+        }
+      } catch (InterruptedException | ExecutionException e) {
+        log.info("Failed to generate HiveSpec", e);
+        throw new IOException(e);
       }
     }
+    log.info("Finished generating all HiveSpecs");
   }
 
   private Set<String> getUniquePathsToRegister(Collection<? extends WorkUnitState> states) {

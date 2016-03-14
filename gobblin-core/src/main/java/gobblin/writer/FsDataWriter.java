@@ -42,7 +42,6 @@ import gobblin.util.recordcount.IngestionRecordCountProvider;
  *
  * @author akshay@nerdwallet.com
  */
-@SuppressWarnings("deprecation")
 public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
   private static final Logger LOG = LoggerFactory.getLogger(FsDataWriter.class);

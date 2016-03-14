@@ -27,6 +27,7 @@ import gobblin.hive.HiveSerDeManager;
 import gobblin.hive.HiveSerDeWrapper;
 import gobblin.util.AvroUtils;
 import gobblin.util.HadoopUtils;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -34,6 +35,7 @@ import gobblin.util.HadoopUtils;
  *
  * @author ziliu
  */
+@Slf4j
 @Alpha
 public class HiveAvroSerDeManager extends HiveSerDeManager {
 
@@ -85,6 +87,25 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     addSchemaProperties(path, hiveUnit);
   }
 
+  @Override
+  public void addSerDeProperties(HiveRegistrationUnit source, HiveRegistrationUnit target) throws IOException {
+    if (source.getSerDeType().isPresent()) {
+      target.setSerDeType(source.getSerDeType().get());
+    }
+    if (source.getInputFormat().isPresent()) {
+      target.setInputFormat(source.getInputFormat().get());
+    }
+    if (source.getOutputFormat().isPresent()) {
+      target.setOutputFormat(source.getOutputFormat().get());
+    }
+    if (source.getSerDeProps().contains(SCHEMA_LITERAL)) {
+      target.setSerDeProp(SCHEMA_LITERAL, source.getSerDeProps().getProp(SCHEMA_LITERAL));
+    }
+    if (source.getSerDeProps().contains(SCHEMA_URL)) {
+      target.setSerDeProp(SCHEMA_URL, source.getSerDeProps().getProp(SCHEMA_URL));
+    }
+  }
+
   @SuppressWarnings("deprecation")
   private void addSchemaProperties(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
     Preconditions.checkArgument(this.fs.getFileStatus(path).isDir(), path + " is not a directory.");
@@ -123,6 +144,7 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
       hiveUnit.setSerDeProp(SCHEMA_LITERAL, schema.toString());
     } else {
       AvroUtils.writeSchemaToFile(schema, schemaFile, this.fs, true);
+      log.info("Using schema file " + schemaFile.toString());
       hiveUnit.setSerDeProp(SCHEMA_URL, schemaFile.toString());
     }
   }
@@ -137,6 +159,20 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     } else {
       existingUnit.setSerDeProp(SCHEMA_URL, newUnit.getSerDeProps().getProp(SCHEMA_URL));
     }
+  }
+
+  @Override
+  public boolean haveSameSchema(HiveRegistrationUnit unit1, HiveRegistrationUnit unit2) {
+    if (unit1.getSerDeProps().contains(HiveAvroSerDeManager.SCHEMA_LITERAL)
+        && unit2.getSerDeProps().contains(HiveAvroSerDeManager.SCHEMA_LITERAL)) {
+      return unit1.getSerDeProps().getProp(HiveAvroSerDeManager.SCHEMA_LITERAL)
+          .equals(unit2.getSerDeProps().getProp(HiveAvroSerDeManager.SCHEMA_LITERAL));
+    } else if (unit1.getSerDeProps().contains(HiveAvroSerDeManager.SCHEMA_URL)
+        && unit2.getSerDeProps().contains(HiveAvroSerDeManager.SCHEMA_URL)) {
+      return unit1.getSerDeProps().getProp(HiveAvroSerDeManager.SCHEMA_URL)
+          .equals(unit2.getSerDeProps().getProp(HiveAvroSerDeManager.SCHEMA_URL));
+    }
+    return false;
   }
 
 }

@@ -24,6 +24,7 @@ import org.apache.hadoop.hive.metastore.TableType;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
@@ -47,7 +48,6 @@ import gobblin.hive.spec.SimpleHiveSpec;
 @Alpha
 public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
-  public static final String HIVE_FS_URI = "hive.registration.fs.uri";
   public static final String HIVE_DATABASE_NAME = "hive.database.name";
   public static final String HIVE_DATABASE_REGEX = "hive.database.regex";
   public static final String HIVE_DATABASE_NAME_PREFIX = "hive.database.name.prefix";
@@ -57,6 +57,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   public static final String HIVE_TABLE_NAME_PREFIX = "hive.table.name.prefix";
   public static final String HIVE_TABLE_NAME_SUFFIX = "hive.table.name.suffix";
   public static final String HIVE_SANITIZE_INVALID_NAMES = "hive.sanitize.invalid.names";
+  public static final String HIVE_FS_URI = "hive.registration.fs.uri";
 
   /**
    * A valid db or table name should start with an alphanumeric character, and contains only
@@ -147,11 +148,12 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
         .withSerdeManaager(HiveSerDeManager.get(this.props)).build();
 
     table.setLocation(getTableLocation(path));
-    table.setSerDeProps();
+    table.setSerDeProps(path);
     table.setProps(this.props.getTablePartitionProps());
     table.setStorageProps(this.props.getStorageProps());
     table.setSerDeProps(this.props.getSerdeProps());
     table.setNumBuckets(-1);
+    table.setBucketColumns(Lists.<String> newArrayList());
     table.setTableType(TableType.EXTERNAL_TABLE.toString());
     return table;
   }

@@ -22,7 +22,6 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import com.google.common.base.Optional;
 
 import gobblin.commit.CommitStep;
-import gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
 
 
@@ -37,11 +36,13 @@ public class PartitionDeregisterStep implements CommitStep {
   private final Optional<String> metastoreURI;
   private final HiveRegProps props;
 
-  @Override public boolean isCompleted() throws IOException {
+  @Override
+  public boolean isCompleted() throws IOException {
     return false;
   }
 
-  @Override public void execute() throws IOException {
+  @Override
+  public void execute() throws IOException {
     HiveTable hiveTable = HiveMetaStoreUtils.getHiveTable(this.table);
     HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI);
     hiveRegister.dropPartitionIfExists(this.partition.getDbName(), this.partition.getTableName(),

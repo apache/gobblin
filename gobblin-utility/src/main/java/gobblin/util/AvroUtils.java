@@ -253,7 +253,7 @@ public class AvroUtils {
         LOG.warn("There is no previous avro file in the directory: " + directory);
       } else {
         FileStatus file = latest ? files.get(0) : files.get(files.size() - 1);
-        LOG.info("Path to get the avro schema: " + file);
+        LOG.debug("Path to get the avro schema: " + file);
         FsInput fi = new FsInput(file.getPath(), fs.getConf());
         GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<GenericRecord>();
         schema = closer.register(new DataFileReader<GenericRecord>(fi, genReader)).getSchema();
