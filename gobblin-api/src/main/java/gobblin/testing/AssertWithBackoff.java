@@ -28,7 +28,7 @@ import com.google.common.base.Predicates;
 public class AssertWithBackoff {
 
   /** the max time in milliseconds to wait for the condition to become true */
-  private long timemoutMs = 30 * 1000;
+  private long timeoutMs = 30 * 1000;
   /** a logger to use for logging waiting, results, etc. */
   private Logger log = LoggerFactory.getLogger(AssertWithBackoff.class);
   /** the number to multiple the sleep after condition failure */
@@ -64,7 +64,7 @@ public class AssertWithBackoff {
 
   /** Set the max time in milliseconds to wait for the condition to become true */
   public AssertWithBackoff timeoutMs(long assertTimeoutMs) {
-    timemoutMs = assertTimeoutMs;
+    timeoutMs = assertTimeoutMs;
     if (!this.maxSleepMs.isPresent()) {
       this.maxSleepMs = Optional.of(getAutoMaxSleep());
     }
@@ -76,7 +76,7 @@ public class AssertWithBackoff {
 
   /** the max time in milliseconds to wait for the condition to become true */
   public long getTimeoutMs() {
-    return timemoutMs;
+    return timeoutMs;
   }
 
   /** Set the max time to sleep between condition failures */
@@ -112,7 +112,7 @@ public class AssertWithBackoff {
   }
 
   private long getAutoMaxSleep() {
-    return timemoutMs / 3;
+    return timeoutMs / 3;
   }
 
   private double getAutoBackoffFactor() {
