@@ -15,11 +15,14 @@ package gobblin.scheduler;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +50,7 @@ public class JobConfigFileMonitorTest {
 
   private static final String JOB_CONFIG_FILE_DIR = "gobblin-test/resource/job-conf";
 
+  private String jobConfigDir;
   private ServiceManager serviceManager;
   private JobScheduler jobScheduler;
   private File newJobConfigFile;
@@ -63,9 +67,14 @@ public class JobConfigFileMonitorTest {
   @BeforeClass
   public void setUp()
       throws Exception {
+    this.jobConfigDir = Files.createTempDirectory(
+            String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName())).toString();
+    FileUtils.forceDeleteOnExit(new File(this.jobConfigDir));
+    FileUtils.copyDirectory(new File(JOB_CONFIG_FILE_DIR), new File(jobConfigDir));
+
     Properties properties = new Properties();
     properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
-    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONFIG_FILE_DIR);
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfigDir);
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY, "1000");
     properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
 
@@ -84,9 +93,9 @@ public class JobConfigFileMonitorTest {
     // Create a new job configuration file by making a copy of an existing
     // one and giving a different job name
     Properties jobProps = new Properties();
-    jobProps.load(new FileReader(new File(JOB_CONFIG_FILE_DIR, "GobblinTest1.pull")));
+    jobProps.load(new FileReader(new File(this.jobConfigDir, "GobblinTest1.pull")));
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "Gobblin-test-new");
-    this.newJobConfigFile = new File(JOB_CONFIG_FILE_DIR, "Gobblin-test-new.pull");
+    this.newJobConfigFile = new File(this.jobConfigDir, "Gobblin-test-new.pull");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
     assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 4, "4 scheduled jobs");
@@ -149,8 +158,10 @@ public class JobConfigFileMonitorTest {
 
   @AfterClass
   public void tearDown()
-      throws TimeoutException {
-    if (null != this.newJobConfigFile) this.newJobConfigFile.delete();
+      throws TimeoutException, IOException {
+    if (jobConfigDir != null) {
+      FileUtils.forceDelete(new File(jobConfigDir));
+    }
     this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
   }
 }

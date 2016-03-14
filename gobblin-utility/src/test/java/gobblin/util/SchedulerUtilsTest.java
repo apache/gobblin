@@ -21,10 +21,10 @@ import java.util.Set;
 import java.util.concurrent.Semaphore;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
 import org.apache.commons.io.monitor.FileAlterationMonitor;
-import org.apache.hadoop.fs.FileUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -42,66 +42,73 @@ import gobblin.configuration.ConfigurationKeys;
 @Test(groups = {"gobblin.util"})
 public class SchedulerUtilsTest {
 
-  private static final File JOB_CONF_ROOT_DIR = new File("gobblin-test/test-job-conf-dir");
-  private static final File SUB_DIR1 = new File(JOB_CONF_ROOT_DIR, "test1");
-  private static final File SUB_DIR11 = new File(SUB_DIR1, "test11");
-  private static final File SUB_DIR2 = new File(JOB_CONF_ROOT_DIR, "test2");
+  private File jobConfigDir;
+  private File subDir1;
+  private File subDir11;
+  private File subDir2;
 
   @BeforeClass
   public void setUp()
       throws IOException {
-    SUB_DIR1.mkdirs();
-    SUB_DIR11.mkdirs();
-    SUB_DIR2.mkdirs();
+    this.jobConfigDir = java.nio.file.Files.createTempDirectory(
+            String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName())).toFile();
+    FileUtils.forceDeleteOnExit(this.jobConfigDir);
+    this.subDir1 = new File(this.jobConfigDir, "test1");
+    this.subDir11 = new File(this.subDir1, "test11");
+    this.subDir2 = new File(this.jobConfigDir, "test2");
+
+    this.subDir1.mkdirs();
+    this.subDir11.mkdirs();
+    this.subDir2.mkdirs();
 
     Properties rootProps = new Properties();
     rootProps.setProperty("k1", "a1");
     rootProps.setProperty("k2", "a2");
     // test-job-conf-dir/root.properties
-    rootProps.store(new FileWriter(new File(JOB_CONF_ROOT_DIR, "root.properties")), "");
+    rootProps.store(new FileWriter(new File(this.jobConfigDir, "root.properties")), "");
 
     Properties props1 = new Properties();
     props1.setProperty("k1", "b1");
     props1.setProperty("k3", "a3");
     // test-job-conf-dir/test1/test.properties
-    props1.store(new FileWriter(new File(SUB_DIR1, "test.properties")), "");
+    props1.store(new FileWriter(new File(this.subDir1, "test.properties")), "");
 
     Properties jobProps1 = new Properties();
     jobProps1.setProperty("k1", "c1");
     jobProps1.setProperty("k3", "b3");
     jobProps1.setProperty("k6", "a6");
     // test-job-conf-dir/test1/test11.pull
-    jobProps1.store(new FileWriter(new File(SUB_DIR1, "test11.pull")), "");
+    jobProps1.store(new FileWriter(new File(this.subDir1, "test11.pull")), "");
 
     Properties jobProps2 = new Properties();
     jobProps2.setProperty("k7", "a7");
     // test-job-conf-dir/test1/test12.PULL
-    jobProps2.store(new FileWriter(new File(SUB_DIR1, "test12.PULL")), "");
+    jobProps2.store(new FileWriter(new File(this.subDir1, "test12.PULL")), "");
 
     Properties jobProps3 = new Properties();
     jobProps3.setProperty("k1", "d1");
     jobProps3.setProperty("k8", "a8");
     jobProps3.setProperty("k9", "${k8}");
     // test-job-conf-dir/test1/test11/test111.pull
-    jobProps3.store(new FileWriter(new File(SUB_DIR11, "test111.pull")), "");
+    jobProps3.store(new FileWriter(new File(this.subDir11, "test111.pull")), "");
 
     Properties props2 = new Properties();
     props2.setProperty("k2", "b2");
     props2.setProperty("k5", "a5");
     // test-job-conf-dir/test2/test.properties
-    props2.store(new FileWriter(new File(SUB_DIR2, "test.PROPERTIES")), "");
+    props2.store(new FileWriter(new File(this.subDir2, "test.PROPERTIES")), "");
 
     Properties jobProps4 = new Properties();
     jobProps4.setProperty("k5", "b5");
     // test-job-conf-dir/test2/test21.PULL
-    jobProps4.store(new FileWriter(new File(SUB_DIR2, "test21.PULL")), "");
+    jobProps4.store(new FileWriter(new File(this.subDir2, "test21.PULL")), "");
   }
 
   @Test
   public void testLoadJobConfigs()
       throws ConfigurationException {
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONF_ROOT_DIR.getAbsolutePath());
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, this.jobConfigDir.getAbsolutePath());
     List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
     Assert.assertEquals(jobConfigs.size(), 4);
 
@@ -150,10 +157,10 @@ public class SchedulerUtilsTest {
   public void testLoadJobConfigsWithDoneFile()
       throws ConfigurationException, IOException {
     // Create a .done file for test21.pull so it should not be loaded
-    Files.copy(new File(SUB_DIR2, "test21.PULL"), new File(SUB_DIR2, "test21.PULL.done"));
+    Files.copy(new File(this.subDir2, "test21.PULL"), new File(this.subDir2, "test21.PULL.done"));
 
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONF_ROOT_DIR.getAbsolutePath());
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, this.jobConfigDir.getAbsolutePath());
     List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
     Assert.assertEquals(jobConfigs.size(), 3);
 
@@ -188,12 +195,12 @@ public class SchedulerUtilsTest {
   @Test
   public void testLoadJobConfigsForCommonPropsFile()
       throws ConfigurationException, IOException {
-    File commonPropsFile = new File(SUB_DIR1, "test.properties");
+    File commonPropsFile = new File(this.subDir1, "test.properties");
 
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONF_ROOT_DIR.getAbsolutePath());
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, this.jobConfigDir.getAbsolutePath());
     List<Properties> jobConfigs =
-        SchedulerUtils.loadJobConfigs(properties, commonPropsFile, JOB_CONF_ROOT_DIR);
+        SchedulerUtils.loadJobConfigs(properties, commonPropsFile, this.jobConfigDir);
     Assert.assertEquals(jobConfigs.size(), 3);
 
     // test-job-conf-dir/test1/test11/test111.pull
@@ -225,10 +232,10 @@ public class SchedulerUtilsTest {
   @Test
   public void testLoadJobConfig()
       throws ConfigurationException, IOException {
-    File jobConfigFile = new File(SUB_DIR11, "test111.pull");
+    File jobConfigFile = new File(this.subDir11, "test111.pull");
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, JOB_CONF_ROOT_DIR.getAbsolutePath());
-    Properties jobProps = SchedulerUtils.loadJobConfig(properties, jobConfigFile, JOB_CONF_ROOT_DIR);
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, this.jobConfigDir.getAbsolutePath());
+    Properties jobProps = SchedulerUtils.loadJobConfig(properties, jobConfigFile, this.jobConfigDir);
 
     Assert.assertEquals(jobProps.stringPropertyNames().size(), 7);
     Assert.assertTrue(jobProps.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
@@ -263,20 +270,20 @@ public class SchedulerUtilsTest {
       }
     };
 
-    SchedulerUtils.addFileAlterationObserver(monitor, listener, JOB_CONF_ROOT_DIR);
+    SchedulerUtils.addFileAlterationObserver(monitor, listener, this.jobConfigDir);
 
     try {
       monitor.start();
       // Give the monitor some time to start
       Thread.sleep(1000);
 
-      File jobConfigFile = new File(SUB_DIR11, "test111.pull");
+      File jobConfigFile = new File(this.subDir11, "test111.pull");
       Files.touch(jobConfigFile);
 
-      File commonPropsFile = new File(SUB_DIR1, "test.properties");
+      File commonPropsFile = new File(this.subDir1, "test.properties");
       Files.touch(commonPropsFile);
 
-      File newJobConfigFile = new File(SUB_DIR11, "test112.pull");
+      File newJobConfigFile = new File(this.subDir11, "test112.pull");
       Files.append("k1=v1", newJobConfigFile, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
 
       semaphore.acquire(3);
@@ -292,7 +299,9 @@ public class SchedulerUtilsTest {
   @AfterClass
   public void tearDown()
       throws IOException {
-    FileUtil.fullyDelete(JOB_CONF_ROOT_DIR);
+    if (this.jobConfigDir != null) {
+      FileUtils.forceDelete(this.jobConfigDir);
+    }
   }
 
   private Properties getJobConfigForFile(List<Properties> jobConfigs, String fileName) {
