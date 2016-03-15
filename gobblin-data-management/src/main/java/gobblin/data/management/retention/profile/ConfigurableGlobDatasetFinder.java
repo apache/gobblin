@@ -80,7 +80,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
     this.fs = fs;
 
     Path tmpDatasetPattern;
-    if (config.getString(DATASET_FINDER_PATTERN_KEY) != null) {
+    if (config.hasPath(DATASET_FINDER_PATTERN_KEY)) {
       tmpDatasetPattern = new Path(config.getString(DATASET_FINDER_PATTERN_KEY));
     } else {
       tmpDatasetPattern = new Path(config.getString(DATASET_PATTERN_KEY));
@@ -114,13 +114,18 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
   @Override
   public List<T> findDatasets() throws IOException {
     List<T> datasets = Lists.newArrayList();
-    for (FileStatus fileStatus : this.fs.globStatus(datasetPattern)) {
-      Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
-      if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).find()) {
-        continue;
+    LOG.info("Finding datasets for pattern " + this.datasetPattern);
+
+    FileStatus[] fileStatuss = this.fs.globStatus(this.datasetPattern);
+    if (fileStatuss != null) {
+      for (FileStatus fileStatus : fileStatuss) {
+        Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
+        if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).find()) {
+          continue;
+        }
+        LOG.info("Found dataset at " + fileStatus.getPath());
+        datasets.add(datasetAtPath(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath())));
       }
-      LOG.info("Found dataset at " + fileStatus.getPath());
-      datasets.add(datasetAtPath(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath())));
     }
     return datasets;
   }
@@ -140,4 +145,5 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
    * @throws IOException
    */
   public abstract T datasetAtPath(Path path) throws IOException;
+
 }

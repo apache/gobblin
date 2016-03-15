@@ -58,9 +58,10 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
 
   List<DatasetsFinder<Dataset>> datasetFinders;
 
+  protected final Properties jobProps;
   @SuppressWarnings({ "rawtypes", "unchecked" })
   public MultiDatasetFinder(FileSystem fs, Properties jobProps) {
-
+    this.jobProps = jobProps;
     try {
       this.datasetFinders = Lists.newArrayList();
 
