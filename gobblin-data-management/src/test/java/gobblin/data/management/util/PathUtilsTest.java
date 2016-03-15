@@ -117,4 +117,10 @@ public class PathUtilsTest {
     Assert.assertEquals(path, new Path("file.txt.gpg.tar.gz"));
 
   }
+
+  @Test
+  public void testSanitizeForPath() throws Exception {
+    Assert.assertEquals(PathUtils.sanitizeForPath("hdfs://bad/path", 100), "hdfs___bad_path");
+    Assert.assertEquals(PathUtils.sanitizeForPath("hdfs://bad/path", 9), "hdf...ath");
+  }
 }

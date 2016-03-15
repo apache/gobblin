@@ -29,7 +29,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -59,7 +58,6 @@ import gobblin.hive.PartitionDeregisterStep;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.hive.spec.SimpleHiveSpec;
-import gobblin.util.AutoReturnableObject;
 import gobblin.util.PathUtils;
 import gobblin.util.commit.DeleteFileCommitStep;
 
@@ -456,7 +454,7 @@ class HiveCopyEntityHelper {
     }
 
     public static LocationDescriptor forTable(Table table, FileSystem fs) throws IOException {
-      return new LocationDescriptor(table.getDataLocation(), HiveUtils.getInputFormat(table.getSd()), fs);
+      return new LocationDescriptor(table.getDataLocation(), HiveUtils.getInputFormat(table.getTTable().getSd()), fs);
     }
 
     public static LocationDescriptor forPartition(Partition partition, FileSystem fs) throws IOException {

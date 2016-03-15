@@ -33,10 +33,10 @@ import com.google.common.io.Files;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.PreserveAttributes;
+import gobblin.util.PathUtils;
 import gobblin.util.guid.Guid;
 
 
@@ -114,8 +114,8 @@ public class RecoveryHelperTest {
 
   @Test public void testShortenPathName() throws Exception {
 
-    Assert.assertEquals(RecoveryHelper.shortenPathName(new Path("/test"), 10), "_test");
-    Assert.assertEquals(RecoveryHelper.shortenPathName(new Path("/relatively/long/path"), 9), "_re...ath");
+    Assert.assertEquals(PathUtils.shortenPathName(new Path("/test"), 10), "_test");
+    Assert.assertEquals(PathUtils.shortenPathName(new Path("/relatively/long/path"), 9), "_re...ath");
 
   }
 }

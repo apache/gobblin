@@ -30,6 +30,7 @@ import gobblin.configuration.State;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
+import gobblin.util.PathUtils;
 import gobblin.util.guid.Guid;
 
 
@@ -84,7 +85,7 @@ public class RecoveryHelper {
     String guid = computeGuid(state, file);
     StringBuilder nameBuilder = new StringBuilder(guid);
     nameBuilder.append("_");
-    nameBuilder.append(shortenPathName(file.getOrigin().getPath(), 250 - nameBuilder.length()));
+    nameBuilder.append(PathUtils.shortenPathName(file.getOrigin().getPath(), 250 - nameBuilder.length()));
 
     if (!this.fs.exists(this.persistDir.get())) {
       this.fs.mkdirs(this.persistDir.get(), new FsPermission(FsAction.ALL, FsAction.READ, FsAction.NONE));
@@ -116,31 +117,6 @@ public class RecoveryHelper {
       }
     }
     return Optional.absent();
-  }
-
-  /**
-   * Shorten an absolute path into a sanitized String of length at most bytes. This is useful for including a summary
-   * of an absolute path in a file name.
-   *
-   * <p>
-   *   For example: shortenPathName("/user/gobblin/foo/bar/myFile.txt", 25) will be shortened to "_user_gobbl..._myFile.txt".
-   * </p>
-   *
-   * @param path absolute {@link Path} to shorten.
-   * @param bytes max number of UTF8 bytes that output string can use (note that,
-   *              for now, it is assumed that each character uses exactly one byte).
-   * @return a shortened, sanitized String of length at most bytes.
-   */
-  static String shortenPathName(Path path, int bytes) {
-    String pathString = path.toUri().getPath();
-    String replaced = pathString.replace("/", "_");
-
-    if (replaced.length() <= bytes) {
-      return replaced;
-    }
-
-    int bytesPerHalf = (bytes - 3) / 2;
-    return replaced.substring(0, bytesPerHalf) + "..." + replaced.substring(replaced.length() - bytesPerHalf);
   }
 
   private static String computeGuid(State state, CopyEntity file) throws IOException {

@@ -33,6 +33,7 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
 import gobblin.util.HadoopUtils;
+import gobblin.util.PathUtils;
 
 
 /**
@@ -128,8 +129,8 @@ public class FsStateStore<T extends State> implements StateStore<T> {
    */
   @Override
   public void put(String storeName, String tableName, T state) throws IOException {
-    String tmpTableName = this.useTmpFileForPut ? TMP_FILE_PREFIX + tableName : tableName;
-    Path tmpTablePath = new Path(new Path(this.storeRootDir, storeName), tmpTableName);
+    String tmpTableName = PathUtils.sanitizeForPath(this.useTmpFileForPut ? TMP_FILE_PREFIX + tableName : tableName);
+    Path tmpTablePath = new Path(new Path(this.storeRootDir, PathUtils.sanitizeForPath(storeName)), tmpTableName);
 
     if (!this.fs.exists(tmpTablePath) && !create(storeName, tmpTableName)) {
       throw new IOException("Failed to create a state file for table " + tmpTableName);
@@ -147,7 +148,8 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     }
 
     if (this.useTmpFileForPut) {
-      Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
+      Path tablePath =
+          new Path(new Path(this.storeRootDir, PathUtils.sanitizeForPath(storeName)), PathUtils.sanitizeForPath(tableName));
       HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
     }
   }
