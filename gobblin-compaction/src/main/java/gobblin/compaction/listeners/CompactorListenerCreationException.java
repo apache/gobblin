@@ -17,6 +17,8 @@ package gobblin.compaction.listeners;
  */
 public class CompactorListenerCreationException extends Exception {
 
+  private static final long serialVersionUID = 1L;
+
   public CompactorListenerCreationException(String message, Throwable cause) {
     super(message, cause);
   }

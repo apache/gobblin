@@ -67,7 +67,8 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
    * If true, the latest schema, determined from the input files, will be used as single schema for all input files,
    * otherwise, the avro each input file will be determined and splits will be created with respect to the input file's schema
    */
-  private static final String COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA = COMPACTION_JOB_PREFIX + "avro.single.input.schema";
+  private static final String COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA =
+      COMPACTION_JOB_PREFIX + "avro.single.input.schema";
 
   /**
    * Properties related to the avro dedup compaction job of a dataset.
@@ -97,7 +98,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   public MRCompactorAvroKeyDedupJobRunner(Dataset dataset, FileSystem fs, Double priority) {
     super(dataset, fs, priority);
-    this.useSingleInputSchema = this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, false);
+    this.useSingleInputSchema = this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, true);
   }
 
   @Override
@@ -115,7 +116,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     AvroJob.setMapOutputValueSchema(job, newestSchema);
     AvroJob.setOutputKeySchema(job, newestSchema);
   }
-  
+
   /**
    * Obtain the schema used for compaction. If compaction.dedup.key=all, it returns topicSchema.
    * If compaction.dedup.key=key, it returns a schema composed of all fields in topicSchema
@@ -315,6 +316,8 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
    * A Comparator for reverse order comparison of modification time of two FileStatus.
    */
   private static class LastModifiedDescComparator implements Comparator<FileStatus>, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Override
     public int compare(FileStatus fs1, FileStatus fs2) {

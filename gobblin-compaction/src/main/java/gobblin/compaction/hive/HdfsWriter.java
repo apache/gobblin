@@ -56,6 +56,7 @@ public class HdfsWriter extends HdfsIO {
     return this.fileSystem.delete(new Path(filePathInHdfs), true);
   }
 
+  @SuppressWarnings("deprecation")
   public static void moveSelectFiles(String extension, String source, String destination) throws IOException {
     FileSystem fs = getFileSystem();
     fs.mkdirs(new Path(destination));
