@@ -32,6 +32,7 @@ import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.HadoopUtils;
+import gobblin.util.PathUtils;
 import gobblin.util.RateControlledFileSystem;
 import gobblin.util.WriterUtils;
 import gobblin.util.executors.ScalingThreadPoolExecutor;
@@ -192,7 +193,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
         Collections.sort(fileSets, this.workUnitList.getComparator());
 
         for (FileSet<CopyEntity> fileSet : fileSets) {
-          Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, fileSet.getName());
+          String extractTable = PathUtils.sanitizeForPath(fileSet.getName());
+          Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, extractTable);
           List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
           for (CopyEntity copyEntity : fileSet.getFiles()) {
 
