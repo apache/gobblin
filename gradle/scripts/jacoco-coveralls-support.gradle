@@ -34,30 +34,29 @@ repositories {
 
 // Add the jacoco plugin to each project
 subprojects {
-  plugins.withType(JavaPlugin) {
+  // Cannot figure out to to get coveralls Plugin to work if only some subprojects have the Java plugin, so for now the Java plugin is applied to all sub-projects
+  plugins.apply('java')
+  plugins.apply('jacoco')
 
-    plugins.apply('jacoco')
+  repositories {
+    jcenter()
+  }
 
-    repositories {
-        jcenter()
-    }
+  jacoco {
+    toolVersion = jacocoVersion
+  }
 
-    jacoco {
-        toolVersion = jacocoVersion
-    }
-
-    jacocoTestReport {
-      reports {
-        html.enabled = true
-        xml.enabled = true
-        csv.enabled = false
-      }
+  jacocoTestReport {
+    reports {
+      html.enabled = true
+      xml.enabled = true
+      csv.enabled = false
     }
   }
 }
 
 // Configure the coveralls task to read the aggregated JaCoCo report
 coveralls {
-    sourceDirs = files(subprojects.findAll { subproject -> subproject.plugins.hasPlugin('java') }.sourceSets.main.allSource.srcDirs).files.absolutePath
+    sourceDirs = files(subprojects.sourceSets.main.allSource.srcDirs).files.absolutePath
     jacocoReportPath = "${rootProject.buildDir}/reports/jacoco/jacocoFullReport/jacocoFullReport.xml"
 }
