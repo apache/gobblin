@@ -185,6 +185,8 @@ public class ConfigurationKeys {
   public static final String CONVERTER_STRING_SPLITTER_DELIMITER = "converter.string.splitter.delimiter";
   public static final String CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "converter.csv.to.json.enclosedchar";
   public static final String DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "\0";
+  public static final String CONVERTER_AVRO_FIELD_PICK_FIELDS = "converter.avro.fields";
+
 
   /**
    * Fork operator configuration properties.

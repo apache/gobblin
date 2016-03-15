@@ -12,6 +12,7 @@
 
 package gobblin.runtime;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,8 @@ import gobblin.util.ClusterNameTags;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
+import gobblin.writer.initializer.WriterInitializer;
+import gobblin.writer.initializer.WriterInitializerFactory;
 
 
 /**
@@ -197,7 +200,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     String jobId = this.jobContext.getJobId();
     JobState jobState = this.jobContext.getJobState();
 
-    try {
+    try (Closer closer = Closer.create()) {
       if (!tryLockJob()) {
         this.eventSubmitter.submit(gobblin.metrics.event.EventNames.LOCK_IN_USE);
         throw new JobException(String.format(
@@ -223,6 +226,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         LOG.warn("No work units have been created for job " + jobId);
         return;
       }
+      WriterInitializer writerInitializer = WriterInitializerFactory.newInstace(jobState, workUnits.get());
+      closer.register(writerInitializer);
+      writerInitializer.initialize();
 
       TimingEvent stagingDataCleanTimer =
           this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_STAGING_DATA_CLEAN);

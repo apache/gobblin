@@ -24,25 +24,15 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.jdbc.DataSourceBuilder;
+import gobblin.writer.commands.JdbcWriterCommands;
+import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
 public class JdbcPublisher extends DataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcPublisher.class);
 
-  private static final String INSERT_STATEMENT_FORMAT = "INSERT INTO %s SELECT * FROM %s";
-  private static final String DELETE_STATEMENT_FORMAT = "DELETE FROM %s";
-  private Connection conn;
-  private boolean failed;
-
-
   public JdbcPublisher(State state) {
     super(state);
     validate(getState());
-    try {
-      conn = createConnection();
-      conn.setAutoCommit(false);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 
   private void validate(State state) {
@@ -56,33 +46,25 @@ public class JdbcPublisher extends DataPublisher {
     }
   }
 
-  private Connection createConnection() throws SQLException {
+  private Connection createConnection() {
     DataSource dataSource = DataSourceBuilder.builder()
-                                                            .url(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_URL))
-                                                            .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
-                                                            .userName(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_USERNAME))
-                                                            .passWord(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_PASSWORD))
-                                                            .maxActiveConnections(1)
-                                                            .maxIdleConnections(1)
-                                                            .state(state)
-                                                            .build();
-
-    return dataSource.getConnection();
+                                             .url(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_URL))
+                                             .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
+                                             .userName(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_USERNAME))
+                                             .passWord(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_PASSWORD))
+                                             .maxActiveConnections(1)
+                                             .maxIdleConnections(1)
+                                             .state(state)
+                                             .build();
+    try {
+      return dataSource.getConnection();
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
-  public void close() throws IOException {
-    try {
-      if (failed) {
-        LOG.info("Rolling back transaction as failed publishing.");
-        conn.rollback();
-      } else {
-        conn.commit();
-      }
-    } catch (SQLException e) {
-      throw new IOException(e);
-    }
-  }
+  public void close() throws IOException {}
 
   @Override
   public void initialize() throws IOException {
@@ -103,43 +85,58 @@ public class JdbcPublisher extends DataPublisher {
     LOG.info("WorkUnitStates: " + states);
     int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
     Set<String> truncatedDestinationTables = Sets.newHashSet();
-    for (int i = 0; i < branches; i++) {
 
-      String destinationTable = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, i));
-      Objects.requireNonNull(destinationTable);
+    JdbcWriterCommands commands = JdbcWriterCommandsFactory.newInstance(state);
+    Connection conn = createConnection();
+    boolean isFailed = false;
+    try {
+      conn.setAutoCommit(false);
 
-      if(state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
-         && !truncatedDestinationTables.contains(destinationTable)) {
-        String deleteSql = String.format(DELETE_STATEMENT_FORMAT, destinationTable);
-        LOG.info("Deleting table " + destinationTable + " , SQL: " + deleteSql);
-        try {
-          conn.prepareStatement(deleteSql).execute();
-          truncatedDestinationTables.add(destinationTable);
-        } catch (SQLException e) {
-          for (WorkUnitState workUnitState : states) {
-            workUnitState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-          }
-          throw new RuntimeException("Failed to delete destination table " + destinationTable, e);
+      for (int i = 0; i < branches; i++) {
+        String destinationTable = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, i));
+        Objects.requireNonNull(destinationTable);
+
+        if(state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
+           && !truncatedDestinationTables.contains(destinationTable)) {
+          LOG.info("Deleting table " + destinationTable);
+            commands.deleteAll(conn, destinationTable);
+            truncatedDestinationTables.add(destinationTable);
+        }
+
+        Map<String, List<WorkUnitState>> stagingTables = getStagingTables(states, branches, i);
+
+        for (Map.Entry<String, List<WorkUnitState>> entry : stagingTables.entrySet()) {
+          String stagingTable = entry.getKey();
+          LOG.info("Copying data from staging table + " + stagingTable + " into destination table " + destinationTable);
+            commands.copyTable(conn, stagingTable, destinationTable);
+            for (WorkUnitState workUnitState : entry.getValue()) {
+              workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+            }
         }
       }
-      Map<String, List<WorkUnitState>> stagingTables = getStagingTables(states, branches, i);
-
-      for (Map.Entry<String, List<WorkUnitState>> entry : stagingTables.entrySet()) {
-        String stagingTable = entry.getKey();
-        String sql = String.format(INSERT_STATEMENT_FORMAT, destinationTable, stagingTable);
-        LOG.info("Copying data from staging table + " + stagingTable + " into destination table " + destinationTable + " , SQL: " + sql);
-        try {
-          conn.prepareStatement(sql).execute();
-          for (WorkUnitState workUnitState : entry.getValue()) {
-            workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-          }
-        } catch (Exception e) {
-          LOG.error("Failed copying data from staging to destination table. SQL: " + sql, e);
-          failed = true;
-          for (WorkUnitState workUnitState : entry.getValue()) {
-            workUnitState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-          }
+      commands.flush(conn);
+    } catch (Exception e) {
+      isFailed = true;
+      try {
+        LOG.error("Failed publishing. Rolling back.");
+        conn.rollback();
+      } catch (SQLException se) {
+        LOG.error("Failed rolling back.", se);
+      }
+      throw new RuntimeException("Failed publishing", e);
+    } finally {
+      try {
+        if(!isFailed) {
+          LOG.info("Commit publish data");
+          conn.commit();
         }
+      } catch (SQLException se) {
+        throw new RuntimeException("Failed to commit", se);
+      }
+      try {
+        conn.close();
+      } catch (SQLException e) {
+        throw new RuntimeException(e);
       }
     }
   }
@@ -161,6 +158,5 @@ public class JdbcPublisher extends DataPublisher {
   }
 
   @Override
-  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
-  }
+  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {}
 }

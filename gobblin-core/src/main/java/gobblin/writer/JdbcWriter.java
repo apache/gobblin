@@ -2,16 +2,15 @@ package gobblin.writer;
 
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.jdbc.DataSourceBuilder;
+import gobblin.writer.commands.JdbcWriterCommands;
+import gobblin.writer.commands.JdbcWriterCommandsFactory;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.converter.jdbc.JdbcEntryData;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
 
 import javax.sql.DataSource;
@@ -19,33 +18,27 @@ import javax.sql.DataSource;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
-
 public class JdbcWriter implements DataWriter<JdbcEntryData> {
   private static final Logger LOG = LoggerFactory.getLogger(AvroJdbcWriter.class);
-  private static final String INSERT_STATEMENT_FORMAT = "INSERT INTO %s (%s) VALUES (%s)";
 
   private final Connection conn;
   private final State state;
-  private final List<String> columnNames;
-  private final PreparedStatement insertPstmt;
+  private final JdbcWriterCommands commands;
+  private final String table;
   private boolean failed;
   private long count;
 
   public JdbcWriter(JdbcWriterBuilder builder) {
     this.state = builder.destination.getProperties();
     this.state.appendToListProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, Integer.toString(builder.branch));
-    this.columnNames = Lists.newArrayList(builder.schema.getColumnNames());
+    String stagingTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE,
+        builder.branches,
+        builder.branch);
+    this.table = Objects.requireNonNull(state.getProp(stagingTableKey), "Staging table is missing with key " + stagingTableKey);
+    this.commands = JdbcWriterCommandsFactory.newInstance(state);
     try {
       this.conn = createConnection();
       conn.setAutoCommit(false);
-      String stagingTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE,
-                                                                          builder.branches,
-                                                                          builder.branch);
-      String stagingTable = Objects.requireNonNull(state.getProp(stagingTableKey), "Staging table is missing with key " + stagingTableKey);
-      this.insertPstmt = conn.prepareStatement(createPrepareStatementStr(stagingTable, columnNames));
-      LOG.info("Created " + insertPstmt.getClass().getSimpleName() + " with " + insertPstmt);
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
@@ -74,24 +67,11 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   public void write(JdbcEntryData record) throws IOException {
     LOG.info("Writing " + record);
     try {
-      int i = 1;
-      for (String columnName : columnNames) {
-        insertPstmt.setObject(i++, record.getVal(columnName));
-      }
-      LOG.info("Executing " + insertPstmt);
-      insertPstmt.executeUpdate();
-      insertPstmt.clearParameters();
+      commands.insert(conn, table, record);
+      count++;
     } catch (Exception e) {
-      failed = true;
       throw new RuntimeException(e);
     }
-  }
-
-  private String createPrepareStatementStr(String tableName, Collection<String> columnNames) {
-    return String.format(INSERT_STATEMENT_FORMAT,
-                         tableName,
-                         Joiner.on(',').join(columnNames),
-                         Joiner.on(',').useForNull("?").join(new String[columnNames.size()]));
   }
 
   @Override

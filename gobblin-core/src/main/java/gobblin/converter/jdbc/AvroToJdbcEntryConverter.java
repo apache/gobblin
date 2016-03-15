@@ -3,8 +3,6 @@ package gobblin.converter.jdbc;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.JDBCType;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -36,6 +34,8 @@ import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.util.jdbc.DataSourceBuilder;
+import gobblin.writer.commands.JdbcWriterCommands;
+import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
 /**
  * Converts Avro Schema into JdbcEntrySchema
@@ -107,7 +107,10 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     LOG.info("Converting schema " + inputSchema);
     try (Connection conn = createConnection(workUnit)) {
       Map<String, Type> avroColumnType = flat(inputSchema);
-      Map<String, JDBCType> dateColumnMapping = retrieveDateColumns(workUnit, conn);
+
+      String table = Objects.requireNonNull(workUnit.getProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME));
+      JdbcWriterCommands commands = JdbcWriterCommandsFactory.newInstance(workUnit);
+      Map<String, JDBCType> dateColumnMapping = commands.retrieveDataColumns(conn, table);
       LOG.info("Date column mapping: " + dateColumnMapping);
 
       List<JdbcEntryMetaDatum> jdbcEntryMetaData = Lists.newArrayList();
@@ -143,42 +146,6 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
                                              .build();
 
     return dataSource.getConnection();
-  }
-
-  /**
-   * https://dev.mysql.com/doc/connector-j/en/connector-j-reference-type-conversions.html
-   * TODO: Make this pluggable
-   * @return
-   * @throws SQLException
-   */
-  private Map<String, JDBCType> retrieveDateColumns(State state, Connection conn) throws SQLException {
-    Map<String, JDBCType> targetDataTypes = ImmutableMap.<String, JDBCType>builder()
-                                              .put("DATE", JDBCType.DATE)
-                                              .put("DATETIME", JDBCType.TIME)
-                                              .put("TIME", JDBCType.TIME)
-                                              .put("TIMESTAMP", JDBCType.TIMESTAMP)
-                                              .build();
-
-    final String SELECT_SQL_PSTMT = "SELECT column_name, column_type FROM information_schema.columns where table_name = ?";
-    String table = Objects.requireNonNull(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME));
-
-    ImmutableMap.Builder<String, JDBCType> dateColumnsBuilder = ImmutableMap.builder();
-    try (PreparedStatement pstmt = conn.prepareStatement(SELECT_SQL_PSTMT)) {
-      pstmt.setString(1, table);
-      LOG.info("Retrieving column type information from SQL: " + pstmt);
-      ResultSet rs = pstmt.executeQuery();
-      if(!rs.first()) {
-        throw new IllegalArgumentException("No result from information_schema.columns");
-      }
-      do {
-        String type = rs.getString("column_type").toUpperCase();
-        JDBCType convertedType = targetDataTypes.get(type);
-        if(convertedType != null) {
-          dateColumnsBuilder.put(rs.getString("column_name"), convertedType);
-        }
-      } while (rs.next());
-    }
-    return dateColumnsBuilder.build();
   }
 
   private Map<String, Type> flat(Schema schema) throws SchemaConversionException {
