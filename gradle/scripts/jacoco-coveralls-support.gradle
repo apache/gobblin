@@ -59,5 +59,5 @@ subprojects {
 // Configure the coveralls task to read the aggregated JaCoCo report
 coveralls {
     sourceDirs = files(subprojects.findAll { subproject -> subproject.plugins.hasPlugin('java') }.sourceSets.main.allSource.srcDirs).files.absolutePath
-    jacocoReportPath = "${rootProject.buildDir}/build/reports/jacoco/jacocoFullReport/jacocoFullReport.xml"
+    jacocoReportPath = "${rootProject.buildDir}/reports/jacoco/jacocoFullReport/jacocoFullReport.xml"
 }
