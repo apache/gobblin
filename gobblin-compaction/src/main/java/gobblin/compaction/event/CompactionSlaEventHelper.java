@@ -15,7 +15,6 @@ package gobblin.compaction.event;
 
 import java.io.IOException;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -26,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Strings;
 
 import gobblin.compaction.dataset.Dataset;
 import gobblin.compaction.mapreduce.MRCompactor;

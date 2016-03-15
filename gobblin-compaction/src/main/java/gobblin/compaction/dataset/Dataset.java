@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;

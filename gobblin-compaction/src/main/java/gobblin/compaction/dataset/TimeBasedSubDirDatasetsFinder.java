@@ -26,7 +26,6 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 
 import gobblin.compaction.mapreduce.MRCompactor;
@@ -91,6 +90,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   /**
    * Each subdir in {@link DatasetsFinder#inputDir} is considered a dataset, if it satisfies blacklist and whitelist.
    */
+  @SuppressWarnings("deprecation")
   @Override
   public Set<Dataset> findDistinctDatasets() throws IOException {
     Set<Dataset> datasets = Sets.newHashSet();
