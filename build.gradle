@@ -352,6 +352,15 @@ ext.pomAttributes = {
   }
 }
 
+def getAllDependentProjects(project) {
+  def projectDependencies = project.configurations.runtime.getAllDependencies().withType(ProjectDependency)
+  def dependentProjects = projectDependencies*.dependencyProject
+  if (dependentProjects.size() > 0) {
+      dependentProjects.each { dependentProjects += getAllDependentProjects(it) }
+  }
+  return dependentProjects.unique()
+}
+
 subprojects {
   plugins.withType(JavaPlugin) {
     plugins.apply('idea')
@@ -497,10 +506,6 @@ subprojects {
                                 "https://hive.apache.org/javadocs/r${rootProject.ext.hiveVersion}/api/",
                                 "http://avro.apache.org/docs/${avroVersion}/api/java/",
                                 "https://dropwizard.github.io/metrics/${dropwizardMetricsVersion}/apidocs/"
-    rootProject.ext.javadocPackages.each {
-      tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it}/",
-                                       "${rootProject.buildDir}/${it}/docs/javadoc/"
-    }
 
     afterEvaluate {
       // add the standard pegasus dependencies wherever the plugin is used
@@ -509,6 +514,17 @@ subprojects {
           dataTemplateCompile externalDependency.pegasus.data
           restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
         }
+      }
+    }
+  }
+}
+
+gradle.projectsEvaluated {
+  subprojects {
+    plugins.withType(JavaPlugin) {
+      getAllDependentProjects(project).each {
+        tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it.name}/",
+                                         "${rootProject.buildDir}/${it.name}/docs/javadoc/"
       }
     }
   }
