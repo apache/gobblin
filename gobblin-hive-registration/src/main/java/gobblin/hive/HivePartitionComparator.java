@@ -22,7 +22,7 @@ import com.google.common.base.Optional;
  */
 public class HivePartitionComparator<T extends HivePartitionComparator<?>> extends HiveRegistrationUnitComparator<T> {
 
-  public HivePartitionComparator(HivePartition existingPartition, HiveRegistrationUnit newPartition) {
+  public HivePartitionComparator(HivePartition existingPartition, HivePartition newPartition) {
     super(existingPartition, newPartition);
   }
 

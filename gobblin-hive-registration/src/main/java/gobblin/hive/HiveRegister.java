@@ -278,8 +278,7 @@ public abstract class HiveRegister implements Closeable {
     try {
       Class<?> clazz =
           Class.forName(this.props.getProp(HIVE_TABLE_COMPARATOR_TYPE, DEFAULT_HIVE_TABLE_COMPARATOR_TYPE));
-      return (HiveRegistrationUnitComparator<?>) ConstructorUtils.invokeExactConstructor(clazz, existingTable,
-          newTable);
+      return (HiveRegistrationUnitComparator<?>) ConstructorUtils.invokeConstructor(clazz, existingTable, newTable);
     } catch (ReflectiveOperationException e) {
       log.error("Unable to instantiate Hive table comparator", e);
       throw Throwables.propagate(e);
@@ -295,7 +294,7 @@ public abstract class HiveRegister implements Closeable {
     try {
       Class<?> clazz =
           Class.forName(this.props.getProp(HIVE_PARTITION_COMPARATOR_TYPE, DEFAULT_HIVE_PARTITION_COMPARATOR_TYPE));
-      return (HiveRegistrationUnitComparator<?>) ConstructorUtils.invokeExactConstructor(clazz, existingPartition,
+      return (HiveRegistrationUnitComparator<?>) ConstructorUtils.invokeConstructor(clazz, existingPartition,
           newPartition);
     } catch (ReflectiveOperationException e) {
       log.error("Unable to instantiate Hive partition comparator", e);
