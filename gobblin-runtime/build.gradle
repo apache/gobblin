@@ -45,7 +45,7 @@ dependencies {
   compile externalDependency.guice
   compile externalDependency.javaxInject
   compile externalDependency.lombok
-  if (project.hasProperty('useHadoop2')) {
+  if (useHadoop2) {
     compile externalDependency.avroMapredH2
   } else {
     compile externalDependency.avroMapredH1
