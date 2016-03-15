@@ -24,6 +24,7 @@ install: ./travis/build.sh
 
 script: ./travis/test.sh
 
+after_success: ./gradlew coveralls
 after_failure: ./travis/junit-errors-to-stdout.sh
 
 env:

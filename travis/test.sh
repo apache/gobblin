@@ -19,7 +19,7 @@
 set -e
 
 if [ "$USEHADOOP2" = true ] ; then
-  ./gradlew test -PuseHadoop2 -PskipTestGroup=disabledOnTravis
+  ./gradlew test jacocoFullReport -PuseHadoop2 -PskipTestGroup=disabledOnTravis -Dorg.gradle.parallel=false
 else
-  ./gradlew test -PskipTestGroup=disabledOnTravis
+  ./gradlew test jacocoFullReport -PskipTestGroup=disabledOnTravis -Dorg.gradle.parallel=false
 fi
