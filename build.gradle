@@ -16,7 +16,7 @@ buildscript {
   }
   dependencies {
     classpath 'gradle.plugin.org.inferred:gradle-processors:1.1.2'
-    classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:2.6.3'
+    classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:1.0.2'
     classpath 'gradle.plugin.com.palantir:jacoco-coverage:0.3.0'
   }
 }

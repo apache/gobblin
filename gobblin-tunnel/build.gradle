@@ -20,6 +20,7 @@ dependencies {
 
   testCompile externalDependency.mockserver
   testCompile externalDependency.testng
+  testCompile externalDependency.commonsIo
 }
 
 
