@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
@@ -50,6 +51,7 @@ import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.RecursivePathFinder;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.hive.HiveMetastoreClientPool;
@@ -97,7 +99,7 @@ class HiveCopyEntityHelper {
   public static final String TARGET_METASTORE_URI_KEY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.metastore.uri";
   /** Target database name */
   public static final String TARGET_DATABASE_KEY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.database";
-
+  
   private static final String databaseToken = "$DB";
   private static final String tableToken = "$TABLE";
 
@@ -109,6 +111,7 @@ class HiveCopyEntityHelper {
   private final HiveDataset dataset;
   private final CopyConfiguration configuration;
   private final FileSystem targetFs;
+  private final Properties properties;
 
   private final Optional<Path> targetTableRoot;
   private final boolean relocateDataFiles;
@@ -154,13 +157,14 @@ class HiveCopyEntityHelper {
     private final Path destination;
   }
 
-  HiveCopyEntityHelper(HiveDataset dataset, CopyConfiguration configuration, FileSystem targetFs) throws IOException {
+  HiveCopyEntityHelper(HiveDataset dataset, CopyConfiguration configuration, FileSystem targetFs, Properties properties) throws IOException {
 
     log.info("Finding copy entities for table " + dataset.table.getCompleteName());
 
     this.dataset = dataset;
     this.configuration = configuration;
     this.targetFs = targetFs;
+    this.properties = properties;
 
     this.relocateDataFiles =
         Boolean.valueOf(this.dataset.properties.getProperty(RELOCATE_DATA_FILES_KEY, DEFAULT_RELOCATE_DATA_FILES));
@@ -254,7 +258,7 @@ class HiveCopyEntityHelper {
     if (HiveUtils.isPartitioned(this.dataset.table)) {
       for (Map.Entry<List<String>, Partition> partitionEntry : sourcePartitions.entrySet()) {
         try {
-          copyableFiles.addAll(new PartitionCopy(partitionEntry.getValue()).getCopyEntities());
+          copyableFiles.addAll(new PartitionCopy(partitionEntry.getValue(), this.properties).getCopyEntities());
         } catch (IOException ioe) {
           log.error("Could not generate work units to copy partition " + partitionEntry.getValue().getCompleteName(), ioe);
         }
@@ -320,6 +324,7 @@ class HiveCopyEntityHelper {
   private class PartitionCopy {
 
     private final Partition partition;
+    private final Properties properties;
 
     private List<CopyEntity> getCopyEntities()
         throws IOException {
@@ -364,11 +369,11 @@ class HiveCopyEntityHelper {
         copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object>newHashMap(), register, stepPriority++));
       }
 
-      LocationDescriptor sourceLocation = LocationDescriptor.forPartition(this.partition, dataset.fs);
-      LocationDescriptor desiredTargetLocation = LocationDescriptor.forPartition(targetPartition, targetFs);
-      Optional<LocationDescriptor> existingTargetLocation = existingTargetPartition.isPresent() ?
-          Optional.of(LocationDescriptor.forPartition(existingTargetPartition.get(), targetFs)) :
-          Optional.<LocationDescriptor>absent();
+      HiveLocationDescriptor sourceLocation = HiveLocationDescriptor.forPartition(this.partition, dataset.fs, properties);
+      HiveLocationDescriptor desiredTargetLocation = HiveLocationDescriptor.forPartition(targetPartition, targetFs, properties);
+      Optional<HiveLocationDescriptor> existingTargetLocation = existingTargetPartition.isPresent() ?
+          Optional.of(HiveLocationDescriptor.forPartition(existingTargetPartition.get(), targetFs, properties)) :
+          Optional.<HiveLocationDescriptor>absent();
 
       DiffPathSet diffPathSet = fullPathDiff(sourceLocation, desiredTargetLocation, existingTargetLocation,
           Optional.<Partition>absent());
@@ -421,11 +426,11 @@ class HiveCopyEntityHelper {
 
     stepPriority = addSharedSteps(copyEntities, fileSet, stepPriority);
 
-    LocationDescriptor sourceLocation = LocationDescriptor.forTable(this.dataset.table, this.dataset.fs);
-    LocationDescriptor desiredTargetLocation = LocationDescriptor.forTable(this.targetTable, this.targetFs);
-    Optional<LocationDescriptor> existingTargetLocation = this.existingTargetTable.isPresent() ?
-        Optional.of(LocationDescriptor.forTable(this.existingTargetTable.get(), this.targetFs)) :
-        Optional.<LocationDescriptor>absent();
+    HiveLocationDescriptor sourceLocation = HiveLocationDescriptor.forTable(this.dataset.table, this.dataset.fs, properties);
+    HiveLocationDescriptor desiredTargetLocation = HiveLocationDescriptor.forTable(this.targetTable, this.targetFs, properties);
+    Optional<HiveLocationDescriptor> existingTargetLocation = this.existingTargetTable.isPresent() ?
+        Optional.of(HiveLocationDescriptor.forTable(this.existingTargetTable.get(), this.targetFs, properties)) :
+        Optional.<HiveLocationDescriptor>absent();
 
     DiffPathSet diffPathSet = fullPathDiff(sourceLocation, desiredTargetLocation, existingTargetLocation,
         Optional.<Partition>absent());
@@ -443,30 +448,6 @@ class HiveCopyEntityHelper {
   }
 
   /**
-   * Contains data for a Hive location.
-   */
-  @Data
-  private static class LocationDescriptor {
-    private final Path location;
-    private final InputFormat<?, ?> inputFormat;
-    private final FileSystem fileSystem;
-
-    public final Set<Path> getPaths() throws IOException {
-      return HiveUtils.getPaths(this.inputFormat, this.location);
-    }
-
-    public static LocationDescriptor forTable(Table table, FileSystem fs) throws IOException {
-      return new LocationDescriptor(table.getDataLocation(), HiveUtils.getInputFormat(table.getSd()), fs);
-    }
-
-    public static LocationDescriptor forPartition(Partition partition, FileSystem fs) throws IOException {
-      return new LocationDescriptor(partition.getDataLocation(),
-          HiveUtils.getInputFormat(partition.getTPartition().getSd()), fs);
-    }
-
-  }
-
-  /**
    * Compares three entities to figure out which files should be copied and which files should be deleted in the target
    * file system.
    * @param sourceLocation Represents the source table or partition.
@@ -476,8 +457,8 @@ class HiveCopyEntityHelper {
    * @return A {@link DiffPathSet} with data on files to copy and delete.
    * @throws IOException if the copy of this table / partition should be aborted.
    */
-  private DiffPathSet fullPathDiff(LocationDescriptor sourceLocation, LocationDescriptor desiredTargetLocation,
-      Optional<LocationDescriptor> currentTargetLocation, Optional<Partition> partition) throws IOException {
+  private DiffPathSet fullPathDiff(HiveLocationDescriptor sourceLocation, HiveLocationDescriptor desiredTargetLocation,
+      Optional<HiveLocationDescriptor> currentTargetLocation, Optional<Partition> partition) throws IOException {
 
     DiffPathSet.DiffPathSetBuilder builder = DiffPathSet.builder();
 
