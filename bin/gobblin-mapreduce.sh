@@ -140,14 +140,14 @@ LIBJARS=(
   $FWDIR_LIB/commons-lang3-3.4.jar
   $FWDIR_LIB/config-1.2.1.jar
   $FWDIR_LIB/data-1.15.9.jar
-  $FWDIR_LIB/gson-2.3.1.jar
-  $FWDIR_LIB/joda-time-2.9.jar
-  $FWDIR_LIB/kafka_2.11-0.8.2.1.jar
-  $FWDIR_LIB/kafka-clients-0.8.2.1.jar
+  $FWDIR_LIB/gson-2.6.1.jar
+  $FWDIR_LIB/joda-time-2.9.2.jar
+  $FWDIR_LIB/kafka_2.11-0.8.2.2.jar
+  $FWDIR_LIB/kafka-clients-0.8.2.2.jar
   $FWDIR_LIB/metrics-core-2.2.0.jar
   $FWDIR_LIB/metrics-core-3.1.0.jar
   $FWDIR_LIB/metrics-graphite-3.1.0.jar
-  $FWDIR_LIB/scala-library-2.11.6.jar
+  $FWDIR_LIB/scala-library-2.11.8.jar
 )
 LIBJARS=$(join , "${LIBJARS[@]}")
 
