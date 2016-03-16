@@ -16,6 +16,7 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
   compile project(":gobblin-hive-registration")
+  compile internalDependency."gobblin-hadoop"
 
   compile externalDependency.commonsCodec
   compile externalDependency.commonsDbcp

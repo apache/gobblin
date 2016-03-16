@@ -29,7 +29,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -59,7 +58,6 @@ import gobblin.hive.PartitionDeregisterStep;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.hive.spec.SimpleHiveSpec;
-import gobblin.util.AutoReturnableObject;
 import gobblin.util.PathUtils;
 import gobblin.util.commit.DeleteFileCommitStep;
 
@@ -97,6 +95,8 @@ class HiveCopyEntityHelper {
   public static final String TARGET_METASTORE_URI_KEY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.metastore.uri";
   /** Target database name */
   public static final String TARGET_DATABASE_KEY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.database";
+  /** A filter to select partitions to copy */
+  public static final String COPY_PARTITIONS_FILTER = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.partition.filter";
 
   private static final String databaseToken = "$DB";
   private static final String tableToken = "$TABLE";
@@ -119,6 +119,7 @@ class HiveCopyEntityHelper {
   private final Table targetTable;
   private final Optional<String> targetURI;
   private final ExistingEntityPolicy existingEntityPolicy;
+  private final Optional<String> partitionFilter;
 
   private final Optional<CommitStep> tableRegistrationStep;
   private final Map<List<String>, Partition> sourcePartitions;
@@ -175,6 +176,7 @@ class HiveCopyEntityHelper {
         or(this.dataset.table.getDbName());
     this.existingEntityPolicy = ExistingEntityPolicy.valueOf(
         this.dataset.properties.getProperty(EXISTING_ENTITY_POLICY_KEY, DEFAULT_EXISTING_ENTITY_POLICY).toUpperCase());
+    this.partitionFilter = Optional.fromNullable(this.dataset.properties.getProperty(COPY_PARTITIONS_FILTER));
 
     Map<String, HiveMetastoreClientPool> namedPools =
         ImmutableMap.of(source_client, this.dataset.clientPool, target_client, this.targetClientPool);
@@ -206,9 +208,10 @@ class HiveCopyEntityHelper {
       }
 
       if (HiveUtils.isPartitioned(this.dataset.table)) {
-        this.sourcePartitions = HiveUtils.getPartitionsMap(multiClient.getClient(source_client), this.dataset.table);
+        this.sourcePartitions =
+            HiveUtils.getPartitionsMap(multiClient.getClient(source_client), this.dataset.table, this.partitionFilter);
         this.targetPartitions = this.existingTargetTable.isPresent() ?
-            HiveUtils.getPartitionsMap(multiClient.getClient(target_client), this.existingTargetTable.get()) :
+            HiveUtils.getPartitionsMap(multiClient.getClient(target_client), this.existingTargetTable.get(), this.partitionFilter) :
             Maps.<List<String>, Partition>newHashMap();
       } else {
         this.sourcePartitions = Maps.newHashMap();
