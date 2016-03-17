@@ -34,6 +34,7 @@ dependencies {
   compile externalDependency.commonsLang
   compile externalDependency.commonsLang3
   compile externalDependency.log4j
+  compile externalDependency.log4jextras
   compile externalDependency.slf4j
   compile externalDependency.commonsCli
   compile externalDependency.gson
