@@ -49,6 +49,7 @@ import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.util.JobMetrics;
+import gobblin.runtime.util.MetricGroup;
 
 
 /**

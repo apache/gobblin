@@ -22,10 +22,36 @@ import com.google.common.collect.Maps;
  */
 public class TimingEvent {
 
-  public static final String START_TIME = "startTime";
-  public static final String END_TIME = "endTime";
-  public static final String DURATION = "durationMillis";
-  public static final String TIMING_EVENT = "timingEvent";
+  public static class LauncherTimings {
+    public static final String FULL_JOB_EXECUTION = "FullJobExecutionTimer";
+    public static final String WORK_UNITS_CREATION = "WorkUnitsCreationTimer";
+    public static final String WORK_UNITS_PREPARATION = "WorkUnitsPreparationTimer";
+    public static final String JOB_PREPARE = "JobPrepareTimer";
+    public static final String JOB_START = "JobStartTimer";
+    public static final String JOB_RUN = "JobRunTimer";
+    public static final String JOB_COMMIT = "JobCommitTimer";
+    public static final String JOB_CLEANUP = "JobCleanupTimer";
+    public static final String JOB_CANCEL = "JobCancelTimer";
+    public static final String JOB_COMPLETE = "JobCompleteTimer";
+    public static final String JOB_FAILED = "JobFailedTimer";
+  }
+
+  public static class RunJobTimings {
+    public static final String JOB_LOCAL_SETUP = "JobLocalSetupTimer";
+    public static final String WORK_UNITS_RUN = "WorkUnitsRunTimer";
+    public static final String WORK_UNITS_PREPARATION = "WorkUnitsPreparationTimer";
+    public static final String MR_STAGING_DATA_CLEAN = "JobMrStagingDataCleanTimer";
+    public static final String MR_DISTRIBUTED_CACHE_SETUP = "JobMrDistributedCacheSetupTimer";
+    public static final String MR_JOB_SETUP = "JobMrSetupTimer";
+    public static final String MR_JOB_RUN = "JobMrRunTimer";
+    public static final String HELIX_JOB_SUBMISSION= "JobHelixSubmissionTimer";
+    public static final String HELIX_JOB_RUN = "JobHelixRunTimer";
+  }
+  
+  public static final String METADATA_START_TIME = "startTime";
+  public static final String METADATA_END_TIME = "endTime";
+  public static final String METADATA_DURATION = "durationMillis";
+  public static final String METADATA_TIMING_EVENT = "timingEvent";
 
   private final String name;
   private final Long startTime;
@@ -62,10 +88,10 @@ public class TimingEvent {
 
     Map<String, String> finalMetadata = Maps.newHashMap();
     finalMetadata.putAll(additionalMetadata);
-    finalMetadata.put(EventSubmitter.EVENT_TYPE, TIMING_EVENT);
-    finalMetadata.put(START_TIME, Long.toString(this.startTime));
-    finalMetadata.put(END_TIME, Long.toString(endTime));
-    finalMetadata.put(DURATION, Long.toString(duration));
+    finalMetadata.put(EventSubmitter.EVENT_TYPE, METADATA_TIMING_EVENT);
+    finalMetadata.put(METADATA_START_TIME, Long.toString(this.startTime));
+    finalMetadata.put(METADATA_END_TIME, Long.toString(endTime));
+    finalMetadata.put(METADATA_DURATION, Long.toString(duration));
 
     this.submitter.submit(this.name, finalMetadata);
   }

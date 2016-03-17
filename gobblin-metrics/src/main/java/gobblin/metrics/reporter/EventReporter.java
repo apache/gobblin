@@ -38,6 +38,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -62,6 +63,8 @@ import gobblin.util.ExecutorsUtils;
 @Slf4j
 public abstract class EventReporter extends ScheduledReporter implements Closeable {
 
+  protected static final Joiner JOINER = Joiner.on('.').skipNulls();
+  protected static final String EVENTS_QUALIFIER = "events";
   private static final Logger LOGGER = LoggerFactory.getLogger(EventReporter.class);
   private static final int QUEUE_CAPACITY = 100;
   private static final String NULL_STRING = "null";

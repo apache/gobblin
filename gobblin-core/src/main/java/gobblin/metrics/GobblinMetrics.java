@@ -44,10 +44,17 @@ import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.metrics.graphite.GraphiteEventReporter;
+import gobblin.metrics.graphite.GraphiteReporter;
+import gobblin.metrics.graphite.GraphiteConnectionType;
+import gobblin.metrics.influxdb.InfluxDBEventReporter;
+import gobblin.metrics.influxdb.InfluxDBReporter;
+import gobblin.metrics.influxdb.InfluxDBConnectionType;
 import gobblin.metrics.kafka.KafkaEventReporter;
 import gobblin.metrics.reporter.OutputStreamEventReporter;
 import gobblin.metrics.reporter.OutputStreamReporter;
 import gobblin.metrics.reporter.ScheduledReporter;
+import gobblin.source.extractor.utils.Utils;
 
 
 /**
@@ -77,8 +84,8 @@ public class GobblinMetrics {
    * @return whether metrics collection and reporting are enabled
    */
   public static boolean isEnabled(Properties properties) {
-    return Boolean.valueOf(
-        properties.getProperty(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED));
+    return Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_ENABLED_KEY,
+        ConfigurationKeys.DEFAULT_METRICS_ENABLED);
   }
 
   /**
@@ -379,6 +386,8 @@ public class GobblinMetrics {
     // Build all other reporters
     buildFileMetricReporter(properties);
     buildKafkaMetricReporter(properties);
+    buildGraphiteMetricReporter(properties);
+    buildInfluxDBMetricReporter(properties);
     buildCustomMetricReporters(properties);
 
     // Start reporters that implement gobblin.metrics.report.ScheduledReporter
@@ -548,6 +557,155 @@ public class GobblinMetrics {
     LOGGER.info("Will start reporting metrics to Kafka");
   }
 
+  private void buildGraphiteMetricReporter(Properties properties) {
+    boolean metricsEnabled =
+        Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY,
+            ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_METRICS_ENABLED);
+    boolean eventsEnabled =
+        Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED_KEY,
+            ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED);
+    if (!metricsEnabled && !eventsEnabled) {
+      LOGGER.info("Not reporting metrics and events to Graphite");
+      return;
+    }
+    
+    try {
+      Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_HOSTNAME),
+          "Graphite hostname is missing.");
+    } catch (IllegalArgumentException exception) {
+      LOGGER.error("Not reporting to Graphite due to missing Graphite configuration(s).", exception);
+      return;
+    }
+    
+    String hostname = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_HOSTNAME);
+    int port = Integer.parseInt(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_PORT,
+          ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_PORT));
+    
+    GraphiteConnectionType connectionType;
+    String type = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_SENDING_TYPE,
+        ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_SENDING_TYPE).toUpperCase();
+    try {
+      connectionType = GraphiteConnectionType.valueOf(type);
+    }
+    catch (IllegalArgumentException exception) {
+      LOGGER.warn("Graphite Reporter connection type " + type + " not recognized. Will use TCP for sending.", exception);
+      connectionType = GraphiteConnectionType.TCP;
+    }
+    
+    if (metricsEnabled) {
+      try {
+        GraphiteReporter.Factory.newBuilder()
+            .withConnectionType(connectionType)
+            .withConnection(hostname, port)
+            .withMetricContextName(this.metricContext.getName()) //contains the current job id
+            .build(properties);
+      }
+      catch (IOException e) {
+        LOGGER.error("Failed to create Graphite metrics reporter. Will not report metrics to Graphite.", e);
+      }
+    }
+    else {
+      LOGGER.info("Not reporting metrics to Graphite");
+    }
+        
+    if (eventsEnabled) {
+      boolean emitValueAsKey =
+          Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY,
+              ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY);
+      String eventsPortProp = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_EVENTS_PORT);
+      int eventsPort =
+          (eventsPortProp == null) ? (metricsEnabled ? port : 
+            Integer.parseInt(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_PORT)) : Integer.parseInt(eventsPortProp);
+      try {
+        GraphiteEventReporter eventReporter =
+            GraphiteEventReporter.Factory.forContext(this.metricContext)
+              .withConnectionType(connectionType)
+              .withConnection(hostname, eventsPort)
+              .withEmitValueAsKey(emitValueAsKey)
+              .build();
+        this.scheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));
+      }
+      catch (IOException e) {
+        LOGGER.error("Failed to create Graphite event reporter. Will not report events to Graphite.", e);
+      }
+    }
+    else  {
+      LOGGER.info("Not reporting events to Graphite");
+    }
+  }
+
+  private void buildInfluxDBMetricReporter(Properties properties) {
+    boolean metricsEnabled =
+        Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_INFLUXDB_METRICS_ENABLED_KEY,
+            ConfigurationKeys.DEFAULT_METRICS_REPORTING_INFLUXDB_METRICS_ENABLED);
+    boolean eventsEnabled =
+        Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED_KEY,
+            ConfigurationKeys.DEFAULT_METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED);
+    if (!metricsEnabled && !eventsEnabled) {
+      LOGGER.info("Not reporting metrics and events to InfluxDB");
+      return;
+    }
+    
+    try {
+      Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_DATABASE),
+          "InfluxDB database name is missing.");
+    } catch (IllegalArgumentException exception) {
+      LOGGER.error("Not reporting to InfluxDB due to missing InfluxDB configuration(s).", exception);
+      return;
+    }
+    
+    String url = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_URL);
+    String username = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_USER);
+    String password = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_PASSWORD);
+    String database = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_DATABASE);
+    
+    InfluxDBConnectionType connectionType;
+    String type = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_SENDING_TYPE,
+        ConfigurationKeys.DEFAULT_METRICS_REPORTING_INFLUXDB_SENDING_TYPE).toUpperCase();
+    try {
+      connectionType = InfluxDBConnectionType.valueOf(type);
+    }
+    catch (IllegalArgumentException exception) {
+      LOGGER.warn("InfluxDB Reporter connection type " + type + " not recognized. Will use TCP for sending.", exception);
+      connectionType = InfluxDBConnectionType.TCP;
+    }
+    
+    if (metricsEnabled) {
+      try {
+        InfluxDBReporter.Factory.newBuilder()
+            .withConnectionType(connectionType)
+            .withConnection(url, username, password, database)
+            .withMetricContextName(this.metricContext.getName()) // contains the current job id
+            .build(properties);
+      }
+      catch (IOException e) {
+        LOGGER.error("Failed to create InfluxDB metrics reporter. Will not report metrics to InfluxDB.", e);
+      }
+    }
+    else {
+      LOGGER.info("Not reporting metrics to InfluxDB");
+    }
+        
+    if (eventsEnabled) {
+      String eventsDbProp = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_EVENTS_DATABASE);
+      String eventsDatabase = (eventsDbProp == null) ? (metricsEnabled ? database : null) : eventsDbProp;
+      try {
+        InfluxDBEventReporter eventReporter =
+            InfluxDBEventReporter.Factory.forContext(this.metricContext)
+              .withConnectionType(connectionType)
+              .withConnection(url, username, password, eventsDatabase)
+              .build();
+        this.scheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));
+      }
+      catch (IOException e) {
+        LOGGER.error("Failed to create InfluxDB event reporter. Will not report events to InfluxDB.", e);
+      }
+    }
+    else  {
+      LOGGER.info("Not reporting events to InfluxDB");
+    }
+  }
+  
   /**
    * Build scheduled metrics reporters by reflection from the property
    * {@link gobblin.configuration.ConfigurationKeys#METRICS_CUSTOM_BUILDERS}. This allows users to specify custom
