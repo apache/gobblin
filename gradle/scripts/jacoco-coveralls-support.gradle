@@ -52,6 +52,13 @@ subprojects {
       xml.enabled = true
       csv.enabled = false
     }
+
+    afterEvaluate {
+      classDirectories = files(classDirectories.files.collect {
+        println it
+        fileTree(dir: it, exclude: 'helix-*.jar')
+      })
+    }
   }
 
   jacocoFullReport.dependsOn test
