@@ -49,7 +49,8 @@ public class CliMRJobLauncher extends Configured implements ApplicationLauncher,
   private final ApplicationLauncher applicationLauncher;
   private final MRJobLauncher mrJobLauncher;
 
-  public CliMRJobLauncher(Properties jobProperties) throws Exception {
+  public CliMRJobLauncher(Configuration conf, Properties jobProperties) throws Exception {
+    setConf(conf);
     this.jobProperties = jobProperties;
     this.applicationLauncher = this.closer.register(new ServiceBasedAppLauncher(jobProperties,
         jobProperties.getProperty(ServiceBasedAppLauncher.APP_NAME, "CliMRJob-" + UUID.randomUUID())));
@@ -106,6 +107,6 @@ public class CliMRJobLauncher extends Configured implements ApplicationLauncher,
     Properties jobProperties = CliOptions.parseArgs(CliMRJobLauncher.class, genericCmdLineOpts);
 
     // Launch and run the job
-    System.exit(ToolRunner.run(conf, new CliMRJobLauncher(jobProperties), args));
+    System.exit(ToolRunner.run(new CliMRJobLauncher(conf,jobProperties), args));
   }
 }
