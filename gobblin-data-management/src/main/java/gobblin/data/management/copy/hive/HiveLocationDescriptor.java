@@ -25,15 +25,16 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.mapred.InputFormat;
 
 import gobblin.data.management.copy.RecursivePathFinder;
+import gobblin.util.PathUtils;
 
 /**
  * Contains data for a Hive location as well as additional data if {@link #ENABLE_HIVE_LOCATION_DESCRIPTOR_WITH_ADDITIONAL_DATA} set to true.
  */
 
 @Data
-public class HiveLocationDescriptor {
-  public static final String ENABLE_HIVE_LOCATION_DESCRIPTOR_WITH_ADDITIONAL_DATA = "enable.hive.location.descriptor.with.additional.data";
-
+class HiveLocationDescriptor {
+  public static final String HIVE_DATASET_COPY_ADDITIONAL_PATHS_ENABLED= HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.additional.paths.enabled";
+  
   protected final Path location;
   protected final InputFormat<?, ?> inputFormat;
   protected final FileSystem fileSystem;
@@ -43,9 +44,12 @@ public class HiveLocationDescriptor {
     Set<Path> result = HiveUtils.getPaths(this.inputFormat, this.location);
     
     boolean useHiveLocationDescriptorWithAdditionalData = 
-        Boolean.valueOf(this.properties.getProperty(ENABLE_HIVE_LOCATION_DESCRIPTOR_WITH_ADDITIONAL_DATA, "true"));
+        Boolean.valueOf(this.properties.getProperty(HIVE_DATASET_COPY_ADDITIONAL_PATHS_ENABLED, "true"));
     
     if(useHiveLocationDescriptorWithAdditionalData){
+      if(PathUtils.isGlob(location)){
+        throw new RuntimeException("can not get additional data for glob pattern path "  + location);
+      }
       RecursivePathFinder finder = new RecursivePathFinder(fileSystem, location, properties);
       result.addAll(finder.getPaths());
     }

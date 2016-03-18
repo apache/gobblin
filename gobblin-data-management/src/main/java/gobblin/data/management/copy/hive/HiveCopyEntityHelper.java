@@ -111,7 +111,6 @@ class HiveCopyEntityHelper {
   private final HiveDataset dataset;
   private final CopyConfiguration configuration;
   private final FileSystem targetFs;
-  private final Properties properties;
 
   private final Optional<Path> targetTableRoot;
   private final boolean relocateDataFiles;
@@ -157,14 +156,13 @@ class HiveCopyEntityHelper {
     private final Path destination;
   }
 
-  HiveCopyEntityHelper(HiveDataset dataset, CopyConfiguration configuration, FileSystem targetFs, Properties properties) throws IOException {
+  HiveCopyEntityHelper(HiveDataset dataset, CopyConfiguration configuration, FileSystem targetFs) throws IOException {
 
     log.info("Finding copy entities for table " + dataset.table.getCompleteName());
 
     this.dataset = dataset;
     this.configuration = configuration;
     this.targetFs = targetFs;
-    this.properties = properties;
 
     this.relocateDataFiles =
         Boolean.valueOf(this.dataset.properties.getProperty(RELOCATE_DATA_FILES_KEY, DEFAULT_RELOCATE_DATA_FILES));
@@ -258,7 +256,7 @@ class HiveCopyEntityHelper {
     if (HiveUtils.isPartitioned(this.dataset.table)) {
       for (Map.Entry<List<String>, Partition> partitionEntry : sourcePartitions.entrySet()) {
         try {
-          copyableFiles.addAll(new PartitionCopy(partitionEntry.getValue(), this.properties).getCopyEntities());
+          copyableFiles.addAll(new PartitionCopy(partitionEntry.getValue(), this.dataset.properties).getCopyEntities());
         } catch (IOException ioe) {
           log.error("Could not generate work units to copy partition " + partitionEntry.getValue().getCompleteName(), ioe);
         }
@@ -426,10 +424,10 @@ class HiveCopyEntityHelper {
 
     stepPriority = addSharedSteps(copyEntities, fileSet, stepPriority);
 
-    HiveLocationDescriptor sourceLocation = HiveLocationDescriptor.forTable(this.dataset.table, this.dataset.fs, properties);
-    HiveLocationDescriptor desiredTargetLocation = HiveLocationDescriptor.forTable(this.targetTable, this.targetFs, properties);
+    HiveLocationDescriptor sourceLocation = HiveLocationDescriptor.forTable(this.dataset.table, this.dataset.fs, this.dataset.properties);
+    HiveLocationDescriptor desiredTargetLocation = HiveLocationDescriptor.forTable(this.targetTable, this.targetFs, this.dataset.properties);
     Optional<HiveLocationDescriptor> existingTargetLocation = this.existingTargetTable.isPresent() ?
-        Optional.of(HiveLocationDescriptor.forTable(this.existingTargetTable.get(), this.targetFs, properties)) :
+        Optional.of(HiveLocationDescriptor.forTable(this.existingTargetTable.get(), this.targetFs, this.dataset.properties)) :
         Optional.<HiveLocationDescriptor>absent();
 
     DiffPathSet diffPathSet = fullPathDiff(sourceLocation, desiredTargetLocation, existingTargetLocation,

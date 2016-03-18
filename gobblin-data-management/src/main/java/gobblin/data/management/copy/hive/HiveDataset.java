@@ -94,7 +94,7 @@ public class HiveDataset implements CopyableDataset {
   @Override public Collection<CopyEntity> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
     try {
-      return new HiveCopyEntityHelper(this, configuration, targetFs, this.properties).getCopyEntities();
+      return new HiveCopyEntityHelper(this, configuration, targetFs).getCopyEntities();
     } catch (IOException ioe) {
       log.error("Failed to copy table " + this.table, ioe);
       return Lists.newArrayList();
