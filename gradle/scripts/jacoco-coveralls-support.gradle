@@ -22,7 +22,7 @@ apply plugin: 'com.github.kt3k.coveralls'
 apply plugin: 'com.palantir.jacoco-full-report'
 apply plugin: 'jacoco'
 
-ext.jacocoVersion = '0.7.6.201602180812'
+ext.jacocoVersion = '0.7.2.201409121644'
 
 jacoco {
   toolVersion = jacocoVersion
