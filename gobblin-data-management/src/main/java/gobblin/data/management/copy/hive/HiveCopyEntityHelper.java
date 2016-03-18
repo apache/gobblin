@@ -107,6 +107,7 @@ class HiveCopyEntityHelper {
 
   private static final String source_client = "source_client";
   private static final String target_client = "target_client";
+  private static final String HIVE_TABLE_AVRO_SCHEMA_URL  = "avro.schema.url";
 
   private final HiveDataset dataset;
   private final CopyConfiguration configuration;
@@ -295,8 +296,18 @@ class HiveCopyEntityHelper {
   private Table getTargetTable(Table originTable, Path targetLocation) throws IOException {
     try {
       Table targetTable = originTable.copy();
+      
       targetTable.setDbName(this.targetDatabase);
       targetTable.setDataLocation(targetLocation);
+            
+      // need to update the {@link #HIVE_TABLE_AVRO_SCHEMA_URL} location
+      String oldAvroSchemaURL = targetTable.getTTable().getSd().getSerdeInfo().getParameters().get(HIVE_TABLE_AVRO_SCHEMA_URL);
+      if(oldAvroSchemaURL!=null){
+        String newAvroSchemaURL = new Path(targetLocation, new Path(oldAvroSchemaURL).getName()).toString();
+        targetTable.getTTable().getSd().getSerdeInfo().getParameters().put(HIVE_TABLE_AVRO_SCHEMA_URL, newAvroSchemaURL);
+        log.info(String.format("Change %s from %s to %s", HIVE_TABLE_AVRO_SCHEMA_URL, oldAvroSchemaURL, newAvroSchemaURL));
+      }
+
       return targetTable;
     } catch (HiveException he) {
       throw new IOException(he);
