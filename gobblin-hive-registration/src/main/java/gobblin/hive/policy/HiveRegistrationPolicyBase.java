@@ -79,7 +79,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final String tableNamePrefix;
   protected final String tableNameSuffix;
 
-  protected HiveRegistrationPolicyBase(State props) {
+  public HiveRegistrationPolicyBase(State props) {
     Preconditions.checkNotNull(props);
     this.props = new HiveRegProps(props);
     this.sanitizeNameAllowed = props.getPropAsBoolean(HIVE_SANITIZE_INVALID_NAMES, true);
