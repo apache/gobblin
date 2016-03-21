@@ -82,7 +82,6 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private static final String COMPACTION_JOB_PREFIX = "compaction.job.";
 
-
   /**
    * Properties related to the compaction job of a dataset.
    */
@@ -96,9 +95,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private static final boolean DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = false;
   private static final String COMPACTION_JOB_ABORT_UPON_NEW_DATA = COMPACTION_JOB_PREFIX + "abort.upon.new.data";
   private static final boolean DEFAULT_COMPACTION_JOB_ABORT_UPON_NEW_DATA = false;
-  private static final String COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE = COMPACTION_JOB_PREFIX
-      + "copy.latedata.thread.pool.size";
-  private static final int DEFAULT_COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE = 20;
+  private static final String COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE =
+      COMPACTION_JOB_PREFIX + "copy.latedata.thread.pool.size";
+  private static final int DEFAULT_COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE = 5;
 
   // If true, the MR job will use either 1 reducer or a prime number of reducers.
   private static final String COMPACTION_JOB_USE_PRIME_REDUCERS = COMPACTION_JOB_PREFIX + "use.prime.reducers";
@@ -164,9 +163,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         GobblinMetrics.get(this.dataset.jobProps().getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
         MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
 
-    this.copyLateDataThreadPoolSize =
-        this.dataset.jobProps().getPropAsInt(COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE,
-            DEFAULT_COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE);
+    this.copyLateDataThreadPoolSize = this.dataset.jobProps().getPropAsInt(COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE,
+        DEFAULT_COMPACTION_COPY_LATE_DATA_THREAD_POOL_SIZE);
 
     try {
       this.inputRecordCountProvider = (RecordCountProvider) Class
@@ -222,9 +220,10 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         this.copyDataFiles(lateDataOutputPath, newLateFilePaths);
         if (this.outputDeduplicated) {
           LOG.info("Getting late record count from: " + this.dataset.outputLatePath());
-          this.dataset.checkIfNeedToRecompact(this.lateOutputRecordCountProvider.getRecordCount(this
-              .getApplicableFilePaths(this.dataset.outputLatePath())), this.outputRecordCountProvider
-              .getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath())));
+          this.dataset.checkIfNeedToRecompact(
+              this.lateOutputRecordCountProvider
+                  .getRecordCount(this.getApplicableFilePaths(this.dataset.outputLatePath())),
+              this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath())));
         }
         this.status = Status.COMMITTED;
       } else {
@@ -285,22 +284,20 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
   private void copyDataFiles(final Path outputDirectory, List<Path> inputFilePaths) throws IOException {
-    ExecutorService executor =
-        ScalingThreadPoolExecutor.newScalingThreadPool(0,
-            this.copyLateDataThreadPoolSize, 100,
-            ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of(this.dataset.getName() + "-copy-data")));
+    ExecutorService executor = ScalingThreadPoolExecutor.newScalingThreadPool(0, this.copyLateDataThreadPoolSize, 100,
+        ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of(this.dataset.getName() + "-copy-data")));
+
     List<Future<?>> futures = Lists.newArrayList();
     for (final Path filePath : inputFilePaths) {
       Future<Void> future = executor.submit(new Callable<Void>() {
         @Override
         public Void call() throws Exception {
-          Path convertedFilePath =
-              outputRecordCountProvider.convertPath(lateInputRecordCountProvider.restoreFilePath(filePath),
-                  inputRecordCountProvider);
+          Path convertedFilePath = outputRecordCountProvider
+              .convertPath(lateInputRecordCountProvider.restoreFilePath(filePath), inputRecordCountProvider);
           String targetFileName = convertedFilePath.getName();
           Path outPath = lateOutputRecordCountProvider.constructLateFilePath(targetFileName, fs, outputDirectory);
           HadoopUtils.copyPath(fs, filePath, fs, outPath, fs.getConf());
-          LOG.info(String.format("Copied %s to %s.", filePath, outPath));
+          LOG.debug(String.format("Copied %s to %s.", filePath, outPath));
           return null;
         }
       });
@@ -317,11 +314,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     }
   }
 
-
   private boolean canOverwriteOutputDir() {
     return this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_OVERWRITE_OUTPUT_DIR,
-        DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR)
-        || this.recompactFromDestPaths;
+        DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR) || this.recompactFromDestPaths;
   }
 
   private void addJars(Configuration conf) throws IOException {
@@ -569,9 +564,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
       long lateOutputRecordCount = 0l;
       Path outputLatePath = this.dataset.outputLatePath();
       if (this.fs.exists(outputLatePath)) {
-        lateOutputRecordCount =
-            this.lateOutputRecordCountProvider
-                .getRecordCount(this.getApplicableFilePaths(this.dataset.outputLatePath()));
+        lateOutputRecordCount = this.lateOutputRecordCountProvider
+            .getRecordCount(this.getApplicableFilePaths(this.dataset.outputLatePath()));
       }
       long outputRecordCount =
           this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath()));
