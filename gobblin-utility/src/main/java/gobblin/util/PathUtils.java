@@ -144,4 +144,53 @@ public class PathUtils {
     }
     return path;
   }
+
+  /**
+   * Shorten an absolute path into a sanitized String of length at most bytes. This is useful for including a summary
+   * of an absolute path in a file name.
+   *
+   * <p>
+   *   For example: shortenPathName("/user/gobblin/foo/bar/myFile.txt", 25) will be shortened to "_user_gobbl..._myFile.txt".
+   * </p>
+   *
+   * @param path absolute {@link org.apache.hadoop.fs.Path} to shorten.
+   * @param maxBytes max number of UTF8 bytes that output string can use (note that,
+   *              for now, it is assumed that each character uses exactly one byte).
+   * @return a shortened, sanitized String of length at most bytes.
+   */
+  public static String shortenPathName(Path path, int maxBytes) {
+    return sanitizeForPath(path.toUri().getPath(), maxBytes);
+  }
+
+  /**
+   * See {@link #sanitizeForPath(String, int)}. Shortens strings to 250 bytes (Hadoop allows up to 255 for path tokens).
+   */
+  public static String sanitizeForPath(String str) {
+    return sanitizeForPath(str, 250);
+  }
+
+  /**
+   * Sanitize and possibly shorten a string for use as a token in a Hadoop path.
+   * Shorten an absolute path into a sanitized String of length at most bytes. This is useful for including a summary
+   * of an absolute path in a file name.
+   *
+   * <p>
+   *   For example: sanitizeForPath("/user/gobblin/foo/bar/myFile.txt", 25) will be shortened to "_user_gobbl..._myFile.txt".
+   * </p>
+   *
+   * @param str String to sanitize
+   * @param maxBytes max number of UTF8 bytes that output string can use (note that,
+   *              for now, it is assumed that each character uses exactly one byte).
+   * @return a shortened, sanitized String of length at most bytes.
+   */
+  public static String sanitizeForPath(String str, int maxBytes) {
+    String replaced = str.replace("/", "_");
+
+    if (replaced.length() <= maxBytes) {
+      return replaced;
+    }
+
+    int bytesPerHalf = (maxBytes - 3) / 2;
+    return replaced.substring(0, bytesPerHalf) + "..." + replaced.substring(replaced.length() - bytesPerHalf);
+  }
 }

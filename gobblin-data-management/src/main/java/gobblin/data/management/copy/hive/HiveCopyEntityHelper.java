@@ -459,7 +459,7 @@ class HiveCopyEntityHelper {
     }
 
     public static LocationDescriptor forTable(Table table, FileSystem fs) throws IOException {
-      return new LocationDescriptor(table.getDataLocation(), HiveUtils.getInputFormat(table.getSd()), fs);
+      return new LocationDescriptor(table.getDataLocation(), HiveUtils.getInputFormat(table.getTTable().getSd()), fs);
     }
 
     public static LocationDescriptor forPartition(Partition partition, FileSystem fs) throws IOException {
