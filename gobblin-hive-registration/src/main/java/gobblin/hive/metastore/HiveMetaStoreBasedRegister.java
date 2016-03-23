@@ -167,25 +167,27 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     }
   }
 
-  private void createOrAlterTable(IMetaStoreClient client, Table table, HiveSpec spec) throws IOException {
+  private void createOrAlterTable(IMetaStoreClient client, Table table, HiveSpec spec) throws TException {
 
     String dbName = table.getDbName();
     String tableName = table.getTableName();
 
     try {
-      if (client.tableExists(dbName, tableName)) {
+      client.createTable(table);
+      log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
+    } catch (TException e) {
+      try {
         HiveTable existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
         if (needToUpdateTable(existingTable, spec.getTable())) {
           client.alter_table(dbName, tableName, table);
           log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
         }
-      } else {
-        client.createTable(table);
-        log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
+      } catch (TException e2) {
+        log.error(
+            String.format("Unable to create or alter Hive table %s in db %s: " + e.getMessage(), tableName, dbName),
+            e2);
+        throw e2;
       }
-    } catch (TException e) {
-      throw new IOException(String.format("Error in creating or altering Hive table %s in db %s", tableName, dbName),
-          e);
     }
   }
 
@@ -245,29 +247,27 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
             partition.getValues().size()));
 
     try {
+      client.add_partition(partition);
+      log.info(String.format("Added partition %s to table %s with location %s", stringifyPartition(partition),
+          table.getTableName(), partition.getSd().getLocation()));
+    } catch (TException e) {
       try {
         HivePartition existingPartition = HiveMetaStoreUtils
             .getHivePartition(client.getPartition(table.getDbName(), table.getTableName(), partition.getValues()));
 
         if (needToUpdatePartition(existingPartition, spec.getPartition().get())) {
           client.alter_partition(table.getDbName(), table.getTableName(), partition);
-          log.info(String.format("Updated partition %s in table %s with location %s",
-              stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
+          log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(partition),
+              table.getTableName(), partition.getSd().getLocation()));
         } else {
           log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
               stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
         }
-      } catch (NoSuchObjectException e) {
-        client.add_partition(partition);
-        log.info(String.format("Added partition %s to table %s with location %s",
-            stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
+      } catch (TException e2) {
+        log.error(String.format("Unable to add or alter partition %s in table %s with location %s: " + e.getMessage(),
+            stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()), e);
+        throw e2;
       }
-    } catch (AlreadyExistsException e) {
-      // Partition already exists. Nothing to do.
-    } catch (TException e) {
-      log.error(String.format("Unable to add partition %s to table %s with location %s", partition.getValues(),
-          table.getTableName(), partition.getSd().getLocation()), e);
-      throw e;
     }
   }
 
