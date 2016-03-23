@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 
 import gobblin.data.management.partition.FileSet;
 import gobblin.source.workunit.WorkUnit;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -38,6 +39,7 @@ import gobblin.source.workunit.WorkUnit;
  *   (similar to {@link java.util.PriorityQueue}).
  * </p>
  */
+@Slf4j
 class ConcurrentBoundedWorkUnitList {
 
   private final TreeMap<FileSet<CopyEntity>, List<WorkUnit>> workUnitsMap;
@@ -130,6 +132,8 @@ class ConcurrentBoundedWorkUnitList {
     }
 
     this.currentSize += workUnits.size();
+    log.info(String.format("Added %d work units to bounded list. Total size: %d, limit: %d.", workUnits.size(),
+        this.currentSize, this.maxSize));
     return true;
   }
 

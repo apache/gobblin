@@ -42,8 +42,6 @@ import gobblin.util.iterators.InterruptibleIterator;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -61,10 +59,8 @@ import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 
 /**
@@ -119,14 +115,14 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
-      DatasetsFinder<CopyableDataset> datasetFinder =
+      DatasetsFinder<CopyableDatasetBase> datasetFinder =
           DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY);
 
-      IterableDatasetFinder<CopyableDataset> iterableDatasetFinder =
-          datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDataset>) datasetFinder
+      IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder =
+          datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
               : new IterableDatasetFinderImpl<>(datasetFinder);
 
-      Iterator<CopyableDataset> copyableDatasets = new InterruptibleIterator<>(iterableDatasetFinder.getDatasetsIterator(),
+      Iterator<CopyableDatasetBase> copyableDatasets = new InterruptibleIterator<>(iterableDatasetFinder.getDatasetsIterator(),
           new Callable<Boolean>() {
         @Override
         public Boolean call()
@@ -136,11 +132,22 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       });
 
       Iterator<Callable<Void>> callableIterator =
-          Iterators.transform(copyableDatasets, new Function<CopyableDataset, Callable<Void>>() {
+          Iterators.transform(copyableDatasets, new Function<CopyableDatasetBase, Callable<Void>>() {
         @Nullable
         @Override
-        public Callable<Void> apply(@Nullable CopyableDataset copyableDataset) {
-          return new DatasetWorkUnitGenerator(copyableDataset, sourceFs, targetFs, state, workUnitList, copyConfiguration);
+        public Callable<Void> apply(@Nullable CopyableDatasetBase copyableDataset) {
+
+          IterableCopyableDataset iterableCopyableDataset;
+          if (copyableDataset instanceof IterableCopyableDataset) {
+            iterableCopyableDataset = (IterableCopyableDataset) copyableDataset;
+          } else if (copyableDataset instanceof CopyableDataset) {
+            iterableCopyableDataset = new IterableCopyableDatasetImpl((CopyableDataset) copyableDataset);
+          } else {
+            throw new RuntimeException(String.format("Cannot process %s, can only copy %s or %s.",
+                copyableDataset.getClass().getName(), CopyableDataset.class.getName(), IterableCopyableDataset.class.getName()));
+          }
+
+          return new DatasetWorkUnitGenerator(iterableCopyableDataset, sourceFs, targetFs, state, workUnitList, copyConfiguration);
         }
       });
 
@@ -153,10 +160,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           try {
             future.get();
           } catch (ExecutionException exc) {
-            log.error("Failed to get work units for dataset.", exc);
+            log.error("Failed to get work units for dataset.", exc.getCause());
           }
         }
-      } catch (InterruptedException ie) {
+      }catch (InterruptedException ie) {
         log.error("Retrieval of work units was interrupted. Aborting.");
         return Lists.newArrayList();
       }
@@ -204,7 +211,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   @AllArgsConstructor
   private class DatasetWorkUnitGenerator implements Callable<Void> {
 
-    private final CopyableDataset copyableDataset;
+    private final IterableCopyableDataset copyableDataset;
     private final FileSystem originFs;
     private final FileSystem targetFs;
     private final State state;
@@ -219,13 +226,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       try {
 
-        Collection<? extends CopyEntity> files = this.copyableDataset.getCopyableFiles(this.targetFs, this.copyConfiguration);
-        List<FileSet<CopyEntity>> fileSets = partitionCopyableFiles(this.copyableDataset, files);
+        Iterator<FileSet<CopyEntity>> fileSets =
+            this.copyableDataset.getFileSetIterator(this.targetFs, this.copyConfiguration);
 
-        // Sort to optimize the insertion to work units list
-        Collections.sort(fileSets, this.workUnitList.getComparator());
-
-        for (FileSet<CopyEntity> fileSet : fileSets) {
+        while (fileSets.hasNext() && !this.workUnitList.hasRejectedFileSet()) {
+          FileSet<CopyEntity> fileSet = fileSets.next();
           Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, fileSet.getName());
           List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
           for (CopyEntity copyEntity : fileSet.getFiles()) {
@@ -364,22 +369,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    */
   public static CopyableDatasetMetadata deserializeCopyableDataset(State state) throws IOException {
     return CopyableDatasetMetadata.deserialize(state.getProp(SERIALIZED_COPYABLE_DATASET));
-  }
-
-  private List<FileSet<CopyEntity>> partitionCopyableFiles(Dataset dataset, Collection<? extends CopyEntity> files) {
-    Map<String, FileSet.Builder<CopyEntity>> partitionBuildersMaps = Maps.newHashMap();
-    for (CopyEntity file : files) {
-      if (!partitionBuildersMaps.containsKey(file.getFileSet())) {
-        partitionBuildersMaps.put(file.getFileSet(), new FileSet.Builder<>(file.getFileSet(), dataset));
-      }
-      partitionBuildersMaps.get(file.getFileSet()).add(file);
-    }
-    return Lists.newArrayList(Iterables.transform(partitionBuildersMaps.values(),
-        new Function<FileSet.Builder<CopyEntity>, FileSet<CopyEntity>>() {
-          @Nullable @Override public FileSet<CopyEntity> apply(FileSet.Builder<CopyEntity> input) {
-            return input.build();
-          }
-        }));
   }
 
 }

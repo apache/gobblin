@@ -12,6 +12,10 @@
 
 package gobblin.data.management.copy.hive;
 
+import com.google.common.collect.Iterators;
+import gobblin.data.management.partition.FileSet;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -255,31 +259,69 @@ public class HiveCopyEntityHelper {
    *     path.
    * </p>
    */
-  Collection<CopyEntity> getCopyEntities() throws IOException {
-    List<CopyEntity> copyableFiles = Lists.newArrayList();
-
+  Iterator<FileSet<CopyEntity>> getCopyEntities() throws IOException {
     if (HiveUtils.isPartitioned(this.dataset.table)) {
-      for (Map.Entry<List<String>, Partition> partitionEntry : sourcePartitions.entrySet()) {
+      return new PartitionIterator(this.sourcePartitions);
+    } else {
+      FileSet<CopyEntity> fileSet = new FileSet.Builder<>(this.dataset.table.getCompleteName(), this.dataset).
+          add(getCopyEntitiesForUnpartitionedTable()).build();
+      return Iterators.singletonIterator(fileSet);
+    }
+  }
+
+  /**
+   * An iterator producing a {@link FileSet} of {@link CopyEntity} for each partition in this table. The files
+   * are not scanned or the {@link FileSet} materialized until {@link #next} is called.
+   */
+  private class PartitionIterator implements Iterator<FileSet<CopyEntity>> {
+
+    private final Iterator<Map.Entry<List<String>, Partition>> partitionIterator;
+
+    public PartitionIterator(Map<List<String>, Partition> partitionMap) {
+      this.partitionIterator = partitionMap.entrySet().iterator();
+    }
+
+    @Override
+    public boolean hasNext() {
+      return this.partitionIterator.hasNext() || !targetPartitions.isEmpty();
+    }
+
+    @Override
+    public FileSet<CopyEntity> next() {
+      if (this.partitionIterator.hasNext()) {
+        Map.Entry<List<String>, Partition> partitionEntry = partitionIterator.next();
+        List<CopyEntity> copyEntities = Lists.newArrayList();
         try {
-          copyableFiles.addAll(new PartitionCopy(partitionEntry.getValue(), this.dataset.properties).getCopyEntities());
+          copyEntities = new PartitionCopy(partitionEntry.getValue(), dataset.properties).getCopyEntities();
         } catch (IOException ioe) {
-          log.error("Could not generate work units to copy partition " + partitionEntry.getValue().getCompleteName(), ioe);
+          log.error("Could not generate work units to copy partition " + partitionEntry.getValue().getCompleteName(),
+              ioe);
         }
         targetPartitions.remove(partitionEntry.getKey());
+        return new FileSet.Builder<>(partitionEntry.getValue().getCompleteName(), dataset).add(copyEntities).build();
+      } else if (!targetPartitions.isEmpty()) {
+        List<CopyEntity> deregisterCopyEntities = Lists.newArrayList();
+        int priority = 1;
+        String deregisterFileSet = "deregister";
+        for (Map.Entry<List<String>, Partition> partitionEntry : targetPartitions.entrySet()) {
+          try {
+            priority = addDeregisterSteps(deregisterCopyEntities, deregisterFileSet, priority, targetTable,
+                partitionEntry.getValue());
+          } catch (IOException ioe) {
+            log.error("Could not create work unit to deregister partition " + partitionEntry.getValue().getCompleteName());
+          }
+        }
+        targetPartitions.clear();
+        return new FileSet.Builder<>(deregisterFileSet, dataset).add(deregisterCopyEntities).build();
+      } else {
+        throw new NoSuchElementException();
       }
-
-      // Partitions that don't exist in source
-      String deregisterFileSet = "deregister";
-      int priority = 1;
-      for (Map.Entry<List<String>, Partition> partitionEntry : targetPartitions.entrySet()) {
-        priority = addDeregisterSteps(copyableFiles, deregisterFileSet, priority, this.targetTable,
-            partitionEntry.getValue());
-      }
-
-    } else {
-      copyableFiles.addAll(getCopyEntitiesForUnpartitionedTable());
     }
-    return copyableFiles;
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
   }
 
   /**
@@ -300,10 +342,10 @@ public class HiveCopyEntityHelper {
   private Table getTargetTable(Table originTable, Path targetLocation) throws IOException {
     try {
       Table targetTable = originTable.copy();
-      
+
       targetTable.setDbName(this.targetDatabase);
       targetTable.setDataLocation(targetLocation);
-      
+
       HiveAvroCopyEntityHelper.updateTableAttributesIfAvro(targetTable, this);
 
       return targetTable;
@@ -642,7 +684,7 @@ public class HiveCopyEntityHelper {
     }
     return path;
   }
-  
+
   public FileSystem getTargetFileSystem(){
     return this.targetFs;
   }

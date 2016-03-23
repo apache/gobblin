@@ -30,7 +30,7 @@ import com.google.gson.Gson;
 @ToString
 public class CopyableDatasetMetadata {
 
-  public CopyableDatasetMetadata(CopyableDataset copyableDataset) {
+  public CopyableDatasetMetadata(CopyableDatasetBase copyableDataset) {
     this.datasetURN = copyableDataset.datasetURN();
   }
 

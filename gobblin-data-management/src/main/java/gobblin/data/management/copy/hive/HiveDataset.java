@@ -12,6 +12,10 @@
 
 package gobblin.data.management.copy.hive;
 
+import com.google.common.collect.Iterators;
+import gobblin.data.management.copy.IterableCopyableDataset;
+import gobblin.data.management.partition.FileSet;
+import java.util.Iterator;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -38,7 +42,7 @@ import gobblin.util.PathUtils;
  */
 @Slf4j
 @Alpha
-public class HiveDataset implements CopyableDataset {
+public class HiveDataset implements IterableCopyableDataset {
 
   protected final Properties properties;
   protected final FileSystem fs;
@@ -68,13 +72,13 @@ public class HiveDataset implements CopyableDataset {
    * Finds all files read by the table and generates CopyableFiles.
    * For the specific semantics see {@link HiveCopyEntityHelper#getCopyEntities}.
    */
-  @Override public Collection<CopyEntity> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
+  @Override public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
     try {
       return new HiveCopyEntityHelper(this, configuration, targetFs).getCopyEntities();
     } catch (IOException ioe) {
       log.error("Failed to copy table " + this.table, ioe);
-      return Lists.newArrayList();
+      return Iterators.emptyIterator();
     }
   }
 

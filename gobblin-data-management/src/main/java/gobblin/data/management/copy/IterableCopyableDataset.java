@@ -12,36 +12,28 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.dataset.Dataset;
-
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Iterator;
 
 import org.apache.hadoop.fs.FileSystem;
 
+import gobblin.data.management.partition.FileSet;
+
 
 /**
- * {@link Dataset} that supports finding {@link CopyEntity}s.
+ * A {@link CopyableDatasetBase} that returns {@link CopyEntity}s as an iterator. It allows for scanning for files to
+ * copy only when necessary. Reduces unnecessary work when the queue of {@link CopyEntity}s is full.
  */
-public interface CopyableDataset extends CopyableDatasetBase {
+public interface IterableCopyableDataset extends CopyableDatasetBase {
 
   /**
-   * Find all {@link CopyEntity}s in this dataset.
-   *
-   * <p>
-   *   This method should return a collection of {@link CopyEntity}, each describing one work unit for distcp.
-   *   The most common {@link CopyEntity} is the {@link gobblin.data.management.copy.CopyableDataset}, describing a file
-   *   that should be copied
-   *   to the target.
-   *   See {@link CopyableFile} for explanation of the information contained in the {@link CopyableFile}s.
-   * </p>
-   *
+   * Get an iterator of {@link FileSet}s of {@link CopyEntity}, each one representing a group of files to copy and
+   * associated actions.
    * @param targetFs target {@link org.apache.hadoop.fs.FileSystem} where copied files will be placed.
    * @param configuration {@link gobblin.data.management.copy.CopyConfiguration} for this job. See {@link gobblin.data.management.copy.CopyConfiguration}.
-   * @return List of {@link CopyEntity}s in this dataset.
    * @throws IOException
    */
-  public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration) throws
-      IOException;
+  public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
+      throws IOException;
 
 }
