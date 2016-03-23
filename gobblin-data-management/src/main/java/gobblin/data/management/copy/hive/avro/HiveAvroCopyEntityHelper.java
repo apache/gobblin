@@ -37,12 +37,10 @@ public class HiveAvroCopyEntityHelper {
    * @param targetTable, new Table to be registered in hive
    * @throws IOException
    */
-  public static void updateAvroTableAttributes(Table targetTable, HiveCopyEntityHelper hiveHelper) throws IOException {
+  public static void updateTableAttributesIfAvro(Table targetTable, HiveCopyEntityHelper hiveHelper) throws IOException {
     if(!isHiveTableAvroType(targetTable)){
       return;
     }
-    
-    //Path targetLocation = targetTable.getDataLocation();
     
     // need to update the {@link #HIVE_TABLE_AVRO_SCHEMA_URL} location
     String oldAvroSchemaURL = targetTable.getTTable().getSd().getSerdeInfo().getParameters().get(HIVE_TABLE_AVRO_SCHEMA_URL);

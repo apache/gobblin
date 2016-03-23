@@ -300,7 +300,7 @@ public class HiveCopyEntityHelper {
       targetTable.setDbName(this.targetDatabase);
       targetTable.setDataLocation(targetLocation);
       
-      HiveAvroCopyEntityHelper.updateAvroTableAttributes(targetTable, this);
+      HiveAvroCopyEntityHelper.updateTableAttributesIfAvro(targetTable, this);
 
       return targetTable;
     } catch (HiveException he) {
