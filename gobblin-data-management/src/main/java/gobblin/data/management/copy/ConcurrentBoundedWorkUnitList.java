@@ -12,6 +12,7 @@
 
 package gobblin.data.management.copy;
 
+import java.util.Map;
 import lombok.Getter;
 
 import java.util.Comparator;
@@ -149,5 +150,12 @@ class ConcurrentBoundedWorkUnitList {
       allWorkUnits.addAll(workUnits);
     }
     return allWorkUnits.build();
+  }
+
+  /**
+   * Get the raw map backing this object.
+   */
+  public Map<FileSet<CopyEntity>, List<WorkUnit>> getRawWorkUnitMap() {
+    return this.workUnitsMap;
   }
 }

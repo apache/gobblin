@@ -271,4 +271,15 @@ public class CopyableFile extends CopyEntity implements File {
     return Guid.fromStrings(uniqueString.toString());
   }
 
+  @Override
+  public String explain() {
+    String owner = this.destinationOwnerAndPermission != null && this.destinationOwnerAndPermission.getOwner() != null
+        ? this.destinationOwnerAndPermission.getOwner() : "preserve";
+    String group = this.destinationOwnerAndPermission != null && this.destinationOwnerAndPermission.getGroup() != null
+        ? this.destinationOwnerAndPermission.getGroup() : "preserve";
+    String permissions = this.destinationOwnerAndPermission != null && this.destinationOwnerAndPermission.getFsPermission() != null
+        ? this.destinationOwnerAndPermission.getFsPermission().toString() : "preserve";
+    return String.format("Copy file %s to %s with owner %s, group %s, permission %s.",
+        this.origin.getPath(), this.destination, owner, group, permissions);
+  }
 }
