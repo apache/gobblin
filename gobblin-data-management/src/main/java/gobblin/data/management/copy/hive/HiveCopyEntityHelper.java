@@ -71,7 +71,7 @@ import gobblin.util.commit.DeleteFileCommitStep;
  * Creates {@link CopyEntity}s for copying a Hive table.
  */
 @Slf4j
-class HiveCopyEntityHelper {
+public class HiveCopyEntityHelper {
 
   /**
    * Specifies a root path for the data in a table. All files containing table data will be placed under this directory.
@@ -300,7 +300,7 @@ class HiveCopyEntityHelper {
       targetTable.setDbName(this.targetDatabase);
       targetTable.setDataLocation(targetLocation);
       
-      HiveAvroCopyEntityHelper.updateAvroTableAttributes(targetTable);
+      HiveAvroCopyEntityHelper.updateAvroTableAttributes(targetTable, this);
 
       return targetTable;
     } catch (HiveException he) {
@@ -601,7 +601,7 @@ class HiveCopyEntityHelper {
    * @param partition partition this file belongs to.
    * @param isConcreteFile true if this is a path to an existing file in HDFS.
    */
-  private Path getTargetPath(Path sourcePath, FileSystem targetFs, Optional<Partition> partition, boolean isConcreteFile) {
+  public Path getTargetPath(Path sourcePath, FileSystem targetFs, Optional<Partition> partition, boolean isConcreteFile) {
 
     if (this.relocateDataFiles) {
       Preconditions.checkArgument(this.targetTableRoot.isPresent(), "Must define %s to relocate data files.",
@@ -637,5 +637,9 @@ class HiveCopyEntityHelper {
       path = new Path(path, partitionValue);
     }
     return path;
+  }
+  
+  public FileSystem getTargetFileSystem(){
+    return this.targetFs;
   }
 }

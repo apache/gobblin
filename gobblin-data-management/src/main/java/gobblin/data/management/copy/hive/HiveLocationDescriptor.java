@@ -33,7 +33,7 @@ import gobblin.util.PathUtils;
 
 @Data
 class HiveLocationDescriptor {
-  public static final String HIVE_DATASET_COPY_ADDITIONAL_PATHS_ENABLED= HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.additional.paths.enabled";
+  public static final String HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED= HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.additional.paths.recursively.enabled";
   
   protected final Path location;
   protected final InputFormat<?, ?> inputFormat;
@@ -44,7 +44,7 @@ class HiveLocationDescriptor {
     Set<Path> result = HiveUtils.getPaths(this.inputFormat, this.location);
     
     boolean useHiveLocationDescriptorWithAdditionalData = 
-        Boolean.valueOf(this.properties.getProperty(HIVE_DATASET_COPY_ADDITIONAL_PATHS_ENABLED, "true"));
+        Boolean.valueOf(this.properties.getProperty(HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED, "true"));
     
     if(useHiveLocationDescriptorWithAdditionalData){
       if(PathUtils.isGlob(location)){
