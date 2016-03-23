@@ -29,7 +29,7 @@ import static gobblin.metrics.event.TimingEvent.METADATA_TIMING_EVENT;
 
 import java.util.Map;
 
-import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Each of the metadata fields of a MultiPartEvent is reported separately
@@ -60,11 +60,13 @@ public enum MultiPartEvent {
   private String eventName;
   private String[] metadataFields;
   
-  private static final Map<String, MultiPartEvent> lookup = Maps.newHashMap();
+  private static final Map<String, MultiPartEvent> lookup;
   static {
+    ImmutableMap.Builder<String, MultiPartEvent> builder = new  ImmutableMap.Builder<String, MultiPartEvent>();
     for (MultiPartEvent event : MultiPartEvent.values()) {
-      lookup.put(event.eventName, event);
+      builder.put(event.eventName, event);
     }
+    lookup = builder.build();
   }
      
   private MultiPartEvent(String eventName, String... metadataFields) {
