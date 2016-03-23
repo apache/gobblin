@@ -26,4 +26,9 @@ public class PrePublishStep extends CommitStepCopyEntity {
   public PrePublishStep(String fileSet, Map<String, Object> additionalMetadata, CommitStep step, int priority) {
     super(fileSet, additionalMetadata, step, priority);
   }
+
+  @Override
+  public String explain() {
+    return String.format("Pre publish step with priority %s: %s", this.getPriority(), getStep().toString());
+  }
 }

@@ -12,6 +12,7 @@
 
 package gobblin.hive;
 
+import java.util.Arrays;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,5 +54,18 @@ public class HiveRegisterStep implements CommitStep {
     } catch (InterruptedException | ExecutionException ie) {
       throw new IOException("Hive registration was interrupted.", ie);
     }
+  }
+
+  @Override
+  public String toString() {
+    String table = this.hiveSpec.getTable().getDbName() + "." + this.hiveSpec.getTable().getTableName();
+    String partitionInfo = this.hiveSpec.getPartition().isPresent()
+        ? " partition " + Arrays.toString(this.hiveSpec.getPartition().get().getValues().toArray())
+        : "";
+    String location = this.hiveSpec.getPartition().isPresent()
+        ? this.hiveSpec.getPartition().get().getLocation().get()
+        : this.hiveSpec.getTable().getLocation().get();
+    return String.format("Register %s%s with location %s in Hive metastore %s.", table, partitionInfo, location,
+        this.metastoreURI.isPresent() ? this.metastoreURI.get() : "default");
   }
 }

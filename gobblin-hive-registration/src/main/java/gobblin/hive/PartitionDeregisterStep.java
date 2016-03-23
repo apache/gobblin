@@ -12,6 +12,7 @@
 
 package gobblin.hive;
 
+import java.util.Arrays;
 import lombok.AllArgsConstructor;
 
 import java.io.IOException;
@@ -47,5 +48,12 @@ public class PartitionDeregisterStep implements CommitStep {
     HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI);
     hiveRegister.dropPartitionIfExists(this.partition.getDbName(), this.partition.getTableName(),
         hiveTable.getPartitionKeys(), this.partition.getValues());
+  }
+
+  @Override
+  public String toString() {
+    return String.format("Deregister partition %s.%s %s on Hive metastore %s.", this.partition.getDbName(),
+        this.partition.getTableName(), Arrays.toString(this.partition.getValues().toArray()),
+        this.metastoreURI.isPresent() ? this.metastoreURI.get() : "default");
   }
 }

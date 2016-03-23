@@ -81,6 +81,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String MAX_FILESYSTEM_QPS = CopyConfiguration.COPY_PREFIX + ".max.filesystem.qps";
   public static final String MAX_FILES_COPIED_KEY = CopyConfiguration.COPY_PREFIX + ".max.files.copied";
   public static final int DEFAULT_MAX_FILES_COPIED = 100000;
+  public static final String SIMULATE = CopyConfiguration.COPY_PREFIX + ".simulate";
 
   /**
    * <ul>
@@ -140,6 +141,20 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       }
 
       log.info(String.format("Created %s workunits ", workUnitList.getWorkUnits().size()));
+
+      if (state.contains(SIMULATE) && state.getPropAsBoolean(SIMULATE)) {
+        Map<FileSet<CopyEntity>, List<WorkUnit>> copyEntitiesMap = workUnitList.getRawWorkUnitMap();
+        log.info("Simulate mode enabled. Will not execute the copy.");
+        for (Map.Entry<FileSet<CopyEntity>, List<WorkUnit>> entry : copyEntitiesMap.entrySet()) {
+          log.info(String.format("Actions for dataset %s file set %s.", entry.getKey().getDataset().datasetURN(),
+              entry.getKey().getName()));
+          for (WorkUnit workUnit : entry.getValue()) {
+            CopyEntity copyEntity = deserializeCopyEntity(workUnit);
+            log.info(copyEntity.explain());
+          }
+        }
+        return Lists.newArrayList();
+      }
 
       return Lists.newArrayList(workUnitList.getWorkUnits());
 

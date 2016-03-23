@@ -18,6 +18,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
+import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -25,6 +26,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Iterables;
 
 import gobblin.commit.CommitStep;
 import gobblin.data.management.trash.Trash;
@@ -102,5 +104,17 @@ public class DeleteFileCommitStep implements CommitStep {
 
   private FileSystem getFS() throws IOException {
     return FileSystem.get(this.fsUri, new Configuration());
+  }
+
+  @Override
+  public String toString() {
+    return String.format("Delete the following files at %s: %s", this.fsUri,
+        Iterables.toString(Iterables.transform(this.pathsToDelete, new Function<FileStatus, Path>() {
+      @Nullable
+      @Override
+      public Path apply(@Nullable FileStatus input) {
+        return input.getPath();
+      }
+    })));
   }
 }
