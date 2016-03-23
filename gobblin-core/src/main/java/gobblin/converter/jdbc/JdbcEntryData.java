@@ -5,17 +5,22 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSortedMap;
 
 public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
   private final Map<String, JdbcEntryDatum> jdbcEntryData; //Pair of column name and Object
+  private final int byteSize;
 
   public JdbcEntryData(Iterable<JdbcEntryDatum> jdbcEntryDatumEntries) {
     Objects.requireNonNull(jdbcEntryDatumEntries);
-    ImmutableMap.Builder<String, JdbcEntryDatum> builder = ImmutableMap.builder();
+    ImmutableMap.Builder<String, JdbcEntryDatum> builder = ImmutableSortedMap.naturalOrder();
+    int byteCount = 0;
     for (JdbcEntryDatum datum : jdbcEntryDatumEntries) {
       builder.put(datum.getColumnName(), datum);
+      byteCount += datum.getByteSize();
     }
-    jdbcEntryData = builder.build();
+    this.jdbcEntryData = builder.build();
+    this.byteSize = byteCount;
   }
 
   /**
@@ -32,8 +37,17 @@ public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
     return String.format("JdbcEntryData [jdbcEntryData=%s]", jdbcEntryData);
   }
 
+  /**
+   * Provides iterator sorted by column name
+   * {@inheritDoc}
+   * @see java.lang.Iterable#iterator()
+   */
   @Override
   public Iterator<JdbcEntryDatum> iterator() {
     return jdbcEntryData.values().iterator();
+  }
+
+  public int byteSize() {
+    return byteSize;
   }
 }

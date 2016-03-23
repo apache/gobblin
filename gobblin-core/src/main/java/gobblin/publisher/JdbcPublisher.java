@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.publisher;
 
 import java.io.IOException;
@@ -14,6 +26,7 @@ import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -27,14 +40,35 @@ import gobblin.util.jdbc.DataSourceBuilder;
 import gobblin.writer.commands.JdbcWriterCommands;
 import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
+/**
+ * Publishes data into JDBC RDBMS. Expects all the data has been already in staging table.
+ */
 public class JdbcPublisher extends DataPublisher {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcPublisher.class);
+  private final JdbcWriterCommandsFactory jdbcWriterCommandsFactory;
 
-  public JdbcPublisher(State state) {
+  /**
+   * Expects all data is in staging table ready to be published. To validate this, it checks COMMIT_ON_FULL_SUCCESS and PUBLISH_DATA_AT_JOB_LEVEL
+   * @param state
+   * @param jdbcWriterCommandsFactory
+   * @param conn
+   */
+  @VisibleForTesting
+  public JdbcPublisher(State state, JdbcWriterCommandsFactory jdbcWriterCommandsFactory) {
     super(state);
+    this.jdbcWriterCommandsFactory = jdbcWriterCommandsFactory;
     validate(getState());
   }
 
+  public JdbcPublisher(State state) {
+    this(state, new JdbcWriterCommandsFactory());
+    validate(getState());
+  }
+
+  /**
+   * @param state
+   * @throws IllegalArgumentException If job commit policy is not COMMIT_ON_FULL_SUCCESS or is not on PUBLISH_DATA_AT_JOB_LEVEL
+   */
   private void validate(State state) {
     JobCommitPolicy jobCommitPolicy = JobCommitPolicy.getCommitPolicy(this.getState().getProperties());
     if (JobCommitPolicy.COMMIT_ON_FULL_SUCCESS != jobCommitPolicy) {
@@ -46,7 +80,8 @@ public class JdbcPublisher extends DataPublisher {
     }
   }
 
-  private Connection createConnection() {
+  @VisibleForTesting
+  public Connection createConnection() {
     DataSource dataSource = DataSourceBuilder.builder()
                                              .url(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_URL))
                                              .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
@@ -67,13 +102,12 @@ public class JdbcPublisher extends DataPublisher {
   public void close() throws IOException {}
 
   @Override
-  public void initialize() throws IOException {
-  }
+  public void initialize() throws IOException {}
 
   /**
    * 1. Truncate destination table if requested
    * 2. Move data from staging to destination
-   * 3. Update workunit state
+   * 3. Update Workunit state
    *
    * TODO Parallel support
    * {@inheritDoc}
@@ -82,13 +116,11 @@ public class JdbcPublisher extends DataPublisher {
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
     LOG.info("Start publishing data");
-    LOG.info("WorkUnitStates: " + states);
     int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
-    Set<String> truncatedDestinationTables = Sets.newHashSet();
+    Set<String> emptiedDestTables = Sets.newHashSet();
 
-    JdbcWriterCommands commands = JdbcWriterCommandsFactory.newInstance(state);
+    JdbcWriterCommands commands = jdbcWriterCommandsFactory.newInstance(state);
     Connection conn = createConnection();
-    boolean isFailed = false;
     try {
       conn.setAutoCommit(false);
 
@@ -97,10 +129,10 @@ public class JdbcPublisher extends DataPublisher {
         Objects.requireNonNull(destinationTable);
 
         if(state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
-           && !truncatedDestinationTables.contains(destinationTable)) {
+           && !emptiedDestTables.contains(destinationTable)) {
           LOG.info("Deleting table " + destinationTable);
             commands.deleteAll(conn, destinationTable);
-            truncatedDestinationTables.add(destinationTable);
+            emptiedDestTables.add(destinationTable);
         }
 
         Map<String, List<WorkUnitState>> stagingTables = getStagingTables(states, branches, i);
@@ -114,9 +146,9 @@ public class JdbcPublisher extends DataPublisher {
             }
         }
       }
-      commands.flush(conn);
+      LOG.info("Commit publish data");
+      conn.commit();
     } catch (Exception e) {
-      isFailed = true;
       try {
         LOG.error("Failed publishing. Rolling back.");
         conn.rollback();
@@ -125,14 +157,6 @@ public class JdbcPublisher extends DataPublisher {
       }
       throw new RuntimeException("Failed publishing", e);
     } finally {
-      try {
-        if(!isFailed) {
-          LOG.info("Commit publish data");
-          conn.commit();
-        }
-      } catch (SQLException se) {
-        throw new RuntimeException("Failed to commit", se);
-      }
       try {
         conn.close();
       } catch (SQLException e) {

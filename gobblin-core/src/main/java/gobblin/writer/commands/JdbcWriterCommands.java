@@ -1,13 +1,11 @@
 package gobblin.writer.commands;
 
-import gobblin.converter.jdbc.JdbcEntryData;
-
 import java.sql.Connection;
 import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.util.Map;
 
-public interface JdbcWriterCommands {
+public interface JdbcWriterCommands extends JdbcBufferedInserter {
 
   public void createTableStructure(Connection conn, String fromStructure, String targetTableName) throws SQLException;
 
@@ -19,11 +17,7 @@ public interface JdbcWriterCommands {
 
   public void drop(Connection conn, String table) throws SQLException;
 
-  public Map<String, JDBCType> retrieveDataColumns(Connection conn, String table) throws SQLException;
-
-  public void insert(Connection conn, String table, JdbcEntryData jdbcEntryData) throws SQLException;
-
-  public void flush(Connection conn) throws SQLException;
+  public Map<String, JDBCType> retrieveDateColumns(Connection conn, String table) throws SQLException;
 
   public void copyTable(Connection conn, String from, String to) throws SQLException;
 }

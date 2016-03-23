@@ -8,7 +8,6 @@ import java.util.Properties;
 import javax.sql.DataSource;
 
 import org.apache.commons.lang.StringUtils;
-import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +75,6 @@ public class DataSourceBuilder {
 
   public DataSource build() {
     validate();
-    LOG.info("Building DataSource with " + this);
     Properties properties = new Properties();
     if (state != null) {
       properties = state.getProperties();
@@ -101,7 +99,10 @@ public class DataSourceBuilder {
       properties.setProperty(ConfigurationKeys.ENCRYPT_USE_STRONG_ENCRYPTOR, useStrongEncryption.toString());
     }
 
-    LOG.info("Building DataSource with properties " + properties);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Building DataSource with properties " + properties);
+    }
+
     return new DataSourceProvider(properties).get();
   }
 

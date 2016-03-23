@@ -5,10 +5,12 @@ import java.util.Objects;
 public class JdbcEntryDatum {
   private final String columnName;
   private final Object val;
+  private int byteSize;
 
   public JdbcEntryDatum(String columnName, Object val) {
     this.columnName = Objects.requireNonNull(columnName);
     this.val = Objects.requireNonNull(val);
+    this.byteSize = val.toString().getBytes().length;
   }
 
   public String getColumnName() {
@@ -17,6 +19,13 @@ public class JdbcEntryDatum {
 
   public Object getVal() {
     return val;
+  }
+
+  /**
+   * @return Size in terms of bytes, when it's converted into String.
+   */
+  public int getByteSize() {
+    return byteSize;
   }
 
   /**
@@ -58,4 +67,5 @@ public class JdbcEntryDatum {
   public String toString() {
     return String.format("JdbcEntry [columnName=%s, val=%s]", columnName, val);
   }
+
 }

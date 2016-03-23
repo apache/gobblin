@@ -186,6 +186,7 @@ public class ConfigurationKeys {
   public static final String CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "converter.csv.to.json.enclosedchar";
   public static final String DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "\0";
   public static final String CONVERTER_AVRO_FIELD_PICK_FIELDS = "converter.avro.fields";
+  public static final String CONVERTER_AVRO_JDBC_ENTRY_FIELDS_PAIRS = "converter.avro.jdbc.entry.fields.pairs";
 
 
   /**
@@ -211,7 +212,7 @@ public class ConfigurationKeys {
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
   public static final String WRITER_STAGING_TABLE = WRITER_PREFIX + ".staging.table";
-  public static final String WRITER_IS_STAGING_TABLE_CREATED = WRITER_PREFIX + ".staging.table.is.created";
+  public static final String WRITER_TRUNCATE_STAGING_TABLE = WRITER_PREFIX + ".truncate.staging.table";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";
@@ -238,6 +239,13 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+  public static final String WRITER_JDBC_INSERT_BATCH_SIZE = WRITER_PREFIX + ".jdbc.batch.size";
+  public static final int DEFAULT_WRITER_JDBC_INSERT_BATCH_SIZE = 30;
+  public static final String WRITER_JDBC_INSERT_BUFFER_SIZE = WRITER_PREFIX + ".jdbc.insert.buffer.size";
+  public static final int DEFAULT_WRITER_JDBC_INSERT_BUFFER_SIZE = 1024 * 1024; //1 MBytes
+  public static final int MAX_WRITER_JDBC_INSERT_BUFFER_SIZE = 10 * 1024 * 1024; //10 MBytes
+  public static final String WRITER_JDBC_MAX_PARAM_SIZE = WRITER_PREFIX + ".jdbc.insert.max.param.size";
+  public static final int DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE = 100000; //MySQL limit
 
   /**
    * Writer configuration properties used internally.

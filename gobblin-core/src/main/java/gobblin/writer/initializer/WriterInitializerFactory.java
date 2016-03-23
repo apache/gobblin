@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.writer.initializer;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -12,6 +24,9 @@ import java.util.Objects;
 
 import com.google.common.collect.Lists;
 
+/**
+ * Factory method pattern class provides WriterInitializer based on writer and state.
+ */
 public class WriterInitializerFactory {
   private static final NoopWriterInitializer NOOP = new NoopWriterInitializer();
 
@@ -32,7 +47,7 @@ public class WriterInitializerFactory {
     for (int branchId = 0; branchId < branches; branchId++) {
       wis.add(newSingleInstance(state, workUnits, branches, branchId));
     }
-    return NOOP;
+    return new MultiWriterInitializer(wis);
   }
 
   private static WriterInitializer newSingleInstance(State state, Collection<WorkUnit> workUnits, int branches, int branchId) {
@@ -45,9 +60,5 @@ public class WriterInitializerFactory {
       return new JdbcWriterInitializer(state, workUnits, branches, branchId);
     }
     return NOOP;
-  }
-
-  public static void main(String[] args) {
-    System.out.println(JdbcWriterInitializer.class.getName());
   }
 }

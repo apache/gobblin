@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.converter.filter;
 
 import java.io.IOException;
@@ -27,6 +39,9 @@ import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.util.AvroUtils;
 
+/**
+ * Converts schema and data by choosing only selected fields provided by user.
+ */
 public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
   private static final Logger LOG = LoggerFactory.getLogger(AvroFieldsPickConverter.class);
 
@@ -36,12 +51,47 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
 
   /**
    * Convert the schema to contain only specified field. This will reuse AvroSchemaFieldRemover by listing fields not specified and remove it
-   * from schema by using AvroSchemaFieldRemover
+   * from the schema
    * 1. Retrieve list of fields from property
    * 2. Traverse schema and get list of fields to be removed
    * 3. While traversing also confirm specified fields from property also exist
    * 4. Convert schema by using AvroSchemaFieldRemover
    *
+   * Each Avro Record type increments depth and from input depth is represented by '.'. Avro schema is always expected to start with Record type
+   * and first record type is depth 0 and won't be represented by '.'. As it's always expected to start with Record type, it's not necessary to disambiguate.
+   * After first record type, if it reaches another record type, the prefix of the field name will be
+   * "[Record name].".
+   *
+   * Example:
+   * {
+          "namespace": "example.avro",
+          "type": "record",
+          "name": "user",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "favorite_number",
+              "type": [
+                "int",
+                "null"
+              ]
+            },
+            {
+              "type": "record",
+              "name": "address",
+              "fields": [
+                {
+                  "name": "city",
+                  "type": "string"
+                }
+              ]
+            }
+          ]
+        }
+   * If user wants to only choose name and city, the input parameter should be "name,address.city". Note that it is not user.name as first record is depth zero.
    * {@inheritDoc}
    * @see gobblin.converter.AvroToAvroConverterBase#convertSchema(org.apache.avro.Schema, gobblin.configuration.WorkUnitState)
    */
@@ -61,6 +111,13 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
     return converted;
   }
 
+  /**
+   * Provides fields to be removed based on required field names.
+   * @param schema
+   * @param requiredFields Fields chosen to be remained in Schema from user.
+   * @return Field names that needs to be removed from Schema
+   * @throws SchemaConversionException If first entry of Avro is not a Record type or if required field(s) does not exist in the Schema.
+   */
   private Set<String> fieldsToRemove(Schema schema, Collection<String> requiredFields) throws SchemaConversionException {
     Set<String> copiedRequiredFields = Sets.newHashSet(requiredFields);
     Set<String> fieldsToRemove = Sets.newHashSet();
@@ -68,9 +125,9 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
     if(!Type.RECORD.equals(schema.getType())) {
       throw new SchemaConversionException("First entry of Avro schema should be a Record type " + schema);
     }
-    LinkedList<String> fqn = Lists.<String>newLinkedList();
+    LinkedList<String> fullyQualifiedName = Lists.<String>newLinkedList();
     for (Field f : schema.getFields()) {
-      fieldsToRemoveHelper(f.schema(), f, copiedRequiredFields, fqn, fieldsToRemove);
+      fieldsToRemoveHelper(f.schema(), f, copiedRequiredFields, fullyQualifiedName, fieldsToRemove);
     }
     if (!copiedRequiredFields.isEmpty()) {
       throw new SchemaConversionException("Failed to pick field(s) as some field(s) " + copiedRequiredFields + " does not exist in Schema " + schema);
@@ -78,9 +135,19 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
     return fieldsToRemove;
   }
 
+  /**
+   * Helper method for fieldsToRemove. Note that it mutates requiredFields parameter by removing elements when selected
+   * @param schema
+   * @param field
+   * @param requiredFields Note that it mutates this parameter by removing elements. If user provided fields exist in the Schema this parameter ends up empty.
+   * @param fqn fully qualified name
+   * @param fieldsToRemove
+   * @return
+   * @throws SchemaConversionException When Avro schema has duplicate field name
+   */
   private Set<String> fieldsToRemoveHelper(Schema schema, Field field, Set<String> requiredFields, LinkedList<String> fqn, Set<String> fieldsToRemove) throws SchemaConversionException {
     if(Type.RECORD.equals(schema.getType())) { //Add name of record into fqn and recurse
-      fqn.addLast(schema.getFullName());
+      fqn.addLast(schema.getName());
       for (Field f : schema.getFields()) {
         fieldsToRemoveHelper(f.schema(), f, requiredFields, fqn, fieldsToRemove);
       }
@@ -88,8 +155,7 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
       return fieldsToRemove;
     }
 
-
-    fqn.addLast(Objects.requireNonNull(field).name());
+    fqn.addLast(field.name());
     String fqnStr = JOINER_ON_DOT.join(fqn);
     boolean isRequiredField = requiredFields.remove(fqnStr);
 

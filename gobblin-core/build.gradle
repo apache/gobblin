@@ -41,6 +41,7 @@ dependencies {
   compile externalDependency.mockito
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
+  compile externalDependency.guavaretrying
 
   runtime externalDependency.protobuf
 
@@ -56,6 +57,7 @@ dependencies {
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.mockRunnerJdbc
+  testCompile externalDependency.mockito
 }
 
 configurations {

@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.writer;
 
 import gobblin.util.ForkOperatorUtils;
@@ -18,24 +30,31 @@ import javax.sql.DataSource;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
+import com.google.common.annotations.VisibleForTesting;
+
+/**
+ * Uses JDBC to persist data in task level.
+ * For interaction with JDBC underlying RDBMS, it uses JdbcWriterCommands.
+ */
 public class JdbcWriter implements DataWriter<JdbcEntryData> {
   private static final Logger LOG = LoggerFactory.getLogger(AvroJdbcWriter.class);
 
   private final Connection conn;
   private final State state;
   private final JdbcWriterCommands commands;
-  private final String table;
+  private final String tableName;
+
   private boolean failed;
-  private long count;
+  private long recordWrittenCount;
 
   public JdbcWriter(JdbcWriterBuilder builder) {
     this.state = builder.destination.getProperties();
     this.state.appendToListProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, Integer.toString(builder.branch));
     String stagingTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE,
-        builder.branches,
-        builder.branch);
-    this.table = Objects.requireNonNull(state.getProp(stagingTableKey), "Staging table is missing with key " + stagingTableKey);
-    this.commands = JdbcWriterCommandsFactory.newInstance(state);
+                                                                        builder.branches,
+                                                                        builder.branch);
+    this.tableName = Objects.requireNonNull(state.getProp(stagingTableKey), "Staging table is missing with key " + stagingTableKey);
+    this.commands = new JdbcWriterCommandsFactory().newInstance(state);
     try {
       this.conn = createConnection();
       conn.setAutoCommit(false);
@@ -44,39 +63,58 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
     }
   }
 
+  @VisibleForTesting
+  public JdbcWriter(JdbcWriterCommands commands, State state, String table, Connection conn) throws SQLException {
+    this.commands = commands;
+    this.state = state;
+    this.tableName = table;
+    this.conn = conn;
+  }
+
   private Connection createConnection() throws SQLException {
     DataSource dataSource = DataSourceBuilder.builder()
-                                                            .url(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_URL))
-                                                            .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
-                                                            .userName(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_USERNAME))
-                                                            .passWord(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_PASSWORD))
-                                                            .maxActiveConnections(1)
-                                                            .maxIdleConnections(1)
-                                                            .state(state)
-                                                            .build();
+                                             .url(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_URL))
+                                             .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
+                                             .userName(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_USERNAME))
+                                             .passWord(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_PASSWORD))
+                                             .maxActiveConnections(1)
+                                             .maxIdleConnections(1)
+                                             .state(state)
+                                             .build();
 
     return dataSource.getConnection();
   }
 
   /**
-   * Convert Avro into INSERT statement and executes it.
+   * Invokes JdbcWriterCommands.insert
    * {@inheritDoc}
    * @see gobblin.writer.DataWriter#write(java.lang.Object)
    */
   @Override
   public void write(JdbcEntryData record) throws IOException {
-    LOG.info("Writing " + record);
+    if(LOG.isDebugEnabled()) {
+      LOG.debug("Writing " + record);
+    }
     try {
-      commands.insert(conn, table, record);
-      count++;
+      commands.insert(conn, tableName, record);
+      recordWrittenCount++;
     } catch (Exception e) {
+      failed = true;
       throw new RuntimeException(e);
     }
   }
 
+  /**
+   * Flushes JdbcWriterCommands and commit.
+   * {@inheritDoc}
+   * @see gobblin.writer.DataWriter#commit()
+   */
   @Override
   public void commit() throws IOException {
     try {
+      LOG.info("Flushing pending insert.");
+      commands.flush(conn);
+      LOG.info("Commiting transaction.");
       conn.commit();
     } catch (Exception e) {
       failed = true;
@@ -93,6 +131,11 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   public void cleanup() throws IOException {
   }
 
+  /**
+   * If there's a failure, it will execute roll back.
+   * {@inheritDoc}
+   * @see java.io.Closeable#close()
+   */
   @Override
   public void close() throws IOException {
     try {
@@ -106,15 +149,20 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
         }
       }
     } catch (SQLException e) {
-      throw new IOException(e);
+      throw new RuntimeException(e);
     }
   }
 
   @Override
   public long recordsWritten() {
-    return count;
+    return recordWrittenCount;
   }
 
+  /**
+   * This is not supported for JDBC writer.
+   * {@inheritDoc}
+   * @see gobblin.writer.DataWriter#bytesWritten()
+   */
   @Override
   public long bytesWritten() throws IOException {
     return -1L;
