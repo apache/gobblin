@@ -12,7 +12,7 @@
 
 package gobblin.runtime;
 
-import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Gauge;
@@ -49,7 +49,7 @@ public class BoundedBlockingRecordQueue<T> {
   private final int capacity;
   private final long timeout;
   private final TimeUnit timeoutTimeUnit;
-  private final BlockingDeque<T> blockingDeque;
+  private final BlockingQueue<T> blockingQueue;
 
   private final Optional<QueueStats> queueStats;
 
@@ -60,7 +60,7 @@ public class BoundedBlockingRecordQueue<T> {
     this.capacity = builder.capacity;
     this.timeout = builder.timeout;
     this.timeoutTimeUnit = builder.timeoutTimeUnit;
-    this.blockingDeque = Queues.newLinkedBlockingDeque(builder.capacity);
+    this.blockingQueue = Queues.newArrayBlockingQueue(builder.capacity);
 
     this.queueStats = builder.ifCollectStats ? Optional.of(new QueueStats()) : Optional.<QueueStats>absent();
   }
@@ -75,7 +75,7 @@ public class BoundedBlockingRecordQueue<T> {
    */
   public boolean put(T record)
       throws InterruptedException {
-    boolean offered = this.blockingDeque.offer(record, this.timeout, this.timeoutTimeUnit);
+    boolean offered = this.blockingQueue.offer(record, this.timeout, this.timeoutTimeUnit);
     if (this.queueStats.isPresent()) {
       this.queueStats.get().putsRateMeter.mark();
     }
@@ -91,7 +91,7 @@ public class BoundedBlockingRecordQueue<T> {
    */
   public T get()
       throws InterruptedException {
-    T record = this.blockingDeque.poll(this.timeout, this.timeoutTimeUnit);
+    T record = this.blockingQueue.poll(this.timeout, this.timeoutTimeUnit);
     if (this.queueStats.isPresent()) {
       this.queueStats.get().getsRateMeter.mark();
     }
@@ -112,7 +112,7 @@ public class BoundedBlockingRecordQueue<T> {
    * Clear the queue.
    */
   public void clear() {
-    this.blockingDeque.clear();
+    this.blockingQueue.clear();
   }
 
   /**
@@ -122,7 +122,7 @@ public class BoundedBlockingRecordQueue<T> {
    * @return a new {@link BoundedBlockingRecordQueue.Builder}
    */
   public static <T> Builder<T> newBuilder() {
-    return new Builder<T>();
+    return new Builder<>();
   }
 
   /**
@@ -186,7 +186,7 @@ public class BoundedBlockingRecordQueue<T> {
      * @return the newly built {@link BoundedBlockingRecordQueue}
      */
     public BoundedBlockingRecordQueue<T> build() {
-      return new BoundedBlockingRecordQueue<T>(this);
+      return new BoundedBlockingRecordQueue<>(this);
     }
   }
 
@@ -215,14 +215,14 @@ public class BoundedBlockingRecordQueue<T> {
       this.queueSizeGauge = new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return blockingDeque.size();
+          return blockingQueue.size();
         }
       };
 
       this.fillRatioGauge = new Gauge<Double>() {
         @Override
         public Double getValue() {
-          return (double) blockingDeque.size() / capacity;
+          return (double) blockingQueue.size() / capacity;
         }
       };
 
