@@ -15,11 +15,14 @@ package gobblin.util;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.mockito.Mockito;
+
 import org.slf4j.Logger;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -72,7 +75,7 @@ public class ExecutorsUtilsTest {
       }
     };
 
-    List<String> result = ExecutorsUtils.parallelize(nums, multiply, 2, 60, Optional.<Logger> absent());
+    List<String> result = ExecutorsUtils.parallelize(nums, multiply, 2, 60, Optional.<Logger>absent());
     Assert.assertEquals(Arrays.asList("15", "25", "50", "25", "100"), result);
   }
 
@@ -95,7 +98,7 @@ public class ExecutorsUtilsTest {
       }
     };
 
-    ExecutorsUtils.parallelize(nums, exceptionFunction, 2, 1, Optional.<Logger> absent());
+    ExecutorsUtils.parallelize(nums, exceptionFunction, 2, 1, Optional.<Logger>absent());
 
   }
 
@@ -123,5 +126,14 @@ public class ExecutorsUtilsTest {
     };
 
     ExecutorsUtils.parallelize(nums, sleepAndMultiply, 2, 1, Optional.<Logger> absent());
+  }
+
+  @Test(expectedExceptions = RuntimeException.class)
+  public void testErrorHandlingThreadFactory() {
+    new ExecutorsUtils.ErrorHandlingThreadFactory(Executors.defaultThreadFactory()).newThread(new Runnable() {
+      @Override public void run() {
+        throw new Error();
+      }
+    }).run();
   }
 }
