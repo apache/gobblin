@@ -229,28 +229,31 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
         Iterator<FileSet<CopyEntity>> fileSets =
             this.copyableDataset.getFileSetIterator(this.targetFs, this.copyConfiguration);
 
-        while (fileSets.hasNext() && !this.workUnitList.hasRejectedFileSet()) {
+        while (fileSets.hasNext() && !shouldStopGeneratingWorkUnits(this.workUnitList)) {
           FileSet<CopyEntity> fileSet = fileSets.next();
-          Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, fileSet.getName());
-          List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
-          for (CopyEntity copyEntity : fileSet.getFiles()) {
 
-            CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(this.copyableDataset);
-            CopyEntity.DatasetAndPartition datasetAndPartition = copyEntity.getDatasetAndPartition(metadata);
+          if (!fileSet.getFiles().isEmpty()) {
+            Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, fileSet.getName());
+            List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
+            for (CopyEntity copyEntity : fileSet.getFiles()) {
 
-            WorkUnit workUnit = new WorkUnit(extract);
-            workUnit.addAll(this.state);
-            serializeCopyEntity(workUnit, copyEntity);
-            serializeCopyableDataset(workUnit, metadata);
-            GobblinMetrics.addCustomTagToState(workUnit, new Tag<>(CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME,
-                this.copyableDataset.datasetURN()));
-            workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetAndPartition.toString());
-            workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, this.copyableDataset.datasetURN());
-            workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyEntity.getFileSet());
-            computeAndSetWorkUnitGuid(workUnit);
-            workUnitsForPartition.add(workUnit);
+              CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(this.copyableDataset);
+              CopyEntity.DatasetAndPartition datasetAndPartition = copyEntity.getDatasetAndPartition(metadata);
+
+              WorkUnit workUnit = new WorkUnit(extract);
+              workUnit.addAll(this.state);
+              serializeCopyEntity(workUnit, copyEntity);
+              serializeCopyableDataset(workUnit, metadata);
+              GobblinMetrics.addCustomTagToState(workUnit,
+                  new Tag<>(CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, this.copyableDataset.datasetURN()));
+              workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetAndPartition.toString());
+              workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, this.copyableDataset.datasetURN());
+              workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyEntity.getFileSet());
+              computeAndSetWorkUnitGuid(workUnit);
+              workUnitsForPartition.add(workUnit);
+            }
+            this.workUnitList.addFileSet(fileSet, workUnitsForPartition);
           }
-          this.workUnitList.addFileSet(fileSet, workUnitsForPartition);
         }
       } catch (IOException ioe) {
         throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetURN(), ioe);
