@@ -31,8 +31,7 @@ public class PathUtils {
   }
 
   public static Path relativizePath(Path fullPath, Path pathPrefix) {
-    return new Path(getPathWithoutSchemeAndAuthority(pathPrefix).toUri().
-        relativize(getPathWithoutSchemeAndAuthority(fullPath).toUri()));
+    return new Path(getPathWithoutSchemeAndAuthority(pathPrefix).toUri().relativize(getPathWithoutSchemeAndAuthority(fullPath).toUri()));
   }
 
   /**
@@ -42,7 +41,7 @@ public class PathUtils {
    * @return true if possibleAncestor is an ancestor of fullPath.
    */
   public static boolean isAncestor(Path possibleAncestor, Path fullPath) {
-    return !relativizePath(fullPath, possibleAncestor).equals(fullPath);
+    return !relativizePath(fullPath, possibleAncestor).equals(getPathWithoutSchemeAndAuthority(fullPath));
   }
 
   /**
