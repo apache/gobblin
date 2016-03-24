@@ -22,7 +22,7 @@ import gobblin.data.management.retention.dataset.SnapshotDataset;
 import gobblin.dataset.Dataset;
 
 /**
- * {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} for snapshot datasets.
+ * {@link gobblin.dataset.DatasetsFinder} for snapshot datasets.
  *
  * <p>
  *   Snapshot datasets are datasets where each version is a snapshot/full-dump of a dataset (e.g. a database).

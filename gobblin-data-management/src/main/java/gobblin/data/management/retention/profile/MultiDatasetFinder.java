@@ -34,7 +34,6 @@ import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
 import gobblin.config.client.api.VersionStabilityPolicy;
 import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.api.VersionDoesNotExistException;
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
 
@@ -67,7 +66,7 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
 
       if (jobProps.containsKey(datasetFinderClassKey())) {
         try {
-          this.datasetFinders.add((DatasetFinder) ConstructorUtils.invokeConstructor(
+          this.datasetFinders.add((DatasetsFinder) ConstructorUtils.invokeConstructor(
               Class.forName(jobProps.getProperty(datasetFinderClassKey())), fs, jobProps));
           log.info(String.format("Instantiated datasetfinder %s ", jobProps.getProperty(datasetFinderClassKey())));
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
@@ -86,7 +85,7 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
 
           try {
             this.datasetFinders
-                .add((DatasetFinder) ConstructorUtils.invokeConstructor(
+                .add((DatasetsFinder) ConstructorUtils.invokeConstructor(
                     Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), fs, jobProps,
                     datasetClassConfig));
             log.info(String.format("Instantiated datasetfinder %s for %s.",
