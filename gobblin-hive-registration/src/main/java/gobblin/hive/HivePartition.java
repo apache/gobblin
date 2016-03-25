@@ -45,6 +45,11 @@ public class HivePartition extends HiveRegistrationUnit {
     this.values = ImmutableList.<String> copyOf(builder.values);
   }
 
+  @Override
+  public String toString() {
+    return this.values.toString();
+  }
+
   public static class Builder extends HiveRegistrationUnit.Builder<Builder> {
 
     private List<String> values = Lists.newArrayList();
