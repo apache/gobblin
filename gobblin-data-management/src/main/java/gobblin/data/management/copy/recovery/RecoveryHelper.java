@@ -15,6 +15,7 @@ package gobblin.data.management.copy.recovery;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -40,13 +41,17 @@ import gobblin.util.guid.Guid;
 public class RecoveryHelper {
 
   public static final String PERSIST_DIR_KEY = "distcp.persist.dir";
+  public static final String PERSIST_RETENTION_KEY = "distcp.persist.retention.hours";
+  public static final int DEFAULT_PERSIST_RETENTION = 24;
 
   private final FileSystem fs;
   private final Optional<Path> persistDir;
+  private final int retentionHours;
 
   public RecoveryHelper(FileSystem fs, State state) throws IOException {
     this.fs = fs;
     this.persistDir = getPersistDir(state);
+    this.retentionHours = state.getPropAsInt(PERSIST_RETENTION_KEY, DEFAULT_PERSIST_RETENTION);
   }
 
   /**
@@ -92,7 +97,12 @@ public class RecoveryHelper {
 
     Path targetPath = new Path(persistDir.get(), nameBuilder.toString());
     log.info(String.format("Persisting file %s with guid %s to location %s.", path, guid, targetPath));
-    return this.fs.rename(path, targetPath);
+    if (this.fs.rename(path, targetPath)) {
+      this.fs.setTimes(targetPath, System.currentTimeMillis(), -1);
+      return true;
+    } else {
+      return false;
+    }
   }
 
   /**
@@ -116,6 +126,28 @@ public class RecoveryHelper {
       }
     }
     return Optional.absent();
+  }
+
+  /**
+   * Delete all persisted files older than the number of hours set by {@link #PERSIST_RETENTION_KEY}.
+   * @throws IOException
+   */
+  public void purgeOldPersistedFile() throws IOException {
+    if (!this.persistDir.isPresent() || !this.fs.exists(this.persistDir.get())) {
+      log.info("No persist directory to clean.");
+      return;
+    }
+
+    long retentionMillis = TimeUnit.HOURS.toMillis(this.retentionHours);
+    long now = System.currentTimeMillis();
+
+    for (FileStatus fileStatus : this.fs.listStatus(this.persistDir.get())) {
+      if (now - fileStatus.getModificationTime() > retentionMillis) {
+        if (!this.fs.delete(fileStatus.getPath(), true)) {
+          log.warn("Failed to delete path " + fileStatus.getPath());
+        }
+      }
+    }
   }
 
   /**

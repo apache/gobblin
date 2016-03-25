@@ -60,9 +60,10 @@ import gobblin.util.HadoopUtils;
 @Slf4j
 public class CopyDataPublisher extends DataPublisher implements UnpublishedHandling {
 
-  private Path writerOutputDir;
-  private FileSystem fs;
-  protected EventSubmitter eventSubmitter;
+  private final Path writerOutputDir;
+  private final FileSystem fs;
+  protected final EventSubmitter eventSubmitter;
+  protected final RecoveryHelper recoveryHelper;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -88,6 +89,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         Instrumented.getMetricContext(state, CopyDataPublisher.class, GobblinMetrics.getCustomTagsFromState(state));
 
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "gobblin.copy.CopyDataPublisher").build();
+
+    this.recoveryHelper = new RecoveryHelper(this.fs, state);
+    this.recoveryHelper.purgeOldPersistedFile();
   }
 
   @Override
@@ -235,7 +239,6 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   }
 
   private int persistFailedFileSet(Collection<? extends WorkUnitState> workUnitStates) throws IOException {
-    RecoveryHelper recoveryHelper = new RecoveryHelper(this.fs, this.state);
     int filesPersisted = 0;
     for (WorkUnitState wu : workUnitStates) {
       if (wu.getWorkingState() == WorkingState.SUCCESSFUL) {
@@ -245,7 +248,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
           Path outputDir = FileAwareInputStreamDataWriter.getOutputDir(wu);
           CopyableDatasetMetadata metadata = CopySource.deserializeCopyableDataset(wu);
           Path outputPath = FileAwareInputStreamDataWriter.getOutputFilePath(file, outputDir, file.getDatasetAndPartition(metadata));
-          if (recoveryHelper.persistFile(wu, file, outputPath)) {
+          if (this.recoveryHelper.persistFile(wu, file, outputPath)) {
             filesPersisted++;
           }
         }
