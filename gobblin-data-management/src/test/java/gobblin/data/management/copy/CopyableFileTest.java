@@ -12,6 +12,7 @@
 package gobblin.data.management.copy;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 
@@ -20,16 +21,17 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.PathUtils;
-
 
 public class CopyableFileTest {
 
@@ -184,5 +186,53 @@ public class CopyableFileTest {
     // Verify auto determined timestamp
     Assert.assertEquals(copyableFile.getOriginTimestamp(), originTimestamp);
     Assert.assertEquals(copyableFile.getUpstreamTimestamp(), upstreamTimestamp);
+  }
+
+  @Test
+  public void testResolveOwnerAndPermission() throws Exception {
+
+    Path path = new Path("/test/path");
+
+    FileStatus fileStatus = new FileStatus(1, false, 0, 0, 0, 0, FsPermission.getDefault(), "owner", "group", path);
+
+    FileSystem fs = Mockito.mock(FileSystem.class);
+    Mockito.doReturn(fileStatus).when(fs).getFileStatus(path);
+    Mockito.doReturn(path).when(fs).makeQualified(path);
+    Mockito.doReturn(new URI("hdfs://uri")).when(fs).getUri();
+
+    Properties properties = new Properties();
+    properties.put(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/final/dir");
+
+    OwnerAndPermission ownerAndPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, path,
+        new CopyConfiguration.CopyConfigurationBuilder(fs, properties).build());
+    Assert.assertEquals(ownerAndPermission.getOwner(), null);
+    Assert.assertEquals(ownerAndPermission.getGroup(), null);
+    Assert.assertEquals(ownerAndPermission.getFsPermission(), null);
+
+    ownerAndPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, path,
+        new CopyConfiguration.CopyConfigurationBuilder(fs, properties).targetGroup(Optional.of("target")).build());
+    Assert.assertEquals(ownerAndPermission.getOwner(), null);
+    Assert.assertEquals(ownerAndPermission.getGroup(), "target");
+    Assert.assertEquals(ownerAndPermission.getFsPermission(), null);
+
+    ownerAndPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, path,
+        new CopyConfiguration.CopyConfigurationBuilder(fs, properties).targetGroup(Optional.of("target")).
+            preserve(PreserveAttributes.fromMnemonicString("ug")).build());
+    Assert.assertEquals(ownerAndPermission.getOwner(), "owner");
+    Assert.assertEquals(ownerAndPermission.getGroup(), "target");
+    Assert.assertEquals(ownerAndPermission.getFsPermission(), null);
+
+    ownerAndPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, path,
+        new CopyConfiguration.CopyConfigurationBuilder(fs, properties).preserve(PreserveAttributes.fromMnemonicString("ug")).build());
+    Assert.assertEquals(ownerAndPermission.getOwner(), "owner");
+    Assert.assertEquals(ownerAndPermission.getGroup(), "group");
+    Assert.assertEquals(ownerAndPermission.getFsPermission(), null);
+
+    ownerAndPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, path,
+        new CopyConfiguration.CopyConfigurationBuilder(fs, properties).preserve(PreserveAttributes.fromMnemonicString("ugp")).build());
+    Assert.assertEquals(ownerAndPermission.getOwner(), "owner");
+    Assert.assertEquals(ownerAndPermission.getGroup(), "group");
+    Assert.assertEquals(ownerAndPermission.getFsPermission(), FsPermission.getDefault());
+
   }
 }
