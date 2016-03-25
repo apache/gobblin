@@ -257,9 +257,14 @@ public abstract class CleanableDatasetBase<T extends DatasetVersion> implements 
     }
   }
   private void deleteEmptyParentDirectories(Path datasetRoot, Path parent) throws IOException {
-    if (PathUtils.isAncestor(datasetRoot, parent) && !datasetRoot.equals(parent) &&
-        this.fs.listStatus(parent).length == 0) {
-      this.fs.delete(parent, false);
+    if (PathUtils.isAncestor(datasetRoot, parent)
+        && !PathUtils.getPathWithoutSchemeAndAuthority(datasetRoot).equals(PathUtils.getPathWithoutSchemeAndAuthority(parent))
+        && this.fs.listStatus(parent).length == 0) {
+      if (!this.fs.delete(parent, false)) {
+        log.warn("Failed to delete empty directory " + parent);
+      } else {
+        log.info("Deleted empty directory " + parent);
+      }
       deleteEmptyParentDirectories(datasetRoot, parent.getParent());
     }
   }
