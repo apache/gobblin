@@ -22,7 +22,9 @@ import gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
 import gobblin.dataset.Dataset;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.partition.FileSet;
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
+import gobblin.dataset.DatasetsFinder;
+import gobblin.dataset.IterableDatasetFinder;
+import gobblin.dataset.IterableDatasetFinderImpl;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
 import gobblin.metrics.event.sla.SlaEventKeys;
@@ -34,17 +36,20 @@ import gobblin.source.workunit.WorkUnit;
 import gobblin.util.HadoopUtils;
 import gobblin.util.RateControlledFileSystem;
 import gobblin.util.WriterUtils;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
+import gobblin.util.executors.IteratorExecutor;
 import gobblin.util.guid.Guid;
+import gobblin.util.iterators.InterruptibleIterator;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,11 +62,9 @@ import org.apache.hadoop.fs.FileSystem;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 
 
 /**
@@ -86,8 +89,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   /**
    * <ul>
    * Does the following:
-   * <li>Instantiate a {@link DatasetFinder}.
-   * <li>Find all {@link Dataset} using {@link DatasetFinder}.
+   * <li>Instantiate a {@link DatasetsFinder}.
+   * <li>Find all {@link Dataset} using {@link DatasetsFinder}.
    * <li>For each {@link CopyableDataset} get all {@link CopyEntity}s.
    * <li>Create a {@link WorkUnit} per {@link CopyEntity}.
    * </ul>
@@ -101,43 +104,61 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * @return Work units for copying files.
    */
   @Override
-  public List<WorkUnit> getWorkunits(SourceState state) {
+  public List<WorkUnit> getWorkunits(final SourceState state) {
 
     try {
 
-      FileSystem sourceFs = getSourceFileSystem(state);
-      FileSystem targetFs = getTargetFileSystem(state);
-
-      DatasetFinder<CopyableDataset> datasetFinder =
-          DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY);
-      List<CopyableDataset> copyableDatasets = datasetFinder.findDatasets();
+      final FileSystem sourceFs = getSourceFileSystem(state);
+      final FileSystem targetFs = getTargetFileSystem(state);
 
       // TODO: The comparator sets the priority of file sets. Currently, all file sets have the same priority, this needs to
       // be pluggable.
-      ConcurrentBoundedWorkUnitList workUnitList =
+      final ConcurrentBoundedWorkUnitList workUnitList =
           new ConcurrentBoundedWorkUnitList(state.getPropAsInt(MAX_FILES_COPIED_KEY, DEFAULT_MAX_FILES_COPIED),
-          new AllEqualComparator<FileSet<CopyEntity>>());
+              new AllEqualComparator<FileSet<CopyEntity>>());
 
-      ExecutorService executor =
-          ScalingThreadPoolExecutor.newScalingThreadPool(0,
-              state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES),
-              100, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("Dataset-cleaner-pool-%d")));
-      ListeningExecutorService service = MoreExecutors.listeningDecorator(executor);
-      List<ListenableFuture<?>> futures = Lists.newArrayList();
+      final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
-      CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
+      DatasetsFinder<CopyableDataset> datasetFinder =
+          DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY);
 
-      for (CopyableDataset copyableDataset : copyableDatasets) {
-        futures.add(service.submit(
-            new DatasetWorkUnitGenerator(copyableDataset, sourceFs, targetFs, state, workUnitList, copyConfiguration)));
-      }
+      IterableDatasetFinder<CopyableDataset> iterableDatasetFinder =
+          datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDataset>) datasetFinder
+              : new IterableDatasetFinderImpl<>(datasetFinder);
 
-      for (ListenableFuture<?> future : futures) {
-        try {
-          future.get();
-        } catch (ExecutionException | InterruptedException exc) {
-          throw new IOException("Failed to generate work units.", exc);
+      Iterator<CopyableDataset> copyableDatasets = new InterruptibleIterator<>(iterableDatasetFinder.getDatasetsIterator(),
+          new Callable<Boolean>() {
+        @Override
+        public Boolean call()
+            throws Exception {
+          return shouldStopGeneratingWorkUnits(workUnitList);
         }
+      });
+
+      Iterator<Callable<Void>> callableIterator =
+          Iterators.transform(copyableDatasets, new Function<CopyableDataset, Callable<Void>>() {
+        @Nullable
+        @Override
+        public Callable<Void> apply(@Nullable CopyableDataset copyableDataset) {
+          return new DatasetWorkUnitGenerator(copyableDataset, sourceFs, targetFs, state, workUnitList, copyConfiguration);
+        }
+      });
+
+      try {
+        List<Future<Void>> futures = new IteratorExecutor<>(callableIterator,
+            state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES),
+            ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("Dataset-cleaner-pool-%d"))).execute();
+
+        for (Future<Void> future : futures) {
+          try {
+            future.get();
+          } catch (ExecutionException exc) {
+            log.error("Failed to get work units for dataset.", exc);
+          }
+        }
+      } catch (InterruptedException ie) {
+        log.error("Retrieval of work units was interrupted. Aborting.");
+        return Lists.newArrayList();
       }
 
       log.info(String.format("Created %s workunits ", workUnitList.getWorkUnits().size()));
@@ -181,7 +202,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * {@link Runnable} to generate copy listing for one {@link CopyableDataset}.
    */
   @AllArgsConstructor
-  private class DatasetWorkUnitGenerator implements Runnable {
+  private class DatasetWorkUnitGenerator implements Callable<Void> {
 
     private final CopyableDataset copyableDataset;
     private final FileSystem originFs;
@@ -190,12 +211,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     private final ConcurrentBoundedWorkUnitList workUnitList;
     private final CopyConfiguration copyConfiguration;
 
-    @Override public void run() {
+    @Override public Void call() {
 
-      if (workUnitList.hasRejectedFileSet()) {
-        // Stop generating work units the first time the work unit container rejects a file set due to capacity issues.
-        // TODO: more sophisticated stop algorithm.
-        return;
+      if (shouldStopGeneratingWorkUnits(this.workUnitList)) {
+        return null;
       }
 
       try {
@@ -231,7 +250,14 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       } catch (IOException ioe) {
         throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetURN(), ioe);
       }
+      return null;
     }
+  }
+
+  private boolean shouldStopGeneratingWorkUnits(ConcurrentBoundedWorkUnitList workUnitList) {
+    // Stop generating work units the first time the work unit container rejects a file set due to capacity issues.
+    // TODO: more sophisticated stop algorithm.
+    return workUnitList.hasRejectedFileSet();
   }
 
   /**

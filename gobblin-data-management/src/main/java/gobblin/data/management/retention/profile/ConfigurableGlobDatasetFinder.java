@@ -32,16 +32,16 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
 import gobblin.dataset.Dataset;
+import gobblin.dataset.DatasetsFinder;
 import gobblin.util.PathUtils;
 
 
 /**
- * A configurable {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} that looks for
+ * A configurable {@link DatasetsFinder} that looks for
  * {@link gobblin.data.management.retention.dataset.CleanableDataset}s using a glob pattern.
  */
-public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implements DatasetFinder<T> {
+public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implements DatasetsFinder<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigurableGlobDatasetFinder.class);
 

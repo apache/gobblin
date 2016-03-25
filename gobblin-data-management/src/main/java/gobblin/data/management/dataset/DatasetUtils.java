@@ -23,7 +23,7 @@ import org.apache.hadoop.fs.PathFilter;
 
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.CopyableFileFilter;
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
+import gobblin.dataset.DatasetsFinder;
 
 
 /**
@@ -54,16 +54,16 @@ public class DatasetUtils {
   };
 
   /**
-   * Instantiate a {@link DatasetFinder}. The class of the {@link DatasetFinder} is read from property
+   * Instantiate a {@link DatasetsFinder}. The class of the {@link DatasetsFinder} is read from property
    * {@link #DATASET_PROFILE_CLASS_KEY}.
    *
-   * @param props Properties used for building {@link DatasetFinder}.
+   * @param props Properties used for building {@link DatasetsFinder}.
    * @param fs {@link FileSystem} where datasets are located.
-   * @return A new instance of {@link DatasetFinder}.
+   * @return A new instance of {@link DatasetsFinder}.
    * @throws IOException
    */
   @SuppressWarnings("unchecked")
-  public static <T extends gobblin.dataset.Dataset> DatasetFinder<T> instantiateDatasetFinder(Properties props, FileSystem fs,
+  public static <T extends gobblin.dataset.Dataset> DatasetsFinder<T> instantiateDatasetFinder(Properties props, FileSystem fs,
       String def) throws IOException {
     String className = def;
     if (props.containsKey(DATASET_PROFILE_CLASS_KEY)) {
@@ -71,7 +71,7 @@ public class DatasetUtils {
     }
     try {
       Class<?> datasetFinderClass = Class.forName(className);
-      return (DatasetFinder<T>) datasetFinderClass.getConstructor(FileSystem.class, Properties.class).newInstance(fs,
+      return (DatasetsFinder<T>) datasetFinderClass.getConstructor(FileSystem.class, Properties.class).newInstance(fs,
           props);
     } catch (ClassNotFoundException exception) {
       throw new IOException(exception);
