@@ -143,4 +143,13 @@ public class PathUtils {
     }
     return path;
   }
+
+  /**
+   * Is an absolute path (ie a slash relative path part)
+   *  AND  a scheme is null AND  authority is null.
+   */
+  public static boolean isAbsoluteAndSchemeAuthorityNull(Path path) {
+    return  (path.isAbsolute() &&
+        path.toUri().getScheme() == null && path.toUri().getAuthority() == null);
+  }
 }

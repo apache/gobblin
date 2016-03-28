@@ -13,6 +13,7 @@
 package gobblin.data.management.copy.hive.avro;
 
 import java.io.IOException;
+import java.net.URI;
 
 import com.google.common.base.Optional;
 
@@ -23,9 +24,11 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
 import gobblin.data.management.copy.hive.HiveCopyEntityHelper;
+import gobblin.util.PathUtils;
+
 
 /**
- * Update avro related entries in creating {@link CopyEntity}s for copying a Hive table.
+ * Update avro related entries in creating {@link gobblin.data.management.copy.CopyEntity}s for copying a Hive table.
  */
 
 @Slf4j
@@ -38,22 +41,31 @@ public class HiveAvroCopyEntityHelper {
    * @throws IOException
    */
   public static void updateTableAttributesIfAvro(Table targetTable, HiveCopyEntityHelper hiveHelper) throws IOException {
-    if(!isHiveTableAvroType(targetTable)){
+    if (!isHiveTableAvroType(targetTable)) {
       return;
     }
-    
+
     // need to update the {@link #HIVE_TABLE_AVRO_SCHEMA_URL} location
     String oldAvroSchemaURL = targetTable.getTTable().getSd().getSerdeInfo().getParameters().get(HIVE_TABLE_AVRO_SCHEMA_URL);
-    if(oldAvroSchemaURL!=null){
-      //String newAvroSchemaURL = new Path(targetLocation, new Path(oldAvroSchemaURL).getName()).toString();
-      String newAvroSchemaURL = hiveHelper.getTargetPath(new Path(oldAvroSchemaURL), hiveHelper.getTargetFileSystem(), 
-          Optional.<Partition>absent(), true).toString();
-      
-      targetTable.getTTable().getSd().getSerdeInfo().getParameters().put(HIVE_TABLE_AVRO_SCHEMA_URL, newAvroSchemaURL);
-      log.info(String.format("For table %s, change %s from %s to %s", targetTable.getCompleteName(), HIVE_TABLE_AVRO_SCHEMA_URL, oldAvroSchemaURL, newAvroSchemaURL));
+    if (oldAvroSchemaURL != null) {
+
+      Path oldAvroSchemaPath = new Path(oldAvroSchemaURL);
+      URI sourceFileSystemURI = hiveHelper.getDataset().getFs().getUri();
+
+      if (PathUtils.isAbsoluteAndSchemeAuthorityNull(oldAvroSchemaPath)
+          || (oldAvroSchemaPath.toUri().getScheme().equals(sourceFileSystemURI.getScheme())
+          && oldAvroSchemaPath.toUri().getAuthority().equals(sourceFileSystemURI.getAuthority()))) {
+
+        String newAvroSchemaURL = hiveHelper.getTargetPath(oldAvroSchemaPath, hiveHelper.getTargetFileSystem(),
+            Optional.<Partition>absent(), true).toString();
+
+        targetTable.getTTable().getSd().getSerdeInfo().getParameters().put(HIVE_TABLE_AVRO_SCHEMA_URL, newAvroSchemaURL);
+        log.info(String.format("For table %s, change %s from %s to %s", targetTable.getCompleteName(),
+            HIVE_TABLE_AVRO_SCHEMA_URL, oldAvroSchemaURL, newAvroSchemaURL));
+      }
     }
   }
-  
+
   /**
    * Tell whether a hive table is actually an Avro table
    * @param targetTable
