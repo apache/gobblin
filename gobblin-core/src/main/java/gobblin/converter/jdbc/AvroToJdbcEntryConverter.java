@@ -240,12 +240,12 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     }
 
     for(Field f : schema.getFields()) {
-      produceFlattenedHeler(f.schema(), f, flattened);
+      produceFlattenedHelper(f.schema(), f, flattened);
     }
     return flattened;
   }
 
-  private void produceFlattenedHeler(Schema schema, Field field, Map<String, Type> flattened) throws SchemaConversionException {
+  private void produceFlattenedHelper(Schema schema, Field field, Map<String, Type> flattened) throws SchemaConversionException {
     if (Type.RECORD.equals(schema.getType())) {
       throw new SchemaConversionException(Type.RECORD + " is only allowed for first level.");
     }

@@ -20,9 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-
 import javax.sql.DataSource;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,7 +107,9 @@ public class JdbcPublisher extends DataPublisher {
    * 2. Move data from staging to destination
    * 3. Update Workunit state
    *
-   * TODO Parallel support
+   * TODO: Research on running this in parallel. While testing publishing it in parallel, it turns out delete all from the table locks the table
+   * so that copying table threads wait until transaction lock times out and throwing exception(MySQL). Is there a way to avoid this?
+   *
    * {@inheritDoc}
    * @see gobblin.publisher.DataPublisher#publishData(java.util.Collection)
    */
@@ -119,13 +119,14 @@ public class JdbcPublisher extends DataPublisher {
     int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
     Set<String> emptiedDestTables = Sets.newHashSet();
 
-    JdbcWriterCommands commands = jdbcWriterCommandsFactory.newInstance(state);
-    Connection conn = createConnection();
+    final JdbcWriterCommands commands = jdbcWriterCommandsFactory.newInstance(state);
+    final Connection conn = createConnection();
     try {
       conn.setAutoCommit(false);
 
       for (int i = 0; i < branches; i++) {
-        String destinationTable = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, i));
+        final String destinationTable = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, i));
+        final String databaseName = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_DATABASE_NAME, branches, i));
         Objects.requireNonNull(destinationTable);
 
         if(state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
@@ -136,11 +137,10 @@ public class JdbcPublisher extends DataPublisher {
         }
 
         Map<String, List<WorkUnitState>> stagingTables = getStagingTables(states, branches, i);
-
         for (Map.Entry<String, List<WorkUnitState>> entry : stagingTables.entrySet()) {
           String stagingTable = entry.getKey();
-          LOG.info("Copying data from staging table + " + stagingTable + " into destination table " + destinationTable);
-            commands.copyTable(conn, stagingTable, destinationTable);
+          LOG.info("Copying data from staging table " + stagingTable + " into destination table " + destinationTable);
+            commands.copyTable(conn, databaseName, stagingTable, destinationTable);
             for (WorkUnitState workUnitState : entry.getValue()) {
               workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
             }

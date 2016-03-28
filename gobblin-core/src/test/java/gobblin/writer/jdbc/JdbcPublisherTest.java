@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.writer.jdbc;
 
 import static org.mockito.Mockito.*;
@@ -23,6 +35,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = {"gobblin.writer"})
 public class JdbcPublisherTest {
+  private String database = "db";
   private String stagingTable = "stg";
   private String destinationTable = "dest";
   private State state;
@@ -37,6 +50,7 @@ public class JdbcPublisherTest {
   private void setup() {
     state = new State();
     state.setProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, destinationTable);
+    state.setProp(ConfigurationKeys.JDBC_PUBLISHER_DATABASE_NAME, database);
 
     commands = mock(JdbcWriterCommands.class);
     factory = mock(JdbcWriterCommandsFactory.class);
@@ -65,7 +79,7 @@ public class JdbcPublisherTest {
     InOrder inOrder = inOrder(conn, commands, workUnitState);
 
     inOrder.verify(conn, times(1)).setAutoCommit(false);
-    inOrder.verify(commands, times(1)).copyTable(conn, stagingTable, destinationTable);
+    inOrder.verify(commands, times(1)).copyTable(conn, database, stagingTable, destinationTable);
     inOrder.verify(workUnitState, times(1)).setWorkingState(WorkUnitState.WorkingState.COMMITTED);
     inOrder.verify(conn, times(1)).commit();
     inOrder.verify(conn, times(1)).close();
@@ -81,14 +95,14 @@ public class JdbcPublisherTest {
 
     inOrder.verify(conn, times(1)).setAutoCommit(false);
     inOrder.verify(commands, times(1)).deleteAll(conn, destinationTable);
-    inOrder.verify(commands, times(1)).copyTable(conn, stagingTable, destinationTable);
+    inOrder.verify(commands, times(1)).copyTable(conn, database, stagingTable, destinationTable);
     inOrder.verify(workUnitState, times(1)).setWorkingState(WorkUnitState.WorkingState.COMMITTED);
     inOrder.verify(conn, times(1)).commit();
     inOrder.verify(conn, times(1)).close();
   }
 
   public void testPublishFailure() throws SQLException, IOException {
-    doThrow(RuntimeException.class).when(commands).copyTable(conn, stagingTable, destinationTable);
+    doThrow(RuntimeException.class).when(commands).copyTable(conn, database, stagingTable, destinationTable);
 
     try {
       publisher.publish(workUnitStates);
@@ -100,7 +114,7 @@ public class JdbcPublisherTest {
     InOrder inOrder = inOrder(conn, commands, workUnitState);
 
     inOrder.verify(conn, times(1)).setAutoCommit(false);
-    inOrder.verify(commands, times(1)).copyTable(conn, stagingTable, destinationTable);
+    inOrder.verify(commands, times(1)).copyTable(conn, database, stagingTable, destinationTable);
 
     inOrder.verify(conn, times(1)).rollback();
     inOrder.verify(conn, times(1)).close();

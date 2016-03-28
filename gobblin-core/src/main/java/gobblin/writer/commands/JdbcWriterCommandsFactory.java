@@ -14,6 +14,7 @@ package gobblin.writer.commands;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.Destination;
 import gobblin.writer.Destination.DestinationType;
 
@@ -42,8 +43,11 @@ public class JdbcWriterCommandsFactory {
    * @return Provides JdbcWriterCommands based on ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY
    */
   public JdbcWriterCommands newInstance(State state) {
-    String destType = state.getProp(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY);
-    Objects.requireNonNull(destType, ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY + " is required for underlying JDBC product name");
+    String destKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY,
+                         state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1),
+                         state.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY, 0));
+    String destType = state.getProp(destKey);
+    Objects.requireNonNull(destType, destKey + " is required for underlying JDBC product name");
     return newInstance(Destination.of(DestinationType.valueOf(destType.toUpperCase()), state));
   }
 }

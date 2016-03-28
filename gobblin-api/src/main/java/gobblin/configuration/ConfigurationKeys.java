@@ -299,6 +299,7 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
 
   public static final String JDBC_PUBLISHER_PREFIX = "jdbc.publisher.";
+  public static final String JDBC_PUBLISHER_DATABASE_NAME = JDBC_PUBLISHER_PREFIX + "database.name";
   public static final String JDBC_PUBLISHER_FINAL_TABLE_NAME = JDBC_PUBLISHER_PREFIX + "table.name";
   public static final String JDBC_PUBLISHER_REPLACE_FINAL_TABLE = JDBC_PUBLISHER_PREFIX + "replace.table";
   public static final String JDBC_PUBLISHER_USERNAME = JDBC_PUBLISHER_PREFIX + "username";

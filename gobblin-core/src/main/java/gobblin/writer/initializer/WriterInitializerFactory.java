@@ -17,6 +17,7 @@ import gobblin.configuration.State;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.JdbcWriterBuilder;
+import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
 import java.util.Collection;
 import java.util.List;
@@ -57,7 +58,7 @@ public class WriterInitializerFactory {
     String writerBuilderClass = state.getProp(writerBuilderKey, ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);
 
     if(JdbcWriterBuilder.class.getName().equals(writerBuilderClass)) {
-      return new JdbcWriterInitializer(state, workUnits, branches, branchId);
+      return new JdbcWriterInitializer(state, workUnits, new JdbcWriterCommandsFactory(), branches, branchId);
     }
     return NOOP;
   }

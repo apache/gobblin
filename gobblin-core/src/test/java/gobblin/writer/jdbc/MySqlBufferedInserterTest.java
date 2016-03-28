@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.writer.jdbc;
 
 import static org.mockito.Mockito.*;
@@ -23,6 +35,7 @@ import org.testng.annotations.Test;
 public class MySqlBufferedInserterTest {
 
   public void testMySqlBufferedInsert() throws SQLException {
+    final String db = "db";
     final String table = "stg";
     final int colNums = 20;
     final int batchSize = 100;
@@ -39,7 +52,7 @@ public class MySqlBufferedInserterTest {
 
     List<JdbcEntryData> jdbcEntries = createJdbcEntries(colNums, colSize, entryCount);
     for(JdbcEntryData entry : jdbcEntries) {
-      inserter.insert(conn, table, entry);
+      inserter.insert(conn, db, table, entry);
     }
     inserter.flush(conn);
 
@@ -50,6 +63,7 @@ public class MySqlBufferedInserterTest {
   }
 
   public void testMySqlBufferedInsertBufferSizeLimit() throws SQLException {
+    final String db = "db";
     final String table = "stg";
     final int colNums = 20;
     final int batchSize = 100;
@@ -71,7 +85,7 @@ public class MySqlBufferedInserterTest {
 
     List<JdbcEntryData> jdbcEntries = createJdbcEntries(colNums, colSize, entryCount);
     for(JdbcEntryData entry : jdbcEntries) {
-      inserter.insert(conn, table, entry);
+      inserter.insert(conn, db, table, entry);
     }
     inserter.flush(conn);
 
@@ -84,14 +98,17 @@ public class MySqlBufferedInserterTest {
   }
 
   public void testMySqlBufferedInsertParamLimit() throws SQLException {
+    final String db = "db";
     final String table = "stg";
-    final int colNums = 2000;
+    final int colNums = 1000;
     final int batchSize = 100;
     final int entryCount = 1007;
     final int colSize = 3;
+    final int maxParamSize = 10000;
 
     State state = new State();
     state.setProp(ConfigurationKeys.WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
+    state.setProp(ConfigurationKeys.WRITER_JDBC_MAX_PARAM_SIZE, maxParamSize);
 
     MySqlBufferedInserter inserter = new MySqlBufferedInserter(state);
 
@@ -101,11 +118,11 @@ public class MySqlBufferedInserterTest {
 
     List<JdbcEntryData> jdbcEntries = createJdbcEntries(colNums, colSize, entryCount);
     for(JdbcEntryData entry : jdbcEntries) {
-      inserter.insert(conn, table, entry);
+      inserter.insert(conn, db, table, entry);
     }
     inserter.flush(conn);
 
-    int expectedBatchSize = ConfigurationKeys.DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE / colNums;
+    int expectedBatchSize = maxParamSize / colNums;
     int expectedExecuteCount = entryCount / expectedBatchSize + 1;
     verify(conn, times(2)).prepareStatement(anyString());
     verify(pstmt, times(expectedExecuteCount)).clearParameters();

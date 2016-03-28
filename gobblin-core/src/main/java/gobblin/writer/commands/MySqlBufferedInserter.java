@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 public class MySqlBufferedInserter implements JdbcBufferedInserter {
   private static final Logger LOG = LoggerFactory.getLogger(MySqlBufferedInserter.class);
 
-  private static final String INSERT_STATEMENT_PREFIX_FORMAT = "INSERT INTO %s (%s) VALUES ";
+  private static final String INSERT_STATEMENT_PREFIX_FORMAT = "INSERT INTO %s.%s (%s) VALUES ";
   private static final Joiner JOINER_ON_COMMA = Joiner.on(',');
 
   private List<JdbcEntryData> pendingInserts;
@@ -52,9 +52,9 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
   }
 
   @Override
-  public void insert(Connection conn, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+  public void insert(Connection conn, String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
     if(columnNames == null) {
-      initializeForBatch(conn, table, jdbcEntryData);
+      initializeForBatch(conn, databaseName, table, jdbcEntryData);
     }
     pendingInserts.add(jdbcEntryData);
     usedBufferSize += jdbcEntryData.byteSize();
@@ -98,14 +98,14 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
     resetBatch();
   }
 
-  private void initializeForBatch(Connection conn, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+  private void initializeForBatch(Connection conn, String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
     columnNames = Lists.newArrayList();
     for (JdbcEntryDatum datum : jdbcEntryData) {
       columnNames.add(datum.getColumnName());
     }
     pendingInserts = Lists.newArrayList();
 
-    insertStmtPrefix = String.format(INSERT_STATEMENT_PREFIX_FORMAT, table, JOINER_ON_COMMA.join(columnNames));
+    insertStmtPrefix = String.format(INSERT_STATEMENT_PREFIX_FORMAT, databaseName, table, JOINER_ON_COMMA.join(columnNames));
     int actualBatchSize = Math.min(batchSize, maxParamSize / columnNames.size());
     if(batchSize != actualBatchSize) {
       LOG.info("Changing batch size from " + batchSize + " to " + actualBatchSize + " due to # of params limitation " + maxParamSize + " , # of columns: " + columnNames.size());

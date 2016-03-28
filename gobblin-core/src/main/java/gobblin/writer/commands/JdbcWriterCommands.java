@@ -19,5 +19,5 @@ public interface JdbcWriterCommands extends JdbcBufferedInserter {
 
   public Map<String, JDBCType> retrieveDateColumns(Connection conn, String table) throws SQLException;
 
-  public void copyTable(Connection conn, String from, String to) throws SQLException;
+  public void copyTable(Connection conn, String databaseName, String from, String to) throws SQLException;
 }

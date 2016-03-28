@@ -23,7 +23,7 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   private static final String DROP_TABLE_SQL_FORMAT = "DROP TABLE %s";
   private static final String INFORMATION_SCHEMA_SELECT_SQL_PSTMT
                               = "SELECT column_name, column_type FROM information_schema.columns where table_name = ?";
-  private static final String COPY_INSERT_STATEMENT_FORMAT = "INSERT INTO %s SELECT * FROM %s";
+  private static final String COPY_INSERT_STATEMENT_FORMAT = "INSERT INTO %s.%s SELECT * FROM %s.%s";
   private static final String DELETE_STATEMENT_FORMAT = "DELETE FROM %s";
 
   private final JdbcBufferedInserter jdbcBufferedWriter;
@@ -33,8 +33,8 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   }
 
   @Override
-  public void insert(Connection conn, String table, JdbcEntryData jdbcEntryData) throws SQLException {
-    jdbcBufferedWriter.insert(conn, table, jdbcEntryData);
+  public void insert(Connection conn, String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+    jdbcBufferedWriter.insert(conn, databaseName, table, jdbcEntryData);
   }
 
   @Override
@@ -114,8 +114,8 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
 
 
   @Override
-  public void copyTable(Connection conn, String from, String to) throws SQLException {
-    String sql = String.format(COPY_INSERT_STATEMENT_FORMAT, to, from);
+  public void copyTable(Connection conn, String databaseName, String from, String to) throws SQLException {
+    String sql = String.format(COPY_INSERT_STATEMENT_FORMAT, databaseName, to, databaseName, from);
     execute(conn.prepareStatement(sql));
   }
 

@@ -42,6 +42,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   private final Connection conn;
   private final State state;
   private final JdbcWriterCommands commands;
+  private final String databaseName;
   private final String tableName;
 
   private boolean failed;
@@ -50,6 +51,12 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   public JdbcWriter(JdbcWriterBuilder builder) {
     this.state = builder.destination.getProperties();
     this.state.appendToListProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, Integer.toString(builder.branch));
+
+    String databaseTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_DATABASE_NAME,
+                                                                         builder.branches,
+                                                                         builder.branch);
+    this.databaseName = Objects.requireNonNull(state.getProp(databaseTableKey), "Staging table is missing with key " + databaseTableKey);
+
     String stagingTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE,
                                                                         builder.branches,
                                                                         builder.branch);
@@ -64,9 +71,10 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   }
 
   @VisibleForTesting
-  public JdbcWriter(JdbcWriterCommands commands, State state, String table, Connection conn) throws SQLException {
+  public JdbcWriter(JdbcWriterCommands commands, State state, String databaseName, String table, Connection conn) throws SQLException {
     this.commands = commands;
     this.state = state;
+    this.databaseName = databaseName;
     this.tableName = table;
     this.conn = conn;
   }
@@ -96,7 +104,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
       LOG.debug("Writing " + record);
     }
     try {
-      commands.insert(conn, tableName, record);
+      commands.insert(conn, databaseName, tableName, record);
       recordWrittenCount++;
     } catch (Exception e) {
       failed = true;
