@@ -45,6 +45,11 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
 
   @Override
   public StringDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    return new StringDatasetVersion(this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath));
+    gobblin.data.management.version.StringDatasetVersion stringDatasetVersion =
+        this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath);
+    if (stringDatasetVersion != null) {
+      return new StringDatasetVersion(stringDatasetVersion);
+    }
+    return null;
   }
 }
