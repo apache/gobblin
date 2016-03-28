@@ -19,6 +19,7 @@ import java.util.NoSuchElementException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.Singular;
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,7 +55,6 @@ import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.RecursivePathFinder;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.data.management.copy.hive.avro.HiveAvroCopyEntityHelper;
@@ -73,6 +73,7 @@ import gobblin.util.commit.DeleteFileCommitStep;
  * Creates {@link CopyEntity}s for copying a Hive table.
  */
 @Slf4j
+@Getter
 public class HiveCopyEntityHelper {
 
   /**
