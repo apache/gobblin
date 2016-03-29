@@ -31,6 +31,7 @@ import com.google.common.base.Preconditions;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
+import gobblin.hive.HiveLock;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HivePartition;
 import gobblin.hive.HiveRegProps;
@@ -38,6 +39,7 @@ import gobblin.hive.HiveRegister;
 import gobblin.hive.HiveRegistrationUnit.Column;
 import gobblin.hive.HiveTable;
 import gobblin.hive.spec.HiveSpec;
+import gobblin.util.AutoCloseableLock;
 import gobblin.util.AutoReturnableObject;
 
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +66,7 @@ import lombok.extern.slf4j.Slf4j;
 public class HiveMetaStoreBasedRegister extends HiveRegister {
 
   private final HiveMetastoreClientPool clientPool;
+  private final HiveLock locks = new HiveLock();
 
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
@@ -102,40 +105,44 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     Database db = new Database();
     db.setName(dbName);
 
-    try {
-      client.getDatabase(db.getName());
-      return false;
-    } catch (NoSuchObjectException nsoe) {
-      // proceed with create
-    } catch (TException te) {
-      throw new IOException(te);
-    }
+    try (AutoCloseableLock lock = this.locks.getDbLock(dbName)) {
+      try {
+        client.getDatabase(db.getName());
+        return false;
+      } catch (NoSuchObjectException nsoe) {
+        // proceed with create
+      } catch (TException te) {
+        throw new IOException(te);
+      }
 
-    Preconditions.checkState(this.hiveDbRootDir.isPresent(),
-        "Missing required property " + HiveRegProps.HIVE_DB_ROOT_DIR);
-    db.setLocationUri(new Path(this.hiveDbRootDir.get(), dbName + HIVE_DB_EXTENSION).toString());
+      Preconditions.checkState(this.hiveDbRootDir.isPresent(),
+          "Missing required property " + HiveRegProps.HIVE_DB_ROOT_DIR);
+      db.setLocationUri(new Path(this.hiveDbRootDir.get(), dbName + HIVE_DB_EXTENSION).toString());
 
-    try {
-      client.createDatabase(db);
-      log.info("Created database " + dbName);
-      return true;
-    } catch (AlreadyExistsException e) {
-      return false;
-    } catch (TException e) {
-      throw new IOException("Unable to create Hive database " + dbName, e);
+      try {
+        client.createDatabase(db);
+        log.info("Created database " + dbName);
+        return true;
+      } catch (AlreadyExistsException e) {
+        return false;
+      } catch (TException e) {
+        throw new IOException("Unable to create Hive database " + dbName, e);
+      }
     }
   }
 
   @Override
   public boolean createTableIfNotExists(HiveTable table) throws IOException {
-    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        AutoCloseableLock lock = this.locks.getTableLock(table.getDbName(), table.getTableName())) {
       return createTableIfNotExists(client.get(), HiveMetaStoreUtils.getTable(table));
     }
   }
 
   @Override
   public boolean addPartitionIfNotExists(HiveTable table, HivePartition partition) throws IOException {
-    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
+        AutoCloseableLock lock = this.locks.getTableLock(table.getDbName(), table.getTableName())) {
       try {
         client.get().getPartition(table.getDbName(), table.getTableName(), partition.getValues());
         return false;
@@ -154,7 +161,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     String dbName = table.getDbName();
     String tableName = table.getTableName();
 
-    try {
+    try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
       if (client.tableExists(table.getDbName(), table.getTableName())) {
         return false;
       }
@@ -171,22 +178,23 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
     String dbName = table.getDbName();
     String tableName = table.getTableName();
-
-    try {
-      client.createTable(table);
-      log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
-    } catch (TException e) {
+    try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
       try {
-        HiveTable existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
-        if (needToUpdateTable(existingTable, spec.getTable())) {
-          client.alter_table(dbName, tableName, table);
-          log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
+        client.createTable(table);
+        log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
+      } catch (TException e) {
+        try {
+          HiveTable existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
+          if (needToUpdateTable(existingTable, spec.getTable())) {
+            client.alter_table(dbName, tableName, table);
+            log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
+          }
+        } catch (TException e2) {
+          log.error(
+              String.format("Unable to create or alter Hive table %s in db %s: " + e.getMessage(), tableName, dbName),
+              e2);
+          throw e2;
         }
-      } catch (TException e2) {
-        log.error(
-            String.format("Unable to create or alter Hive table %s in db %s: " + e.getMessage(), tableName, dbName),
-            e2);
-        throw e2;
       }
     }
   }
@@ -246,27 +254,31 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         String.format("Partition key size is %s but partition value size is %s", table.getPartitionKeys().size(),
             partition.getValues().size()));
 
-    try {
-      client.add_partition(partition);
-      log.info(String.format("Added partition %s to table %s with location %s", stringifyPartition(partition),
-          table.getTableName(), partition.getSd().getLocation()));
-    } catch (TException e) {
-      try {
-        HivePartition existingPartition = HiveMetaStoreUtils
-            .getHivePartition(client.getPartition(table.getDbName(), table.getTableName(), partition.getValues()));
+    try (AutoCloseableLock lock =
+        this.locks.getPartitionLock(table.getDbName(), table.getTableName(), partition.getValues())) {
 
-        if (needToUpdatePartition(existingPartition, spec.getPartition().get())) {
-          client.alter_partition(table.getDbName(), table.getTableName(), partition);
-          log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(partition),
-              table.getTableName(), partition.getSd().getLocation()));
-        } else {
-          log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
-              stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
+      try {
+        client.add_partition(partition);
+        log.info(String.format("Added partition %s to table %s with location %s", stringifyPartition(partition),
+            table.getTableName(), partition.getSd().getLocation()));
+      } catch (TException e) {
+        try {
+          HivePartition existingPartition = HiveMetaStoreUtils
+              .getHivePartition(client.getPartition(table.getDbName(), table.getTableName(), partition.getValues()));
+
+          if (needToUpdatePartition(existingPartition, spec.getPartition().get())) {
+            client.alter_partition(table.getDbName(), table.getTableName(), partition);
+            log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(partition),
+                table.getTableName(), partition.getSd().getLocation()));
+          } else {
+            log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
+                stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
+          }
+        } catch (TException e2) {
+          log.error(String.format("Unable to add or alter partition %s in table %s with location %s: " + e.getMessage(),
+              stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()), e);
+          throw e2;
         }
-      } catch (TException e2) {
-        log.error(String.format("Unable to add or alter partition %s in table %s with location %s: " + e.getMessage(),
-            stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()), e);
-        throw e2;
       }
     }
   }
