@@ -13,11 +13,14 @@
 package gobblin.hive.policy;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.TableType;
 
@@ -71,6 +74,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   private static final Pattern VALID_DB_TABLE_NAME_PATTERN_2 = Pattern.compile(".*[a-z_].*");
 
   protected final HiveRegProps props;
+  protected final FileSystem fs;
   protected final boolean sanitizeNameAllowed;
   protected final Optional<Pattern> dbNamePattern;
   protected final Optional<Pattern> tableNamePattern;
@@ -79,9 +83,14 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final String tableNamePrefix;
   protected final String tableNameSuffix;
 
-  public HiveRegistrationPolicyBase(State props) {
+  public HiveRegistrationPolicyBase(State props) throws IOException {
     Preconditions.checkNotNull(props);
     this.props = new HiveRegProps(props);
+    if (props.contains(HiveRegistrationPolicyBase.HIVE_FS_URI)) {
+      this.fs = FileSystem.get(URI.create(props.getProp(HiveRegistrationPolicyBase.HIVE_FS_URI)), new Configuration());
+    } else {
+      this.fs = FileSystem.get(new Configuration());
+    }
     this.sanitizeNameAllowed = props.getPropAsBoolean(HIVE_SANITIZE_INVALID_NAMES, true);
     this.dbNamePattern = props.contains(HIVE_DATABASE_REGEX)
         ? Optional.of(Pattern.compile(props.getProp(HIVE_DATABASE_REGEX))) : Optional.<Pattern> absent();
@@ -151,7 +160,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     HiveTable table = new HiveTable.Builder().withDbName(getDatabaseName(path)).withTableName(getTableName(path))
         .withSerdeManaager(HiveSerDeManager.get(this.props)).build();
 
-    table.setLocation(getTableLocation(path));
+    table.setLocation(this.fs.makeQualified(getTableLocation(path)).toString());
     table.setSerDeProps(path);
     table.setProps(this.props.getTablePartitionProps());
     table.setStorageProps(this.props.getStorageProps());
@@ -166,8 +175,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     return Optional.<HivePartition> absent();
   }
 
-  protected String getTableLocation(Path path) {
-    return path.toString();
+  protected Path getTableLocation(Path path) {
+    return path;
   }
 
   /**
