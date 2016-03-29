@@ -12,11 +12,14 @@
 
 package gobblin.hive;
 
+import java.util.Set;
+
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 
 import gobblin.annotation.Alpha;
+import gobblin.configuration.State;
 
 
 /**
@@ -134,13 +137,23 @@ public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitCompar
     return (T) this;
   }
 
+  @SuppressWarnings("unchecked")
+  public T compareParameters() {
+    if (!this.result) {
+      checkExistingIsSuperstate(this.existingUnit.getProps(), this.newUnit.getProps());
+      checkExistingIsSuperstate(this.existingUnit.getStorageProps(), this.newUnit.getStorageProps());
+      checkExistingIsSuperstate(this.existingUnit.getSerDeProps(), this.newUnit.getSerDeProps());
+    }
+    return (T) this;
+  }
+
   /**
    * Compare all parameters.
    */
   @SuppressWarnings("unchecked")
   public T compareAll() {
     this.compareInputFormat().compareOutputFormat().compareIsCompressed().compareIsStoredAsSubDirs().compareNumBuckets()
-        .compareBucketCols().compareRawLocation();
+        .compareBucketCols().compareRawLocation().compareParameters();
     return (T) this;
   }
 
@@ -162,6 +175,22 @@ public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitCompar
       different = !existingValue.isPresent() || !existingValue.get().equals(newValue.get());
     }
     this.result |= different;
+  }
+
+  /**
+   * Compare an existing state and a new {@link State} to ensure that the existing {@link State} contains all entries in the new
+   * {@link State}, and update {@link #result} accordingly.
+   */
+  protected void checkExistingIsSuperstate(State existingState, State newState) {
+    checkExistingIsSuperset(existingState.getProperties().entrySet(), newState.getProperties().entrySet());
+  }
+
+  /**
+   * Compare an existing state and a new {@link Set} to ensure that the existing {@link Set} contains all entries in the new
+   * {@link Set}, and update {@link #result} accordingly.
+   */
+  protected <E> void checkExistingIsSuperset(Set<E> existingSet, Set<E> newSet) {
+    this.result |= !existingSet.containsAll(newSet);
   }
 
   /**
