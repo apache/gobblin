@@ -42,18 +42,16 @@ public class CopyConfiguration {
    * User supplied directory where files should be published. This value is identical for all datasets in the distcp job.
    */
   private final Path publishDir;
-
   /**
    * Preserve options passed by the user.
    */
   private final PreserveAttributes preserve;
-
   /**
    * {@link CopyContext} for this job.
    */
   private final CopyContext copyContext;
-
   private final Optional<String> targetGroup;
+  private final FileSystem targetFs;
 
   public static class CopyConfigurationBuilder {
 
@@ -62,7 +60,7 @@ public class CopyConfiguration {
     private CopyContext copyContext;
     private Path publishDir;
 
-    public CopyConfigurationBuilder(FileSystem fs, Properties properties) {
+    public CopyConfigurationBuilder(FileSystem targetFs, Properties properties) {
 
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
           "Missing property " + ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);
@@ -73,15 +71,16 @@ public class CopyConfiguration {
       this.preserve = PreserveAttributes.fromMnemonicString(properties.getProperty(PRESERVE_ATTRIBUTES_KEY));
       Path publishDirTmp = new Path(properties.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR));
       if (!publishDirTmp.isAbsolute()) {
-        publishDirTmp = new Path(fs.getWorkingDirectory(), publishDirTmp);
+        publishDirTmp = new Path(targetFs.getWorkingDirectory(), publishDirTmp);
       }
       this.publishDir = publishDirTmp;
       this.copyContext = new CopyContext();
+      this.targetFs = targetFs;
     }
   }
 
-  public static CopyConfigurationBuilder builder(FileSystem fs, Properties properties) {
-    return new CopyConfigurationBuilder(fs, properties);
+  public static CopyConfigurationBuilder builder(FileSystem targetFs, Properties properties) {
+    return new CopyConfigurationBuilder(targetFs, properties);
   }
 
 }

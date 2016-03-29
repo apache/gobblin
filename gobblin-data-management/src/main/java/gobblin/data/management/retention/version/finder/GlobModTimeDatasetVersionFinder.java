@@ -44,6 +44,11 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
 
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    return new TimestampedDatasetVersion(this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath));
+    gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion =
+        this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath);
+    if (timestampedDatasetVersion != null) {
+      return new TimestampedDatasetVersion(timestampedDatasetVersion);
+    }
+    return null;
   }
 }

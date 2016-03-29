@@ -12,14 +12,8 @@
 
 package gobblin.data.management.copy.hive;
 
-import com.google.common.collect.Iterators;
-import gobblin.data.management.copy.IterableCopyableDataset;
-import gobblin.data.management.partition.FileSet;
-import java.util.Iterator;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
-import java.util.Collection;
+import java.util.Iterator;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -27,14 +21,19 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Iterators;
 
 import gobblin.annotation.Alpha;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableDataset;
+import gobblin.data.management.copy.IterableCopyableDataset;
+import gobblin.data.management.partition.FileSet;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.util.PathUtils;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -42,6 +41,7 @@ import gobblin.util.PathUtils;
  */
 @Slf4j
 @Alpha
+@Getter
 public class HiveDataset implements IterableCopyableDataset {
 
   protected final Properties properties;

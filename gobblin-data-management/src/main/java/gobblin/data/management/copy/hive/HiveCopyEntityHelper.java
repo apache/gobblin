@@ -19,6 +19,7 @@ import java.util.NoSuchElementException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.Singular;
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,7 +55,6 @@ import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.RecursivePathFinder;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.data.management.copy.hive.avro.HiveAvroCopyEntityHelper;
@@ -67,12 +67,14 @@ import gobblin.hive.spec.HiveSpec;
 import gobblin.hive.spec.SimpleHiveSpec;
 import gobblin.util.PathUtils;
 import gobblin.util.commit.DeleteFileCommitStep;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
  * Creates {@link CopyEntity}s for copying a Hive table.
  */
 @Slf4j
+@Getter
 public class HiveCopyEntityHelper {
 
   /**
@@ -104,7 +106,12 @@ public class HiveCopyEntityHelper {
   public static final String TARGET_DATABASE_KEY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.database";
 
   /** A filter to select partitions to copy */
-  public static final String COPY_PARTITIONS_FILTER = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.partition.filter";
+  public static final String COPY_PARTITIONS_FILTER_CONSTANT =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.partition.filter.constant";
+  /** Use an implementation of {@link PartitionFilterGenerator} to dynamically create partition filter. The value should
+   * be the name of the implementation to use. */
+  public static final String COPY_PARTITION_FILTER_GENERATOR =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.partition.filter.generator";
 
   private static final String databaseToken = "$DB";
   private static final String tableToken = "$TABLE";
@@ -184,7 +191,21 @@ public class HiveCopyEntityHelper {
         or(this.dataset.table.getDbName());
     this.existingEntityPolicy = ExistingEntityPolicy.valueOf(
         this.dataset.properties.getProperty(EXISTING_ENTITY_POLICY_KEY, DEFAULT_EXISTING_ENTITY_POLICY).toUpperCase());
-    this.partitionFilter = Optional.fromNullable(this.dataset.properties.getProperty(COPY_PARTITIONS_FILTER));
+
+    if (this.dataset.properties.containsKey(COPY_PARTITION_FILTER_GENERATOR)) {
+      try {
+        PartitionFilterGenerator generator = GobblinConstructorUtils.invokeFirstConstructor(
+            (Class<PartitionFilterGenerator>) Class.forName(this.dataset.properties.getProperty(COPY_PARTITION_FILTER_GENERATOR)),
+            Lists.<Object>newArrayList(this.dataset.properties), Lists.newArrayList());
+        this.partitionFilter = Optional.of(generator.getFilter(this.dataset));
+        log.info(String.format("Dynamic partition filter for table %s: %s.", this.dataset.table.getCompleteName(),
+            this.partitionFilter.get()));
+      } catch (ReflectiveOperationException roe) {
+        throw new IOException(roe);
+      }
+    } else {
+      this.partitionFilter = Optional.fromNullable(this.dataset.properties.getProperty(COPY_PARTITIONS_FILTER_CONSTANT));
+    }
 
     Map<String, HiveMetastoreClientPool> namedPools =
         ImmutableMap.of(source_client, this.dataset.clientPool, target_client, this.targetClientPool);
