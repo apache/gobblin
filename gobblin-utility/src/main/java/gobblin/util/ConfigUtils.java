@@ -94,4 +94,30 @@ public class ConfigUtils {
     }
     return ConfigFactory.parseMap(immutableMapBuilder.build());
   }
+
+
+  /**
+   * Return string value at <code>path</code> if <code>config</code> has path. If not return an empty string
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return string value at <code>path</code> if <code>config</code> has path. If not return an empty string
+   */
+  public static String emptyIfNotPresent(Config config, String path) {
+    return getString(config, path, StringUtils.EMPTY);
+  }
+
+  /**
+   * Return string value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return string value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   */
+  public static String getString(Config config, String path, String def) {
+    if (config.hasPath(path)) {
+      return config.getString(path);
+    }
+    return def;
+  }
 }

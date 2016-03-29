@@ -11,19 +11,20 @@
 apply plugin: 'java'
 
 dependencies {
+    compile project(":gobblin-api")
+    compile project(":gobblin-utility")
+
     compile externalDependency.guava
-    compile externalDependency.gson
-    compile externalDependency.jasypt
-    compile externalDependency.jodaTime
     compile externalDependency.commonsLang3
     compile externalDependency.slf4j
-    compile externalDependency.commonsCli
     compile externalDependency.lombok
-    compile externalDependency.commonsIo
+    compile externalDependency.avro
+    compile externalDependency.typesafeConfig
     compile externalDependency.reflections
 
     testCompile externalDependency.testng
     testCompile externalDependency.log4j
+    testCompile externalDependency.mockito
 }
 
 configurations {
