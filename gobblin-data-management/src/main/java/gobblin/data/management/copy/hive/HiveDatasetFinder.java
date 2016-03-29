@@ -16,12 +16,15 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.thrift.TException;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -38,14 +41,14 @@ import javax.annotation.Nullable;
 
 
 /**
- * Finds {@link HiveDataset}s. Will look for tables in a database specified by {@link #DB_KEY}, possibly filtering them
+ * Finds {@link HiveDataset}s. Will look for tables in a database specified by {@link #DB_PATTERN_KEY}, possibly filtering them
  * with pattern {@link #TABLE_PATTERN_KEY}, and create a {@link HiveDataset} for each one.
  */
 public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
   public static final String HIVE_DATASET_PREFIX = "hive.dataset";
   public static final String HIVE_METASTORE_URI_KEY = HIVE_DATASET_PREFIX + ".hive.metastore.uri";
-  public static final String DB_KEY = HIVE_DATASET_PREFIX + ".database";
+  public static final String DB_PATTERN_KEY = HIVE_DATASET_PREFIX + ".database.pattern";
   public static final String TABLE_PATTERN_KEY = HIVE_DATASET_PREFIX + ".table.pattern";
   public static final String DEFAULT_TABLE_PATTERN = "*";
 
@@ -53,19 +56,19 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   private final Properties properties;
   private final HiveMetastoreClientPool clientPool;
   private final FileSystem fs;
-  private final String db;
+  private final String dbPattern;
   private final String tablePattern;
 
   public HiveDatasetFinder(FileSystem fs, Properties properties) throws IOException {
 
-    Preconditions.checkArgument(properties.containsKey(DB_KEY));
+    Preconditions.checkArgument(properties.containsKey(DB_PATTERN_KEY));
 
     this.fs = fs;
     this.clientPool = HiveMetastoreClientPool.get(properties,
         Optional.fromNullable(properties.getProperty(HIVE_METASTORE_URI_KEY)));
     this.hiveProps = this.clientPool.getHiveRegProps();
 
-    this.db = properties.getProperty(DB_KEY);
+    this.dbPattern = properties.getProperty(DB_PATTERN_KEY);
     this.tablePattern = properties.getProperty(TABLE_PATTERN_KEY, DEFAULT_TABLE_PATTERN);
     this.properties = properties;
   }
@@ -73,19 +76,53 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   /**
    * Get all tables in db with given table pattern.
    */
-  public Collection<Table> getTables(String db, String tablePattern) throws IOException {
-    List<Table> tables = Lists.newArrayList();
-
-    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
-      List<String> tableNames = client.get().getTables(db, tablePattern);
-      for (String tableName : tableNames) {
-        tables.add(client.get().getTable(db, tableName));
-      }
+  public Iterator<Table> getTables() throws IOException {
+    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+      List<String> dbNames = client.get().getDatabases(this.dbPattern);
+      return new TableIterator(dbNames);
     } catch (Exception exc) {
       throw new IOException(exc);
     }
+  }
 
-    return tables;
+  private class TableIterator implements Iterator<Table> {
+
+    private final Iterator<String> databases;
+
+    private Iterator<String> tablesInDb;
+    private String currentDb;
+
+    public TableIterator(List<String> databases) {
+      this.databases = databases.iterator();
+    }
+
+    @Override
+    public boolean hasNext() {
+      return (this.tablesInDb.hasNext() || this.databases.hasNext());
+    }
+
+    @Override
+    public Table next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException();
+      }
+
+      try (AutoReturnableObject<IMetaStoreClient> client = clientPool.getClient()) {
+        if (!this.tablesInDb.hasNext()) {
+          this.currentDb = this.databases.next();
+          this.tablesInDb = client.get().getTables(this.currentDb, tablePattern).iterator();
+        }
+
+        return client.get().getTable(this.currentDb, this.tablesInDb.next());
+      } catch (IOException | TException ioe) {
+        throw new RuntimeException(ioe);
+      }
+    }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
   }
 
   @Override public List<HiveDataset> findDatasets() throws IOException {
@@ -95,7 +132,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   @Override
   public Iterator<HiveDataset> getDatasetsIterator()
       throws IOException {
-    return Iterators.transform(getTables(this.db, this.tablePattern).iterator(), new Function<Table, HiveDataset>() {
+    return Iterators.transform(getTables(), new Function<Table, HiveDataset>() {
       @Nullable
       @Override
       public HiveDataset apply(@Nullable Table table) {
