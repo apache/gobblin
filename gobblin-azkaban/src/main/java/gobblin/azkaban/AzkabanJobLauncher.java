@@ -142,7 +142,6 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
           JobLauncherFactory.JobLauncherType.MAPREDUCE.toString());
     }
 
-    LOG.info("Properties: " + this.props);
     // Create a JobLauncher instance depending on the configuration. The same properties object is
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.

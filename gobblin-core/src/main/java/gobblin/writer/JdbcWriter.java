@@ -37,7 +37,7 @@ import com.google.common.annotations.VisibleForTesting;
  * For interaction with JDBC underlying RDBMS, it uses JdbcWriterCommands.
  */
 public class JdbcWriter implements DataWriter<JdbcEntryData> {
-  private static final Logger LOG = LoggerFactory.getLogger(AvroJdbcWriter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcWriter.class);
 
   private final Connection conn;
   private final State state;
