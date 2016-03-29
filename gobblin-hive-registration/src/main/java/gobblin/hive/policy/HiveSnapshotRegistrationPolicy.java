@@ -13,15 +13,12 @@
 package gobblin.hive.policy;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.regex.Pattern;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
@@ -46,16 +43,10 @@ public class HiveSnapshotRegistrationPolicy extends HiveRegistrationPolicyBase {
 
   public static final String SNAPSHOT_PATH_PATTERN = "snapshot.path.pattern";
 
-  protected final FileSystem fs;
   protected final Optional<Pattern> snapshotPathPattern;
 
   protected HiveSnapshotRegistrationPolicy(State props) throws IOException {
     super(props);
-    if (props.contains(HiveRegistrationPolicyBase.HIVE_FS_URI)) {
-      this.fs = FileSystem.get(URI.create(props.getProp(HiveRegistrationPolicyBase.HIVE_FS_URI)), new Configuration());
-    } else {
-      this.fs = FileSystem.get(new Configuration());
-    }
     this.snapshotPathPattern = props.contains(SNAPSHOT_PATH_PATTERN)
         ? Optional.of(Pattern.compile(props.getProp(SNAPSHOT_PATH_PATTERN))) : Optional.<Pattern> absent();
   }
