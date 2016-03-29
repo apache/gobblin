@@ -13,17 +13,21 @@
 package gobblin.hive.policy;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.TableType;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
@@ -49,10 +53,12 @@ import gobblin.hive.spec.SimpleHiveSpec;
 public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
   public static final String HIVE_DATABASE_NAME = "hive.database.name";
+  public static final String ADDITIONAL_HIVE_DATABASE_NAMES = "additional.hive.database.names";
   public static final String HIVE_DATABASE_REGEX = "hive.database.regex";
   public static final String HIVE_DATABASE_NAME_PREFIX = "hive.database.name.prefix";
   public static final String HIVE_DATABASE_NAME_SUFFIX = "hive.database.name.suffix";
   public static final String HIVE_TABLE_NAME = "hive.table.name";
+  public static final String ADDITIONAL_HIVE_TABLE_NAMES = "additional.hive.table.names";
   public static final String HIVE_TABLE_REGEX = "hive.table.regex";
   public static final String HIVE_TABLE_NAME_PREFIX = "hive.table.name.prefix";
   public static final String HIVE_TABLE_NAME_SUFFIX = "hive.table.name.suffix";
@@ -71,6 +77,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   private static final Pattern VALID_DB_TABLE_NAME_PATTERN_2 = Pattern.compile(".*[a-z_].*");
 
   protected final HiveRegProps props;
+  protected final FileSystem fs;
   protected final boolean sanitizeNameAllowed;
   protected final Optional<Pattern> dbNamePattern;
   protected final Optional<Pattern> tableNamePattern;
@@ -79,9 +86,14 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final String tableNamePrefix;
   protected final String tableNameSuffix;
 
-  public HiveRegistrationPolicyBase(State props) {
+  public HiveRegistrationPolicyBase(State props) throws IOException {
     Preconditions.checkNotNull(props);
     this.props = new HiveRegProps(props);
+    if (props.contains(HiveRegistrationPolicyBase.HIVE_FS_URI)) {
+      this.fs = FileSystem.get(URI.create(props.getProp(HiveRegistrationPolicyBase.HIVE_FS_URI)), new Configuration());
+    } else {
+      this.fs = FileSystem.get(new Configuration());
+    }
     this.sanitizeNameAllowed = props.getPropAsBoolean(HIVE_SANITIZE_INVALID_NAMES, true);
     this.dbNamePattern = props.contains(HIVE_DATABASE_REGEX)
         ? Optional.of(Pattern.compile(props.getProp(HIVE_DATABASE_REGEX))) : Optional.<Pattern> absent();
@@ -97,10 +109,40 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * This method first tries to obtain the database name from {@link #HIVE_DATABASE_NAME}.
    * If this property is not specified, it then tries to obtain the database name using
    * the first group of {@link #HIVE_DATABASE_REGEX}.
+   *
    */
-  protected String getDatabaseName(Path path) {
-    return this.dbNamePrefix + getDatabaseOrTableName(path, HIVE_DATABASE_NAME, HIVE_DATABASE_REGEX, this.dbNamePattern)
-        + this.dbNameSuffix;
+  protected Optional<String> getDatabaseName(Path path) {
+    if (!this.props.contains(HIVE_DATABASE_NAME) && !this.props.contains(HIVE_DATABASE_REGEX)) {
+      return Optional.<String> absent();
+    }
+
+    return Optional.<String> of(
+        this.dbNamePrefix + getDatabaseOrTableName(path, HIVE_DATABASE_NAME, HIVE_DATABASE_REGEX, this.dbNamePattern)
+            + this.dbNameSuffix);
+  }
+
+  /**
+   * Obtain Hive database names. The returned {@link Iterable} contains the database name returned by
+   * {@link #getDatabaseName(Path)} (if present) plus additional database names specified in
+   * {@link #ADDITIONAL_HIVE_DATABASE_NAMES}.
+   *
+   */
+  protected Iterable<String> getDatabaseNames(Path path) {
+    List<String> databaseNames = Lists.newArrayList();
+
+    Optional<String> databaseName;
+    if ((databaseName = getDatabaseName(path)).isPresent()) {
+      databaseNames.add(databaseName.get());
+    }
+
+    if (!Strings.isNullOrEmpty(this.props.getProp(ADDITIONAL_HIVE_DATABASE_NAMES))) {
+      for (String additionalDbName : this.props.getPropAsList(ADDITIONAL_HIVE_DATABASE_NAMES)) {
+        databaseNames.add(this.dbNamePrefix + additionalDbName + this.dbNameSuffix);
+      }
+    }
+
+    Preconditions.checkState(!databaseNames.isEmpty(), "Hive database name not specified");
+    return databaseNames;
   }
 
   /**
@@ -108,9 +150,37 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * If this property is not specified, it then tries to obtain the database name using
    * the first group of {@link #HIVE_TABLE_REGEX}.
    */
-  protected String getTableName(Path path) {
-    return this.tableNamePrefix + getDatabaseOrTableName(path, HIVE_TABLE_NAME, HIVE_TABLE_REGEX, this.tableNamePattern)
-        + this.tableNameSuffix;
+  protected Optional<String> getTableName(Path path) {
+    if (!this.props.contains(HIVE_TABLE_NAME) && !this.props.contains(HIVE_TABLE_REGEX)) {
+      return Optional.<String> absent();
+    }
+
+    return Optional.<String> of(
+        this.tableNamePrefix + getDatabaseOrTableName(path, HIVE_TABLE_NAME, HIVE_TABLE_REGEX, this.tableNamePattern)
+            + this.tableNameSuffix);
+  }
+
+  /**
+   * Obtain Hive table names. The returned {@link Iterable} contains the table name returned by
+   * {@link #getTableName(Path)} (if present) plus additional table names specified in
+   * {@link #ADDITIONAL_HIVE_TABLE_NAMES}.
+   */
+  protected Iterable<String> getTableNames(Path path) {
+    List<String> tableNames = Lists.newArrayList();
+
+    Optional<String> tableName;
+    if ((tableName = getTableName(path)).isPresent()) {
+      tableNames.add(tableName.get());
+    }
+
+    if (!Strings.isNullOrEmpty(this.props.getProp(ADDITIONAL_HIVE_TABLE_NAMES))) {
+      for (String additionalTableName : this.props.getPropAsList(ADDITIONAL_HIVE_TABLE_NAMES)) {
+        tableNames.add(this.tableNamePrefix + additionalTableName + this.tableNameSuffix);
+      }
+    }
+
+    Preconditions.checkState(!tableNames.isEmpty(), "Hive table name not specified");
+    return tableNames;
   }
 
   protected String getDatabaseOrTableName(Path path, String nameKey, String regexKey, Optional<Pattern> pattern) {
@@ -141,17 +211,42 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   }
 
   /**
-   * A base implementation for creating a non bucketed, external {@link HiveTable} given a {@link Path}.
+   * A base implementation for creating {@link HiveTable}s given a {@link Path}.
+   *
+   * <p>
+   *   This method returns a list of {@link Hivetable}s that contains one table per db name
+   *   (returned by {@link #getDatabaseNames(Path)}) and table name (returned by {@link #getTableNames(Path)}.
+   * </p>
    *
    * @param path a {@link Path} used to create the {@link HiveTable}.
-   * @return a {@link HiveTable} for the given {@link Path}.
+   * @return a list of {@link HiveTable}s for the given {@link Path}.
    * @throws IOException
    */
-  protected HiveTable getTable(Path path) throws IOException {
-    HiveTable table = new HiveTable.Builder().withDbName(getDatabaseName(path)).withTableName(getTableName(path))
+  protected List<HiveTable> getTables(Path path) throws IOException {
+    List<HiveTable> tables = Lists.newArrayList();
+
+    for (String databaseName : getDatabaseNames(path)) {
+      for (String tableName : getTableNames(path)) {
+        tables.add(getTable(path, databaseName, tableName));
+      }
+    }
+    return tables;
+  }
+
+  /**
+   * A base implementation for creating a non bucketed, external {@link HiveTable} for a {@link Path}.
+   *
+   * @param path a {@link Path} used to create the {@link HiveTable}.
+   * @param dbName the database name for the created {@link HiveTable}.
+   * @param tableName the table name for the created {@link HiveTable}.
+   * @return a {@link HiveTable}s for the given {@link Path}.
+   * @throws IOException
+   */
+  protected HiveTable getTable(Path path, String dbName, String tableName) throws IOException {
+    HiveTable table = new HiveTable.Builder().withDbName(dbName).withTableName(tableName)
         .withSerdeManaager(HiveSerDeManager.get(this.props)).build();
 
-    table.setLocation(getTableLocation(path));
+    table.setLocation(this.fs.makeQualified(getTableLocation(path)).toString());
     table.setSerDeProps(path);
     table.setProps(this.props.getTablePartitionProps());
     table.setStorageProps(this.props.getStorageProps());
@@ -162,12 +257,12 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     return table;
   }
 
-  protected Optional<HivePartition> getPartition(Path path) throws IOException {
+  protected Optional<HivePartition> getPartition(Path path, HiveTable table) throws IOException {
     return Optional.<HivePartition> absent();
   }
 
-  protected String getTableLocation(Path path) {
-    return path.toString();
+  protected Path getTableLocation(Path path) {
+    return path;
   }
 
   /**
@@ -193,8 +288,11 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
   @Override
   public Collection<HiveSpec> getHiveSpecs(Path path) throws IOException {
-    return ImmutableList.<HiveSpec> of(
-        new SimpleHiveSpec.Builder<>(path).withTable(getTable(path)).withPartition(getPartition(path)).build());
+    List<HiveSpec> specs = Lists.newArrayList();
+    for (HiveTable table : getTables(path)) {
+      specs.add(new SimpleHiveSpec.Builder<>(path).withTable(table).withPartition(getPartition(path, table)).build());
+    }
+    return specs;
   }
 
   /**

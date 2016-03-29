@@ -36,6 +36,8 @@ dependencies {
   } else {
     compile externalDependency.avroMapredH1
   }
+
+  testCompile externalDependency.testng
 }
 
 ext.classification="library"

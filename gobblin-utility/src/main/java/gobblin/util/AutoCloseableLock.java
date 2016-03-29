@@ -24,6 +24,7 @@ import java.util.concurrent.locks.Lock;
  *     try (AutoCloseableLock lock = new AutoCloseableLock(innerLock)) {
  *       ... do stuff
  *     }
+ *   }
  *   </pre>
  * </p>
  */
