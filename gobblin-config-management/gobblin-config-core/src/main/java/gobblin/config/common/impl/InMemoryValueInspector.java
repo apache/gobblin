@@ -1,5 +1,9 @@
 package gobblin.config.common.impl;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -84,5 +88,69 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
       // should NOT come here
       throw new RuntimeException("Can not getOwnConfig for " + configKey);
     }
+  }
+  
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>
+   *   If present in the cache, return the cached {@link com.typesafe.config.Config} for given input
+   *   Otherwise, simply delegate the functionality to the internal {ConfigStoreValueInspector} and store the value into cache
+   * </p>
+   */
+  @Override
+  public Map<ConfigKeyPath, Config> getOwnConfigs(Collection<ConfigKeyPath> configKeys) {
+    Collection<ConfigKeyPath> configKeysNotInCache = new ArrayList<ConfigKeyPath>();
+    Map<ConfigKeyPath, Config> result = new HashMap<>();
+    for(ConfigKeyPath configKey: configKeys){
+      Config cachedValue = this.ownConfigCache.getIfPresent(configKey);
+      if(cachedValue==null){
+        configKeysNotInCache.add(configKey);
+      }
+      else{
+        result.put(configKey, cachedValue);
+      }
+    }
+    
+    // for ConfigKeyPath which are not in cache
+    if(configKeysNotInCache.size()>0){
+      Map<ConfigKeyPath, Config> configsFromFallBack = this.valueFallback.getOwnConfigs(configKeysNotInCache);
+      this.ownConfigCache.putAll(configsFromFallBack);
+      result.putAll(configsFromFallBack);
+    }
+    
+    return result;
+  }
+  
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>
+   *   If present in the cache, return the cached {@link com.typesafe.config.Config} for given input
+   *   Otherwise, simply delegate the functionality to the internal {ConfigStoreValueInspector} and store the value into cache
+   * </p>
+   */
+  @Override
+  public Map<ConfigKeyPath, Config> getResolvedConfigs(Collection<ConfigKeyPath> configKeys) {
+    Collection<ConfigKeyPath> configKeysNotInCache = new ArrayList<ConfigKeyPath>();
+    Map<ConfigKeyPath, Config> result = new HashMap<>();
+    for(ConfigKeyPath configKey: configKeys){
+      Config cachedValue = this.recursiveConfigCache.getIfPresent(configKey);
+      if(cachedValue==null){
+        configKeysNotInCache.add(configKey);
+      }
+      else{
+        result.put(configKey, cachedValue);
+      }
+    }
+    
+    // for ConfigKeyPath which are not in cache
+    if(configKeysNotInCache.size()>0){
+      Map<ConfigKeyPath, Config> configsFromFallBack = this.valueFallback.getResolvedConfigs(configKeysNotInCache);
+      this.recursiveConfigCache.putAll(configsFromFallBack);
+      result.putAll(configsFromFallBack);
+    }
+    
+    return result;
   }
 }

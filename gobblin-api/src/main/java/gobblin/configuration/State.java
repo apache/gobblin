@@ -23,10 +23,13 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Sets;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+
+import lombok.EqualsAndHashCode;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -37,7 +40,11 @@ import org.apache.hadoop.io.Writable;
  *
  * @author kgoodhop
  */
+@EqualsAndHashCode(exclude = {"jsonParser"})
 public class State implements Writable {
+
+  private static final Joiner LIST_JOINER = Joiner.on(",");
+  private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
 
   private String id;
 
@@ -50,6 +57,10 @@ public class State implements Writable {
 
   public State(Properties properties) {
     this.properties = properties;
+  }
+
+  public State(State otherState) {
+    this.properties = otherState.getProperties();
   }
 
   /**
@@ -171,10 +182,32 @@ public class State implements Writable {
    */
   public synchronized void appendToListProp(String key, String value) {
     if (contains(key)) {
-      setProp(key, Joiner.on(",").join(getProp(key), value));
+      setProp(key, LIST_JOINER.join(getProp(key), value));
     } else {
       setProp(key, value);
     }
+  }
+
+  /**
+   * Appends the input value to a set property that can be retrieved with {@link #getPropAsSet}.
+   *
+   * <p>
+   *   Set properties are internally stored as comma separated strings. Adding a value that contains commas (for
+   *   example "a,b,c") will essentially add multiple values to the property ("a", "b", and "c"). This is
+   *   similar to the way that {@link org.apache.hadoop.conf.Configuration} works.
+   * </p>
+   *
+   * @param key property key
+   * @param value property value (if it includes commas, it will be split by the commas).
+   */
+  public synchronized void appendToSetProp(String key, String value) {
+      Set<String> set = value == null ?
+              Sets.<String>newHashSet() :
+              Sets.newHashSet(LIST_SPLITTER.splitToList(value));
+      if (contains(key)) {
+          set.addAll(getPropAsSet(key));
+      }
+      setProp(key, LIST_JOINER.join(set));
   }
 
   /**
@@ -205,7 +238,7 @@ public class State implements Writable {
    * @return value associated with the key as a {@link List} of strings
    */
   public List<String> getPropAsList(String key) {
-    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key));
+    return LIST_SPLITTER.splitToList(getProperty(key));
   }
 
   /**
@@ -216,7 +249,29 @@ public class State implements Writable {
    * @return value (the default value if the property is not set) associated with the key as a list of strings
    */
   public List<String> getPropAsList(String key, String def) {
-    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key, def));
+    return LIST_SPLITTER.splitToList(getProp(key, def));
+  }
+
+  /**
+   * Get the value of a comma separated property as a {@link Set} of strings.
+   *
+   * @param key property key
+   * @return value associated with the key as a {@link Set} of strings
+   */
+  public Set<String> getPropAsSet(String key) {
+      return Sets.newHashSet(LIST_SPLITTER.splitToList(getProp(key)));
+  }
+
+
+  /**
+   * Get the value of a comma separated property as a {@link Set} of strings.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value (the default value if the property is not set) associated with the key as a {@link Set} of strings
+   */
+  public Set<String> getPropAsSet(String key, String def) {
+      return Sets.newHashSet(LIST_SPLITTER.splitToList(getProp(key, def)));
   }
 
   /**
@@ -226,8 +281,7 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
-        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, LIST_SPLITTER.split(getProperty(key)));
   }
 
   /**
@@ -238,8 +292,7 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key, String def) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
-        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key, def)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, LIST_SPLITTER.split(getProperty(key, def)));
   }
 
   /**
@@ -455,26 +508,6 @@ public class State implements Writable {
       txt.set(properties.getProperty((String) key));
       txt.write(out);
     }
-  }
-
-  @Override
-  public boolean equals(Object object) {
-    if (!(object instanceof State)) {
-      return false;
-    }
-
-    State other = (State) object;
-    return ((this.id == null && other.id == null) || (this.id != null && this.id.equals(other.id)))
-        && this.properties.equals(other.properties);
-  }
-
-  @Override
-  public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + ((this.id == null) ? 0 : this.id.hashCode());
-    result = prime * result + ((this.properties == null) ? 0 : this.properties.hashCode());
-    return result;
   }
 
   @Override

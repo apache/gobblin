@@ -12,16 +12,12 @@
 
 package gobblin.runtime.mapreduce;
 
+import java.io.IOException;
 import java.util.Properties;
+import java.util.UUID;
 
-import org.apache.commons.cli.BasicParser;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.Options;
-import org.apache.commons.configuration.ConfigurationConverter;
-import org.apache.commons.configuration.PropertiesConfiguration;
+import javax.annotation.Nullable;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.util.GenericOptionsParser;
@@ -31,7 +27,13 @@ import org.apache.hadoop.util.ToolRunner;
 import com.google.common.io.Closer;
 
 import gobblin.runtime.JobException;
-import gobblin.util.JobConfigurationUtils;
+import gobblin.runtime.JobLauncher;
+import gobblin.runtime.app.ApplicationException;
+import gobblin.runtime.app.ApplicationLauncher;
+import gobblin.runtime.app.ServiceBasedAppLauncher;
+import gobblin.runtime.cli.CliOptions;
+import gobblin.runtime.listeners.JobListener;
+
 
 
 /**
@@ -39,45 +41,60 @@ import gobblin.util.JobConfigurationUtils;
  *
  * @author Yinan Li
  */
-public class CliMRJobLauncher extends Configured implements Tool {
+public class CliMRJobLauncher extends Configured implements ApplicationLauncher, JobLauncher, Tool {
 
-  private final Properties sysConfig;
-  private final Properties jobConfig;
+  private final Closer closer = Closer.create();
 
-  public CliMRJobLauncher(Properties sysConfig, Properties jobConfig)
-      throws Exception {
-    this.sysConfig = sysConfig;
-    this.jobConfig = jobConfig;
+  private final Properties jobProperties;
+  private final ApplicationLauncher applicationLauncher;
+  private final MRJobLauncher mrJobLauncher;
+
+  public CliMRJobLauncher(Configuration conf, Properties jobProperties) throws Exception {
+    setConf(conf);
+    this.jobProperties = jobProperties;
+    this.applicationLauncher = this.closer.register(new ServiceBasedAppLauncher(jobProperties,
+        jobProperties.getProperty(ServiceBasedAppLauncher.APP_NAME, "CliMRJob-" + UUID.randomUUID())));
+    this.mrJobLauncher = this.closer.register(new MRJobLauncher(jobProperties, getConf()));
   }
 
   @Override
-  public int run(String[] args)
-      throws Exception {
-    final Properties jobProps = JobConfigurationUtils.combineSysAndJobProperties(this.sysConfig, this.jobConfig);
-
-    Closer closer = Closer.create();
+  public int run(String[] args) throws Exception {
     try {
-      closer.register(new MRJobLauncher(jobProps, getConf())).launchJob(null);
-    } catch (JobException je) {
-      System.err.println("Failed to launch the job due to the following exception:");
-      System.err.println(je.toString());
-      return 1;
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
+      start();
+      launchJob(null);
     } finally {
-      closer.close();
+      try {
+        stop();
+      } finally {
+        close();
+      }
     }
-
     return 0;
   }
 
-  /**
-   * Print usage information.
-   *
-   * @param options command-line options
-   */
-  public static void printUsage(Options options) {
-    new HelpFormatter().printHelp(CliMRJobLauncher.class.getSimpleName(), options);
+  @Override
+  public void start() throws ApplicationException {
+    this.applicationLauncher.start();
+  }
+
+  @Override
+  public void stop() throws ApplicationException {
+    this.applicationLauncher.stop();
+  }
+
+  @Override
+  public void launchJob(@Nullable JobListener jobListener) throws JobException {
+    this.mrJobLauncher.launchJob(jobListener);
+  }
+
+  @Override
+  public void cancelJob(@Nullable JobListener jobListener) throws JobException {
+    this.mrJobLauncher.cancelJob(jobListener);
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.closer.close();
   }
 
   public static void main(String[] args)
@@ -87,49 +104,9 @@ public class CliMRJobLauncher extends Configured implements Tool {
     // Parse generic options
     String[] genericCmdLineOpts = new GenericOptionsParser(conf, args).getCommandLine().getArgs();
 
-    // Build command-line options
-    Option sysConfigOption = OptionBuilder
-        .withArgName("system configuration file")
-        .withDescription("Gobblin system configuration file")
-        .hasArgs()
-        .withLongOpt("sysconfig")
-        .create();
-    Option jobConfigOption = OptionBuilder
-        .withArgName("job configuration file")
-        .withDescription("Gobblin job configuration file")
-        .hasArgs()
-        .withLongOpt("jobconfig")
-        .create();
-    Option helpOption = OptionBuilder.withArgName("help")
-        .withDescription("Display usage information")
-        .withLongOpt("help")
-        .create('h');
-
-    Options options = new Options();
-    options.addOption(sysConfigOption);
-    options.addOption(jobConfigOption);
-    options.addOption(helpOption);
-
-    // Parse command-line options
-    CommandLine cmd = new BasicParser().parse(options, genericCmdLineOpts);
-
-    if (cmd.hasOption('h')) {
-      printUsage(options);
-      System.exit(0);
-    }
-
-    if (!cmd.hasOption("sysconfig") || !cmd.hasOption("jobconfig")) {
-      printUsage(options);
-      System.exit(1);
-    }
-
-    // Load system and job configuration properties
-    Properties sysConfig =
-        ConfigurationConverter.getProperties(new PropertiesConfiguration(cmd.getOptionValue("sysconfig")));
-    Properties jobConfig =
-        ConfigurationConverter.getProperties(new PropertiesConfiguration(cmd.getOptionValue("jobconfig")));
+    Properties jobProperties = CliOptions.parseArgs(CliMRJobLauncher.class, genericCmdLineOpts);
 
     // Launch and run the job
-    System.exit(ToolRunner.run(conf, new CliMRJobLauncher(sysConfig, jobConfig), args));
+    System.exit(ToolRunner.run(new CliMRJobLauncher(conf,jobProperties), args));
   }
 }

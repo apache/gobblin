@@ -13,24 +13,29 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
+  compile project(":gobblin-hive-registration")
   compile project(":gobblin-metrics")
   compile project(":gobblin-utility")
+  compile project(":gobblin-config-management:gobblin-config-client")
+  compile project(":gobblin-config-management:gobblin-config-core")
+  compile internalDependency."gobblin-hadoop"
 
+  compile externalDependency.lombok
   compile externalDependency.commonsLang
   compile externalDependency.commonsLang3
   compile externalDependency.guava
   compile externalDependency.slf4j
   compile externalDependency.log4j
   compile externalDependency.jodaTime
-  compile externalDependency.findBugs
   compile externalDependency.azkaban
-  compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.commonsCodec
   compile externalDependency.commonsCompress
   compile externalDependency.commonsIo
   compile externalDependency.gson
   compile externalDependency.commonsCodec
+  compile externalDependency.typesafeConfig
+  compile externalDependency.findBugsAnnotations
 
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
@@ -38,6 +43,7 @@ dependencies {
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.joptSimple
+  testCompile externalDependency.hamcrest
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
@@ -51,7 +57,7 @@ configurations {
 
 configurations {
   compile {
-    transitive = false
+    transitive = true
   }
 }
 
@@ -60,11 +66,9 @@ artifacts {
 }
 
 test {
-  useTestNG () {
-    excludeGroups 'ignore'
-  }
   workingDir rootProject.rootDir
   maxParallelForks = 1
 }
 
 ext.classification="library"
+

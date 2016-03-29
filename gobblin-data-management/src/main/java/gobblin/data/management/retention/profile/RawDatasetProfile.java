@@ -20,13 +20,13 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import gobblin.annotation.Alpha;
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 import gobblin.data.management.retention.dataset.RawDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 
 
 /**
- * {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} for raw datasets.
+ * {@link gobblin.dataset.DatasetsFinder} for raw datasets.
  *
  * <p>
  *   A raw dataset is a dataset with a corresponding refined dataset.

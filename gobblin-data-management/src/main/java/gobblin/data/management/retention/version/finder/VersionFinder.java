@@ -12,34 +12,14 @@
 
 package gobblin.data.management.retention.version.finder;
 
-import java.io.IOException;
-import java.util.Collection;
-
-import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 
 
 /**
- * Finds dataset versions in the file system.
- *
- * @param <T> Type of {@link gobblin.data.management.retention.version.DatasetVersion} expected from this class.
+ * @deprecated
+ * See {@inheritDoc}.
  */
-public interface VersionFinder<T extends DatasetVersion> {
-
-  /**
-   * Should return class of T.
-   */
-  public abstract Class<? extends DatasetVersion> versionClass();
-
-  /**
-   * Find dataset versions for the dataset at {@link org.apache.hadoop.fs.Path}. Dataset versions are subdirectories of the
-   * input {@link org.apache.hadoop.fs.Path} representing a single manageable unit in the dataset.
-   * See {@link gobblin.data.management.retention.DatasetCleaner} for more information.
-   *
-   * @param dataset {@link org.apache.hadoop.fs.Path} to directory containing all versions of a dataset.
-   * @return Collection of {@link gobblin.data.management.retention.version.DatasetVersion}
-   *        for each dataset version found.
-   * @throws IOException
-   */
-  public Collection<T> findDatasetVersions(CleanableDataset dataset) throws IOException;
+@Deprecated
+public interface VersionFinder<T extends DatasetVersion> extends
+    gobblin.data.management.version.finder.VersionFinder<T> {
 }

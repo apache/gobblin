@@ -12,11 +12,6 @@
 
 package gobblin.data.management.retention.profile;
 
-import gobblin.data.management.dataset.Dataset;
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.util.PathUtils;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -31,16 +26,22 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import gobblin.data.management.retention.DatasetCleaner;
+import gobblin.dataset.Dataset;
+import gobblin.dataset.DatasetsFinder;
+import gobblin.util.PathUtils;
 
 
 /**
- * A configurable {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} that looks for
+ * A configurable {@link DatasetsFinder} that looks for
  * {@link gobblin.data.management.retention.dataset.CleanableDataset}s using a glob pattern.
  */
-public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implements DatasetFinder<T> {
+public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implements DatasetsFinder<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigurableGlobDatasetFinder.class);
 
@@ -56,7 +57,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
   public static final String DATASET_FINDER_PATTERN_KEY = CONFIGURATION_KEY_PREFIX + "dataset.pattern";
   public static final String DATASET_FINDER_BLACKLIST_KEY = CONFIGURATION_KEY_PREFIX + "dataset.blacklist";
 
-  private final Path datasetPattern;
+  protected final Path datasetPattern;
   private final Optional<Pattern> blacklist;
   private final Path commonRoot;
   protected final FileSystem fs;
@@ -64,12 +65,14 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
 
   private static final Map<String, String> DEPRECATIONS = ImmutableMap.of(DATASET_FINDER_PATTERN_KEY,
       DATASET_PATTERN_KEY, DATASET_FINDER_BLACKLIST_KEY, DATASET_BLACKLIST_KEY);
-  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
+
+  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties jobProps, Config config) throws IOException {
     for (String property : requiredProperties()) {
-      Preconditions.checkArgument(props.containsKey(property) || props.containsKey(DEPRECATIONS.get(property)));
+      Preconditions.checkArgument(config.hasPath(property) || config.hasPath(DEPRECATIONS.get(property)));
     }
-    if (props.containsKey(DATASET_BLACKLIST_KEY) && !Strings.isNullOrEmpty(props.getProperty(DATASET_BLACKLIST_KEY))) {
-      this.blacklist = Optional.of(Pattern.compile(props.getProperty(DATASET_BLACKLIST_KEY)));
+
+    if (config.hasPath(DATASET_BLACKLIST_KEY)) {
+      this.blacklist = Optional.of(Pattern.compile(config.getString(DATASET_BLACKLIST_KEY)));
     } else {
       this.blacklist = Optional.absent();
     }
@@ -77,16 +80,20 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
     this.fs = fs;
 
     Path tmpDatasetPattern;
-    if (props.getProperty(DATASET_FINDER_PATTERN_KEY) != null) {
-      tmpDatasetPattern = new Path(props.getProperty(DATASET_FINDER_PATTERN_KEY));
+    if (config.hasPath(DATASET_FINDER_PATTERN_KEY)) {
+      tmpDatasetPattern = new Path(config.getString(DATASET_FINDER_PATTERN_KEY));
     } else {
-      tmpDatasetPattern = new Path(props.getProperty(DATASET_PATTERN_KEY));
+      tmpDatasetPattern = new Path(config.getString(DATASET_PATTERN_KEY));
     }
     this.datasetPattern = tmpDatasetPattern.isAbsolute() ? tmpDatasetPattern :
         new Path(this.fs.getWorkingDirectory(), tmpDatasetPattern);
 
-    this.props = props;
     this.commonRoot = PathUtils.deepestNonGlobPath(this.datasetPattern);
+    this.props = jobProps;
+  }
+
+  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
+    this(fs, props, ConfigFactory.parseProperties(props));
   }
 
   /**
@@ -107,13 +114,18 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
   @Override
   public List<T> findDatasets() throws IOException {
     List<T> datasets = Lists.newArrayList();
-    for (FileStatus fileStatus : this.fs.globStatus(datasetPattern)) {
-      Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
-      if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).find()) {
-        continue;
+    LOG.info("Finding datasets for pattern " + this.datasetPattern);
+
+    FileStatus[] fileStatuss = this.fs.globStatus(this.datasetPattern);
+    if (fileStatuss != null) {
+      for (FileStatus fileStatus : fileStatuss) {
+        Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
+        if (this.blacklist.isPresent() && this.blacklist.get().matcher(pathToMatch.toString()).find()) {
+          continue;
+        }
+        LOG.info("Found dataset at " + fileStatus.getPath());
+        datasets.add(datasetAtPath(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath())));
       }
-      LOG.info("Found dataset at " + fileStatus.getPath());
-      datasets.add(datasetAtPath(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath())));
     }
     return datasets;
   }
@@ -127,10 +139,11 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
 
   /**
    * Creates a {@link gobblin.data.management.retention.dataset.CleanableDataset} from a path. The default implementation
-   * creates a {@link gobblin.data.management.retention.dataset.ConfigurableDataset}.
+   * creates a {@link gobblin.data.management.retention.dataset.ConfigurableCleanableDataset}.
    * @param path {@link org.apache.hadoop.fs.Path} where dataset is located.
    * @return {@link gobblin.data.management.retention.dataset.CleanableDataset} at that path.
    * @throws IOException
    */
   public abstract T datasetAtPath(Path path) throws IOException;
+
 }

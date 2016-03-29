@@ -22,6 +22,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import gobblin.Constructs;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
@@ -30,6 +31,7 @@ import gobblin.converter.EmptyIterable;
 import gobblin.converter.IdentityConverter;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
+import gobblin.state.ConstructState;
 
 
 /**
@@ -93,9 +95,10 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
 
   @Override
   public State getFinalState() {
-    State state = super.getFinalState();
-    for(Converter<?,?,?,?> converter : this.converters) {
-      state.addAll(converter.getFinalState());
+    ConstructState state = new ConstructState(super.getFinalState());
+    for (int i = 0; i < this.converters.size(); i++) {
+      state.addConstructState(Constructs.CONVERTER, new ConstructState(this.converters.get(i).getFinalState()),
+          Integer.toString(i));
     }
     return state;
   }

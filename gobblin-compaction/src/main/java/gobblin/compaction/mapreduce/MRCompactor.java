@@ -58,6 +58,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import gobblin.compaction.Compactor;
+import gobblin.compaction.listeners.CompactorListener;
 import gobblin.compaction.dataset.Dataset;
 import gobblin.compaction.dataset.DatasetsFinder;
 import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
@@ -225,13 +226,15 @@ public class MRCompactor implements Compactor {
   private final Stopwatch stopwatch;
   private final GobblinMetrics gobblinMetrics;
   private final EventSubmitter eventSubmitter;
+  private final Optional<CompactorListener> compactorListener;
 
   private final long dataVerifTimeoutMinutes;
   private final long compactionTimeoutMinutes;
   private final boolean shouldVerifDataCompl;
   private final boolean shouldPublishDataIfCannotVerifyCompl;
 
-  public MRCompactor(Properties props, List<? extends Tag<?>> tags) throws IOException {
+  public MRCompactor(Properties props, List<? extends Tag<?>> tags, Optional<CompactorListener> compactorListener)
+      throws IOException {
     this.state = new State();
     this.state.addAll(props);
     this.tags = tags;
@@ -247,6 +250,7 @@ public class MRCompactor implements Compactor {
     this.eventSubmitter = new EventSubmitter.Builder(
         GobblinMetrics.get(this.state.getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
         MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
+    this.compactorListener = compactorListener;
 
     this.dataVerifTimeoutMinutes = getDataVerifTimeoutMinutes();
     this.compactionTimeoutMinutes = getCompactionTimeoutMinutes();
@@ -371,9 +375,13 @@ public class MRCompactor implements Compactor {
    * Create compaction job properties for {@link Dataset}s.
    */
   private void createJobPropsForDatasets() {
-    for (Dataset dataset : datasets) {
-      createJobPropsForDataset(dataset);
+    final Set<Dataset> datasetsWithProps = Sets.newHashSet();
+    for (Dataset dataset: this.datasets) {
+      datasetsWithProps.addAll(createJobPropsForDataset(dataset));
     }
+
+    this.datasets.clear();
+    this.datasets.addAll(datasetsWithProps);
   }
 
   /**
@@ -381,20 +389,19 @@ public class MRCompactor implements Compactor {
    * Create compaction job properties for each given {@link Dataset}.
    * Update datasets based on the results of creating job props for them.
    */
-
-  private void createJobPropsForDataset(Dataset dataset) {
+  private List<Dataset> createJobPropsForDataset(Dataset dataset) {
     LOG.info("Creating compaction jobs for dataset " + dataset +  " with priority " + dataset.priority()
         + " and late data threshold for recompact " + dataset.lateDataThresholdForRecompact());
-    MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(dataset);
-    this.datasets.remove(dataset);
+    final MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(dataset);
+    List<Dataset> datasetsWithProps;
     try {
-      this.datasets.addAll(jobPropCreator.createJobProps());
+      datasetsWithProps = jobPropCreator.createJobProps();
     } catch (Throwable t) {
-
       // If a throwable is caught when creating job properties for a dataset, skip the topic and add the throwable
       // to the dataset.
-      this.datasets.add(jobPropCreator.createFailedJobProps(t));
+      datasetsWithProps = ImmutableList.<Dataset> of(jobPropCreator.createFailedJobProps(t));
     }
+    return datasetsWithProps;
   }
 
   /**
@@ -596,7 +603,7 @@ public class MRCompactor implements Compactor {
           allDatasetsCompleted = false;
           // Run compaction for a dataset, if it is not already running or completed
           if (jobRunner == null || jobRunner.status() == ABORTED) {
-            runCompactionForDataset(dataset, dataset.state() == VERIFIED ? true : false);
+            runCompactionForDataset(dataset, dataset.state() == VERIFIED);
           }
         } else if (dataset.state() == GIVEN_UP) {
           if (this.shouldPublishDataIfCannotVerifyCompl) {
@@ -766,9 +773,9 @@ public class MRCompactor implements Compactor {
      */
     @Override
     protected void afterExecute(Runnable r, Throwable t) {
-      Preconditions.checkArgument(r instanceof MRCompactorJobRunner,
-          String.format("Runnable expected to be instance of %s, actual %s", MRCompactorJobRunner.class.getSimpleName(),
-              r.getClass().getSimpleName()));
+      Preconditions.checkArgument(r instanceof MRCompactorJobRunner, String
+              .format("Runnable expected to be instance of %s, actual %s", MRCompactorJobRunner.class.getSimpleName(),
+                  r.getClass().getSimpleName()));
 
       MRCompactorJobRunner jobRunner = (MRCompactorJobRunner) r;
       MRCompactor.this.jobRunnables.remove(jobRunner.getDataset());
@@ -785,6 +792,13 @@ public class MRCompactor implements Compactor {
             // Set the dataset status to COMPACTION_COMPLETE if compaction is successful.
             jobRunner.getDataset().setState(COMPACTION_COMPLETE);
           }
+          if (MRCompactor.this.compactorListener.isPresent()) {
+            try {
+              MRCompactor.this.compactorListener.get().onDatasetCompactionCompletion(jobRunner.getDataset());
+            } catch (Exception e) {
+              t = e;
+            }
+          }
         } else
           if (jobRunner.getDataset().state() == GIVEN_UP && !MRCompactor.this.shouldPublishDataIfCannotVerifyCompl) {
 
@@ -798,8 +812,8 @@ public class MRCompactor implements Compactor {
           // Reduce priority and try again.
           jobRunner.getDataset().reducePriority();
         }
-      } else {
-
+      }
+      if (t != null) {
         // Compaction job of a dataset has failed with a throwable.
         afterExecuteWithThrowable(jobRunner, t);
       }

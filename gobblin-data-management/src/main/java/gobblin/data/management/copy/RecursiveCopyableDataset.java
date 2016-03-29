@@ -13,6 +13,7 @@
 package gobblin.data.management.copy;
 
 import gobblin.data.management.dataset.DatasetUtils;
+import gobblin.dataset.FileSystemDataset;
 import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 
@@ -26,9 +27,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 
 
@@ -36,55 +34,43 @@ import com.google.common.collect.Lists;
  * Implementation of {@link CopyableDataset} that creates a {@link CopyableFile} for every file that is a descendant if
  * the root directory.
  */
-public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
+public class RecursiveCopyableDataset implements CopyableDataset, FileSystemDataset {
 
   private final Path rootPath;
   private final FileSystem fs;
-  private final Properties properties;
-  private LoadingCache<Path, OwnerAndPermission> ownerAndPermissionCache;
   private final PathFilter pathFilter;
+  // Glob used to find this dataset
+  private final Path glob;
   private final CopyableFileFilter copyableFileFilter;
 
-  public RecursiveCopyableDataset(final FileSystem fs, Path rootPath, Properties properties) {
+  public RecursiveCopyableDataset(final FileSystem fs, Path rootPath, Properties properties, Path glob) {
 
     this.rootPath = PathUtils.getPathWithoutSchemeAndAuthority(rootPath);
     this.fs = fs;
-    this.properties = properties;
-    this.ownerAndPermissionCache = CacheBuilder.newBuilder().build(new CacheLoader<Path, OwnerAndPermission>() {
-      @Override
-      public OwnerAndPermission load(Path path) throws Exception {
-        FileStatus fileStatus = fs.getFileStatus(path);
-        return new OwnerAndPermission(fileStatus.getOwner(), fileStatus.getGroup(), fileStatus.getPermission());
-      }
-    });
 
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
     this.copyableFileFilter = DatasetUtils.instantiateCopyableFileFilter(properties);
+    this.glob = glob;
   }
 
-  @Override public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
+  @Override public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs,
+      CopyConfiguration configuration)
       throws IOException {
+
+    Path nonGlobSearchPath = PathUtils.deepestNonGlobPath(this.glob);
 
     List<FileStatus> files = FileListUtils.listFilesRecursively(this.fs, this.rootPath, this.pathFilter);
 
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
     for (FileStatus file : files) {
-      copyableFiles.add(CopyableFile.builder(this.fs, file, this.rootPath, configuration).build());
+      Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), nonGlobSearchPath);
+      Path targetPath = new Path(configuration.getPublishDir(), filePathRelativeToSearchPath);
+
+      copyableFiles.add(CopyableFile.fromOriginAndDestination(this.fs, file, targetPath, configuration).
+          fileSet(file.getPath().getParent().toString()).build());
     }
     return copyableFileFilter.filter(this.fs, targetFs, copyableFiles);
-  }
-
-  /**
-   * Get the expected output path of the file under {@link #datasetTargetRoot()}. Subclasses can override this method if
-   * the file name needs to be different at destination.
-   *
-   * @param file whose relative outputPath will be returned
-   * @return the relativeOutputPath
-   */
-  protected Path getRelativeOuptutPath(FileStatus file) {
-    return PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(file.getPath()),
-        PathUtils.getPathWithoutSchemeAndAuthority(datasetRoot()));
   }
 
   @Override
@@ -92,4 +78,7 @@ public class RecursiveCopyableDataset extends SinglePartitionCopyableDataset {
     return this.rootPath;
   }
 
+  @Override public String datasetURN() {
+    return datasetRoot().toString();
+  }
 }

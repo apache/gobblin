@@ -1,5 +1,55 @@
-GOBBLIN 0.6.1
+GOBBLIN 0.6.2
 =============
+
+## NEW FEATURES
+* [Admin Dashboard] Added a web based GUI for exploring running and finished jobs in a running Gobblin daemon (thanks Eric Ogren).
+* [Admin Dashboard] Added a CLI for finding jobs in the job history store and seeing their run details (thanks Eric Ogren).
+* [Configuration Management] WIP: Configuration management library. Will enable Gobblin to be dataset aware, ie. to dynamically load and apply different configurations to each dataset in a single Gobblin job.
+** APIs: APIs for configuration stores and configuration client.
+** Configuration Library: loads low level configurations from a configuration store, resolves configuration dependencies / imports, and performs value interpolation.
+* [Distcp] Allow using *.ready files as markers for files that should be copied, and deletion of *.ready files once the file has been copied.
+* [Distcp] Added file filters to recursive copyable dataset for distcp. Allows to only copy files satisfying a filter under a base directory.
+* [Distcp] Copied files that fail to be published are persisted for future runs. Future runs can recover the already copied file instead of re-doing the byte transfer.
+* [JDBC] Can use password encryption for JDBC sources.
+* [YARN] Added email notifications on YARN application shutdown.
+* [YARN] Added event notifications on YARN container status changes.
+* [Metrics] Added metric filters based on name and type of the metrics.
+* [Dataset Management] POC embedded sql for config-driven retention management.
+* [Exactly Once] POC for Gobblin managed exactly once semantics on publisher.
+
+## BUG FIXES
+* **Core** File based source includes previously failed WorkUnits event if there are no new files in the source (thanks Joel Baranick).
+* **Core** Ensure that output file list does not contain duplicates due to task retries (thanks Joel Baranick).
+* **Core** Fix NPE in CliOptions.
+* **Core/YARN** Limit Props -> Typesafe Config conversion to a few keys to prevent overwriting of certain properties.
+* **Utility** Fixed writer mkdirs for S3.
+* **Metrics** Made Scheduled Reporter threads into daemon threads to prevent hanging application.
+* **Metrics** Fixed enqueuing of events on event reporters that was causing job failure if event frequency was too high.
+* **Build** Fix POM dependencies on gobblin-rest-api.
+* **Build** Added conjars and cloudera repository to all projects (fixes builds for certain users).
+* **Build** Fix the distribution tarball creation (thanks Joel Baranick).
+* **Build** Added option to exclude Hadoop and Hive jars from distribution tarball.
+* **Build** Removed log4j.properties from runtime resources.
+* **Compaction** Fixed main class in compaction manifest file (thanks Lorand Bendig).
+* **JDBC** Correctly close JDBC connections.
+
+## IMPROVEMENTS
+* [Build] Add support for publishing libraries to maven local (thanks Joel Baranick).
+* [Build] In preparation to Gradle 2 migration, added ext. prefix to custom gradle properties.
+* [Build] Can generate project dependencies graph in dot format.
+* [Metrics] Migrated Kafka reporter and Output stream reporter to Root Metrics Reporter managed reporting.
+* [Metrics] The last metric emission in the application has a "final" tag for easier Hive identification.
+* [Metrics] Metrics for Gobblin on YARN include cluster tags.
+* [Hive] Upgraded Hive to version 1.0.1.
+* [Distcp] Add file size to distcp success notifications.
+* [Distcp] Each work unit in distcp contains exactly one Copyable File.
+* [Distcp] Copy source can set upstream timestamps for SLA events emitted on publish time.
+* [Scheduling] Added Gobblin Oozie config files.
+* [Documentation] Improved javadocs.
+
+
+GOBBLIN 0.6.1
+-------------
 
 ## BUG FIXES
 

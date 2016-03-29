@@ -12,30 +12,46 @@
 
 package gobblin.azkaban;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
+import java.util.UUID;
+
+import javax.annotation.Nullable;
+
+import azkaban.jobExecutor.AbstractJob;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.log4j.Logger;
+
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-
-import azkaban.jobExecutor.AbstractJob;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 import gobblin.metrics.Tag;
-import gobblin.runtime.EmailNotificationJobListener;
+import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
-import gobblin.runtime.JobListener;
+import gobblin.runtime.app.ApplicationException;
+import gobblin.runtime.app.ApplicationLauncher;
+import gobblin.runtime.app.ServiceBasedAppLauncher;
+import gobblin.runtime.listeners.EmailNotificationJobListener;
+import gobblin.runtime.listeners.JobListener;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.util.TimeRangeChecker;
+import gobblin.hadoop.token.TokenUtils;
+
+import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
 
 
 /**
@@ -47,21 +63,32 @@ import gobblin.util.TimeRangeChecker;
  *   using {@link ConfigurationKeys#JOB_LAUNCHER_TYPE_KEY}.
  * </p>
  *
+ * <p>
+ *   If the Azkaban job type is not contained in {@link #JOB_TYPES_WITH_AUTOMATIC_TOKEN}, the launcher assumes that
+ *   the job does not get authentication tokens from Azkaban and it will negotiate them itself.
+ *   See {@link TokenUtils#getHadoopTokens} for more information.
+ * </p>
+ *
  * @author Yinan Li
  */
-public class AzkabanJobLauncher extends AbstractJob {
+public class AzkabanJobLauncher extends AbstractJob implements ApplicationLauncher, JobLauncher {
 
   private static final Logger LOG = Logger.getLogger(AzkabanJobLauncher.class);
 
   private static final String HADOOP_FS_DEFAULT_NAME = "fs.default.name";
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
-  private static final String HADOOP_TOKEN_FILE_LOCATION = "HADOOP_TOKEN_FILE_LOCATION";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
+
+  private static final String HADOOP_JAVA_JOB = "hadoopJava";
+  private static final String JAVA_JOB = "java";
+  private static final String GOBBLIN_JOB = "gobblin";
+  private static final Set<String> JOB_TYPES_WITH_AUTOMATIC_TOKEN = Sets.newHashSet(HADOOP_JAVA_JOB, JAVA_JOB, GOBBLIN_JOB);
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
   private final JobListener jobListener = new EmailNotificationJobListener();
   private final Properties props;
+  private final ApplicationLauncher applicationLauncher;
 
   public AzkabanJobLauncher(String jobId, Properties props)
       throws Exception {
@@ -86,10 +113,22 @@ public class AzkabanJobLauncher extends AbstractJob {
     this.props.setProperty(
         ConfigurationKeys.JOB_TRACKING_URL_KEY, Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
 
-    // Necessary for compatibility with Azkaban's hadoopJava job type
-    // http://azkaban.github.io/azkaban/docs/2.5/#hadoopjava-type
-    if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
-      this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
+    if (props.containsKey(JOB_TYPE) && JOB_TYPES_WITH_AUTOMATIC_TOKEN.contains(props.getProperty(JOB_TYPE))) {
+      // Necessary for compatibility with Azkaban's hadoopJava job type
+      // http://azkaban.github.io/azkaban/docs/2.5/#hadoopjava-type
+      LOG.info("Job type " + props.getProperty(JOB_TYPE) + " provides Hadoop tokens automatically. Using provided tokens.");
+      if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
+        this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
+      }
+    } else {
+      // see javadoc for more information
+      LOG.info(String.format("Job type %s does not provide Hadoop tokens. Negotiating Hadoop tokens.",
+          props.getProperty(JOB_TYPE)));
+      File tokenFile = TokenUtils.getHadoopTokens(new State(props));
+      System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
+      System.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
+      this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
+      this.props.setProperty("env." + HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
     }
 
     List<Tag<?>> tags = Lists.newArrayList();
@@ -108,24 +147,26 @@ public class AzkabanJobLauncher extends AbstractJob {
     // used for both system and job configuration properties because Azkaban puts configuration
     // properties in the .job file and in the .properties file into the same Properties object.
     this.jobLauncher = this.closer.register(JobLauncherFactory.newJobLauncher(this.props, this.props));
+
+    // Since Java classes cannot extend multiple classes and Azkaban jobs must extend AbstractJob, we must use composition
+    // verses extending ServiceBasedAppLauncher
+    this.applicationLauncher = this.closer.register(new ServiceBasedAppLauncher(this.props, "Azkaban-" + UUID.randomUUID()));
   }
 
   @Override
-  public void run() throws Exception {
-    try {
+  public void run()
+      throws Exception {
+    if (isCurrentTimeInRange()) {
       try {
-        LOG.info("Launching Azkaban job");
-        if (isCurrentTimeInRange()) {
-          this.jobLauncher.launchJob(this.jobListener);
-        }
-        LOG.info("Completed launching Azkaban job");
+        start();
+        launchJob(this.jobListener);
       } finally {
-        LOG.info("Closing launcher resources.");
-        this.closer.close();
+        try {
+          stop();
+        } finally {
+          close();
+        }
       }
-    } catch (Exception e) {
-      LOG.error("Azkaban Job failed: ", e);
-      throw e;
     }
   }
 
@@ -133,10 +174,39 @@ public class AzkabanJobLauncher extends AbstractJob {
   public void cancel()
       throws Exception {
     try {
-      this.jobLauncher.cancelJob(this.jobListener);
+      cancelJob(this.jobListener);
     } finally {
-      this.closer.close();
+      try {
+        stop();
+      } finally {
+        close();
+      }
     }
+  }
+
+  @Override
+  public void start() throws ApplicationException {
+    this.applicationLauncher.start();
+  }
+
+  @Override
+  public void stop() throws ApplicationException {
+    this.applicationLauncher.stop();
+  }
+
+  @Override
+  public void launchJob(@Nullable JobListener jobListener) throws JobException {
+    this.jobLauncher.launchJob(jobListener);
+  }
+
+  @Override
+  public void cancelJob(@Nullable JobListener jobListener) throws JobException {
+    this.jobLauncher.cancelJob(jobListener);
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.closer.close();
   }
 
   /**

@@ -84,6 +84,7 @@ public class ConfigurationKeys {
   // Job launcher type
   public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
   public static final String JOB_SCHEDULE_KEY = "job.schedule";
+  public static final String JOB_LISTENERS_KEY = "job.listeners";
   // Directory where job lock files are stored
   public static final String JOB_LOCK_DIR_KEY = "job.lock.dir";
   //Directory that stores task staging data and task output data.
@@ -112,6 +113,7 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = false;
   public static final String CLEANUP_STAGING_DATA_PER_TASK = "cleanup.staging.data.per.task";
   public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
+  public static final String CLEANUP_STAGING_DATA_BY_INITIALIZER = "cleanup.staging.data.by.initializer";
 
   /**
    * Configuration properties used internally.
@@ -286,17 +288,26 @@ public class ConfigurationKeys {
    * Configuration properties for the data publisher.
    */
   public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
+
+  /**
+   * @deprecated Use {@link #TASK_DATA_PUBLISHER_TYPE} and {@link #JOB_DATA_PUBLISHER_TYPE}.
+   */
+  @Deprecated
   public static final String DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".type";
+  public static final String JOB_DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".job.type";
+  public static final String TASK_DATA_PUBLISHER_TYPE = DATA_PUBLISHER_PREFIX + ".task.type";
   public static final String DEFAULT_DATA_PUBLISHER_TYPE = "gobblin.publisher.BaseDataPublisher";
   public static final String DATA_PUBLISHER_FILE_SYSTEM_URI = DATA_PUBLISHER_PREFIX + ".fs.uri";
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
+  public static final String DATA_PUBLISHER_OVERWRITE_ENABLED = DATA_PUBLISHER_PREFIX + ".overwrite.enabled";
   // This property is used to specify the owner group of the data publisher final output directory
   public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".final.dir.group";
   public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";
   public static final String PUBLISH_DATA_AT_JOB_LEVEL = "publish.data.at.job.level";
   public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
+  public static final String PUBLISHER_DIRS = DATA_PUBLISHER_PREFIX + ".output.dirs";
 
   public static final String JDBC_PUBLISHER_PREFIX = "jdbc.publisher.";
   public static final String JDBC_PUBLISHER_DATABASE_NAME = JDBC_PUBLISHER_PREFIX + "database.name";
@@ -354,6 +365,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
   public static final String SOURCE_FILEBASED_FS_URI = "source.filebased.fs.uri";
   public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
+  public static final String SOURCE_FILEBASED_OPTIONAL_DOWNLOADER_CLASS = "source.filebased.downloader.class";
 
   /**
    * Configuration properties used internally by the KafkaSource.
@@ -425,7 +437,6 @@ public class ConfigurationKeys {
   public static final String TASK_STATE_COLLECTOR_INTERVAL_SECONDS = "task.state.collector.interval.secs";
   public static final int DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS = 60;
 
-
   /**
    * Configuration properties for email settings.
    */
@@ -483,11 +494,23 @@ public class ConfigurationKeys {
   public static final String DEFAULT_REST_SERVER_HOST = "localhost";
   public static final String REST_SERVER_PORT_KEY = "rest.server.port";
   public static final String DEFAULT_REST_SERVER_PORT = "8080";
+  public static final String REST_SERVER_ADVERTISED_URI_KEY = "rest.server.advertised.uri";
+
+  /**
+   * Admin server configuration properties.
+   */
+  public static final String ADMIN_SERVER_ENABLED_KEY = "admin.server.enabled";
+  public static final String ADMIN_SERVER_HOST_KEY = "admin.server.host";
+  public static final String DEFAULT_ADMIN_SERVER_HOST = "localhost";
+  public static final String ADMIN_SERVER_PORT_KEY = "admin.server.port";
+  public static final String DEFAULT_ADMIN_SERVER_PORT = "8000";
 
   /**
    * Kafka job configurations.
    */
   public static final String KAFKA_BROKERS = "kafka.brokers";
+  public static final String KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS = "kafka.source.work.units.creation.threads";
+  public static final int KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT = 30;
 
   /**
    * Job execution info server and history store configuration properties.
@@ -506,6 +529,7 @@ public class ConfigurationKeys {
   /**
    * Password encryption and decryption properties.
    */
+  public static final String ENCRYPT_KEY_FS_URI = "encrypt.key.fs.uri";
   public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
   public static final String ENCRYPT_USE_STRONG_ENCRYPTOR = "encrypt.use.strong.encryptor";
   public static final boolean DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR = false;
@@ -527,9 +551,16 @@ public class ConfigurationKeys {
   public static final String AZKABAN_EXECUTION_DAYS_LIST = "azkaban.execution.days.list";
 
   /**
+   * Hive registration properties
+   */
+  public static final String HIVE_REGISTRATION_POLICY = "hive.registration.policy";
+
+  /**
    * Other configuration properties.
    */
+  public static final String GOBBLIN_RUNTIME_DELIVERY_SEMANTICS = "gobblin.runtime.delivery.semantics";
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
   public static final int PERMISSION_PARSING_RADIX = 8;
+
 }

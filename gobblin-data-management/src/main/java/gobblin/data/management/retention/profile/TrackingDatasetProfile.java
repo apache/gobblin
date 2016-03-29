@@ -19,13 +19,13 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 import gobblin.data.management.retention.dataset.TrackingDataset;
 import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
 
 
 /**
- * {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} for tracking datasets.
+ * {@link gobblin.dataset.DatasetsFinder} for tracking datasets.
  *
  * <p>
  *   Tracking datasets are datasets where each data point represents a timestamped action, and the records are

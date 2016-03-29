@@ -11,6 +11,7 @@
  */
 package gobblin.data.management.copy.extractor;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.CopyableFile;
@@ -18,6 +19,7 @@ import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.PreserveAttributes;
 
 import java.io.IOException;
+import java.util.Properties;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -48,7 +50,12 @@ public class InputStreamExtractorTest {
   private CopyableFile getTestCopyableFile(String resourcePath) throws IOException {
     String filePath = getClass().getClassLoader().getResource(resourcePath).getFile();
     FileStatus status = new FileStatus(0l, false, 0, 0l, 0l, new Path(filePath));
-    return CopyableFile.builder(FileSystem.getLocal(new Configuration()), status, new Path("/"),
-        new CopyConfiguration(new Path("/"), PreserveAttributes.fromMnemonicString(""), new CopyContext())).build();
+
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
+
+    return CopyableFile.fromOriginAndDestination(FileSystem.getLocal(new Configuration()), status,
+        new Path("/destination"), CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties)
+        .preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
   }
 }

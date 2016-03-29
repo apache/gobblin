@@ -15,6 +15,9 @@ package gobblin.data.management.copy.publisher;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -22,10 +25,12 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -34,24 +39,31 @@ import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.entities.CommitStepCopyEntity;
+import gobblin.data.management.copy.entities.PostPublishStep;
+import gobblin.data.management.copy.entities.PrePublishStep;
+import gobblin.data.management.copy.recovery.RecoveryHelper;
+import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
+import gobblin.publisher.UnpublishedHandling;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.publisher.DataPublisher;
 import gobblin.util.HadoopUtils;
-import gobblin.util.PathUtils;
 
 /**
- * A {@link DataPublisher} to {@link CopyableFile}s from task output to final destination.
+ * A {@link DataPublisher} to {@link gobblin.data.management.copy.CopyEntity}s from task output to final destination.
  */
 @Slf4j
-public class CopyDataPublisher extends DataPublisher {
+public class CopyDataPublisher extends DataPublisher implements UnpublishedHandling {
 
-  private Path writerOutputDir;
-  private FileSystem fs;
-  protected EventSubmitter eventSubmitter;
+  private final Path writerOutputDir;
+  private final FileSystem fs;
+  protected final EventSubmitter eventSubmitter;
+  protected final RecoveryHelper recoveryHelper;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -77,6 +89,9 @@ public class CopyDataPublisher extends DataPublisher {
         Instrumented.getMetricContext(state, CopyDataPublisher.class, GobblinMetrics.getCustomTagsFromState(state));
 
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "gobblin.copy.CopyDataPublisher").build();
+
+    this.recoveryHelper = new RecoveryHelper(this.fs, state);
+    this.recoveryHelper.purgeOldPersistedFile();
   }
 
   @Override
@@ -86,15 +101,15 @@ public class CopyDataPublisher extends DataPublisher {
      * This mapping is used to set WorkingState of all {@link WorkUnitState}s to {@link
      * WorkUnitState.WorkingState#COMMITTED} after a {@link CopyableDataset} is successfully published
      */
-    Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> datasets = groupByFileSet(states);
+    Multimap<CopyEntity.DatasetAndPartition, WorkUnitState> datasets = groupByFileSet(states);
 
     boolean allDatasetsPublished = true;
-    for (CopyableFile.DatasetAndPartition datasetAndPartition : datasets.keySet()) {
+    for (CopyEntity.DatasetAndPartition datasetAndPartition : datasets.keySet()) {
       try {
         this.publishFileSet(datasetAndPartition, datasets.get(datasetAndPartition));
       } catch (Throwable e) {
         CopyEventSubmitterHelper.submitFailedDatasetPublish(eventSubmitter, datasetAndPartition);
-        log.error("Failed to publish " + datasetAndPartition.getDataset().getDatasetTargetRoot(), e);
+        log.error("Failed to publish " + datasetAndPartition.getDataset().getDatasetURN(), e);
         allDatasetsPublished = false;
       }
     }
@@ -104,19 +119,24 @@ public class CopyDataPublisher extends DataPublisher {
     }
   }
 
+  @Override public void handleUnpublishedWorkUnits(Collection<? extends WorkUnitState> states) throws IOException {
+      int filesPersisted = persistFailedFileSet(states);
+      log.info(String.format("Successfully persisted %d work units.", filesPersisted));
+  }
+
   /**
    * Create a {@link Multimap} that maps a {@link CopyableDataset} to all {@link WorkUnitState}s that belong to this
    * {@link CopyableDataset}. This mapping is used to set WorkingState of all {@link WorkUnitState}s to
    * {@link WorkUnitState.WorkingState#COMMITTED} after a {@link CopyableDataset} is successfully published.
    */
-  private Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> groupByFileSet(
+  private Multimap<CopyEntity.DatasetAndPartition, WorkUnitState> groupByFileSet(
       Collection<? extends WorkUnitState> states)
       throws IOException {
-    Multimap<CopyableFile.DatasetAndPartition, WorkUnitState> datasetRoots = ArrayListMultimap.create();
+    Multimap<CopyEntity.DatasetAndPartition, WorkUnitState> datasetRoots = ArrayListMultimap.create();
 
     for (WorkUnitState workUnitState : states) {
-      CopyableFile file = CopySource.deserializeCopyableFile(workUnitState);
-      CopyableFile.DatasetAndPartition datasetAndPartition = file.getDatasetAndPartition(
+      CopyEntity file = CopySource.deserializeCopyEntity(workUnitState);
+      CopyEntity.DatasetAndPartition datasetAndPartition = file.getDatasetAndPartition(
           CopyableDatasetMetadata.deserialize(workUnitState.getProp(CopySource.SERIALIZED_COPYABLE_DATASET)));
 
       datasetRoots.put(datasetAndPartition, workUnitState);
@@ -128,7 +148,7 @@ public class CopyDataPublisher extends DataPublisher {
    * Publish data for a {@link CopyableDataset}.
    *
    */
-  private void publishFileSet(CopyableFile.DatasetAndPartition datasetAndPartition,
+  private void publishFileSet(CopyEntity.DatasetAndPartition datasetAndPartition,
       Collection<WorkUnitState> datasetWorkUnitStates)
       throws IOException {
 
@@ -137,13 +157,20 @@ public class CopyDataPublisher extends DataPublisher {
 
     CopyableDatasetMetadata metadata = CopyableDatasetMetadata.deserialize(
         datasetWorkUnitStates.iterator().next().getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
-    Path datasetWriterOutputPath = new Path(new Path(writerOutputDir, datasetAndPartition.identifier()),
-        PathUtils.withoutLeadingSeparator(metadata.getDatasetTargetRoot()));
+    Path datasetWriterOutputPath = new Path(this.writerOutputDir, datasetAndPartition.identifier());
 
-    log.info(String
-        .format("Publishing fileSet from %s to %s", datasetWriterOutputPath, metadata.getDatasetTargetRoot()));
+    log.info(String.format("[%s] Publishing fileSet from %s for dataset %s", datasetAndPartition.identifier(),
+        datasetWriterOutputPath, metadata.getDatasetURN()));
 
-    HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, metadata.getDatasetTargetRoot());
+    List<CommitStep> prePublish = getCommitSequence(datasetWorkUnitStates, PrePublishStep.class);
+    List<CommitStep> postPublish = getCommitSequence(datasetWorkUnitStates, PostPublishStep.class);
+    log.info(String.format("[%s] Found %d prePublish steps and %d postPublish steps.", datasetAndPartition.identifier(),
+        prePublish.size(), postPublish.size()));
+
+    executeCommitSequence(prePublish);
+    // Targets are always absolute, so we start moving from root (will skip any existing directories).
+    HadoopUtils.renameRecursively(fs, datasetWriterOutputPath, new Path("/"));
+    executeCommitSequence(postPublish);
 
     fs.delete(datasetWriterOutputPath, true);
 
@@ -153,19 +180,81 @@ public class CopyDataPublisher extends DataPublisher {
     for (WorkUnitState wus : datasetWorkUnitStates) {
       if (wus.getWorkingState() == WorkingState.SUCCESSFUL) {
         wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-        CopyEventSubmitterHelper.submitSuccessfulFilePublish(eventSubmitter, wus);
       }
-      CopyableFile copyableFile = CopySource.deserializeCopyableFile(wus);
-      if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
-        datasetOriginTimestamp = copyableFile.getOriginTimestamp();
-      }
-      if (datasetUpstreamTimestamp > copyableFile.getUpstreamTimestamp()) {
-        datasetUpstreamTimestamp = copyableFile.getUpstreamTimestamp();
+      CopyEntity copyEntity = CopySource.deserializeCopyEntity(wus);
+      if (copyEntity instanceof CopyableFile) {
+        CopyableFile copyableFile = (CopyableFile) copyEntity;
+        if (wus.getWorkingState() == WorkingState.COMMITTED) {
+          CopyEventSubmitterHelper.submitSuccessfulFilePublish(eventSubmitter, copyableFile, wus);
+        }
+        if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
+          datasetOriginTimestamp = copyableFile.getOriginTimestamp();
+        }
+        if (datasetUpstreamTimestamp > copyableFile.getUpstreamTimestamp()) {
+          datasetUpstreamTimestamp = copyableFile.getUpstreamTimestamp();
+        }
       }
     }
 
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(eventSubmitter, datasetAndPartition,
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp));
+  }
+
+  private List<CommitStep> getCommitSequence(Collection<WorkUnitState> workUnits, Class<?> baseClass)
+      throws IOException {
+    List<CommitStepCopyEntity> steps = Lists.newArrayList();
+    for (WorkUnitState wus : workUnits) {
+      if (baseClass.isAssignableFrom(CopySource.getCopyEntityClass(wus))) {
+        CommitStepCopyEntity step = (CommitStepCopyEntity) CopySource.deserializeCopyEntity(wus);
+        steps.add(step);
+      }
+    }
+
+    Comparator<CommitStepCopyEntity> commitStepSorter = new Comparator<CommitStepCopyEntity>() {
+      @Override public int compare(CommitStepCopyEntity o1, CommitStepCopyEntity o2) {
+        return Integer.compare(o1.getPriority(), o2.getPriority());
+      }
+    };
+
+    Collections.sort(steps, commitStepSorter);
+    List<CommitStep> sequence = Lists.newArrayList();
+    for (CommitStepCopyEntity entity : steps) {
+      sequence.add(entity.getStep());
+    }
+
+    return sequence;
+  }
+
+  private void executeCommitSequence(List<CommitStep> steps) throws IOException {
+    for (CommitStep step : steps) {
+      step.execute();
+    }
+  }
+
+  private Path findPathRoot(Path path) {
+    while (path.getParent() != null) {
+      path = path.getParent();
+    }
+    return path;
+  }
+
+  private int persistFailedFileSet(Collection<? extends WorkUnitState> workUnitStates) throws IOException {
+    int filesPersisted = 0;
+    for (WorkUnitState wu : workUnitStates) {
+      if (wu.getWorkingState() == WorkingState.SUCCESSFUL) {
+        CopyEntity entity = CopySource.deserializeCopyEntity(wu);
+        if (entity instanceof CopyableFile) {
+          CopyableFile file = (CopyableFile) entity;
+          Path outputDir = FileAwareInputStreamDataWriter.getOutputDir(wu);
+          CopyableDatasetMetadata metadata = CopySource.deserializeCopyableDataset(wu);
+          Path outputPath = FileAwareInputStreamDataWriter.getOutputFilePath(file, outputDir, file.getDatasetAndPartition(metadata));
+          if (this.recoveryHelper.persistFile(wu, file, outputPath)) {
+            filesPersisted++;
+          }
+        }
+      }
+    }
+    return filesPersisted;
   }
 
   @Override
@@ -174,7 +263,6 @@ public class CopyDataPublisher extends DataPublisher {
 
   @Override
   public void close() throws IOException {
-    fs.delete(writerOutputDir, true);
   }
 
   @Override

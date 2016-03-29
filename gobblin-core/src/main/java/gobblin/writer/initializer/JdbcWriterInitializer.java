@@ -47,7 +47,7 @@ import com.google.common.collect.Sets;
  */
 public class JdbcWriterInitializer implements WriterInitializer {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcWriterInitializer.class);
-  private static final String STAGING_TABLE_FORMAT = "stage_%s_%d";
+  private static final String STAGING_TABLE_FORMAT = "stage_%d";
   private static final int NAMING_STAGING_TABLE_TRIAL = 10;
   private static final Random RANDOM = new Random();
 
@@ -76,6 +76,10 @@ public class JdbcWriterInitializer implements WriterInitializer {
     Destination dest = Destination.of(DestinationType.valueOf(destType.toUpperCase()), state);
     this.commands = jdbcWriterCommandsFactory.newInstance(dest);
     this.createdStagingTables = Sets.newHashSet();
+
+    //AbstractJobLauncher assumes that the staging is in HDFS and trying to clean it.
+    //As WriterInitializer will clean staging table, we don't need AbstractJobLauncher to clean.
+    state.setProp(ConfigurationKeys.CLEANUP_STAGING_DATA_BY_INITIALIZER, Boolean.toString(true));
   }
 
   /**
@@ -135,7 +139,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
 
     String stagingTable = null;
     for (int i = 0; i < NAMING_STAGING_TABLE_TRIAL; i++) {
-      String tmp = String.format(STAGING_TABLE_FORMAT, destinationTable, System.nanoTime());
+      String tmp = String.format(STAGING_TABLE_FORMAT, System.nanoTime());
       LOG.info("Check if staging table " + tmp + " exists.");
       ResultSet res = conn.getMetaData().getTables(null, null, tmp, new String[] {"TABLE"});
       if (!res.next()) {
@@ -290,8 +294,9 @@ public class JdbcWriterInitializer implements WriterInitializer {
 
     JobCommitPolicy policy = JobCommitPolicy.getCommitPolicy(state);
     boolean isPublishJobLevel = state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
-    if(!JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.equals(policy) && isPublishJobLevel) {
-      throw new IllegalArgumentException("Cannot publish on job level when commit policy is " + policy + " To skip staging table set " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " to false");
+    if(JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.equals(policy) ^ isPublishJobLevel) {
+      throw new IllegalArgumentException("Job commit policy should be only " + JobCommitPolicy.COMMIT_ON_FULL_SUCCESS + " when " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is true."
+                                         + " Or Job commit policy should not be " + JobCommitPolicy.COMMIT_ON_FULL_SUCCESS + " and " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is false.");
     }
   }
 

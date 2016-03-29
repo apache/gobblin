@@ -27,12 +27,13 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.source.extractor.filebased.FileBasedHelper;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
+import gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
 import gobblin.util.ProxiedFileSystemWrapper;
 
 /**
  * A common helper that extends {@link FileBasedHelper} and provides access to a files via a {@link FileSystem}.
  */
-public abstract class HadoopFsHelper implements FileBasedHelper {
+public abstract class HadoopFsHelper implements TimestampAwareFileBasedHelper {
   private final State state;
   private final Configuration configuration;
   private FileSystem fs;
@@ -106,6 +107,16 @@ public abstract class HadoopFsHelper implements FileBasedHelper {
     } else {
       // Initialize file system as the current user.
       this.fs = FileSystem.get(URI.create(uri), this.configuration);
+    }
+  }
+
+  @Override
+  public long getFileMTime(String filePath) throws FileBasedHelperException {
+    try {
+      return this.getFileSystem().getFileStatus(new Path(filePath)).getModificationTime();
+    } catch (IOException e) {
+      throw new FileBasedHelperException(String.format(
+          "Failed to get last modified time for file at path %s due to error %s", filePath, e.getMessage()), e);
     }
   }
 }

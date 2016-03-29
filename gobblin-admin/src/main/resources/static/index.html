@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="icon" type="image/png" href="img/gobblin_icon_small.png">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gobblin Admin</title>
+
+    <link rel="stylesheet" href="css/tablesorter.theme.css">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/gobblin.css" rel="stylesheet">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet' type='text/css'>
+
+  </head>
+  <body>
+    <nav class="navbar navbar-default">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-main-menu"
+                  aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">
+            <img src="img/gobblin_logo_white.png" alt="Gobblin" height="40px" width="auto" />
+          </a>
+        </div>
+
+        <div class="collapse navbar-collapse" id="navbar-main-menu">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#">Jobs <span class="sr-only">(current)</span></a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div id="main-content" class="container-fluid">
+      <div id="header-container"></div>
+      <div id="content-container" class="container-fluid"></div>
+    </div>
+
+    <script type="text/template" id="header-template">
+      <div id="header-panel" class="<%= (header.highlightClass) ? 'highlight highlight-' + header.highlightClass : 'highlight-default' %>">
+        <h1 id="page-title"><%= header.title %></h1>
+        <% if (header.subtitle) { %>
+          <h4 id="page-subtitle"><%= header.subtitle %></h1>
+        <% } %>
+      </div>
+    </script>
+
+    <script type="text/template" id="list-all-template">
+      <div id="list-all-table-container" class="container-fluid">
+        <div id="table-control-container"></div>
+        <br />
+        <div id="table-container"></div>
+      </div>
+    </script>
+
+    <script type="text/template" id="chart-template">
+      <h4 class="chart-title"><%= title %></h4>
+      <canvas class="chart-canvas" height="<%= height %>" width="<%= width %>"></canvas>
+    </script>
+
+    <script type="text/template" id="key-value-template">
+      <h4 class="chart-title"><%= title %></h4>
+      <table class="key-value-table <%= (center !== 'undefined' && center == true) ? 'key-value-centered' : '' %>">
+        <% for(var key in pairs) { %>
+          <tr><td><%= key %></td><td><%= pairs[key] %></td></tr>
+        <% } %>
+      </table>
+    </script>
+
+    <script type="text/template" id="job-template">
+      <h3 class="section-title">JOB SUMMARY</h3>
+      <div id="job-summary" class="summary">
+        <div id="duration-chart" class="chart-container col-md-4"></div>
+        <div id="records-chart" class="chart-container col-md-4"></div>
+        <div id="status-key-value" class="col-md-4"></div>
+      </div>
+      <div class="clearfix"></div>
+      <h3 class="section-title">JOB EXECUTIONS</h3>
+      <div id="job-table-container">
+        <div id="table-control-container"></div>
+        <br />
+        <div id="table-container"></div>
+      </div>
+    </script>
+
+    <script type="text/template" id="job-execution-template">
+      <h3 class="section-title">JOB EXECUTION SUMMARY</h3>
+      <div id="important-key-value" class="col-md-8"></div>
+      <div id="modal-links" class="col-md-2">
+        <p><a data-toggle="collapse" href="#job-properties-key-value" aria-expanded="false">View Job Properties</a></p>
+        <p><a data-toggle="collapse" href="#job-metrics-key-value" aria-expanded="false">View Metrics</a></p>
+      </div>
+      <div class="clearfix"></div>
+      <div id="job-properties-key-value" class="collapse"><div class="well"></div></div>
+      <div id="job-metrics-key-value" class="collapse"><div class="well"></div></div>
+      <div class="clearfix"></div>
+      <h3 class="section-title">TASK EXECUTIONS</h3>
+      <div id="task-table-container">
+        <div id="table-control-container"></div>
+        <br />
+        <div id="table-container"></div>
+      </div>
+    </script>
+
+    <script type="text/template" id="table-control-template">
+      <form class="form-inline">
+        <div class="form-group">
+          <label for="results-limit">Limit</label>
+          <input type="text" class="form-control" id="results-limit" placeholder="<%= resultsLimit %>">
+        </div>
+        <% if (includeJobToggle) { %>
+          <div class="btn-group" data-toggle="buttons" id="list-jobs-toggle">
+            <label class="btn btn-default active">
+              <input type="radio" value="DISTINCT" /> All Jobs
+            </label>
+            <label class="btn btn-default">
+              <input type="radio" value="RECENT" /> Most Recent
+            </label>
+          </div>
+        <% } %>
+        <button type="button" id="query-btn" class="btn btn-info pull-right">Update!</button>
+      </form>
+    </script>
+    <script type="text/template" id="table-template">
+      <table id="jobs-table" class="table tablesorter">
+        <thead><tr>
+          <% for(var i in columnHeaders) { %>
+            <th><%= columnHeaders[i].name %></th>
+          <% } %>
+        </tr></thead>
+        <tbody>
+          <% for(var r in data) { %>
+            <tr>
+              <% for(var c in data[r]) { %>
+                <td><%= data[r][c] %></td>
+              <% } %>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </script>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.23.5/js/jquery.tablesorter.combined.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.2.3/backbone-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.2/Chart.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/js/bootstrap.min.js"></script>
+
+    <script type="text/javascript" src="js/gobblin.js"></script>
+    <script type="text/javascript" src="js/settings.js"></script>
+    <script type="text/javascript" src="js/models/task-execution.js"></script>
+    <script type="text/javascript" src="js/models/job-execution.js"></script>
+    <script type="text/javascript" src="js/collections/job-executions.js"></script>
+    <script type="text/javascript" src="js/views/table-view.js"></script>
+    <script type="text/javascript" src="js/views/job-execution-view.js"></script>
+    <script type="text/javascript" src="js/views/job-view.js"></script>
+    <script type="text/javascript" src="js/views/over-view.js"></script>
+    <script type="text/javascript" src="js/router.js"></script>
+  </body>
+</html>

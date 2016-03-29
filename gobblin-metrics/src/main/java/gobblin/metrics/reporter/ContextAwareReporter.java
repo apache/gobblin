@@ -53,12 +53,12 @@ import gobblin.metrics.notification.Notification;
 @Slf4j
 public class ContextAwareReporter implements Reporter, Closeable {
 
-  private final String name;
   private boolean started;
   private final UUID notificationTargetUUID;
   private final Set<InnerMetricContext> contextsToReport;
   private final ContextFilter contextFilter;
 
+  protected final String name;
   protected final Config config;
 
   public ContextAwareReporter(String name, Config config) {
@@ -77,6 +77,10 @@ public class ContextAwareReporter implements Reporter, Closeable {
     for (MetricContext context : this.contextFilter.getMatchingContexts()) {
       this.contextsToReport.add(context.getInnerMetricContext());
     }
+  }
+
+  public boolean isStarted() {
+    return this.started;
   }
 
   /**

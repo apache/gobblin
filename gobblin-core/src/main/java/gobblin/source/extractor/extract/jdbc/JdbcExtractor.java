@@ -590,7 +590,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *
    * @param commands - query, fetch size
    * @return JDBC ResultSet
-   * @throws Exception 
+   * @throws Exception
    */
   private CommandOutput<?, ?> executeSql(List<Command> cmds) {
     String query = null;
@@ -643,7 +643,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *
    * @param commands - query, fetch size, query parameters
    * @return JDBC ResultSet
-   * @throws Exception 
+   * @throws Exception
    */
   private CommandOutput<?, ?> executePreparedSql(List<Command> cmds) {
     String query = null;
@@ -716,8 +716,12 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
             this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String connectionUrl = this.getConnectionUrl();
 
+    String proxyHost = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL);
+    int proxyPort = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) != null ?
+        this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) : -1;
+
     if (this.jdbcSource == null || this.jdbcSource.isClosed()) {
-      this.jdbcSource = new JdbcProvider(driver, connectionUrl, userName, password, 1, this.getTimeOut());
+      this.jdbcSource = new JdbcProvider(driver, connectionUrl, userName, password, 1, this.getTimeOut(),"DEFAULT", proxyHost, proxyPort);
       return this.jdbcSource;
     } else {
       return this.jdbcSource;
@@ -869,20 +873,20 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   public long getCount(CommandOutput<?, ?> response) throws RecordCountException {
     this.log.debug("Extract source record count from resultset");
     ResultSet resultset = null;
+    long count = 0;
     Iterator<ResultSet> itr = (Iterator<ResultSet>) response.getResults().values().iterator();
     if (itr.hasNext()) {
       resultset = itr.next();
-    } else {
-      log.error("Failed to get source record count from Mysql - Resultset has no records");
-    }
 
-    long count = 0;
-    try {
-      if (resultset.next()) {
-        count = resultset.getLong(1);
+      try {
+        if (resultset.next()) {
+          count = resultset.getLong(1);
+        }
+      } catch (Exception e) {
+        throw new RecordCountException("Failed to get source record count from MySql; error - " + e.getMessage(), e);
       }
-    } catch (Exception e) {
-      throw new RecordCountException("Failed to get source record count from MySql; error - " + e.getMessage(), e);
+    } else {
+      throw new RuntimeException("Failed to get source record count from Mysql - Resultset has no records");
     }
 
     return count;

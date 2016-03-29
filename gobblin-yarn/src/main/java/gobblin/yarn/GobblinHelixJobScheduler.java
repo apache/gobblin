@@ -33,7 +33,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobListener;
+import gobblin.runtime.listeners.JobListener;
 import gobblin.scheduler.JobScheduler;
 import gobblin.yarn.event.NewJobConfigArrivalEvent;
 
@@ -120,7 +120,7 @@ public class GobblinHelixJobScheduler extends JobScheduler {
       jobConfig.putAll(newJobArrival.getJobConfig());
       if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling new job " + newJobArrival.getJobName());
-        scheduleJob(newJobArrival.getJobConfig(), null);
+        scheduleJob(jobConfig, null);
       } else {
         LOGGER.info("No job schedule found, so running new job " + newJobArrival.getJobName());
         this.jobExecutor.execute(new NonScheduledJobRunner(jobConfig, null));

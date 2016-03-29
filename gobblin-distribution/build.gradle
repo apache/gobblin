@@ -22,12 +22,12 @@ configurations {
 }
 
 dependencies {
+  compile project(':gobblin-admin')
   compile project(':gobblin-azkaban')
   compile project(':gobblin-api')
   compile project(':gobblin-core')
   compile project(':gobblin-compaction')
   compile project(':gobblin-runtime')
-  compile project(':gobblin-scheduler')
   compile project(':gobblin-utility')
   compile project(':gobblin-metastore')
   compile project(':gobblin-metrics')
@@ -36,12 +36,14 @@ dependencies {
   compile project(":gobblin-rest-service:gobblin-rest-api")
   compile project(":gobblin-rest-service:gobblin-rest-client")
   compile project(":gobblin-rest-service:gobblin-rest-server")
-  if (project.hasProperty('useHadoop2')) {
+  compile project(":gobblin-config-management:gobblin-config-client")
+  compile project(":gobblin-config-management:gobblin-config-core")
+  if (useHadoop2) {
     compile project(':gobblin-yarn')
   }
 }
 
-task build(type: Tar, overwrite: true) {
+task buildDistributionTar(type: Tar, overwrite: true) {
   extension = 'tar.gz'
   baseName = project.name
   compression = Compression.GZIP
@@ -50,6 +52,8 @@ task build(type: Tar, overwrite: true) {
   into("bin") { 
     from "../bin/" 
     from project(':gobblin-utility').projectDir.path + '/src/main/bash/gobblin_password_encryptor.sh'
+    filter { String line -> line.replace("GOBBLIN_VERSION=@project.version@", 
+      "GOBBLIN_VERSION="+'"' + project.version + '"') }
   }
   into("lib") {
     from configurations.runtime
@@ -63,3 +67,5 @@ task build(type: Tar, overwrite: true) {
     }
   }
 }
+
+assemble.dependsOn buildDistributionTar

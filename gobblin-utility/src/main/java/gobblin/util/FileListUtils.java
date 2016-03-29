@@ -2,6 +2,7 @@ package gobblin.util;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.commons.lang.ArrayUtils;
@@ -13,15 +14,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Longs;
 
 
 /**
  * Utility class for listing files on a {@link FileSystem}.
  *
- * @see {@link FileSystem}
+ * @see FileSystem
  */
 public class FileListUtils {
   private static final Logger LOG = LoggerFactory.getLogger(FileListUtils.class);
+
+  public static final Comparator<FileStatus> LATEST_MOD_TIME_ORDER = new Comparator<FileStatus>() {
+    @Override
+    public int compare(FileStatus file1, FileStatus file2) {
+      return Longs.compare(Long.valueOf(file2.getModificationTime()), Long.valueOf(file1.getModificationTime()));
+    }
+  };
+
   public static final PathFilter NO_OP_PATH_FILTER = new PathFilter() {
     @Override
     public boolean accept(Path path) {

@@ -32,7 +32,7 @@ import com.google.common.primitives.Longs;
  * means that when more than maxMultiWorkUnits are added to the queue, WorkUnits will start to be paired together into
  * MultiWorkUnits.
  *
- * @see {@link MultiWorkUnit}
+ * @see MultiWorkUnit
  */
 public class MultiWorkUnitWeightedQueue {
 

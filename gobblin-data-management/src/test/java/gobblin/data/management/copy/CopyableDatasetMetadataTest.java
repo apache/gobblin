@@ -26,13 +26,12 @@ public class CopyableDatasetMetadataTest {
   public void testSerializeDeserialize() throws Exception {
     CopyableDataset copyableDataset = new TestCopyableDataset();
     Path target = new Path("/target");
-    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset, target);
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset);
     String serialized = metadata.serialize();
 
     CopyableDatasetMetadata deserialized = CopyableDatasetMetadata.deserialize(serialized);
 
-    Assert.assertEquals(copyableDataset.datasetRoot(), deserialized.getDatasetRoot());
-    Assert.assertEquals(target, deserialized.getDatasetTargetRoot());
+    Assert.assertEquals(copyableDataset.datasetURN(), deserialized.getDatasetURN());
   }
 
   @Test
@@ -40,7 +39,7 @@ public class CopyableDatasetMetadataTest {
 
     CopyableDataset copyableDataset = new TestCopyableDataset();
     Path target = new Path("/target");
-    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset, target);
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset);
     String serialized = metadata.serialize();
 
     CopyableDatasetMetadata deserialized = CopyableDatasetMetadata.deserialize(serialized);

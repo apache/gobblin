@@ -19,7 +19,9 @@ import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.List;
+import java.util.Properties;
 
+import gobblin.util.JobConfigurationUtils;
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -28,6 +30,9 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,9 +60,14 @@ public class JobStateToJsonConverter {
   private final StateStore<? extends JobState> jobStateStore;
   private final boolean keepConfig;
 
-  public JobStateToJsonConverter(String storeUrl, boolean keepConfig)
+  public JobStateToJsonConverter(Properties props, String storeUrl, boolean keepConfig)
       throws IOException {
-    this.jobStateStore = new FsDatasetStateStore(storeUrl);
+    Configuration conf = new Configuration();
+    JobConfigurationUtils.putPropertiesIntoConfiguration(props, conf);
+    Path storePath = new Path(storeUrl);
+    FileSystem fs = storePath.getFileSystem(conf);
+    String storeRootDir = storePath.toUri().getPath();
+    this.jobStateStore = new FsDatasetStateStore(fs, storeRootDir);
     this.keepConfig = keepConfig;
   }
 
@@ -156,6 +166,12 @@ public class JobStateToJsonConverter {
   @SuppressWarnings("all")
   public static void main(String[] args)
       throws Exception {
+    Option sysConfigOption = OptionBuilder
+        .withArgName("system configuration file")
+        .withDescription("Gobblin system configuration file")
+        .withLongOpt("sysconfig")
+        .hasArgs()
+        .create("sc");
     Option storeUrlOption = OptionBuilder
         .withArgName("gobblin state store URL")
         .withDescription("Gobblin state store root path URL")
@@ -192,6 +208,7 @@ public class JobStateToJsonConverter {
         .create("t");
 
     Options options = new Options();
+    options.addOption(sysConfigOption);
     options.addOption(storeUrlOption);
     options.addOption(jobNameOption);
     options.addOption(jobIdOption);
@@ -209,7 +226,12 @@ public class JobStateToJsonConverter {
       System.exit(1);
     }
 
-    JobStateToJsonConverter converter = new JobStateToJsonConverter(cmd.getOptionValue('u'), cmd.hasOption("kc"));
+    Properties sysConfig = new Properties();
+    if (cmd.hasOption(sysConfigOption.getLongOpt()) ) {
+      sysConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(sysConfigOption.getLongOpt()));
+    }
+
+    JobStateToJsonConverter converter = new JobStateToJsonConverter(sysConfig, cmd.getOptionValue('u'), cmd.hasOption("kc"));
     StringWriter stringWriter = new StringWriter();
     if (cmd.hasOption('i')) {
       converter.convert(cmd.getOptionValue('n'), cmd.getOptionValue('i'), stringWriter);

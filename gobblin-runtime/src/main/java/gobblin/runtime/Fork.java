@@ -26,6 +26,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
+import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.converter.Converter;
@@ -39,6 +40,7 @@ import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import gobblin.runtime.util.TaskMetrics;
+import gobblin.state.ConstructState;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.DataWriter;
@@ -151,12 +153,13 @@ public class Fork implements Closeable, Runnable, FinalState {
      * Create a {@link GobblinMetrics} for this {@link Fork} instance so that all new {@link MetricContext}s returned by
      * {@link Instrumented#setMetricContextName(State, String)} will be children of the forkMetrics.
      */
-    GobblinMetrics forkMetrics = GobblinMetrics
-        .get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
-            taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
-    this.closer.register(forkMetrics.getMetricContext());
-
-    Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
+    if (GobblinMetrics.isEnabled(this.taskState)) {
+      GobblinMetrics forkMetrics = GobblinMetrics
+          .get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
+              taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
+      this.closer.register(forkMetrics.getMetricContext());
+      Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
+    }
   }
 
   @Override
@@ -182,10 +185,16 @@ public class Fork implements Closeable, Runnable, FinalState {
    */
   @Override
   public State getFinalState() {
-    State state = this.converter.getFinalState();
-    state.addAll(this.rowLevelPolicyChecker.getFinalState());
+    ConstructState state = new ConstructState();
+    if (this.converter != null) {
+      state.addConstructState(Constructs.CONVERTER, new ConstructState(this.converter.getFinalState()));
+    }
+    if (this.rowLevelPolicyChecker != null) {
+      state.addConstructState(Constructs.ROW_QUALITY_CHECKER,
+          new ConstructState(this.rowLevelPolicyChecker.getFinalState()));
+    }
     if (this.writer.isPresent() && this.writer.get() instanceof FinalState) {
-      state.addAll(((FinalState) this.writer.get()).getFinalState());
+      state.addConstructState(Constructs.WRITER, new ConstructState(((FinalState) this.writer.get()).getFinalState()));
     }
     return state;
   }
@@ -303,6 +312,11 @@ public class Fork implements Closeable, Runnable, FinalState {
    */
   public boolean isSucceeded() {
     return this.forkState.compareAndSet(ForkState.SUCCEEDED, ForkState.SUCCEEDED);
+  }
+
+  @Override
+  public String toString() {
+    return "Fork: TaskId = \"" + this.taskId + "\" Index: \"" + this.index + "\" State: \"" + this.forkState + "\"";
   }
 
   @Override

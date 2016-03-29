@@ -12,18 +12,18 @@
 
 package gobblin.data.management.copy.recovery;
 
-import junit.framework.Assert;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -31,9 +31,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicates;
 import com.google.common.io.Files;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.PreserveAttributes;
@@ -79,6 +79,7 @@ public class RecoveryHelperTest {
 
     State state = new State();
     state.setProp(RecoveryHelper.PERSIST_DIR_KEY, this.tmpDir.getAbsolutePath());
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
 
     File recoveryDir = new File(RecoveryHelper.getPersistDir(state).get().toUri().getPath());
 
@@ -86,7 +87,7 @@ public class RecoveryHelperTest {
 
     CopyableFile copyableFile = CopyableFile.builder(fs,
         new FileStatus(0, false, 0, 0, 0, new Path("/file")), new Path("/dataset"),
-        new CopyConfiguration(new Path("/target"), PreserveAttributes.fromMnemonicString(""), new CopyContext())).build();
+        CopyConfiguration.builder(fs, state.getProperties()).preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
 
     CopySource.setWorkUnitGuid(state, Guid.fromHasGuid(copyableFile));
 
@@ -109,6 +110,39 @@ public class RecoveryHelperTest {
         recoveryHelper.findPersistedFile(state, copyableFile, Predicates.<FileStatus>alwaysFalse());
     Assert.assertFalse(fileToRecover.isPresent());
 
+  }
+
+  @Test
+  public void testPurge() throws Exception {
+    String content = "contents";
+
+    File persistDirBase = Files.createTempDir();
+    persistDirBase.deleteOnExit();
+
+    State state = new State();
+    state.setProp(RecoveryHelper.PERSIST_DIR_KEY, persistDirBase.getAbsolutePath());
+    state.setProp(RecoveryHelper.PERSIST_RETENTION_KEY, "1");
+
+    RecoveryHelper recoveryHelper = new RecoveryHelper(FileSystem.getLocal(new Configuration()), state);
+    File persistDir = new File(RecoveryHelper.getPersistDir(state).get().toString());
+    persistDir.mkdir();
+
+    File file = new File(persistDir, "file1");
+    OutputStream os = new FileOutputStream(file);
+    IOUtils.write(content, os);
+    os.close();
+    file.setLastModified(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(2));
+
+    File file2 = new File(persistDir, "file2");
+    OutputStream os2 = new FileOutputStream(file2);
+    IOUtils.write(content, os2);
+    os2.close();
+
+    Assert.assertEquals(persistDir.listFiles().length, 2);
+
+    recoveryHelper.purgeOldPersistedFile();
+
+    Assert.assertEquals(persistDir.listFiles().length, 1);
   }
 
   @Test public void testShortenPathName() throws Exception {

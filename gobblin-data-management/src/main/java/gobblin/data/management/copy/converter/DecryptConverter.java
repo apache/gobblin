@@ -16,12 +16,7 @@ import javax.annotation.Nullable;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.util.PathUtils;
 import gobblin.password.PasswordManager;
 import gobblin.util.GPGFileDecrypter;
 

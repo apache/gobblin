@@ -31,6 +31,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.FsStateStore;
 import gobblin.util.ParallelRunner;
 
 
@@ -126,7 +127,8 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     FileStatus[] fileStatuses = this.fs.listStatus(this.outputTaskStateDir, new PathFilter() {
       @Override
       public boolean accept(Path path) {
-        return path.getName().endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX);
+        return path.getName().endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)
+            && !path.getName().startsWith(FsStateStore.TMP_FILE_PREFIX);
       }
     });
     if (fileStatuses == null || fileStatuses.length == 0) {
@@ -137,11 +139,13 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
     try (ParallelRunner stateSerDeRunner = new ParallelRunner(stateSerDeRunnerThreads, this.fs)) {
       for (FileStatus status : fileStatuses) {
-        LOGGER.info("Found output task state file " + status.getPath());
+        LOGGER.debug("Found output task state file " + status.getPath());
         // Deserialize the TaskState and delete the file
         stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(),
             taskStateQueue, true);
       }
+    } catch (IOException ioe) {
+      LOGGER.warn("Could not read all task state files.");
     }
 
     LOGGER.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));

@@ -42,7 +42,6 @@ import gobblin.util.recordcount.IngestionRecordCountProvider;
  *
  * @author akshay@nerdwallet.com
  */
-@SuppressWarnings("deprecation")
 public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
   private static final Logger LOG = LoggerFactory.getLogger(FsDataWriter.class);
@@ -204,9 +203,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
     if (this.shouldIncludeRecordCountInFileName) {
       String filePathWithRecordCount = addRecordCountToFileName();
-      this.properties.appendToListProp(this.allOutputFilesPropName, filePathWithRecordCount);
+      this.properties.appendToSetProp(this.allOutputFilesPropName, filePathWithRecordCount);
     } else {
-      this.properties.appendToListProp(this.allOutputFilesPropName, getOutputFilePath());
+      this.properties.appendToSetProp(this.allOutputFilesPropName, getOutputFilePath());
     }
   }
 

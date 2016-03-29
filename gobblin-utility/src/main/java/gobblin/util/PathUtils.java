@@ -23,7 +23,7 @@ import com.google.common.base.Strings;
 
 public class PathUtils {
 
-  public static final Pattern GLOB_TOKENS = Pattern.compile("[\\?\\*\\[\\{]");
+  public static final Pattern GLOB_TOKENS = Pattern.compile("[,\\?\\*\\[\\{]");
 
   public static Path mergePaths(Path path1, Path path2) {
     String path2Str = path2.toUri().getPath();
@@ -31,7 +31,7 @@ public class PathUtils {
   }
 
   public static Path relativizePath(Path fullPath, Path pathPrefix) {
-    return new Path(pathPrefix.toUri().relativize(fullPath.toUri()));
+    return new Path(getPathWithoutSchemeAndAuthority(pathPrefix).toUri().relativize(getPathWithoutSchemeAndAuthority(fullPath).toUri()));
   }
 
   /**
@@ -41,13 +41,14 @@ public class PathUtils {
    * @return true if possibleAncestor is an ancestor of fullPath.
    */
   public static boolean isAncestor(Path possibleAncestor, Path fullPath) {
-    return !relativizePath(fullPath, possibleAncestor).equals(fullPath);
+    return !relativizePath(fullPath, possibleAncestor).equals(getPathWithoutSchemeAndAuthority(fullPath));
   }
 
   /**
    * Removes the Scheme and Authority from a Path.
    *
-   * @see {@link Path}, {@link URI}
+   * @see Path
+   * @see URI
    */
   public static Path getPathWithoutSchemeAndAuthority(Path path) {
     return new Path(null, null, path.toUri().getPath());
@@ -67,10 +68,17 @@ public class PathUtils {
   public static Path deepestNonGlobPath(Path input) {
     Path commonRoot = input;
 
-    while(commonRoot != null && GLOB_TOKENS.matcher(commonRoot.toString()).find()) {
+    while(commonRoot != null && isGlob(commonRoot)) {
       commonRoot = commonRoot.getParent();
     }
     return commonRoot;
+  }
+
+  /**
+   * @return true if path has glob tokens (e.g. *, {, \, }, etc.)
+   */
+  public static boolean isGlob(Path path) {
+    return GLOB_TOKENS.matcher(path.toString()).find();
   }
 
   /**
@@ -122,5 +130,17 @@ public class PathUtils {
       }
     }
     return new Path(pathStringBuilder.toString());
+  }
+
+  public static Path combinePaths(String... paths) {
+    if (paths.length == 0) {
+      throw new IllegalArgumentException("Paths cannot be empty!");
+    }
+
+    Path path = new Path(paths[0]);
+    for (int i = 1; i < paths.length; i++) {
+      path = new Path(path, paths[i]);
+    }
+    return path;
   }
 }

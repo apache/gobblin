@@ -16,44 +16,28 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
 
 /**
- * {@link gobblin.data.management.retention.version.finder.DatasetVersionFinder} for datasets based on path timestamps.
- * Uses a datetime pattern to find dataset versions from the dataset path
- * and parse the {@link org.joda.time.DateTime} representing the version.
+ * @deprecated
+ * See javadoc for {@link gobblin.data.management.version.finder.DateTimeDatasetVersionFinder}.
  */
+@Deprecated
 public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DateTimeDatasetVersionFinder.class);
+  private final gobblin.data.management.version.finder.DateTimeDatasetVersionFinder realVersionFinder;
 
-  public static final String DATE_TIME_PATTERN_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX + "datetime.pattern";
+  public static final String DATE_TIME_PATTERN_KEY =
+      gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_KEY;
   public static final String DATE_TIME_PATTERN_TIMEZONE_KEY =
-      DatasetCleaner.CONFIGURATION_KEY_PREFIX + "datetime.pattern.timezone";
-  public static final String DEFAULT_DATE_TIME_PATTERN_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
-
-  private final Path globPattern;
-  private final DateTimeFormatter formatter;
+      gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY;
 
   public DateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);
-    String pattern = props.getProperty(DATE_TIME_PATTERN_KEY);
-    this.globPattern = new Path(pattern.replaceAll("[^/]+", "*"));
-    LOGGER.debug(String.format("Setting timezone for patthern: %s. By default it is %s", pattern,
-        DEFAULT_DATE_TIME_PATTERN_TIMEZONE));
-    this.formatter = DateTimeFormat.forPattern(pattern).withZone(
-        DateTimeZone.forID(props.getProperty(DATE_TIME_PATTERN_TIMEZONE_KEY, DEFAULT_DATE_TIME_PATTERN_TIMEZONE)));
-
+    this.realVersionFinder = new gobblin.data.management.version.finder.DateTimeDatasetVersionFinder(fs, props);
   }
 
   @Override
@@ -61,28 +45,17 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
     return TimestampedDatasetVersion.class;
   }
 
-  /**
-   * Obtained by replacing all non-slash characters in datetime pattern by *.
-   * E.g. yyyy/MM/dd/hh/mm -> *\/*\/*\/*\/*
-   */
   @Override
   public Path globVersionPattern() {
-    return this.globPattern;
+    return this.realVersionFinder.globVersionPattern();
   }
 
-  /**
-   * Parse {@link org.joda.time.DateTime} from {@link org.apache.hadoop.fs.Path} using datetime pattern.
-   */
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    try {
-      return new TimestampedDatasetVersion(this.formatter.parseDateTime(pathRelativeToDatasetRoot.toString()),
-          fullPath);
-    } catch (IllegalArgumentException exception) {
-      LOGGER.warn(
-          "Candidate dataset version at " + pathRelativeToDatasetRoot + " does not match expected pattern. Ignoring.");
-      return null;
+    gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion = this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath);
+    if (timestampedDatasetVersion != null) {
+      return new TimestampedDatasetVersion(timestampedDatasetVersion);
     }
+    return null;
   }
-
 }

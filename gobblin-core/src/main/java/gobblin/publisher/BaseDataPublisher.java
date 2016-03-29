@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -47,13 +48,20 @@ import gobblin.util.WriterUtils;
  * to the final output directory.
  *
  * <p>
- *
  * The final output directory is specified by {@link ConfigurationKeys#DATA_PUBLISHER_FINAL_DIR}. The output of each
  * writer is written to this directory. Each individual writer can also specify a path in the config key
  * {@link ConfigurationKeys#WRITER_FILE_PATH}. Then the final output data for a writer will be
  * {@link ConfigurationKeys#DATA_PUBLISHER_FINAL_DIR}/{@link ConfigurationKeys#WRITER_FILE_PATH}. If the
  * {@link ConfigurationKeys#WRITER_FILE_PATH} is not specified, a default one is assigned. The default path is
  * constructed in the {@link gobblin.source.workunit.Extract#getOutputFilePath()} method.
+ * </p>
+ *
+ * <p>
+ * This publisher records all dirs it publishes to in property {@link ConfigurationKeys#PUBLISHER_DIRS}. Each time it
+ * publishes a {@link Path}, if the path is a directory, it records this path. If the path is a file, it records the
+ * parent directory of the path. To change this behavior one may override
+ * {@link #recordPublisherOutputDirs(Path, Path, int)}.
+ * </p>
  */
 public class BaseDataPublisher extends SingleTaskDataPublisher {
 
@@ -65,8 +73,10 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final List<Optional<String>> publisherFinalDirOwnerGroupsByBranches;
   protected final List<FsPermission> permissions;
   protected final Closer closer;
+  protected final Closer parallelRunnerCloser;
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
+  protected final Set<Path> publisherOutputDirs = Sets.newHashSet();
 
   public BaseDataPublisher(State state) throws IOException {
     super(state);
@@ -92,9 +102,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
           ConfigurationKeys.LOCAL_FS_URI));
       this.writerFileSystemByBranches.add(FileSystem.get(writerUri, conf));
 
-      URI publisherUri = URI.create(this.getState().getProp(
-          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FILE_SYSTEM_URI, this.numBranches, i),
-          writerUri.toString()));
+      URI publisherUri = URI.create(this.getState().getProp(ForkOperatorUtils.getPropertyNameForBranch(
+          ConfigurationKeys.DATA_PUBLISHER_FILE_SYSTEM_URI, this.numBranches, i), writerUri.toString()));
       this.publisherFileSystemByBranches.add(FileSystem.get(publisherUri, conf));
 
       // The group(s) will be applied to the final publisher output directory(ies)
@@ -111,6 +120,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
     this.parallelRunnerThreads =
         state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
+    this.parallelRunnerCloser = Closer.create();
   }
 
   @Override
@@ -120,7 +130,13 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   @Override
   public void close() throws IOException {
-    this.closer.close();
+    try {
+      for (Path path : this.publisherOutputDirs) {
+        this.state.appendToSetProp(ConfigurationKeys.PUBLISHER_DIRS, path.toString());
+      }
+    } finally {
+      this.closer.close();
+    }
   }
 
   @Override
@@ -128,6 +144,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     for (int branchId = 0; branchId < this.numBranches; branchId++) {
       publishSingleTaskData(state, branchId);
     }
+    this.parallelRunnerCloser.close();
   }
 
   /**
@@ -149,7 +166,11 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       for (int branchId = 0; branchId < this.numBranches; branchId++) {
         publishMultiTaskData(workUnitState, branchId, writerOutputPathsMoved);
       }
+    }
 
+    this.parallelRunnerCloser.close();
+
+    for (WorkUnitState workUnitState : states) {
       // Upon successfully committing the data to the final output directory, set states
       // of successful tasks to COMMITTED. leaving states of unsuccessful ones unchanged.
       // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
@@ -217,9 +238,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
             publisherOutputDir.getParent(), this.permissions.get(branchId));
       }
 
-      LOG.info(String.format("Moving %s to %s", writerOutputDir, publisherOutputDir));
-      parallelRunner.movePath(writerOutputDir, this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputDir, this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
+      movePath(parallelRunner, state, writerOutputDir, publisherOutputDir, branchId);
       writerOutputPathsMoved.add(writerOutputDir);
     }
   }
@@ -250,7 +269,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       return;
     }
 
-    Iterable<String> taskOutputFiles = workUnitState.getPropAsList(outputFilePropName);
+    Iterable<String> taskOutputFiles = workUnitState.getPropAsSet(outputFilePropName);
     for (String taskOutputFile : taskOutputFiles) {
       Path taskOutputPath = new Path(taskOutputFile);
       if (!this.writerFileSystemByBranches.get(branchId).exists(taskOutputPath)) {
@@ -263,9 +282,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId),
           publisherOutputPath.getParent(), this.permissions.get(branchId));
 
-      LOG.info(String.format("Moving %s to %s", taskOutputFile, publisherOutputPath));
-      parallelRunner.movePath(taskOutputPath, this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputPath, Optional.<String> absent());
+      movePath(parallelRunner, workUnitState, taskOutputPath, publisherOutputPath, branchId);
     }
   }
 
@@ -285,16 +302,34 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
                       ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
           : new Path(publisherOutputDir, status.getPath().getName());
 
-      LOG.info(String.format("Moving %s to %s", status.getPath(), finalOutputPath));
-      parallelRunner.movePath(status.getPath(), this.publisherFileSystemByBranches.get(branchId),
-          finalOutputPath, Optional.<String> absent());
+      movePath(parallelRunner, workUnitState, status.getPath(), finalOutputPath, branchId);
+    }
+  }
+
+  protected void movePath(ParallelRunner parallelRunner, State state, Path src, Path dst, int branchId) throws IOException {
+    LOG.info(String.format("Moving %s to %s", src, dst));
+    boolean overwrite = state.getPropAsBoolean(ConfigurationKeys.DATA_PUBLISHER_OVERWRITE_ENABLED, false);
+    this.publisherOutputDirs.addAll(recordPublisherOutputDirs(src, dst, branchId));
+    parallelRunner.movePath(src, this.publisherFileSystemByBranches.get(branchId), dst, overwrite,
+        this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
+  }
+
+  @SuppressWarnings("deprecation")
+  protected Collection<Path> recordPublisherOutputDirs(Path src, Path dst, int branchId) throws IOException {
+
+    // Getting file status from src rather than dst, because at this time dst doesn't yet exist.
+    // If src is a dir, add dst to the set of paths. Otherwise, add dst's parent.
+    if (this.writerFileSystemByBranches.get(branchId).getFileStatus(src).isDir()) {
+      return ImmutableList.<Path> of(dst);
+    } else {
+      return ImmutableList.<Path> of(dst.getParent());
     }
   }
 
   private ParallelRunner getParallelRunner(FileSystem fs) {
     String uri = fs.getUri().toString();
     if (!this.parallelRunners.containsKey(uri)) {
-      this.parallelRunners.put(uri, this.closer.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
+      this.parallelRunners.put(uri, this.parallelRunnerCloser.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
     }
     return this.parallelRunners.get(uri);
   }

@@ -12,13 +12,10 @@
 
 package gobblin.publisher;
 
-import com.google.common.base.Optional;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -37,8 +34,6 @@ import gobblin.util.WriterUtils;
  * @author ziliu
  */
 public class TimePartitionedDataPublisher extends BaseDataPublisher {
-
-  private static final Logger LOG = LoggerFactory.getLogger(TimePartitionedDataPublisher.class);
 
   public TimePartitionedDataPublisher(State state) throws IOException {
     super(state);
@@ -64,9 +59,7 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
       WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId), outputPath.getParent(),
           this.permissions.get(branchId));
 
-      LOG.info(String.format("Moving %s to %s", status.getPath(), outputPath));
-      parallelRunner.movePath(status.getPath(), this.publisherFileSystemByBranches.get(branchId),
-          outputPath, Optional.<String> absent());
+      movePath(parallelRunner, workUnitState, status.getPath(), outputPath, branchId);
     }
   }
 }

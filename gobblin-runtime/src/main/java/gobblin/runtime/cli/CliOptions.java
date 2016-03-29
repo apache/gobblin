@@ -13,6 +13,7 @@
 package gobblin.runtime.cli;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.Properties;
 
 import org.apache.commons.cli.CommandLine;
@@ -21,13 +22,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
-import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 
 import gobblin.util.JobConfigurationUtils;
 
@@ -62,7 +57,6 @@ public class CliOptions {
    * @throws IOException
    */
   public static Properties parseArgs(Class<?> caller, String[] args) throws IOException {
-
     try {
       // Parse command-line options
       CommandLine cmd = new DefaultParser().parse(options(), args);
@@ -78,14 +72,16 @@ public class CliOptions {
       }
 
       // Load system and job configuration properties
-      Properties sysConfig = fileToProperties(cmd.getOptionValue(SYS_CONFIG_OPTION.getLongOpt()));
-      Properties jobConfig = fileToProperties(cmd.getOptionValue(JOB_CONFIG_OPTION.getLongOpt()));
+      Properties sysConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(SYS_CONFIG_OPTION.getLongOpt()));
+      Properties jobConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(JOB_CONFIG_OPTION.getLongOpt()));
 
       return JobConfigurationUtils.combineSysAndJobProperties(sysConfig, jobConfig);
     } catch (ParseException pe) {
       throw new IOException(pe);
     } catch (ConfigurationException ce) {
       throw new IOException(ce);
+    } catch (URISyntaxException use) {
+      throw new IOException(use);
     }
   }
 
@@ -105,10 +101,4 @@ public class CliOptions {
     return options;
   }
 
-  private static Properties fileToProperties(String fileName) throws IOException, ConfigurationException {
-    Path filePath = new Path(fileName);
-    PropertiesConfiguration propsConfig = new PropertiesConfiguration();
-    propsConfig.load(filePath.getFileSystem(new Configuration()).open(filePath));
-    return ConfigurationConverter.getProperties(propsConfig);
-  }
 }

@@ -16,11 +16,14 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.recovery.RecoveryHelper;
+import gobblin.state.ConstructState;
+import gobblin.util.FinalState;
 import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.ForkOperatorUtils;
@@ -57,7 +60,7 @@ import com.google.common.io.Closer;
  * A {@link DataWriter} to write {@link FileAwareInputStream}
  */
 @Slf4j
-public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInputStream> {
+public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInputStream>, FinalState {
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
@@ -70,12 +73,17 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   protected final RecoveryHelper recoveryHelper;
   /**
    * The copyable file in the WorkUnit might be modified by converters (e.g. output extensions added / removed).
-   * This field is set when {@link #write} is called, and points to the actual, possibly modified {@link CopyableFile}
+   * This field is set when {@link #write} is called, and points to the actual, possibly modified {@link gobblin.data.management.copy.CopyEntity}
    * that was written by this writer.
    */
   protected Optional<CopyableFile> actualProcessedCopyableFile;
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId) throws IOException {
+
+    if (numBranches > 1) {
+      throw new IOException("Distcp can only operate with one branch.");
+    }
+
     this.state = state;
 
     String uri =
@@ -85,9 +93,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
     this.fs = FileSystem.get(URI.create(uri), new Configuration());
     this.stagingDir = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
-    this.outputDir =
-        new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR,
-            numBranches, branchId)));
+    this.outputDir = getOutputDir(state);
     this.copyableDatasetMetadata =
         CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
@@ -98,6 +104,9 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   public final void write(FileAwareInputStream fileAwareInputStream) throws IOException {
     CopyableFile copyableFile = fileAwareInputStream.getFile();
     Path stagingFile = getStagingFilePath(copyableFile);
+    if (this.actualProcessedCopyableFile.isPresent()) {
+      throw new IOException(this.getClass().getCanonicalName() + " can only process one file.");
+    }
     this.actualProcessedCopyableFile = Optional.of(copyableFile);
     this.fs.mkdirs(stagingFile.getParent());
     writeImpl(fileAwareInputStream.getInputStream(), stagingFile, copyableFile);
@@ -116,7 +125,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    *
    * @param inputStream {@link FSDataInputStream} whose contents should be written to staging path.
    * @param writeAt {@link Path} at which contents should be written.
-   * @param copyableFile {@link CopyableFile} that generated this copy operation.
+   * @param copyableFile {@link gobblin.data.management.copy.CopyEntity} that generated this copy operation.
    * @throws IOException
    */
   protected void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
@@ -131,8 +140,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
         return input.getReplication() == replication && input.getBlockSize() == blockSize;
       }
     };
-    Optional<FileStatus> persistedFile = this.recoveryHelper.findPersistedFile(this.state,
-        copyableFile, fileStatusAttributesFilter);
+    Optional<FileStatus> persistedFile = this.recoveryHelper.findPersistedFile(this.state, copyableFile, fileStatusAttributesFilter);
 
     if (persistedFile.isPresent()) {
       log.info(String.format("Recovering persisted file %s to %s.", persistedFile.get().getPath(), writeAt));
@@ -162,15 +170,21 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     return new Path(this.stagingDir, file.getDestination().getName());
   }
 
-  protected Path getOutputFilePath(CopyableFile file) {
-    return new Path(getPartitionOutputRoot(file),
-        PathUtils.withoutLeadingSeparator(file.getDestination()));
+  protected static Path getPartitionOutputRoot(Path outputDir,
+      CopyEntity.DatasetAndPartition datasetAndPartition) {
+    return new Path(outputDir, datasetAndPartition.identifier());
   }
 
-  protected Path getPartitionOutputRoot(CopyableFile file) {
-    CopyableFile.DatasetAndPartition datasetAndPartition =
-        file.getDatasetAndPartition(this.copyableDatasetMetadata);
-    return new Path(this.outputDir, datasetAndPartition.identifier());
+  public static Path getOutputFilePath(CopyableFile file, Path outputDir,
+      CopyEntity.DatasetAndPartition datasetAndPartition) {
+    Path destinationWithoutSchemeAndAuthority = PathUtils.getPathWithoutSchemeAndAuthority(file.getDestination());
+    return new Path(getPartitionOutputRoot(outputDir, datasetAndPartition),
+        PathUtils.withoutLeadingSeparator(destinationWithoutSchemeAndAuthority));
+  }
+
+  public static Path getOutputDir(State state) {
+    return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR,
+        1, 0)));
   }
 
   /**
@@ -266,9 +280,14 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   @Override
   public void commit() throws IOException {
 
+    if (!this.actualProcessedCopyableFile.isPresent()) {
+      return;
+    }
+
     CopyableFile copyableFile = this.actualProcessedCopyableFile.get();
     Path stagingFilePath = getStagingFilePath(copyableFile);
-    Path outputFilePath = getOutputFilePath(copyableFile);
+    Path outputFilePath = getOutputFilePath(copyableFile, this.outputDir,
+        copyableFile.getDatasetAndPartition(this.copyableDatasetMetadata));
 
     log.info(String.format("Committing data from %s to %s", stagingFilePath, outputFilePath));
     try {
@@ -276,9 +295,8 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
       Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt = copyableFile.getAncestorsOwnerAndPermission() == null ?
           Iterators.<OwnerAndPermission>emptyIterator() : copyableFile.getAncestorsOwnerAndPermission().iterator();
-      if (!ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt)) {
-        throw new IOException(String.format("Could not create ancestors for %s", outputFilePath));
-      }
+
+      ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt);
 
       if (!this.fs.rename(stagingFilePath, outputFilePath)) {
           // target exists
@@ -297,41 +315,57 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     }
   }
 
-  private boolean ensureDirectoryExists(FileSystem fs, Path path,
+  private void ensureDirectoryExists(FileSystem fs, Path path,
       Iterator<OwnerAndPermission> ownerAndPermissionIterator) throws IOException {
 
     if (fs.exists(path)) {
-      return true;
+      return;
     }
 
     if (ownerAndPermissionIterator.hasNext()) {
       OwnerAndPermission ownerAndPermission = ownerAndPermissionIterator.next();
+
       if (path.getParent() != null) {
         ensureDirectoryExists(fs, path.getParent(), ownerAndPermissionIterator);
       }
-      if (ownerAndPermission.getFsPermission() == null) {
-        // use default permissions
-        if (!fs.mkdirs(path)) {
-          return false;
-        }
-      } else {
-        if (!fs.mkdirs(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()))) {
-          return false;
-        }
+
+      if (!fs.mkdirs(path)) {
+        // fs.mkdirs returns false if path already existed. Do not overwrite permissions
+        return;
       }
+
+      if (ownerAndPermission.getFsPermission() != null) {
+        log.debug("Applying permissions %s to path %s.", ownerAndPermission.getFsPermission(), path);
+        fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
+      }
+
       String group = ownerAndPermission.getGroup();
       String owner = ownerAndPermission.getOwner();
       if (group != null || owner != null) {
+        log.debug("Applying owner %s and group %s to path %s.", owner, group, path);
         fs.setOwner(path, owner, group);
       }
     } else {
-      return fs.mkdirs(path);
+      fs.mkdirs(path);
     }
-    return true;
   }
 
   @Override
   public void cleanup() throws IOException {
     // Do nothing
+  }
+
+  @Override public State getFinalState() {
+    try {
+      State state = new State();
+      if (this.actualProcessedCopyableFile.isPresent()) {
+        CopySource.serializeCopyEntity(state, this.actualProcessedCopyableFile.get());
+      }
+      ConstructState constructState = new ConstructState();
+      constructState.addOverwriteProperties(state);
+      return constructState;
+    } catch (IOException ioe) {
+      throw new RuntimeException("Could not serialize actual processed copyable file.", ioe);
+    }
   }
 }
