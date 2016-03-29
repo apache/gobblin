@@ -21,7 +21,6 @@ import gobblin.writer.Destination.DestinationType;
 import gobblin.writer.commands.JdbcWriterCommands;
 import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.JDBCType;
@@ -37,7 +36,6 @@ import org.testng.annotations.Test;
 
 @Test(groups = {"gobblin.converter"})
 public class AvroToJdbcEntryConverterTest {
-  private static final String PATH_PREFIX = "/home/jnchang/workspace/gobblin/gobblin/gobblin-core/src/test/resources";
 
   @Test
   public void testDateConversion() throws IOException, SchemaConversionException, SQLException {
@@ -62,7 +60,7 @@ public class AvroToJdbcEntryConverterTest {
     jdbcEntryMetaData.add(new JdbcEntryMetaDatum("created", JDBCType.TIMESTAMP));
     JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData);
 
-    Schema inputSchema = new Schema.Parser().parse(new File(PATH_PREFIX+"/converter/fieldPickInput.avsc"));
+    Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/fieldPickInput.avsc"));
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.appendToListProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
     AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState, factory);
@@ -97,7 +95,7 @@ public class AvroToJdbcEntryConverterTest {
     doReturn(null).when(converter).createConnection(workUnitState);
     when(converter.createConnection(workUnitState)).thenReturn(null);
 
-    Schema inputSchema = new Schema.Parser().parse(new File(PATH_PREFIX+"/converter/user.avsc"));
+    Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/user.avsc"));
 
     List<JdbcEntryMetaDatum> jdbcEntryMetaData = new ArrayList<>();
     jdbcEntryMetaData.add(new JdbcEntryMetaDatum("user_id", JDBCType.VARCHAR));
