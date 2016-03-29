@@ -17,6 +17,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,33 +29,56 @@ import gobblin.data.management.copy.RecursivePathFinder;
 import gobblin.util.PathUtils;
 
 /**
- * Contains data for a Hive location as well as additional data if {@link #ENABLE_HIVE_LOCATION_DESCRIPTOR_WITH_ADDITIONAL_DATA} set to true.
+ * Contains data for a Hive location as well as additional data if {@link #HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED} set to true.
  */
-
 @Data
+@Slf4j
 class HiveLocationDescriptor {
-  public static final String HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED= HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.additional.paths.recursively.enabled";
-  
+  public static final String HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.additional.paths.recursively.enabled";
+  public static final String HIVE_LOCATION_LISTING_METHOD =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.location.listing.method";
+  public static final String DEFAULT_HIVE_LOCATION_LISTING_METHOD = PathFindingMethod.INPUT_FORMAT.name();
+
+  public enum PathFindingMethod {
+    INPUT_FORMAT, RECURSIVE
+  }
+
   protected final Path location;
   protected final InputFormat<?, ?> inputFormat;
   protected final FileSystem fileSystem;
   protected final Properties properties;
 
   public Set<Path> getPaths() throws IOException {
-    Set<Path> result = HiveUtils.getPaths(this.inputFormat, this.location);
-    
-    boolean useHiveLocationDescriptorWithAdditionalData = 
-        Boolean.valueOf(this.properties.getProperty(HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED, "true"));
-    
-    if(useHiveLocationDescriptorWithAdditionalData){
-      if(PathUtils.isGlob(location)){
-        throw new RuntimeException("can not get additional data for glob pattern path "  + location);
+
+    PathFindingMethod pathFindingMethod = PathFindingMethod.valueOf(
+        this.properties.getProperty(HIVE_LOCATION_LISTING_METHOD, DEFAULT_HIVE_LOCATION_LISTING_METHOD).toUpperCase());
+
+    if (pathFindingMethod == PathFindingMethod.INPUT_FORMAT) {
+
+      Set<Path> result = HiveUtils.getPaths(this.inputFormat, this.location);
+
+      boolean useHiveLocationDescriptorWithAdditionalData =
+          Boolean.valueOf(this.properties.getProperty(HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED, "true"));
+
+      if (useHiveLocationDescriptorWithAdditionalData) {
+        if (PathUtils.isGlob(this.location)) {
+          throw new IOException("can not get additional data for glob pattern path " + this.location);
+        }
+        RecursivePathFinder finder = new RecursivePathFinder(this.fileSystem, this.location, this.properties);
+        result.addAll(finder.getPaths());
       }
-      RecursivePathFinder finder = new RecursivePathFinder(fileSystem, location, properties);
-      result.addAll(finder.getPaths());
+
+      return result;
+    } else if (pathFindingMethod == PathFindingMethod.RECURSIVE) {
+      if (PathUtils.isGlob(this.location)) {
+        throw new IOException("Cannot use recursive listing for globbed locations.");
+      }
+      RecursivePathFinder finder = new RecursivePathFinder(this.fileSystem, this.location, this.properties);
+      return finder.getPaths();
+    } else {
+      throw new IOException("Hive location listing method not recognized: " + pathFindingMethod);
     }
-    
-    return result;
   }
 
   public static HiveLocationDescriptor forTable(Table table, FileSystem fs, Properties properties) throws IOException {
@@ -65,5 +89,5 @@ class HiveLocationDescriptor {
     return new HiveLocationDescriptor(partition.getDataLocation(),
         HiveUtils.getInputFormat(partition.getTPartition().getSd()), fs, properties);
   }
-  
+
 }

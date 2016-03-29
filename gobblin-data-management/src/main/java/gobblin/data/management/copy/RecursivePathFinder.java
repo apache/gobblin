@@ -44,9 +44,13 @@ public class RecursivePathFinder {
 
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
   }
-  
+
   public Set<Path> getPaths() throws IOException{
     Set<Path> result = new HashSet<Path>();
+
+    if (!this.fs.exists(this.rootPath)) {
+      return result;
+    }
 
     List<FileStatus> files = FileListUtils.listFilesRecursively(this.fs, this.rootPath, this.pathFilter);
 

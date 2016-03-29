@@ -12,22 +12,13 @@
 
 package gobblin.data.management.copy.hive;
 
-import com.google.common.collect.Iterators;
-import gobblin.data.management.partition.FileSet;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Singular;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Set;
 
@@ -44,7 +35,9 @@ import org.apache.thrift.TException;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -58,6 +51,7 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.data.management.copy.hive.avro.HiveAvroCopyEntityHelper;
+import gobblin.data.management.partition.FileSet;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HiveRegProps;
 import gobblin.hive.HiveRegisterStep;
@@ -68,6 +62,13 @@ import gobblin.hive.spec.SimpleHiveSpec;
 import gobblin.util.PathUtils;
 import gobblin.util.commit.DeleteFileCommitStep;
 import gobblin.util.reflection.GobblinConstructorUtils;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Singular;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -112,6 +113,10 @@ public class HiveCopyEntityHelper {
    * be the name of the implementation to use. */
   public static final String COPY_PARTITION_FILTER_GENERATOR =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.partition.filter.generator";
+  /** A predicate applied to each partition before any file listing.
+   * If the predicate returns true, the partition will be skipped. */
+  public static final String FAST_PARTITION_SKIP_PREDICATE =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.fast.partition.skip.predicate";
 
   private static final String databaseToken = "$DB";
   private static final String tableToken = "$TABLE";
@@ -135,6 +140,7 @@ public class HiveCopyEntityHelper {
   private final Optional<String> targetURI;
   private final ExistingEntityPolicy existingEntityPolicy;
   private final Optional<String> partitionFilter;
+  private final Optional<Predicate<Partition>> fastPartitionSkip;
 
   private final Optional<CommitStep> tableRegistrationStep;
   private final Map<List<String>, Partition> sourcePartitions;
@@ -180,8 +186,8 @@ public class HiveCopyEntityHelper {
 
     this.relocateDataFiles =
         Boolean.valueOf(this.dataset.properties.getProperty(RELOCATE_DATA_FILES_KEY, DEFAULT_RELOCATE_DATA_FILES));
-    this.targetTableRoot = this.dataset.properties.containsKey(COPY_TARGET_TABLE_ROOT) ?
-        Optional.of(resolvePath(this.dataset.properties.getProperty(COPY_TARGET_TABLE_ROOT),
+    this.targetTableRoot = this.dataset.properties.containsKey(COPY_TARGET_TABLE_ROOT)
+        ? Optional.of(resolvePath(this.dataset.properties.getProperty(COPY_TARGET_TABLE_ROOT),
             this.dataset.table.getDbName(), this.dataset.table.getTableName())) : Optional.<Path>absent();
 
     this.hiveRegProps = new HiveRegProps(new State(this.dataset.properties));
@@ -205,6 +211,16 @@ public class HiveCopyEntityHelper {
       }
     } else {
       this.partitionFilter = Optional.fromNullable(this.dataset.properties.getProperty(COPY_PARTITIONS_FILTER_CONSTANT));
+    }
+
+    try {
+      this.fastPartitionSkip = this.dataset.properties.containsKey(FAST_PARTITION_SKIP_PREDICATE) ? Optional.of(
+          GobblinConstructorUtils.invokeFirstConstructor(
+              (Class<Predicate<Partition>>) Class.forName(this.dataset.properties.getProperty(FAST_PARTITION_SKIP_PREDICATE)),
+              Lists.<Object>newArrayList(this), Lists.newArrayList()))
+          : Optional.<Predicate<Partition>>absent();
+    } catch (ReflectiveOperationException roe) {
+      throw new IOException(roe);
     }
 
     Map<String, HiveMetastoreClientPool> namedPools =
@@ -399,6 +415,12 @@ public class HiveCopyEntityHelper {
     private List<CopyEntity> getCopyEntities()
         throws IOException {
 
+      if (fastPartitionSkip.isPresent() && fastPartitionSkip.get().apply(this.partition)) {
+        log.info(String.format("Skipping copy of partition %s due to fast partition skip predicate.",
+            this.partition.getCompleteName()));
+        return Lists.newArrayList();
+      }
+
       log.info("Getting copy entities for partition " + this.partition.getCompleteName());
 
       int stepPriority = 0;
@@ -419,10 +441,10 @@ public class HiveCopyEntityHelper {
           checkPartitionCompatibility(partition, existingTargetPartition.get());
         } catch (IOException ioe) {
           if (existingEntityPolicy != ExistingEntityPolicy.REPLACE_PARTITIONS) {
-            log.error("Source and target partitions are not compatible. Aborting copy of partition " + this.partition);
+            log.error("Source and target partitions are not compatible. Aborting copy of partition " + this.partition, ioe);
             return Lists.newArrayList();
           }
-          log.warn("Source and target partitions are not compatible. Will override target partition.");
+          log.warn("Source and target partitions are not compatible. Will override target partition.", ioe);
           stepPriority = addDeregisterSteps(copyEntities, fileSet, stepPriority, targetTable, existingTargetPartition.get());
           existingTargetPartition = Optional.absent();
         }
@@ -469,7 +491,11 @@ public class HiveCopyEntityHelper {
     int stepPriority = initialPriority;
 
     InputFormat<?, ?> inputFormat = HiveUtils.getInputFormat(partition.getTPartition().getSd());
-    Collection<Path> partitionPaths = HiveUtils.getPaths(inputFormat, partition.getDataLocation());
+
+    HiveLocationDescriptor targetLocation = new HiveLocationDescriptor(partition.getDataLocation(), inputFormat,
+        this.targetFs, this.dataset.properties);
+
+    Collection<Path> partitionPaths = targetLocation.getPaths();
     DeleteFileCommitStep deletePaths = DeleteFileCommitStep.fromPaths(targetFs, partitionPaths, this.dataset.properties);
     copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deletePaths, stepPriority++));
 
