@@ -21,26 +21,35 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+
+import gobblin.util.ExecutorsUtils;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Executes tasks in an {@link Iterator}. Tasks need not be generated until they can be executed.
  * @param <T>
  */
+@Slf4j
 public class IteratorExecutor<T> {
 
   private final CompletionService<T> completionService;
   private final int numThreads;
   private final ExecutorService executor;
   private final Iterator<Callable<T>> iterator;
+  private boolean executed;
 
   public IteratorExecutor(Iterator<Callable<T>> runnableIterator, int numThreads, ThreadFactory threadFactory) {
     this.numThreads = numThreads;
     this.iterator = runnableIterator;
     this.executor = Executors.newFixedThreadPool(numThreads, threadFactory);
     this.completionService = new ExecutorCompletionService<>(this.executor);
+    this.executed = false;
   }
 
   /**
@@ -49,6 +58,11 @@ public class IteratorExecutor<T> {
    * @throws InterruptedException
    */
   public List<Future<T>> execute() throws InterruptedException {
+
+    if (this.executed) {
+      throw new RuntimeException(String.format("This %s has already been executed.", IteratorExecutor.class.getSimpleName()));
+    }
+
     List<Future<T>> futures = Lists.newArrayList();
     int activeTasks = 0;
     while (this.iterator.hasNext()) {
@@ -65,6 +79,10 @@ public class IteratorExecutor<T> {
     }
 
     this.completionService.poll();
+
+    ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
+    this.executed = true;
+
     return futures;
   }
 
