@@ -17,23 +17,19 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.locks.ChildReaper;
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreMutex;
-import org.apache.curator.framework.recipes.locks.Reaper;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ExecutorsUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,22 +40,18 @@ import lombok.extern.slf4j.Slf4j;
  * @author Joel Baranick
  */
 @Slf4j
-public class ZookeeperBasedJobLock extends JobLock {
+public class ZookeeperBasedJobLock implements JobLock {
   private static final String LOCKS_ROOT_PATH = "/locks";
-  private static final String LOCKS_CHILD_REAPER_LEADER_PATH = "/services/locksChildReaper";
-  private static final String LOCKS_CHILD_REAPER_THREAD_NAME = "curator-locks-reaper";
   private static final String CONNECTION_STRING_DEFAULT = "localhost:2181";
-  private static final int LOCKS_CHILD_REAPER_THRESHOLD_SECONDS_DEFAULT = 300;
   private static final int LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS_DEFAULT = 5000;
   private static final int CONNECTION_TIMEOUT_SECONDS_DEFAULT = 30;
   private static final int SESSION_TIMEOUT_SECONDS_DEFAULT = 180;
   private static final int RETRY_BACKOFF_SECONDS_DEFAULT = 1;
   private static final int MAX_RETRY_COUNT_DEFAULT = 10;
   private static CuratorFramework curatorFramework;
-  private static ChildReaper locksReaper;
   private static ConcurrentMap<String, JobLockEventListener> lockEventListeners = Maps.newConcurrentMap();
+  private static Thread curatorFrameworkShutdownHook;
 
-  public static final String LOCKS_CHILD_REAPER_THRESHOLD_SECONDS = "zookeeper.locks.reaper.threshold.seconds";
   public static final String LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS = "zookeeper.locks.acquire.timeout.milliseconds";
   public static final String CONNECTION_STRING = "zookeeper.connection.string";
   public static final String CONNECTION_TIMEOUT_SECONDS = "zookeeper.connection.timeout.seconds";
@@ -85,7 +77,7 @@ public class ZookeeperBasedJobLock extends JobLock {
             getLong(properties, LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS, LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS_DEFAULT);
     this.lockPath = Paths.get(LOCKS_ROOT_PATH, jobName).toString();
     lockEventListeners.putIfAbsent(this.lockPath, jobLockEventListener);
-    ensureCuratorFrameworkExists(properties);
+    initializeCuratorFramework(properties);
     lock = new InterProcessSemaphoreMutex(curatorFramework, lockPath);
   }
 
@@ -164,7 +156,11 @@ public class ZookeeperBasedJobLock extends JobLock {
     }
   }
 
-  private synchronized static void ensureCuratorFrameworkExists(Properties properties) {
+  private synchronized static void initializeCuratorFramework(Properties properties) {
+    if (curatorFrameworkShutdownHook == null) {
+      curatorFrameworkShutdownHook = new CuratorFrameworkShutdownHook();
+      Runtime.getRuntime().addShutdownHook(curatorFrameworkShutdownHook);
+    }
     if (curatorFramework == null) {
       CuratorFramework newCuratorFramework = CuratorFrameworkFactory.builder()
               .connectString(properties.getProperty(CONNECTION_STRING, CONNECTION_STRING_DEFAULT))
@@ -190,6 +186,8 @@ public class ZookeeperBasedJobLock extends JobLock {
                 }
                 break;
               case CONNECTED:
+                log.info("Connected with zookeeper");
+                break;
               case RECONNECTED:
                 log.warn("Regained connection with zookeeper");
                 break;
@@ -197,23 +195,24 @@ public class ZookeeperBasedJobLock extends JobLock {
           }
       });
       newCuratorFramework.start();
+      try {
+        if (!newCuratorFramework.blockUntilConnected(
+                getInt(properties, CONNECTION_TIMEOUT_SECONDS, CONNECTION_TIMEOUT_SECONDS_DEFAULT),
+                TimeUnit.SECONDS)) {
+          throw new RuntimeException("Time out while waiting to connect to zookeeper");
+        }
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Interrupted while waiting to connect to zookeeper");
+      }
       curatorFramework = newCuratorFramework;
     }
-    if (locksReaper == null) {
-      ChildReaper newLocksReaper = new ChildReaper(
-            curatorFramework, LOCKS_ROOT_PATH, Reaper.Mode.REAP_UNTIL_GONE,
-            Executors.newSingleThreadScheduledExecutor(
-                  ExecutorsUtils.newDaemonThreadFactory(Optional.of(log),
-                        Optional.of(LOCKS_CHILD_REAPER_THREAD_NAME))),
-              getMilliseconds(properties, LOCKS_CHILD_REAPER_THRESHOLD_SECONDS,
-                      LOCKS_CHILD_REAPER_THRESHOLD_SECONDS_DEFAULT),
-            LOCKS_CHILD_REAPER_LEADER_PATH);
-      try {
-        newLocksReaper.start();
-        locksReaper = newLocksReaper;
-      } catch (Exception e) {
-        log.warn("Locks child reaper failed to start", e);
-      }
+  }
+
+  @VisibleForTesting
+  static synchronized void shutdownCuratorFramework() {
+    if (curatorFramework != null) {
+      curatorFramework.close();
+      curatorFramework = null;
     }
   }
 
@@ -227,5 +226,17 @@ public class ZookeeperBasedJobLock extends JobLock {
 
   private static int getMilliseconds(Properties properties, String key, int defaultValue) {
     return getInt(properties, key, defaultValue) * 1000;
+  }
+
+  private static class CuratorFrameworkShutdownHook extends Thread {
+    public void run() {
+      log.info("Shutting down curator framework...");
+      try {
+        shutdownCuratorFramework();
+        log.info("Curator framework shut down.");
+      } catch (Exception e) {
+        log.error("Error while shutting down curator framework.", e);
+      }
+    }
   }
 }

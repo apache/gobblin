@@ -32,7 +32,7 @@ import org.apache.hadoop.fs.Path;
  *
  * @author Yinan Li
  */
-public class FileBasedJobLock extends JobLock {
+public class FileBasedJobLock implements JobLock {
   public static final String JOB_LOCK_DIR = "job.lock.dir";
   public static final String LOCK_FILE_EXTENSION = ".lock";
 

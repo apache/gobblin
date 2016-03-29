@@ -14,6 +14,7 @@ package gobblin.runtime.locks;
 
 import java.util.Properties;
 
+import com.google.common.base.Preconditions;
 import gobblin.configuration.ConfigurationKeys;
 
 
@@ -37,14 +38,16 @@ public class JobLockFactory {
    */
   public static JobLock getJobLock(Properties properties, JobLockEventListener jobLockEventListener)
           throws JobLockException {
+    Preconditions.checkNotNull(properties);
+    Preconditions.checkNotNull(jobLockEventListener);
     JobLock jobLock;
     if (properties.containsKey(ConfigurationKeys.JOB_LOCK_TYPE)) {
       try {
         Class<?> jobLockClass = Class.forName(
-                properties.getProperty(ConfigurationKeys.JOB_LOCK_TYPE, FileBasedJobLock.class.getSimpleName()));
+                properties.getProperty(ConfigurationKeys.JOB_LOCK_TYPE, FileBasedJobLock.class.getName()));
         jobLock = (JobLock) jobLockClass.newInstance();
       } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
-        jobLock = new FileBasedJobLock();
+        throw new JobLockException(e);
       }
     } else {
       jobLock = new FileBasedJobLock();

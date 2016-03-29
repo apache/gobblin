@@ -49,7 +49,7 @@ public class FileBasedJobLockTest extends JobLockTest {
   }
 
   @Override
-  public JobLock getJobLock() throws JobLockException {
+  protected JobLock getJobLock() throws JobLockException {
     Properties properties = new Properties();
     properties.setProperty(FileBasedJobLock.JOB_LOCK_DIR, this.path.getName());
     properties.setProperty(ConfigurationKeys.JOB_NAME_KEY, "FileBasedJobLockTest-" + System.currentTimeMillis());

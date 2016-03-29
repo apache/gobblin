@@ -17,7 +17,7 @@ import java.util.Properties;
 
 
 /**
- * A class for claiming exclusive right to proceed for each scheduled
+ * A interface for claiming exclusive right to proceed for each scheduled
  * run of a job.
  *
  * <p>
@@ -28,9 +28,7 @@ import java.util.Properties;
  *
  * @author Yinan Li
  */
-public abstract class JobLock implements Closeable {
-  public JobLock() {
-  }
+public interface JobLock extends Closeable {
 
   /**
    * Initializes the lock.
@@ -39,7 +37,7 @@ public abstract class JobLock implements Closeable {
    * @param jobLockEventListener the listener for lock events
    * @throws JobLockException thrown if the {@link JobLock} fails to initialize
    */
-  public abstract void initialize(Properties properties, JobLockEventListener jobLockEventListener)
+  void initialize(Properties properties, JobLockEventListener jobLockEventListener)
       throws JobLockException;
 
   /**
@@ -47,7 +45,7 @@ public abstract class JobLock implements Closeable {
    *
    * @throws JobLockException thrown if the {@link JobLock} fails to be acquired
    */
-  public abstract void lock()
+  void lock()
       throws JobLockException;
 
   /**
@@ -55,7 +53,7 @@ public abstract class JobLock implements Closeable {
    *
    * @throws JobLockException thrown if the {@link JobLock} fails to be released
    */
-  public abstract void unlock()
+  void unlock()
       throws JobLockException;
 
   /**
@@ -65,7 +63,7 @@ public abstract class JobLock implements Closeable {
    *         <em>false</em> if otherwise.
    * @throws JobLockException thrown if the {@link JobLock} fails to be acquired
    */
-  public abstract boolean tryLock()
+  boolean tryLock()
       throws JobLockException;
 
   /**
@@ -74,7 +72,7 @@ public abstract class JobLock implements Closeable {
    * @return if the lock is locked
    * @throws JobLockException thrown if checking the status of the {@link JobLock} fails
    */
-  public abstract boolean isLocked()
+  boolean isLocked()
       throws JobLockException;
 
 }

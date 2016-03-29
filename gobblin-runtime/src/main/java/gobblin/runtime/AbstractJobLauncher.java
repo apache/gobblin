@@ -212,7 +212,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.FULL_JOB_EXECUTION);
 
       try {
-      if (!tryLockJob(this.jobProps)) {
+        if (!tryLockJob(this.jobProps)) {
           this.eventSubmitter.submit(gobblin.metrics.event.EventNames.LOCK_IN_USE);
           throw new JobException(String.format(
               "Previous instance of job %s is still running, skipping this scheduled run", this.jobContext.getJobName()));
