@@ -14,8 +14,8 @@ package gobblin.converter.jdbc;
 
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 
@@ -24,7 +24,7 @@ public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
   private final int byteSize;
 
   public JdbcEntryData(Iterable<JdbcEntryDatum> jdbcEntryDatumEntries) {
-    Objects.requireNonNull(jdbcEntryDatumEntries);
+    Preconditions.checkNotNull(jdbcEntryDatumEntries);
     ImmutableMap.Builder<String, JdbcEntryDatum> builder = ImmutableSortedMap.naturalOrder();
     int byteCount = 0;
     for (JdbcEntryDatum datum : jdbcEntryDatumEntries) {

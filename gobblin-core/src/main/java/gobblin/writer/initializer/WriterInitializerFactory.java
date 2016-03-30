@@ -21,8 +21,8 @@ import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**
@@ -52,7 +52,7 @@ public class WriterInitializerFactory {
   }
 
   private static WriterInitializer newSingleInstance(State state, Collection<WorkUnit> workUnits, int branches, int branchId) {
-    Objects.requireNonNull(state);
+    Preconditions.checkNotNull(state);
 
     String writerBuilderKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, branchId);
     String writerBuilderClass = state.getProp(writerBuilderKey, ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);

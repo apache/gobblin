@@ -18,13 +18,15 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
+
 import javax.sql.DataSource;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -127,7 +129,7 @@ public class JdbcPublisher extends DataPublisher {
       for (int i = 0; i < branches; i++) {
         final String destinationTable = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, i));
         final String databaseName = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_DATABASE_NAME, branches, i));
-        Objects.requireNonNull(destinationTable);
+        Preconditions.checkNotNull(destinationTable);
 
         if(state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
            && !emptiedDestTables.contains(destinationTable)) {
@@ -170,7 +172,7 @@ public class JdbcPublisher extends DataPublisher {
     for (WorkUnitState workUnitState : states) {
       String stagingTableKey =
           ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE, branches, i);
-      String stagingTable = Objects.requireNonNull(workUnitState.getProp(stagingTableKey));
+      String stagingTable = Preconditions.checkNotNull(workUnitState.getProp(stagingTableKey));
       List<WorkUnitState> existing = stagingTables.get(stagingTable);
       if(existing == null) {
         existing = Lists.newArrayList();

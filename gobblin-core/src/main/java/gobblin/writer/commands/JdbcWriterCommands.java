@@ -11,8 +11,9 @@
  */
 package gobblin.writer.commands;
 
+import gobblin.converter.jdbc.JdbcType;
+
 import java.sql.Connection;
-import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.util.Map;
 
@@ -65,10 +66,10 @@ public interface JdbcWriterCommands extends JdbcBufferedInserter {
    * Retrieves date related column such as Date, Time, DateTime, Timestamp etc.
    * @param conn
    * @param table
-   * @return Map of column name and JDBCType that is date related.
+   * @return Map of column name and JdbcType that is date related.
    * @throws SQLException
    */
-  public Map<String, JDBCType> retrieveDateColumns(Connection conn, String table) throws SQLException;
+  public Map<String, JdbcType> retrieveDateColumns(Connection conn, String table) throws SQLException;
 
   /**
    * Copy all the contents from one table to another. Both table should be in same structure.

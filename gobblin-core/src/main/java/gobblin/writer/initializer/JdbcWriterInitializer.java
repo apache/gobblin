@@ -27,7 +27,6 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -72,7 +72,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
     this.branchId = branchId;
 
     String destKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, branches, branchId);
-    String destType = Objects.requireNonNull(state.getProp(destKey), destKey + " is required for underlying JDBC product name");
+    String destType = Preconditions.checkNotNull(state.getProp(destKey), destKey + " is required for underlying JDBC product name");
     Destination dest = Destination.of(DestinationType.valueOf(destType.toUpperCase()), state);
     this.commands = jdbcWriterCommandsFactory.newInstance(dest);
     this.createdStagingTables = Sets.newHashSet();
@@ -275,7 +275,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
     Set<String> publishTables = Sets.newHashSet();
 
     for (int branchId = 0; branchId < branches; branchId++) {
-      String publishTable = Objects.requireNonNull(getProp(state, ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId),
+      String publishTable = Preconditions.checkNotNull(getProp(state, ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId),
           ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME + " should not be null.");
       if(publishTables.contains(publishTable)) {
         throw new IllegalArgumentException("Duplicate " + ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME + " is not allowed across branches");

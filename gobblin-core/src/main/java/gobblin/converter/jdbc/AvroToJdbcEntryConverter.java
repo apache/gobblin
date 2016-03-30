@@ -14,14 +14,12 @@ package gobblin.converter.jdbc;
 
 import java.sql.Connection;
 import java.sql.Date;
-import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -37,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -65,8 +64,8 @@ import gobblin.writer.commands.JdbcWriterCommandsFactory;
 public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema, GenericRecord, JdbcEntryData> {
   private static final Logger LOG = LoggerFactory.getLogger(AvroToJdbcEntryConverter.class);
   private static final Set<Type> AVRO_SUPPORTED_TYPES;
-  private static final Map<Type, JDBCType> AVRO_TYPE_JDBC_TYPE_MAPPING;
-  private static final Set<JDBCType> JDBC_SUPPORTED_TYPES;
+  private static final Map<Type, JdbcType> AVRO_TYPE_JDBC_TYPE_MAPPING;
+  private static final Set<JdbcType> JDBC_SUPPORTED_TYPES;
 
   private Optional<Map<String, String>> avroToJdbcColPairs = Optional.absent();
   private Optional<Map<String, String>> jdbcToAvroColPairs = Optional.absent();
@@ -74,14 +73,14 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
   private JdbcWriterCommands commands;
 
   static {
-    AVRO_TYPE_JDBC_TYPE_MAPPING = ImmutableMap.<Type, JDBCType>builder()
-                                              .put(Type.BOOLEAN, JDBCType.BOOLEAN)
-                                              .put(Type.INT, JDBCType.INTEGER)
-                                              .put(Type.LONG, JDBCType.BIGINT)
-                                              .put(Type.FLOAT, JDBCType.FLOAT)
-                                              .put(Type.DOUBLE, JDBCType.DOUBLE)
-                                              .put(Type.STRING, JDBCType.VARCHAR)
-                                              .put(Type.ENUM, JDBCType.VARCHAR)
+    AVRO_TYPE_JDBC_TYPE_MAPPING = ImmutableMap.<Type, JdbcType>builder()
+                                              .put(Type.BOOLEAN, JdbcType.BOOLEAN)
+                                              .put(Type.INT, JdbcType.INTEGER)
+                                              .put(Type.LONG, JdbcType.BIGINT)
+                                              .put(Type.FLOAT, JdbcType.FLOAT)
+                                              .put(Type.DOUBLE, JdbcType.DOUBLE)
+                                              .put(Type.STRING, JdbcType.VARCHAR)
+                                              .put(Type.ENUM, JdbcType.VARCHAR)
                                               .build();
 
     AVRO_SUPPORTED_TYPES = ImmutableSet.<Type>builder()
@@ -89,11 +88,11 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
                                        .add(Type.UNION)
                                        .build();
 
-    JDBC_SUPPORTED_TYPES = ImmutableSet.<JDBCType>builder()
+    JDBC_SUPPORTED_TYPES = ImmutableSet.<JdbcType>builder()
                                        .addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.values())
-                                       .add(JDBCType.DATE)
-                                       .add(JDBCType.TIME)
-                                       .add(JDBCType.TIMESTAMP)
+                                       .add(JdbcType.DATE)
+                                       .add(JdbcType.TIME)
+                                       .add(JdbcType.TIMESTAMP)
                                        .build();
   }
 
@@ -177,22 +176,22 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     try (Connection conn = createConnection(workUnit)) {
       Map<String, Type> avroColumnType = flatten(inputSchema);
 
-      String table = Objects.requireNonNull(workUnit.getProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME));
-      Map<String, JDBCType> dateColumnMapping = commands.retrieveDateColumns(conn, table);
+      String table = Preconditions.checkNotNull(workUnit.getProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME));
+      Map<String, JdbcType> dateColumnMapping = commands.retrieveDateColumns(conn, table);
       LOG.info("Date column mapping: " + dateColumnMapping);
 
       List<JdbcEntryMetaDatum> jdbcEntryMetaData = Lists.newArrayList();
       for(Map.Entry<String, Type> avroEntry : avroColumnType.entrySet()) {
         String colName = tryConvertColumn(avroEntry.getKey(), avroToJdbcColPairs);
-        JDBCType jdbcType = dateColumnMapping.get(colName);
-        if(jdbcType == null) {
-          jdbcType = AVRO_TYPE_JDBC_TYPE_MAPPING.get(avroEntry.getValue());
+        JdbcType JdbcType = dateColumnMapping.get(colName);
+        if(JdbcType == null) {
+          JdbcType = AVRO_TYPE_JDBC_TYPE_MAPPING.get(avroEntry.getValue());
         }
-        Objects.requireNonNull(jdbcType, "Failed to convert " + avroEntry
+        Preconditions.checkNotNull(JdbcType, "Failed to convert " + avroEntry
                                          + " AVRO_TYPE_JDBC_TYPE_MAPPING: " + AVRO_TYPE_JDBC_TYPE_MAPPING
                                          + " , dateColumnMapping: " + dateColumnMapping);
 
-        jdbcEntryMetaData.add(new JdbcEntryMetaDatum(colName, jdbcType));
+        jdbcEntryMetaData.add(new JdbcEntryMetaDatum(colName, JdbcType));
       }
       JdbcEntrySchema converted = new JdbcEntrySchema(jdbcEntryMetaData);
       LOG.info("Converted schema into " + converted);
@@ -302,7 +301,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     List<JdbcEntryDatum> jdbcEntryData = Lists.newArrayList();
     for (JdbcEntryMetaDatum entry : outputSchema) {
       final String colName = entry.getColumnName();
-      final JDBCType jdbcType = entry.getJdbcType();
+      final JdbcType jdbcType = entry.getJdbcType();
       final Object val = record.get(tryConvertColumn(colName, jdbcToAvroColPairs));
 
       if (val == null) {

@@ -23,7 +23,6 @@ import gobblin.converter.jdbc.JdbcEntryData;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Objects;
 
 import javax.sql.DataSource;
 
@@ -31,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 /**
  * Uses JDBC to persist data in task level.
@@ -55,12 +55,12 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
     String databaseTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_DATABASE_NAME,
                                                                          builder.branches,
                                                                          builder.branch);
-    this.databaseName = Objects.requireNonNull(state.getProp(databaseTableKey), "Staging table is missing with key " + databaseTableKey);
+    this.databaseName = Preconditions.checkNotNull(state.getProp(databaseTableKey), "Staging table is missing with key " + databaseTableKey);
 
     String stagingTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE,
                                                                         builder.branches,
                                                                         builder.branch);
-    this.tableName = Objects.requireNonNull(state.getProp(stagingTableKey), "Staging table is missing with key " + stagingTableKey);
+    this.tableName = Preconditions.checkNotNull(state.getProp(stagingTableKey), "Staging table is missing with key " + stagingTableKey);
     this.commands = new JdbcWriterCommandsFactory().newInstance(state);
     try {
       this.conn = createConnection();

@@ -13,14 +13,15 @@
 package gobblin.writer.commands;
 
 import gobblin.configuration.State;
+import gobblin.converter.jdbc.JdbcType;
 import gobblin.converter.jdbc.JdbcEntryData;
 
 import java.sql.Connection;
-import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,15 +100,15 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
    * @see gobblin.writer.commands.JdbcWriterCommands#retrieveDateColumns(java.sql.Connection, java.lang.String)
    */
   @Override
-  public Map<String, JDBCType> retrieveDateColumns(Connection conn, String table) throws SQLException {
-    Map<String, JDBCType> targetDataTypes = ImmutableMap.<String, JDBCType>builder()
-        .put("DATE", JDBCType.DATE)
-        .put("DATETIME", JDBCType.TIME)
-        .put("TIME", JDBCType.TIME)
-        .put("TIMESTAMP", JDBCType.TIMESTAMP)
+  public Map<String, JdbcType> retrieveDateColumns(Connection conn, String table) throws SQLException {
+    Map<String, JdbcType> targetDataTypes = ImmutableMap.<String, JdbcType>builder()
+        .put("DATE", JdbcType.DATE)
+        .put("DATETIME", JdbcType.TIME)
+        .put("TIME", JdbcType.TIME)
+        .put("TIMESTAMP", JdbcType.TIMESTAMP)
         .build();
 
-    ImmutableMap.Builder<String, JDBCType> dateColumnsBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<String, JdbcType> dateColumnsBuilder = ImmutableMap.builder();
     try (PreparedStatement pstmt = conn.prepareStatement(INFORMATION_SCHEMA_SELECT_SQL_PSTMT)) {
       pstmt.setString(1, table);
       LOG.info("Retrieving column type information from SQL: " + pstmt);
@@ -117,7 +118,7 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
       }
       do {
         String type = rs.getString("column_type").toUpperCase();
-        JDBCType convertedType = targetDataTypes.get(type);
+        JdbcType convertedType = targetDataTypes.get(type);
         if (convertedType != null) {
           dateColumnsBuilder.put(rs.getString("column_name"), convertedType);
         }

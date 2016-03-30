@@ -23,7 +23,6 @@ import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,10 +39,10 @@ public class AvroToJdbcEntryConverterTest {
   @Test
   public void testDateConversion() throws IOException, SchemaConversionException, SQLException {
     final String table = "users";
-    Map<String, JDBCType> dateColums = new HashMap<>();
-    dateColums.put("date_of_birth", JDBCType.DATE);
-    dateColums.put("last_modified", JDBCType.TIME);
-    dateColums.put("created", JDBCType.TIMESTAMP);
+    Map<String, JdbcType> dateColums = new HashMap<>();
+    dateColums.put("date_of_birth", JdbcType.DATE);
+    dateColums.put("last_modified", JdbcType.TIME);
+    dateColums.put("created", JdbcType.TIMESTAMP);
 
     JdbcWriterCommands mockWriterCommands = mock(JdbcWriterCommands.class);
     when(mockWriterCommands.retrieveDateColumns(mock(Connection.class), table)).thenReturn(dateColums);
@@ -52,12 +51,12 @@ public class AvroToJdbcEntryConverterTest {
     when(factory.newInstance(any(State.class))).thenReturn(mockWriterCommands);
 
     List<JdbcEntryMetaDatum> jdbcEntryMetaData = new ArrayList<>();
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("name", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_number", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_color", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("date_of_birth", JDBCType.DATE));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("last_modified", JDBCType.TIME));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("created", JDBCType.TIMESTAMP));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("name", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_number", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_color", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("date_of_birth", JdbcType.DATE));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("last_modified", JdbcType.TIME));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("created", JdbcType.TIMESTAMP));
     JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData);
 
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/fieldPickInput.avsc"));
@@ -74,8 +73,8 @@ public class AvroToJdbcEntryConverterTest {
 
   @Test
   public void testFieldNameConversion() throws IOException, SchemaConversionException, SQLException {
-    Map<String, JDBCType> dateColums = new HashMap<>();
-    dateColums.put("last_updated", JDBCType.TIMESTAMP);
+    Map<String, JdbcType> dateColums = new HashMap<>();
+    dateColums.put("last_updated", JdbcType.TIMESTAMP);
 
     final String table = "users";
     JdbcWriterCommands mockWriterCommands = mock(JdbcWriterCommands.class);
@@ -98,16 +97,16 @@ public class AvroToJdbcEntryConverterTest {
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/user.avsc"));
 
     List<JdbcEntryMetaDatum> jdbcEntryMetaData = new ArrayList<>();
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("user_id", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("member_id", JDBCType.BIGINT));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("business_unit", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("level", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("geo_region", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("super_region", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("sub_region", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("currency", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("segment", JDBCType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("vertical", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("user_id", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("member_id", JdbcType.BIGINT));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("business_unit", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("level", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("geo_region", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("super_region", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("sub_region", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("currency", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("segment", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("vertical", JdbcType.VARCHAR));
 
     JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData);
     JdbcEntrySchema actual = converter.convertSchema(inputSchema, workUnitState);

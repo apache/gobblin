@@ -14,10 +14,10 @@ package gobblin.writer.jdbc;
 
 import static org.mockito.Mockito.*;
 import gobblin.configuration.State;
+import gobblin.converter.jdbc.JdbcType;
 import gobblin.writer.commands.MySqlWriterCommands;
 
 import java.sql.Connection;
-import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -26,9 +26,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.testng.annotations.Test;
 
-import junit.framework.Assert;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
 import com.sun.rowset.JdbcRowSetImpl;
@@ -46,19 +46,17 @@ public class JdbcWriterCommandsTest {
     when(pstmt.executeQuery()).thenReturn(rs);
 
     MySqlWriterCommands writerCommands = new MySqlWriterCommands(new State());
-    Map<String, JDBCType> actual = writerCommands.retrieveDateColumns(conn, "users");
+    Map<String, JdbcType> actual = writerCommands.retrieveDateColumns(conn, "users");
 
-    ImmutableMap.Builder<String, JDBCType> builder = ImmutableMap.builder();
-    builder.put("date_of_birth",JDBCType.DATE);
-    builder.put("last_modified", JDBCType.TIME);
-    builder.put("created", JDBCType.TIMESTAMP);
+    ImmutableMap.Builder<String, JdbcType> builder = ImmutableMap.builder();
+    builder.put("date_of_birth",JdbcType.DATE);
+    builder.put("last_modified", JdbcType.TIME);
+    builder.put("created", JdbcType.TIMESTAMP);
 
-    Map<String, JDBCType> expected = builder.build();
+    Map<String, JdbcType> expected = builder.build();
 
     Assert.assertEquals(expected, actual);
   }
-
-
 
   private ResultSet createMockResultSet() {
     final List<Map<String, String>> expected = new ArrayList<>();

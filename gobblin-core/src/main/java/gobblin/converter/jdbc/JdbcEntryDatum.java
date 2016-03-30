@@ -12,7 +12,8 @@
 
 package gobblin.converter.jdbc;
 
-import java.util.Objects;
+import com.google.common.base.Preconditions;
+
 
 public class JdbcEntryDatum {
   private final String columnName;
@@ -20,8 +21,8 @@ public class JdbcEntryDatum {
   private int byteSize;
 
   public JdbcEntryDatum(String columnName, Object val) {
-    this.columnName = Objects.requireNonNull(columnName);
-    this.val = Objects.requireNonNull(val);
+    this.columnName = Preconditions.checkNotNull(columnName);
+    this.val = Preconditions.checkNotNull(val);
     this.byteSize = val.toString().getBytes().length;
   }
 

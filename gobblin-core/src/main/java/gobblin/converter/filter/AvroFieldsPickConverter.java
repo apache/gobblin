@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 import org.apache.avro.Schema;
@@ -27,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -99,7 +99,8 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     LOG.info("Converting schema " + inputSchema);
     String fieldsStr = workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_FIELD_PICK_FIELDS);
-    Objects.requireNonNull(fieldsStr, ConfigurationKeys.CONVERTER_AVRO_FIELD_PICK_FIELDS + " is required for converter " + this.getClass().getSimpleName());
+    Preconditions.checkNotNull(fieldsStr, ConfigurationKeys.CONVERTER_AVRO_FIELD_PICK_FIELDS
+                                   + " is required for converter " + this.getClass().getSimpleName());
     LOG.info("Converting schema to selected fields: " + fieldsStr);
 
     List<String> fields = SPLITTER_ON_COMMA.splitToList(fieldsStr);
