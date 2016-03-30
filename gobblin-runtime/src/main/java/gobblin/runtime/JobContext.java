@@ -430,6 +430,9 @@ public class JobContext {
     if (!Strings.isNullOrEmpty(datasetState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE))) {
       return Optional.<Class<? extends DataPublisher>> of((Class<? extends DataPublisher>) Class
           .forName(datasetState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE)));
+    } else if (!Strings.isNullOrEmpty(datasetState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE))) {
+      return Optional.<Class<? extends DataPublisher>> of(
+          (Class<? extends DataPublisher>) Class.forName(datasetState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE)));
     } else {
       LOG.info("Property " + ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE + " not specified");
       return Optional.<Class<? extends DataPublisher>> absent();
