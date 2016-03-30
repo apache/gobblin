@@ -338,6 +338,7 @@ public class JobContext {
   /**
    * Commit the job on a per-dataset basis.
    */
+  @SuppressWarnings("unchecked")
   void commit() throws IOException {
     this.datasetStatesByUrns = Optional.of(this.jobState.createDatasetStatesByUrns());
     boolean allDatasetsCommit = true;
@@ -355,7 +356,8 @@ public class JobContext {
 
       Class<? extends DataPublisher> dataPublisherClass;
       try (Closer closer = Closer.create()) {
-        dataPublisherClass = getJobDataPublisherClass(datasetState);
+        dataPublisherClass = getJobDataPublisherClass(datasetState)
+            .or((Class<? extends DataPublisher>) Class.forName(ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
         if (!canCommitDataset(datasetState)) {
           this.logger.warn(String.format("Not committing dataset %s of job %s with commit policy %s and state %s",
               datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
@@ -423,15 +425,14 @@ public class JobContext {
   }
 
   @SuppressWarnings("unchecked")
-  private Class<? extends DataPublisher> getJobDataPublisherClass(JobState.DatasetState datasetState)
+  private Optional<Class<? extends DataPublisher>> getJobDataPublisherClass(JobState.DatasetState datasetState)
       throws ReflectiveOperationException {
-    if (datasetState.contains(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE)) {
-      return (Class<? extends DataPublisher>) Class
-          .forName(datasetState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE));
+    if (!Strings.isNullOrEmpty(datasetState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE))) {
+      return Optional.<Class<? extends DataPublisher>> of((Class<? extends DataPublisher>) Class
+          .forName(datasetState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE)));
     } else {
-      LOG.warn("Property " + ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE + " not specified");
-      return (Class<? extends DataPublisher>) Class.forName(
-          datasetState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+      LOG.info("Property " + ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE + " not specified");
+      return Optional.<Class<? extends DataPublisher>> absent();
     }
 
   }
