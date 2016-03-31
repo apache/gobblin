@@ -102,6 +102,7 @@ public class ConfigurationKeys {
   public static final String JOB_JAR_FILES_KEY = "job.jars";
   public static final String JOB_LOCAL_FILES_KEY = "job.local.files";
   public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
+  public static final String JOB_JAR_HDFS_FILES_KEY = "job.jars.hdfs";
   public static final String JOB_LOCK_ENABLED_KEY = "job.lock.enabled";
   public static final String JOB_MAX_FAILURES_KEY = "job.max.failures";
   public static final int DEFAULT_JOB_MAX_FAILURES = 1;
@@ -315,6 +316,7 @@ public class ConfigurationKeys {
   public static final String JDBC_PUBLISHER_REPLACE_FINAL_TABLE = JDBC_PUBLISHER_PREFIX + "replace.table";
   public static final String JDBC_PUBLISHER_USERNAME = JDBC_PUBLISHER_PREFIX + "username";
   public static final String JDBC_PUBLISHER_PASSWORD = JDBC_PUBLISHER_PREFIX + "password";
+  public static final String JDBC_PUBLISHER_ENCRYPTION_KEY_LOC = JDBC_PUBLISHER_PREFIX + "encrypt.key.loc";
   public static final String JDBC_PUBLISHER_URL = JDBC_PUBLISHER_PREFIX + "url";
   public static final String JDBC_PUBLISHER_TIMEOUT = JDBC_PUBLISHER_PREFIX + "timeout";
   public static final String JDBC_PUBLISHER_DRIVER = JDBC_PUBLISHER_PREFIX + "driver";

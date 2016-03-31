@@ -87,6 +87,7 @@ public class JdbcPublisher extends DataPublisher {
                                              .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
                                              .userName(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_USERNAME))
                                              .passWord(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_PASSWORD))
+                                             .cryptoKeyLocation(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
                                              .maxActiveConnections(1)
                                              .maxIdleConnections(1)
                                              .state(state)
