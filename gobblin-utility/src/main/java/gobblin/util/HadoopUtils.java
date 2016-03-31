@@ -269,8 +269,8 @@ public class HadoopUtils {
 
     Preconditions.checkArgument(srcFs.exists(src),
             String.format("Cannot copy from %s to %s because src does not exist", src, dst));
-    Preconditions
-            .checkArgument(!dstFs.exists(dst), String.format("Cannot copy from %s to %s because dst exists", src, dst));
+    Preconditions.checkArgument(overwrite || !dstFs.exists(dst),
+            String.format("Cannot copy from %s to %s because dst exists", src, dst));
 
     try {
       if (!FileUtil.copy(srcFs, src, dstFs, dst, deleteSource, overwrite, conf)) {
