@@ -39,7 +39,7 @@ public class CopyContext {
   private final Cache<Path, Optional<FileStatus>> fileStatusCache;
 
   public CopyContext() {
-    this.fileStatusCache = CacheBuilder.newBuilder().build();
+    this.fileStatusCache = CacheBuilder.newBuilder().maximumSize(10000).build();
   }
 
   /**
