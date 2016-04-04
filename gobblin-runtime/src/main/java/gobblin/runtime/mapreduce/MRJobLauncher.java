@@ -313,7 +313,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Serialize source state to a file which will be picked up by the mappers
     Path jobStateFilePath = new Path(this.mrJobDir, JOB_STATE_FILE_NAME);
-    SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
+    SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState(), 100);
     job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());
 
     if (this.jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
