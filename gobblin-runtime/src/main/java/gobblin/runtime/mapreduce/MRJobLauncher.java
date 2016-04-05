@@ -311,10 +311,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     SequenceFileOutputFormat.setOutputPath(this.job, this.jobOutputPath);
 
     // Serialize source state to a file which will be picked up by the mappers
-    Path jobStateFilePath = new Path(this.mrJobDir, JOB_STATE_FILE_NAME);
-    int jobStateRF = this.conf.getInt("dfs.replication.max", 20);
-    SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState(), jobStateRF);
-    job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());
+    serializeJobState(this.fs, this.mrJobDir, this.conf, this.jobContext.getJobState(), this.job);
 
     if (this.jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
       // When there is a limit on the number of mappers, each mapper may run
@@ -328,6 +325,15 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     mrJobSetupTimer.stop();
+  }
+
+  @VisibleForTesting
+  static void serializeJobState(FileSystem fs, Path mrJobDir, Configuration conf, JobState jobState,
+                                Job job) throws IOException {
+    Path jobStateFilePath = new Path(mrJobDir, JOB_STATE_FILE_NAME);
+    short jobStateRF = (short)conf.getInt("dfs.replication.max", 20);
+    SerializationUtils.serializeState(fs, jobStateFilePath, jobState, jobStateRF);
+    job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());
   }
 
   /**
