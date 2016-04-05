@@ -146,8 +146,22 @@ public class SerializationUtils {
    */
   public static <T extends State> void deserializeState(FileSystem fs, Path jobStateFilePath, T state)
       throws IOException {
+    try (InputStream is = fs.open(jobStateFilePath)) {
+      deserializeStateFromInputStream(is, state);
+    }
+  }
 
-    try (InputStream is = fs.open(jobStateFilePath); DataInputStream dis = (new DataInputStream(is))) {
+  /**
+   * Deserialize/read a {@link State} instance from a file.
+   *
+   * @param is {@link InputStream} containing the state.
+   * @param state an empty {@link State} instance to deserialize into
+   * @param <T> the {@link State} object type
+   * @throws IOException if it fails to deserialize the {@link State} instance
+   */
+  public static <T extends State> void deserializeStateFromInputStream(InputStream is, T state)
+      throws IOException {
+    try (DataInputStream dis = (new DataInputStream(is))) {
       state.readFields(dis);
     }
   }

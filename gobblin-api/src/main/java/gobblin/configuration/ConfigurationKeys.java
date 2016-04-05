@@ -126,6 +126,7 @@ public class ConfigurationKeys {
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
   public static final String JOB_STATE_FILE_PATH_KEY = "job.state.file.path";
+  public static final String JOB_STATE_DISTRIBUTED_CACHE_NAME = "job.state.distributed.cache.name";
 
   /**
    * Dataset-related configuration properties;
@@ -486,7 +487,7 @@ public class ConfigurationKeys {
    * Kafka job configurations.
    */
   public static final String KAFKA_BROKERS = "kafka.brokers";
-  public static final String KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS = "kafka.source.work.units.creation.threads"; 
+  public static final String KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS = "kafka.source.work.units.creation.threads";
   public static final int KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT = 30;
 
   /**
