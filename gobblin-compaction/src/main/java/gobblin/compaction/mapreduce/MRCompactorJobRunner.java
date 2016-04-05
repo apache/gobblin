@@ -56,6 +56,7 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.RecordCountProvider;
+import gobblin.util.WriterUtils;
 import gobblin.util.executors.ScalingThreadPoolExecutor;
 import gobblin.util.recordcount.LateFileRecordCountProvider;
 
@@ -489,7 +490,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private void moveTmpPathToOutputPath() throws IOException {
     LOG.info(String.format("Moving %s to %s", this.dataset.outputTmpPath(), this.dataset.outputPath()));
     this.fs.delete(this.dataset.outputPath(), true);
-    this.fs.mkdirs(this.dataset.outputPath().getParent(), this.perm);
+    WriterUtils.mkdirsWithRecursivePermission(this.fs, this.dataset.outputPath().getParent(), this.perm);
     if (!this.fs.rename(this.dataset.outputTmpPath(), this.dataset.outputPath())) {
       throw new IOException(
           String.format("Unable to move %s to %s", this.dataset.outputTmpPath(), this.dataset.outputPath()));
