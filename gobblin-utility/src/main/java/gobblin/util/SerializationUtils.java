@@ -138,12 +138,12 @@ public class SerializationUtils {
    * @param <T> the {@link State} object type
    * @throws IOException if it fails to serialize the {@link State} instance
    */
-  public static <T extends State> void serializeState(FileSystem fs, Path jobStateFilePath, T state, int replication)
-      throws IOException {
+  public static <T extends State> void serializeState(FileSystem fs, Path jobStateFilePath, T state,
+      short replication) throws IOException {
     Closer closer = Closer.create();
 
     try {
-      OutputStream os = closer.register(fs.create(jobStateFilePath, true, replication));
+      OutputStream os = closer.register(fs.create(jobStateFilePath, replication));
       DataOutputStream dataOutputStream = closer.register(new DataOutputStream(os));
       state.write(dataOutputStream);
     } catch (Throwable t) {
