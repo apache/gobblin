@@ -42,8 +42,12 @@ public class ManagedCleanableDatasetFinder extends ConfigurableGlobDatasetFinder
   private final ConfigClient client;
 
   public ManagedCleanableDatasetFinder(FileSystem fs, Properties jobProps, Config config) throws IOException {
+    this(fs, jobProps, config, ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY));
+  }
+
+  public ManagedCleanableDatasetFinder(FileSystem fs, Properties jobProps, Config config, ConfigClient client) throws IOException {
     super(fs, jobProps, config);
-    this.client = ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY);
+    this.client = client;
   }
 
   @Override
