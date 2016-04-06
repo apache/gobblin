@@ -16,6 +16,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
@@ -42,6 +44,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ReflectionUtils;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -671,5 +674,38 @@ public class HadoopUtils {
    */
   public static Path sanitizePath(Path path, String substitute) {
     return new Path(sanitizePath(path.toString(), substitute));
+  }
+
+  public static final String KEYTAB_AUTH_ENABLE = "keytab.auth.enable";
+  public static final Boolean HDFS_AUTH_ENABLE_DEFAULT = false;
+  public static final String KEYTAB_USER = "keytab.user";
+  public static final String KEYTAB_LOCATION = "keytab.location";
+
+  public static void login(State state) throws IOException {
+      try {
+          Boolean hdfsAuthEnable = state.getPropAsBoolean(KEYTAB_AUTH_ENABLE, HDFS_AUTH_ENABLE_DEFAULT);
+
+          if (hdfsAuthEnable) {
+              Preconditions.checkArgument(state.contains(KEYTAB_USER), "Missing required property " + KEYTAB_USER);
+              Preconditions.checkArgument(state.contains(KEYTAB_LOCATION), "Missing required property " + KEYTAB_LOCATION);
+
+              String krb5sUsername = state.getProp(KEYTAB_USER);
+              String krb5KeytabPath = state.getProp(KEYTAB_LOCATION);
+              if (Strings.isNullOrEmpty(krb5KeytabPath)
+                      || Strings.isNullOrEmpty(krb5sUsername)
+                      || !new File(krb5KeytabPath).exists())
+                  throw new IllegalArgumentException("hdfs auth config is not setting or even not exists keytab file.\n\t" +
+                          KEYTAB_USER + " : " + krb5sUsername + "\n\t" +
+                          KEYTAB_LOCATION + " : " + krb5KeytabPath);
+
+              Configuration conf = new Configuration();
+              conf.set("hadoop.security.authentication", "kerberos");
+              UserGroupInformation.setConfiguration(conf);
+              UserGroupInformation.loginUserFromKeytab(krb5sUsername, krb5KeytabPath);
+          }
+
+      } catch (IOException e) {
+          throw new IOException("failed with login" + e.getMessage());
+      }
   }
 }
