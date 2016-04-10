@@ -62,13 +62,12 @@ public class HiveSnapshotRegistrationPolicy extends HiveRegistrationPolicyBase {
 
     if (tables.isEmpty()) {
       return ImmutableList.<HiveSpec> of();
-    } else {
-      Collection<HiveSpec> specs = Lists.newArrayList();
-      for (HiveTable table : tables) {
-        specs.add(new SimpleHiveSpec.Builder<>(path).withTable(table).withPartition(getPartition(path, table)).build());
-      }
-      return specs;
     }
+    Collection<HiveSpec> specs = Lists.newArrayList();
+    for (HiveTable table : tables) {
+      specs.add(new SimpleHiveSpec.Builder<>(path).withTable(table).withPartition(getPartition(path, table)).build());
+    }
+    return specs;
   }
 
   /**

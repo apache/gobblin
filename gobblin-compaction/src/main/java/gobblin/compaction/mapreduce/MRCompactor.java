@@ -152,7 +152,8 @@ public class MRCompactor implements Compactor {
   // The threshold of new(late) data that will trigger recompaction per dataset.
   // It follows the pattern DATASET_NAME_REGEX:THRESHOLD;DATASET_NAME_REGEX:THRESHOLD, e.g., A.*,B.*:0.2; C.*,D.*:0.3.
   // Dataset names that match A.* or B.* will have threshold 0.2. Dataset names that match C.* or D.* will have threshold 0.3.
-  public static final String COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET = COMPACTION_PREFIX + "latedata.threshold.for.recompact.per.topic";
+  public static final String COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET =
+      COMPACTION_PREFIX + "latedata.threshold.for.recompact.per.topic";
   public static final double DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET = 1.0;
 
   // Whether the input data for the compaction is deduplicated.
@@ -238,7 +239,7 @@ public class MRCompactor implements Compactor {
     this.state = new State();
     this.state.addAll(props);
     this.tags = tags;
-    this.conf = HadoopUtils.getConfFromState(state);
+    this.conf = HadoopUtils.getConfFromState(this.state);
     this.tmpOutputDir = getTmpOutputDir();
     this.fs = getFileSystem();
     this.datasets = getDatasetsFinder().findDistinctDatasets();
@@ -269,16 +270,15 @@ public class MRCompactor implements Compactor {
     if (this.state.contains(COMPACTION_FILE_SYSTEM_URI)) {
       URI uri = URI.create(this.state.getProp(COMPACTION_FILE_SYSTEM_URI));
       return FileSystem.get(uri, this.conf);
-    } else {
-      return FileSystem.get(this.conf);
     }
+    return FileSystem.get(this.conf);
   }
 
   private DatasetsFinder getDatasetsFinder() {
     try {
       return (DatasetsFinder) Class
           .forName(this.state.getProp(COMPACTION_DATASETS_FINDER, DEFAULT_COMPACTION_DATASETS_FINDER))
-          .getConstructor(State.class).newInstance(state);
+          .getConstructor(State.class).newInstance(this.state);
     } catch (Exception e) {
       throw new RuntimeException("Failed to initiailize DatasetsFinder.", e);
     }
@@ -286,7 +286,7 @@ public class MRCompactor implements Compactor {
 
   private JobRunnerExecutor createJobExecutor() {
     int threadPoolSize = getThreadPoolSize();
-    BlockingQueue<Runnable> queue = new PriorityBlockingQueue<Runnable>();
+    BlockingQueue<Runnable> queue = new PriorityBlockingQueue<>();
     return new JobRunnerExecutor(threadPoolSize, threadPoolSize, Long.MAX_VALUE, TimeUnit.NANOSECONDS, queue);
   }
 
@@ -322,7 +322,7 @@ public class MRCompactor implements Compactor {
         this.closer.close();
       } finally {
         deleteDependencyJars();
-        gobblinMetrics.stopMetricsReporting();
+        this.gobblinMetrics.stopMetricsReporting();
       }
     }
   }
@@ -376,7 +376,7 @@ public class MRCompactor implements Compactor {
    */
   private void createJobPropsForDatasets() {
     final Set<Dataset> datasetsWithProps = Sets.newHashSet();
-    for (Dataset dataset: this.datasets) {
+    for (Dataset dataset : this.datasets) {
       datasetsWithProps.addAll(createJobPropsForDataset(dataset));
     }
 
@@ -390,7 +390,7 @@ public class MRCompactor implements Compactor {
    * Update datasets based on the results of creating job props for them.
    */
   private List<Dataset> createJobPropsForDataset(Dataset dataset) {
-    LOG.info("Creating compaction jobs for dataset " + dataset +  " with priority " + dataset.priority()
+    LOG.info("Creating compaction jobs for dataset " + dataset + " with priority " + dataset.priority()
         + " and late data threshold for recompact " + dataset.lateDataThresholdForRecompact());
     final MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(dataset);
     List<Dataset> datasetsWithProps;
@@ -482,16 +482,9 @@ public class MRCompactor implements Compactor {
   }
 
   public static long readCompactionTimestamp(FileSystem fs, Path compactionOutputPath) throws IOException {
-    Closer closer = Closer.create();
     Path completionFilePath = new Path(compactionOutputPath, COMPACTION_COMPLETE_FILE_NAME);
-    try {
-      FSDataInputStream completionFileStream = closer.register(fs.open(completionFilePath));
+    try (FSDataInputStream completionFileStream = fs.open(completionFilePath)) {
       return completionFileStream.readLong();
-    } catch (Throwable t) {
-      LOG.error("Failed to read compaction timestamp from " + compactionOutputPath, t);
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 
@@ -531,6 +524,8 @@ public class MRCompactor implements Compactor {
                 datasetsToBeVerifiedAgain.add(result.dataset());
               }
               break;
+            default:
+              throw new IllegalStateException("Unrecognized result status: " + result.status());
           }
         }
 
@@ -590,7 +585,7 @@ public class MRCompactor implements Compactor {
         DEFAULT_COMPACTION_COMPLETENESS_VERIFICATION_PUBLISH_DATA_IF_CANNOT_VERIFY);
   }
 
-  private void submitCompactionJobsAndWaitForCompletion() throws IOException {
+  private void submitCompactionJobsAndWaitForCompletion() {
     LOG.info("Submitting compaction jobs. Number of datasets: " + this.datasets.size());
 
     boolean allDatasetsCompleted = false;
@@ -653,7 +648,7 @@ public class MRCompactor implements Compactor {
     LOG.info("Running compaction for dataset " + dataset);
 
     try {
-      MRCompactorJobRunner jobRunner = getMRCompactorJobRunner(dataset, dataset.priority());
+      MRCompactorJobRunner jobRunner = getMRCompactorJobRunner(dataset);
       this.jobRunnables.put(dataset, jobRunner);
       if (proceed) {
         jobRunner.proceed();
@@ -667,13 +662,12 @@ public class MRCompactor implements Compactor {
   /**
    * Get an instance of {@link MRCompactorJobRunner}.
    */
-  private MRCompactorJobRunner getMRCompactorJobRunner(Dataset dataset, double priority) {
+  private MRCompactorJobRunner getMRCompactorJobRunner(Dataset dataset) {
     try {
       @SuppressWarnings("unchecked")
       Class<? extends MRCompactorJobRunner> cls = (Class<? extends MRCompactorJobRunner>) Class
           .forName(this.state.getProp(COMPACTION_JOB_RUNNER_CLASS, DEFAULT_COMPACTION_JOB_RUNNER_CLASS));
-      return cls.getDeclaredConstructor(Dataset.class, FileSystem.class, Double.class).newInstance(dataset, this.fs,
-          priority);
+      return cls.getDeclaredConstructor(Dataset.class, FileSystem.class).newInstance(dataset, this.fs);
     } catch (Exception e) {
       throw new RuntimeException("Cannot instantiate MRCompactorJobRunner", e);
     }
@@ -728,7 +722,7 @@ public class MRCompactor implements Compactor {
     return datasetsWithThrowables;
   }
 
-  private void shutdownExecutors() throws IOException {
+  private void shutdownExecutors() {
     LOG.info("Shutting down Executors");
     ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
   }
@@ -773,9 +767,9 @@ public class MRCompactor implements Compactor {
      */
     @Override
     protected void afterExecute(Runnable r, Throwable t) {
-      Preconditions.checkArgument(r instanceof MRCompactorJobRunner, String
-              .format("Runnable expected to be instance of %s, actual %s", MRCompactorJobRunner.class.getSimpleName(),
-                  r.getClass().getSimpleName()));
+      Preconditions.checkArgument(r instanceof MRCompactorJobRunner,
+          String.format("Runnable expected to be instance of %s, actual %s", MRCompactorJobRunner.class.getSimpleName(),
+              r.getClass().getSimpleName()));
 
       MRCompactorJobRunner jobRunner = (MRCompactorJobRunner) r;
       MRCompactor.this.jobRunnables.remove(jobRunner.getDataset());
@@ -799,8 +793,8 @@ public class MRCompactor implements Compactor {
               t = e;
             }
           }
-        } else
-          if (jobRunner.getDataset().state() == GIVEN_UP && !MRCompactor.this.shouldPublishDataIfCannotVerifyCompl) {
+        } else if (jobRunner.getDataset().state() == GIVEN_UP
+            && !MRCompactor.this.shouldPublishDataIfCannotVerifyCompl) {
 
           // Compaction job of a dataset has aborted, and data completeness verification has given up.
           // This dataset will not be compacted.

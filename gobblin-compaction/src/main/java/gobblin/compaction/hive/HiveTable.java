@@ -40,8 +40,8 @@ public abstract class HiveTable {
 
   public static class Builder<T extends Builder<?>> {
     protected String name = UUID.randomUUID().toString().replaceAll("-", "_");
-    protected List<String> primaryKeys = new ArrayList<String>();
-    protected List<HiveAttribute> attributes = new ArrayList<HiveAttribute>();
+    protected List<String> primaryKeys = new ArrayList<>();
+    protected List<HiveAttribute> attributes = new ArrayList<>();
 
     @SuppressWarnings("unchecked")
     public T withName(String name) {

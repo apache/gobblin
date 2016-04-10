@@ -87,7 +87,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.highWatermark = GSON.fromJson(state.getWorkunit().getExpectedHighWatermark(), MultiLongWatermark.class);
     this.nextWatermark = new MultiLongWatermark(this.lowWatermark);
     this.closer = Closer.create();
-    this.kafkaWrapper = closer.register(KafkaWrapper.create(state));
+    this.kafkaWrapper = this.closer.register(KafkaWrapper.create(state));
     this.stopwatch = Stopwatch.createUnstarted();
 
     this.decodingErrorCount = Maps.newHashMap();

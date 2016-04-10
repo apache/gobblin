@@ -182,18 +182,12 @@ public class AvroUtils {
    * Convert a GenericRecord to a byte array.
    */
   public static byte[] recordToByteArray(GenericRecord record) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
+    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
       Encoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
       DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
       writer.write(record, encoder);
       byte[] byteArray = out.toByteArray();
       return byteArray;
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 
@@ -201,14 +195,9 @@ public class AvroUtils {
    * Get Avro schema from an Avro data file.
    */
   public static Schema getSchemaFromDataFile(Path dataFile, FileSystem fs) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      SeekableInput sin = closer.register(new FsInput(dataFile, fs.getConf()));
-      DataFileReader<GenericRecord> reader =
-          closer.register(new DataFileReader<GenericRecord>(sin, new GenericDatumReader<GenericRecord>()));
+    try (SeekableInput sin = new FsInput(dataFile, fs.getConf()); DataFileReader<GenericRecord> reader =
+        new DataFileReader<GenericRecord>(sin, new GenericDatumReader<GenericRecord>())) {
       return reader.getSchema();
-    } finally {
-      closer.close();
     }
   }
 

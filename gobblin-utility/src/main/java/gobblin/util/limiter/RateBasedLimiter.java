@@ -60,7 +60,7 @@ public class RateBasedLimiter extends NonRefillableLimiter {
     // Nothing to do
   }
 
-  private double convertRate(double originalRate, TimeUnit originalTimeUnit, TimeUnit targetTimeUnit) {
+  private static double convertRate(double originalRate, TimeUnit originalTimeUnit, TimeUnit targetTimeUnit) {
     return originalRate / targetTimeUnit.convert(1, originalTimeUnit);
   }
 }

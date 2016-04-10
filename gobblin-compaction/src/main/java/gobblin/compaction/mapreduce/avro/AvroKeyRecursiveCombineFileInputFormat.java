@@ -110,7 +110,7 @@ public class AvroKeyRecursiveCombineFileInputFormat
 
   private void addAvroFilesInSubdirsToSplits(List<InputSplit> splits, List<Path> subdirs, FileSystem fs, JobContext cx)
       throws FileNotFoundException, IOException {
-    Map<Schema, List<Path>> filesBySchema = new HashMap<Schema, List<Path>>();
+    Map<Schema, List<Path>> filesBySchema = new HashMap<>();
     for (Path file : findAvroFilesInDirs(subdirs, fs)) {
       final Schema schema = AvroUtils.getSchemaFromDataFile(file, fs);
       if (! filesBySchema.containsKey(schema)) {
@@ -129,7 +129,7 @@ public class AvroKeyRecursiveCombineFileInputFormat
     }
   }
 
-  private List<Path> findAvroFilesInDirs(List<Path> dirs, FileSystem fs) throws FileNotFoundException, IOException {
+  private static List<Path> findAvroFilesInDirs(List<Path> dirs, FileSystem fs) throws FileNotFoundException, IOException {
     List<Path> files = Lists.newArrayList();
 
     for (Path dir : dirs) {
@@ -146,7 +146,7 @@ public class AvroKeyRecursiveCombineFileInputFormat
    * Set the number of locations in the split to SPLIT_MAX_NUM_LOCATIONS if it is larger than
    * SPLIT_MAX_NUM_LOCATIONS (MAPREDUCE-5186).
    */
-  private List<InputSplit> cleanSplits(List<InputSplit> splits) throws IOException {
+  private static List<InputSplit> cleanSplits(List<InputSplit> splits) throws IOException {
     List<InputSplit> cleanedSplits = Lists.newArrayList();
 
     for (int i = 0; i < splits.size(); i++) {
