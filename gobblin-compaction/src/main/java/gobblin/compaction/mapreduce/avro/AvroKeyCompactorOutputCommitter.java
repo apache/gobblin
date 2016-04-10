@@ -86,7 +86,7 @@ public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
     super.commitTask(context);
   }
 
-  private long getRecordCountFromCounter(TaskAttemptContext context, Enum<?> counterName) {
+  private static long getRecordCountFromCounter(TaskAttemptContext context, Enum<?> counterName) {
     try {
       //In Hadoop 2, TaskAttemptContext.getCounter() is available
       Method getCounterMethod = context.getClass().getMethod("getCounter", Enum.class);

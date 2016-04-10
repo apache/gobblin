@@ -58,8 +58,8 @@ public class TimeBasedLimiter extends NonRefillableLimiter {
   public TimeBasedLimiter(long timeLimit, TimeUnit timeUnit) {
     this.timeLimit = timeLimit;
     this.timeUnit = timeUnit;
-    this.flagFlippingExecutor = new ScheduledThreadPoolExecutor(
-        1, ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TimeBasedThrottler")));
+    this.flagFlippingExecutor = new ScheduledThreadPoolExecutor(1,
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TimeBasedThrottler")));
   }
 
   @Override
@@ -68,7 +68,7 @@ public class TimeBasedLimiter extends NonRefillableLimiter {
       @Override
       public void run() {
         // Flip the flag once the scheduled time is reached
-        canIssuePermit = false;
+        TimeBasedLimiter.this.canIssuePermit = false;
       }
     }, this.timeLimit, this.timeUnit);
   }

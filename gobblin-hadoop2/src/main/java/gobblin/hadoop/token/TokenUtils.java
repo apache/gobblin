@@ -91,8 +91,8 @@ public class TokenUtils {
     UserGroupInformation.setConfiguration(configuration);
     UserGroupInformation.loginUserFromKeytab(state.getProp(KEYTAB_USER), state.getProp(KEYTAB_LOCATION));
 
-    final Optional<String> userToProxy = Strings.isNullOrEmpty(state.getProp(USER_TO_PROXY)) ?
-        Optional.<String>absent() : Optional.fromNullable(state.getProp(USER_TO_PROXY));
+    final Optional<String> userToProxy = Strings.isNullOrEmpty(state.getProp(USER_TO_PROXY))
+        ? Optional.<String> absent() : Optional.fromNullable(state.getProp(USER_TO_PROXY));
     final Configuration conf = new Configuration();
     final Credentials cred = new Credentials();
 
@@ -142,7 +142,8 @@ public class TokenUtils {
     if (userToProxy.isPresent()) {
       UserGroupInformation.createProxyUser(userToProxy.get(), UserGroupInformation.getLoginUser())
           .doAs(new PrivilegedExceptionAction<Void>() {
-            @Override public Void run() throws Exception {
+            @Override
+            public Void run() throws Exception {
               getFsAndJtTokensImpl(state, conf, cred);
               return null;
             }
@@ -210,24 +211,8 @@ public class TokenUtils {
   }
 
   private static void persistTokens(Credentials cred, File tokenFile) throws IOException {
-
-    FileOutputStream fos = null;
-    DataOutputStream dos = null;
-    try {
-      fos = new FileOutputStream(tokenFile);
-      dos = new DataOutputStream(fos);
+    try (FileOutputStream fos = new FileOutputStream(tokenFile); DataOutputStream dos = new DataOutputStream(fos)) {
       cred.writeTokenStorageToStream(dos);
-    } finally {
-      if (dos != null) {
-        try {
-          dos.close();
-        } catch (Throwable t) {
-          LOG.error("encountered exception while closing DataOutputStream of the tokenFile", t);
-        }
-      }
-      if (fos != null) {
-        fos.close();
-      }
     }
     LOG.info("Tokens loaded in " + tokenFile.getAbsolutePath());
   }

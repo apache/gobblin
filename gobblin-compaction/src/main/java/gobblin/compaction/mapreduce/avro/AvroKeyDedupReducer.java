@@ -28,8 +28,8 @@ import org.apache.hadoop.mapreduce.Reducer;
  *
  * @author ziliu
  */
-public class AvroKeyDedupReducer extends
-    Reducer<AvroKey<GenericRecord>, AvroValue<GenericRecord>, AvroKey<GenericRecord>, NullWritable> {
+public class AvroKeyDedupReducer
+    extends Reducer<AvroKey<GenericRecord>, AvroValue<GenericRecord>, AvroKey<GenericRecord>, NullWritable> {
 
   public enum EVENT_COUNTER {
     MORE_THAN_1,
@@ -41,7 +41,7 @@ public class AvroKeyDedupReducer extends
 
   @Override
   protected void setup(Context context) throws IOException, InterruptedException {
-    outKey = new AvroKey<GenericRecord>();
+    this.outKey = new AvroKey<>();
   }
 
   @Override
@@ -50,7 +50,7 @@ public class AvroKeyDedupReducer extends
     int numVals = 0;
 
     for (AvroValue<GenericRecord> value : values) {
-      outKey.datum(value.datum());
+      this.outKey.datum(value.datum());
       numVals++;
     }
 
@@ -61,6 +61,6 @@ public class AvroKeyDedupReducer extends
 
     context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
 
-    context.write(outKey, NullWritable.get());
+    context.write(this.outKey, NullWritable.get());
   }
 }
