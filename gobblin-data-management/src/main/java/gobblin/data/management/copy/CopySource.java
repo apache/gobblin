@@ -12,34 +12,6 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.SourceState;
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.copy.extractor.EmptyExtractor;
-import gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
-import gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
-import gobblin.dataset.Dataset;
-import gobblin.data.management.dataset.DatasetUtils;
-import gobblin.data.management.partition.FileSet;
-import gobblin.dataset.DatasetsFinder;
-import gobblin.dataset.IterableDatasetFinder;
-import gobblin.dataset.IterableDatasetFinderImpl;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.Tag;
-import gobblin.metrics.event.sla.SlaEventKeys;
-import gobblin.util.ExecutorsUtils;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.AbstractSource;
-import gobblin.source.workunit.Extract;
-import gobblin.source.workunit.WorkUnit;
-import gobblin.util.HadoopUtils;
-import gobblin.util.RateControlledFileSystem;
-import gobblin.util.WriterUtils;
-import gobblin.util.executors.IteratorExecutor;
-import gobblin.util.guid.Guid;
-import gobblin.util.iterators.InterruptibleIterator;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.Iterator;
@@ -49,10 +21,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import javax.annotation.Nullable;
+
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import javax.annotation.Nullable;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -61,6 +33,34 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.extractor.EmptyExtractor;
+import gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
+import gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
+import gobblin.data.management.dataset.DatasetUtils;
+import gobblin.data.management.partition.FileSet;
+import gobblin.dataset.Dataset;
+import gobblin.dataset.DatasetsFinder;
+import gobblin.dataset.IterableDatasetFinder;
+import gobblin.dataset.IterableDatasetFinderImpl;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.Tag;
+import gobblin.metrics.event.sla.SlaEventKeys;
+import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.extract.AbstractSource;
+import gobblin.source.workunit.Extract;
+import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ExecutorsUtils;
+import gobblin.util.HadoopUtils;
+import gobblin.util.RateControlledFileSystem;
+import gobblin.util.WriterUtils;
+import gobblin.util.executors.IteratorExecutor;
+import gobblin.util.guid.Guid;
+import gobblin.util.iterators.InterruptibleIterator;
 
 
 /**
@@ -231,7 +231,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
         while (fileSets.hasNext() && !this.workUnitList.hasRejectedFileSet()) {
           FileSet<CopyEntity> fileSet = fileSets.next();
-          Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, fileSet.getName());
+          String extractId = fileSet.getName().replace(':', '_');
+          Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, extractId);
           List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
           for (CopyEntity copyEntity : fileSet.getFiles()) {
 
