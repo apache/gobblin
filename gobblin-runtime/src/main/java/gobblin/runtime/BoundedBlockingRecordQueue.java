@@ -62,7 +62,7 @@ public class BoundedBlockingRecordQueue<T> {
     this.timeoutTimeUnit = builder.timeoutTimeUnit;
     this.blockingQueue = Queues.newArrayBlockingQueue(builder.capacity);
 
-    this.queueStats = builder.ifCollectStats ? Optional.of(new QueueStats()) : Optional.<QueueStats>absent();
+    this.queueStats = builder.ifCollectStats ? Optional.of(new QueueStats()) : Optional.<QueueStats> absent();
   }
 
   /**
@@ -73,8 +73,7 @@ public class BoundedBlockingRecordQueue<T> {
    * @return whether the record has been successfully put into the queue
    * @throws InterruptedException if interrupted while waiting
    */
-  public boolean put(T record)
-      throws InterruptedException {
+  public boolean put(T record) throws InterruptedException {
     boolean offered = this.blockingQueue.offer(record, this.timeout, this.timeoutTimeUnit);
     if (this.queueStats.isPresent()) {
       this.queueStats.get().putsRateMeter.mark();
@@ -89,8 +88,7 @@ public class BoundedBlockingRecordQueue<T> {
    * @return the record at the head of the queue, or <code>null</code> if no record is available
    * @throws InterruptedException if interrupted while waiting
    */
-  public T get()
-      throws InterruptedException {
+  public T get() throws InterruptedException {
     T record = this.blockingQueue.poll(this.timeout, this.timeoutTimeUnit);
     if (this.queueStats.isPresent()) {
       this.queueStats.get().getsRateMeter.mark();
@@ -215,14 +213,15 @@ public class BoundedBlockingRecordQueue<T> {
       this.queueSizeGauge = new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return blockingQueue.size();
+          return BoundedBlockingRecordQueue.this.blockingQueue.size();
         }
       };
 
       this.fillRatioGauge = new Gauge<Double>() {
         @Override
         public Double getValue() {
-          return (double) blockingQueue.size() / capacity;
+          return (double) BoundedBlockingRecordQueue.this.blockingQueue.size()
+              / BoundedBlockingRecordQueue.this.capacity;
         }
       };
 
@@ -236,7 +235,7 @@ public class BoundedBlockingRecordQueue<T> {
      * @return the queue size
      */
     public int queueSize() {
-        return this.queueSizeGauge.getValue();
+      return this.queueSizeGauge.getValue();
     }
 
     /**

@@ -31,7 +31,6 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
-import gobblin.converter.SchemaConversionException;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
@@ -71,7 +70,11 @@ public class Fork implements Closeable, Runnable, FinalState {
 
   // Possible state of a fork
   enum ForkState {
-    PENDING, RUNNING, SUCCEEDED, FAILED, COMMITTED
+    PENDING,
+    RUNNING,
+    SUCCEEDED,
+    FAILED,
+    COMMITTED
   }
 
   private final Logger logger;
@@ -135,17 +138,14 @@ public class Fork implements Closeable, Runnable, FinalState {
     }
 
     this.recordQueue = BoundedBlockingRecordQueue.newBuilder()
-        .hasCapacity(this.taskState.getPropAsInt(
-            ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY,
+        .hasCapacity(this.taskState.getPropAsInt(ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY,
             ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY))
-        .useTimeout(this.taskState.getPropAsLong(
-            ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_KEY,
+        .useTimeout(this.taskState.getPropAsLong(ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_KEY,
             ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT))
-        .useTimeoutTimeUnit(TimeUnit.valueOf(this.taskState.getProp(
-            ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY,
-            ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT)))
-        .collectStats()
-        .build();
+        .useTimeoutTimeUnit(
+            TimeUnit.valueOf(this.taskState.getProp(ConfigurationKeys.FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY,
+                ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT)))
+        .collectStats().build();
 
     this.forkState = new AtomicReference<>(ForkState.PENDING);
 
@@ -154,8 +154,8 @@ public class Fork implements Closeable, Runnable, FinalState {
      * {@link Instrumented#setMetricContextName(State, String)} will be children of the forkMetrics.
      */
     if (GobblinMetrics.isEnabled(this.taskState)) {
-      GobblinMetrics forkMetrics = GobblinMetrics
-          .get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
+      GobblinMetrics forkMetrics =
+          GobblinMetrics.get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
               taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
       this.closer.register(forkMetrics.getMetricContext());
       Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
@@ -262,11 +262,10 @@ public class Fork implements Closeable, Runnable, FinalState {
         commitData();
         compareAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
         return true;
-      } else {
-        this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
-        compareAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
-        return false;
       }
+      this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
+      compareAndSetForkState(ForkState.SUCCEEDED, ForkState.FAILED);
+      return false;
     } catch (Throwable t) {
       this.logger.error(String.format("Fork %d of task %s failed to commit data", this.index, this.taskId), t);
       this.forkState.set(ForkState.FAILED);
@@ -366,26 +365,18 @@ public class Fork implements Closeable, Runnable, FinalState {
   /**
    * Build a {@link gobblin.writer.DataWriter} for writing fetched data records.
    */
-  private DataWriter<Object> buildWriter()
-      throws IOException, SchemaConversionException {
+  private DataWriter<Object> buildWriter() throws IOException {
     DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
-        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index))
-        .withWriterId(this.taskId)
-        .withSchema(this.convertedSchema.orNull())
-        .withBranches(this.branches)
-        .forBranch(this.index);
+        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
+        .withSchema(this.convertedSchema.orNull()).withBranches(this.branches).forBranch(this.index);
 
     return new PartitionedDataWriter<>(builder, this.taskContext.getTaskState());
   }
 
   private void buildWriterIfNotPresent() throws IOException {
     if (!this.writer.isPresent()) {
-      try {
-        this.writer = Optional.of(this.closer.register(buildWriter()));
-      } catch (SchemaConversionException sce) {
-        throw new IOException("Failed to build writer for fork " + this.index, sce);
-      }
+      this.writer = Optional.of(this.closer.register(buildWriter()));
     }
   }
 
@@ -447,9 +438,8 @@ public class Fork implements Closeable, Runnable, FinalState {
 
     try {
       // Do task-level quality checking
-      TaskLevelPolicyCheckResults taskResults =
-          this.taskContext.getTaskLevelPolicyChecker(this.forkTaskState, this.branches > 1 ? this.index : -1)
-              .executePolicies();
+      TaskLevelPolicyCheckResults taskResults = this.taskContext
+          .getTaskLevelPolicyChecker(this.forkTaskState, this.branches > 1 ? this.index : -1).executePolicies();
       TaskPublisher publisher =
           this.taskContext.getTaskPublisher(this.forkTaskState, taskResults, this.branches > 1 ? this.index : -1);
       switch (publisher.canPublish()) {
@@ -502,8 +492,8 @@ public class Fork implements Closeable, Runnable, FinalState {
    */
   private void compareAndSetForkState(ForkState expectedState, ForkState newState) {
     if (!this.forkState.compareAndSet(expectedState, newState)) {
-      throw new IllegalStateException(String
-          .format("Expected fork state %s; actual fork state %s", expectedState.name(), this.forkState.get().name()));
+      throw new IllegalStateException(String.format("Expected fork state %s; actual fork state %s",
+          expectedState.name(), this.forkState.get().name()));
     }
   }
 
@@ -512,7 +502,7 @@ public class Fork implements Closeable, Runnable, FinalState {
    * index and the branch name.
    */
   private static List<Tag<?>> getForkMetricsTags(State state, int index) {
-    return ImmutableList.<Tag<?>>of(new Tag<>(FORK_METRICS_BRANCH_NAME_KEY, getForkMetricsId(state, index)));
+    return ImmutableList.<Tag<?>> of(new Tag<>(FORK_METRICS_BRANCH_NAME_KEY, getForkMetricsId(state, index)));
   }
 
   /**
@@ -527,8 +517,7 @@ public class Fork implements Closeable, Runnable, FinalState {
    * Creates a unique {@link String} representing this branch.
    */
   private static String getForkMetricsId(State state, int index) {
-    return state.getProp(
-        ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + index, ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME
-            + index);
+    return state.getProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + index,
+        ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + index);
   }
 }

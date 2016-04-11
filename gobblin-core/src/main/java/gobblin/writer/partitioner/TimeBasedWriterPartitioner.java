@@ -85,17 +85,17 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     this.schema = getSchema();
   }
 
-  private String getWriterPartitionPrefix(State state, int numBranches, int branchId) {
+  private static String getWriterPartitionPrefix(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_PREFIX, numBranches, branchId);
     return state.getProp(propName, StringUtils.EMPTY);
   }
 
-  private String getWriterPartitionSuffix(State state, int numBranches, int branchId) {
+  private static String getWriterPartitionSuffix(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_SUFFIX, numBranches, branchId);
     return state.getProp(propName, StringUtils.EMPTY);
   }
 
-  private Granularity getGranularity(State state, int numBranches, int branchId) {
+  private static Granularity getGranularity(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_GRANULARITY, numBranches, branchId);
     String granularityValue = state.getProp(propName, DEFAULT_WRITER_PARTITION_GRANULARITY.toString());
     Optional<Granularity> granularity = Enums.getIfPresent(Granularity.class, granularityValue.toUpperCase());
@@ -109,12 +109,11 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
 
     if (state.contains(propName)) {
       return Optional.of(DateTimeFormat.forPattern(state.getProp(propName)).withZone(this.timeZone));
-    } else {
-      return Optional.absent();
     }
+    return Optional.absent();
   }
 
-  private DateTimeZone getTimeZone(State state, int numBranches, int branchId) {
+  private static DateTimeZone getTimeZone(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_TIMEZONE, numBranches, branchId);
     return DateTimeZone.forID(state.getProp(propName, DEFAULT_WRITER_PARTITION_TIMEZONE));
   }
@@ -122,9 +121,8 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
   private Schema getSchema() {
     if (this.timestampToPathFormatter.isPresent()) {
       return getDateTimeFormatBasedSchema();
-    } else {
-      return getGranularityBasedSchema();
     }
+    return getGranularityBasedSchema();
   }
 
   @Override
@@ -132,6 +130,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     return this.schema;
   }
 
+  @SuppressWarnings("fallthrough")
   @Override
   public GenericRecord partitionForRecord(D record) {
     long timestamp = getRecordTimestamp(record);
@@ -159,6 +158,8 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
           partition.put(Granularity.MONTH.toString(), dateTime.getMonthOfYear());
         case YEAR:
           partition.put(Granularity.YEAR.toString(), dateTime.getYear());
+        default:
+          break;
       }
     }
 
@@ -180,6 +181,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     return assembler.endRecord();
   }
 
+  @SuppressWarnings("fallthrough")
   private Schema getGranularityBasedSchema() {
     FieldAssembler<Schema> assembler =
         SchemaBuilder.record("GenericRecordTimePartition").namespace("gobblin.writer.partitioner").fields();
@@ -200,6 +202,8 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
         assembler = assembler.name(Granularity.MONTH.toString()).type(Schema.create(Schema.Type.STRING)).noDefault();
       case YEAR:
         assembler = assembler.name(Granularity.YEAR.toString()).type(Schema.create(Schema.Type.STRING)).noDefault();
+      default:
+        break;
     }
 
     if (!Strings.isNullOrEmpty(this.writerPartitionPrefix)) {

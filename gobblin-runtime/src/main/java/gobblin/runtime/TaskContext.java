@@ -106,7 +106,6 @@ public class TaskContext {
    *
    * @return a {@link Extractor} instance
    */
-  @SuppressWarnings("unchecked")
   public Extractor getExtractor() {
     try {
       boolean throttlingEnabled = this.taskState.getPropAsBoolean(ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY,
@@ -117,10 +116,9 @@ public class TaskContext {
           throw new IllegalArgumentException("The Limiter used with an Extractor should be an instance of "
               + NonRefillableLimiter.class.getSimpleName());
         }
-        return new LimitingExtractorDecorator(getSource().getExtractor(this.taskState), limiter);
-      } else {
-        return getSource().getExtractor(this.taskState);
+        return new LimitingExtractorDecorator<>(getSource().getExtractor(this.taskState), limiter);
       }
+      return getSource().getExtractor(this.taskState);
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
     }
@@ -199,7 +197,7 @@ public class TaskContext {
         .split(this.workUnit.getProp(converterClassKey))) {
       try {
         Converter<?, ?, ?, ?> converter = Converter.class.cast(Class.forName(converterClass).newInstance());
-        InstrumentedConverterDecorator instrumentedConverter = new InstrumentedConverterDecorator(converter);
+        InstrumentedConverterDecorator instrumentedConverter = new InstrumentedConverterDecorator<>(converter);
         instrumentedConverter.init(forkTaskState);
         converters.add(instrumentedConverter);
       } catch (ClassNotFoundException cnfe) {
@@ -225,7 +223,7 @@ public class TaskContext {
       ForkOperator fork =
           ForkOperator.class.cast(Class.forName(this.workUnit.getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY,
               ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS)).newInstance());
-      return new InstrumentedForkOperatorDecorator(fork);
+      return new InstrumentedForkOperatorDecorator<>(fork);
     } catch (ClassNotFoundException cnfe) {
       throw new RuntimeException(cnfe);
     } catch (InstantiationException ie) {

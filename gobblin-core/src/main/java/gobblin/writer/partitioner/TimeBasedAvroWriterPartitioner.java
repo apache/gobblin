@@ -50,7 +50,7 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
     this.partitionColumns = getWriterPartitionColumns(state, numBranches, branchId);
   }
 
-  private Optional<List<String>> getWriterPartitionColumns(State state, int numBranches, int branchId) {
+  private static Optional<List<String>> getWriterPartitionColumns(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_COLUMNS, numBranches, branchId);
     return state.contains(propName) ? Optional.of(state.getPropAsList(propName)) : Optional.<List<String>> absent();
   }
@@ -63,7 +63,7 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
   /**
    *  Check if the partition column value is present and is a Long object. Otherwise, use current system time.
    */
-  private long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
+  private static long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
     return writerPartitionColumnValue.orNull() instanceof Long ? (Long) writerPartitionColumnValue.get()
         : System.currentTimeMillis();
   }
