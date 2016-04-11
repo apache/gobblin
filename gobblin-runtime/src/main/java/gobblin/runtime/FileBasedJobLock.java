@@ -36,8 +36,7 @@ public class FileBasedJobLock implements JobLock {
   // Empty file associated with the lock
   private final Path lockFile;
 
-  public FileBasedJobLock(FileSystem fs, String lockFileDir, String jobName)
-      throws IOException {
+  public FileBasedJobLock(FileSystem fs, String lockFileDir, String jobName) {
 
     this.fs = fs;
     this.lockFile = new Path(lockFileDir, jobName + LOCK_FILE_EXTENSION);

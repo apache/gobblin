@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.Subscribe;
@@ -99,7 +100,6 @@ public class JobContext {
 
   private Optional<CommitSequence.Builder> commitSequenceBuilder = Optional.<CommitSequence.Builder> absent();
 
-  @SuppressWarnings("unchecked")
   public JobContext(Properties jobProps, Logger logger) throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
@@ -152,7 +152,7 @@ public class JobContext {
     this.semantics = DeliverySemantics.parse(this.jobState);
     this.commitSequenceStore = createCommitSequenceStore();
 
-    this.source = new SourceDecorator(
+    this.source = new SourceDecorator<>(
         Source.class.cast(Class.forName(jobProps.getProperty(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance()),
         this.jobId, logger);
 
@@ -234,7 +234,7 @@ public class JobContext {
 
       // Add jobId to task data root dir
       String taskDataRootDirWithJobId =
-          new Path(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), jobId).toString();
+          new Path(this.jobState.getProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY), this.jobId).toString();
       this.jobState.setProp(ConfigurationKeys.TASK_DATA_ROOT_DIR_KEY, taskDataRootDirWithJobId);
 
       setTaskStagingDir();
@@ -403,7 +403,7 @@ public class JobContext {
           finalizeDatasetState(datasetState, datasetUrn);
 
           if (this.commitSequenceBuilder.isPresent()) {
-            buildAndExecuteCommitSequence(commitSequenceBuilder.get(), datasetState, datasetUrn);
+            buildAndExecuteCommitSequence(this.commitSequenceBuilder.get(), datasetState, datasetUrn);
             datasetState.setState(JobState.RunningState.COMMITTED);
           } else {
             persistDatasetState(datasetUrn, datasetState);
@@ -419,13 +419,12 @@ public class JobContext {
     if (!allDatasetsCommit) {
       this.jobState.setState(JobState.RunningState.FAILED);
       throw new IOException("Failed to commit dataset state for some dataset(s) of job " + this.jobId);
-    } else {
-      this.jobState.setState(JobState.RunningState.COMMITTED);
     }
+    this.jobState.setState(JobState.RunningState.COMMITTED);
   }
 
   @SuppressWarnings("unchecked")
-  private Optional<Class<? extends DataPublisher>> getJobDataPublisherClass(JobState.DatasetState datasetState)
+  private static Optional<Class<? extends DataPublisher>> getJobDataPublisherClass(JobState.DatasetState datasetState)
       throws ReflectiveOperationException {
     if (!Strings.isNullOrEmpty(datasetState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE))) {
       return Optional.<Class<? extends DataPublisher>> of((Class<? extends DataPublisher>) Class
@@ -499,7 +498,7 @@ public class JobContext {
   /**
    * Commit the output data of a dataset.
    */
-  private void commitDataset(JobState.DatasetState datasetState, DataPublisher publisher) throws IOException {
+  private void commitDataset(JobState.DatasetState datasetState, DataPublisher publisher) {
 
     try {
       publisher.publish(datasetState.getTaskStates());
@@ -514,8 +513,7 @@ public class JobContext {
 
   @SuppressWarnings("unchecked")
   private void generateCommitSequenceBuilder(JobState.DatasetState datasetState) throws IOException {
-    Closer closer = Closer.create();
-    try {
+    try (Closer closer = Closer.create()) {
       Class<? extends CommitSequencePublisher> dataPublisherClass =
           (Class<? extends CommitSequencePublisher>) Class.forName(datasetState
               .getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
@@ -526,9 +524,7 @@ public class JobContext {
     } catch (Throwable t) {
       LOG.error("Failed to generate commit sequence", t);
       setTaskFailureException(datasetState.getTaskStates(), t);
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
+      throw Throwables.propagate(t);
     }
   }
 
@@ -549,8 +545,8 @@ public class JobContext {
     this.datasetStateStore.persistDatasetState(datasetUrn, datasetState);
   }
 
-  private Optional<CommitStep> buildDatasetStateCommitStep(String datasetUrn, JobState.DatasetState datasetState)
-      throws IOException {
+  private static Optional<CommitStep> buildDatasetStateCommitStep(String datasetUrn,
+      JobState.DatasetState datasetState) {
     LOG.info("Creating " + DatasetStateCommitStep.class.getSimpleName() + " for dataset " + datasetUrn);
     return Optional.of(new DatasetStateCommitStep.Builder<>().withProps(datasetState).withDatasetUrn(datasetUrn)
         .withDatasetState(datasetState).build());
@@ -579,7 +575,7 @@ public class JobContext {
    * Sets the {@link ConfigurationKeys#TASK_FAILURE_EXCEPTION_KEY} for each given {@link TaskState} to the given
    * {@link Throwable}.
    */
-  private void setTaskFailureException(Collection<TaskState> taskStates, Throwable t) {
+  private static void setTaskFailureException(Collection<TaskState> taskStates, Throwable t) {
     for (TaskState taskState : taskStates) {
       taskState.setTaskFailureException(t);
     }

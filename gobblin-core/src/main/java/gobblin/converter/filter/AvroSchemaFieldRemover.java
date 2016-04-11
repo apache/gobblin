@@ -84,9 +84,8 @@ public class AvroSchemaFieldRemover {
       case RECORD:
         if (schemaMap.containsKey(schema.getFullName())) {
           return schemaMap.get(schema.getFullName());
-        } else {
-          return this.removeFieldsFromRecords(schema, schemaMap);
         }
+        return this.removeFieldsFromRecords(schema, schemaMap);
       case UNION:
         return this.removeFieldsFromUnion(schema, schemaMap);
       case ARRAY:

@@ -66,12 +66,11 @@ public class JobLauncherFactory {
         default:
           throw new RuntimeException("Unsupported job launcher type: " + launcherType.get().name());
       }
-    } else {
-      @SuppressWarnings("unchecked")
-      Class<? extends AbstractJobLauncher> launcherClass =
-          (Class<? extends AbstractJobLauncher>) Class.forName(launcherTypeValue);
-      return launcherClass.getDeclaredConstructor(Properties.class)
-          .newInstance(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
     }
+    @SuppressWarnings("unchecked")
+    Class<? extends AbstractJobLauncher> launcherClass =
+        (Class<? extends AbstractJobLauncher>) Class.forName(launcherTypeValue);
+    return launcherClass.getDeclaredConstructor(Properties.class)
+        .newInstance(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
   }
 }

@@ -106,10 +106,9 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
         || (workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_FULL_SUCCESS
             && jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS)) {
       return previousWorkUnitStates;
-    } else {
-      // Return an empty list if job commit policy and work unit retry policy do not match
-      return ImmutableList.of();
     }
+    // Return an empty list if job commit policy and work unit retry policy do not match
+    return ImmutableList.of();
   }
 
   /**
