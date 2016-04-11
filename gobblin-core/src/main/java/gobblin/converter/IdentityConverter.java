@@ -15,6 +15,6 @@ public class IdentityConverter extends Converter<Object, Object, Object, Object>
   @Override
   public Iterable<Object> convertRecord(Object outputSchema, Object inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    return new SingleRecordIterable<Object>(inputRecord);
+    return new SingleRecordIterable<>(inputRecord);
   }
 }

@@ -86,10 +86,9 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
     this.state = state;
 
-    String uri =
-        this.state
-            .getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches,
-                branchId), ConfigurationKeys.LOCAL_FS_URI);
+    String uri = this.state.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+        ConfigurationKeys.LOCAL_FS_URI);
 
     this.fs = FileSystem.get(URI.create(uri), new Configuration());
     this.stagingDir = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
@@ -130,17 +129,19 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    */
   protected void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
 
-    final short replication = copyableFile.getPreserve().preserve(PreserveAttributes.Option.REPLICATION) ?
-        copyableFile.getOrigin().getReplication() : fs.getDefaultReplication(writeAt);
-    final long blockSize = copyableFile.getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE) ?
-        copyableFile.getOrigin().getBlockSize() : fs.getDefaultBlockSize(writeAt);
+    final short replication = copyableFile.getPreserve().preserve(PreserveAttributes.Option.REPLICATION)
+        ? copyableFile.getOrigin().getReplication() : this.fs.getDefaultReplication(writeAt);
+    final long blockSize = copyableFile.getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE)
+        ? copyableFile.getOrigin().getBlockSize() : this.fs.getDefaultBlockSize(writeAt);
 
     Predicate<FileStatus> fileStatusAttributesFilter = new Predicate<FileStatus>() {
-      @Override public boolean apply(FileStatus input) {
+      @Override
+      public boolean apply(FileStatus input) {
         return input.getReplication() == replication && input.getBlockSize() == blockSize;
       }
     };
-    Optional<FileStatus> persistedFile = this.recoveryHelper.findPersistedFile(this.state, copyableFile, fileStatusAttributesFilter);
+    Optional<FileStatus> persistedFile =
+        this.recoveryHelper.findPersistedFile(this.state, copyableFile, fileStatusAttributesFilter);
 
     if (persistedFile.isPresent()) {
       log.info(String.format("Recovering persisted file %s to %s.", persistedFile.get().getPath(), writeAt));
@@ -148,7 +149,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     } else {
 
       FSDataOutputStream os =
-          this.fs.create(writeAt, true, fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
+          this.fs.create(writeAt, true, this.fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
       try {
         this.bytesWritten.addAndGet(StreamUtils.copy(inputStream, os));
         log.info("bytes written: " + this.bytesWritten.get() + " for file " + copyableFile);
@@ -170,8 +171,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     return new Path(this.stagingDir, file.getDestination().getName());
   }
 
-  protected static Path getPartitionOutputRoot(Path outputDir,
-      CopyEntity.DatasetAndPartition datasetAndPartition) {
+  protected static Path getPartitionOutputRoot(Path outputDir, CopyEntity.DatasetAndPartition datasetAndPartition) {
     return new Path(outputDir, datasetAndPartition.identifier());
   }
 
@@ -183,8 +183,8 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   }
 
   public static Path getOutputDir(State state) {
-    return new Path(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR,
-        1, 0)));
+    return new Path(
+        state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, 1, 0)));
   }
 
   /**
@@ -195,7 +195,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
     try {
       if (ownerAndPermission.getFsPermission() != null) {
-        fs.setPermission(path, ownerAndPermission.getFsPermission());
+        this.fs.setPermission(path, ownerAndPermission.getFsPermission());
       }
     } catch (IOException ioe) {
       log.warn("Failed to set permission for directory " + path, ioe);
@@ -219,7 +219,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    * it.
    */
   private void setRecursivePermission(Path path, OwnerAndPermission ownerAndPermission) throws IOException {
-    List<FileStatus> files = FileListUtils.listPathsRecursively(fs, path, FileListUtils.NO_OP_PATH_FILTER);
+    List<FileStatus> files = FileListUtils.listPathsRecursively(this.fs, path, FileListUtils.NO_OP_PATH_FILTER);
 
     // Set permissions bottom up. Permissions are set to files first and then directories
     Collections.reverse(files);
@@ -250,8 +250,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
 
   static FsPermission addExecutePermissionToOwner(FsPermission fsPermission) {
     FsAction newOwnerAction = fsPermission.getUserAction().or(FsAction.EXECUTE);
-    return
-        new FsPermission(newOwnerAction, fsPermission.getGroupAction(), fsPermission.getOtherAction());
+    return new FsPermission(newOwnerAction, fsPermission.getGroupAction(), fsPermission.getOtherAction());
   }
 
   @Override
@@ -293,14 +292,14 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     try {
       setFilePermissions(copyableFile);
 
-      Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt = copyableFile.getAncestorsOwnerAndPermission() == null ?
-          Iterators.<OwnerAndPermission>emptyIterator() : copyableFile.getAncestorsOwnerAndPermission().iterator();
+      Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt = copyableFile.getAncestorsOwnerAndPermission() == null
+          ? Iterators.<OwnerAndPermission> emptyIterator() : copyableFile.getAncestorsOwnerAndPermission().iterator();
 
       ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt);
 
       if (!this.fs.rename(stagingFilePath, outputFilePath)) {
-          // target exists
-          throw new IOException(String.format("Could not commit file %s.", outputFilePath));
+        // target exists
+        throw new IOException(String.format("Could not commit file %s.", outputFilePath));
       }
     } catch (IOException ioe) {
       // persist file
@@ -315,8 +314,8 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     }
   }
 
-  private void ensureDirectoryExists(FileSystem fs, Path path,
-      Iterator<OwnerAndPermission> ownerAndPermissionIterator) throws IOException {
+  private void ensureDirectoryExists(FileSystem fs, Path path, Iterator<OwnerAndPermission> ownerAndPermissionIterator)
+      throws IOException {
 
     if (fs.exists(path)) {
       return;
@@ -355,17 +354,14 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
     // Do nothing
   }
 
-  @Override public State getFinalState() {
-    try {
-      State state = new State();
-      if (this.actualProcessedCopyableFile.isPresent()) {
-        CopySource.serializeCopyEntity(state, this.actualProcessedCopyableFile.get());
-      }
-      ConstructState constructState = new ConstructState();
-      constructState.addOverwriteProperties(state);
-      return constructState;
-    } catch (IOException ioe) {
-      throw new RuntimeException("Could not serialize actual processed copyable file.", ioe);
+  @Override
+  public State getFinalState() {
+    State state = new State();
+    if (this.actualProcessedCopyableFile.isPresent()) {
+      CopySource.serializeCopyEntity(state, this.actualProcessedCopyableFile.get());
     }
+    ConstructState constructState = new ConstructState();
+    constructState.addOverwriteProperties(state);
+    return constructState;
   }
 }

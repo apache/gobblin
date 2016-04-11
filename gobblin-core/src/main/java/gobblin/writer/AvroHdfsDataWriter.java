@@ -57,14 +57,14 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
     super(builder, state);
 
     CodecFactory codecFactory = WriterUtils.getCodecFactory(
-        Optional.fromNullable(properties.getProp(ForkOperatorUtils
+        Optional.fromNullable(this.properties.getProp(ForkOperatorUtils
             .getPropertyNameForBranch(ConfigurationKeys.WRITER_CODEC_TYPE, this.numBranches, this.branchId))),
-        Optional.fromNullable(properties.getProp(ForkOperatorUtils
+        Optional.fromNullable(this.properties.getProp(ForkOperatorUtils
             .getPropertyNameForBranch(ConfigurationKeys.WRITER_DEFLATE_LEVEL, this.numBranches, this.branchId))));
 
     this.schema = builder.getSchema();
     this.stagingFileOutputStream = createStagingFileOutputStream();
-    this.datumWriter = new GenericDatumWriter<GenericRecord>();
+    this.datumWriter = new GenericDatumWriter<>();
     this.writer = this.closer.register(createDataFileWriter(codecFactory));
 
     setStagingFileGroup();
@@ -105,7 +105,7 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
    */
   private DataFileWriter<GenericRecord> createDataFileWriter(CodecFactory codecFactory) throws IOException {
     @SuppressWarnings("resource")
-    DataFileWriter<GenericRecord> writer = new DataFileWriter<GenericRecord>(this.datumWriter);
+    DataFileWriter<GenericRecord> writer = new DataFileWriter<>(this.datumWriter);
     writer.setCodec(codecFactory);
 
     // Open the file and return the DataFileWriter

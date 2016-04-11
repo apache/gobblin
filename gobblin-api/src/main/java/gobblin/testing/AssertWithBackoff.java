@@ -21,6 +21,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
+
 /**
  * A helper class to perform a check for a condition with a back-off. Primary use of this is when a tests
    * needs for something asynchronous to happen, say a service to start.
@@ -32,15 +33,14 @@ public class AssertWithBackoff {
   /** a logger to use for logging waiting, results, etc. */
   private Logger log = LoggerFactory.getLogger(AssertWithBackoff.class);
   /** the number to multiple the sleep after condition failure */
-  private Optional<Double> backoffFactor = Optional.<Double>absent();
+  private Optional<Double> backoffFactor = Optional.<Double> absent();
   /** the max time to sleep between condition failures; */
-  private Optional<Long> maxSleepMs = Optional.<Long>absent();
+  private Optional<Long> maxSleepMs = Optional.<Long> absent();
 
   public class EqualsCheck<T> implements Predicate<Void> {
     private final Predicate<T> eqToExpected;
     private final String message;
     private final Function<Void, T> actual;
-
 
     public EqualsCheck(Function<Void, T> actual, T expected, String message) {
       this.eqToExpected = Predicates.equalTo(expected);
@@ -64,7 +64,7 @@ public class AssertWithBackoff {
 
   /** Set the max time in milliseconds to wait for the condition to become true */
   public AssertWithBackoff timeoutMs(long assertTimeoutMs) {
-    timeoutMs = assertTimeoutMs;
+    this.timeoutMs = assertTimeoutMs;
     if (!this.maxSleepMs.isPresent()) {
       this.maxSleepMs = Optional.of(getAutoMaxSleep());
     }
@@ -76,7 +76,7 @@ public class AssertWithBackoff {
 
   /** the max time in milliseconds to wait for the condition to become true */
   public long getTimeoutMs() {
-    return timeoutMs;
+    return this.timeoutMs;
   }
 
   /** Set the max time to sleep between condition failures */
@@ -106,13 +106,14 @@ public class AssertWithBackoff {
     this.log = log;
     return this;
   }
+
   /** The logger to use for logging waiting, results, etc. */
   public Logger getLogger() {
     return this.log;
   }
 
   private long getAutoMaxSleep() {
-    return timeoutMs / 3;
+    return this.timeoutMs / 3;
   }
 
   private double getAutoBackoffFactor() {
@@ -129,10 +130,8 @@ public class AssertWithBackoff {
    * @param log                 a logger to use for logging waiting, results
    * @throws TimeoutException   if the condition did not become true in the specified time budget
    */
-  public void assertTrue(Predicate<Void> condition, String message)
-      throws TimeoutException, InterruptedException {
-        AssertWithBackoff.assertTrue(condition, getTimeoutMs(), message, getLogger(),
-            getBackoffFactor(), getMaxSleepMs());
+  public void assertTrue(Predicate<Void> condition, String message) throws TimeoutException, InterruptedException {
+    AssertWithBackoff.assertTrue(condition, getTimeoutMs(), message, getLogger(), getBackoffFactor(), getMaxSleepMs());
   }
 
   /**
@@ -142,9 +141,9 @@ public class AssertWithBackoff {
    * @param expected  the expected value
    * @param message   a debugging message
    **/
-  public <T>void assertEquals(Function<Void, T> actual, T expected, String message)
+  public <T> void assertEquals(Function<Void, T> actual, T expected, String message)
       throws TimeoutException, InterruptedException {
-    assertTrue(new EqualsCheck<T>(actual, expected, message), message);
+    assertTrue(new EqualsCheck<>(actual, expected, message), message);
   }
 
   /**
@@ -161,30 +160,26 @@ public class AssertWithBackoff {
    * @throws InterrupedException if the assert gets interrupted while waiting for the condition to
    *                            become true.
    */
-  public static void assertTrue(
-      Predicate<Void> condition, long assertTimeoutMs, String message,
-      Logger log, double backoffFactor, long maxSleepMs)
-          throws TimeoutException, InterruptedException {
+  public static void assertTrue(Predicate<Void> condition, long assertTimeoutMs, String message, Logger log,
+      double backoffFactor, long maxSleepMs) throws TimeoutException, InterruptedException {
     long startTimeMs = System.currentTimeMillis();
     long endTimeMs = startTimeMs + assertTimeoutMs;
     long currentSleepMs = 0;
     boolean done = false;
     try {
       while (!done && System.currentTimeMillis() < endTimeMs) {
-          done = condition.apply(null);
-          if (!done) {
-            currentSleepMs = computeRetrySleep(currentSleepMs, backoffFactor, maxSleepMs,
-                endTimeMs);
-            log.debug("Condition check for '" + message + "' failed; sleeping for " +
-                      currentSleepMs + "ms");
-            Thread.sleep(currentSleepMs);
-          }
+        done = condition.apply(null);
+        if (!done) {
+          currentSleepMs = computeRetrySleep(currentSleepMs, backoffFactor, maxSleepMs, endTimeMs);
+          log.debug("Condition check for '" + message + "' failed; sleeping for " + currentSleepMs + "ms");
+          Thread.sleep(currentSleepMs);
+        }
       }
       //one last try
       if (!done && !condition.apply(null)) {
         throw new TimeoutException("Timeout waiting for condition '" + message + "'.");
       }
-    } catch (TimeoutException|InterruptedException e) {
+    } catch (TimeoutException | InterruptedException e) {
       //pass through
       throw e;
     } catch (RuntimeException e) {
@@ -202,8 +197,7 @@ public class AssertWithBackoff {
    * @return the new sleep time which will not exceed maxSleepMs and will also not cause to
    *         overshoot endTimeMs
    */
-  public static long computeRetrySleep(long currentSleepMs, double backoffFactor, long maxSleepMs,
-                                       long endTimeMs) {
+  public static long computeRetrySleep(long currentSleepMs, double backoffFactor, long maxSleepMs, long endTimeMs) {
     long newSleepMs = Math.round(currentSleepMs * backoffFactor);
     if (newSleepMs <= currentSleepMs) {
       // Prevent infinite loops

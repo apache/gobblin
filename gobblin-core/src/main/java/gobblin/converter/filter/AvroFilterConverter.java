@@ -80,8 +80,8 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
       throws DataConversionException {
     Optional<Object> fieldValue = AvroUtils.getFieldValue(inputRecord, this.fieldName);
     if (fieldValue.isPresent() && fieldValue.get().toString().equals(this.fieldValue)) {
-      return new SingleRecordIterable<GenericRecord>(inputRecord);
+      return new SingleRecordIterable<>(inputRecord);
     }
-    return new EmptyIterable<GenericRecord>();
+    return new EmptyIterable<>();
   }
 }

@@ -13,14 +13,12 @@
 package gobblin.source.extractor.filebased;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Iterator;
 import java.util.List;
 
 import lombok.Getter;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,9 +81,8 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
     this.workUnit = workUnitState.getWorkunit();
     this.filesToPull =
         Lists.newArrayList(workUnitState.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, ""));
-    this.statusCount =
-        this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
-            ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
+    this.statusCount = this.workUnit.getPropAsInt(ConfigurationKeys.FILEBASED_REPORT_STATUS_ON_COUNT,
+        ConfigurationKeys.DEFAULT_FILEBASED_REPORT_STATUS_ON_COUNT);
     this.shouldSkipFirstRecord = this.workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_SKIP_FIRST_RECORD, false);
 
     if (fsHelper instanceof SizeAwareFileBasedHelper) {
@@ -102,10 +99,8 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 
     if (workUnitState.contains(ConfigurationKeys.SOURCE_FILEBASED_OPTIONAL_DOWNLOADER_CLASS)) {
       try {
-        this.fileDownloader =
-            (FileDownloader<D>) ConstructorUtils.invokeConstructor(
-                Class.forName(workUnitState.getProp(ConfigurationKeys.SOURCE_FILEBASED_OPTIONAL_DOWNLOADER_CLASS)),
-                this);
+        this.fileDownloader = (FileDownloader<D>) ConstructorUtils.invokeConstructor(
+            Class.forName(workUnitState.getProp(ConfigurationKeys.SOURCE_FILEBASED_OPTIONAL_DOWNLOADER_CLASS)), this);
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
         throw new RuntimeException(e);

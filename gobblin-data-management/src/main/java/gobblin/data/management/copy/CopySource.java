@@ -73,9 +73,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String DEFAULT_DATASET_PROFILE_CLASS_KEY = CopyableGlobDatasetFinder.class.getCanonicalName();
   public static final String SERIALIZED_COPYABLE_FILE = CopyConfiguration.COPY_PREFIX + ".serialized.copyable.file";
   public static final String COPY_ENTITY_CLASS = CopyConfiguration.COPY_PREFIX + ".copy.entity.class";
-  public static final String SERIALIZED_COPYABLE_DATASET = CopyConfiguration.COPY_PREFIX + ".serialized.copyable.datasets";
+  public static final String SERIALIZED_COPYABLE_DATASET =
+      CopyConfiguration.COPY_PREFIX + ".serialized.copyable.datasets";
   public static final String WORK_UNIT_GUID = CopyConfiguration.COPY_PREFIX + ".work.unit.guid";
-  public static final String MAX_CONCURRENT_LISTING_SERVICES = CopyConfiguration.COPY_PREFIX + ".max.concurrent.listing.services";
+  public static final String MAX_CONCURRENT_LISTING_SERVICES =
+      CopyConfiguration.COPY_PREFIX + ".max.concurrent.listing.services";
   public static final int DEFAULT_MAX_CONCURRENT_LISTING_SERVICES = 20;
   public static final String MAX_FILESYSTEM_QPS = CopyConfiguration.COPY_PREFIX + ".max.filesystem.qps";
   public static final String MAX_FILES_COPIED_KEY = CopyConfiguration.COPY_PREFIX + ".max.files.copied";
@@ -118,38 +120,38 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       DatasetsFinder<CopyableDatasetBase> datasetFinder =
           DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY);
 
-      IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder =
-          datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
-              : new IterableDatasetFinderImpl<>(datasetFinder);
+      IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder = datasetFinder instanceof IterableDatasetFinder
+          ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder : new IterableDatasetFinderImpl<>(datasetFinder);
 
-      Iterator<CopyableDatasetBase> copyableDatasets = new InterruptibleIterator<>(iterableDatasetFinder.getDatasetsIterator(),
-          new Callable<Boolean>() {
-        @Override
-        public Boolean call()
-            throws Exception {
-          return shouldStopGeneratingWorkUnits(workUnitList);
-        }
-      });
+      Iterator<CopyableDatasetBase> copyableDatasets =
+          new InterruptibleIterator<>(iterableDatasetFinder.getDatasetsIterator(), new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+              return shouldStopGeneratingWorkUnits(workUnitList);
+            }
+          });
 
       Iterator<Callable<Void>> callableIterator =
           Iterators.transform(copyableDatasets, new Function<CopyableDatasetBase, Callable<Void>>() {
-        @Nullable
-        @Override
-        public Callable<Void> apply(@Nullable CopyableDatasetBase copyableDataset) {
+            @Nullable
+            @Override
+            public Callable<Void> apply(@Nullable CopyableDatasetBase copyableDataset) {
 
-          IterableCopyableDataset iterableCopyableDataset;
-          if (copyableDataset instanceof IterableCopyableDataset) {
-            iterableCopyableDataset = (IterableCopyableDataset) copyableDataset;
-          } else if (copyableDataset instanceof CopyableDataset) {
-            iterableCopyableDataset = new IterableCopyableDatasetImpl((CopyableDataset) copyableDataset);
-          } else {
-            throw new RuntimeException(String.format("Cannot process %s, can only copy %s or %s.",
-                copyableDataset.getClass().getName(), CopyableDataset.class.getName(), IterableCopyableDataset.class.getName()));
-          }
+              IterableCopyableDataset iterableCopyableDataset;
+              if (copyableDataset instanceof IterableCopyableDataset) {
+                iterableCopyableDataset = (IterableCopyableDataset) copyableDataset;
+              } else if (copyableDataset instanceof CopyableDataset) {
+                iterableCopyableDataset = new IterableCopyableDatasetImpl((CopyableDataset) copyableDataset);
+              } else {
+                throw new RuntimeException(
+                    String.format("Cannot process %s, can only copy %s or %s.", copyableDataset.getClass().getName(),
+                        CopyableDataset.class.getName(), IterableCopyableDataset.class.getName()));
+              }
 
-          return new DatasetWorkUnitGenerator(iterableCopyableDataset, sourceFs, targetFs, state, workUnitList, copyConfiguration);
-        }
-      });
+              return new DatasetWorkUnitGenerator(iterableCopyableDataset, sourceFs, targetFs, state, workUnitList,
+                  copyConfiguration);
+            }
+          });
 
       try {
         List<Future<Void>> futures = new IteratorExecutor<>(callableIterator,
@@ -163,7 +165,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             log.error("Failed to get work units for dataset.", exc.getCause());
           }
         }
-      }catch (InterruptedException ie) {
+      } catch (InterruptedException ie) {
         log.error("Retrieval of work units was interrupted. Aborting.");
         return Lists.newArrayList();
       }
@@ -192,7 +194,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   }
 
-  private FileSystem getOptionallyThrottledFileSystem(FileSystem fs, State state) throws IOException {
+  private static FileSystem getOptionallyThrottledFileSystem(FileSystem fs, State state) throws IOException {
     if (state.contains(MAX_FILESYSTEM_QPS)) {
       try {
         RateControlledFileSystem newFS = new RateControlledFileSystem(fs, state.getPropAsInt(MAX_FILESYSTEM_QPS));
@@ -218,7 +220,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     private final ConcurrentBoundedWorkUnitList workUnitList;
     private final CopyConfiguration copyConfiguration;
 
-    @Override public Void call() {
+    @Override
+    public Void call() {
 
       if (shouldStopGeneratingWorkUnits(this.workUnitList)) {
         return null;
@@ -243,8 +246,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             workUnit.addAll(this.state);
             serializeCopyEntity(workUnit, copyEntity);
             serializeCopyableDataset(workUnit, metadata);
-            GobblinMetrics.addCustomTagToState(workUnit, new Tag<>(CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME,
-                this.copyableDataset.datasetURN()));
+            GobblinMetrics.addCustomTagToState(workUnit,
+                new Tag<>(CopyEventSubmitterHelper.DATASET_ROOT_METADATA_NAME, this.copyableDataset.datasetURN()));
             workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetAndPartition.toString());
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, this.copyableDataset.datasetURN());
             workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyEntity.getFileSet());
@@ -254,7 +257,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           this.workUnitList.addFileSet(fileSet, workUnitsForPartition);
         }
       } catch (IOException ioe) {
-        throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetURN(), ioe);
+        throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetURN(),
+            ioe);
       }
       return null;
     }
@@ -280,9 +284,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     if (CopyableFile.class.isAssignableFrom(copyEntityClass)) {
       CopyableFile copyEntity = (CopyableFile) deserializeCopyEntity(state);
       return extractorForCopyableFile(getSourceFileSystem(state), copyEntity);
-    } else {
-      return new EmptyExtractor<>("empty");
     }
+    return new EmptyExtractor<>("empty");
   }
 
   protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf)
@@ -291,8 +294,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   }
 
   @Override
-  public void shutdown(SourceState state) {
-  }
+  public void shutdown(SourceState state) {}
 
   protected FileSystem getSourceFileSystem(State state) throws IOException {
 
@@ -301,14 +303,13 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
-  private FileSystem getTargetFileSystem(State state) throws IOException {
+  private static FileSystem getTargetFileSystem(State state) throws IOException {
     return getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
   }
 
-  private void computeAndSetWorkUnitGuid(WorkUnit workUnit) throws IOException {
-    Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ?
-        workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) :
-        "");
+  private static void computeAndSetWorkUnitGuid(WorkUnit workUnit) throws IOException {
+    Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY)
+        ? workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) : "");
     setWorkUnitGuid(workUnit, guid.append(deserializeCopyEntity(workUnit)));
   }
 
@@ -317,7 +318,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * @param state {@link State} where guid should be written.
    * @param guid A byte array guid.
    */
-  public static void setWorkUnitGuid(State state, Guid guid) throws IOException {
+  public static void setWorkUnitGuid(State state, Guid guid) {
     state.setProp(WORK_UNIT_GUID, guid.toString());
   }
 
@@ -330,15 +331,14 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static Optional<Guid> getWorkUnitGuid(State state) throws IOException {
     if (state.contains(WORK_UNIT_GUID)) {
       return Optional.of(Guid.deserialize(state.getProp(WORK_UNIT_GUID)));
-    } else {
-      return Optional.absent();
     }
+    return Optional.absent();
   }
 
   /**
    * Serialize a {@link List} of {@link CopyEntity}s into a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
    */
-  public static void serializeCopyEntity(State state, CopyEntity copyEntity) throws IOException {
+  public static void serializeCopyEntity(State state, CopyEntity copyEntity) {
     state.setProp(SERIALIZED_COPYABLE_FILE, CopyEntity.serialize(copyEntity));
     state.setProp(COPY_ENTITY_CLASS, copyEntity.getClass().getName());
   }

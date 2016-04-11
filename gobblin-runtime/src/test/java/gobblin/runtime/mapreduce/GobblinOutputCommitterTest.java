@@ -65,7 +65,7 @@ public class GobblinOutputCommitterTest {
     WorkUnit wu4 = createAndSetWorkUnit("wu4");
 
     // Create a MultiWorkUnit to serialize
-    MultiWorkUnit mwu1 = new MultiWorkUnit();
+    MultiWorkUnit mwu1 = MultiWorkUnit.createEmpty();
     mwu1.setProp(ConfigurationKeys.TASK_ID_KEY, System.nanoTime());
     mwu1.addWorkUnits(Arrays.asList(wu3, wu4));
 
@@ -74,12 +74,12 @@ public class GobblinOutputCommitterTest {
     // Writer each WorkUnit to a separate file under inputDir
     Closer closer = Closer.create();
     try {
-      wu1.write(closer.register(this.fs.create(new Path(inputDir, wu1.getProp(ConfigurationKeys.TASK_ID_KEY)
-          + Path.SEPARATOR + "_").suffix("wu"))));
-      wu2.write(closer.register(this.fs.create(new Path(inputDir, wu2.getProp(ConfigurationKeys.TASK_ID_KEY)
-          + Path.SEPARATOR + "_").suffix("wu"))));
-      mwu1.write(closer.register(this.fs.create(new Path(inputDir, mwu1.getProp(ConfigurationKeys.TASK_ID_KEY)
-          + Path.SEPARATOR + "_").suffix("mwu"))));
+      wu1.write(closer.register(this.fs
+          .create(new Path(inputDir, wu1.getProp(ConfigurationKeys.TASK_ID_KEY) + Path.SEPARATOR + "_").suffix("wu"))));
+      wu2.write(closer.register(this.fs
+          .create(new Path(inputDir, wu2.getProp(ConfigurationKeys.TASK_ID_KEY) + Path.SEPARATOR + "_").suffix("wu"))));
+      mwu1.write(closer.register(this.fs.create(
+          new Path(inputDir, mwu1.getProp(ConfigurationKeys.TASK_ID_KEY) + Path.SEPARATOR + "_").suffix("mwu"))));
     } finally {
       closer.close();
     }
