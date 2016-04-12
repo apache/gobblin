@@ -352,8 +352,7 @@ public class JobContext {
 
     for (Map.Entry<String, JobState.DatasetState> entry : this.datasetStatesByUrns.get().entrySet()) {
       allDatasetsCommit &= processDatasetCommit(shouldCommitDataInJob, deliverySemantics,
-                                               entry.getKey(), entry.getValue())
-                          & allDatasetsCommit;
+                                               entry.getKey(), entry.getValue());
     }
 
     if (!allDatasetsCommit) {
