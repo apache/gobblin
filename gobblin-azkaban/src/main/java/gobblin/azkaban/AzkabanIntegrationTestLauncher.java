@@ -21,6 +21,7 @@ import azkaban.jobExecutor.AbstractJob;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.test.setup.config.TestHarnessLauncher;
 
+
 /**
  * This class launches the TestHarness framework using Azkaban
  *
@@ -41,19 +42,19 @@ public class AzkabanIntegrationTestLauncher extends AbstractJob {
   @Override
   public void run() throws Exception {
     // Get the test harness launcher instance
-    launcher = createTestHarnessInstance();
+    this.launcher = createTestHarnessInstance();
 
     // Execute them
-    launcher.launchTest();
+    this.launcher.launchTest();
   }
 
   private TestHarnessLauncher createTestHarnessInstance()
       throws ClassNotFoundException, InstantiationException, IllegalAccessException {
-    if (!properties.containsKey(ConfigurationKeys.TEST_HARNESS_LAUNCHER_IMPL)) {
+    if (!this.properties.containsKey(ConfigurationKeys.TEST_HARNESS_LAUNCHER_IMPL)) {
       throw new RuntimeException("Unable to launch Test Harness. No implementation class found");
     }
 
-    final String className = properties.getProperty(ConfigurationKeys.TEST_HARNESS_LAUNCHER_IMPL);
+    final String className = this.properties.getProperty(ConfigurationKeys.TEST_HARNESS_LAUNCHER_IMPL);
     final Class<TestHarnessLauncher> clazz = (Class<TestHarnessLauncher>) Class.forName(className);
     return clazz.newInstance();
   }

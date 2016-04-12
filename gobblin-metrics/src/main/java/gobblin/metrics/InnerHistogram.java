@@ -42,7 +42,7 @@ public class InnerHistogram extends Histogram implements InnerMetric {
       this.parentHistogram = Optional.absent();
     }
 
-    this.contextAwareHistogram = new WeakReference<ContextAwareHistogram>(contextAwareHistogram);
+    this.contextAwareHistogram = new WeakReference<>(contextAwareHistogram);
   }
 
   @Override
@@ -62,7 +62,8 @@ public class InnerHistogram extends Histogram implements InnerMetric {
     return this.name;
   }
 
-  @Override public ContextAwareMetric getContextAwareMetric() {
+  @Override
+  public ContextAwareMetric getContextAwareMetric() {
     return this.contextAwareHistogram.get();
   }
 }

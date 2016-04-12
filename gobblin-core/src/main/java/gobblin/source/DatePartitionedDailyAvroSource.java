@@ -290,7 +290,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * Gets the LWM for this job runs. The new LWM is the HWM of the previous run + 1 day. If there was no previous
    * execution then it is set to the given lowWaterMark + 1 day.
    */
-  private long getLowWaterMark(Iterable<WorkUnitState> previousStates, String lowWaterMark) {
+  private static long getLowWaterMark(Iterable<WorkUnitState> previousStates, String lowWaterMark) {
 
     long lowWaterMarkValue = DAILY_FOLDER_FORMATTER.parseMillis(lowWaterMark);
 
@@ -311,7 +311,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * This method is to filter out the .avro files that need to be processed.
    * @return the pathFilter
    */
-  private PathFilter getFileFilter() {
+  private static PathFilter getFileFilter() {
     return new PathFilter() {
       @Override
       public boolean accept(Path path) {

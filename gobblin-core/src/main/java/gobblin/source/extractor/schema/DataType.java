@@ -12,18 +12,18 @@
 
 package gobblin.source.extractor.schema;
 
+import lombok.Getter;
+import lombok.Setter;
+
+
 public class DataType {
+
+  @Getter
+  @Setter
   String type;
 
   public DataType(String type) {
     this.type = type;
   }
 
-  public String getType() {
-    return type;
-  }
-
-  public void setType(String type) {
-    this.type = type;
-  }
 }
