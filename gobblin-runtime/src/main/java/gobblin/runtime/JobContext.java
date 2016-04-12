@@ -378,7 +378,12 @@ public class JobContext {
     try (Closer closer = Closer.create()) {
       dataPublisherClass = getJobDataPublisherClass(datasetState)
           .or((Class<? extends DataPublisher>) Class.forName(ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
-      success = checkForUnpublishedWUHandling(datasetUrn, datasetState,dataPublisherClass, closer);
+      if (!canCommitDataset(datasetState)) {
+        this.logger.warn(String.format("Not committing dataset %s of job %s with commit policy %s and state %s",
+            datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
+        checkForUnpublishedWUHandling(datasetUrn, datasetState,dataPublisherClass, closer);
+        success = false;
+      }
     } catch (ReflectiveOperationException roe) {
       this.logger.warn("Unable to find publisher class: " + roe, roe);
       success = false;
@@ -432,24 +437,17 @@ public class JobContext {
     return success;
   }
 
-  boolean checkForUnpublishedWUHandling(String datasetUrn, JobState.DatasetState datasetState,
-                                        Class<? extends DataPublisher> dataPublisherClass,
-                                        Closer closer)
+  void checkForUnpublishedWUHandling(String datasetUrn, JobState.DatasetState datasetState,
+                                     Class<? extends DataPublisher> dataPublisherClass,
+                                     Closer closer)
           throws ReflectiveOperationException, IOException {
-    boolean success = true;
-    if (!canCommitDataset(datasetState)) {
-      this.logger.warn(String.format("Not committing dataset %s of job %s with commit policy %s and state %s",
-          datasetUrn, this.jobId, this.jobCommitPolicy, datasetState.getState()));
-      if (UnpublishedHandling.class.isAssignableFrom(dataPublisherClass)) {
-        DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
-        this.logger
-            .info(String.format("Calling publisher to handle unpublished work units for dataset %s of job %s.",
-                datasetUrn, this.jobId));
-        ((UnpublishedHandling) publisher).handleUnpublishedWorkUnits(datasetState.getTaskStatesAsWorkUnitStates());
-      }
-      success = false;
+    if (UnpublishedHandling.class.isAssignableFrom(dataPublisherClass)) {
+      DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
+      this.logger
+          .info(String.format("Calling publisher to handle unpublished work units for dataset %s of job %s.",
+              datasetUrn, this.jobId));
+      ((UnpublishedHandling) publisher).handleUnpublishedWorkUnits(datasetState.getTaskStatesAsWorkUnitStates());
     }
-    return success;
   }
 
   @SuppressWarnings("unchecked")
