@@ -351,8 +351,6 @@ public class JobContext {
     }
 
     for (Map.Entry<String, JobState.DatasetState> entry : this.datasetStatesByUrns.get().entrySet()) {
-      // NOTE: order here is important as we don't want to skip processDatasetCommit if there was
-      // a failure for a previous dataset.
       allDatasetsCommit = processDatasetCommit(shouldCommitDataInJob, deliverySemantics,
                                                entry.getKey(), entry.getValue())
                           & allDatasetsCommit;
