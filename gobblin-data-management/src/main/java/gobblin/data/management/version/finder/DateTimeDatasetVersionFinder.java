@@ -12,12 +12,9 @@
 
 package gobblin.data.management.version.finder;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.data.management.version.TimestampedDatasetVersion;
-
 import java.util.Properties;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTimeZone;
@@ -27,6 +24,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.data.management.version.FileSystemDatasetVersion;
+import gobblin.data.management.version.TimestampedDatasetVersion;
 
 
 /**
@@ -38,50 +41,55 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DateTimeDatasetVersionFinder.class);
 
-  public static final String DATE_TIME_PATTERN_KEY = "gobblin.dataset.version.datetime.pattern";
-  public static final String DATE_TIME_PATTERN_TIMEZONE_KEY = "gobblin.dataset.version.datetime.pattern.timezone";
+  /**
+   * Date pattern of the partition. E.g. yyyy/MM/dd/hh/mm or yyyy/MM/dd
+   */
+  public static final String DATE_TIME_PATTERN_KEY = "version.datetime.pattern";
+  /**
+   * Time zone to be used E.g. UTC
+   */
+  public static final String DATE_TIME_PATTERN_TIMEZONE_KEY = "version.datetime.timezone";
+  /**
+   * By default the globPattern is bbtained by replacing all non-slash characters in datetime pattern by *.
+   * E.g. yyyy/MM/dd/hh/mm -> *\/*\/*\/*\/*.
+   * If this key is set, we use this globPatter to search for version
+   */
+  public static final String OPTIONAL_GLOB_PATTERN_TIMEZONE_KEY = "version.globPattern";
+
   public static final String DEFAULT_DATE_TIME_PATTERN_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
 
-  /**
-   * @deprecated use {@link #DATE_TIME_PATTERN_KEY} instead.
-   */
-  @Deprecated
-  public static final String RETENTION_DATE_TIME_PATTERN_KEY = "gobblin.retention.datetime.pattern";
-  /**
-   * @deprecated use {@link #DATE_TIME_PATTERN_TIMEZONE_KEY} instead.
-   */
-  @Deprecated
-  public static final String RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY = "gobblin.retention.datetime.pattern.timezone";
-
   private final Path globPattern;
-  private final DateTimeFormatter formatter;
+  protected final DateTimeFormatter formatter;
+  private final String datePartitionPattern;
 
-  public DateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
-    super(fs, props);
-    Preconditions.checkArgument(props.containsKey(DATE_TIME_PATTERN_KEY)
-        || props.containsKey(RETENTION_DATE_TIME_PATTERN_KEY));
-    String pattern;
-    if (props.containsKey(DATE_TIME_PATTERN_KEY)) {
-      pattern = props.getProperty(DATE_TIME_PATTERN_KEY);
+  public DateTimeDatasetVersionFinder(FileSystem fs, Config config) {
+    super(fs);
+    Preconditions.checkArgument(config.hasPath(DATE_TIME_PATTERN_KEY) , "Missing required property " + DATE_TIME_PATTERN_KEY);
+    String pattern = config.getString(DATE_TIME_PATTERN_KEY);
+
+    if (config.hasPath(OPTIONAL_GLOB_PATTERN_TIMEZONE_KEY)) {
+      this.globPattern = new Path(config.getString(OPTIONAL_GLOB_PATTERN_TIMEZONE_KEY));
     } else {
-      pattern = props.getProperty(RETENTION_DATE_TIME_PATTERN_KEY);
+      this.globPattern = new Path(pattern.replaceAll("[^/]+", "*"));
     }
-    this.globPattern = new Path(pattern.replaceAll("[^/]+", "*"));
+
     LOGGER.debug(String.format("Setting timezone for patthern: %s. By default it is %s", pattern,
         DEFAULT_DATE_TIME_PATTERN_TIMEZONE));
 
-    if (props.containsKey(DATE_TIME_PATTERN_TIMEZONE_KEY)) {
+    if (config.hasPath(DATE_TIME_PATTERN_TIMEZONE_KEY)) {
       this.formatter =
           DateTimeFormat.forPattern(pattern).withZone(
-              DateTimeZone.forID(props.getProperty(DATE_TIME_PATTERN_TIMEZONE_KEY)));
-    } else if (props.containsKey(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY)) {
-      this.formatter =
-          DateTimeFormat.forPattern(pattern).withZone(
-              DateTimeZone.forID(props.getProperty(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY)));
+              DateTimeZone.forID(config.getString(DATE_TIME_PATTERN_TIMEZONE_KEY)));
     } else {
       this.formatter =
           DateTimeFormat.forPattern(pattern).withZone(DateTimeZone.forID(DEFAULT_DATE_TIME_PATTERN_TIMEZONE));
     }
+
+    this.datePartitionPattern = pattern;
+  }
+
+  public DateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
+    this(fs, ConfigFactory.parseProperties(props));
   }
 
   @Override
@@ -92,6 +100,7 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
   /**
    * Obtained by replacing all non-slash characters in datetime pattern by *.
    * E.g. yyyy/MM/dd/hh/mm -> *\/*\/*\/*\/*
+   * Or glob pattern at {@value #OPTIONAL_GLOB_PATTERN_TIMEZONE_KEY} if set.
    */
   @Override
   public Path globVersionPattern() {
@@ -104,12 +113,17 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
     try {
-      return new TimestampedDatasetVersion(this.formatter.parseDateTime(pathRelativeToDatasetRoot.toString()), fullPath);
+      // pathRelativeToDatasetRoot can be daily/2016/03/02 or 2016/03/02. In either case we need to pick 2016/03/02 as version
+      String dateTimeString =
+          StringUtils.substring(pathRelativeToDatasetRoot.toString(), pathRelativeToDatasetRoot.toString().length()
+              - this.datePartitionPattern.length());
+
+      return new TimestampedDatasetVersion(this.formatter.parseDateTime(dateTimeString), fullPath);
+
     } catch (IllegalArgumentException exception) {
       LOGGER.warn("Candidate dataset version at " + pathRelativeToDatasetRoot
           + " does not match expected pattern. Ignoring.");
       return null;
     }
   }
-
 }

@@ -33,7 +33,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
 
 
 /**

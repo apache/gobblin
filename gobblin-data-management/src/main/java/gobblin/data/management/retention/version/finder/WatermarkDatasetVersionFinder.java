@@ -2,10 +2,10 @@ package gobblin.data.management.retention.version.finder;
 
 import java.util.Properties;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import com.typesafe.config.Config;
 
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.StringDatasetVersion;
@@ -15,22 +15,18 @@ import gobblin.data.management.retention.version.StringDatasetVersion;
  * @deprecated
  * See javadoc for {@link gobblin.data.management.version.finder.WatermarkDatasetVersionFinder}.
  */
+@Slf4j
 @Deprecated
 public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDatasetVersion> {
 
   private final gobblin.data.management.version.finder.WatermarkDatasetVersionFinder realVersionFinder;
 
-  public static final String WATERMARK_REGEX_KEY =
-      gobblin.data.management.version.finder.WatermarkDatasetVersionFinder.RETENTION_WATERMARK_REGEX_KEY;
+  public static final String DEPRECATED_WATERMARK_REGEX_KEY = "gobblin.retention.watermark.regex";
 
   public WatermarkDatasetVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);
-    this.realVersionFinder = new gobblin.data.management.version.finder.WatermarkDatasetVersionFinder(fs, props);
-  }
-
-  public WatermarkDatasetVersionFinder(FileSystem fs, Config config) {
-    super(fs);
-    this.realVersionFinder = new gobblin.data.management.version.finder.WatermarkDatasetVersionFinder(fs, config);
+    this.realVersionFinder =
+        new gobblin.data.management.version.finder.WatermarkDatasetVersionFinder(fs, convertDeprecatedProperties(props));
   }
 
   @Override
@@ -51,5 +47,18 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
       return new StringDatasetVersion(stringDatasetVersion);
     }
     return null;
+  }
+
+  public static Properties convertDeprecatedProperties(Properties props) {
+    if (props.containsKey(DEPRECATED_WATERMARK_REGEX_KEY)) {
+      log.info(String.format("Found deprecated key %s. Replacing it with %s", DEPRECATED_WATERMARK_REGEX_KEY,
+          gobblin.data.management.version.finder.WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY));
+
+      props.setProperty(gobblin.data.management.version.finder.WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY,
+          props.getProperty(DEPRECATED_WATERMARK_REGEX_KEY));
+      props.remove(DEPRECATED_WATERMARK_REGEX_KEY);
+    }
+
+    return props;
   }
 }

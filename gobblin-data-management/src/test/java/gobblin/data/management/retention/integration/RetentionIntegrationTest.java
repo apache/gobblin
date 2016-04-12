@@ -77,11 +77,12 @@ public class RetentionIntegrationTest {
   private Path testClassTempPath;
   private static final String SETUP_VALIDATE_CONFIG_CLASSPATH_FILENAME = "setup_validate.conf";
   private static final String TEST_PACKAGE_RESOURCE_NAME = "retentionIntegrationTest";
+  private static final String TEST_DATA_DIR_NAME = "retentionIntegrationTestData";
 
   @BeforeClass
   public void setupClass() throws Exception {
     this.fs = FileSystem.get(new Configuration());
-    testClassTempPath = new Path(RetentionIntegrationTest.class.getClassLoader().getResource("").getFile(), TEST_PACKAGE_RESOURCE_NAME);
+    testClassTempPath = new Path(RetentionIntegrationTest.class.getClassLoader().getResource("").getFile(), TEST_DATA_DIR_NAME);
     if (!fs.mkdirs(testClassTempPath)) {
       throw new RuntimeException("Failed to create temp directory for the test at " + testClassTempPath.toString());
     }
@@ -98,9 +99,14 @@ public class RetentionIntegrationTest {
   public Object[][] retentionTestDataProvider() {
     return new Object[][] {
         { "testTimeBasedRetention", "retention.conf" },
+        { "testTimeBasedRetention", "selection.conf" },
         { "testNewestKRetention", "retention.conf" },
+        { "testNewestKRetention", "selection.conf" },
         { "testHourlyPatternRetention", "hourly-retention.job" },
-        { "testDailyPatternRetention", "daily-retention.job" }
+        { "testDailyPatternRetention", "daily-retention.job" },
+        { "testMultiVersionRetention", "daily-hourly-retention.conf" },
+        { "testCombinePolicy", "retention.job" },
+        { "testCombinePolicy", "selection.conf" }
     };
   }
 
@@ -117,6 +123,7 @@ public class RetentionIntegrationTest {
     clean(fs, PathUtils.combinePaths(TEST_PACKAGE_RESOURCE_NAME, testName, testConfFileName), testNameTempPath);
 
     dataGenerator.validate();
+
   }
 
   /**

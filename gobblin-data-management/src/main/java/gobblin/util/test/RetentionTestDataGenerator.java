@@ -15,8 +15,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTimeUtils;
@@ -79,7 +77,6 @@ import gobblin.util.PathUtils;
 }
  * </pre>
  */
-@Slf4j
 public class RetentionTestDataGenerator {
 
   private static final String DATA_GENERATOR_KEY = "gobblin.test";
@@ -98,6 +95,10 @@ public class RetentionTestDataGenerator {
   private final FileSystem fs;
   private final Config setupConfig;
 
+  /**
+   * @param testTempDirPath under which all test files are created on the FileSystem
+   * @param testSetupConfPath setup config file path in classpath
+   */
   public RetentionTestDataGenerator(Path testTempDirPath, Path testSetupConfPath, FileSystem fs) {
     this.fs = fs;
     this.testTempDirPath = testTempDirPath;
@@ -155,6 +156,16 @@ public class RetentionTestDataGenerator {
           new Path(testTempDirPath, PathUtils.withoutLeadingSeparator(new Path(retainedConfig
               .getString(TEST_DATA_PATH_LOCAL_KEY))));
       Assert.assertFalse(this.fs.exists(fullFilePath), String.format("%s should be deleted", fullFilePath.toString()));
+    }
+
+    this.cleanup();
+  }
+
+  public void cleanup() throws IOException {
+    if (this.fs.exists(testTempDirPath)) {
+      if (!this.fs.delete(testTempDirPath, true)) {
+        throw new IOException("Failed to clean up path " + this.testTempDirPath);
+      }
     }
   }
 

@@ -30,7 +30,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import gobblin.data.management.version.TimestampedDatasetVersion;
 import gobblin.util.test.RetentionTestDataGenerator.FixedThreadLocalMillisProvider;
 
 @Test(groups = { "SystemTimeTests"})
