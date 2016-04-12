@@ -16,10 +16,10 @@ import gobblin.data.management.retention.policy.CombineRetentionPolicy;
 import gobblin.data.management.retention.test.ContainsARetentionPolicy;
 import gobblin.data.management.retention.test.ContainsBRetentionPolicy;
 import gobblin.data.management.retention.test.ContainsCRetentionPolicy;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.FileStatusDatasetVersion;
-import gobblin.data.management.retention.version.StringDatasetVersion;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
+import gobblin.data.management.version.FileStatusDatasetVersion;
+import gobblin.data.management.version.StringDatasetVersion;
+import gobblin.data.management.version.TimestampedDatasetVersion;
 
 import javax.annotation.Nullable;
 import java.io.IOException;

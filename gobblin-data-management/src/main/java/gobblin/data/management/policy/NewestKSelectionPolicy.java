@@ -32,7 +32,7 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<FileSystem
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NewestKSelectionPolicy.class);
 
-  public static final String NEWEST_K_VERSIONS_SELECTED_KEY = "gobblin.newestK.versions.selected";
+  public static final String NEWEST_K_VERSIONS_SELECTED_KEY = "selection.newestK.versionsSelected";
 
   public static final String VERSIONS_SELECTED_DEFAULT = Integer.toString(2);
 

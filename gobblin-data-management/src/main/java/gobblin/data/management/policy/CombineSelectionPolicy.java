@@ -22,8 +22,6 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -31,8 +29,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
+import gobblin.data.management.retention.policy.CombineRetentionPolicy;
 import gobblin.data.management.version.FileSystemDatasetVersion;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -57,8 +59,8 @@ import gobblin.data.management.version.FileSystemDatasetVersion;
  */
 public class CombineSelectionPolicy implements VersionSelectionPolicy<FileSystemDatasetVersion> {
 
-  public static final String VERSION_SELECTION_POLICIES_PREFIX = "version.selection.policy.class.";
-  public static final String VERSION_SELECTION_COMBINE_OPERATION = "version.selection.combine.operation";
+  public static final String VERSION_SELECTION_POLICIES_PREFIX = "selection.combine.policy.classes";
+  public static final String VERSION_SELECTION_COMBINE_OPERATION = "selection.combine.operation";
 
   public enum CombineOperation {
     INTERSECT,
@@ -75,23 +77,17 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<FileSystem
   }
 
   @SuppressWarnings("unchecked")
-  public CombineSelectionPolicy(Properties props) throws IOException {
-
-    Preconditions.checkArgument(props.containsKey(VERSION_SELECTION_POLICIES_PREFIX),
-        "Combine operation not specified.");
+  public CombineSelectionPolicy(Config config, Properties jobProps) throws IOException {
+    Preconditions.checkArgument(config.hasPath(VERSION_SELECTION_POLICIES_PREFIX), "Combine operation not specified.");
 
     ImmutableList.Builder<VersionSelectionPolicy<FileSystemDatasetVersion>> builder = ImmutableList.builder();
 
-    for (String property : props.stringPropertyNames()) {
-      if (property.startsWith(VERSION_SELECTION_POLICIES_PREFIX)) {
-
-        try {
-          builder.add((VersionSelectionPolicy<FileSystemDatasetVersion>) ConstructorUtils.invokeConstructor(
-              Class.forName(props.getProperty(property)), props));
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-            | ClassNotFoundException e) {
-          throw new IllegalArgumentException(e);
-        }
+    for (String combineClassName : config.getStringList(VERSION_SELECTION_POLICIES_PREFIX)) {
+      try {
+        builder.add((VersionSelectionPolicy<FileSystemDatasetVersion>) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(combineClassName),
+            ImmutableList.<Object> of(config), ImmutableList.<Object> of(jobProps)));
+      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
+        throw new IllegalArgumentException(e);
       }
     }
 
@@ -100,8 +96,11 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<FileSystem
       throw new IOException("No selection policies specified for " + CombineSelectionPolicy.class.getCanonicalName());
     }
 
-    this.combineOperation =
-        CombineOperation.valueOf(props.getProperty(VERSION_SELECTION_COMBINE_OPERATION).toUpperCase());
+    this.combineOperation = CombineOperation.valueOf(config.getString(VERSION_SELECTION_COMBINE_OPERATION).toUpperCase());
+  }
+
+  public CombineSelectionPolicy(Properties props) throws IOException {
+    this(ConfigFactory.parseProperties(props), props);
 
   }
 

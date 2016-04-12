@@ -24,11 +24,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
-import gobblin.dataset.Dataset;
-import gobblin.dataset.FileSystemDataset;
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.data.management.version.TimestampedDatasetVersion;
+import gobblin.dataset.Dataset;
+import gobblin.dataset.FileSystemDataset;
 import gobblin.util.FileListUtils;
 
 
@@ -45,6 +47,10 @@ public class FileLevelTimestampVersionFinder implements VersionFinder<Timestampe
   private final FileSystem fs;
 
   public FileLevelTimestampVersionFinder(FileSystem fs, Properties props) {
+    this(fs, ConfigFactory.parseProperties(props));
+  }
+
+  public FileLevelTimestampVersionFinder(FileSystem fs, Config config) {
     this.fs = fs;
   }
 

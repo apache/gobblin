@@ -21,11 +21,13 @@ import org.apache.hadoop.fs.FileSystem;
 import org.joda.time.DateTime;
 
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
-import gobblin.dataset.Dataset;
-import gobblin.dataset.FileSystemDataset;
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.data.management.version.TimestampedDatasetVersion;
+import gobblin.dataset.Dataset;
+import gobblin.dataset.FileSystemDataset;
 
 
 /**
@@ -36,6 +38,10 @@ public class ModDateTimeDatasetVersionFinder implements VersionFinder<Timestampe
   private final FileSystem fs;
 
   public ModDateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
+    this(fs, ConfigFactory.parseProperties(props));
+  }
+
+  public ModDateTimeDatasetVersionFinder(FileSystem fs, Config conf) {
     this.fs = fs;
   }
 
