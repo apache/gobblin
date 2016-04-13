@@ -58,8 +58,8 @@ public class JdbcProvider extends BasicDataSource {
       remotePort = Integer.decode(connectionUrl.substring(portStart + 1, connectionUrl.indexOf("/", portStart)));
 
       try {
-        tunnel = Tunnel.build(remoteHost, remotePort, proxyHost, proxyPort);
-        int tunnelPort = tunnel.getPort();
+        this.tunnel = Tunnel.build(remoteHost, remotePort, proxyHost, proxyPort);
+        int tunnelPort = this.tunnel.getPort();
         //mangle connectionUrl, replace hostname with localhost -- hopefully the hostname is not needed!!!
         String newConnectionUrl = connectionUrl.replaceFirst(remoteHost, "127.0.0.1")
             .replaceFirst(":" + remotePort, ":" + tunnelPort);
@@ -82,8 +82,8 @@ public class JdbcProvider extends BasicDataSource {
   @Override
   public synchronized void close() throws SQLException {
     super.close();
-    if (tunnel != null) {
-      tunnel.close();
+    if (this.tunnel != null) {
+      this.tunnel.close();
     }
   }
 }

@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -33,7 +34,6 @@ import com.google.common.io.Files;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.PreserveAttributes;
@@ -110,6 +110,39 @@ public class RecoveryHelperTest {
         recoveryHelper.findPersistedFile(state, copyableFile, Predicates.<FileStatus>alwaysFalse());
     Assert.assertFalse(fileToRecover.isPresent());
 
+  }
+
+  @Test
+  public void testPurge() throws Exception {
+    String content = "contents";
+
+    File persistDirBase = Files.createTempDir();
+    persistDirBase.deleteOnExit();
+
+    State state = new State();
+    state.setProp(RecoveryHelper.PERSIST_DIR_KEY, persistDirBase.getAbsolutePath());
+    state.setProp(RecoveryHelper.PERSIST_RETENTION_KEY, "1");
+
+    RecoveryHelper recoveryHelper = new RecoveryHelper(FileSystem.getLocal(new Configuration()), state);
+    File persistDir = new File(RecoveryHelper.getPersistDir(state).get().toString());
+    persistDir.mkdir();
+
+    File file = new File(persistDir, "file1");
+    OutputStream os = new FileOutputStream(file);
+    IOUtils.write(content, os);
+    os.close();
+    file.setLastModified(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(2));
+
+    File file2 = new File(persistDir, "file2");
+    OutputStream os2 = new FileOutputStream(file2);
+    IOUtils.write(content, os2);
+    os2.close();
+
+    Assert.assertEquals(persistDir.listFiles().length, 2);
+
+    recoveryHelper.purgeOldPersistedFile();
+
+    Assert.assertEquals(persistDir.listFiles().length, 1);
   }
 
   @Test public void testShortenPathName() throws Exception {

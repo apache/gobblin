@@ -95,7 +95,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     List<WorkUnitState> previousWorkunits = Lists.newArrayList(state.getPreviousWorkUnitStates());
     List<String> prevFsSnapshot = Lists.newArrayList();
 
-   // Get list of files seen in the previous run
+    // Get list of files seen in the previous run
     if (!previousWorkunits.isEmpty()
         && previousWorkunits.get(0).getWorkunit().contains(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT)) {
       prevFsSnapshot =
@@ -104,12 +104,12 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
 
     // Get list of files that need to be pulled
     List<String> currentFsSnapshot = this.getcurrentFsSnapshot(state);
-    HashSet<String> filesWithTimeToPull = new HashSet<String>(currentFsSnapshot);
+    HashSet<String> filesWithTimeToPull = new HashSet<>(currentFsSnapshot);
     filesWithTimeToPull.removeAll(prevFsSnapshot);
-    List<String> filesToPull = new ArrayList<String>();
+    List<String> filesToPull = new ArrayList<>();
     Iterator<String> it = filesWithTimeToPull.iterator();
     while (it.hasNext()) {
-      String filesWithoutTimeToPull[] = it.next().split(splitPattern);
+      String filesWithoutTimeToPull[] = it.next().split(this.splitPattern);
       filesToPull.add(filesWithoutTimeToPull[0]);
     }
 
@@ -118,14 +118,14 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
       log.info("Will pull the following files in this run: " + Arrays.toString(filesToPull.toArray()));
 
       int numPartitions = state.contains((ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS))
-          && state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) <= filesToPull.size() ? state
-          .getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) : filesToPull.size();
+          && state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) <= filesToPull.size()
+              ? state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS) : filesToPull.size();
       if (numPartitions <= 0) {
         throw new IllegalArgumentException("The number of partitions should be positive");
       }
 
-      int filesPerPartition = filesToPull.size() % numPartitions == 0 ?
-          filesToPull.size() / numPartitions : filesToPull.size() / numPartitions + 1;
+      int filesPerPartition = filesToPull.size() % numPartitions == 0 ? filesToPull.size() / numPartitions
+          : filesToPull.size() / numPartitions + 1;
 
       int workUnitCount = 0;
 
@@ -135,12 +135,13 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
         partitionState.addAll(state);
 
         // Eventually these setters should be integrated with framework support for generalized watermark handling
-        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT, StringUtils.join(currentFsSnapshot, ","));
+        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT,
+            StringUtils.join(currentFsSnapshot, ","));
 
         List<String> partitionFilesToPull = filesToPull.subList(fileOffset,
             fileOffset + filesPerPartition > filesToPull.size() ? filesToPull.size() : fileOffset + filesPerPartition);
-        partitionState
-            .setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, StringUtils.join(partitionFilesToPull, ","));
+        partitionState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
+            StringUtils.join(partitionFilesToPull, ","));
         if (state.getPropAsBoolean(ConfigurationKeys.SOURCE_FILEBASED_PRESERVE_FILE_NAME, false)) {
           if (partitionFilesToPull.size() != 1) {
             throw new RuntimeException("Cannot preserve the file name if a workunit is given multiple files");
@@ -174,16 +175,16 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
    * directory
    */
   public List<String> getcurrentFsSnapshot(State state) {
-    List<String> results = new ArrayList<String>();
-    String path = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/*" + state
-        .getProp(ConfigurationKeys.SOURCE_ENTITY) + "*";
+    List<String> results = new ArrayList<>();
+    String path = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/*"
+        + state.getProp(ConfigurationKeys.SOURCE_ENTITY) + "*";
 
     try {
       log.info("Running ls command with input " + path);
       results = this.fsHelper.ls(path);
       for (int i = 0; i < results.size(); i++) {
         String filePath = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY) + "/" + results.get(i);
-        results.set(i, filePath + splitPattern + this.fsHelper.getFileMTime(filePath));
+        results.set(i, filePath + this.splitPattern + this.fsHelper.getFileMTime(filePath));
       }
     } catch (FileBasedHelperException e) {
       log.error("Not able to fetch the filename/file modified time to " + e.getMessage() + " will not pull any files",
@@ -204,6 +205,5 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     }
   }
 
-  public abstract void initFileSystemHelper(State state)
-      throws FileBasedHelperException;
+  public abstract void initFileSystemHelper(State state) throws FileBasedHelperException;
 }

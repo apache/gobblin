@@ -83,23 +83,22 @@ public class CompactionRunner {
       }
     }
     LOG.info("Found " + numOfJobs + " compaction tasks.");
-    PrintWriter pw = new PrintWriter(new OutputStreamWriter(
-        new FileOutputStream(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT)), Charset.forName("UTF-8")));
+    try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(
+        new FileOutputStream(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT)), Charset.forName("UTF-8")))) {
 
-    for (File file : listOfFiles) {
-      if (file.isFile() && !file.getName().startsWith(".")) {
-        Configuration jobConfig = new PropertiesConfiguration(file.getAbsolutePath());
-        jobProperties = ConfigurationConverter.getProperties(jobConfig);
-        long startTime = System.nanoTime();
-        compact();
-        long endTime = System.nanoTime();
-        long elapsedTime = endTime - startTime;
-        double seconds = TimeUnit.NANOSECONDS.toSeconds(elapsedTime);
-        pw.printf("%s: %f%n", file.getAbsolutePath(), seconds);
+      for (File file : listOfFiles) {
+        if (file.isFile() && !file.getName().startsWith(".")) {
+          Configuration jobConfig = new PropertiesConfiguration(file.getAbsolutePath());
+          jobProperties = ConfigurationConverter.getProperties(jobConfig);
+          long startTime = System.nanoTime();
+          compact();
+          long endTime = System.nanoTime();
+          long elapsedTime = endTime - startTime;
+          double seconds = TimeUnit.NANOSECONDS.toSeconds(elapsedTime);
+          pw.printf("%s: %f%n", file.getAbsolutePath(), seconds);
+        }
       }
     }
-
-    pw.close();
   }
 
   private static void compact() throws IOException {
@@ -115,7 +114,7 @@ public class CompactionRunner {
   }
 
   private static List<AvroExternalTable> buildDeltaTables() throws IOException {
-    List<AvroExternalTable> deltas = new ArrayList<AvroExternalTable>();
+    List<AvroExternalTable> deltas = new ArrayList<>();
 
     for (int i = 1;; i++) {
       String deltai = DELTA + "." + i;

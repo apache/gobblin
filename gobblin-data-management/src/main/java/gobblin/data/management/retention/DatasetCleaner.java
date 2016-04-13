@@ -80,6 +80,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
   private Optional<Meter> datasetsCleanSuccessMeter = Optional.absent();
   private Optional<Meter> datasetsCleanFailureMeter = Optional.absent();
   private Optional<CountDownLatch> finishCleanSignal;
+  private final List<Throwable> throwables;
 
   public DatasetCleaner(FileSystem fs, Properties props) throws IOException {
 
@@ -111,6 +112,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
     this.metricContext = this.closer.register(Instrumented.getMetricContext(new State(props), DatasetCleaner.class, tags));
     this.isMetricEnabled = GobblinMetrics.isEnabled(props);
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, RetentionEvents.NAMESPACE).build();
+    this.throwables = Lists.newArrayList();
   }
 
   /**
@@ -135,6 +137,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
         public void onFailure(Throwable throwable) {
           finishCleanSignal.get().countDown();
           LOG.warn("Exception caught when cleaning " + dataset.datasetURN() + ".", throwable);
+          throwables.add(throwable);
           Instrumented.markMeter(datasetsCleanFailureMeter);
           eventSubmitter.submit(RetentionEvents.CleanFailed.EVENT_NAME,
               ImmutableMap.of(RetentionEvents.CleanFailed.FAILURE_CONTEXT_METADATA_KEY, ExceptionUtils.getFullStackTrace(throwable),
@@ -158,6 +161,12 @@ public class DatasetCleaner implements Instrumentable, Closeable {
     try {
       if (this.finishCleanSignal.isPresent()) {
         finishCleanSignal.get().await();
+      }
+      if (!this.throwables.isEmpty()) {
+        for (Throwable t : throwables) {
+          LOG.error("Failed clean due to ", t);
+        }
+        throw new RuntimeException("Clean failed for one or more datasets");
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();

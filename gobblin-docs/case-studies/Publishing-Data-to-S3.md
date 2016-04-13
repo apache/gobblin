@@ -144,3 +144,13 @@ Data should be written to S3 during the publishing phase of Gobblin. One can con
 ### Writing to S3 Outside EC2
 
 It is possible to write to an S3 bucket outside of an EC2 instance. The setup steps are similar to walkthrough outlined above. For more information on writing to S3 outside of AWS, check out [this article](https://aws.amazon.com/articles/5050).
+
+## Configuration Properties for `s3a`
+
+The `s3a` FileSystem has a number of configuration properties that can be set to tune the behavior and performance of the `s3a` FileSystem. A complete list of the properties can be found here: https://hadoop.apache.org/docs/stable/hadoop-aws/tools/hadoop-aws/index.html
+
+# FAQs
+
+### How do I control the directory the `s3a` uses when writing to local disk
+
+The configuration property `fs.s3a.buffer.dir` controls the location where the `s3a` FileSystem will write data locally before uplodaing it to S3. By default, this property is set to `${hadoop.tmp.dir}/s3a`.

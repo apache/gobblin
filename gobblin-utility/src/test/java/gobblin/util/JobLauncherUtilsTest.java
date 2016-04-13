@@ -38,7 +38,7 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author Yinan Li
  */
-@Test(groups = {"gobblin.util"})
+@Test(groups = { "gobblin.util" })
 public class JobLauncherUtilsTest {
 
   private static final String JOB_NAME = "foo";
@@ -70,10 +70,10 @@ public class JobLauncherUtilsTest {
 
     Assert.assertEquals(JobLauncherUtils.flattenWorkUnits(workUnitsOnly).size(), 3);
 
-    MultiWorkUnit multiWorkUnit1 = new MultiWorkUnit();
+    MultiWorkUnit multiWorkUnit1 = MultiWorkUnit.createEmpty();
     multiWorkUnit1.addWorkUnits(Arrays.asList(WorkUnit.createEmpty(), WorkUnit.createEmpty(), WorkUnit.createEmpty()));
 
-    MultiWorkUnit multiWorkUnit2 = new MultiWorkUnit();
+    MultiWorkUnit multiWorkUnit2 = MultiWorkUnit.createEmpty();
     multiWorkUnit1.addWorkUnits(Arrays.asList(WorkUnit.createEmpty(), WorkUnit.createEmpty(), WorkUnit.createEmpty()));
 
     List<WorkUnit> workUnitsAndMultiWorkUnits = Arrays.asList(WorkUnit.createEmpty(), WorkUnit.createEmpty(),
@@ -174,24 +174,20 @@ public class JobLauncherUtilsTest {
       state.setProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_DIR, 2, 1),
           writerOutputDir1.toString());
 
-      Path writerStagingPath0 =
-          new Path(writerStagingDir0, ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(),
-              2, 0));
+      Path writerStagingPath0 = new Path(writerStagingDir0,
+          ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(), 2, 0));
       fs.mkdirs(writerStagingPath0);
 
-      Path writerStagingPath1 =
-          new Path(writerStagingDir1, ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(),
-              2, 1));
+      Path writerStagingPath1 = new Path(writerStagingDir1,
+          ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(), 2, 1));
       fs.mkdirs(writerStagingPath1);
 
-      Path writerOutputPath0 =
-          new Path(writerOutputDir0, ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(),
-              2, 0));
+      Path writerOutputPath0 = new Path(writerOutputDir0,
+          ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(), 2, 0));
       fs.mkdirs(writerOutputPath0);
 
-      Path writerOutputPath1 =
-          new Path(writerOutputDir1, ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(),
-              2, 1));
+      Path writerOutputPath1 = new Path(writerOutputDir1,
+          ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(), 2, 1));
       fs.mkdirs(writerOutputPath1);
 
       JobLauncherUtils.cleanTaskStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));

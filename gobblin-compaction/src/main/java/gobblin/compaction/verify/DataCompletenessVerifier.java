@@ -124,7 +124,7 @@ public class DataCompletenessVerifier implements Closeable {
     ExecutorsUtils.shutdownExecutorService(this.exeSvc, Optional.of(LOG));
   }
 
-  public void closeNow() throws IOException {
+  public void closeNow() {
     ExecutorsUtils.shutdownExecutorService(this.exeSvc, Optional.of(LOG), 0, TimeUnit.NANOSECONDS);
   }
 

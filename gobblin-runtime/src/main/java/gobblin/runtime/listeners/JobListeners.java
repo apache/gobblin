@@ -50,22 +50,21 @@ public class JobListeners {
 
     private final List<JobListener> jobListeners;
     private final ExecutorService executor;
-    private final CompletionService completionService;
+    private final CompletionService<Void> completionService;
 
     public ParallelJobListener(List<JobListener> jobListeners) {
       this.jobListeners = jobListeners;
       this.executor = Executors.newCachedThreadPool(
           ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ParallelJobListener")));
-      this.completionService = new ExecutorCompletionService(this.executor);
+      this.completionService = new ExecutorCompletionService<>(this.executor);
     }
 
     @Override
     public void onJobPrepare(final JobContext jobContext) {
-      for (final JobListener jobListener : jobListeners) {
+      for (final JobListener jobListener : this.jobListeners) {
         this.completionService.submit(new Callable<Void>() {
           @Override
-          public Void call()
-              throws Exception {
+          public Void call() throws Exception {
             jobListener.onJobPrepare(jobContext);
             return null;
           }
@@ -75,11 +74,10 @@ public class JobListeners {
 
     @Override
     public void onJobStart(final JobContext jobContext) {
-      for (final JobListener jobListener : jobListeners) {
+      for (final JobListener jobListener : this.jobListeners) {
         this.completionService.submit(new Callable<Void>() {
           @Override
-          public Void call()
-              throws Exception {
+          public Void call() throws Exception {
             jobListener.onJobStart(jobContext);
             return null;
           }
@@ -89,11 +87,10 @@ public class JobListeners {
 
     @Override
     public void onJobCompletion(final JobContext jobContext) {
-      for (final JobListener jobListener : jobListeners) {
+      for (final JobListener jobListener : this.jobListeners) {
         this.completionService.submit(new Callable<Void>() {
           @Override
-          public Void call()
-              throws Exception {
+          public Void call() throws Exception {
             jobListener.onJobCompletion(jobContext);
             return null;
           }
@@ -103,11 +100,10 @@ public class JobListeners {
 
     @Override
     public void onJobCancellation(final JobContext jobContext) {
-      for (final JobListener jobListener : jobListeners) {
+      for (final JobListener jobListener : this.jobListeners) {
         this.completionService.submit(new Callable<Void>() {
           @Override
-          public Void call()
-              throws Exception {
+          public Void call() throws Exception {
             jobListener.onJobCancellation(jobContext);
             return null;
           }
@@ -117,11 +113,10 @@ public class JobListeners {
 
     @Override
     public void onJobFailure(final JobContext jobContext) {
-      for (final JobListener jobListener : jobListeners) {
+      for (final JobListener jobListener : this.jobListeners) {
         this.completionService.submit(new Callable<Void>() {
           @Override
-          public Void call()
-              throws Exception {
+          public Void call() throws Exception {
             jobListener.onJobFailure(jobContext);
             return null;
           }
@@ -130,8 +125,7 @@ public class JobListeners {
     }
 
     @Override
-    public void close()
-      throws IOException {
+    public void close() throws IOException {
       try {
         boolean wasInterrupted = false;
         IOException exception = null;

@@ -46,10 +46,10 @@ public class CompactionRecordCountEvent {
    */
   private Map<String, String> buildRecordCountEventMetaData() {
     Map<String, String> eventMetadataMap = Maps.newHashMap();
-    eventMetadataMap.put(DATASET_OUTPUT_PATH, dataset.outputPath().toString());
-    eventMetadataMap.put(LATE_RECORD_COUNT, Long.toString(lateOutputRecordCount));
-    eventMetadataMap.put(REGULAR_RECORD_COUNT, Long.toString(outputRecordCount));
-    eventMetadataMap.put(NEED_RECOMPACT, Boolean.toString(dataset.needToRecompact()));
+    eventMetadataMap.put(DATASET_OUTPUT_PATH, this.dataset.outputPath().toString());
+    eventMetadataMap.put(LATE_RECORD_COUNT, Long.toString(this.lateOutputRecordCount));
+    eventMetadataMap.put(REGULAR_RECORD_COUNT, Long.toString(this.outputRecordCount));
+    eventMetadataMap.put(NEED_RECOMPACT, Boolean.toString(this.dataset.needToRecompact()));
     log.info("Compaction record count event metadata: " + eventMetadataMap);
     return eventMetadataMap;
   }

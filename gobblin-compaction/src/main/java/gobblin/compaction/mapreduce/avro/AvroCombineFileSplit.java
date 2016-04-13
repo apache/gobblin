@@ -46,24 +46,24 @@ public class AvroCombineFileSplit extends CombineFileSplit {
   }
 
   public Schema getSchema() {
-    return schema;
+    return this.schema;
   }
 
   @Override
   public void readFields(DataInput in) throws IOException {
     super.readFields(in);
-    schema = new Schema.Parser().parse(fromBase64(Text.readString(in)));
+    this.schema = new Schema.Parser().parse(fromBase64(Text.readString(in)));
   }
 
   @Override
   public void write(DataOutput out) throws IOException {
     super.write(out);
-    Text.writeString(out, toBase64(schema.toString()));
+    Text.writeString(out, toBase64(this.schema.toString()));
   }
 
   @Override
   public String toString() {
-    return super.toString() + " Schema: " + schema.toString();
+    return super.toString() + " Schema: " + this.schema.toString();
   }
 
   private static String toBase64(String rawString) {

@@ -14,8 +14,6 @@ package gobblin.hive;
 
 import lombok.Getter;
 
-import java.io.IOException;
-
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
@@ -37,7 +35,7 @@ public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaSto
   @Getter
   private HiveConf hiveConf;
 
-  public HiveMetaStoreClientFactory(Optional<String> hcatURI) throws IOException {
+  public HiveMetaStoreClientFactory(Optional<String> hcatURI) {
     this(getHiveConf(hcatURI));
   }
 
@@ -49,12 +47,12 @@ public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaSto
     return hiveConf;
   }
 
-  public HiveMetaStoreClientFactory(HiveConf hiveConf) throws IOException {
+  public HiveMetaStoreClientFactory(HiveConf hiveConf) {
     this.hiveConf = hiveConf;
   }
 
-  public HiveMetaStoreClientFactory() throws IOException {
-    this(Optional.<String>absent());
+  public HiveMetaStoreClientFactory() {
+    this(Optional.<String> absent());
   }
 
   @Override

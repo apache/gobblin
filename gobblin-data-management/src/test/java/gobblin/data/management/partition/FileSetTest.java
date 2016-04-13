@@ -12,8 +12,6 @@
 
 package gobblin.data.management.partition;
 
-import lombok.Data;
-
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -34,20 +32,22 @@ public class FileSetTest {
     }
 
     private final FileStatus fileStatus;
-    @Override public FileStatus getFileStatus() {
+
+    @Override
+    public FileStatus getFileStatus() {
       return this.fileStatus;
     }
   }
 
-  @Test public void testPartitionBuilder() throws Exception {
+  @Test
+  public void testPartitionBuilder() throws Exception {
 
     String file1 = "file1";
     String file2 = "file2";
 
-    FileSet<TestFile> fileSet = new FileSet.Builder<TestFile>("test", new DummyDataset(new Path("/path"))).
-        add(new TestFile(createFileStatus(file1))).
-        add(Lists.newArrayList(new TestFile(createFileStatus(file2)))).
-        build();
+    FileSet<TestFile> fileSet = new FileSet.Builder<TestFile>("test", new DummyDataset(new Path("/path")))
+        .add(new TestFile(createFileStatus(file1))).add(Lists.newArrayList(new TestFile(createFileStatus(file2))))
+        .build();
 
     Assert.assertEquals(fileSet.getFiles().size(), 2);
     Assert.assertEquals(fileSet.getName(), "test");

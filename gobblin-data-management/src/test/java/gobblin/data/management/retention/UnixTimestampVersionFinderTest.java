@@ -18,7 +18,7 @@ public class UnixTimestampVersionFinderTest {
   public void test() {
 
     Properties props = new Properties();
-    props.put(WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY, "watermark-([0-9]*)-[a-z]*");
+    props.put(WatermarkDatasetVersionFinder.DEPRECATED_WATERMARK_REGEX_KEY, "watermark-([0-9]*)-[a-z]*");
 
     UnixTimestampVersionFinder parser = new UnixTimestampVersionFinder(null, props);
 

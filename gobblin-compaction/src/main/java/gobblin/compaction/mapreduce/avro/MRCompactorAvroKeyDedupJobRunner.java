@@ -90,14 +90,14 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
     // Provide a custom dedup schema through property "avro.key.schema.loc"
     CUSTOM
-  };
+  }
 
   private static final DedupKeyOption DEFAULT_DEDUP_KEY_OPTION = DedupKeyOption.KEY;
 
   private final boolean useSingleInputSchema;
 
-  public MRCompactorAvroKeyDedupJobRunner(Dataset dataset, FileSystem fs, Double priority) {
-    super(dataset, fs, priority);
+  public MRCompactorAvroKeyDedupJobRunner(Dataset dataset, FileSystem fs) {
+    super(dataset, fs);
     this.useSingleInputSchema = this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, true);
   }
 
@@ -109,7 +109,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   private void configureSchema(Job job) throws IOException {
     Schema newestSchema = getNewestSchemaFromSource(job);
-    if (useSingleInputSchema) {
+    if (this.useSingleInputSchema) {
       AvroJob.setInputKeySchema(job, newestSchema);
     }
     AvroJob.setMapOutputKeySchema(job, this.shouldDeduplicate ? getKeySchema(job, newestSchema) : newestSchema);
@@ -209,7 +209,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   /**
    * keySchema is valid if a record with newestSchema can be converted to a record with keySchema.
    */
-  private boolean isKeySchemaValid(Schema keySchema, Schema topicSchema) {
+  private static boolean isKeySchemaValid(Schema keySchema, Schema topicSchema) {
     return SchemaCompatibility.checkReaderWriterCompatibility(keySchema, topicSchema).getType()
         .equals(SchemaCompatibilityType.COMPATIBLE);
   }
@@ -236,7 +236,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   @SuppressWarnings("deprecation")
   private Schema getNewestSchemaFromSource(Path sourceDir) throws IOException {
-    FileStatus[] files = fs.listStatus(sourceDir);
+    FileStatus[] files = this.fs.listStatus(sourceDir);
     Arrays.sort(files, new LastModifiedDescComparator());
     for (FileStatus status : files) {
       if (status.isDir()) {

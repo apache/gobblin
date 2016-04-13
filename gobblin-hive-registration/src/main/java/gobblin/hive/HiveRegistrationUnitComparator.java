@@ -80,8 +80,8 @@ public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitCompar
   @SuppressWarnings("unchecked")
   public T compareRawLocation() {
     if (!this.result) {
-      this.result |= (!new Path(existingUnit.getLocation().get()).toUri().getRawPath()
-          .equals(new Path(newUnit.getLocation().get()).toUri().getRawPath()));
+      this.result |= (!new Path(this.existingUnit.getLocation().get()).toUri().getRawPath()
+          .equals(new Path(this.newUnit.getLocation().get()).toUri().getRawPath()));
     }
     return (T) this;
   }
@@ -169,7 +169,7 @@ public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitCompar
    * @return true if the existing {@link HiveRegistrationUnit} needs to be altered, false otherwise.
    */
   public boolean result() {
-    boolean resultCopy = result;
+    boolean resultCopy = this.result;
     this.result = false;
     return resultCopy;
   }

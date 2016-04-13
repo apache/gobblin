@@ -58,7 +58,7 @@ public class KafkaTestBase implements Closeable {
   static boolean serverClosed = false;
 
   public static void startServer() throws RuntimeException {
-    if ( serverStarted && serverClosed ) {
+    if (serverStarted && serverClosed) {
       throw new RuntimeException("Kafka test server has already been closed. Cannot generate Kafka server twice.");
     }
     if (!serverStarted) {
@@ -88,7 +88,7 @@ public class KafkaTestBase implements Closeable {
   protected String topic;
   protected ConsumerConnector consumer;
   protected KafkaStream<byte[], byte[]> stream;
-  protected ConsumerIterator<byte[],byte[]> iterator;
+  protected ConsumerIterator<byte[], byte[]> iterator;
 
   public KafkaTestBase(String topic) throws InterruptedException, RuntimeException {
 
@@ -98,7 +98,7 @@ public class KafkaTestBase implements Closeable {
 
     AdminUtils.createTopic(zkClient, topic, 1, 1, new Properties());
 
-    List<KafkaServer> servers = new ArrayList<KafkaServer>();
+    List<KafkaServer> servers = new ArrayList<>();
     servers.add(kafkaServer);
     TestUtils.waitUntilMetadataIsPropagated(scala.collection.JavaConversions.asScalaBuffer(servers), topic, 0, 5000);
 
@@ -112,19 +112,17 @@ public class KafkaTestBase implements Closeable {
 
     consumer = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumeProps));
 
-    Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
+    Map<String, Integer> topicCountMap = new HashMap<>();
     topicCountMap.put(this.topic, 1);
     Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
-    List<KafkaStream<byte[],byte[]>> streams = consumerMap.get(this.topic);
+    List<KafkaStream<byte[], byte[]>> streams = consumerMap.get(this.topic);
     stream = streams.get(0);
 
     iterator = stream.iterator();
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     consumer.shutdown();
   }
 }
-

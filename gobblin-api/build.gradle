@@ -20,6 +20,7 @@ dependencies {
     compile externalDependency.commonsCli
     compile externalDependency.lombok
     compile externalDependency.commonsIo
+    compile externalDependency.reflections
 
     testCompile externalDependency.testng
     testCompile externalDependency.log4j

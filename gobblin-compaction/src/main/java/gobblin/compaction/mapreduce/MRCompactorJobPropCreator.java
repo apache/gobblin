@@ -117,9 +117,8 @@ public class MRCompactorJobPropCreator {
     if (datasetWithJobProps.isPresent()) {
       setCompactionSLATimestamp(datasetWithJobProps.get());
       return ImmutableList.<Dataset> of(datasetWithJobProps.get());
-    } else {
-      return ImmutableList.<Dataset> of();
     }
+    return ImmutableList.<Dataset> of();
   }
 
   private void setCompactionSLATimestamp(Dataset dataset) {
@@ -128,7 +127,7 @@ public class MRCompactorJobPropCreator {
         && dataset.jobProps().contains(MRCompactor.COMPACTION_INPUT_PATH_TIME)) {
       long timeInMills = dataset.jobProps().getPropAsLong(MRCompactor.COMPACTION_INPUT_PATH_TIME);
       // Set the upstream time to partition + 1 day. E.g. for 2015/10/13 the upstream time is midnight of 2015/10/14
-      CompactionSlaEventHelper.setUpstreamTimeStamp(state,
+      CompactionSlaEventHelper.setUpstreamTimeStamp(this.state,
           timeInMills + TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS));
     }
   }

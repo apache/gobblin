@@ -41,7 +41,6 @@ import gobblin.converter.ToAvroConverterBase;
  *
  * @author Yinan Li
  */
-@SuppressWarnings("unused")
 public class SimpleJsonConverter extends ToAvroConverterBase<String, String> {
 
   private static final Gson GSON = new Gson();

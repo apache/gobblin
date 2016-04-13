@@ -12,7 +12,6 @@
 
 package gobblin.compaction.hive;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Set;
 
@@ -41,7 +40,7 @@ public abstract class HdfsIO {
   private static final String HDFS_URI_HADOOP2 = "fs.defaultFS";
   private static final String HADOOP_VERSION = "hadoop.version";
   private static final String HADOOP_VERSION_DEFAULT = "2";
-  private static final Set<Integer> VALID_HADOOP_VERSIONS = ImmutableSet.<Integer>builder().add(1).add(2).build();
+  private static final Set<Integer> VALID_HADOOP_VERSIONS = ImmutableSet.<Integer> builder().add(1).add(2).build();
 
   protected final String filePathInHdfs;
   protected final FileSystem fileSystem;
@@ -80,7 +79,7 @@ public abstract class HdfsIO {
     return FileSystem.get(conf);
   }
 
-  protected static Configuration getConfiguration() throws FileNotFoundException {
+  protected static Configuration getConfiguration() {
     Configuration conf = new Configuration();
     addResourceToConf(conf);
     return conf;

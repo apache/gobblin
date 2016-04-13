@@ -182,7 +182,6 @@ public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S
   protected abstract HadoopFileInputExtractor<S, D, K, V> getExtractor(WorkUnitState workUnitState,
       RecordReader<K, V> recordReader, FileSplit fileSplit, boolean readKeys);
 
-  @SuppressWarnings("unchecked")
   private TaskAttemptContext getTaskAttemptContext(Configuration configuration, TaskAttemptID taskAttemptID) {
     Class<?> taskAttemptContextClass;
 

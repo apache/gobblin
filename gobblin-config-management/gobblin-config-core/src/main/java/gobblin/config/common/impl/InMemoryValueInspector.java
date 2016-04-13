@@ -35,12 +35,12 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
     this.valueFallback = valueFallback;
 
     if (useStrongRef) {
-      ownConfigCache = CacheBuilder.newBuilder().build();
-      recursiveConfigCache = CacheBuilder.newBuilder().build();
+      this.ownConfigCache = CacheBuilder.newBuilder().build();
+      this.recursiveConfigCache = CacheBuilder.newBuilder().build();
     }
     else{
-      ownConfigCache = CacheBuilder.newBuilder().softValues().build();
-      recursiveConfigCache = CacheBuilder.newBuilder().softValues().build();
+      this.ownConfigCache = CacheBuilder.newBuilder().softValues().build();
+      this.recursiveConfigCache = CacheBuilder.newBuilder().softValues().build();
     }
   }
 
@@ -58,7 +58,7 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
       return this.ownConfigCache.get(configKey, new Callable<Config>() {
         @Override
         public Config call()  {
-          return valueFallback.getOwnConfig(configKey);
+          return InMemoryValueInspector.this.valueFallback.getOwnConfig(configKey);
         }
       });
     } catch (ExecutionException e) {
@@ -81,7 +81,7 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
       return this.recursiveConfigCache.get(configKey, new Callable<Config>() {
         @Override
         public Config call()  {
-          return valueFallback.getResolvedConfig(configKey);
+          return InMemoryValueInspector.this.valueFallback.getResolvedConfig(configKey);
         }
       });
     } catch (ExecutionException e) {
@@ -100,7 +100,7 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
    */
   @Override
   public Map<ConfigKeyPath, Config> getOwnConfigs(Collection<ConfigKeyPath> configKeys) {
-    Collection<ConfigKeyPath> configKeysNotInCache = new ArrayList<ConfigKeyPath>();
+    Collection<ConfigKeyPath> configKeysNotInCache = new ArrayList<>();
     Map<ConfigKeyPath, Config> result = new HashMap<>();
     for(ConfigKeyPath configKey: configKeys){
       Config cachedValue = this.ownConfigCache.getIfPresent(configKey);
@@ -132,7 +132,7 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
    */
   @Override
   public Map<ConfigKeyPath, Config> getResolvedConfigs(Collection<ConfigKeyPath> configKeys) {
-    Collection<ConfigKeyPath> configKeysNotInCache = new ArrayList<ConfigKeyPath>();
+    Collection<ConfigKeyPath> configKeysNotInCache = new ArrayList<>();
     Map<ConfigKeyPath, Config> result = new HashMap<>();
     for(ConfigKeyPath configKey: configKeys){
       Config cachedValue = this.recursiveConfigCache.getIfPresent(configKey);

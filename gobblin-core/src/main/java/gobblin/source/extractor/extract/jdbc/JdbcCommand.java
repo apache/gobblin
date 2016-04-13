@@ -32,14 +32,19 @@ public class JdbcCommand implements Command {
    * JDBC command types
    */
   public enum JdbcCommandType implements CommandType {
-    QUERY, QUERYPARAMS, FETCHSIZE, DELETE, UPDATE, SELECT
+    QUERY,
+    QUERYPARAMS,
+    FETCHSIZE,
+    DELETE,
+    UPDATE,
+    SELECT
   }
 
   private List<String> params;
   private JdbcCommandType cmd;
 
   public JdbcCommand() {
-    this.params = new ArrayList<String>();
+    this.params = new ArrayList<>();
   }
 
   @Override

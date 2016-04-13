@@ -28,8 +28,8 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
+import gobblin.data.management.version.TimestampedDatasetVersion;
 
 
 /**

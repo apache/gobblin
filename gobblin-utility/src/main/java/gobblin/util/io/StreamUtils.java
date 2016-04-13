@@ -55,8 +55,7 @@ public class StreamUtils {
    * @see SeekableFSInputStream
    *
    */
-  public static FSDataInputStream convertStream(InputStream in)
-      throws IOException {
+  public static FSDataInputStream convertStream(InputStream in) throws IOException {
     return new FSDataInputStream(new SeekableFSInputStream(in));
   }
 
@@ -70,18 +69,14 @@ public class StreamUtils {
    *
    * @return Total bytes copied
    */
-  public static long copy(InputStream is, OutputStream os)
-      throws IOException {
+  public static long copy(InputStream is, OutputStream os) throws IOException {
 
-    final ReadableByteChannel inputChannel = Channels.newChannel(is);
-    final WritableByteChannel outputChannel = Channels.newChannel(os);
+    try (final ReadableByteChannel inputChannel = Channels.newChannel(is);
+        final WritableByteChannel outputChannel = Channels.newChannel(os)) {
+      long totalBytesCopied = copy(inputChannel, outputChannel);
+      return totalBytesCopied;
+    }
 
-    long totalBytesCopied = copy(inputChannel, outputChannel);
-
-    inputChannel.close();
-    outputChannel.close();
-
-    return totalBytesCopied;
   }
 
   /**
@@ -92,8 +87,7 @@ public class StreamUtils {
    *
    * @return Total bytes copied
    */
-  public static long copy(ReadableByteChannel inputChannel, WritableByteChannel outputChannel)
-      throws IOException {
+  public static long copy(ReadableByteChannel inputChannel, WritableByteChannel outputChannel) throws IOException {
 
     long bytesRead = 0;
     long totalBytesRead = 0;
@@ -125,8 +119,7 @@ public class StreamUtils {
    * @param sourcePath the {@link Path} of the input files, this can either be a file or a directory.
    * @param destPath the {@link Path} that tarball should be written to.
    */
-  public static void tar(FileSystem fs, Path sourcePath, Path destPath)
-      throws IOException {
+  public static void tar(FileSystem fs, Path sourcePath, Path destPath) throws IOException {
     tar(fs, fs, sourcePath, destPath);
   }
 
@@ -135,8 +128,7 @@ public class StreamUtils {
    *
    * @see #tar(FileSystem, Path, Path)
    */
-  public static void tar(FileSystem sourceFs, FileSystem destFs, Path sourcePath, Path destPath)
-      throws IOException {
+  public static void tar(FileSystem sourceFs, FileSystem destFs, Path sourcePath, Path destPath) throws IOException {
     try (FSDataOutputStream fsDataOutputStream = destFs.create(destPath);
         TarArchiveOutputStream tarArchiveOutputStream = new TarArchiveOutputStream(
             new GzipCompressorOutputStream(fsDataOutputStream), ConfigurationKeys.DEFAULT_CHARSET_ENCODING.name())) {
@@ -144,7 +136,7 @@ public class StreamUtils {
       FileStatus fileStatus = sourceFs.getFileStatus(sourcePath);
 
       if (sourceFs.isDirectory(sourcePath)) {
-        dirToTarArchiveOutputStreamRecursive(fileStatus, sourceFs, Optional.<Path>absent(), tarArchiveOutputStream);
+        dirToTarArchiveOutputStreamRecursive(fileStatus, sourceFs, Optional.<Path> absent(), tarArchiveOutputStream);
       } else {
         try (FSDataInputStream fsDataInputStream = sourceFs.open(sourcePath)) {
           fileToTarArchiveOutputStream(fileStatus, fsDataInputStream, new Path(sourcePath.getName()),
@@ -159,8 +151,7 @@ public class StreamUtils {
    * {@link TarArchiveOutputStream}.
    */
   private static void dirToTarArchiveOutputStreamRecursive(FileStatus dirFileStatus, FileSystem fs,
-      Optional<Path> destDir, TarArchiveOutputStream tarArchiveOutputStream)
-      throws IOException {
+      Optional<Path> destDir, TarArchiveOutputStream tarArchiveOutputStream) throws IOException {
 
     Preconditions.checkState(fs.isDirectory(dirFileStatus.getPath()));
 
@@ -198,8 +189,7 @@ public class StreamUtils {
    * {@link TarArchiveOutputStream} and copies the contents of the file to the new entry.
    */
   private static void fileToTarArchiveOutputStream(FileStatus fileStatus, FSDataInputStream fsDataInputStream,
-      Path destFile, TarArchiveOutputStream tarArchiveOutputStream)
-      throws IOException {
+      Path destFile, TarArchiveOutputStream tarArchiveOutputStream) throws IOException {
     TarArchiveEntry tarArchiveEntry = new TarArchiveEntry(formatPathToFile(destFile));
     tarArchiveEntry.setSize(fileStatus.getLen());
     tarArchiveEntry.setModTime(System.currentTimeMillis());

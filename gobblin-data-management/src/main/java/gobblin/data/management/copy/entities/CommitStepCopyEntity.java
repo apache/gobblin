@@ -36,4 +36,9 @@ public class CommitStepCopyEntity extends CopyEntity {
     this.step = step;
     this.priority = priority;
   }
+
+  @Override
+  public String explain() {
+    return step.toString();
+  }
 }

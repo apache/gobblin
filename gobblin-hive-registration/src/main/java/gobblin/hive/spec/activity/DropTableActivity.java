@@ -31,7 +31,7 @@ public class DropTableActivity implements Activity {
 
   @Override
   public boolean execute(HiveRegister register) throws IOException {
-    register.dropTableIfExists(this.dbName, tableName);
+    register.dropTableIfExists(this.dbName, this.tableName);
     return true;
   }
 

@@ -13,10 +13,13 @@
 package gobblin.data.management.retention.dataset.finder;
 
 import gobblin.dataset.Dataset;
+import gobblin.dataset.DatasetsFinder;
 
 
 /**
  * {@inheritDoc}
+ * @deprecated use {@link DatasetsFinder}
  */
-public interface DatasetFinder<T extends Dataset> extends gobblin.dataset.DatasetsFinder<T> {
+@Deprecated
+public interface DatasetFinder<T extends Dataset> extends DatasetsFinder<T> {
 }

@@ -16,31 +16,38 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.Lists;
-
 import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.data.management.version.TimestampedDatasetVersion;
 
 
 /**
- * An implementation of {@link VersionSelectionPolicy} which returns versions that are newer than a certain time.
+ * An implementation of {@link VersionSelectionPolicy} which returns versions that satisfy a {@link Predicate}
+ * implemented by subclasses {@link #getSelectionPredicate()} method
  */
-public class TimeBasedSelectionPolicy implements VersionSelectionPolicy<TimestampedDatasetVersion> {
+public abstract class AbstractTimeBasedSelectionPolicy implements VersionSelectionPolicy<TimestampedDatasetVersion> {
 
-  public static final String TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY = "gobblin.time.based.selection.lookback.time";
-  public static final String DEFAULT_LOOK_BACK_TIME = "7d";
+  public static final String TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY = "selection.timeBased.lookbackTime";
 
-  private final Period lookBackPeriod;
+  protected final Period lookBackPeriod;
 
-  public TimeBasedSelectionPolicy(Properties props) {
-    this.lookBackPeriod =
-        this.getLookBackPeriod(props.getProperty(TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY, DEFAULT_LOOK_BACK_TIME));
+  public AbstractTimeBasedSelectionPolicy(Properties props) {
+    this(ConfigFactory.parseProperties(props));
+  }
+
+  public AbstractTimeBasedSelectionPolicy(Config conf) {
+    Preconditions.checkArgument(conf.hasPath(TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY), String.format("%s is required", TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY));
+    this.lookBackPeriod = this.getLookBackPeriod(conf.getString(TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY));
   }
 
   @Override
@@ -50,13 +57,10 @@ public class TimeBasedSelectionPolicy implements VersionSelectionPolicy<Timestam
 
   @Override
   public Collection<TimestampedDatasetVersion> listSelectedVersions(List<TimestampedDatasetVersion> allVersions) {
-    return Lists.newArrayList(Collections2.filter(allVersions, new Predicate<FileSystemDatasetVersion>() {
-      @Override
-      public boolean apply(FileSystemDatasetVersion version) {
-        return ((TimestampedDatasetVersion) version).getDateTime().plus(lookBackPeriod).isAfterNow();
-      }
-    }));
+    return Lists.newArrayList(Collections2.filter(allVersions, getSelectionPredicate()));
   }
+
+  protected abstract Predicate<TimestampedDatasetVersion> getSelectionPredicate();
 
   private Period getLookBackPeriod(String lookbackTime) {
     PeriodFormatter periodFormatter =

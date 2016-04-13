@@ -20,8 +20,6 @@ import gobblin.util.guid.Guid;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -35,6 +33,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 
@@ -163,9 +162,10 @@ public class CopyableFile extends CopyEntity implements File {
      *   * {@link CopyableFile#destinationOwnerAndPermission}: Copy attributes from origin {@link FileStatus} depending
      *       on the {@link PreserveAttributes} flags {@link #preserve}. Non-preserved attributes are left null,
      *       allowing Gobblin distcp to use defaults for the target {@link FileSystem}.
-     *   * {@link CopyableFile#ancestorsOwnerAndPermission}: Copy attributes from ancestors of origin path depending
-     *       on the {@link PreserveAttributes} flags {@link #preserve}. Non-preserved attributes are left null,
-     *       allowing Gobblin distcp to use defaults for the target {@link FileSystem}.
+     *   * {@link CopyableFile#ancestorsOwnerAndPermission}: Copy attributes from ancestors of origin path whose name
+     *       exactly matches the corresponding name in the target path and which don't exist on th target. The actual
+     *       owner and permission depend on the {@link PreserveAttributes} flags {@link #preserve}.
+     *       Non-preserved attributes are left null, allowing Gobblin distcp to use defaults for the target {@link FileSystem}.
      *   * {@link CopyableFile#checksum}: the checksum of the origin {@link FileStatus} obtained using the origin
      *       {@link FileSystem}.
      *   * {@link CopyableFile#fileSet}: empty string. Used as default file set per dataset.
@@ -196,7 +196,8 @@ public class CopyableFile extends CopyEntity implements File {
             new OwnerAndPermission(owner, group, permission);
       }
       if (this.ancestorsOwnerAndPermission == null) {
-        this.ancestorsOwnerAndPermission = replicateOwnerAndPermission(this.originFs, this.origin.getPath(), this.preserve);
+        this.ancestorsOwnerAndPermission = replicateAncestorsOwnerAndPermission(this.originFs, this.origin.getPath(),
+            this.configuration.getTargetFs(), this.destination);
       }
       if (this.checksum == null) {
         FileChecksum checksumTmp = this.originFs.getFileChecksum(origin.getPath());
@@ -218,40 +219,85 @@ public class CopyableFile extends CopyEntity implements File {
           this.originTimestamp, this.upstreamTimestamp, this.additionalMetadata);
     }
 
-    private List<OwnerAndPermission> replicateOwnerAndPermission(final FileSystem originFs, final Path path,
-        PreserveAttributes preserve) throws IOException {
+    private List<OwnerAndPermission> replicateAncestorsOwnerAndPermission(FileSystem originFs, Path originPath,
+        FileSystem targetFs, Path destinationPath) throws IOException {
 
       List<OwnerAndPermission> ancestorOwnerAndPermissions = Lists.newArrayList();
-      try {
-        Path currentPath = PathUtils.getPathWithoutSchemeAndAuthority(path);
-        while (currentPath != null && currentPath.getParent() != null) {
-          currentPath = currentPath.getParent();
-          final Path thisPath = currentPath;
-          OwnerAndPermission ownerAndPermission = this.configuration.getCopyContext().getOwnerAndPermissionCache()
-              .get(originFs.makeQualified(currentPath),
-                  new Callable<OwnerAndPermission>() {
-                    @Override public OwnerAndPermission call() throws Exception {
-                      FileStatus fs = originFs.getFileStatus(thisPath);
-                      return new OwnerAndPermission(fs.getOwner(), fs.getGroup(), fs.getPermission());
-                    }
-                  });
 
-          String group = null;
-          if (this.preserve.preserve(Option.GROUP)) {
-            group = ownerAndPermission.getGroup();
-          } else if (this.configuration.getTargetGroup().isPresent()) {
-            group = this.configuration.getTargetGroup().get();
-          }
-          ancestorOwnerAndPermissions.add(new OwnerAndPermission(
-              preserve.preserve(Option.OWNER) ? ownerAndPermission.getOwner() : null, group,
-              preserve.preserve(Option.PERMISSION) ? ownerAndPermission.getFsPermission() : null));
+      Path currentOriginPath = originPath.getParent();
+      Path currentTargetPath = destinationPath.getParent();
+
+      while (currentOriginPath != null && currentTargetPath != null &&
+          currentOriginPath.getName().equals(currentTargetPath.getName())) {
+
+        Optional<FileStatus> targetFileStatus = this.configuration.getCopyContext().getFileStatus(targetFs, currentTargetPath);
+
+        if (targetFileStatus.isPresent()) {
+          return ancestorOwnerAndPermissions;
         }
-      } catch (ExecutionException ee) {
-        throw new IOException(ee.getCause());
+
+        ancestorOwnerAndPermissions.add(resolveReplicatedOwnerAndPermission(originFs, currentOriginPath,
+            this.configuration));
+
+        currentOriginPath = currentOriginPath.getParent();
+        currentTargetPath = currentTargetPath.getParent();
       }
+
       return ancestorOwnerAndPermissions;
     }
 
+  }
+
+  /**
+   * Computes the correct {@link OwnerAndPermission} obtained from replicating source owner and permissions and applying
+   * the {@link PreserveAttributes} rules in copyConfiguration.
+   * @throws IOException
+   */
+  public static OwnerAndPermission resolveReplicatedOwnerAndPermission(FileSystem fs, Path path,
+      CopyConfiguration copyConfiguration) throws IOException {
+
+    PreserveAttributes preserve = copyConfiguration.getPreserve();
+    Optional<FileStatus> originFileStatus = copyConfiguration.getCopyContext().getFileStatus(fs, path);
+
+    if (!originFileStatus.isPresent()) {
+      throw new IOException(String.format("Origin path %s does not exist.", originFileStatus));
+    }
+
+    String group = null;
+    if (copyConfiguration.getTargetGroup().isPresent()) {
+      group = copyConfiguration.getTargetGroup().get();
+    } else if (preserve.preserve(Option.GROUP)) {
+      group = originFileStatus.get().getGroup();
+    }
+
+    return new OwnerAndPermission(
+        preserve.preserve(Option.OWNER) ? originFileStatus.get().getOwner() : null, group,
+        preserve.preserve(Option.PERMISSION) ? originFileStatus.get().getPermission() : null);
+  }
+
+  /**
+   * Compute the correct {@link OwnerAndPermission} obtained from replicating source owner and permissions and applying
+   * the {@link PreserveAttributes} rules for fromPath and every ancestor up to but excluding toPath.
+   *
+   * @return A list of the computed {@link OwnerAndPermission}s starting from fromPath, up to but excluding toPath.
+   * @throws IOException if toPath is not an ancestor of fromPath.
+   */
+  public static List<OwnerAndPermission> resolveReplicatedOwnerAndPermissionsRecursively(FileSystem fs, Path fromPath,
+      Path toPath, CopyConfiguration copyConfiguration) throws IOException {
+
+    if (!PathUtils.isAncestor(toPath, fromPath)) {
+      throw new IOException(String.format("toPath %s must be an ancestor of fromPath %s.", toPath, fromPath));
+    }
+
+    List<OwnerAndPermission> ownerAndPermissions = Lists.newArrayList();
+    Path currentPath = fromPath;
+
+    while (PathUtils.isAncestor(toPath, currentPath.getParent())) {
+      ownerAndPermissions.add(resolveReplicatedOwnerAndPermission(fs, currentPath, copyConfiguration));
+      currentPath = currentPath.getParent();
+    }
+
+    return ownerAndPermissions;
   }
 
   @Override
@@ -271,4 +317,15 @@ public class CopyableFile extends CopyEntity implements File {
     return Guid.fromStrings(uniqueString.toString());
   }
 
+  @Override
+  public String explain() {
+    String owner = this.destinationOwnerAndPermission != null && this.destinationOwnerAndPermission.getOwner() != null
+        ? this.destinationOwnerAndPermission.getOwner() : "preserve";
+    String group = this.destinationOwnerAndPermission != null && this.destinationOwnerAndPermission.getGroup() != null
+        ? this.destinationOwnerAndPermission.getGroup() : "preserve";
+    String permissions = this.destinationOwnerAndPermission != null && this.destinationOwnerAndPermission.getFsPermission() != null
+        ? this.destinationOwnerAndPermission.getFsPermission().toString() : "preserve";
+    return String.format("Copy file %s to %s with owner %s, group %s, permission %s.",
+        this.origin.getPath(), this.destination, owner, group, permissions);
+  }
 }

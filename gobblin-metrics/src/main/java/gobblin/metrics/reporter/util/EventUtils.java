@@ -43,7 +43,7 @@ public class EventUtils {
    */
   public synchronized static GobblinTrackingEvent deserializeReportFromJson(GobblinTrackingEvent reuse, byte[] bytes) throws IOException {
     if (!reader.isPresent()) {
-      reader = Optional.of(new SpecificDatumReader<GobblinTrackingEvent>(GobblinTrackingEvent.class));
+      reader = Optional.of(new SpecificDatumReader<>(GobblinTrackingEvent.class));
     }
 
     Closer closer = Closer.create();
@@ -79,7 +79,7 @@ public class EventUtils {
   public synchronized static GobblinTrackingEvent deserializeReportFromAvroSerialization(GobblinTrackingEvent reuse, byte[] bytes)
       throws IOException {
     if (!reader.isPresent()) {
-      reader = Optional.of(new SpecificDatumReader<GobblinTrackingEvent>(GobblinTrackingEvent.class));
+      reader = Optional.of(new SpecificDatumReader<>(GobblinTrackingEvent.class));
     }
 
     Closer closer = Closer.create();

@@ -30,7 +30,7 @@ public class TimestampedDatasetVersionFinderTest {
   @Test
   public void testVersionParser() {
     Properties props = new Properties();
-    props.put(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
+    props.put(DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
 
     DateTimeDatasetVersionFinder parser = new DateTimeDatasetVersionFinder(null, props);
 
@@ -49,8 +49,8 @@ public class TimestampedDatasetVersionFinderTest {
   public void testVersionParserWithTimeZone() {
 
     Properties props = new Properties();
-    props.put(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
-    props.put(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_TIMEZONE_KEY, "UTC");
+    props.put(DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
+    props.put(DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY, "UTC");
 
     DateTimeDatasetVersionFinder parser = new DateTimeDatasetVersionFinder(null, props);
 

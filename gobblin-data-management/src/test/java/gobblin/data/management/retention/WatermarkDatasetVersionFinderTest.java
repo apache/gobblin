@@ -41,7 +41,7 @@ public class WatermarkDatasetVersionFinderTest {
   @Test
   public void testRegex() {
     Properties props = new Properties();
-    props.put(WatermarkDatasetVersionFinder.WATERMARK_REGEX_KEY, "watermark-([A-Za-z]*)-[a-z]*");
+    props.put(WatermarkDatasetVersionFinder.DEPRECATED_WATERMARK_REGEX_KEY, "watermark-([A-Za-z]*)-[a-z]*");
 
     WatermarkDatasetVersionFinder parser = new WatermarkDatasetVersionFinder(null, props);
 

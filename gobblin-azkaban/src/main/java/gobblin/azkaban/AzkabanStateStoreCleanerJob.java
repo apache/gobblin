@@ -27,7 +27,6 @@ import gobblin.metastore.util.StateStoreCleaner;
  *
  * @author Yinan Li
  */
-@SuppressWarnings("unused")
 public class AzkabanStateStoreCleanerJob extends AbstractJob {
 
   private static final Logger LOGGER = Logger.getLogger(AzkabanStateStoreCleanerJob.class);

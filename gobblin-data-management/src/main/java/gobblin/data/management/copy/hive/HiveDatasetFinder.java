@@ -14,33 +14,34 @@ package gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.commons.pool2.impl.GenericObjectPool;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Table;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
-import gobblin.configuration.State;
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-import gobblin.hive.HiveMetaStoreClientFactory;
+import gobblin.dataset.IterableDatasetFinder;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HiveRegProps;
 import gobblin.util.AutoReturnableObject;
+
+import javax.annotation.Nullable;
 
 
 /**
  * Finds {@link HiveDataset}s. Will look for tables in a database specified by {@link #DB_KEY}, possibly filtering them
  * with pattern {@link #TABLE_PATTERN_KEY}, and create a {@link HiveDataset} for each one.
  */
-public class HiveDatasetFinder implements DatasetFinder<HiveDataset> {
+public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
   public static final String HIVE_DATASET_PREFIX = "hive.dataset";
   public static final String HIVE_METASTORE_URI_KEY = HIVE_DATASET_PREFIX + ".hive.metastore.uri";
@@ -88,14 +89,23 @@ public class HiveDatasetFinder implements DatasetFinder<HiveDataset> {
   }
 
   @Override public List<HiveDataset> findDatasets() throws IOException {
-    List<HiveDataset> datasets = Lists.newArrayList();
+    return Lists.newArrayList(getDatasetsIterator());
+  }
 
-    for (Table table : getTables(this.db, this.tablePattern)) {
-      datasets.add(new HiveDataset(this.fs, this.clientPool, new org.apache.hadoop.hive.ql.metadata.Table(table),
-          this.properties));
-    }
-
-    return datasets;
+  @Override
+  public Iterator<HiveDataset> getDatasetsIterator()
+      throws IOException {
+    return Iterators.transform(getTables(this.db, this.tablePattern).iterator(), new Function<Table, HiveDataset>() {
+      @Nullable
+      @Override
+      public HiveDataset apply(@Nullable Table table) {
+        try {
+          return new HiveDataset(fs, clientPool, new org.apache.hadoop.hive.ql.metadata.Table(table), properties);
+        } catch (IOException ioe) {
+          throw new RuntimeException(ioe);
+        }
+      }
+    });
   }
 
   @Override public Path commonDatasetRoot() {

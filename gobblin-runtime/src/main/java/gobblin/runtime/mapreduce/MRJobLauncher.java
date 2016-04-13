@@ -37,9 +37,9 @@ import org.apache.hadoop.mapreduce.CounterGroup;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
-
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,16 +140,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     this.fs = buildFileSystem(jobProps, this.conf);
 
-    this.mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), jobContext.getJobName());
+    this.mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobContext.getJobName());
     if (this.fs.exists(this.mrJobDir)) {
-      LOG.warn("Job working directory already exists for job " + jobContext.getJobName());
+      LOG.warn("Job working directory already exists for job " + this.jobContext.getJobName());
       this.fs.delete(this.mrJobDir, true);
     }
     this.fs.mkdirs(this.mrJobDir);
 
     this.jobInputPath = new Path(this.mrJobDir, INPUT_DIR_NAME);
     this.jobOutputPath = new Path(this.mrJobDir, OUTPUT_DIR_NAME);
-    Path outputTaskStateDir = new Path(jobOutputPath, this.jobContext.getJobId());
+    Path outputTaskStateDir = new Path(this.jobOutputPath, this.jobContext.getJobId());
 
     // Add dependent jars/files
     addDependencies();
@@ -251,24 +251,24 @@ public class MRJobLauncher extends AbstractJobLauncher {
     Path jarFileDir = new Path(this.mrJobDir, JARS_DIR_NAME);
 
     // Add framework jars to the classpath for the mappers/reducer
-    if (jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
-      addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY));
+    if (this.jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
+      addJars(jarFileDir, this.jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY));
     }
 
     // Add job-specific jars to the classpath for the mappers
-    if (jobProps.containsKey(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
-      addJars(jarFileDir, jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY));
+    if (this.jobProps.containsKey(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
+      addJars(jarFileDir, this.jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY));
     }
 
     // Add other files (if any) the job depends on to DistributedCache
-    if (jobProps.containsKey(ConfigurationKeys.JOB_LOCAL_FILES_KEY)) {
+    if (this.jobProps.containsKey(ConfigurationKeys.JOB_LOCAL_FILES_KEY)) {
       addLocalFiles(new Path(this.mrJobDir, FILES_DIR_NAME),
-          jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY));
+          this.jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY));
     }
 
     // Add files (if any) already on HDFS that the job depends on to DistributedCache
-    if (jobProps.containsKey(ConfigurationKeys.JOB_HDFS_FILES_KEY)) {
-      addHDFSFiles(jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
+    if (this.jobProps.containsKey(ConfigurationKeys.JOB_HDFS_FILES_KEY)) {
+      addHDFSFiles(this.jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
     }
 
     distributedCacheSetupTimer.stop();
@@ -298,15 +298,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Prepare job input
     Path jobInputFile = prepareJobInput(workUnits);
-    NLineInputFormat.addInputPath(this.job, jobInputFile);
+    FileInputFormat.addInputPath(this.job, jobInputFile);
 
     // Job output path is where serialized task states are stored
-    SequenceFileOutputFormat.setOutputPath(this.job, this.jobOutputPath);
+    FileOutputFormat.setOutputPath(this.job, this.jobOutputPath);
 
     // Serialize source state to a file which will be picked up by the mappers
-    Path jobStateFilePath = new Path(this.mrJobDir, JOB_STATE_FILE_NAME);
-    SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
-    job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());
+    serializeJobState(this.fs, this.mrJobDir, this.conf, this.jobContext.getJobState(), this.job);
 
     if (this.jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
       // When there is a limit on the number of mappers, each mapper may run
@@ -320,6 +318,15 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     mrJobSetupTimer.stop();
+  }
+
+  @VisibleForTesting
+  static void serializeJobState(FileSystem fs, Path mrJobDir, Configuration conf, JobState jobState,
+                                Job job) throws IOException {
+    Path jobStateFilePath = new Path(mrJobDir, JOB_STATE_FILE_NAME);
+    short jobStateRF = (short)conf.getInt("dfs.replication.max", 20);
+    SerializationUtils.serializeState(fs, jobStateFilePath, jobState, jobStateRF);
+    job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());
   }
 
   /**
@@ -368,9 +375,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Add non-jar files already on HDFS that the job depends on to DistributedCache.
    */
   @SuppressWarnings("deprecation")
-  private void addHDFSFiles(String jobFileList) throws IOException {
+  private void addHDFSFiles(String jobFileList) {
     DistributedCache.createSymlink(this.conf);
-    jobFileList = PasswordManager.getInstance(jobProps).readPassword(jobFileList);
+    jobFileList = PasswordManager.getInstance(this.jobProps).readPassword(jobFileList);
     for (String jobFile : SPLITTER.split(jobFileList)) {
       Path srcJobFile = new Path(jobFile);
       // Create a URI that is in the form path#symlink
@@ -497,7 +504,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       try {
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore =
-            new FsStateStore<>(this.fs, SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(),
+            new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(),
                 TaskState.class);
 
         Path jobStateFilePath = new Path(context.getConfiguration().get(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY));
@@ -576,7 +583,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           try {
             this.jobMetrics.get().stopMetricsReporting();
           } finally {
-            JobMetrics.remove(this.jobMetrics.get().getName());
+            GobblinMetrics.remove(this.jobMetrics.get().getName());
           }
         }
       }

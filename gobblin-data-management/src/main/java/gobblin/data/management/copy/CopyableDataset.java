@@ -23,7 +23,7 @@ import org.apache.hadoop.fs.FileSystem;
 /**
  * {@link Dataset} that supports finding {@link CopyEntity}s.
  */
-public interface CopyableDataset extends Dataset {
+public interface CopyableDataset extends CopyableDatasetBase {
 
   /**
    * Find all {@link CopyEntity}s in this dataset.

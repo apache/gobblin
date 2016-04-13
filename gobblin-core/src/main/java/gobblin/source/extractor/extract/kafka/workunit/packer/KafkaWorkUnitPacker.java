@@ -261,7 +261,7 @@ public abstract class KafkaWorkUnitPacker {
     MinMaxPriorityQueue<MultiWorkUnit> pQueue =
         MinMaxPriorityQueue.orderedBy(LOAD_ASC_COMPARATOR).expectedSize(numOfMultiWorkUnits).create();
     for (int i = 0; i < numOfMultiWorkUnits; i++) {
-      MultiWorkUnit multiWorkUnit = new MultiWorkUnit();
+      MultiWorkUnit multiWorkUnit = MultiWorkUnit.createEmpty();
       setWorkUnitEstSize(multiWorkUnit, 0);
       pQueue.add(multiWorkUnit);
     }

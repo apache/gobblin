@@ -47,6 +47,7 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
   private SerDe serializer;
   private SerDe deserializer;
 
+  @Override
   public HiveSerDeConverter init(WorkUnitState state) {
     super.init(state);
     Configuration conf = HadoopUtils.getConfFromState(state);
@@ -54,8 +55,8 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
     try {
       this.serializer = HiveSerDeWrapper.getSerializer(state).getSerDe();
       this.deserializer = HiveSerDeWrapper.getDeserializer(state).getSerDe();
-      serializer.initialize(conf, state.getProperties());
-      deserializer.initialize(conf, state.getProperties());
+      this.serializer.initialize(conf, state.getProperties());
+      this.deserializer.initialize(conf, state.getProperties());
     } catch (IOException e) {
       log.error("Failed to instantiate serializer and deserializer", e);
       throw Throwables.propagate(e);
@@ -74,7 +75,7 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
     try {
       Object deserialized = this.deserializer.deserialize(inputRecord);
       Writable convertedRecord = this.serializer.serialize(deserialized, this.deserializer.getObjectInspector());
-      return new SingleRecordIterable<Writable>(convertedRecord);
+      return new SingleRecordIterable<>(convertedRecord);
     } catch (SerDeException e) {
       throw new DataConversionException(e);
     }

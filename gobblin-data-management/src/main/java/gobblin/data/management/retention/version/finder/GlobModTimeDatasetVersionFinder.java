@@ -14,8 +14,10 @@ package gobblin.data.management.retention.version.finder;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import com.typesafe.config.Config;
+
 import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
 
 /**
@@ -26,6 +28,12 @@ import gobblin.data.management.retention.version.DatasetVersion;
 public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
   private final gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder realVersionFinder;
+  private static final String VERSION_FINDER_GLOB_PATTERN_KEY = "gobblin.retention.version.finder.pattern";
+
+  public GlobModTimeDatasetVersionFinder(FileSystem fs, Config config) {
+    this(fs, config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY) ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY)) : new Path("*"));
+  }
+
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern) {
     super(fs);
     this.realVersionFinder =
@@ -44,6 +52,11 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
 
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    return new TimestampedDatasetVersion(this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath));
+    gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion =
+        this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath);
+    if (timestampedDatasetVersion != null) {
+      return new TimestampedDatasetVersion(timestampedDatasetVersion);
+    }
+    return null;
   }
 }

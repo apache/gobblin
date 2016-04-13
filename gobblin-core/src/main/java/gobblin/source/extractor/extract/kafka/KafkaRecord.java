@@ -18,16 +18,16 @@ public class KafkaRecord implements Comparable<KafkaRecord> {
 
     @Override
     public String toString() {
-        return "KafkaRecord [offset=" + offset + ", key=" + key + ", payload=" + payload + "]";
+    return "KafkaRecord [offset=" + this.offset + ", key=" + this.key + ", payload=" + this.payload + "]";
     }
 
     @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;
-        result = prime * result + ((key == null) ? 0 : key.hashCode());
-        result = prime * result + (int) (offset ^ (offset >>> 32));
-        result = prime * result + ((payload == null) ? 0 : payload.hashCode());
+        result = prime * result + ((this.key == null) ? 0 : this.key.hashCode());
+        result = prime * result + (int) (this.offset ^ (this.offset >>> 32));
+        result = prime * result + ((this.payload == null) ? 0 : this.payload.hashCode());
         return result;
     }
 
@@ -43,21 +43,21 @@ public class KafkaRecord implements Comparable<KafkaRecord> {
             return false;
         }
         KafkaRecord other = (KafkaRecord) obj;
-        if (key == null) {
+        if (this.key == null) {
             if (other.key != null) {
                 return false;
             }
-        } else if (!key.equals(other.key)) {
+        } else if (!this.key.equals(other.key)) {
             return false;
         }
-        if (offset != other.offset) {
+        if (this.offset != other.offset) {
             return false;
         }
-        if (payload == null) {
+        if (this.payload == null) {
             if (other.payload != null) {
                 return false;
             }
-        } else if (!payload.equals(other.payload)) {
+        } else if (!this.payload.equals(other.payload)) {
             return false;
         }
         return true;

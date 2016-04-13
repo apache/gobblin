@@ -42,7 +42,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
 import com.google.common.primitives.Ints;
 
 import gobblin.compaction.dataset.Dataset;
@@ -56,6 +55,7 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.RecordCountProvider;
+import gobblin.util.WriterUtils;
 import gobblin.util.executors.ScalingThreadPoolExecutor;
 import gobblin.util.recordcount.LateFileRecordCountProvider;
 
@@ -141,7 +141,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private volatile Policy policy = Policy.DO_NOT_PUBLISH_DATA;
   private volatile Status status = Status.RUNNING;
 
-  protected MRCompactorJobRunner(Dataset dataset, FileSystem fs, Double priority) {
+  protected MRCompactorJobRunner(Dataset dataset, FileSystem fs) {
     this.dataset = dataset;
     this.fs = fs;
     this.perm = HadoopUtils.deserializeFsPermission(this.dataset.jobProps(), COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
@@ -210,8 +210,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         Path lateDataOutputPath = this.outputDeduplicated ? this.dataset.outputLatePath() : this.dataset.outputPath();
         LOG.info(String.format("Copying %d late data files to %s", newLateFilePaths.size(), lateDataOutputPath));
         if (this.outputDeduplicated) {
-          if (!fs.exists(lateDataOutputPath)) {
-            if (!fs.mkdirs(lateDataOutputPath)) {
+          if (!this.fs.exists(lateDataOutputPath)) {
+            if (!this.fs.mkdirs(lateDataOutputPath)) {
               throw new RuntimeException(
                   String.format("Failed to create late data output directory: %s.", lateDataOutputPath.toString()));
             }
@@ -272,15 +272,14 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
     if (!this.recompactFromDestPaths) {
       return new DateTime(timeZone);
-    } else {
-      List<Path> inputPaths = Lists.newArrayList(this.dataset.inputPath());
-      inputPaths.addAll(this.dataset.additionalInputPaths());
-      long maxTimestamp = Long.MIN_VALUE;
-      for (FileStatus status : FileListUtils.listFilesRecursively(this.fs, inputPaths)) {
-        maxTimestamp = Math.max(maxTimestamp, status.getModificationTime());
-      }
-      return maxTimestamp == Long.MIN_VALUE ? new DateTime(timeZone) : new DateTime(maxTimestamp, timeZone);
     }
+    List<Path> inputPaths = Lists.newArrayList(this.dataset.inputPath());
+    inputPaths.addAll(this.dataset.additionalInputPaths());
+    long maxTimestamp = Long.MIN_VALUE;
+    for (FileStatus status : FileListUtils.listFilesRecursively(this.fs, inputPaths)) {
+      maxTimestamp = Math.max(maxTimestamp, status.getModificationTime());
+    }
+    return maxTimestamp == Long.MIN_VALUE ? new DateTime(timeZone) : new DateTime(maxTimestamp, timeZone);
   }
 
   private void copyDataFiles(final Path outputDirectory, List<Path> inputFilePaths) throws IOException {
@@ -292,11 +291,14 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
       Future<Void> future = executor.submit(new Callable<Void>() {
         @Override
         public Void call() throws Exception {
-          Path convertedFilePath = outputRecordCountProvider
-              .convertPath(lateInputRecordCountProvider.restoreFilePath(filePath), inputRecordCountProvider);
+          Path convertedFilePath = MRCompactorJobRunner.this.outputRecordCountProvider.convertPath(
+              MRCompactorJobRunner.this.lateInputRecordCountProvider.restoreFilePath(filePath),
+              MRCompactorJobRunner.this.inputRecordCountProvider);
           String targetFileName = convertedFilePath.getName();
-          Path outPath = lateOutputRecordCountProvider.constructLateFilePath(targetFileName, fs, outputDirectory);
-          HadoopUtils.copyPath(fs, filePath, fs, outPath, fs.getConf());
+          Path outPath = MRCompactorJobRunner.this.lateOutputRecordCountProvider.constructLateFilePath(targetFileName,
+              MRCompactorJobRunner.this.fs, outputDirectory);
+          HadoopUtils.copyPath(MRCompactorJobRunner.this.fs, filePath, MRCompactorJobRunner.this.fs, outPath,
+              MRCompactorJobRunner.this.fs.getConf());
           LOG.debug(String.format("Copied %s to %s.", filePath, outPath));
           return null;
         }
@@ -475,21 +477,15 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private void markOutputDirAsCompleted(DateTime jobStartTime) throws IOException {
     Path completionFilePath = new Path(this.dataset.outputPath(), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
-    Closer closer = Closer.create();
-    try {
-      FSDataOutputStream completionFileStream = closer.register(this.fs.create(completionFilePath));
+    try (FSDataOutputStream completionFileStream = this.fs.create(completionFilePath)) {
       completionFileStream.writeLong(jobStartTime.getMillis());
-    } catch (Throwable e) {
-      throw closer.rethrow(e);
-    } finally {
-      closer.close();
     }
   }
 
   private void moveTmpPathToOutputPath() throws IOException {
     LOG.info(String.format("Moving %s to %s", this.dataset.outputTmpPath(), this.dataset.outputPath()));
     this.fs.delete(this.dataset.outputPath(), true);
-    this.fs.mkdirs(this.dataset.outputPath().getParent(), this.perm);
+    WriterUtils.mkdirsWithRecursivePermission(this.fs, this.dataset.outputPath().getParent(), this.perm);
     if (!this.fs.rename(this.dataset.outputTmpPath(), this.dataset.outputPath())) {
       throw new IOException(
           String.format("Unable to move %s to %s", this.dataset.outputTmpPath(), this.dataset.outputPath()));
@@ -503,7 +499,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
   private void submitSlaEvent(Job job) {
-    CompactionSlaEventHelper.populateState(this.dataset, Optional.of(job), fs);
+    CompactionSlaEventHelper.populateState(this.dataset, Optional.of(job), this.fs);
     new SlaEventSubmitter(this.eventSubmitter, "CompactionCompleted", this.dataset.jobProps().getProperties()).submit();
   }
 
@@ -540,7 +536,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
       return Lists.newArrayList();
     }
     List<Path> paths = Lists.newArrayList();
-    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, dataDir, new PathFilter() {
+    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(this.fs, dataDir, new PathFilter() {
       @Override
       public boolean accept(Path path) {
         for (String validExtention : getApplicableFileExtensions()) {

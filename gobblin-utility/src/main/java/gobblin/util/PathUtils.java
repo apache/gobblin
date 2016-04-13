@@ -31,8 +31,7 @@ public class PathUtils {
   }
 
   public static Path relativizePath(Path fullPath, Path pathPrefix) {
-    return new Path(getPathWithoutSchemeAndAuthority(pathPrefix).toUri().
-        relativize(getPathWithoutSchemeAndAuthority(fullPath).toUri()));
+    return new Path(getPathWithoutSchemeAndAuthority(pathPrefix).toUri().relativize(getPathWithoutSchemeAndAuthority(fullPath).toUri()));
   }
 
   /**
@@ -42,7 +41,7 @@ public class PathUtils {
    * @return true if possibleAncestor is an ancestor of fullPath.
    */
   public static boolean isAncestor(Path possibleAncestor, Path fullPath) {
-    return !relativizePath(fullPath, possibleAncestor).equals(fullPath);
+    return !relativizePath(fullPath, possibleAncestor).equals(getPathWithoutSchemeAndAuthority(fullPath));
   }
 
   /**
@@ -143,5 +142,14 @@ public class PathUtils {
       path = new Path(path, paths[i]);
     }
     return path;
+  }
+
+  /**
+   * Is an absolute path (ie a slash relative path part)
+   *  AND  a scheme is null AND  authority is null.
+   */
+  public static boolean isAbsoluteAndSchemeAuthorityNull(Path path) {
+    return  (path.isAbsolute() &&
+        path.toUri().getScheme() == null && path.toUri().getAuthority() == null);
   }
 }

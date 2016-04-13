@@ -51,10 +51,10 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
 
   private void loadRawTopologyFromFallBack() {
     // only initialize the topology once
-    if(this.initialedTopologyFromFallBack){
+    if (this.initialedTopologyFromFallBack) {
       return;
     }
-    
+
     // breath first search the whole topology to build ownImports map and ownImportedByMap
     // calls to retrieve cache / set cache if not present
     Collection<ConfigKeyPath> currentLevel = this.getChildren(SingleLinkedListConfigKeyPath.ROOT);
@@ -64,7 +64,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
         "Root can not import other nodes, otherwise circular dependency will happen");
 
     while (!currentLevel.isEmpty()) {
-      Collection<ConfigKeyPath> nextLevel = new ArrayList<ConfigKeyPath>();
+      Collection<ConfigKeyPath> nextLevel = new ArrayList<>();
       for (ConfigKeyPath configKeyPath : currentLevel) {
         // calls to retrieve cache / set cache if not present
         List<ConfigKeyPath> ownImports = this.getOwnImports(configKeyPath);
@@ -87,7 +87,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
         recursiveImports = this.recursiveImportMap.get(configKey);
       } else {
         recursiveImports = this.buildImportsRecursiveFromCache(configKey);
-        this.addToListMapForListValue(recursiveImportMap, configKey, recursiveImports);
+        this.addToListMapForListValue(this.recursiveImportMap, configKey, recursiveImports);
       }
 
       if (recursiveImports != null) {
@@ -96,7 +96,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
         }
       }
     }
-    
+
     this.initialedTopologyFromFallBack = true;
   }
 
@@ -110,7 +110,8 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
     for (ConfigKeyPath p : previousVisited) {
       if (currentConfigKey != null && currentConfigKey.equals(p)) {
         previousVisited.add(p);
-        throw new CircularDependencyException(getCircularDependencyChain(initialConfigKey, previousVisited, currentConfigKey));
+        throw new CircularDependencyException(
+            getCircularDependencyChain(initialConfigKey, previousVisited, currentConfigKey));
       }
     }
 
@@ -120,22 +121,23 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
     }
 
     List<ConfigKeyPath> result = new ArrayList<>();
-    
-    Set<ConfigKeyPath> currentVisited = new LinkedHashSet<ConfigKeyPath>(previousVisited);
+
+    Set<ConfigKeyPath> currentVisited = new LinkedHashSet<>(previousVisited);
     currentVisited.add(currentConfigKey);
-    
+
     // Own imports map should be filled in already
-    for (ConfigKeyPath u: this.getOwnImportsFromCache(currentConfigKey)) {
+    for (ConfigKeyPath u : this.getOwnImportsFromCache(currentConfigKey)) {
       addRecursiveImportsToResult(u, initialConfigKey, currentConfigKey, result, currentVisited);
     }
-    
-    addRecursiveImportsToResult(currentConfigKey.getParent(), initialConfigKey, currentConfigKey, result, currentVisited);
+
+    addRecursiveImportsToResult(currentConfigKey.getParent(), initialConfigKey, currentConfigKey, result,
+        currentVisited);
     return dedup(result);
   }
-  
+
   private void addRecursiveImportsToResult(ConfigKeyPath u, ConfigKeyPath initialConfigKey,
-      ConfigKeyPath currentConfigKey, List<ConfigKeyPath> result, Set<ConfigKeyPath> current){
-    
+      ConfigKeyPath currentConfigKey, List<ConfigKeyPath> result, Set<ConfigKeyPath> current) {
+
     // do NOT add self parent in result as
     // 1. by default import parent
     // 2. if added, too many entries in the result
@@ -163,12 +165,12 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
     }
   }
 
-  private void addToCollectionMapForSingleValue(Map<ConfigKeyPath, Collection<ConfigKeyPath>> theMap,
-      ConfigKeyPath key, ConfigKeyPath value) {
+  private void addToCollectionMapForSingleValue(Map<ConfigKeyPath, Collection<ConfigKeyPath>> theMap, ConfigKeyPath key,
+      ConfigKeyPath value) {
     if (theMap.containsKey(key)) {
       theMap.get(key).add(value);
     } else {
-      List<ConfigKeyPath> list = new ArrayList<ConfigKeyPath>();
+      List<ConfigKeyPath> list = new ArrayList<>();
       list.add(value);
       theMap.put(key, list);
     }
@@ -184,9 +186,9 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
   }
 
   private static List<ConfigKeyPath> dedup(List<ConfigKeyPath> input) {
-    List<ConfigKeyPath> result = new ArrayList<ConfigKeyPath>();
+    List<ConfigKeyPath> result = new ArrayList<>();
 
-    Set<ConfigKeyPath> alreadySeen = new HashSet<ConfigKeyPath>();
+    Set<ConfigKeyPath> alreadySeen = new HashSet<>();
     for (ConfigKeyPath u : input) {
       if (!alreadySeen.contains(u)) {
         result.add(u);
@@ -308,17 +310,17 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
       return this.getImportsRecursivelyIncludePhantomFromCache(configKey);
     }
   }
-  
+
   // for phantom node, need to return the result of the parent
-  private List<ConfigKeyPath> getImportsRecursivelyIncludePhantomFromCache (ConfigKeyPath configKey){
-    if(this.recursiveImportMap.containsKey(configKey)){
+  private List<ConfigKeyPath> getImportsRecursivelyIncludePhantomFromCache(ConfigKeyPath configKey) {
+    if (this.recursiveImportMap.containsKey(configKey)) {
       return this.recursiveImportMap.get(configKey);
     }
-    
-    if(configKey.isRootPath()){
+
+    if (configKey.isRootPath()) {
       return Collections.emptyList();
     }
-    
+
     return getImportsRecursivelyIncludePhantomFromCache(configKey.getParent());
   }
 

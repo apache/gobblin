@@ -25,7 +25,7 @@ import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFi
 
 
 /**
- * {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} for tracking datasets.
+ * {@link gobblin.dataset.DatasetsFinder} for tracking datasets.
  *
  * <p>
  *   Tracking datasets are datasets where each data point represents a timestamped action, and the records are
@@ -42,7 +42,7 @@ public class TrackingDatasetProfile extends ConfigurableGlobDatasetFinder {
   @Override
   public List<String> requiredProperties() {
     List<String> requiredProperties = super.requiredProperties();
-    requiredProperties.add(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY);
+    requiredProperties.add(DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_KEY);
     return requiredProperties;
   }
 

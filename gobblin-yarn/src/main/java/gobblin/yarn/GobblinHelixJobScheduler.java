@@ -104,7 +104,6 @@ public class GobblinHelixJobScheduler extends JobScheduler {
     return new GobblinHelixJobLauncher(jobProps, this.helixManager, this.appWorkDir, this.metadataTags);
   }
 
-  @SuppressWarnings("unused")
   @Subscribe
   public void handleNewJobConfigArrival(NewJobConfigArrivalEvent newJobArrival) {
     LOGGER.info("Received new job configuration of job " + newJobArrival.getJobName());
