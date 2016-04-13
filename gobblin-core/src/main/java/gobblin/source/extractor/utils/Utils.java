@@ -43,7 +43,7 @@ import gobblin.source.extractor.watermark.WatermarkType;
 
 public class Utils {
 
-  private static final Gson gson = new Gson();
+  private static final Gson GSON = new Gson();
   private static final String CURRENT_DAY = "CURRENTDAY";
   private static final String CURRENT_HOUR = "CURRENTHOUR";
 
@@ -200,13 +200,13 @@ public class Utils {
    */
   public static JsonObject csvToJsonObject(List<String> bulkRecordHeader, List<String> record, int columnCount) {
     ObjectMapper mapper = new ObjectMapper();
-    Map<String, String> resultInfo = new HashMap<String, String>();
+    Map<String, String> resultInfo = new HashMap<>();
     for (int i = 0; i < columnCount; i++) {
       resultInfo.put(bulkRecordHeader.get(i), record.get(i));
     }
 
     JsonNode json = mapper.valueToTree(resultInfo);
-    JsonElement element = gson.fromJson(json.toString(), JsonObject.class);
+    JsonElement element = GSON.fromJson(json.toString(), JsonObject.class);
     return element.getAsJsonObject();
   }
 

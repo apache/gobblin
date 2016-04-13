@@ -27,25 +27,20 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
-import com.sforce.async.AsyncApiException;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.message.BasicNameValuePair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.sforce.async.AsyncApiException;
 import com.sforce.async.BatchInfo;
 import com.sforce.async.BatchStateEnum;
 import com.sforce.async.BulkConnection;
@@ -71,6 +66,7 @@ import gobblin.source.extractor.extract.CommandOutput;
 import gobblin.source.extractor.extract.jdbc.SqlQueryUtils;
 import gobblin.source.extractor.extract.restapi.RestApiCommand;
 import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
+import gobblin.source.extractor.extract.restapi.RestApiConnector;
 import gobblin.source.extractor.extract.restapi.RestApiExtractor;
 import gobblin.source.extractor.resultset.RecordSet;
 import gobblin.source.extractor.resultset.RecordSetList;
@@ -81,31 +77,31 @@ import gobblin.source.extractor.watermark.Predicate;
 import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.WorkUnit;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
- * An implementation of salesforce extractor for to extract data from SFDC
+ * An implementation of salesforce extractor for extracting data from SFDC
  */
+@Slf4j
 public class SalesforceExtractor extends RestApiExtractor {
-  private static final String DEFAULT_SERVICES_DATA_PATH = "/services/data";
+
   private static final String SOQL_RESOURCE = "/queryAll";
-  private static final String DEFAULT_AUTH_TOKEN_PATH = "/services/oauth2/token";
   private static final String SALESFORCE_TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'.000Z'";
   private static final String SALESFORCE_DATE_FORMAT = "yyyy-MM-dd";
   private static final String SALESFORCE_HOUR_FORMAT = "HH";
   private static final String SALESFORCE_SOAP_AUTH_SERVICE = "/services/Soap/u";
-  private static final String SALESFORCE_BULK_AUTH_SERVICE = "/services/async";
-  private static final Gson gson = new Gson();
+  private static final Gson GSON = new Gson();
 
   private boolean pullStatus = true;
   private String nextUrl;
-  private String servicesDataEnvPath;
 
   private BulkConnection bulkConnection = null;
   private boolean bulkApiInitialRun = true;
   private JobInfo bulkJob = new JobInfo();
   private BatchInfo bulkBatchInfo = null;
   private BufferedReader bulkBufferedReader = null;
-  private List<String> bulkResultIdList = new ArrayList<String>();
+  private List<String> bulkResultIdList = Lists.newArrayList();
   private int bulkResultIdCount = 0;
   private boolean bulkJobFinished = true;
   private List<String> bulkRecordHeader;
@@ -113,18 +109,16 @@ public class SalesforceExtractor extends RestApiExtractor {
   private boolean newBulkResultSet = true;
   private int bulkRecordCount = 0;
 
-  private Logger log = LoggerFactory.getLogger(SalesforceExtractor.class);
+  private final SalesforceConnector sfConnector;
 
   public SalesforceExtractor(WorkUnitState state) {
     super(state);
+    this.sfConnector = (SalesforceConnector) this.connector;
   }
 
-  public String getServicesDataEnvPath() {
-    return servicesDataEnvPath;
-  }
-
-  public void setServicesDataEnvPath(String servicesDataEnvPath) {
-    this.servicesDataEnvPath = servicesDataEnvPath;
+  @Override
+  protected RestApiConnector getConnector(WorkUnitState state) {
+    return new SalesforceConnector(state);
   }
 
   /**
@@ -150,7 +144,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   }
 
   public boolean isNewBulkResultSet() {
-    return newBulkResultSet;
+    return this.newBulkResultSet;
   }
 
   public void setNewBulkResultSet(boolean newBulkResultSet) {
@@ -159,44 +153,19 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   @Override
   public HttpEntity getAuthentication() throws RestApiConnectionException {
-    this.log.debug("Authenticating salesforce");
-    String clientId = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_ID);
-    String clientSecret = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_SECRET);
-    String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String password = PasswordManager.getInstance(this.workUnit)
-        .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
-    String securityToken = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
-    String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
-
-    List<NameValuePair> formParams = new ArrayList<NameValuePair>();
-    formParams.add(new BasicNameValuePair("grant_type", "password"));
-    formParams.add(new BasicNameValuePair("client_id", clientId));
-    formParams.add(new BasicNameValuePair("client_secret", clientSecret));
-    formParams.add(new BasicNameValuePair("username", userName));
-    formParams.add(new BasicNameValuePair("password", password + securityToken));
-    try {
-      HttpPost post = new HttpPost(host + DEFAULT_AUTH_TOKEN_PATH);
-      post.setEntity(new UrlEncodedFormEntity(formParams));
-
-      HttpResponse httpResponse = getHttpClient().execute(post);
-      HttpEntity httpEntity = httpResponse.getEntity();
-
-      return httpEntity;
-    } catch (Exception e) {
-      throw new RestApiConnectionException("Failed to authenticate salesforce using user:" + userName + " and host:"
-          + host + "; error-" + e.getMessage(), e);
-    }
+    log.debug("Authenticating salesforce");
+    return this.connector.getAuthentication();
   }
 
   @Override
   public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
-    this.log.debug("Build url to retrieve schema");
-    return constructGetCommand(this.getFullUri("/sobjects/" + entity.trim() + "/describe"));
+    log.debug("Build url to retrieve schema");
+    return constructGetCommand(this.sfConnector.getFullUri("/sobjects/" + entity.trim() + "/describe"));
   }
 
   @Override
   public JsonArray getSchema(CommandOutput<?, ?> response) throws SchemaException {
-    this.log.info("Get schema from salesforce");
+    log.info("Get schema from salesforce");
 
     String output;
     Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
@@ -207,7 +176,7 @@ public class SalesforceExtractor extends RestApiExtractor {
     }
 
     JsonArray fieldJsonArray = new JsonArray();
-    JsonElement element = gson.fromJson(output, JsonObject.class);
+    JsonElement element = GSON.fromJson(output, JsonObject.class);
     JsonObject jsonObject = element.getAsJsonObject();
 
     try {
@@ -222,8 +191,8 @@ public class SalesforceExtractor extends RestApiExtractor {
         List<String> mapSymbols = null;
         JsonObject newDataType =
             this.convertDataType(field.get("name").getAsString(), dataType, elementDataType, mapSymbols);
-        this.log.debug("ColumnName:" + field.get("name").getAsString() + ";   old datatype:" + dataType
-            + ";   new datatype:" + newDataType);
+        log.debug("ColumnName:" + field.get("name").getAsString() + ";   old datatype:" + dataType + ";   new datatype:"
+            + newDataType);
 
         schema.setDataType(newDataType);
         schema.setLength(field.get("length").getAsLong());
@@ -236,8 +205,8 @@ public class SalesforceExtractor extends RestApiExtractor {
             .setDefaultValue((field.get("defaultValue").isJsonNull() ? null : field.get("defaultValue").getAsString()));
         schema.setUnique(field.get("unique").getAsBoolean());
 
-        String jsonStr = gson.toJson(schema);
-        JsonObject obj = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
+        String jsonStr = GSON.toJson(schema);
+        JsonObject obj = GSON.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
         fieldJsonArray.add(obj);
       }
     } catch (Exception e) {
@@ -249,7 +218,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   @Override
   public List<Command> getHighWatermarkMetadata(String schema, String entity, String watermarkColumn,
       List<Predicate> predicateList) throws HighWatermarkException {
-    this.log.debug("Build url to retrieve high watermark");
+    log.debug("Build url to retrieve high watermark");
     String query = "SELECT " + watermarkColumn + " FROM " + entity;
     String defaultPredicate = " " + watermarkColumn + " != null";
     String defaultSortOrder = " ORDER BY " + watermarkColumn + " desc LIMIT 1";
@@ -264,7 +233,7 @@ public class SalesforceExtractor extends RestApiExtractor {
     }
     query = query + existingPredicate;
 
-    String limitString = this.getLimitFromInputQuery(query);
+    String limitString = getLimitFromInputQuery(query);
     query = query.replace(limitString, "");
 
     Iterator<Predicate> i = predicateList.listIterator();
@@ -274,10 +243,10 @@ public class SalesforceExtractor extends RestApiExtractor {
     }
     query = SqlQueryUtils.addPredicate(query, defaultPredicate);
     query = query + defaultSortOrder;
-    this.log.info("QUERY: " + query);
+    log.info("QUERY: " + query);
 
     try {
-      return constructGetCommand(this.getFullUri(this.getSoqlUrl(query)));
+      return constructGetCommand(this.sfConnector.getFullUri(getSoqlUrl(query)));
     } catch (Exception e) {
       throw new HighWatermarkException("Failed to get salesforce url for high watermark; error - " + e.getMessage(), e);
     }
@@ -286,7 +255,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   @Override
   public long getHighWatermark(CommandOutput<?, ?> response, String watermarkColumn, String format)
       throws HighWatermarkException {
-    this.log.info("Get high watermark from salesforce");
+    log.info("Get high watermark from salesforce");
 
     String output;
     Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
@@ -296,7 +265,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       throw new HighWatermarkException("Failed to get high watermark from salesforce; REST response has no output");
     }
 
-    JsonElement element = gson.fromJson(output, JsonObject.class);
+    JsonElement element = GSON.fromJson(output, JsonObject.class);
     long high_ts;
     try {
       JsonObject jsonObject = element.getAsJsonObject();
@@ -329,7 +298,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   @Override
   public List<Command> getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws RecordCountException {
-    this.log.debug("Build url to retrieve source record count");
+    log.debug("Build url to retrieve source record count");
     String existingPredicate = "";
     if (this.updatedQuery != null) {
       String queryLowerCase = this.updatedQuery.toLowerCase();
@@ -340,24 +309,23 @@ public class SalesforceExtractor extends RestApiExtractor {
     }
 
     String query = "SELECT COUNT() FROM " + entity + existingPredicate;
-    String limitString = this.getLimitFromInputQuery(query);
+    String limitString = getLimitFromInputQuery(query);
     query = query.replace(limitString, "");
 
     try {
       if (isNullPredicate(predicateList)) {
-        this.log.info("QUERY: " + query);
-        return constructGetCommand(this.getFullUri(this.getSoqlUrl(query)));
-      } else {
-        Iterator<Predicate> i = predicateList.listIterator();
-        while (i.hasNext()) {
-          Predicate predicate = i.next();
-          query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
-        }
-
-        query = query + this.getLimitFromInputQuery(this.updatedQuery);
-        this.log.info("QUERY: " + query);
-        return constructGetCommand(this.getFullUri(this.getSoqlUrl(query)));
+        log.info("QUERY: " + query);
+        return constructGetCommand(this.sfConnector.getFullUri(getSoqlUrl(query)));
       }
+      Iterator<Predicate> i = predicateList.listIterator();
+      while (i.hasNext()) {
+        Predicate predicate = i.next();
+        query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
+      }
+
+      query = query + getLimitFromInputQuery(this.updatedQuery);
+      log.info("QUERY: " + query);
+      return constructGetCommand(this.sfConnector.getFullUri(getSoqlUrl(query)));
     } catch (Exception e) {
       throw new RecordCountException("Failed to get salesforce url for record count; error - " + e.getMessage(), e);
     }
@@ -365,7 +333,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   @Override
   public long getCount(CommandOutput<?, ?> response) throws RecordCountException {
-    this.log.info("Get source record count from salesforce");
+    log.info("Get source record count from salesforce");
 
     String output;
     Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
@@ -375,7 +343,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       throw new RecordCountException("Failed to get count from salesforce; REST response has no output");
     }
 
-    JsonElement element = gson.fromJson(output, JsonObject.class);
+    JsonElement element = GSON.fromJson(output, JsonObject.class);
     long count;
     try {
       JsonObject jsonObject = element.getAsJsonObject();
@@ -389,7 +357,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   @Override
   public List<Command> getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws DataRecordException {
-    this.log.debug("Build url to retrieve data records");
+    log.debug("Build url to retrieve data records");
     String query = this.updatedQuery;
     String url = null;
     try {
@@ -397,11 +365,11 @@ public class SalesforceExtractor extends RestApiExtractor {
         url = this.getNextUrl();
       } else {
         if (isNullPredicate(predicateList)) {
-          this.log.info("QUERY:" + query);
-          return constructGetCommand(this.getFullUri(this.getSoqlUrl(query)));
+          log.info("QUERY:" + query);
+          return constructGetCommand(this.sfConnector.getFullUri(getSoqlUrl(query)));
         }
 
-        String limitString = this.getLimitFromInputQuery(query);
+        String limitString = getLimitFromInputQuery(query);
         query = query.replace(limitString, "");
 
         Iterator<Predicate> i = predicateList.listIterator();
@@ -415,8 +383,8 @@ public class SalesforceExtractor extends RestApiExtractor {
         }
 
         query = query + limitString;
-        this.log.info("QUERY: " + query);
-        url = this.getFullUri(this.getSoqlUrl(query));
+        log.info("QUERY: " + query);
+        url = this.sfConnector.getFullUri(getSoqlUrl(query));
       }
       return constructGetCommand(url);
     } catch (Exception e) {
@@ -424,7 +392,7 @@ public class SalesforceExtractor extends RestApiExtractor {
     }
   }
 
-  private String getLimitFromInputQuery(String query) {
+  private static String getLimitFromInputQuery(String query) {
     String inputQuery = query.toLowerCase();
     int limitIndex = inputQuery.indexOf(" limit");
     if (limitIndex > 0) {
@@ -435,7 +403,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   @Override
   public Iterator<JsonElement> getData(CommandOutput<?, ?> response) throws DataRecordException {
-    this.log.debug("Get data records from response");
+    log.debug("Get data records from response");
 
     String output;
     Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
@@ -445,18 +413,18 @@ public class SalesforceExtractor extends RestApiExtractor {
       throw new DataRecordException("Failed to get data from salesforce; REST response has no output");
     }
 
-    List<JsonElement> rs = new ArrayList<JsonElement>();
-    JsonElement element = gson.fromJson(output, JsonObject.class);
+    List<JsonElement> rs = Lists.newArrayList();
+    JsonElement element = GSON.fromJson(output, JsonObject.class);
     JsonArray partRecords;
     try {
       JsonObject jsonObject = element.getAsJsonObject();
 
       partRecords = jsonObject.getAsJsonArray("records");
       if (jsonObject.get("done").getAsBoolean()) {
-        this.setPullStatus(false);
+        setPullStatus(false);
       } else {
-        this.setNextUrl(
-            this.getFullUri(jsonObject.get("nextRecordsUrl").getAsString().replaceAll(this.servicesDataEnvPath, "")));
+        setNextUrl(this.sfConnector.getFullUri(
+            jsonObject.get("nextRecordsUrl").getAsString().replaceAll(this.sfConnector.getServicesDataEnvPath(), "")));
       }
 
       JsonArray array = Utils.removeElementFromJsonArray(partRecords, "attributes");
@@ -478,18 +446,18 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   @Override
   public String getNextUrl() {
-    return nextUrl;
+    return this.nextUrl;
   }
 
-  public String getSoqlUrl(String soqlQuery) throws RestApiClientException {
+  private static String getSoqlUrl(String soqlQuery) throws RestApiClientException {
     String path = SOQL_RESOURCE + "/";
     NameValuePair pair = new BasicNameValuePair("q", soqlQuery);
-    List<NameValuePair> qparams = new ArrayList<NameValuePair>();
+    List<NameValuePair> qparams = new ArrayList<>();
     qparams.add(pair);
-    return this.buildUrl(path, qparams);
+    return buildUrl(path, qparams);
   }
 
-  public String buildUrl(String path, List<NameValuePair> qparams) throws RestApiClientException {
+  private static String buildUrl(String path, List<NameValuePair> qparams) throws RestApiClientException {
     URIBuilder builder = new URIBuilder();
     builder.setPath(path);
     ListIterator<NameValuePair> i = qparams.listIterator();
@@ -506,18 +474,7 @@ public class SalesforceExtractor extends RestApiExtractor {
     return new HttpGet(uri).getURI().toString();
   }
 
-  private String getServiceBaseUrl() {
-    String dataEnvPath =
-        DEFAULT_SERVICES_DATA_PATH + "/v" + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_VERSION);
-    this.setServicesDataEnvPath(dataEnvPath);
-    return this.instanceUrl + dataEnvPath;
-  }
-
-  public String getFullUri(String resourcePath) {
-    return StringUtils.removeEnd(getServiceBaseUrl(), "/") + StringUtils.removeEnd(resourcePath, "/");
-  }
-
-  public boolean isNullPredicate(List<Predicate> predicateList) {
+  private static boolean isNullPredicate(List<Predicate> predicateList) {
     if (predicateList == null || predicateList.size() == 0) {
       return true;
     }
@@ -538,21 +495,21 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   @Override
   public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.info("Getting hour predicate from salesforce");
+    log.info("Getting hour predicate from salesforce");
     String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, SALESFORCE_HOUR_FORMAT);
     return column + " " + operator + " " + Formattedvalue;
   }
 
   @Override
   public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.info("Getting date predicate from salesforce");
+    log.info("Getting date predicate from salesforce");
     String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, SALESFORCE_DATE_FORMAT);
     return column + " " + operator + " " + Formattedvalue;
   }
 
   @Override
   public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.info("Getting timestamp predicate from salesforce");
+    log.info("Getting timestamp predicate from salesforce");
     String Formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, SALESFORCE_TIMESTAMP_FORMAT);
     return column + " " + operator + " " + Formattedvalue;
   }
@@ -574,7 +531,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   @Override
   public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit,
       List<Predicate> predicateList) throws IOException {
-    this.log.debug("Getting salesforce data using bulk api");
+    log.debug("Getting salesforce data using bulk api");
     RecordSet<JsonElement> rs = null;
 
     try {
@@ -583,12 +540,12 @@ public class SalesforceExtractor extends RestApiExtractor {
       if (this.bulkApiInitialRun == true) {
         // set finish status to false before starting the bulk job
         this.setBulkJobFinished(false);
-        this.bulkResultIdList = this.getQueryResultIds(schema, entity, predicateList);
-        this.log.info("Number of bulk api resultSet Ids:" + this.bulkResultIdList.size());
+        this.bulkResultIdList = getQueryResultIds(entity, predicateList);
+        log.info("Number of bulk api resultSet Ids:" + this.bulkResultIdList.size());
       }
 
       // Get data from input stream
-      // If bulk load load is not finished, get data from the stream
+      // If bulk load is not finished, get data from the stream
       if (!this.isBulkJobFinished()) {
         rs = getBulkData();
       }
@@ -603,9 +560,8 @@ public class SalesforceExtractor extends RestApiExtractor {
         // Get soft delete records only if IsDeleted column exists and soft deletes pull is not disabled
         if (this.columnList.contains("IsDeleted") && !isSoftDeletesPullDisabled) {
           return this.getSoftDeletedRecords(schema, entity, workUnit, predicateList);
-        } else {
-          this.log.info("Ignoring soft delete records");
         }
+        log.info("Ignoring soft delete records");
       }
 
       return rs.iterator();
@@ -626,10 +582,10 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   /**
    * Login to salesforce
-     * @return login status
+   * @return login status
    */
   public boolean bulkApiLogin() throws Exception {
-    this.log.info("Authenticating salesforce bulk api");
+    log.info("Authenticating salesforce bulk api");
     boolean success = false;
     String hostName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String apiVersion = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_VERSION);
@@ -683,7 +639,7 @@ public class SalesforceExtractor extends RestApiExtractor {
    * @param list of all predicate conditions
      * @return iterator with batch of records
    */
-  private List<String> getQueryResultIds(String schema, String entity, List<Predicate> predicateList) throws Exception {
+  private List<String> getQueryResultIds(String entity, List<Predicate> predicateList) throws Exception {
     if (!bulkApiLogin()) {
       throw new IllegalArgumentException("Invalid Login");
     }
@@ -697,13 +653,13 @@ public class SalesforceExtractor extends RestApiExtractor {
       // Result type as CSV
       this.bulkJob.setContentType(ContentType.CSV);
 
-      this.bulkJob = bulkConnection.createJob(this.bulkJob);
-      this.bulkJob = bulkConnection.getJobStatus(this.bulkJob.getId());
+      this.bulkJob = this.bulkConnection.createJob(this.bulkJob);
+      this.bulkJob = this.bulkConnection.getJobStatus(this.bulkJob.getId());
 
       // Construct query with the predicates
       String query = this.updatedQuery;
       if (!isNullPredicate(predicateList)) {
-        String limitString = this.getLimitFromInputQuery(query);
+        String limitString = getLimitFromInputQuery(query);
         query = query.replace(limitString, "");
 
         Iterator<Predicate> i = predicateList.listIterator();
@@ -715,16 +671,16 @@ public class SalesforceExtractor extends RestApiExtractor {
         query = query + limitString;
       }
 
-      this.log.info("QUERY:" + query);
+      log.info("QUERY:" + query);
       ByteArrayInputStream bout = new ByteArrayInputStream(query.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
 
-      this.bulkBatchInfo = bulkConnection.createBatchFromStream(this.bulkJob, bout);
+      this.bulkBatchInfo = this.bulkConnection.createBatchFromStream(this.bulkJob, bout);
 
       int retryInterval = 30 + (int) Math.ceil((float) this.getExpectedRecordCount() / 10000) * 2;
-      this.log.info("Salesforce bulk api retry interval in seconds:" + retryInterval);
+      log.info("Salesforce bulk api retry interval in seconds:" + retryInterval);
 
       // Get batch info with complete resultset (info id - refers to the resultset id corresponding to entire resultset)
-      this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
+      this.bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
       if (this.bulkBatchInfo.getState() == BatchStateEnum.Failed) {
         throw new RuntimeException("Failed to get bulk batch info for jobId " + this.bulkBatchInfo.getJobId()
             + " error - " + this.bulkBatchInfo.getStateMessage());
@@ -733,13 +689,13 @@ public class SalesforceExtractor extends RestApiExtractor {
       while ((this.bulkBatchInfo.getState() != BatchStateEnum.Completed)
           && (this.bulkBatchInfo.getState() != BatchStateEnum.Failed)) {
         Thread.sleep(retryInterval * 1000);
-        this.bulkBatchInfo = bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
-        this.log.debug("Bulk Api Batch Info:" + this.bulkBatchInfo);
-        this.log.info("Waiting for bulk resultSetIds");
+        this.bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), this.bulkBatchInfo.getId());
+        log.debug("Bulk Api Batch Info:" + this.bulkBatchInfo);
+        log.info("Waiting for bulk resultSetIds");
       }
 
       // Get resultset ids from the batch info
-      QueryResultList list = bulkConnection.getQueryResultList(this.bulkJob.getId(), this.bulkBatchInfo.getId());
+      QueryResultList list = this.bulkConnection.getQueryResultList(this.bulkJob.getId(), this.bulkBatchInfo.getId());
 
       return Arrays.asList(list.getResult());
 
@@ -754,8 +710,8 @@ public class SalesforceExtractor extends RestApiExtractor {
      * @return record set with each record as a JsonObject
    */
   private RecordSet<JsonElement> getBulkData() throws DataRecordException {
-    this.log.debug("Processing bulk api batch...");
-    RecordSetList<JsonElement> rs = new RecordSetList<JsonElement>();
+    log.debug("Processing bulk api batch...");
+    RecordSetList<JsonElement> rs = new RecordSetList<>();
 
     try {
       // if Buffer is empty then get stream for the new resultset id
@@ -763,16 +719,19 @@ public class SalesforceExtractor extends RestApiExtractor {
 
         // if there is unprocessed resultset id then get result stream for that id
         if (this.bulkResultIdCount < this.bulkResultIdList.size()) {
-          this.log.info("Stream resultset for resultId:" + bulkResultIdList.get(bulkResultIdCount));
+          log.info("Stream resultset for resultId:" + this.bulkResultIdList.get(this.bulkResultIdCount));
           this.setNewBulkResultSet(true);
-          this.bulkBufferedReader = new BufferedReader(
-              new InputStreamReader(this.bulkConnection.getQueryResultStream(bulkJob.getId(), bulkBatchInfo.getId(),
-                  bulkResultIdList.get(bulkResultIdCount)), ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+          this.bulkBufferedReader =
+              new BufferedReader(
+                  new InputStreamReader(
+                      this.bulkConnection.getQueryResultStream(this.bulkJob.getId(), this.bulkBatchInfo.getId(),
+                          this.bulkResultIdList.get(this.bulkResultIdCount)),
+                      ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
 
           this.bulkResultIdCount++;
         } else {
           // if result stream processed for all resultset ids then finish the bulk job
-          this.log.info("Bulk job is finished");
+          log.info("Bulk job is finished");
           this.setBulkJobFinished(true);
           return rs;
         }
@@ -809,7 +768,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 
         // Insert records in record set until it reaches the batch size
         if (recordCount >= batchSize) {
-          this.log.info("Total number of records processed so far: " + this.bulkRecordCount);
+          log.info("Total number of records processed so far: " + this.bulkRecordCount);
           break;
         }
       }
@@ -825,12 +784,13 @@ public class SalesforceExtractor extends RestApiExtractor {
   public void closeConnection() throws Exception {
     if (this.bulkConnection != null
         && !this.bulkConnection.getJobStatus(this.bulkJob.getId()).getState().toString().equals("Closed")) {
-      this.log.info("Closing salesforce bulk job connection");
-      this.bulkConnection.closeJob(bulkJob.getId());
+      log.info("Closing salesforce bulk job connection");
+      this.bulkConnection.closeJob(this.bulkJob.getId());
     }
   }
 
   public static List<Command> constructGetCommand(String restQuery) {
     return Arrays.asList(new RestApiCommand().build(Arrays.asList(restQuery), RestApiCommandType.GET));
   }
+
 }

@@ -310,6 +310,9 @@ public class ConfigurationKeys {
    * Configuration properties used by the extractor.
    */
   public static final String SOURCE_ENTITY = "source.entity";
+
+  // Comma-separated source entity names
+  public static final String SOURCE_ENTITIES = "source.entities";
   public static final String SOURCE_TIMEZONE = "source.timezone";
   public static final String SOURCE_SCHEMA = "source.schema";
   public static final String SOURCE_MAX_NUMBER_OF_PARTITIONS = "source.max.number.of.partitions";
@@ -591,6 +594,11 @@ public class ConfigurationKeys {
    * Hive registration properties
    */
   public static final String HIVE_REGISTRATION_POLICY = "hive.registration.policy";
+
+  /**
+   * Config store properties
+   */
+  public static final String CONFIG_MANAGEMENT_STORE_URI = "gobblin.config.management.store.uri";
 
   /**
    * Other configuration properties.

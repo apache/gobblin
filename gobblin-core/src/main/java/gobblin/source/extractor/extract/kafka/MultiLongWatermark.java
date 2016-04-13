@@ -80,8 +80,8 @@ public class MultiLongWatermark implements Watermark {
     long pulled = ((MultiLongWatermark) lowWatermark).getGap(this);
     long all = ((MultiLongWatermark) lowWatermark).getGap((MultiLongWatermark) highWatermark);
     Preconditions.checkState(all > 0);
-    long percent = LongMath.divide(pulled * 100, all, RoundingMode.HALF_UP);
-    return Shorts.checkedCast(percent);
+    long percent = Math.min(100, LongMath.divide(pulled * 100, all, RoundingMode.HALF_UP));
+    return (short) percent;
   }
 
   /**

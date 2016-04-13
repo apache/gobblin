@@ -31,8 +31,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang.StringUtils;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -356,17 +354,7 @@ public class MRCompactor implements Compactor {
     }
   }
 
-  private List<Pattern> getDataComplVerifBlacklist() {
-    List<String> list = this.state.getPropAsList(COMPACTION_COMPLETENESS_VERIFICATION_BLACKLIST, StringUtils.EMPTY);
-    return DatasetFilterUtils.getPatternsFromStrings(list);
-  }
-
-  private List<Pattern> getDataComplVerifWhitelist() {
-    List<String> list = this.state.getPropAsList(COMPACTION_COMPLETENESS_VERIFICATION_WHITELIST, StringUtils.EMPTY);
-    return DatasetFilterUtils.getPatternsFromStrings(list);
-  }
-
-  private void processDatasets() throws IOException {
+  private void processDatasets() {
     createJobPropsForDatasets();
     processCompactionJobs();
   }
@@ -416,7 +404,7 @@ public class MRCompactor implements Compactor {
     }
   }
 
-  private void processCompactionJobs() throws IOException {
+  private void processCompactionJobs() {
     if (this.shouldVerifDataCompl) {
       verifyDataCompleteness();
     } else {
@@ -432,8 +420,10 @@ public class MRCompactor implements Compactor {
   }
 
   private void verifyDataCompleteness() {
-    List<Pattern> blacklist = getDataComplVerifBlacklist();
-    List<Pattern> whitelist = getDataComplVerifWhitelist();
+    List<Pattern> blacklist =
+        DatasetFilterUtils.getPatternList(this.state, COMPACTION_COMPLETENESS_VERIFICATION_BLACKLIST);
+    List<Pattern> whitelist =
+        DatasetFilterUtils.getPatternList(this.state, COMPACTION_COMPLETENESS_VERIFICATION_WHITELIST);
     int numDatasetsVerifiedTogether = getNumDatasetsVerifiedTogether();
     List<Dataset> datasetsToBeVerified = Lists.newArrayList();
     for (Dataset dataset : this.datasets) {

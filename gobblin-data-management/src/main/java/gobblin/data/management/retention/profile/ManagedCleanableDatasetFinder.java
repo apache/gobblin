@@ -28,6 +28,7 @@ import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
 import gobblin.config.client.api.VersionStabilityPolicy;
 import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.api.VersionDoesNotExistException;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
 import gobblin.data.management.version.FileSystemDatasetVersion;
 
@@ -35,10 +36,8 @@ import gobblin.data.management.version.FileSystemDatasetVersion;
 /**
  * A {@link ConfigurableGlobDatasetFinder} backed by gobblin-config-management. It uses {@link ConfigClient} to get dataset configs
  */
-public class ManagedCleanableDatasetFinder extends
-    ConfigurableGlobDatasetFinder<ConfigurableCleanableDataset<FileSystemDatasetVersion>> {
-
-  public static final String CONFIG_MANAGEMENT_STORE_URI = "gobblin.config.management.store.uri";
+public class ManagedCleanableDatasetFinder
+    extends ConfigurableGlobDatasetFinder<ConfigurableCleanableDataset<FileSystemDatasetVersion>> {
 
   private final ConfigClient client;
 
@@ -55,8 +54,9 @@ public class ManagedCleanableDatasetFinder extends
   @Override
   public ConfigurableCleanableDataset<FileSystemDatasetVersion> datasetAtPath(Path path) throws IOException {
     try {
-      return new ConfigurableCleanableDataset<FileSystemDatasetVersion>(this.fs, this.props, path,
-          this.client.getConfig(this.props.getProperty(CONFIG_MANAGEMENT_STORE_URI) + path.toString()),
+      return new ConfigurableCleanableDataset<>(this.fs, this.props, path,
+          this.client
+              .getConfig(this.props.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI) + path.toString()),
           LoggerFactory.getLogger(ConfigurableCleanableDataset.class));
     } catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
         | URISyntaxException e) {
