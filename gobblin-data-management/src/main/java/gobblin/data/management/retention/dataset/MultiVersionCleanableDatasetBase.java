@@ -191,6 +191,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
     }
 
     for (VersionFinderAndPolicy<T> versionFinderAndPolicy : getVersionFindersAndPolicies()) {
+
       VersionSelectionPolicy<T> selectionPolicy = versionFinderAndPolicy.getVersionSelectionPolicy();
       VersionFinder<? extends T> versionFinder = versionFinderAndPolicy.getVersionFinder();
 
@@ -205,7 +206,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
 
       if (versions.isEmpty()) {
         this.log.warn("No dataset version can be found. Ignoring.");
-        return;
+        continue;
       }
 
       Collections.sort(versions, Collections.reverseOrder());
