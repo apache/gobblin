@@ -465,34 +465,10 @@ public class Task implements Runnable {
       throw new CopyNotSupportedException(convertedRecord + " is not copyable");
     }
 
-    // If the record has been successfully put into the queues of every forks
-    boolean allPutsSucceeded = false;
-
-    // Use an array of primitive boolean type to avoid unnecessary boxing/unboxing
-    boolean[] succeededPuts = new boolean[branches];
-
-    // Put the record into the record queue of each fork. A put may timeout and return a false, in which
-    // case the put needs to be retried in the next iteration along with other failed puts. This goes on
-    // until all puts succeed, at which point the task moves to the next record.
-    while (!allPutsSucceeded) {
-      allPutsSucceeded = true;
-
-      int branch = 0;
-      for (Optional<Fork> fork : this.forks.keySet()) {
-        if (succeededPuts[branch]) {
-          branch++;
-          continue;
-        }
-        if (fork.isPresent() && forkedRecords.get(branch)) {
-          boolean succeeded = fork.get()
-              .putRecord(convertedRecord instanceof Copyable ? ((Copyable) convertedRecord).copy() : convertedRecord);
-          succeededPuts[branch] = succeeded;
-          if (!succeeded) {
-            allPutsSucceeded = false;
-          }
-        } else {
-          succeededPuts[branch] = true;
-        }
+    int branch = 0;
+    for (Optional<Fork> fork : this.forks.keySet()) {
+      if (fork.isPresent() && forkedRecords.get(branch)) {
+        fork.get().putRecord(convertedRecord instanceof Copyable ? ((Copyable) convertedRecord).copy() : convertedRecord);
         branch++;
       }
     }

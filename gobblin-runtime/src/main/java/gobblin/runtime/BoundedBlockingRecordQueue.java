@@ -13,12 +13,12 @@
 package gobblin.runtime;
 
 import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Queues;
@@ -47,21 +47,13 @@ import gobblin.configuration.ConfigurationKeys;
 public class BoundedBlockingRecordQueue<T> {
 
   private final int capacity;
-  private final long timeout;
-  private final TimeUnit timeoutTimeUnit;
-  private final BlockingDeque<T> blockingDeque;
+  private final BlockingQueue<T> blockingQueue;
 
   private final Optional<QueueStats> queueStats;
 
   private BoundedBlockingRecordQueue(Builder<T> builder) {
-    Preconditions.checkArgument(builder.capacity > 0, "Invalid queue capacity");
-    Preconditions.checkArgument(builder.timeout > 0, "Invalid timeout time");
-
     this.capacity = builder.capacity;
-    this.timeout = builder.timeout;
-    this.timeoutTimeUnit = builder.timeoutTimeUnit;
-    this.blockingDeque = Queues.newLinkedBlockingDeque(builder.capacity);
-
+    this.blockingQueue = Queues.newLinkedBlockingQueue(builder.capacity);
     this.queueStats = builder.ifCollectStats ? Optional.of(new QueueStats()) : Optional.<QueueStats>absent();
   }
 
@@ -75,7 +67,7 @@ public class BoundedBlockingRecordQueue<T> {
    */
   public boolean put(T record)
       throws InterruptedException {
-    boolean offered = this.blockingDeque.offer(record, this.timeout, this.timeoutTimeUnit);
+    boolean offered = this.blockingQueue.offer(record);
     if (this.queueStats.isPresent()) {
       this.queueStats.get().putsRateMeter.mark();
     }
@@ -91,7 +83,7 @@ public class BoundedBlockingRecordQueue<T> {
    */
   public T get()
       throws InterruptedException {
-    T record = this.blockingDeque.poll(this.timeout, this.timeoutTimeUnit);
+    T record = this.blockingQueue.take();
     if (this.queueStats.isPresent()) {
       this.queueStats.get().getsRateMeter.mark();
     }
@@ -112,7 +104,7 @@ public class BoundedBlockingRecordQueue<T> {
    * Clear the queue.
    */
   public void clear() {
-    this.blockingDeque.clear();
+    this.blockingQueue.clear();
   }
 
   /**
@@ -133,8 +125,6 @@ public class BoundedBlockingRecordQueue<T> {
   public static class Builder<T> {
 
     private int capacity = ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY;
-    private long timeout = ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_TIMEOUT;
-    private TimeUnit timeoutTimeUnit = TimeUnit.MILLISECONDS;
     private boolean ifCollectStats = false;
 
     /**
@@ -145,28 +135,6 @@ public class BoundedBlockingRecordQueue<T> {
      */
     public Builder<T> hasCapacity(int capacity) {
       this.capacity = capacity;
-      return this;
-    }
-
-    /**
-     * Configure the timeout time of queue operations.
-     *
-     * @param timeout the time timeout time
-     * @return this {@link Builder} instance
-     */
-    public Builder<T> useTimeout(long timeout) {
-      this.timeout = timeout;
-      return this;
-    }
-
-    /**
-     * Configure the timeout time unit of queue operations.
-     *
-     * @param timeoutTimeUnit the time timeout time unit
-     * @return this {@link Builder} instance
-     */
-    public Builder<T> useTimeoutTimeUnit(TimeUnit timeoutTimeUnit) {
-      this.timeoutTimeUnit = timeoutTimeUnit;
       return this;
     }
 
@@ -215,14 +183,14 @@ public class BoundedBlockingRecordQueue<T> {
       this.queueSizeGauge = new Gauge<Integer>() {
         @Override
         public Integer getValue() {
-          return blockingDeque.size();
+          return blockingQueue.size();
         }
       };
 
       this.fillRatioGauge = new Gauge<Double>() {
         @Override
         public Double getValue() {
-          return (double) blockingDeque.size() / capacity;
+          return (double) blockingQueue.size() / capacity;
         }
       };
 

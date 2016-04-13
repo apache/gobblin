@@ -15,10 +15,6 @@ package gobblin.runtime;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -94,7 +90,7 @@ public class Fork implements Closeable, Runnable, FinalState {
   private final RowLevelPolicyCheckResults rowLevelPolicyCheckingResult;
 
   // A bounded blocking queue in between the parent task and this fork
-  private final BlockingQueue<Object> recordQueue;
+  private final BoundedBlockingRecordQueue<Object> recordQueue;
 
   private final Closer closer = Closer.create();
 
@@ -103,7 +99,10 @@ public class Fork implements Closeable, Runnable, FinalState {
 
   // Submitted to the recordQueue by the parent task to indicated that no
   // more records are to be expected
-  private static final Object PARENTTASKDONE = new Object();
+  private static final Object PARENT_TASK_DONE = new Object();
+  
+  // wether or not the done object has been queued already
+  private boolean doneObjectQueued = false;
 
   // Writes to and reads of references are always atomic according to the Java language specs.
   // An AtomicReference is still used here for the compareAntSet operation.
@@ -135,9 +134,13 @@ public class Fork implements Closeable, Runnable, FinalState {
       buildWriterIfNotPresent();
     }
 
-    this.recordQueue = new LinkedBlockingQueue<Object>(this.taskState.getPropAsInt(
-            ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY,
-            ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY));
+    // We want blocking behavior, but with statistics
+    this.recordQueue = BoundedBlockingRecordQueue.newBuilder()
+            .hasCapacity(this.taskState.getPropAsInt(
+                ConfigurationKeys.FORK_RECORD_QUEUE_CAPACITY_KEY,
+                ConfigurationKeys.DEFAULT_FORK_RECORD_QUEUE_CAPACITY))
+            .collectStats()
+            .build();
 
     this.forkState = new AtomicReference<>(ForkState.PENDING);
 
@@ -220,8 +223,12 @@ public class Fork implements Closeable, Runnable, FinalState {
    * </p>
    */
   public void markParentTaskDone() {
+	if(this.doneObjectQueued){
+		return;
+	}
     try {
-		this.recordQueue.put(PARENTTASKDONE);
+		this.recordQueue.put(PARENT_TASK_DONE);
+		this.doneObjectQueued = true;
 	} catch (InterruptedException e) {
 		this.logger.error(
 				String.format("Fork %d of task %s failed to signal parent task done", this.index,this.taskId));
@@ -300,7 +307,7 @@ public class Fork implements Closeable, Runnable, FinalState {
    *         which means it may be absent if collecting of queue statistics is not enabled.
    */
   public Optional<BoundedBlockingRecordQueue<Object>.QueueStats> queueStats() {
-    return Optional.absent();
+	  return this.recordQueue.stats();
   }
 
   /**
@@ -323,6 +330,8 @@ public class Fork implements Closeable, Runnable, FinalState {
    */ 
   @Override
   public void close() throws IOException {
+	  
+	this.markParentTaskDone();
     // Record the fork state into the task state that will be persisted into the state store
     this.taskState.setProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.FORK_STATE_KEY, this.branches, this.index),
@@ -393,8 +402,8 @@ public class Fork implements Closeable, Runnable, FinalState {
   private void processRecords() throws IOException, DataConversionException {
     while (true) {
       try {
-        Object record = this.recordQueue.take();
-        if (record == PARENTTASKDONE) {
+        Object record = this.recordQueue.get();
+        if (record == PARENT_TASK_DONE) {
           // The parent task has already done pulling records so no new record means this fork is done
             return;
         } else {

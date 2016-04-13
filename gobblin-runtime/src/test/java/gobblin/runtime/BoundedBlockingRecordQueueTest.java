@@ -14,10 +14,7 @@ package gobblin.runtime;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -42,8 +39,6 @@ public class BoundedBlockingRecordQueueTest {
   public void setUp() {
     this.boundedBlockingRecordQueue = BoundedBlockingRecordQueue.<Integer>newBuilder()
         .hasCapacity(2)
-        .useTimeout(1000)
-        .useTimeoutTimeUnit(TimeUnit.MILLISECONDS)
         .collectStats()
         .build();
   }
@@ -86,7 +81,7 @@ public class BoundedBlockingRecordQueueTest {
     consumer.join();
 
     Assert.assertEquals(produced, consumed);
-    Assert.assertNull(this.boundedBlockingRecordQueue.get());
+
   }
 
   @Test(dependsOnMethods = "testPutAndGet")
@@ -94,7 +89,7 @@ public class BoundedBlockingRecordQueueTest {
     BoundedBlockingRecordQueue<Integer>.QueueStats stats = this.boundedBlockingRecordQueue.stats().get();
     Assert.assertEquals(stats.queueSize(), 0);
     Assert.assertEquals(stats.fillRatio(), 0d);
-    Assert.assertEquals(stats.getAttemptCount(), 7);
+    Assert.assertEquals(stats.getAttemptCount(), 6);
     Assert.assertEquals(stats.putAttemptCount(), 6);
 
     this.boundedBlockingRecordQueue.put(0);
@@ -102,7 +97,7 @@ public class BoundedBlockingRecordQueueTest {
 
     Assert.assertEquals(stats.queueSize(), 2);
     Assert.assertEquals(stats.fillRatio(), 1d);
-    Assert.assertEquals(stats.getAttemptCount(), 7);
+    Assert.assertEquals(stats.getAttemptCount(), 6);
     Assert.assertEquals(stats.putAttemptCount(), 8);
   }
 
@@ -122,15 +117,9 @@ public class BoundedBlockingRecordQueueTest {
     Assert.assertEquals(metricRegistry.getMeters().size(), 2);
     Assert.assertEquals(metricRegistry
         .meter(MetricRegistry.name(METRIC_NAME_PREFIX, BoundedBlockingRecordQueue.QueueStats.GET_ATTEMPT_RATE))
-        .getCount(), 7);
+        .getCount(), 6);
     Assert.assertEquals(metricRegistry
         .meter(MetricRegistry.name(METRIC_NAME_PREFIX, BoundedBlockingRecordQueue.QueueStats.PUT_ATTEMPT_RATE))
         .getCount(), 8);
-  }
-
-  @AfterClass
-  public void tearDown() throws InterruptedException {
-    this.boundedBlockingRecordQueue.clear();
-    Assert.assertNull(this.boundedBlockingRecordQueue.get());
   }
 }
