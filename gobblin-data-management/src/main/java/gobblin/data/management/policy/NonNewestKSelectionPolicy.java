@@ -25,7 +25,7 @@ import gobblin.data.management.version.FileSystemDatasetVersion;
 /**
  * Select the all the versions except the newest k versions of the dataset. And inverse of {@link NewestKSelectionPolicy}
  */
-public class NonNewestKSelectionPolicy extends NewestKSelectionPolicy {
+public class NonNewestKSelectionPolicy<T extends FileSystemDatasetVersion> extends NewestKSelectionPolicy<T> {
 
   public NonNewestKSelectionPolicy(int versionsRetained) {
     super(versionsRetained);
@@ -41,7 +41,7 @@ public class NonNewestKSelectionPolicy extends NewestKSelectionPolicy {
 
   @SuppressWarnings("unchecked")
   @Override
-  public Collection<FileSystemDatasetVersion> listSelectedVersions(List<FileSystemDatasetVersion> allVersions) {
+  public Collection<T> listSelectedVersions(List<T> allVersions) {
     return CollectionUtils.subtract(allVersions, super.listSelectedVersions(allVersions));
   }
 }
