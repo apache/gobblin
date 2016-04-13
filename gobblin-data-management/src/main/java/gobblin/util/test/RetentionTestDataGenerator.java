@@ -13,6 +13,8 @@ package gobblin.util.test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -121,11 +123,20 @@ public class RetentionTestDataGenerator {
     }
 
     List<? extends Config> createConfigs = setupConfig.getConfigList(TEST_DATA_CREATE_KEY);
+
+    Collections.sort(createConfigs, new Comparator<Config>() {
+      @Override
+      public int compare(Config o1, Config o2) {
+        return o1.getString(TEST_DATA_PATH_LOCAL_KEY).compareTo(o2.getString(TEST_DATA_PATH_LOCAL_KEY));
+      }
+    });
+
     for (Config fileToCreate : createConfigs) {
       Path fullFilePath =
           new Path(testTempDirPath, PathUtils.withoutLeadingSeparator(new Path(fileToCreate
               .getString(TEST_DATA_PATH_LOCAL_KEY))));
-      if (!this.fs.createNewFile(fullFilePath)) {
+
+      if (!this.fs.mkdirs(fullFilePath)) {
         throw new RuntimeException("Failed to create test file " + fullFilePath);
       }
       if (fileToCreate.hasPath(TEST_DATA_MOD_TIME_LOCAL_KEY)) {
