@@ -22,9 +22,9 @@ import org.slf4j.LoggerFactory;
 
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
-import gobblin.data.management.retention.version.finder.ModDateTimeDatasetVersionFinder;
-import gobblin.data.management.retention.version.finder.VersionFinder;
+import gobblin.data.management.version.TimestampedDatasetVersion;
+import gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder;
+import gobblin.data.management.version.finder.VersionFinder;
 
 
 /**

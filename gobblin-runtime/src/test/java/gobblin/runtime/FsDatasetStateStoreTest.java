@@ -48,10 +48,10 @@ public class FsDatasetStateStoreTest {
 
   @BeforeClass
   public void setUp() throws IOException {
-    this.fsJobStateStore = new FsStateStore<JobState>(ConfigurationKeys.LOCAL_FS_URI,
+    this.fsJobStateStore = new FsStateStore<>(ConfigurationKeys.LOCAL_FS_URI,
         FsDatasetStateStoreTest.class.getSimpleName(), JobState.class);
-    this.fsDatasetStateStore = new FsDatasetStateStore(ConfigurationKeys.LOCAL_FS_URI,
-        FsDatasetStateStoreTest.class.getSimpleName());
+    this.fsDatasetStateStore =
+        new FsDatasetStateStore(ConfigurationKeys.LOCAL_FS_URI, FsDatasetStateStoreTest.class.getSimpleName());
   }
 
   @Test

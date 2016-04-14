@@ -466,6 +466,10 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
         this.fs.setPermission(fileStatus.getPath(), deploymentConfig.getStorePermissions());
       }
 
+    } else {
+      log.warn(String.format(
+              "STORE WITH VERSION %s ALREADY EXISTS. NEW RESOURCES WILL NOT BE COPIED. ONLY STORE MEATADATA FILE WILL BE UPDATED TO %s",
+              deploymentConfig.getNewVersion(), deploymentConfig.getNewVersion()));
     }
 
     storeMetadata.setCurrentVersion(deploymentConfig.getNewVersion());

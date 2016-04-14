@@ -80,10 +80,9 @@ public class MysqlExtractor extends JdbcExtractor {
   }
 
   @Override
-  public List<Command> getSchemaMetadata(String schema, String entity)
-      throws SchemaException {
+  public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
     this.log.debug("Build query to get schema");
-    List<Command> commands = new ArrayList<Command>();
+    List<Command> commands = new ArrayList<>();
     List<String> queryParams = Arrays.asList(entity, schema);
 
     String metadataSql = "select " + " col.column_name, " + " col.data_type, "
@@ -103,10 +102,9 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public List<Command> getHighWatermarkMetadata(String schema, String entity, String watermarkColumn,
-      List<Predicate> predicateList)
-      throws HighWatermarkException {
+      List<Predicate> predicateList) throws HighWatermarkException {
     this.log.debug("Build query to get high watermark");
-    List<Command> commands = new ArrayList<Command>();
+    List<Command> commands = new ArrayList<>();
 
     String columnProjection = "max(" + Utils.getCoalesceColumnNames(watermarkColumn) + ")";
     String watermarkFilter = this.concatPredicates(predicateList);
@@ -126,7 +124,7 @@ public class MysqlExtractor extends JdbcExtractor {
   public List<Command> getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws RecordCountException {
     this.log.debug("Build query to get source record count");
-    List<Command> commands = new ArrayList<Command>();
+    List<Command> commands = new ArrayList<>();
 
     String columnProjection = "COUNT(1)";
     String watermarkFilter = this.concatPredicates(predicateList);
@@ -151,7 +149,7 @@ public class MysqlExtractor extends JdbcExtractor {
   public List<Command> getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws DataRecordException {
     this.log.debug("Build query to extract data");
-    List<Command> commands = new ArrayList<Command>();
+    List<Command> commands = new ArrayList<>();
     int fetchsize = Integer.MIN_VALUE;
 
     String watermarkFilter = this.concatPredicates(predicateList);
@@ -184,14 +182,13 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public Map<String, String> getDataTypeMap() {
-    Map<String, String> dataTypeMap =
-        ImmutableMap.<String, String>builder().put("tinyint", "int").put("smallint", "int").put("mediumint", "int")
-            .put("int", "int").put("bigint", "long").put("float", "float").put("double", "double")
-            .put("decimal", "double").put("numeric", "double").put("date", "date").put("timestamp", "timestamp")
-            .put("datetime", "timestamp").put("time", "time").put("char", "string").put("varchar", "string")
-            .put("varbinary", "string").put("text", "string").put("tinytext", "string").put("mediumtext", "string")
-            .put("longtext", "string").put("blob", "string").put("tinyblob", "string").put("mediumblob", "string")
-            .put("longblob", "string").put("enum", "string").build();
+    Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder().put("tinyint", "int")
+        .put("smallint", "int").put("mediumint", "int").put("int", "int").put("bigint", "long").put("float", "float")
+        .put("double", "double").put("decimal", "double").put("numeric", "double").put("date", "date")
+        .put("timestamp", "timestamp").put("datetime", "timestamp").put("time", "time").put("char", "string")
+        .put("varchar", "string").put("varbinary", "string").put("text", "string").put("tinytext", "string")
+        .put("mediumtext", "string").put("longtext", "string").put("blob", "string").put("tinyblob", "string")
+        .put("mediumblob", "string").put("longblob", "string").put("enum", "string").build();
     return dataTypeMap;
   }
 
@@ -261,8 +258,7 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit,
-      List<Predicate> predicateList)
-      throws IOException {
+      List<Predicate> predicateList) throws IOException {
     return null;
   }
 }

@@ -14,13 +14,14 @@ package gobblin.source.extractor.hadoop;
 
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -33,21 +34,19 @@ public class AvroFileSource extends FileBasedSource<Schema, GenericRecord> {
   private static final Logger LOGGER = LoggerFactory.getLogger(AvroFileSource.class);
 
   @Override
-  public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state)
-      throws IOException {
+  public Extractor<Schema, GenericRecord> getExtractor(WorkUnitState state) throws IOException {
     return new AvroFileExtractor(state);
   }
 
   @Override
-  public void initFileSystemHelper(State state)
-      throws FileBasedHelperException {
+  public void initFileSystemHelper(State state) throws FileBasedHelperException {
     this.fsHelper = new AvroFsHelper(state);
     this.fsHelper.connect();
   }
 
   @Override
   public List<String> getcurrentFsSnapshot(State state) {
-    List<String> results = new ArrayList<String>();
+    List<String> results = Lists.newArrayList();
     String path = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY);
 
     try {

@@ -37,11 +37,12 @@ public class InstrumentedPartitionedDataWriterDecorator<D> extends InstrumentedD
     this.partition = partition;
   }
 
-  @Override public List<Tag<?>> generateTags(State state) {
-    ImmutableList.Builder<Tag<?>> tags = ImmutableList.<Tag<?>>builder().addAll(super.generateTags(state));
-    tags.add(new Tag<GenericRecord>(PARTITION, this.partition));
-    for(Schema.Field field : this.partition.getSchema().getFields()) {
-      tags.add(new Tag<Object>(field.name(), this.partition.get(field.name())));
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    ImmutableList.Builder<Tag<?>> tags = ImmutableList.<Tag<?>> builder().addAll(super.generateTags(state));
+    tags.add(new Tag<>(PARTITION, this.partition));
+    for (Schema.Field field : this.partition.getSchema().getFields()) {
+      tags.add(new Tag<>(field.name(), this.partition.get(field.name())));
     }
     return tags.build();
   }

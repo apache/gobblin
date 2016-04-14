@@ -61,7 +61,7 @@ public class JobConfigurationManagerTest {
     this.eventBus.register(this);
 
     // Prepare the test job configuration files
-    Assert.assertTrue(jobConfigFileDir.mkdirs());
+    Assert.assertTrue(this.jobConfigFileDir.mkdirs());
     Closer closer = Closer.create();
     try {
       for (int i = 0; i < NUM_JOB_CONFIG_FILES; i++) {
@@ -69,8 +69,8 @@ public class JobConfigurationManagerTest {
         Assert.assertTrue(jobConfigFile.createNewFile());
         Properties properties = new Properties();
         properties.setProperty("foo", "bar" + i);
-        properties.store(closer.register(
-            Files.newWriter(jobConfigFile, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)), "");
+        properties.store(closer.register(Files.newWriter(jobConfigFile, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)),
+            "");
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);

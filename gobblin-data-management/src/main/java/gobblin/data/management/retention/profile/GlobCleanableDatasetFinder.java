@@ -20,19 +20,22 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.LoggerFactory;
 
 import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
-import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.version.FileSystemDatasetVersion;
 
 
 /**
  * Creates {@link ConfigurableCleanableDataset} from a glob for retention jobs.
  */
-public class GlobCleanableDatasetFinder extends ConfigurableGlobDatasetFinder<ConfigurableCleanableDataset<DatasetVersion>> {
+public class GlobCleanableDatasetFinder extends
+    ConfigurableGlobDatasetFinder<ConfigurableCleanableDataset<FileSystemDatasetVersion>> {
 
   public GlobCleanableDatasetFinder(FileSystem fs, Properties props) throws IOException {
     super(fs, props);
   }
 
-  @Override public ConfigurableCleanableDataset<DatasetVersion> datasetAtPath(Path path) throws IOException {
-    return new ConfigurableCleanableDataset<>(this.fs, this.props, path, LoggerFactory.getLogger(ConfigurableCleanableDataset.class));
+  @Override
+  public ConfigurableCleanableDataset<FileSystemDatasetVersion> datasetAtPath(Path path) throws IOException {
+    return new ConfigurableCleanableDataset<>(this.fs, this.props, path,
+        LoggerFactory.getLogger(ConfigurableCleanableDataset.class));
   }
 }

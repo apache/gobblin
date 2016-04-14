@@ -88,6 +88,7 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
    *
    * @deprecated see {@link gobblin.instrumented.writer.InstrumentedDataWriterBase}.
    */
+  @Deprecated
   protected class TaskMetricsUpdater implements Runnable {
 
     protected final Task task;

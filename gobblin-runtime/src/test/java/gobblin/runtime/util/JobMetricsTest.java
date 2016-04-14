@@ -24,12 +24,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 import gobblin.configuration.State;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobState;
 
-@Test(groups = {"gobblin.runtime"})
+
+@Test(groups = { "gobblin.runtime" })
 public class JobMetricsTest {
 
   @Test
@@ -77,17 +79,17 @@ public class JobMetricsTest {
   public void testCustomTags() {
 
     Properties testProperties = new Properties();
-    Tag<String> expectedPropertyTag = new Tag<String>("key1", "value1");
+    Tag<String> expectedPropertyTag = new Tag<>("key1", "value1");
 
-    JobMetrics.addCustomTagToProperties(testProperties, expectedPropertyTag);
+    GobblinMetrics.addCustomTagToProperties(testProperties, expectedPropertyTag);
     State testState = new State(testProperties);
-    List<Tag<?>> tags = JobMetrics.getCustomTagsFromState(testState);
+    List<Tag<?>> tags = GobblinMetrics.getCustomTagsFromState(testState);
 
     Assert.assertEquals(Iterables.getFirst(tags, null), expectedPropertyTag);
 
-    Tag<String> expectedStateTag = new Tag<String>("key2", "value2");
-    JobMetrics.addCustomTagToState(testState, expectedStateTag);
-    tags = JobMetrics.getCustomTagsFromState(testState);
+    Tag<String> expectedStateTag = new Tag<>("key2", "value2");
+    GobblinMetrics.addCustomTagToState(testState, expectedStateTag);
+    tags = GobblinMetrics.getCustomTagsFromState(testState);
 
     Assert.assertTrue(tags.containsAll(ImmutableList.of(expectedPropertyTag, expectedStateTag)));
 

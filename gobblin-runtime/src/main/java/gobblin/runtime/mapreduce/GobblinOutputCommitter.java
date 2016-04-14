@@ -110,12 +110,10 @@ public class GobblinOutputCommitter extends OutputCommitter {
   }
 
   @Override
-  public void abortTask(TaskAttemptContext arg0) throws IOException {
-  }
+  public void abortTask(TaskAttemptContext arg0) throws IOException {}
 
   @Override
-  public void commitTask(TaskAttemptContext arg0) throws IOException {
-  }
+  public void commitTask(TaskAttemptContext arg0) throws IOException {}
 
   @Override
   public boolean needsTaskCommit(TaskAttemptContext arg0) throws IOException {
@@ -123,17 +121,20 @@ public class GobblinOutputCommitter extends OutputCommitter {
   }
 
   @Override
-  public void setupJob(JobContext arg0) throws IOException {
-  }
+  public void setupJob(JobContext arg0) throws IOException {}
 
   @Override
-  public void setupTask(TaskAttemptContext arg0) throws IOException {
-  }
+  public void setupTask(TaskAttemptContext arg0) throws IOException {}
 
   /**
    * Replicates the default behavior of the {@link OutputCommitter} used by
    * {@link org.apache.hadoop.mapreduce.lib.output.NullOutputFormat}.
    * @return true
+   *
+   * <p>
+   *   {@code OutputCommitter} in Hadoop 1 doesn't have this method, hence no
+   *   override annotation.
+   * </p>
    */
   public boolean isRecoverySupported() {
     return true;
@@ -142,14 +143,18 @@ public class GobblinOutputCommitter extends OutputCommitter {
   /**
    * Replicates the default behavior of the {@link OutputCommitter} used by
    * {@link org.apache.hadoop.mapreduce.lib.output.NullOutputFormat}.
+   *
+   * <p>
+   *   {@code OutputCommitter} in Hadoop 1 doesn't have this method, hence no
+   *   override annotation.
+   * </p>
    */
-  public void recoverTask(TaskAttemptContext taskContext) throws IOException {
-  }
+  public void recoverTask(TaskAttemptContext taskContext) throws IOException {}
 
   /**
    * Cleanup the Hadoop MR working directory.
    */
-  private void cleanUpWorkingDirectory(Path mrJobDir, FileSystem fs) throws IOException {
+  private static void cleanUpWorkingDirectory(Path mrJobDir, FileSystem fs) throws IOException {
     if (fs.exists(mrJobDir)) {
       fs.delete(mrJobDir, true);
       LOG.info("Deleted working directory " + mrJobDir);
@@ -159,8 +164,8 @@ public class GobblinOutputCommitter extends OutputCommitter {
   private static class WorkUnitFilter implements PathFilter {
     @Override
     public boolean accept(Path path) {
-      return path.getName().endsWith(AbstractJobLauncher.WORK_UNIT_FILE_EXTENSION) ||
-          path.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION);
+      return path.getName().endsWith(AbstractJobLauncher.WORK_UNIT_FILE_EXTENSION)
+          || path.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION);
     }
   }
 }

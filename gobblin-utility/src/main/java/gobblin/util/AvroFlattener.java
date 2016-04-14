@@ -353,8 +353,8 @@ public class AvroFlattener {
         String flattenName = f.name();
         String flattenSource = StringUtils.EMPTY;
         if (shouldPopulateLineage) {
-          flattenName = StringUtils.join(lineage, flattenedNameJoiner);
-          flattenSource = StringUtils.join(lineage, flattenedSourceJoiner);
+          flattenName = StringUtils.join(lineage, this.flattenedNameJoiner);
+          flattenSource = StringUtils.join(lineage, this.flattenedSourceJoiner);
         }
         // Copy field
         Schema flattenedFieldSchema = flatten(f.schema(), shouldPopulateLineage);

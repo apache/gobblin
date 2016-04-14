@@ -46,11 +46,11 @@ public class MultiWorkUnitWeightedQueue {
    * Integer.MAX_VALUE + 1 WorkUnits are added to the queue, no WorkUnits will be paired together.
    */
   public MultiWorkUnitWeightedQueue() {
-    this.weightedWorkUnitQueue = new PriorityQueue<WeightedMultiWorkUnit>();
+    this.weightedWorkUnitQueue = new PriorityQueue<>();
   }
 
   public MultiWorkUnitWeightedQueue(int maxMultiWorkUnits) {
-    this.weightedWorkUnitQueue = new PriorityQueue<WeightedMultiWorkUnit>(maxMultiWorkUnits);
+    this.weightedWorkUnitQueue = new PriorityQueue<>(maxMultiWorkUnits);
     this.maxMultiWorkUnits = maxMultiWorkUnits;
   }
 
@@ -80,7 +80,7 @@ public class MultiWorkUnitWeightedQueue {
    * method.
    */
   public List<WorkUnit> getQueueAsList() {
-    return ImmutableList.<WorkUnit>builder().addAll(this.weightedWorkUnitQueue).build();
+    return ImmutableList.<WorkUnit> builder().addAll(this.weightedWorkUnitQueue).build();
   }
 
   /**

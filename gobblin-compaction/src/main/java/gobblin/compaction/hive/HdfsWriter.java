@@ -19,8 +19,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.io.Closer;
-
 import gobblin.util.HadoopUtils;
 
 
@@ -39,12 +37,8 @@ public class HdfsWriter extends HdfsIO {
     String dirInHdfs = getDirInHdfs();
     this.fileSystem.mkdirs(new Path(dirInHdfs));
 
-    Closer closer = Closer.create();
-    try {
-      FSDataOutputStream fout = closer.register(this.fileSystem.create(new Path(filePathInHdfs)));
+    try (FSDataOutputStream fout = this.fileSystem.create(new Path(this.filePathInHdfs))) {
       fout.writeChars(text);
-    } finally {
-      closer.close();
     }
   }
 
@@ -53,7 +47,7 @@ public class HdfsWriter extends HdfsIO {
   }
 
   public boolean delete() throws IllegalArgumentException, IOException {
-    return this.fileSystem.delete(new Path(filePathInHdfs), true);
+    return this.fileSystem.delete(new Path(this.filePathInHdfs), true);
   }
 
   @SuppressWarnings("deprecation")

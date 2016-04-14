@@ -10,7 +10,6 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-
 package gobblin.runtime;
 
 import java.io.FileReader;
@@ -54,7 +53,7 @@ import gobblin.writer.DataWriterBuilder;
  *
  * @author Yinan Li
  */
-@Test(groups = {"gobblin.runtime"})
+@Test(groups = { "gobblin.runtime" })
 public class DatasetStateStoreTest {
 
   private static final String JOB_NAME = DatasetStateStoreTest.class.getSimpleName();
@@ -74,10 +73,9 @@ public class DatasetStateStoreTest {
     Properties properties = new Properties();
     properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
 
-    this.datasetStateStore = new FsStateStore<JobState.DatasetState>(
+    this.datasetStateStore = new FsStateStore<>(
         properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
-        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
-        JobState.DatasetState.class);
+        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.DatasetState.class);
 
     this.jobConfig.putAll(properties);
     this.jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, JOB_NAME);
@@ -139,15 +137,14 @@ public class DatasetStateStoreTest {
 
       // Check if the low watermark is properly kept track of
       int expectedLowWatermark =
-          (run - 1) * DummySource.NUM_WORK_UNITS * DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR +
-              taskState.getPropAsInt(WORK_UNIT_INDEX_KEY) * DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR + 1;
-      Assert.assertEquals(
-          taskState.getPropAsInt(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY), expectedLowWatermark);
+          (run - 1) * DummySource.NUM_WORK_UNITS * DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR
+              + taskState.getPropAsInt(WORK_UNIT_INDEX_KEY) * DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR + 1;
+      Assert.assertEquals(taskState.getPropAsInt(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY), expectedLowWatermark);
 
       // Check if the high watermark is properly kept track of
       int expectedHighWatermark = expectedLowWatermark + DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR - 1;
-      Assert.assertEquals(
-          taskState.getPropAsInt(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY), expectedHighWatermark);
+      Assert.assertEquals(taskState.getPropAsInt(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY),
+          expectedHighWatermark);
 
       Assert.assertEquals(taskState.getPropAsInt(LAST_READ_RECORD_KEY), expectedHighWatermark);
     }
@@ -164,8 +161,8 @@ public class DatasetStateStoreTest {
     @Override
     public List<WorkUnit> getWorkunits(SourceState sourceState) {
       SourceState previousSourceState = sourceState.getPreviousSourceState();
-        sourceState.setProp(CURRENT_RUN_KEY,
-            previousSourceState != null ? previousSourceState.getPropAsInt(CURRENT_RUN_KEY) + 1 : 1);
+      sourceState.setProp(CURRENT_RUN_KEY,
+          previousSourceState != null ? previousSourceState.getPropAsInt(CURRENT_RUN_KEY) + 1 : 1);
       sourceState.setProp(FOO, BAR);
 
       if (Iterables.isEmpty(sourceState.getPreviousWorkUnitStates())) {
@@ -177,8 +174,8 @@ public class DatasetStateStoreTest {
         WorkUnit workUnit = WorkUnit.create(createExtract(Extract.TableType.SNAPSHOT_ONLY, NAMESPACE, TABLE));
         workUnit.setLowWaterMark(workUnitState.getPropAsInt(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY)
             + NUM_WORK_UNITS * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
-        workUnit.setHighWaterMark(workUnitState.getPropAsInt(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY) +
-            NUM_WORK_UNITS * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
+        workUnit.setHighWaterMark(workUnitState.getPropAsInt(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY)
+            + NUM_WORK_UNITS * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
         workUnit.setProp(WORK_UNIT_INDEX_KEY, workUnitState.getPropAsInt(WORK_UNIT_INDEX_KEY));
         workUnits.add(workUnit);
       }

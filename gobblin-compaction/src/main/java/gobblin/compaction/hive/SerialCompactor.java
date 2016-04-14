@@ -132,7 +132,7 @@ public class SerialCompactor implements Compactor {
   }
 
   private void checkSchemaCompatibility() {
-    for (int i = 0; i < deltas.size(); i++) {
+    for (int i = 0; i < this.deltas.size(); i++) {
       if (!this.snapshot.hasSamePrimaryKey(this.deltas.get(i))) {
         String message = "Schema incompatible: the snapshot table and delta table #" + (i + 1)
             + " do not have the same primary key.";
@@ -196,7 +196,7 @@ public class SerialCompactor implements Compactor {
   }
 
   private HiveTable mergeDeltas() throws SQLException {
-    if (deltas.size() == 1) {
+    if (this.deltas.size() == 1) {
       LOG.info("Only one delta table: no need to merge delta");
       return this.deltas.get(0);
     }
@@ -236,7 +236,7 @@ public class SerialCompactor implements Compactor {
     String unionStmt = "INSERT OVERWRITE TABLE " + mergedDelta.getNameWithJobId(this.jobId) + " SELECT "
         + getAttributesInNewSchema() + " FROM " + notUpdatedWithNewSchema.getNameWithJobId(this.jobId) + " UNION ALL "
         + "SELECT " + getAttributesInNewSchema() + " FROM " + nextDeltaWithNewSchema.getNameWithJobId(this.jobId);
-    conn.executeStatements(unionStmt);
+    this.conn.executeStatements(unionStmt);
 
     nextDelta.dropTable(this.conn, this.jobId);
 

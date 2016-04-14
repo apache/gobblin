@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 
 /**
@@ -50,33 +51,18 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
 
   public static final Logger LOGGER = LoggerFactory.getLogger(WatermarkDatasetVersionFinder.class);
 
-  public static final String WATERMARK_REGEX_KEY = "gobblin.dataset.version.watermark.regex";
-
-  /**
-   * @deprecated use {@link #WATERMARK_REGEX_KEY} instead.
-   */
-  @Deprecated
-  public static final String RETENTION_WATERMARK_REGEX_KEY = "gobblin.retention.watermark.regex";
+  public static final String WATERMARK_REGEX_KEY = "version.watermark.regex";
 
   private Optional<Pattern> pattern;
 
   public WatermarkDatasetVersionFinder(FileSystem fs, Properties props) {
-    super(fs, props);
-    if (props.containsKey(WATERMARK_REGEX_KEY)) {
-      initPattern(props.getProperty(WATERMARK_REGEX_KEY));
-    } else if (props.containsKey(RETENTION_WATERMARK_REGEX_KEY)) {
-      initPattern(props.getProperty(RETENTION_WATERMARK_REGEX_KEY));
-    } else {
-      this.pattern = Optional.absent();
-    }
+    this(fs, ConfigFactory.parseProperties(props));
   }
 
   public WatermarkDatasetVersionFinder(FileSystem fs, Config config) {
     super(fs);
     if (config.hasPath(WATERMARK_REGEX_KEY)) {
       initPattern(config.getString(WATERMARK_REGEX_KEY));
-    } else if (config.hasPath(RETENTION_WATERMARK_REGEX_KEY)) {
-      initPattern(config.getString(RETENTION_WATERMARK_REGEX_KEY));
     } else {
       this.pattern = Optional.absent();
     }

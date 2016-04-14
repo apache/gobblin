@@ -65,8 +65,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   private long highWatermark;
 
   private Iterator<D> iterator;
-  protected List<String> columnList = new ArrayList<String>();
-  private List<Predicate> predicateList = new ArrayList<Predicate>();
+  protected List<String> columnList = new ArrayList<>();
+  private List<Predicate> predicateList = new ArrayList<>();
   private Logger log = LoggerFactory.getLogger(QueryBasedExtractor.class);
 
   private S getOutputSchema() {
@@ -180,8 +180,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    * Get iterator from source specific api if is.specific.api.active is true
    * @return iterator
    */
-  private Iterator<D> getIterator()
-      throws DataRecordException, IOException {
+  private Iterator<D> getIterator() throws DataRecordException, IOException {
     if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
       return this.getRecordSetFromSourceApi(this.schema, this.entity, this.workUnit, this.predicateList);
     }
@@ -240,8 +239,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   /**
    * build schema, record count and high water mark
    */
-  public Extractor<S, D> build()
-      throws ExtractPrepareException {
+  public Extractor<S, D> build() throws ExtractPrepareException {
     String watermarkColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
     long lwm = this.workUnit.getLowWaterMark();
     long hwm = this.workUnit.getHighWaterMark();
@@ -264,9 +262,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
         this.log.info("High water mark from source: " + this.highWatermark);
         // If high water mark is found, then consider the same as runtime high water mark.
         // Else, consider the low water mark as high water mark(with no delta).i.e, don't move the pointer
-        long currentRunHighWatermark =
-            (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? this.highWatermark
-                : this.getLowWatermarkWithNoDelta(lwm));
+        long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE
+            ? this.highWatermark : this.getLowWatermarkWithNoDelta(lwm));
 
         this.log.info("High water mark for the current run: " + currentRunHighWatermark);
         this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
@@ -331,7 +328,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
     if (!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SKIP_HIGH_WATERMARK_CALC))) {
       this.log.info("Getting high watermark");
-      List<Predicate> list = new ArrayList<Predicate>();
+      List<Predicate> list = new ArrayList<>();
       WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
       Predicate lwmPredicate = watermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM);
       Predicate hwmPredicate = watermark.getPredicate(this, hwmValue, "<=", Predicate.PredicateType.HWM);
@@ -342,8 +339,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
         list.add(hwmPredicate);
       }
 
-      return this
-          .getMaxWatermark(this.schema, this.entity, watermarkColumn, list, watermark.getWatermarkSourceFormat(this));
+      return this.getMaxWatermark(this.schema, this.entity, watermarkColumn, list,
+          watermark.getWatermarkSourceFormat(this));
     }
 
     return hwmValue;
@@ -445,8 +442,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    * @return true if column is part of metadata columns. otherwise, return false.
    */
   protected boolean isMetadataColumn(String columnName, List<String> columnList) {
-    boolean isColumnCheckEnabled = Boolean.valueOf(this.workUnit
-        .getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED,
+    boolean isColumnCheckEnabled =
+        Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED,
             ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED));
 
     if (!isColumnCheckEnabled) {

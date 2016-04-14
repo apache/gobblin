@@ -50,12 +50,11 @@ public class GobblinConstructorUtils {
       }
 
       if (ConstructorUtils.getMatchingAccessibleConstructor(cls, parameterTypes) != null) {
-        log.info(String.format("Found accessible constructor with parameter types %s found",
-            Arrays.asList(parameterTypes)));
-        return (T) ConstructorUtils.invokeConstructor(cls, args.toArray(new Object[args.size()]));
-      } else {
-        log.info(String.format("No accessible constructor with parameter types %s found", Arrays.asList(parameterTypes)));
+        log.info(
+            String.format("Found accessible constructor with parameter types %s found", Arrays.asList(parameterTypes)));
+        return ConstructorUtils.invokeConstructor(cls, args.toArray(new Object[args.size()]));
       }
+      log.info(String.format("No accessible constructor with parameter types %s found", Arrays.asList(parameterTypes)));
     }
     throw new NoSuchMethodException("No accessible constructor found");
   }

@@ -112,7 +112,7 @@ public class HiveRegistrationUnit {
   }
 
   @SuppressWarnings({ "serial", "unchecked" })
-  protected <T> Optional<T> populateField(State state, String key, TypeToken<T> token) {
+  protected static <T> Optional<T> populateField(State state, String key, TypeToken<T> token) {
     if (state.contains(key)) {
       Optional<T> fieldValue;
 
@@ -130,9 +130,8 @@ public class HiveRegistrationUnit {
 
       state.removeProp(key);
       return fieldValue;
-    } else {
-      return Optional.<T> absent();
     }
+    return Optional.<T> absent();
   }
 
   /**

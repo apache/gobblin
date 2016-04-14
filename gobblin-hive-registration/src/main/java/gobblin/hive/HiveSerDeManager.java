@@ -107,9 +107,8 @@ public abstract class HiveSerDeManager {
       if (implementation.isPresent()) {
         return (HiveSerDeManager) ConstructorUtils.invokeConstructor(Class.forName(implementation.get().toString()),
             props);
-      } else {
-        return (HiveSerDeManager) ConstructorUtils.invokeConstructor(Class.forName(type), props);
       }
+      return (HiveSerDeManager) ConstructorUtils.invokeConstructor(Class.forName(type), props);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(
           "Unable to instantiate " + HiveSerDeManager.class.getSimpleName() + " with type " + type, e);

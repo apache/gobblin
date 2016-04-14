@@ -76,10 +76,10 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     super(builder.context, builder.name, builder.filter, builder.rateUnit, builder.durationUnit);
 
     this.closer = Closer.create();
-    this.immediateReportExecutor = MoreExecutors.
-        getExitingExecutorService((ThreadPoolExecutor) Executors.newFixedThreadPool(1,
+    this.immediateReportExecutor = MoreExecutors.getExitingExecutorService(
+        (ThreadPoolExecutor) Executors.newFixedThreadPool(1,
             ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("EventReporter-" + builder.name + "-%d"))),
-            5, TimeUnit.MINUTES);
+        5, TimeUnit.MINUTES);
 
     this.metricContext = builder.context;
     this.notificationTargetKey = builder.context.addNotificationTarget(new Function<Notification, Void>() {
@@ -99,7 +99,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
    * @param notification {@link gobblin.metrics.notification.Notification} to process.
    */
   public void notificationCallback(Notification notification) {
-    if(notification instanceof EventNotification) {
+    if (notification instanceof EventNotification) {
       addEventToReportingQueue(((EventNotification) notification).getEvent());
     }
   }
@@ -109,17 +109,17 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
    * @param event {@link gobblin.metrics.GobblinTrackingEvent} to add to queue.
    */
   public void addEventToReportingQueue(GobblinTrackingEvent event) {
-    if(this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
+    if (this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
       immediatelyScheduleReport();
     }
     try {
-      if(!this.reportingQueue.offer(sanitizeEvent(event), 10, TimeUnit.SECONDS)) {
+      if (!this.reportingQueue.offer(sanitizeEvent(event), 10, TimeUnit.SECONDS)) {
         log.error("Enqueuing of event %s at reporter with class %s timed out. Sending of events is probably stuck.",
             event, this.getClass().getCanonicalName());
       }
     } catch (InterruptedException ie) {
-      log.warn(String.format("Enqueuing of event %s at reporter with class %s was interrupted.",
-          event, this.getClass().getCanonicalName()), ie);
+      log.warn(String.format("Enqueuing of event %s at reporter with class %s was interrupted.", event,
+          this.getClass().getCanonicalName()), ie);
     }
   }
 
@@ -184,16 +184,16 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
       this.metricContext.removeNotificationTarget(this.notificationTargetKey);
       report();
       this.closer.close();
-    } catch(Exception e) {
+    } catch (Exception e) {
       LOGGER.warn("Exception when closing EventReporter", e);
     } finally {
       super.close();
     }
   }
 
-  private GobblinTrackingEvent sanitizeEvent(GobblinTrackingEvent event) {
+  private static GobblinTrackingEvent sanitizeEvent(GobblinTrackingEvent event) {
     Map<String, String> newMetadata = Maps.newHashMap();
-    for(Map.Entry<String, String> metadata : event.getMetadata().entrySet()) {
+    for (Map.Entry<String, String> metadata : event.getMetadata().entrySet()) {
       newMetadata.put(metadata.getKey() == null ? NULL_STRING : metadata.getKey(),
           metadata.getValue() == null ? NULL_STRING : metadata.getValue());
     }

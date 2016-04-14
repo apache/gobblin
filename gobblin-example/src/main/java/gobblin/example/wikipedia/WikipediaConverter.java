@@ -38,7 +38,7 @@ import gobblin.converter.ToAvroConverterBase;
  *
  * @author ziliu
  */
-public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement>{
+public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement> {
 
   private static final String JSON_CONTENT_MEMBER = "content";
 
@@ -51,6 +51,7 @@ public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement>
     return new Schema.Parser().parse(schema);
   }
 
+  @Override
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, JsonElement inputRecord, WorkUnitState workUnit) {
     JsonElement element = GSON.fromJson(inputRecord, JsonElement.class);
     Map<String, Object> fields = GSON.fromJson(element, FIELD_ENTRY_TYPE);
@@ -59,12 +60,11 @@ public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement>
       if (entry.getKey().equals("*")) {
         //switch '*' to 'content' since '*' is not a valid avro schema field name
         record.put(JSON_CONTENT_MEMBER, entry.getValue());
-      }
-      else {
+      } else {
         record.put(entry.getKey(), entry.getValue());
       }
     }
 
-    return new SingleRecordIterable<GenericRecord>(record);
+    return new SingleRecordIterable<>(record);
   }
 }

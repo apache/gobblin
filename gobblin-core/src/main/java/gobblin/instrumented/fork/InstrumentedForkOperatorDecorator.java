@@ -35,46 +35,42 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
   private boolean isEmbeddedInstrumented;
 
   public InstrumentedForkOperatorDecorator(ForkOperator<S, D> forkOperator) {
-    super(Optional.<Class<?>>of(DecoratorUtils.resolveUnderlyingObject(forkOperator).getClass()));
+    super(Optional.<Class<?>> of(DecoratorUtils.resolveUnderlyingObject(forkOperator).getClass()));
     this.embeddedForkOperator = this.closer.register(forkOperator);
     this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(forkOperator);
   }
 
   @Override
-  public void init(WorkUnitState workUnitState)
-      throws Exception {
+  public void init(WorkUnitState workUnitState) throws Exception {
     this.embeddedForkOperator.init(workUnitState);
-    super.init(workUnitState,
-        DecoratorUtils.resolveUnderlyingObject(this).getClass());
+    super.init(workUnitState, DecoratorUtils.resolveUnderlyingObject(this).getClass());
   }
 
   @Override
   public MetricContext getMetricContext() {
-    return this.isEmbeddedInstrumented ?
-        ((InstrumentedForkOperatorBase) embeddedForkOperator).getMetricContext() :
-        super.getMetricContext();
+    return this.isEmbeddedInstrumented ? ((InstrumentedForkOperatorBase) this.embeddedForkOperator).getMetricContext()
+        : super.getMetricContext();
   }
 
   @Override
   public List<Boolean> forkDataRecord(WorkUnitState workUnitState, D input) {
-    return this.isEmbeddedInstrumented ?
-        forkDataRecordImpl(workUnitState, input) :
-        super.forkDataRecord(workUnitState, input);
+    return this.isEmbeddedInstrumented ? forkDataRecordImpl(workUnitState, input)
+        : super.forkDataRecord(workUnitState, input);
   }
 
   @Override
   public List<Boolean> forkDataRecordImpl(WorkUnitState workUnitState, D input) {
-    return embeddedForkOperator.forkDataRecord(workUnitState, input);
+    return this.embeddedForkOperator.forkDataRecord(workUnitState, input);
   }
 
   @Override
   public int getBranches(WorkUnitState workUnitState) {
-    return embeddedForkOperator.getBranches(workUnitState);
+    return this.embeddedForkOperator.getBranches(workUnitState);
   }
 
   @Override
   public List<Boolean> forkSchema(WorkUnitState workUnitState, S input) {
-    return embeddedForkOperator.forkSchema(workUnitState, input);
+    return this.embeddedForkOperator.forkSchema(workUnitState, input);
   }
 
   @Override
