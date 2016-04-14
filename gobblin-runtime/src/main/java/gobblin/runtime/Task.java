@@ -123,7 +123,8 @@ public class Task implements Runnable {
     InstrumentedExtractorBase extractor = null;
     RowLevelPolicyChecker rowChecker = null;
     try {
-      extractor = closer.register(new InstrumentedExtractorDecorator(this.taskState, this.taskContext.getExtractor()));
+      extractor =
+          closer.register(new InstrumentedExtractorDecorator<>(this.taskState, this.taskContext.getExtractor()));
 
       converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
 
@@ -331,10 +332,9 @@ public class Task implements Runnable {
     if (this.taskState.contains(ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE)) {
       return (Class<? extends DataPublisher>) Class
           .forName(this.taskState.getProp(ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE));
-    } else {
-      return (Class<? extends DataPublisher>) Class.forName(
-          this.taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
     }
+    return (Class<? extends DataPublisher>) Class.forName(
+        this.taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
   }
 
   /** Get the ID of the job this {@link Task} belongs to.
@@ -485,7 +485,7 @@ public class Task implements Runnable {
         }
         if (fork.isPresent() && forkedRecords.get(branch)) {
           boolean succeeded = fork.get()
-              .putRecord(convertedRecord instanceof Copyable ? ((Copyable) convertedRecord).copy() : convertedRecord);
+              .putRecord(convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord);
           succeededPuts[branch] = succeeded;
           if (!succeeded) {
             allPutsSucceeded = false;
@@ -501,7 +501,7 @@ public class Task implements Runnable {
   /**
    * Check if a schema or data record is being passed to more than one branches.
    */
-  private boolean inMultipleBranches(List<Boolean> branches) {
+  private static boolean inMultipleBranches(List<Boolean> branches) {
     int inBranches = 0;
     for (Boolean bool : branches) {
       if (bool && ++inBranches > 1) {

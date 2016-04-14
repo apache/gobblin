@@ -12,16 +12,16 @@
 
 package gobblin.source.extractor.schema;
 
+import lombok.Getter;
+
+
 public class ArrayDataType extends DataType {
+  @Getter
   String items;
 
   public ArrayDataType(String type, String items) {
     super(type);
     this.items = items;
-  }
-
-  public String getItems() {
-    return items;
   }
 
   public void setItems(String items) {

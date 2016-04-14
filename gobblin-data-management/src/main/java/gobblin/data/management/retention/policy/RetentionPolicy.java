@@ -15,7 +15,7 @@ package gobblin.data.management.retention.policy;
 import java.util.Collection;
 import java.util.List;
 
-import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
 
 
 /**

@@ -87,8 +87,9 @@ public class HiveSerDeTest {
       OldApiWritableFileExtractor extractor = closer.register((OldApiWritableFileExtractor) source.getExtractor(wus));
       HiveSerDeConverter converter = closer.register(new HiveSerDeConverter());
       HiveWritableHdfsDataWriter writer =
-          closer.register((HiveWritableHdfsDataWriter) new HiveWritableHdfsDataWriterBuilder<Object>().withBranches(1)
-              .withWriterId("0").writeTo(Destination.of(DestinationType.HDFS, sourceState)).writeInFormat(WriterOutputFormat.ORC).build());
+          closer.register((HiveWritableHdfsDataWriter) new HiveWritableHdfsDataWriterBuilder<>().withBranches(1)
+              .withWriterId("0").writeTo(Destination.of(DestinationType.HDFS, sourceState))
+              .writeInFormat(WriterOutputFormat.ORC).build());
 
       converter.init(wus);
       Writable record = null;

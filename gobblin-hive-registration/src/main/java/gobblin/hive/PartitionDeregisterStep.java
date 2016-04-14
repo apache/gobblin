@@ -45,9 +45,10 @@ public class PartitionDeregisterStep implements CommitStep {
   @Override
   public void execute() throws IOException {
     HiveTable hiveTable = HiveMetaStoreUtils.getHiveTable(this.table);
-    HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI);
-    hiveRegister.dropPartitionIfExists(this.partition.getDbName(), this.partition.getTableName(),
-        hiveTable.getPartitionKeys(), this.partition.getValues());
+    try (HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI)) {
+      hiveRegister.dropPartitionIfExists(this.partition.getDbName(), this.partition.getTableName(),
+          hiveTable.getPartitionKeys(), this.partition.getValues());
+    }
   }
 
   @Override

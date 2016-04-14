@@ -53,7 +53,7 @@ public abstract class HadoopFsHelper implements TimestampAwareFileBasedHelper {
 
   @Override
   public void connect() throws FileBasedHelperException {
-    String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI);
+    String uri = this.state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI);
     try {
       if (Strings.isNullOrEmpty(uri)) {
         throw new FileBasedHelperException(ConfigurationKeys.SOURCE_FILEBASED_FS_URI + " has not been configured");
@@ -97,12 +97,12 @@ public abstract class HadoopFsHelper implements TimestampAwareFileBasedHelper {
   }
 
   private void createFileSystem(String uri) throws IOException, InterruptedException, URISyntaxException {
-    if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+    if (this.state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       // Initialize file system as a proxy user.
       this.fs =
-          new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.TOKEN,
-              state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
+          new ProxiedFileSystemWrapper().getProxiedFileSystem(this.state, ProxiedFileSystemWrapper.AuthType.TOKEN,
+              this.state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
 
     } else {
       // Initialize file system as the current user.

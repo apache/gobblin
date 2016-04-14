@@ -57,15 +57,14 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   }
 
   @Override
-  public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse) throws DataRecordException,
-      IOException {
+  public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse)
+      throws DataRecordException, IOException {
 
     if (!this.recordRead) {
       this.recordRead = true;
       return new FileAwareInputStream(this.file, fs.open(this.file.getFileStatus().getPath()));
-    } else {
-      return null;
     }
+    return null;
 
   }
 
@@ -80,6 +79,5 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   }
 
   @Override
-  public void close() throws IOException {
-  }
+  public void close() throws IOException {}
 }

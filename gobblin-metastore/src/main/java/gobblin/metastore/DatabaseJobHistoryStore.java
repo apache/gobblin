@@ -78,9 +78,9 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
           + "launched_tasks,completed_tasks,launcher_type,tracking_url) VALUES(?,?,?,?,?,?,?,?,?,?)";
 
   private static final String TASK_EXECUTION_INSERT_STATEMENT_TEMPLATE =
-      "INSERT INTO gobblin_task_executions (task_id,job_id,start_time,end_time,duration," +
-          "state,failure_exception,low_watermark,high_watermark,table_namespace,table_name,table_type) " +
-          "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
+      "INSERT INTO gobblin_task_executions (task_id,job_id,start_time,end_time,duration,"
+          + "state,failure_exception,low_watermark,high_watermark,table_namespace,table_name,table_type) "
+          + "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
 
   private static final String JOB_METRIC_INSERT_STATEMENT_TEMPLATE =
       "INSERT INTO gobblin_job_metrics (job_id,metric_group,metric_name,"
@@ -119,12 +119,10 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
       "UPDATE gobblin_task_properties SET property_value=? WHERE task_id=? AND property_key=?";
 
   private static final String LIST_DISTINCT_JOB_EXECUTION_QUERY_TEMPLATE =
-      "SELECT j.job_id FROM gobblin_job_executions j, "
-          + "(SELECT MAX(last_modified_ts) AS most_recent_ts, job_name "
+      "SELECT j.job_id FROM gobblin_job_executions j, " + "(SELECT MAX(last_modified_ts) AS most_recent_ts, job_name "
           + "FROM gobblin_job_executions GROUP BY job_name) max_results "
           + "WHERE j.job_name = max_results.job_name AND j.last_modified_ts = max_results.most_recent_ts";
-  private static final String LIST_RECENT_JOB_EXECUTION_QUERY_TEMPLATE =
-      "SELECT job_id FROM gobblin_job_executions";
+  private static final String LIST_RECENT_JOB_EXECUTION_QUERY_TEMPLATE = "SELECT job_id FROM gobblin_job_executions";
 
   private static final String JOB_NAME_QUERY_BY_TABLE_STATEMENT_TEMPLATE =
       "SELECT j.job_name FROM gobblin_job_executions j, gobblin_task_executions t "
@@ -167,7 +165,6 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
       "SELECT property_key, property_value FROM gobblin_task_properties WHERE task_id=?";
 
   private static final Timestamp DEFAULT_TIMESTAMP = new Timestamp(1000L);
-  private static final int DEFAULT_VALIDATION_TIMEOUT = 5;
 
   private final DataSource dataSource;
 
@@ -177,8 +174,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   }
 
   @Override
-  public synchronized void put(JobExecutionInfo jobExecutionInfo)
-      throws IOException {
+  public synchronized void put(JobExecutionInfo jobExecutionInfo) throws IOException {
     Optional<Connection> connectionOptional = Optional.absent();
     try {
       connectionOptional = Optional.of(getConnection());
@@ -205,9 +201,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
       // Insert or update job properties
       if (jobExecutionInfo.hasJobProperties()) {
         for (Map.Entry<String, String> entry : jobExecutionInfo.getJobProperties().entrySet()) {
-          boolean insert =
-              !existsProperty(connection, JOB_PROPERTY_EXIST_QUERY_STATEMENT_TEMPLATE, jobExecutionInfo.getJobId(),
-                  entry.getKey());
+          boolean insert = !existsProperty(connection, JOB_PROPERTY_EXIST_QUERY_STATEMENT_TEMPLATE,
+              jobExecutionInfo.getJobId(), entry.getKey());
           updateProperty(connection,
               insert ? JOB_PROPERTY_INSERT_STATEMENT_TEMPLATE : JOB_PROPERTY_UPDATE_STATEMENT_TEMPLATE,
               jobExecutionInfo.getJobId(), entry.getKey(), entry.getValue(), insert);
@@ -237,9 +232,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
           // Insert or update task properties
           if (info.hasTaskProperties()) {
             for (Map.Entry<String, String> entry : info.getTaskProperties().entrySet()) {
-              boolean insert =
-                  !existsProperty(connection, TASK_PROPERTY_EXIST_QUERY_STATEMENT_TEMPLATE, info.getTaskId(),
-                      entry.getKey());
+              boolean insert = !existsProperty(connection, TASK_PROPERTY_EXIST_QUERY_STATEMENT_TEMPLATE,
+                  info.getTaskId(), entry.getKey());
               updateProperty(connection,
                   insert ? TASK_PROPERTY_INSERT_STATEMENT_TEMPLATE : TASK_PROPERTY_UPDATE_STATEMENT_TEMPLATE,
                   info.getTaskId(), entry.getKey(), entry.getValue(), insert);
@@ -271,8 +265,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   }
 
   @Override
-  public synchronized List<JobExecutionInfo> get(JobExecutionQuery query)
-      throws IOException {
+  public synchronized List<JobExecutionInfo> get(JobExecutionQuery query) throws IOException {
     Preconditions.checkArgument(query.hasId() && query.hasIdType());
 
     Optional<Connection> connectionOptional = Optional.absent();
@@ -284,13 +277,13 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
         case JOB_ID:
           List<JobExecutionInfo> jobExecutionInfos = Lists.newArrayList();
           JobExecutionInfo jobExecutionInfo =
-              processQueryById(connection, query.getId().getString(), query, Optional.<String>absent());
+              processQueryById(connection, query.getId().getString(), query, Optional.<String> absent());
           if (jobExecutionInfo != null) {
             jobExecutionInfos.add(jobExecutionInfo);
           }
           return jobExecutionInfos;
         case JOB_NAME:
-          return processQueryByJobName(connection, query.getId().getString(), query, Optional.<String>absent());
+          return processQueryByJobName(connection, query.getId().getString(), query, Optional.<String> absent());
         case TABLE:
           return processQueryByTable(connection, query);
         case LIST_TYPE:
@@ -313,18 +306,15 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     // Nothing to do
   }
 
-  private Connection getConnection()
-          throws SQLException {
+  private Connection getConnection() throws SQLException {
     return this.dataSource.getConnection();
   }
 
-  private boolean existsJobExecutionInfo(Connection connection, JobExecutionInfo info)
-      throws SQLException {
+  private static boolean existsJobExecutionInfo(Connection connection, JobExecutionInfo info) throws SQLException {
     Preconditions.checkArgument(info.hasJobId());
 
     PreparedStatement queryStatement = connection.prepareStatement(JOB_EXECUTION_QUERY_BY_JOB_ID_STATEMENT_TEMPLATE);
@@ -332,8 +322,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return queryStatement.executeQuery().next();
   }
 
-  private void insertJobExecutionInfo(Connection connection, JobExecutionInfo info)
-      throws SQLException {
+  private static void insertJobExecutionInfo(Connection connection, JobExecutionInfo info) throws SQLException {
     Preconditions.checkArgument(info.hasJobName());
     Preconditions.checkArgument(info.hasJobId());
 
@@ -341,8 +330,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     int index = 0;
     insertStatement.setString(++index, info.getJobName());
     insertStatement.setString(++index, info.getJobId());
-    insertStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
+    insertStatement.setTimestamp(++index, info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP,
+        getCalendarUTCInstance());
     insertStatement.setTimestamp(++index, info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP,
         getCalendarUTCInstance());
     insertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
@@ -354,16 +343,15 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     insertStatement.executeUpdate();
   }
 
-  private void updateJobExecutionInfo(Connection connection, JobExecutionInfo info)
-      throws SQLException {
+  private static void updateJobExecutionInfo(Connection connection, JobExecutionInfo info) throws SQLException {
     Preconditions.checkArgument(info.hasJobId());
 
     PreparedStatement updateStatement = connection.prepareStatement(JOB_EXECUTION_UPDATE_STATEMENT_TEMPLATE);
     int index = 0;
     updateStatement.setTimestamp(++index, info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP,
         getCalendarUTCInstance());
-    updateStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
+    updateStatement.setTimestamp(++index, info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP,
+        getCalendarUTCInstance());
     updateStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
     updateStatement.setString(++index, info.hasState() ? info.getState().name() : null);
     updateStatement.setInt(++index, info.hasLaunchedTasks() ? info.getLaunchedTasks() : -1);
@@ -374,8 +362,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     updateStatement.executeUpdate();
   }
 
-  private boolean existsTaskExecutionInfo(Connection connection, TaskExecutionInfo info)
-      throws SQLException {
+  private static boolean existsTaskExecutionInfo(Connection connection, TaskExecutionInfo info) throws SQLException {
     Preconditions.checkArgument(info.hasTaskId());
 
     PreparedStatement queryStatement = connection.prepareStatement(TASK_EXECUTION_EXIST_QUERY_STATEMENT_TEMPLATE);
@@ -383,8 +370,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return queryStatement.executeQuery().next();
   }
 
-  private void insertTaskExecutionInfo(Connection connection, TaskExecutionInfo info)
-      throws SQLException {
+  private static void insertTaskExecutionInfo(Connection connection, TaskExecutionInfo info) throws SQLException {
     Preconditions.checkArgument(info.hasTaskId());
     Preconditions.checkArgument(info.hasJobId());
 
@@ -392,10 +378,10 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     int index = 0;
     insertStatement.setString(++index, info.getTaskId());
     insertStatement.setString(++index, info.getJobId());
-    insertStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
-    insertStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
+    insertStatement.setTimestamp(++index, info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP,
+        getCalendarUTCInstance());
+    insertStatement.setTimestamp(++index, info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP,
+        getCalendarUTCInstance());
     insertStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
     insertStatement.setString(++index, info.hasState() ? info.getState().name() : null);
     insertStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
@@ -409,16 +395,15 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     insertStatement.executeUpdate();
   }
 
-  private void updateTaskExecutionInfo(Connection connection, TaskExecutionInfo info)
-      throws SQLException {
+  private static void updateTaskExecutionInfo(Connection connection, TaskExecutionInfo info) throws SQLException {
     Preconditions.checkArgument(info.hasTaskId());
 
     PreparedStatement updateStatement = connection.prepareStatement(TASK_EXECUTION_UPDATE_STATEMENT_TEMPLATE);
     int index = 0;
-    updateStatement.setTimestamp(++index,
-        info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
-    updateStatement.setTimestamp(++index,
-        info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP, getCalendarUTCInstance());
+    updateStatement.setTimestamp(++index, info.hasStartTime() ? new Timestamp(info.getStartTime()) : DEFAULT_TIMESTAMP,
+        getCalendarUTCInstance());
+    updateStatement.setTimestamp(++index, info.hasEndTime() ? new Timestamp(info.getEndTime()) : DEFAULT_TIMESTAMP,
+        getCalendarUTCInstance());
     updateStatement.setLong(++index, info.hasDuration() ? info.getDuration() : -1);
     updateStatement.setString(++index, info.hasState() ? info.getState().name() : null);
     updateStatement.setString(++index, info.hasFailureException() ? info.getFailureException() : null);
@@ -433,7 +418,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     updateStatement.executeUpdate();
   }
 
-  private boolean existsMetric(Connection connection, String template, String id, Metric metric)
+  private static boolean existsMetric(Connection connection, String template, String id, Metric metric)
       throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(metric.hasGroup());
@@ -449,7 +434,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return queryStatement.executeQuery().next();
   }
 
-  private void updateMetric(Connection connection, String template, String id, Metric metric, boolean insert)
+  private static void updateMetric(Connection connection, String template, String id, Metric metric, boolean insert)
       throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(metric.hasGroup());
@@ -475,7 +460,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     updateStatement.executeUpdate();
   }
 
-  private boolean existsProperty(Connection connection, String template, String id, String key)
+  private static boolean existsProperty(Connection connection, String template, String id, String key)
       throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
@@ -487,9 +472,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return queryStatement.executeQuery().next();
   }
 
-  private void updateProperty(Connection connection, String template, String id, String key, String value,
-      boolean insert)
-      throws SQLException {
+  private static void updateProperty(Connection connection, String template, String id, String key, String value,
+      boolean insert) throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(id));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(key));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(value));
@@ -539,7 +523,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     // Query job properties
     Set<String> requestedJobPropertyKeys = null;
     if (query.hasJobProperties()) {
-      requestedJobPropertyKeys = new HashSet<String>(Arrays.asList(query.getJobProperties().split(",")));
+      requestedJobPropertyKeys = new HashSet<>(Arrays.asList(query.getJobProperties().split(",")));
     }
     PreparedStatement jobPropertiesQueryStatement = connection.prepareStatement(JOB_PROPERTY_QUERY_STATEMENT_TEMPLATE);
     jobPropertiesQueryStatement.setString(1, jobExecutionInfo.getJobId());
@@ -570,7 +554,8 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
 
         // Query task metrics for each task execution record
         if (query.isIncludeTaskMetrics()) {
-          PreparedStatement taskMetricQueryStatement = connection.prepareStatement(TASK_METRIC_QUERY_STATEMENT_TEMPLATE);
+          PreparedStatement taskMetricQueryStatement =
+              connection.prepareStatement(TASK_METRIC_QUERY_STATEMENT_TEMPLATE);
           taskMetricQueryStatement.setString(1, taskExecutionInfo.getTaskId());
           ResultSet taskMetricRs = taskMetricQueryStatement.executeQuery();
           MetricArray taskMetrics = new MetricArray();
@@ -586,7 +571,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
         // Query task properties
         Set<String> queryTaskPropertyKeys = null;
         if (query.hasTaskProperties()) {
-          queryTaskPropertyKeys = new HashSet<String>(Arrays.asList(query.getTaskProperties().split(",")));
+          queryTaskPropertyKeys = new HashSet<>(Arrays.asList(query.getTaskProperties().split(",")));
         }
         PreparedStatement taskPropertiesQueryStatement =
             connection.prepareStatement(TASK_PROPERTY_QUERY_STATEMENT_TEMPLATE);
@@ -611,8 +596,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   }
 
   private List<JobExecutionInfo> processQueryByJobName(Connection connection, String jobName, JobExecutionQuery query,
-      Optional<String> tableFilter)
-      throws SQLException {
+      Optional<String> tableFilter) throws SQLException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(jobName));
 
     // Construct the query for job IDs by a given job name
@@ -669,8 +653,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return jobExecutionInfos;
   }
 
-  private List<JobExecutionInfo> processListQuery(Connection connection, JobExecutionQuery query)
-      throws SQLException {
+  private List<JobExecutionInfo> processListQuery(Connection connection, JobExecutionQuery query) throws SQLException {
     Preconditions.checkArgument(query.getId().isQueryListType());
 
     QueryListType queryType = query.getId().getQueryListType();
@@ -702,14 +685,13 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     ResultSet rs = queryStatement.executeQuery();
     List<JobExecutionInfo> jobExecutionInfos = Lists.newArrayList();
     while (rs.next()) {
-      jobExecutionInfos.add(processQueryById(connection, rs.getString(1), query, Optional.<String>absent()));
+      jobExecutionInfos.add(processQueryById(connection, rs.getString(1), query, Optional.<String> absent()));
     }
 
     return jobExecutionInfos;
   }
 
-  private JobExecutionInfo resultSetToJobExecutionInfo(ResultSet rs)
-      throws SQLException {
+  private JobExecutionInfo resultSetToJobExecutionInfo(ResultSet rs) throws SQLException {
     JobExecutionInfo jobExecutionInfo = new JobExecutionInfo();
 
     jobExecutionInfo.setJobName(rs.getString("job_name"));
@@ -742,8 +724,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return jobExecutionInfo;
   }
 
-  private TaskExecutionInfo resultSetToTaskExecutionInfo(ResultSet rs)
-      throws SQLException {
+  private static TaskExecutionInfo resultSetToTaskExecutionInfo(ResultSet rs) throws SQLException {
     TaskExecutionInfo taskExecutionInfo = new TaskExecutionInfo();
 
     taskExecutionInfo.setTaskId(rs.getString("task_id"));
@@ -787,8 +768,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return taskExecutionInfo;
   }
 
-  private Metric resultSetToMetric(ResultSet rs)
-      throws SQLException {
+  private static Metric resultSetToMetric(ResultSet rs) throws SQLException {
     Metric metric = new Metric();
 
     metric.setGroup(rs.getString("metric_group"));
@@ -799,13 +779,11 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     return metric;
   }
 
-  private AbstractMap.SimpleEntry<String, String> resultSetToProperty(ResultSet rs)
-      throws SQLException {
-    return new AbstractMap.SimpleEntry<String, String>(rs.getString(1), rs.getString(2));
+  private static AbstractMap.SimpleEntry<String, String> resultSetToProperty(ResultSet rs) throws SQLException {
+    return new AbstractMap.SimpleEntry<>(rs.getString(1), rs.getString(2));
   }
 
-  private String constructTimeRangeFilter(TimeRange timeRange)
-      throws ParseException {
+  private static String constructTimeRangeFilter(TimeRange timeRange) throws ParseException {
     StringBuilder sb = new StringBuilder();
 
     if (!timeRange.hasTimeFormat()) {

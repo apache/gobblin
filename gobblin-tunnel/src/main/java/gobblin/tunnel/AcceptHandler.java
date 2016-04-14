@@ -13,7 +13,6 @@
 package gobblin.tunnel;
 
 import java.io.IOException;
-import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -32,8 +31,7 @@ class AcceptHandler implements Callable<HandlerState> {
   private final Selector selector;
   private final Config config;
 
-  AcceptHandler(ServerSocketChannel server, Selector selector, Config config)
-      throws IOException {
+  AcceptHandler(ServerSocketChannel server, Selector selector, Config config) {
     this.config = config;
     this.server = server;
     this.selector = selector;
@@ -42,7 +40,7 @@ class AcceptHandler implements Callable<HandlerState> {
   @Override
   public HandlerState call()
       throws Exception {
-    SocketChannel client = server.accept();
+    SocketChannel client = this.server.accept();
 
     LOG.info("Accepted connection from {}", client.getRemoteAddress());
     try {

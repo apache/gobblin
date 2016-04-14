@@ -12,7 +12,6 @@
 
 package gobblin.compaction.hive.registration;
 
-import java.io.IOException;
 import java.util.Properties;
 
 import gobblin.compaction.listeners.CompactorListener;
@@ -29,7 +28,7 @@ public class HiveRegistrationCompactorListener implements CompactorListener {
   private final HiveRegister hiveRegister;
   private final HiveRegistrationPolicy hiveRegistrationPolicy;
 
-  public HiveRegistrationCompactorListener(Properties properties) throws IOException {
+  public HiveRegistrationCompactorListener(Properties properties) {
     State state = new State(properties);
     this.hiveRegister = HiveRegister.get(state);
     this.hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);

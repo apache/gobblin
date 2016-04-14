@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
+
 /**
  * A TCP server that reads a line from a socket, trims it, and echoes it back twice on the same line.
  *
@@ -37,8 +38,8 @@ class DoubleEchoServer extends MockServer {
       PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
       String line = in.readLine();
       while (line != null && isServerRunning()) {
-        if (delay > 0) {
-          sleepQuietly(delay);
+        if (this.delay > 0) {
+          sleepQuietly(this.delay);
         }
         out.println(line + " " + line);
         out.flush();

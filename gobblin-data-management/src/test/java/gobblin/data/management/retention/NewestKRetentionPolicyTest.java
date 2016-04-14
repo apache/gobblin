@@ -39,8 +39,7 @@ public class NewestKRetentionPolicyTest {
     StringDatasetVersion datasetVersion2 = new StringDatasetVersion("001_mid", new Path("test"));
     StringDatasetVersion datasetVersion3 = new StringDatasetVersion("002_oldest", new Path("test"));
 
-
-    Assert.assertEquals(policy.versionClass(), DatasetVersion.class);
+    Assert.assertEquals(policy.versionClass(), gobblin.data.management.version.DatasetVersion.class);
 
     List<DatasetVersion> versions = Lists.newArrayList();
     versions.add(datasetVersion1);

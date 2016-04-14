@@ -26,7 +26,6 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -87,16 +86,16 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
 
-    URL url = GobblinYarnAppLauncherTest.class.getClassLoader().getResource(
-        GobblinYarnAppLauncherTest.class.getSimpleName() + ".conf");
+    URL url = GobblinYarnAppLauncherTest.class.getClassLoader()
+        .getResource(GobblinYarnAppLauncherTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
     this.config = ConfigFactory.parseURL(url).resolve();
 
     String zkConnectionString = this.config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    this.helixManager = HelixManagerFactory
-        .getZKHelixManager(this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
-            TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER, zkConnectionString);
+    this.helixManager = HelixManagerFactory.getZKHelixManager(
+        this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), TestHelper.TEST_HELIX_INSTANCE_NAME,
+        InstanceType.CONTROLLER, zkConnectionString);
 
     this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(this.config, clusterConf);
   }
@@ -108,10 +107,12 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         this.config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY),
         this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
 
-    Assert.assertEquals(this.curatorFramework.checkExists().forPath(
-        String.format("/%s", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
-    Assert.assertEquals(this.curatorFramework.checkExists().forPath(
-        String.format("/%s/CONTROLLER", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
+    Assert.assertEquals(this.curatorFramework.checkExists()
+        .forPath(String.format("/%s", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
+    Assert.assertEquals(
+        this.curatorFramework.checkExists()
+            .forPath(String.format("/%s/CONTROLLER", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(),
+        0);
   }
 
   /**

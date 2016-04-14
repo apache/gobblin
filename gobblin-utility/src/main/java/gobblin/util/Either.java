@@ -44,7 +44,7 @@ public abstract class Either<S, T> {
    */
   public static class Left<S, T> extends Either<S, T> {
     public Left(S s) {
-      super(Optional.of(s), Optional.<T>absent());
+      super(Optional.of(s), Optional.<T> absent());
     }
 
     /**
@@ -60,7 +60,7 @@ public abstract class Either<S, T> {
    */
   public static class Right<S, T> extends Either<S, T> {
     public Right(T t) {
-      super(Optional.<S>absent(), Optional.of(t));
+      super(Optional.<S> absent(), Optional.of(t));
     }
 
     /**
@@ -77,7 +77,7 @@ public abstract class Either<S, T> {
    * @return an instance of {@link Left}.
    */
   public static <S, T> Either<S, T> left(S left) {
-    return new Left<S, T>(left);
+    return new Left<>(left);
   }
 
   /**
@@ -86,7 +86,7 @@ public abstract class Either<S, T> {
    * @return an instance of {@link Right}.
    */
   public static <S, T> Either<S, T> right(T right) {
-    return new Right<S, T>(right);
+    return new Right<>(right);
   }
 
   /**
@@ -95,11 +95,10 @@ public abstract class Either<S, T> {
    * @return value as an instance of {@link Object}.
    */
   public Object get() {
-    if(this.s.isPresent()) {
+    if (this.s.isPresent()) {
       return this.s.get();
-    } else {
-      return this.t.get();
     }
+    return this.t.get();
   }
 
 }

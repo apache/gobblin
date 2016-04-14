@@ -14,7 +14,6 @@ package gobblin.runtime.listeners;
 
 import gobblin.runtime.JobContext;
 
-import java.io.IOException;
 
 /**
  * An abstract implementation of {@link JobListener} which ensures that

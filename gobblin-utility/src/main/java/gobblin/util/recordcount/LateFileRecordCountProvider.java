@@ -13,7 +13,6 @@
 package gobblin.util.recordcount;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Random;
 import java.util.regex.Pattern;
 

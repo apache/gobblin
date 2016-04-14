@@ -17,6 +17,8 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.typesafe.config.Config;
+
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
@@ -30,14 +32,20 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
 
   private final gobblin.data.management.version.finder.DateTimeDatasetVersionFinder realVersionFinder;
 
-  public static final String DATE_TIME_PATTERN_KEY =
-      gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_KEY;
-  public static final String DATE_TIME_PATTERN_TIMEZONE_KEY =
-      gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY;
+  /**
+   * @deprecated use {@link #DATE_TIME_PATTERN_KEY} instead.
+   */
+  @Deprecated
+  public static final String RETENTION_DATE_TIME_PATTERN_KEY = "gobblin.retention.datetime.pattern";
+  /**
+   * @deprecated use {@link #DATE_TIME_PATTERN_TIMEZONE_KEY} instead.
+   */
+  @Deprecated
+  public static final String RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY = "gobblin.retention.datetime.pattern.timezone";
 
   public DateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
-    super(fs, props);
-    this.realVersionFinder = new gobblin.data.management.version.finder.DateTimeDatasetVersionFinder(fs, props);
+    super(fs, convertDeprecatedProperties(props));
+    this.realVersionFinder = new gobblin.data.management.version.finder.DateTimeDatasetVersionFinder(fs, convertDeprecatedProperties(props));
   }
 
   @Override
@@ -57,5 +65,24 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
       return new TimestampedDatasetVersion(timestampedDatasetVersion);
     }
     return null;
+  }
+
+
+  /**
+   * This conversion is required because the deprecated keys {@value #RETENTION_DATE_TIME_PATTERN_KEY} and
+   * {@value #RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY} are not TypeSafe compatible.
+   * The key {@value #RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY} overwrites {@value #RETENTION_DATE_TIME_PATTERN_KEY}
+   * when converted from props to {@link Config}
+   */
+  private static Properties convertDeprecatedProperties(Properties props) {
+    if (props.containsKey(RETENTION_DATE_TIME_PATTERN_KEY)) {
+      props.setProperty(gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, props.getProperty(RETENTION_DATE_TIME_PATTERN_KEY));
+      props.remove(RETENTION_DATE_TIME_PATTERN_KEY);
+    }
+    if (props.containsKey(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY)) {
+      props.setProperty(gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_TIMEZONE_KEY, props.getProperty(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY));
+      props.remove(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY);
+    }
+    return props;
   }
 }

@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
 
@@ -59,9 +60,9 @@ public class HourWatermark implements Watermark {
   synchronized public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue,
       long partitionIntervalInHours, int maxIntervals) {
     Preconditions.checkArgument(maxIntervals > 0, "Invalid value for maxIntervals, positive value expected.");
-    Preconditions
-        .checkArgument(partitionIntervalInHours > 0, "Invalid value for partitionInterval, should be at least 1.");
-    HashMap<Long, Long> intervalMap = new HashMap<Long, Long>();
+    Preconditions.checkArgument(partitionIntervalInHours > 0,
+        "Invalid value for partitionInterval, should be at least 1.");
+    HashMap<Long, Long> intervalMap = Maps.newHashMap();
 
     if (lowWatermarkValue > highWatermarkValue) {
       LOG.warn("The low water mark is greater than the high water mark, empty intervals are returned");
@@ -84,7 +85,7 @@ public class HourWatermark implements Watermark {
     long lwm;
     long hwm;
     while (startTime.getTime() <= endTime.getTime()) {
-      lwm = Long.parseLong(INPUTFORMATPARSER .format(startTime));
+      lwm = Long.parseLong(INPUTFORMATPARSER.format(startTime));
       calendar.setTime(startTime);
       calendar.add(Calendar.HOUR, interval - 1);
       nextTime = calendar.getTime();

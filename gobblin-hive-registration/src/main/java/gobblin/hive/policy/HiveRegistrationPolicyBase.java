@@ -205,9 +205,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
     if (isNameValid(name)) {
       return name;
-    } else {
-      throw new IllegalStateException(name + " is not a valid Hive database or table name");
     }
+    throw new IllegalStateException(name + " is not a valid Hive database or table name");
   }
 
   /**

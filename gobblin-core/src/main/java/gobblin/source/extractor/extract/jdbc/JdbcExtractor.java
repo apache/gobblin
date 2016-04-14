@@ -71,8 +71,8 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author nveeramr
  */
-public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements
-    SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
+public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement>
+    implements SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
   private static final Gson gson = new Gson();
   private List<String> headerRecord;
   private boolean firstPull = true;
@@ -82,9 +82,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   protected JdbcProvider jdbcSource;
   protected Connection dataConnection;
   protected int timeOut;
-  private List<ColumnAttributes> columnAliasMap = new ArrayList<ColumnAttributes>();
-  private Map<String, Schema> metadataColumnMap = new HashMap<String, Schema>();
-  private List<String> metadataColumnList = new ArrayList<String>();
+  private List<ColumnAttributes> columnAliasMap = new ArrayList<>();
+  private Map<String, Schema> metadataColumnMap = new HashMap<>();
+  private List<String> metadataColumnList = new ArrayList<>();
   private String inputColumnProjection;
   private String outputColumnProjection;
   private long totalRecordCount = 0;
@@ -283,7 +283,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     this.setSampleRecordCount(this.exractSampleRecordCountFromQuery(inputQuery));
     inputQuery = this.removeSampleClauseFromQuery(inputQuery);
     JsonArray targetSchema = new JsonArray();
-    List<String> headerColumns = new ArrayList<String>();
+    List<String> headerColumns = new ArrayList<>();
 
     try {
       List<Command> cmds = this.getSchemaMetadata(schema, entity);
@@ -319,9 +319,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
 
       String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
-      outputColProjection =
-          outputColProjection.replace(derivedWatermarkColumnName, Utils.getCoalesceColumnNames(watermarkColumn)
-              + " AS " + derivedWatermarkColumnName);
+      outputColProjection = outputColProjection.replace(derivedWatermarkColumnName,
+          Utils.getCoalesceColumnNames(watermarkColumn) + " AS " + derivedWatermarkColumnName);
       this.setOutputColumnProjection(outputColProjection);
       String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
 
@@ -516,7 +515,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @param input query
    */
   private void parseInputQuery(String query) {
-    List<String> projectedColumns = new ArrayList<String>();
+    List<String> projectedColumns = new ArrayList<>();
     if (StringUtils.isNotBlank(query)) {
       String queryLowerCase = query.toLowerCase();
       int startIndex = queryLowerCase.indexOf("select ") + 7;
@@ -720,17 +719,17 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   protected JdbcProvider createJdbcSource() {
     String driver = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_DRIVER);
     String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String password =
-        PasswordManager.getInstance(this.workUnit).readPassword(
-            this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+    String password = PasswordManager.getInstance(this.workUnit)
+        .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String connectionUrl = this.getConnectionUrl();
 
     String proxyHost = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL);
-    int proxyPort = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) != null ?
-        this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) : -1;
+    int proxyPort = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) != null
+        ? this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) : -1;
 
     if (this.jdbcSource == null || this.jdbcSource.isClosed()) {
-      this.jdbcSource = new JdbcProvider(driver, connectionUrl, userName, password, 1, this.getTimeOut(),"DEFAULT", proxyHost, proxyPort);
+      this.jdbcSource = new JdbcProvider(driver, connectionUrl, userName, password, 1, this.getTimeOut(), "DEFAULT",
+          proxyHost, proxyPort);
       return this.jdbcSource;
     } else {
       return this.jdbcSource;
@@ -1005,7 +1004,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return predicate
    */
   protected String concatPredicates(List<Predicate> predicateList) {
-    List<String> conditions = new ArrayList<String>();
+    List<String> conditions = new ArrayList<>();
     for (Predicate predicate : predicateList) {
       conditions.add(predicate.getCondition());
     }
@@ -1024,9 +1023,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     schema.setColumnName(columnName);
 
-    WatermarkType wmType =
-        WatermarkType.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE,
-            "TIMESTAMP").toUpperCase());
+    WatermarkType wmType = WatermarkType.valueOf(
+        this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "TIMESTAMP").toUpperCase());
     switch (wmType) {
       case TIMESTAMP:
         dataType = "timestamp";
@@ -1091,7 +1089,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return RecordSetList
    */
   private RecordSetList<JsonElement> getNewRecordSetList() {
-    return new RecordSetList<JsonElement>();
+    return new RecordSetList<>();
   }
 
   /**
@@ -1101,9 +1099,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    */
   private String toCase(String targetColumnName) {
     String columnName = targetColumnName;
-    ColumnNameCase caseType =
-        ColumnNameCase.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE,
-            ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
+    ColumnNameCase caseType = ColumnNameCase.valueOf(this.workUnitState
+        .getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE, ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
     switch (caseType) {
       case TOUPPER:
         columnName = targetColumnName.toUpperCase();

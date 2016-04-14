@@ -51,7 +51,7 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author ziliu
  */
-public class WikipediaExtractor implements Extractor<String, JsonElement>{
+public class WikipediaExtractor implements Extractor<String, JsonElement> {
 
   private static final Logger LOG = LoggerFactory.getLogger(WikipediaExtractor.class);
 
@@ -83,9 +83,9 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
 
     @Override
     public boolean hasNext() {
-      if (!recordsOfCurrentTitle.isEmpty()) {
+      if (!WikipediaExtractor.this.recordsOfCurrentTitle.isEmpty()) {
         return true;
-      } else if (requestedTitles.isEmpty()) {
+      } else if (WikipediaExtractor.this.requestedTitles.isEmpty()) {
         return false;
       } else {
 
@@ -93,14 +93,14 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
          * Retrieve revisions for the next title. Repeat until we find a title that has at least one revision,
          * otherwise return false
          */
-        while (!requestedTitles.isEmpty()) {
-          String currentTitle = requestedTitles.poll();
+        while (!WikipediaExtractor.this.requestedTitles.isEmpty()) {
+          String currentTitle = WikipediaExtractor.this.requestedTitles.poll();
           try {
-            recordsOfCurrentTitle = retrievePageRevisions(currentTitle);
+            WikipediaExtractor.this.recordsOfCurrentTitle = retrievePageRevisions(currentTitle);
           } catch (IOException e) {
             LOG.error("IOException while retrieving revisions for title '" + currentTitle + "'");
           }
-          if (!recordsOfCurrentTitle.isEmpty()) {
+          if (!WikipediaExtractor.this.recordsOfCurrentTitle.isEmpty()) {
             return true;
           }
         }
@@ -126,12 +126,12 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
     this.workUnit = workUnitState.getWorkunit();
     this.rootUrl = this.workUnit.getProp(WIKIPEDIA_API_ROOTURL);
     this.schema = this.workUnit.getProp(WIKIPEDIA_AVRO_SCHEMA);
-    this.requestedTitles = new LinkedList<String>(SPLITTER.splitToList(this.workUnit.getProp(SOURCE_PAGE_TITLES)));
+    this.requestedTitles = new LinkedList<>(SPLITTER.splitToList(this.workUnit.getProp(SOURCE_PAGE_TITLES)));
     this.revisionsCnt = Integer.parseInt(this.workUnit.getProp(SOURCE_REVISIONS_CNT));
     this.numRequestedTitles = this.requestedTitles.size();
 
     if (this.requestedTitles.isEmpty()) {
-      this.recordsOfCurrentTitle = new LinkedList<JsonElement>();
+      this.recordsOfCurrentTitle = new LinkedList<>();
     } else {
       String firstTitle = this.requestedTitles.poll();
       this.recordsOfCurrentTitle = retrievePageRevisions(firstTitle);
@@ -141,7 +141,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
   }
 
   private Queue<JsonElement> retrievePageRevisions(String pageTitle) throws IOException {
-    Queue<JsonElement> retrievedRevisions = new LinkedList<JsonElement>();
+    Queue<JsonElement> retrievedRevisions = new LinkedList<>();
 
     Closer closer = Closer.create();
     HttpURLConnection conn = null;
@@ -162,8 +162,8 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
       try {
         closer.close();
       } catch (IOException e) {
-        LOG.error("IOException in Closer.close() while retrieving revisions for title '" + pageTitle
-            + "' from URL '" + urlStr + "'");
+        LOG.error("IOException in Closer.close() while retrieving revisions for title '" + pageTitle + "' from URL '"
+            + urlStr + "'");
       }
       if (conn != null) {
         conn.disconnect();
@@ -225,8 +225,8 @@ public class WikipediaExtractor implements Extractor<String, JsonElement>{
   private HttpURLConnection getHttpConnection(String urlStr) throws IOException {
     URL url = new URL(urlStr);
     Proxy proxy = Proxy.NO_PROXY;
-    if (this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL) &&
-        this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)) {
+    if (this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL)
+        && this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)) {
       LOG.info("Use proxy host: " + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
       LOG.info("Use proxy port: " + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
       InetSocketAddress proxyAddress =

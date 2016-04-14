@@ -283,12 +283,11 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     }
   }
 
-  private String stringifyPartition(Partition partition) {
+  private static String stringifyPartition(Partition partition) {
     if (log.isDebugEnabled()) {
       return partition.toString();
-    } else {
-      return Arrays.toString(partition.getValues().toArray());
     }
+    return Arrays.toString(partition.getValues().toArray());
   }
 
   @Override

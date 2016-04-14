@@ -11,13 +11,13 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
 
 
 /**
  * Retains the newest k versions of the dataset.
  */
-public class NewestKRetentionPolicy implements RetentionPolicy<DatasetVersion> {
+public class NewestKRetentionPolicy<T extends DatasetVersion> implements RetentionPolicy<T> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NewestKRetentionPolicy.class);
 
@@ -61,10 +61,10 @@ public class NewestKRetentionPolicy implements RetentionPolicy<DatasetVersion> {
   }
 
   @Override
-  public Collection<DatasetVersion> listDeletableVersions(List<DatasetVersion> allVersions) {
+  public Collection<T> listDeletableVersions(List<T> allVersions) {
     int newerVersions = 0;
-    List<DatasetVersion> deletableVersions = Lists.newArrayList();
-    for(DatasetVersion datasetVersion : allVersions) {
+    List<T> deletableVersions = Lists.newArrayList();
+    for(T datasetVersion : allVersions) {
       if(newerVersions >= this.versionsRetained) {
         deletableVersions.add(datasetVersion);
       }

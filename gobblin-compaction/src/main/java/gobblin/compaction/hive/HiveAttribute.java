@@ -86,8 +86,8 @@ public final class HiveAttribute {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((name == null) ? 0 : name.hashCode());
-    result = prime * result + ((type == null) ? 0 : type.hashCode());
+    result = prime * result + ((this.name == null) ? 0 : this.name.hashCode());
+    result = prime * result + ((this.type == null) ? 0 : this.type.hashCode());
     return result;
   }
 
@@ -100,14 +100,14 @@ public final class HiveAttribute {
       return false;
     }
     HiveAttribute other = (HiveAttribute) obj;
-    if (name == null) {
+    if (this.name == null) {
       if (other.name != null) {
         return false;
       }
-    } else if (!name.equals(other.name)) {
+    } else if (!this.name.equals(other.name)) {
       return false;
     }
-    if (type != other.type) {
+    if (this.type != other.type) {
       return false;
     }
     return true;

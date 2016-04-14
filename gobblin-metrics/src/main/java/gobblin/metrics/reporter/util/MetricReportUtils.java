@@ -41,9 +41,10 @@ public class MetricReportUtils {
    * @return MetricReport.
    * @throws java.io.IOException
    */
-  public synchronized static MetricReport deserializeReportFromJson(MetricReport reuse, byte[] bytes) throws IOException {
+  public synchronized static MetricReport deserializeReportFromJson(MetricReport reuse, byte[] bytes)
+      throws IOException {
     if (!READER.isPresent()) {
-      READER = Optional.of(new SpecificDatumReader<MetricReport>(MetricReport.class));
+      READER = Optional.of(new SpecificDatumReader<>(MetricReport.class));
     }
 
     Closer closer = Closer.create();
@@ -54,15 +55,15 @@ public class MetricReportUtils {
       // Check version byte
       int versionNumber = inputStream.readInt();
       if (versionNumber != SCHEMA_VERSION) {
-        throw new IOException(String
-            .format("MetricReport schema version not recognized. Found version %d, expected %d.", versionNumber,
+        throw new IOException(
+            String.format("MetricReport schema version not recognized. Found version %d, expected %d.", versionNumber,
                 SCHEMA_VERSION));
       }
 
       // Decode the rest
       Decoder decoder = DecoderFactory.get().jsonDecoder(MetricReport.SCHEMA$, inputStream);
       return READER.get().read(reuse, decoder);
-    } catch(Throwable t) {
+    } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
       closer.close();
@@ -79,7 +80,7 @@ public class MetricReportUtils {
   public synchronized static MetricReport deserializeReportFromAvroSerialization(MetricReport reuse, byte[] bytes)
       throws IOException {
     if (!READER.isPresent()) {
-      READER = Optional.of(new SpecificDatumReader<MetricReport>(MetricReport.class));
+      READER = Optional.of(new SpecificDatumReader<>(MetricReport.class));
     }
 
     Closer closer = Closer.create();
@@ -90,19 +91,18 @@ public class MetricReportUtils {
       // Check version byte
       int versionNumber = inputStream.readInt();
       if (versionNumber != SCHEMA_VERSION) {
-        throw new IOException(String
-            .format("MetricReport schema version not recognized. Found version %d, expected %d.", versionNumber,
+        throw new IOException(
+            String.format("MetricReport schema version not recognized. Found version %d, expected %d.", versionNumber,
                 SCHEMA_VERSION));
       }
 
       // Decode the rest
       Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
       return READER.get().read(reuse, decoder);
-    } catch(Throwable t) {
+    } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
       closer.close();
     }
   }
 }
-

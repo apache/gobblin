@@ -69,7 +69,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
         // If the total estimated size of a topic is smaller than group size, put all partitions of this
         // topic in a single group.
-        MultiWorkUnit mwuGroup = new MultiWorkUnit();
+        MultiWorkUnit mwuGroup = MultiWorkUnit.createEmpty();
         addWorkUnitsToMultiWorkUnit(workUnitsForTopic, mwuGroup);
         mwuGroups.add(mwuGroup);
       } else {
@@ -79,7 +79,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
       }
     }
 
-    List<WorkUnit> groups = squeezeMultiWorkUnits(mwuGroups, state);
+    List<WorkUnit> groups = squeezeMultiWorkUnits(mwuGroups, this.state);
     return worstFitDecreasingBinPacking(groups, numContainers);
   }
 
@@ -91,7 +91,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
     return totalSize;
   }
 
-  private double getPreGroupingSizeFactor(State state) {
+  private static double getPreGroupingSizeFactor(State state) {
     return state.getPropAsDouble(WORKUNIT_PRE_GROUPING_SIZE_FACTOR, DEFAULT_WORKUNIT_PRE_GROUPING_SIZE_FACTOR);
   }
 
@@ -99,7 +99,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
    * Group {@link WorkUnit}s into groups. Each group is a {@link MultiWorkUnit}. Each group has a capacity of
    * avgGroupSize. If there's a single {@link WorkUnit} whose size is larger than avgGroupSize, it forms a group itself.
    */
-  private List<MultiWorkUnit> bestFitDecreasingBinPacking(List<WorkUnit> workUnits, double avgGroupSize) {
+  private static List<MultiWorkUnit> bestFitDecreasingBinPacking(List<WorkUnit> workUnits, double avgGroupSize) {
 
     // Sort workunits by data size desc
     Collections.sort(workUnits, LOAD_DESC_COMPARATOR);
@@ -110,7 +110,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
       if (bestGroup != null) {
         addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
       } else {
-        bestGroup = new MultiWorkUnit();
+        bestGroup = MultiWorkUnit.createEmpty();
         addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
       }
       pQueue.add(bestGroup);
@@ -123,7 +123,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
    * The best group is the fullest group that has enough capacity for the new {@link WorkUnit}.
    * If no existing group has enough capacity for the new {@link WorkUnit}, return null.
    */
-  private MultiWorkUnit findAndPopBestFitGroup(WorkUnit workUnit, PriorityQueue<MultiWorkUnit> pQueue,
+  private static MultiWorkUnit findAndPopBestFitGroup(WorkUnit workUnit, PriorityQueue<MultiWorkUnit> pQueue,
       double avgGroupSize) {
 
     List<MultiWorkUnit> fullWorkUnits = Lists.newArrayList();
