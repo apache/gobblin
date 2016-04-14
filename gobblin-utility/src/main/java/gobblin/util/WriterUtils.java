@@ -210,7 +210,7 @@ public class WriterUtils {
         return CodecFactory.deflateCodec(Integer.parseInt(deflateLevel.get()));
       }
     } else {
-      return CodecFactory.fromString(codecName.get());
+      return CodecFactory.fromString(codecName.get().toLowerCase());
     }
   }
 
