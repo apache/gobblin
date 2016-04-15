@@ -208,7 +208,7 @@ ext.externalDependency = [
   "curatorTest": "org.apache.curator:curator-test:2.8.0",
   "hamcrest": "org.hamcrest:hamcrest-all:1.3",
   "joptSimple": "net.sf.jopt-simple:jopt-simple:4.9",
-  "protobuf": "com.google.protobuf:protobuf-java:2.6.1",
+  "protobuf": "com.google.protobuf:protobuf-java:2.5.0",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:" + pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:" + pegasusVersion,
