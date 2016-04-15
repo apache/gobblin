@@ -66,7 +66,7 @@ public class GobblinHelixTask implements Task {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixTask.class);
 
-  @SuppressWarnings({"unused", "FieldCanBeLocal"})
+  @SuppressWarnings({ "unused", "FieldCanBeLocal" })
   private final Optional<JobMetrics> jobMetrics;
   private final TaskExecutor taskExecutor;
   private final TaskStateTracker taskStateTracker;
@@ -81,8 +81,7 @@ public class GobblinHelixTask implements Task {
   private final StateStore<TaskState> taskStateStore;
 
   public GobblinHelixTask(TaskCallbackContext taskCallbackContext, Optional<ContainerMetrics> containerMetrics,
-      TaskExecutor taskExecutor, TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir)
-      throws IOException {
+      TaskExecutor taskExecutor, TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir) throws IOException {
     this.taskExecutor = taskExecutor;
     this.taskStateTracker = taskStateTracker;
 
@@ -112,9 +111,8 @@ public class GobblinHelixTask implements Task {
       Path workUnitFilePath =
           new Path(this.taskConfig.getConfigMap().get(GobblinYarnConfigurationKeys.WORK_UNIT_FILE_PATH));
 
-      WorkUnit workUnit =
-          workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION) ? MultiWorkUnit
-              .createEmpty() : WorkUnit.createEmpty();
+      WorkUnit workUnit = workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)
+          ? MultiWorkUnit.createEmpty() : WorkUnit.createEmpty();
       SerializationUtils.deserializeState(this.fs, workUnitFilePath, workUnit);
 
       // The list of individual WorkUnits (flattened) to run
@@ -124,18 +122,13 @@ public class GobblinHelixTask implements Task {
         // Flatten the MultiWorkUnit so the job configuration properties can be added to each individual WorkUnits
         List<WorkUnit> flattenedWorkUnits =
             JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits());
-        for (WorkUnit flattenedWorkUnit : flattenedWorkUnits) {
-          flattenedWorkUnit.addAllIfNotExist(this.jobState);
-        }
         workUnits.addAll(flattenedWorkUnits);
       } else {
-        workUnit.addAllIfNotExist(this.jobState);
         workUnits.add(workUnit);
       }
 
-      AbstractJobLauncher
-          .runWorkUnits(this.jobId, this.participantId, workUnits, this.taskStateTracker, this.taskExecutor,
-              this.taskStateStore, LOGGER);
+      AbstractJobLauncher.runWorkUnits(this.jobId, this.participantId, this.jobState, workUnits, this.taskStateTracker,
+          this.taskExecutor, this.taskStateStore, LOGGER);
       return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnits.size()));
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();

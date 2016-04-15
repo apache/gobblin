@@ -28,7 +28,7 @@ public class ImmutableWorkUnit extends WorkUnit {
 
   public ImmutableWorkUnit(WorkUnit workUnit) {
     super(workUnit.getExtract());
-    super.addAll(workUnit);
+    super.addAll(workUnit.getProperties());
   }
 
   @Override

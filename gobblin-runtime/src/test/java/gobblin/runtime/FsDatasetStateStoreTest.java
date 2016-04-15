@@ -87,7 +87,6 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(jobState.getProp("foo"), "bar");
     Assert.assertEquals(jobState.getStartTime(), this.startTime);
     Assert.assertEquals(jobState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(jobState.getDuration(), 1000);
@@ -107,7 +106,6 @@ public class FsDatasetStateStoreTest {
     JobState.DatasetState datasetState = new JobState.DatasetState(TEST_JOB_NAME, TEST_JOB_ID);
 
     datasetState.setDatasetUrn(TEST_DATASET_URN);
-    datasetState.setProp("foo", "bar");
     datasetState.setState(JobState.RunningState.COMMITTED);
     datasetState.setId(TEST_DATASET_URN);
     datasetState.setStartTime(this.startTime);
@@ -135,7 +133,6 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(datasetState.getProp("foo"), "bar");
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 1000);
@@ -161,7 +158,6 @@ public class FsDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(datasetState.getProp("foo"), "bar");
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 1000);

@@ -88,7 +88,7 @@ public class SourceState extends State {
    */
   public SourceState(State properties, Map<String, ? extends SourceState> previousDatasetStatesByUrns,
       Iterable<WorkUnitState> previousWorkUnitStates) {
-    super.addAll(properties);
+    super.addAll(properties.getProperties());
     this.previousDatasetStatesByUrns = ImmutableMap.copyOf(previousDatasetStatesByUrns);
     for (WorkUnitState workUnitState : previousWorkUnitStates) {
       this.previousWorkUnitStates.add(new ImmutableWorkUnitState(workUnitState));

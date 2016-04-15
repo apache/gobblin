@@ -486,7 +486,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobState.incrementTaskCount();
       // Pre-add a task state so if the task fails and no task state is written out,
       // there is still task state for the task when job/task states are persisted.
-      jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));
+      jobState.addTaskState(new TaskState(new WorkUnitState(workUnit, jobState)));
     }
   }
 
@@ -579,7 +579,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * @throws IOException if there's something wrong with any IO operations
    * @throws InterruptedException if the task execution gets cancelled
    */
-  public static void runWorkUnits(String jobId, String containerId, List<WorkUnit> workUnits,
+  public static void runWorkUnits(String jobId, String containerId, JobState jobState, List<WorkUnit> workUnits,
       TaskStateTracker taskStateTracker, TaskExecutor taskExecutor, StateStore<TaskState> taskStateStore, Logger logger)
       throws IOException, InterruptedException {
 
@@ -598,7 +598,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
-    List<Task> tasks = runWorkUnits(jobId, workUnits, taskStateTracker, taskExecutor, countDownLatch);
+    List<Task> tasks = runWorkUnits(jobId, jobState, workUnits, taskStateTracker, taskExecutor, countDownLatch);
 
     logger.info(
         String.format("Waiting for submitted tasks of job %s to complete in container %s...", jobId, containerId));
@@ -649,13 +649,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
    * @return a list of {@link Task}s from the {@link WorkUnit}s
    */
-  public static List<Task> runWorkUnits(String jobId, List<WorkUnit> workUnits, TaskStateTracker stateTracker,
-      TaskExecutor taskExecutor, CountDownLatch countDownLatch) {
+  public static List<Task> runWorkUnits(String jobId, JobState jobState, List<WorkUnit> workUnits,
+      TaskStateTracker stateTracker, TaskExecutor taskExecutor, CountDownLatch countDownLatch) {
 
     List<Task> tasks = Lists.newArrayList();
     for (WorkUnit workUnit : workUnits) {
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-      WorkUnitState workUnitState = new WorkUnitState(workUnit);
+      WorkUnitState workUnitState = new WorkUnitState(workUnit, jobState);
       workUnitState.setId(taskId);
       workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
@@ -699,9 +699,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
         try {
           for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
-            WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
-            fatWorkUnit.addAllIfNotExist(jobState);
-            JobLauncherUtils.cleanTaskStagingData(fatWorkUnit, LOG, closer, parallelRunners);
+            JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(workUnit, jobState), LOG, closer, parallelRunners);
           }
         } catch (Throwable t) {
           throw closer.rethrow(t);
@@ -760,10 +758,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
     try {
       for (TaskState taskState : jobState.getTaskStates()) {
-        TaskState fatTaskState = new TaskState(taskState);
-        fatTaskState.addAllIfNotExist(jobState);
         try {
-          JobLauncherUtils.cleanTaskStagingData(fatTaskState, LOG, closer, parallelRunners);
+          JobLauncherUtils.cleanTaskStagingData(taskState, LOG, closer, parallelRunners);
         } catch (IOException e) {
           LOG.error(String.format("Failed to clean staging data for task %s: %s", taskState.getTaskId(), e), e);
         }
