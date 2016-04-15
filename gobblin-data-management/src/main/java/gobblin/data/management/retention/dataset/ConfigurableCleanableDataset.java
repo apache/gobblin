@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigRenderOptions;
 
 import gobblin.data.management.policy.VersionSelectionPolicy;
 import gobblin.data.management.retention.policy.RetentionPolicy;
@@ -190,7 +191,8 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion> ex
   @SuppressWarnings("unchecked")
   private VersionSelectionPolicy<T> createSelectionPolicy(String className, Config config, Properties jobProps) {
     try {
-
+      log.info(String.format("Configuring selection policy %s for %s with %s", className, this.datasetRoot,
+                    config.root().render(ConfigRenderOptions.concise())));
       return (VersionSelectionPolicy<T>) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(className),
           ImmutableList.<Object> of(config), ImmutableList.<Object> of(config, jobProps),
           ImmutableList.<Object> of(jobProps));
