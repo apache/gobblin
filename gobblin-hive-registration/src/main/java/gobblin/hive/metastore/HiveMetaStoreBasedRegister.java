@@ -338,12 +338,4 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     }
   }
 
-  @Override
-  public void close() throws IOException {
-    try {
-      super.close();
-    } finally {
-      this.clientPool.close();
-    }
-  }
 }
