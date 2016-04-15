@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Properties;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableList;
 import com.typesafe.config.Config;
 
 import org.apache.hadoop.conf.Configuration;
@@ -40,6 +41,10 @@ public class SimpleHdfsConfigStoreTest {
   private static final Path CONFIG_DIR_PATH =
       PathUtils.combinePaths(CONFIG_DIR_NAME, SimpleHDFSConfigStore.CONFIG_STORE_NAME, VERSION);
 
+  /**Set by {@link TestEnvironment#setup()}**/
+  public static final String TAG_NAME_SYS_PROP_KEY = "sysProp.tagName1";
+  public static final String TAG_NAME_SYS_PROP_VALUE = "tag1";
+
   private FileSystem fs;
   private SimpleHDFSConfigStore simpleHDFSConfigStore;
 
@@ -53,6 +58,7 @@ public class SimpleHdfsConfigStoreTest {
     URI storeURI = getStoreURI(System.getProperty("user.dir") + File.separator + CONFIG_DIR_NAME);
     this.simpleHDFSConfigStore = simpleHDFSConfigStoreConfigFactory.createConfigStore(storeURI);
     this.simpleHDFSConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(new Properties()), VERSION));
+
   }
 
   @Test
@@ -100,6 +106,7 @@ public class SimpleHdfsConfigStoreTest {
 
   @Test
   public void testGetOwnImports() throws IOException, URISyntaxException, ConfigStoreCreationException {
+
     String datasetName = "dataset-test-get-own-imports";
     String tagKey1 = "/path/to/tag1";
     String tagKey2 = "/path/to/tag2";
@@ -122,6 +129,35 @@ public class SimpleHdfsConfigStoreTest {
       Assert.assertEquals(imports.size(), 2);
       Assert.assertEquals(imports.get(0).getAbsolutePathString(), tagKey1);
       Assert.assertEquals(imports.get(1).getAbsolutePathString(), tagKey2);
+    } finally {
+      if (this.fs.exists(datasetPath)) {
+        this.fs.delete(datasetPath, true);
+      }
+    }
+  }
+
+  @Test
+  public void testGetOwnImportsWithResolution() throws IOException, URISyntaxException, ConfigStoreCreationException {
+
+    System.out.println("testGetOwnImportsWithResolution called");
+    String datasetName = "dataset-test-get-own-imports-resolution";
+
+    Path datasetPath = new Path(CONFIG_DIR_PATH, datasetName);
+
+    try {
+      this.fs.mkdirs(datasetPath);
+
+      BufferedWriter writer = new BufferedWriter(
+          new OutputStreamWriter(this.fs.create(new Path(datasetPath, "includes.conf")), Charsets.UTF_8));
+
+      writer.write("/path/to/${?" + TAG_NAME_SYS_PROP_KEY + "}");
+      writer.close();
+
+      ConfigKeyPath datasetConfigKey = SingleLinkedListConfigKeyPath.ROOT.createChild(datasetName);
+      List<ConfigKeyPath> imports = this.simpleHDFSConfigStore.getOwnImports(datasetConfigKey, VERSION);
+
+      Assert.assertEquals(imports.size(), 1);
+      Assert.assertEquals(imports.get(0).getAbsolutePathString(), "/path/to/" + TAG_NAME_SYS_PROP_VALUE);
     } finally {
       if (this.fs.exists(datasetPath)) {
         this.fs.delete(datasetPath, true);
@@ -163,6 +199,18 @@ public class SimpleHdfsConfigStoreTest {
     Assert.assertTrue(fs.exists(new Path(versionPath, "dir1")));
     Assert.assertTrue(fs.exists(new Path(versionPath, "dir1/f1.conf")));
 
+  }
+
+  @Test
+  public void testResolveImports() throws Exception {
+    List<String> unresolved =
+        ImmutableList.of("/path/to/tag0", "/path/to/${?" + TAG_NAME_SYS_PROP_KEY + "}", "${?" + TAG_NAME_SYS_PROP_KEY
+            + "}/${?" + TAG_NAME_SYS_PROP_KEY + "}");
+
+    List<String> resolved = SimpleHDFSConfigStore.resolveIncludesList(unresolved);
+
+    List<String> expected = ImmutableList.of("/path/to/tag0", "/path/to/tag1", "tag1/tag1");
+    Assert.assertEquals(resolved, expected);
   }
 
   @AfterClass

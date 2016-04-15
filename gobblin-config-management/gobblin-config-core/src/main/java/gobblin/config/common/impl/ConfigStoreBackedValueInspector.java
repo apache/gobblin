@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.config.store.api.ConfigKeyPath;
 import gobblin.config.store.api.ConfigStore;
@@ -25,7 +26,7 @@ import gobblin.config.store.api.ConfigStoreWithBatchFetches;
 import gobblin.config.store.api.ConfigStoreWithResolution;
 
 /**
- * ConfigStoreBackedValueInspector always query the underline {@link ConfigStore} to get the freshest 
+ * ConfigStoreBackedValueInspector always query the underline {@link ConfigStore} to get the freshest
  * {@link com.typesafe.config.Config}
  * @author mitu
  *
@@ -37,7 +38,7 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
   private final ConfigStoreTopologyInspector topology;
 
   /**
-   * @param cs       - internal {@link ConfigStore} to retrieve configuration 
+   * @param cs       - internal {@link ConfigStore} to retrieve configuration
    * @param version  - version of the {@link ConfigStore}
    * @param topology - corresponding {@link ConfigStoreTopologyInspector} for the input {@link ConfigStore}
    */
@@ -54,7 +55,7 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
   public String getVersion() {
     return this.version;
   }
-  
+
   /**
    * {@inheritDoc}.
    *
@@ -66,7 +67,7 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
   public Config getOwnConfig(ConfigKeyPath configKey) {
     return this.cs.getOwnConfig(configKey, version);
   }
-  
+
   /**
    * {@inheritDoc}.
    *
@@ -82,52 +83,42 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
       ConfigStoreWithBatchFetches batchStore = (ConfigStoreWithBatchFetches)this.cs;
       return batchStore.getOwnConfigs(configKeys, version);
     }
-    
+
     Map<ConfigKeyPath, Config> result = new HashMap<>();
     for(ConfigKeyPath configKey: configKeys){
       result.put(configKey, this.cs.getOwnConfig(configKey, version));
     }
-    
+
     return result;
   }
 
-  /**
-   * {@inheritDoc}.
-   *
-   * <p>
-   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version if
-   *   the internal {@link ConfigStore} is {@link ConfigStoreWithResolution}, otherwise based on {@link ConfigStoreTopologyInspector}
-   *   
-   *   1. find out all the imports recursively
-   *   2. resolved the config on the fly
-   * </p>
-   */
-  @Override
-  public Config getResolvedConfig(ConfigKeyPath configKey) {
+  private Config getResolvedConfigRecursive(ConfigKeyPath configKey) {
+
+
     if (this.cs instanceof ConfigStoreWithResolution) {
       return ((ConfigStoreWithResolution) this.cs).getResolvedConfig(configKey, this.version);
     }
-    
+
     /**
-     * currently use this function to check the circular dependency for the entire store, the result 
-     * is NOT used 
-     * 
+     * currently use this function to check the circular dependency for the entire store, the result
+     * is NOT used
+     *
      *     root
-     *    /   
+     *    /
      *   l1 -> t1 (imports t1)
      *   /
      *   l2 -> t2 (imports t2)
-     * 
+     *
      * getImportsRecursively(l2) will return {t2,t1} as current implementation did NOT return the implicit
-     * imports ( l1 ), otherwise, there will be a lot of result for both getImportsRecursively and 
+     * imports ( l1 ), otherwise, there will be a lot of result for both getImportsRecursively and
      * getImportedByRecursively
-     * 
-     * if we use the result, the getResolvedConfig may equals 
+     *
+     * if we use the result, the getResolvedConfig may equals
      * l2.ownConfig withFallback t2.ownConfig withFallback t1.ownConfig withFallback l1.ownConfig
-     * 
+     *
      *  but the correct result should be
      *  l2.ownConfig withFallback t2.ownConfig withFallback l1.ownConfig withFallback t1.ownConfig
-     *  
+     *
      *  The wrong ordering for those is because of we did NOT include the implicit imports l1
      */
     this.topology.getImportsRecursively(configKey);
@@ -136,21 +127,40 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     if(configKey.isRootPath()){
       return initialConfig;
     }
-    
+
     List<ConfigKeyPath> ownImports = this.topology.getOwnImports(configKey);
     // merge with other configs from imports
     if(ownImports!=null){
       for(ConfigKeyPath p: ownImports){
-        initialConfig = initialConfig.withFallback(this.getResolvedConfig(p));
+        initialConfig = initialConfig.withFallback(this.getResolvedConfigRecursive(p));
       }
     }
-    
+
     // merge with configs from parent for Non root
-    initialConfig = initialConfig.withFallback(this.getResolvedConfig(configKey.getParent())).resolve();
+    initialConfig = initialConfig.withFallback(this.getResolvedConfigRecursive(configKey.getParent()));
 
     return initialConfig;
+
   }
-  
+
+
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>
+   *   This implementation simply delegate the functionality to the internal {@link ConfigStore}/version if
+   *   the internal {@link ConfigStore} is {@link ConfigStoreWithResolution}, otherwise based on {@link ConfigStoreTopologyInspector}
+   *
+   *   1. find out all the imports recursively
+   *   2. resolved the config on the fly
+   * </p>
+   */
+  @Override
+  public Config getResolvedConfig(ConfigKeyPath configKey) {
+    return getResolvedConfigRecursive(configKey).withFallback(ConfigFactory.defaultOverrides())
+        .withFallback(ConfigFactory.systemEnvironment()).resolve();
+  }
+
   /**
    * {@inheritDoc}.
    *
@@ -166,12 +176,12 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
       ConfigStoreWithBatchFetches batchStore = (ConfigStoreWithBatchFetches)this.cs;
       return batchStore.getResolvedConfigs(configKeys, version);
     }
-    
+
     Map<ConfigKeyPath, Config> result = new HashMap<>();
     for(ConfigKeyPath configKey: configKeys){
       result.put(configKey, this.getResolvedConfig(configKey));
     }
-    
+
     return result;
   }
 
