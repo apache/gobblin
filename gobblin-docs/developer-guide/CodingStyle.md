@@ -45,6 +45,6 @@ Code Style Template File
     * Download the [codetyle-eclipse.xml](files/codestyle-eclipse.xml), Import the file through Preferences > Java > Code Style > Formatter
     * Download the [prefs-eclipse.epf](files/prefs-eclipse.epf), Import the file File > Import > General > Preferences
 * IntelliJ
-    * Download the [codestyle-intellij.xml](files/codestyle-intellij.xml), Copy the file to `~/.IntelliJIdeal3/config/codestyles` on Linux (or `$HOME/Library/Preferences/IntelliJIdeal3/codestyles` on Mac)
+    * Download the [codestyle-intellij-gobblin.xml](files/codestyle-intellij-gobblin.xml), Copy the file to the appropriate codestyles directory for your installation. This is typically `~/.INTELLIJ_VERSION/config/codestyles` on Linux (or `$HOME/Library/Preferences/INTELLIJ_VERSION/codestyles` on Mac). The specific INTELLIJ_VERSION identifier will depend on your version; examples are IntelliJIdeal3, IdeaC15 etc.
     * Restart the IDE
-    * Go to File > Settings > Code Style > General > Scheme to select the new style 
+    * Go to File > Settings > Code Style > General > Scheme to select the new style (LinkedIn Gobblin Style)
