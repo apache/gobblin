@@ -45,7 +45,7 @@ import lombok.extern.slf4j.Slf4j;
 public class HiveDataset implements IterableCopyableDataset {
 
   public static final String REGISTERER = "registerer";
-  public static final String REGISTRATION_GENERATION_TIME = "registrationGenerationTime";
+  public static final String REGISTRATION_GENERATION_TIME_MILLIS = "registrationGenerationTimeMillis";
 
   protected final Properties properties;
   protected final FileSystem fs;
