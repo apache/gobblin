@@ -384,7 +384,7 @@ public class HiveCopyEntityHelper {
       targetTable.setDbName(this.targetDatabase);
       targetTable.setDataLocation(targetLocation);
       targetTable.getTTable().putToParameters(HiveDataset.REGISTERER, GOBBLIN_DISTCP);
-      targetTable.getTTable().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME, Long.toString(this.startTime));
+      targetTable.getTTable().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS, Long.toString(this.startTime));
 
       HiveAvroCopyEntityHelper.updateTableAttributesIfAvro(targetTable, this);
 
@@ -400,7 +400,7 @@ public class HiveCopyEntityHelper {
       targetPartition.getTable().setDbName(this.targetDatabase);
       targetPartition.getTPartition().setDbName(this.targetDatabase);
       targetPartition.getTPartition().putToParameters(HiveDataset.REGISTERER, GOBBLIN_DISTCP);
-      targetPartition.getTPartition().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME, Long.toString(this.startTime));
+      targetPartition.getTPartition().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS, Long.toString(this.startTime));
       targetPartition.setLocation(targetLocation.toString());
       return targetPartition;
     } catch (HiveException he) {

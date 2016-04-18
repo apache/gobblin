@@ -44,6 +44,7 @@ dependencies {
   testCompile externalDependency.mockito
   testCompile externalDependency.joptSimple
   testCompile externalDependency.hamcrest
+  testCompile externalDependency.testng
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

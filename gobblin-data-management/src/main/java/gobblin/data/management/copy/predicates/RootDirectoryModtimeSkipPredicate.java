@@ -41,7 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class RootDirectoryModtimeSkipPredicate implements Predicate<HiveCopyEntityHelper.PartitionCopy> {
 
-  private HiveCopyEntityHelper helper;
+  private final HiveCopyEntityHelper helper;
 
   @Override
   public boolean apply(@Nullable HiveCopyEntityHelper.PartitionCopy input) {
@@ -51,10 +51,6 @@ public class RootDirectoryModtimeSkipPredicate implements Predicate<HiveCopyEnti
     }
 
     if (!input.getExistingTargetPartition().isPresent()) {
-      return false;
-    }
-
-    if (!input.getExistingTargetPartition().get().getParameters().containsKey(HiveDataset.REGISTRATION_GENERATION_TIME)) {
       return false;
     }
 
