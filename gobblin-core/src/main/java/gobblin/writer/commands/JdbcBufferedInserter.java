@@ -22,6 +22,12 @@ public interface JdbcBufferedInserter {
   /**
    * Inserts entry. Depends on the current batch size, buffer size, param size, it can either put into buffer
    * or it will actually call underlying JDBC RDBMS to be inserted.
+   *
+   * The number of input columns is expected to be equal or smaller than the number of columns in Jdbc.
+   * This is to prevent unintended outcome from schema evolution such as additional column.
+   * As underlying Jdbc RDBMS can declare constraints on its schema, writer will allow if number of columns in Jdbc is greater than number of input columns.
+   *    number of input columns <= number of columns in Jdbc
+   *
    * @param conn
    * @param databaseName
    * @param table

@@ -102,7 +102,7 @@ public class ConfigurationKeys {
   public static final String JOB_JAR_FILES_KEY = "job.jars";
   public static final String JOB_LOCAL_FILES_KEY = "job.local.files";
   public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
-  public static final String JOB_JAR_HDFS_FILES_KEY = "job.jars.hdfs";
+  public static final String JOB_JAR_HDFS_FILES_KEY = "job.hdfs.jars";
   public static final String JOB_LOCK_ENABLED_KEY = "job.lock.enabled";
   public static final String JOB_MAX_FAILURES_KEY = "job.max.failures";
   public static final int DEFAULT_JOB_MAX_FAILURES = 1;
@@ -309,17 +309,6 @@ public class ConfigurationKeys {
   public static final String PUBLISH_DATA_AT_JOB_LEVEL = "publish.data.at.job.level";
   public static final boolean DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL = true;
   public static final String PUBLISHER_DIRS = DATA_PUBLISHER_PREFIX + ".output.dirs";
-
-  public static final String JDBC_PUBLISHER_PREFIX = "jdbc.publisher.";
-  public static final String JDBC_PUBLISHER_DATABASE_NAME = JDBC_PUBLISHER_PREFIX + "database.name";
-  public static final String JDBC_PUBLISHER_FINAL_TABLE_NAME = JDBC_PUBLISHER_PREFIX + "table.name";
-  public static final String JDBC_PUBLISHER_REPLACE_FINAL_TABLE = JDBC_PUBLISHER_PREFIX + "replace.table";
-  public static final String JDBC_PUBLISHER_USERNAME = JDBC_PUBLISHER_PREFIX + "username";
-  public static final String JDBC_PUBLISHER_PASSWORD = JDBC_PUBLISHER_PREFIX + "password";
-  public static final String JDBC_PUBLISHER_ENCRYPTION_KEY_LOC = JDBC_PUBLISHER_PREFIX + "encrypt.key.loc";
-  public static final String JDBC_PUBLISHER_URL = JDBC_PUBLISHER_PREFIX + "url";
-  public static final String JDBC_PUBLISHER_TIMEOUT = JDBC_PUBLISHER_PREFIX + "timeout";
-  public static final String JDBC_PUBLISHER_DRIVER = JDBC_PUBLISHER_PREFIX + "driver";
 
   /**
    * Configuration properties used by the extractor.

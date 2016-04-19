@@ -17,6 +17,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.SchemaConversionException;
+import gobblin.publisher.JdbcPublisher;
 import gobblin.writer.Destination.DestinationType;
 import gobblin.writer.commands.JdbcWriterCommands;
 import gobblin.writer.commands.JdbcWriterCommandsFactory;
@@ -61,7 +62,7 @@ public class AvroToJdbcEntryConverterTest {
 
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/fieldPickInput.avsc"));
     WorkUnitState workUnitState = new WorkUnitState();
-    workUnitState.appendToListProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
+    workUnitState.appendToListProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
     AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState, factory);
     converter = spy(converter);
     doReturn(null).when(converter).createConnection(workUnitState);
@@ -84,7 +85,7 @@ public class AvroToJdbcEntryConverterTest {
     when(factory.newInstance(any(State.class))).thenReturn(mockWriterCommands);
 
     WorkUnitState workUnitState = new WorkUnitState();
-    workUnitState.appendToListProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
+    workUnitState.appendToListProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
     String fieldPairJson = "{\"userId\":\"user_id\" , \"memberId\":\"member_id\" , \"businessUnit\":\"business_unit\", \"geoRegion\":\"geo_region\", \"superRegion\":\"super_region\", \"subRegion\":\"sub_region\"}";
     workUnitState.appendToListProp(ConfigurationKeys.CONVERTER_AVRO_JDBC_ENTRY_FIELDS_PAIRS, fieldPairJson);
     workUnitState.appendToListProp(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, DestinationType.MYSQL.name());

@@ -44,6 +44,17 @@ import gobblin.writer.commands.JdbcWriterCommandsFactory;
  * Publishes data into JDBC RDBMS. Expects all the data has been already in staging table.
  */
 public class JdbcPublisher extends DataPublisher {
+  public static final String JDBC_PUBLISHER_PREFIX = "jdbc.publisher.";
+  public static final String JDBC_PUBLISHER_DATABASE_NAME = JDBC_PUBLISHER_PREFIX + "database.name";
+  public static final String JDBC_PUBLISHER_FINAL_TABLE_NAME = JDBC_PUBLISHER_PREFIX + "table.name";
+  public static final String JDBC_PUBLISHER_REPLACE_FINAL_TABLE = JDBC_PUBLISHER_PREFIX + "replace.table";
+  public static final String JDBC_PUBLISHER_USERNAME = JDBC_PUBLISHER_PREFIX + "username";
+  public static final String JDBC_PUBLISHER_PASSWORD = JDBC_PUBLISHER_PREFIX + "password";
+  public static final String JDBC_PUBLISHER_ENCRYPTION_KEY_LOC = JDBC_PUBLISHER_PREFIX + "encrypt.key.loc";
+  public static final String JDBC_PUBLISHER_URL = JDBC_PUBLISHER_PREFIX + "url";
+  public static final String JDBC_PUBLISHER_TIMEOUT = JDBC_PUBLISHER_PREFIX + "timeout";
+  public static final String JDBC_PUBLISHER_DRIVER = JDBC_PUBLISHER_PREFIX + "driver";
+
   private static final Logger LOG = LoggerFactory.getLogger(JdbcPublisher.class);
   private final JdbcWriterCommandsFactory jdbcWriterCommandsFactory;
 
@@ -83,11 +94,11 @@ public class JdbcPublisher extends DataPublisher {
   @VisibleForTesting
   public Connection createConnection() {
     DataSource dataSource = DataSourceBuilder.builder()
-                                             .url(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_URL))
-                                             .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
-                                             .userName(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_USERNAME))
-                                             .passWord(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_PASSWORD))
-                                             .cryptoKeyLocation(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
+                                             .url(state.getProp(JDBC_PUBLISHER_URL))
+                                             .driver(state.getProp(JDBC_PUBLISHER_DRIVER))
+                                             .userName(state.getProp(JDBC_PUBLISHER_USERNAME))
+                                             .passWord(state.getProp(JDBC_PUBLISHER_PASSWORD))
+                                             .cryptoKeyLocation(state.getProp(JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
                                              .maxActiveConnections(1)
                                              .maxIdleConnections(1)
                                              .state(state)
@@ -128,11 +139,11 @@ public class JdbcPublisher extends DataPublisher {
       conn.setAutoCommit(false);
 
       for (int i = 0; i < branches; i++) {
-        final String destinationTable = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, i));
-        final String databaseName = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_DATABASE_NAME, branches, i));
+        final String destinationTable = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, i));
+        final String databaseName = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_DATABASE_NAME, branches, i));
         Preconditions.checkNotNull(destinationTable);
 
-        if(state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
+        if(state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
            && !emptiedDestTables.contains(destinationTable)) {
           LOG.info("Deleting table " + destinationTable);
             commands.deleteAll(conn, destinationTable);

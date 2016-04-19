@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import javax.sql.DataSource;
 
 import org.apache.avro.Schema;
@@ -48,6 +49,7 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
+import gobblin.publisher.JdbcPublisher;
 import gobblin.util.jdbc.DataSourceBuilder;
 import gobblin.writer.commands.JdbcWriterCommands;
 import gobblin.writer.commands.JdbcWriterCommandsFactory;
@@ -174,7 +176,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     try (Connection conn = createConnection(workUnit)) {
       Map<String, Type> avroColumnType = flatten(inputSchema);
 
-      String table = Preconditions.checkNotNull(workUnit.getProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME));
+      String table = Preconditions.checkNotNull(workUnit.getProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME));
       Map<String, JdbcType> dateColumnMapping = commands.retrieveDateColumns(conn, table);
       LOG.info("Date column mapping: " + dateColumnMapping);
 
@@ -211,11 +213,11 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
   @VisibleForTesting
   public Connection createConnection(State state) throws SQLException {
     DataSource dataSource = DataSourceBuilder.builder()
-                                             .url(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_URL))
-                                             .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
-                                             .userName(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_USERNAME))
-                                             .passWord(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_PASSWORD))
-                                             .cryptoKeyLocation(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
+                                             .url(state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
+                                             .driver(state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
+                                             .userName(state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
+                                             .passWord(state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
+                                             .cryptoKeyLocation(state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
                                              .maxActiveConnections(1)
                                              .maxIdleConnections(1)
                                              .state(state)

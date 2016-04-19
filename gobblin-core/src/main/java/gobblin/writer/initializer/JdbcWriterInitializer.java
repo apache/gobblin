@@ -14,6 +14,7 @@ package gobblin.writer.initializer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.publisher.JdbcPublisher;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.jdbc.DataSourceBuilder;
@@ -118,11 +119,11 @@ public class JdbcWriterInitializer implements WriterInitializer {
   @VisibleForTesting
   public Connection createConnection() throws SQLException {
     DataSource dataSource = DataSourceBuilder.builder()
-                                             .url(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_URL))
-                                             .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
-                                             .userName(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_USERNAME))
-                                             .passWord(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_PASSWORD))
-                                             .cryptoKeyLocation(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
+                                             .url(state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
+                                             .driver(state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
+                                             .userName(state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
+                                             .passWord(state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
+                                             .cryptoKeyLocation(state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
                                              .maxActiveConnections(1)
                                              .maxIdleConnections(1)
                                              .state(state)
@@ -132,10 +133,10 @@ public class JdbcWriterInitializer implements WriterInitializer {
   }
 
   private String createStagingTable(Connection conn) throws SQLException {
-    String destTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId);
+    String destTableKey = ForkOperatorUtils.getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId);
     String destinationTable = state.getProp(destTableKey);
     if(StringUtils.isEmpty(destinationTable)) {
-      throw new IllegalArgumentException(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME + " is required for " + this.getClass().getSimpleName() + " for branch " + branchId);
+      throw new IllegalArgumentException(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME + " is required for " + this.getClass().getSimpleName() + " for branch " + branchId);
     }
 
     String stagingTable = null;
@@ -204,7 +205,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
         LOG.info("Writer will write directly to destination table as JobCommitPolicy is " + jobCommitPolicy);
       }
 
-      final String publishTable = getProp(state, ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId);
+      final String publishTable = getProp(state, JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId);
       final String stagingTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE, branches, branchId);
       String stagingTable = state.getProp(stagingTableKey);
 
@@ -218,7 +219,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
 
           if (i == 0) {
             //1.1. If user chose to skip the staging table, and user decided to replace final table, truncate final table.
-            if (getPropAsBoolean(state, ConfigurationKeys.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, branchId)) {
+            if (getPropAsBoolean(state, JdbcPublisher.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, branchId)) {
               LOG.info("User chose to replace final table " + publishTable + " on branch " + branchId + " workunit " + i);
               commands.truncate(conn, publishTable);
             }
@@ -276,10 +277,10 @@ public class JdbcWriterInitializer implements WriterInitializer {
     Set<String> publishTables = Sets.newHashSet();
 
     for (int branchId = 0; branchId < branches; branchId++) {
-      String publishTable = Preconditions.checkNotNull(getProp(state, ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId),
-          ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME + " should not be null.");
+      String publishTable = Preconditions.checkNotNull(getProp(state, JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId),
+          JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME + " should not be null.");
       if(publishTables.contains(publishTable)) {
-        throw new IllegalArgumentException("Duplicate " + ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME + " is not allowed across branches");
+        throw new IllegalArgumentException("Duplicate " + JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME + " is not allowed across branches");
       }
       publishTables.add(publishTable);
     }

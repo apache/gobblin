@@ -12,6 +12,7 @@
 
 package gobblin.writer;
 
+import gobblin.publisher.JdbcPublisher;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.jdbc.DataSourceBuilder;
 import gobblin.writer.commands.JdbcWriterCommands;
@@ -32,9 +33,31 @@ import org.slf4j.Logger;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+
 /**
  * Uses JDBC to persist data in task level.
  * For interaction with JDBC underlying RDBMS, it uses JdbcWriterCommands.
+ *
+ * JdbcWriter will open single transaction for it’s simplicity on failure handling.
+ *
+ * Scalability issue may come with long transaction can be overcome by increasing partition which will make transaction short.
+ * (Data with 200M record was tested with single transaction and it had no problem in MySQL 5.6.)
+ *
+ * Having one transaction per writer has its tradeoffs:
+ *   Pro: Simple on failure handling as you can just simply execute rollback on failure. Basically, it will revert back to previous state so that the job can retry the task.
+ *   Con: It can lead up to long lived transaction and it can face scalability issue. (Not enough disk space for transaction log, number of record limit on one transaction (200M for Postgre sql), etc)
+ *
+ * During the design meeting, we’ve discussed that long transaction could be a problem. One suggestion came out during the meeting was commit periodically.
+ * This will address long transaction problem, but we also discussed it would be hard on failure handling.
+ * Currently, Gobblin does task level retry on failure and there were three options we’ve discussed.
+ * (There was no silver bullet solution from the meeting.) Note that these are all with committing periodically.
+ * Revert to previous state: For writer, this will be delete the record it wrote.
+ *     For JdbcWriter, it could use it’s own staging table or could share staging table with other writer.
+ *     As staging table can be passed by user where we don’t have control of, not able to add partition information, it is hard to revert back to previous state for all cases.
+ * Ignore duplicate: The idea is to use Upsert to perform insert or update.
+ *     As it needs to check the current existence in the dataset, it is expected to show performance degradation.
+ *     Also, possibility of duplicate entry was also discussed.
+ * Water mark: In order to use water mark in task level, writer needs to send same order when retried which is not guaranteed.
  */
 public class JdbcWriter implements DataWriter<JdbcEntryData> {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcWriter.class);
@@ -52,7 +75,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
     this.state = builder.destination.getProperties();
     this.state.appendToListProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, Integer.toString(builder.branch));
 
-    String databaseTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.JDBC_PUBLISHER_DATABASE_NAME,
+    String databaseTableKey = ForkOperatorUtils.getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_DATABASE_NAME,
                                                                          builder.branches,
                                                                          builder.branch);
     this.databaseName = Preconditions.checkNotNull(state.getProp(databaseTableKey), "Staging table is missing with key " + databaseTableKey);
@@ -81,11 +104,11 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
 
   private Connection createConnection() throws SQLException {
     DataSource dataSource = DataSourceBuilder.builder()
-                                             .url(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_URL))
-                                             .driver(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_DRIVER))
-                                             .userName(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_USERNAME))
-                                             .passWord(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_PASSWORD))
-                                             .cryptoKeyLocation(state.getProp(ConfigurationKeys.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
+                                             .url(state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
+                                             .driver(state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
+                                             .userName(state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
+                                             .passWord(state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
+                                             .cryptoKeyLocation(state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
                                              .maxActiveConnections(1)
                                              .maxIdleConnections(1)
                                              .state(state)

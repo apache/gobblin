@@ -23,6 +23,7 @@ import java.util.List;
 import junit.framework.Assert;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.publisher.JdbcPublisher;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.writer.Destination;
 import gobblin.writer.Destination.DestinationType;
@@ -54,7 +55,7 @@ public class JdbcWriterInitializerTest {
   private void setup() throws SQLException {
     state = new State();
     state.setProp(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, DestinationType.MYSQL.name());
-    state.setProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, DEST_TABLE);
+    state.setProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, DEST_TABLE);
 
     workUnit = WorkUnit.createEmpty();
     workUnits = Lists.newArrayList();
@@ -85,7 +86,7 @@ public class JdbcWriterInitializerTest {
   public void skipStagingTableTruncateDestTable() throws SQLException {
     state.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
     state.setProp(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.toString(false));
-    state.setProp(ConfigurationKeys.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, Boolean.toString(true));
+    state.setProp(JdbcPublisher.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, Boolean.toString(true));
 
     initializer.initialize();
     Assert.assertEquals(DEST_TABLE, workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));

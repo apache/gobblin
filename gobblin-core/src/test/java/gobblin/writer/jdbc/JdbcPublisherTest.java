@@ -49,8 +49,8 @@ public class JdbcPublisherTest {
   @BeforeMethod
   private void setup() {
     state = new State();
-    state.setProp(ConfigurationKeys.JDBC_PUBLISHER_FINAL_TABLE_NAME, destinationTable);
-    state.setProp(ConfigurationKeys.JDBC_PUBLISHER_DATABASE_NAME, database);
+    state.setProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, destinationTable);
+    state.setProp(JdbcPublisher.JDBC_PUBLISHER_DATABASE_NAME, database);
 
     commands = mock(JdbcWriterCommands.class);
     factory = mock(JdbcWriterCommandsFactory.class);
@@ -88,7 +88,7 @@ public class JdbcPublisherTest {
   }
 
   public void testPublishReplaceOutput() throws IOException, SQLException {
-    state.setProp(ConfigurationKeys.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, Boolean.toString(true));
+    state.setProp(JdbcPublisher.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, Boolean.toString(true));
     publisher.publish(workUnitStates);
 
     InOrder inOrder = inOrder(conn, commands, workUnitState);
