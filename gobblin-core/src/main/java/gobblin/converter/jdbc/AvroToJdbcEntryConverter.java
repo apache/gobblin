@@ -21,8 +21,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
 import javax.sql.DataSource;
 
 import org.apache.avro.Schema;
@@ -333,13 +331,13 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
           jdbcEntryData.add(new JdbcEntryDatum(colName, Double.valueOf((double) val)));
           continue;
         case DATE:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, new Date(TimeUnit.SECONDS.toMillis(Long.valueOf((long) val)))));
+          jdbcEntryData.add(new JdbcEntryDatum(colName, new Date(Long.valueOf((long) val))));
           continue;
         case TIME:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, new Time(TimeUnit.SECONDS.toMillis(Long.valueOf((long) val)))));
+          jdbcEntryData.add(new JdbcEntryDatum(colName, new Time(Long.valueOf((long) val))));
           continue;
         case TIMESTAMP:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, new Timestamp(TimeUnit.SECONDS.toMillis(Long.valueOf((long) val)))));
+          jdbcEntryData.add(new JdbcEntryDatum(colName, new Timestamp(Long.valueOf((long) val))));
           continue;
         default:
           throw new DataConversionException(jdbcType + " is not supported");
