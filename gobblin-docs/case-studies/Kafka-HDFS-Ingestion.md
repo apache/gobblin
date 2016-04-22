@@ -225,3 +225,12 @@ When using this size estimator, each job run will record the average time per re
 If a topic is not pulled in a run, its estimated average time per record is the geometric mean of the estimated average time per record of all topics that are pulled in this run. If no topic was pulled in this run, a default value of 1.0 is used.
 
 The time-based estimator is more accurate than the size-based estimator when the time to pull a record is not proportional to the size of the record. However, the time-based estimator may lose accuracy when there are fluctuations in the Hadoop cluster which causes the average time for a partition to vary between different runs.
+
+### Topic-specific Partitioning
+
+`kafka.topic.specific.state` is a configuration key that allows a user to specify config parameters on a topic specific level. The value of this config should be a JSON Array. Each entry should be a json string and should contain a primitive value that identifies the topic name. All configs in each topic entry will be added to the WorkUnit for that topic.
+
+An example value could be:
+`[{"topic.name" : "myTopic1", "writer.partition.columns" : "header.memberId"}, {"topic.name" : "myTopic2", "writer.partition.columns" : "auditHeader.time"}]`.
+
+The "topic.name" field also allows regular expressions. For example, one can specify key, value "topic.name" : "myTopic.*". In this case all topics whose name matches the pattern "myTopic.*" will have all the specified config properties added to their WorkUnit. If more than a topic matches multiple "topic.name"s then the properties from all the JSON objects will be added to their WorkUnit.

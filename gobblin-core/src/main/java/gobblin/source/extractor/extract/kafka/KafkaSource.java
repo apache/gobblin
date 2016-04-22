@@ -102,7 +102,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    * <p>
    *   The "topic.name" field also allows regular expressions. For example, one can specify key, value
    *   "topic.name" : "myTopic.*". In this case all topics whose name matches the pattern "myTopic.*" will have all the
-   *   specified config properties added to their {@link WorkUnit}s. If more a topic matches multiple "topic.name"s then
+   *   specified config properties added to their {@link WorkUnit}s. If more than a topic matches multiple "topic.name"s then
    *   the properties from all the {@link JsonObject}s will be added to their {@link WorkUnit}s.
    * </p>
    */
@@ -402,7 +402,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   /**
    * A topic can be configured to move to the latest offset in {@link #TOPICS_MOVE_TO_LATEST_OFFSET}.
-   * 
+   *
    * Need to be synchronized as access by multiple threads
    */
   private synchronized boolean shouldMoveToLatestOffset(KafkaPartition partition, SourceState state) {
