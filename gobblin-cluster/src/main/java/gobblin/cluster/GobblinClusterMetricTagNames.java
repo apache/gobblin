@@ -10,15 +10,21 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.yarn;
+package gobblin.cluster;
+
+import gobblin.annotation.Alpha;
+
 
 /**
- * A central place for constants of {@link gobblin.metrics.MetricContext} tag names for Gobblin on Yarn.
+ * A central place for constants of {@link gobblin.metrics.MetricContext} tag names for a Gobblin cluster.
  *
  * @author Yinan Li
  */
-public class GobblinYarnMetricTagNames {
+@Alpha
+public class GobblinClusterMetricTagNames {
 
-  public static final String YARN_APPLICATION_ATTEMPT_ID = "yarn.application.attempt.id";
-  public static final String CONTAINER_ID = "yarn.container.id";
+  public static final String APPLICATION_NAME = "application.name";
+  public static final String APPLICATION_ID = "application.id";
+  public static final String HELIX_INSTANCE_NAME = "helix.instance.name";
+  public static final String TASK_RUNNER_ID = "task.runner.id";
 }

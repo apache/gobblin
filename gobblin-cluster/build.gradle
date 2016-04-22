@@ -14,7 +14,6 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-admin")
   compile project(":gobblin-api")
-  compile project(":gobblin-cluster")
   compile project(":gobblin-core")
   compile project(":gobblin-metrics")
   compile project(":gobblin-metastore")
@@ -41,17 +40,12 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.hadoopClientCommon
   compile externalDependency.hadoopCommon
-  compile externalDependency.hadoopYarnApi
-  compile externalDependency.hadoopYarnCommon
-  compile externalDependency.hadoopYarnClient
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
 
-  testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
 
   testCompile externalDependency.testng
-  testCompile externalDependency.hadoopYarnMiniCluster
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
 
@@ -67,6 +61,10 @@ configurations {
   tests
 }
 
+artifacts {
+  tests testJar
+}
+
 configurations {
   compile {
     transitive = false
@@ -75,23 +73,13 @@ configurations {
   testRuntime {
     resolutionStrategy {
       force 'com.google.inject:guice:3.0'
-      force 'org.apache.hadoop:hadoop-yarn-server-resourcemanager:'+hadoopVersion
     }
   }
-}
-
-artifacts {
-  tests testJar
 }
 
 test {
   workingDir rootProject.rootDir
   maxParallelForks = 1
-}
-
-clean {
-  delete "../gobblin-test/locks"
-  delete "../gobblin-test/basicTest"
 }
 
 ext.classification="library"

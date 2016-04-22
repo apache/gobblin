@@ -59,7 +59,7 @@
         "type": {
             "name": "LauncherTypeEnum",
             "type": "enum",
-            "symbols" : [ "LOCAL", "MAPREDUCE", "YARN" ]
+            "symbols" : [ "LOCAL", "MAPREDUCE", "CLUSTER", "YARN" ]
         },
         "optional": true,
         "doc": "Job launcher type"

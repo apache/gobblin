@@ -10,15 +10,31 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.yarn;
+package gobblin.cluster;
+
+import gobblin.annotation.Alpha;
+
 
 /**
- * A central place for constants of {@link gobblin.metrics.MetricContext} tag names for Gobblin on Yarn.
+ * An enumeration of Helix message sub types.
  *
  * @author Yinan Li
  */
-public class GobblinYarnMetricTagNames {
+@Alpha
+public enum HelixMessageSubTypes {
 
-  public static final String YARN_APPLICATION_ATTEMPT_ID = "yarn.application.attempt.id";
-  public static final String CONTAINER_ID = "yarn.container.id";
+  /**
+   * This type is for messages sent when the {@link GobblinClusterManager} is to be shutdown.
+   */
+  APPLICATION_MASTER_SHUTDOWN,
+
+  /**
+   * This type is for messages sent when the {@link GobblinTaskRunner}s are to be shutdown.
+   */
+  WORK_UNIT_RUNNER_SHUTDOWN,
+
+  /**
+   * This type is for messages sent when the file storing the delegation token has been updated.
+   */
+  TOKEN_FILE_UPDATED
 }
