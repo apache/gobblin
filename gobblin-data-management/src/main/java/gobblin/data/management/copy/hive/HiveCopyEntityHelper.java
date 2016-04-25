@@ -63,7 +63,6 @@ import gobblin.util.PathUtils;
 import gobblin.util.commit.DeleteFileCommitStep;
 import gobblin.util.reflection.GobblinConstructorUtils;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
@@ -125,6 +124,9 @@ public class HiveCopyEntityHelper {
 
   private static final String source_client = "source_client";
   private static final String target_client = "target_client";
+  public static final String GOBBLIN_DISTCP = "gobblin-distcp";
+
+  private final long startTime;
 
   private final HiveDataset dataset;
   private final CopyConfiguration configuration;
@@ -140,7 +142,7 @@ public class HiveCopyEntityHelper {
   private final Optional<String> targetURI;
   private final ExistingEntityPolicy existingEntityPolicy;
   private final Optional<String> partitionFilter;
-  private final Optional<Predicate<Partition>> fastPartitionSkip;
+  private final Optional<Predicate<PartitionCopy>> fastPartitionSkip;
 
   private final Optional<CommitStep> tableRegistrationStep;
   private final Map<List<String>, Partition> sourcePartitions;
@@ -180,6 +182,8 @@ public class HiveCopyEntityHelper {
 
     log.info("Finding copy entities for table " + dataset.table.getCompleteName());
 
+    this.startTime = System.currentTimeMillis();
+
     this.dataset = dataset;
     this.configuration = configuration;
     this.targetFs = targetFs;
@@ -216,9 +220,9 @@ public class HiveCopyEntityHelper {
     try {
       this.fastPartitionSkip = this.dataset.properties.containsKey(FAST_PARTITION_SKIP_PREDICATE) ? Optional.of(
           GobblinConstructorUtils.invokeFirstConstructor(
-              (Class<Predicate<Partition>>) Class.forName(this.dataset.properties.getProperty(FAST_PARTITION_SKIP_PREDICATE)),
+              (Class<Predicate<PartitionCopy>>) Class.forName(this.dataset.properties.getProperty(FAST_PARTITION_SKIP_PREDICATE)),
               Lists.<Object>newArrayList(this), Lists.newArrayList()))
-          : Optional.<Predicate<Partition>>absent();
+          : Optional.<Predicate<PartitionCopy>>absent();
     } catch (ReflectiveOperationException roe) {
       throw new IOException(roe);
     }
@@ -236,20 +240,17 @@ public class HiveCopyEntityHelper {
         this.existingTargetTable = Optional.absent();
       }
 
+      Path targetPath = getTargetLocation(dataset.fs, this.targetFs, dataset.table.getDataLocation(),
+          Optional.<Partition>absent());
+      this.targetTable = getTargetTable(this.dataset.table, targetPath);
+      HiveSpec tableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath).
+          withTable(HiveMetaStoreUtils.getHiveTable(this.targetTable.getTTable())).build();
+      CommitStep tableRegistrationStep = new HiveRegisterStep(targetURI, tableHiveSpec, this.hiveRegProps);
+
+      this.tableRegistrationStep = Optional.of(tableRegistrationStep);
+
       if (this.existingTargetTable.isPresent()) {
-        checkTableCompatibility(this.dataset.table, this.existingTargetTable.get());
-        this.targetTable = this.existingTargetTable.get();
-        this.tableRegistrationStep = Optional.absent();
-      } else {
-        Path targetPath = getTargetLocation(dataset.fs, this.targetFs, dataset.table.getDataLocation(),
-            Optional.<Partition>absent());
-        this.targetTable = getTargetTable(this.dataset.table, targetPath);
-
-        HiveSpec tableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath).
-                withTable(HiveMetaStoreUtils.getHiveTable(this.targetTable.getTTable())).build();
-        CommitStep tableRegistrationStep = new HiveRegisterStep(targetURI, tableHiveSpec, this.hiveRegProps);
-
-        this.tableRegistrationStep = Optional.of(tableRegistrationStep);
+        checkTableCompatibility(this.targetTable, this.existingTargetTable.get());
       }
 
       if (HiveUtils.isPartitioned(this.dataset.table)) {
@@ -382,6 +383,8 @@ public class HiveCopyEntityHelper {
 
       targetTable.setDbName(this.targetDatabase);
       targetTable.setDataLocation(targetLocation);
+      targetTable.getTTable().putToParameters(HiveDataset.REGISTERER, GOBBLIN_DISTCP);
+      targetTable.getTTable().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS, Long.toString(this.startTime));
 
       HiveAvroCopyEntityHelper.updateTableAttributesIfAvro(targetTable, this);
 
@@ -396,6 +399,8 @@ public class HiveCopyEntityHelper {
       Partition targetPartition = new Partition(this.targetTable, originPartition.getTPartition().deepCopy());
       targetPartition.getTable().setDbName(this.targetDatabase);
       targetPartition.getTPartition().setDbName(this.targetDatabase);
+      targetPartition.getTPartition().putToParameters(HiveDataset.REGISTERER, GOBBLIN_DISTCP);
+      targetPartition.getTPartition().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS, Long.toString(this.startTime));
       targetPartition.setLocation(targetLocation.toString());
       return targetPartition;
     } catch (HiveException he) {
@@ -406,20 +411,21 @@ public class HiveCopyEntityHelper {
   /**
    * Creates {@link CopyEntity}s for a partition.
    */
-  @AllArgsConstructor
-  private class PartitionCopy {
+  @Getter
+  public class PartitionCopy {
 
     private final Partition partition;
     private final Properties properties;
+    private Optional<Partition> existingTargetPartition;
+
+    public PartitionCopy(Partition partition, Properties properties) {
+      this.partition = partition;
+      this.properties = properties;
+      this.existingTargetPartition = Optional.fromNullable(targetPartitions.get(this.partition.getValues()));
+    }
 
     private List<CopyEntity> getCopyEntities()
         throws IOException {
-
-      if (fastPartitionSkip.isPresent() && fastPartitionSkip.get().apply(this.partition)) {
-        log.info(String.format("Skipping copy of partition %s due to fast partition skip predicate.",
-            this.partition.getCompleteName()));
-        return Lists.newArrayList();
-      }
 
       log.info("Getting copy entities for partition " + this.partition.getCompleteName());
 
@@ -430,15 +436,14 @@ public class HiveCopyEntityHelper {
 
       stepPriority = addSharedSteps(copyEntities, fileSet, stepPriority);
 
+      Path targetPath = getTargetLocation(dataset.fs, targetFs, this.partition.getDataLocation(),
+          Optional.of(this.partition));
+      Partition targetPartition = getTargetPartition(this.partition, targetPath);
 
-      Optional<Partition> existingTargetPartition = Optional.fromNullable(targetPartitions.get(partition.getValues()));
-      Partition targetPartition;
-
-      if (existingTargetPartition.isPresent()) {
+      if (this.existingTargetPartition.isPresent()) {
         targetPartitions.remove(partition.getValues());
-        targetPartition = existingTargetPartition.get();
         try {
-          checkPartitionCompatibility(partition, existingTargetPartition.get());
+          checkPartitionCompatibility(targetPartition, existingTargetPartition.get());
         } catch (IOException ioe) {
           if (existingEntityPolicy != ExistingEntityPolicy.REPLACE_PARTITIONS) {
             log.error("Source and target partitions are not compatible. Aborting copy of partition " + this.partition, ioe);
@@ -448,18 +453,19 @@ public class HiveCopyEntityHelper {
           stepPriority = addDeregisterSteps(copyEntities, fileSet, stepPriority, targetTable, existingTargetPartition.get());
           existingTargetPartition = Optional.absent();
         }
-      } else {
-        Path targetPath = getTargetLocation(dataset.fs, targetFs, this.partition.getDataLocation(),
-            Optional.of(this.partition));
-        targetPartition = getTargetPartition(this.partition, targetPath);
-
-        HiveSpec partitionHiveSpec = new SimpleHiveSpec.Builder<>(targetPath).
-            withTable(HiveMetaStoreUtils.getHiveTable(targetTable.getTTable())).
-            withPartition(Optional.of(HiveMetaStoreUtils.getHivePartition(targetPartition.getTPartition()))).build();
-
-        HiveRegisterStep register = new HiveRegisterStep(targetURI, partitionHiveSpec, hiveRegProps);
-        copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object>newHashMap(), register, stepPriority++));
       }
+
+      if (fastPartitionSkip.isPresent() && fastPartitionSkip.get().apply(this)) {
+        log.info(String.format("Skipping copy of partition %s due to fast partition skip predicate.",
+            this.partition.getCompleteName()));
+        return Lists.newArrayList();
+      }
+
+      HiveSpec partitionHiveSpec = new SimpleHiveSpec.Builder<>(targetPath).
+          withTable(HiveMetaStoreUtils.getHiveTable(targetTable.getTTable())).
+          withPartition(Optional.of(HiveMetaStoreUtils.getHivePartition(targetPartition.getTPartition()))).build();
+      HiveRegisterStep register = new HiveRegisterStep(targetURI, partitionHiveSpec, hiveRegProps);
+      copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object>newHashMap(), register, stepPriority++));
 
       HiveLocationDescriptor sourceLocation = HiveLocationDescriptor.forPartition(this.partition, dataset.fs, properties);
       HiveLocationDescriptor desiredTargetLocation = HiveLocationDescriptor.forPartition(targetPartition, targetFs, properties);
@@ -618,36 +624,33 @@ public class HiveCopyEntityHelper {
         referencePath.getModificationTime() < replacementFile.getModificationTime();
   }
 
-  private void checkTableCompatibility(Table sourceTable, Table targetTable) throws IOException {
+  private void checkTableCompatibility(Table desiredTargetTable, Table existingTargetTable) throws IOException {
 
-    Path targetLocation = getTargetLocation(this.dataset.fs, this.targetFs, sourceTable.getDataLocation(),
-        Optional.<Partition>absent());
-    if (!targetLocation.equals(targetTable.getDataLocation())) {
+    if (!desiredTargetTable.getDataLocation().equals(existingTargetTable.getDataLocation())) {
       throw new IOException(
-          String.format("Computed target location %s and already registered target location %s do not agree.",
-              targetLocation, targetTable.getDataLocation()));
+          String.format("Desired target location %s and already registered target location %s do not agree.",
+              desiredTargetTable.getDataLocation(), existingTargetTable.getDataLocation()));
     }
 
-    if (HiveUtils.isPartitioned(sourceTable) != HiveUtils.isPartitioned(targetTable)) {
+    if (HiveUtils.isPartitioned(desiredTargetTable) != HiveUtils.isPartitioned(existingTargetTable)) {
       throw new IOException(String.format(
-          "%s: Source table %s partitioned, target table %s partitioned. Tables are incompatible.",
-          this.dataset.tableIdentifier, HiveUtils.isPartitioned(sourceTable) ? "is" : "is not", HiveUtils
-              .isPartitioned(targetTable) ? "is" : "is not"));
+          "%s: Desired target table %s partitioned, existing target table %s partitioned. Tables are incompatible.",
+          this.dataset.tableIdentifier, HiveUtils.isPartitioned(desiredTargetTable) ? "is" : "is not", HiveUtils
+              .isPartitioned(existingTargetTable) ? "is" : "is not"));
     }
-    if (sourceTable.isPartitioned() && !sourceTable.getPartitionKeys().equals(targetTable.getPartitionKeys())) {
-      throw new IOException(String.format("%s: Source table has partition keys %s, target table has partition  keys %s. "
+    if (desiredTargetTable.isPartitioned() && !desiredTargetTable.getPartitionKeys().equals(existingTargetTable.getPartitionKeys())) {
+      throw new IOException(String.format("%s: Desired target table has partition keys %s, existing target table has partition  keys %s. "
               + "Tables are incompatible.",
-          this.dataset.tableIdentifier, gson.toJson(sourceTable.getPartitionKeys()), gson.toJson(targetTable.getPartitionKeys())));
+          this.dataset.tableIdentifier, gson.toJson(desiredTargetTable.getPartitionKeys()), gson.toJson(existingTargetTable.getPartitionKeys())));
     }
   }
 
-  private void checkPartitionCompatibility(Partition sourcePartition, Partition targetPartition) throws IOException {
-    Path targetLocation = getTargetLocation(this.dataset.fs,
-        this.targetFs, sourcePartition.getDataLocation(), Optional.<Partition>absent());
-    if (!targetLocation.equals(targetPartition.getDataLocation())) {
+  private void checkPartitionCompatibility(Partition desiredTargetPartition, Partition existingTargetPartition)
+      throws IOException {
+    if (!desiredTargetPartition.getDataLocation().equals(existingTargetPartition.getDataLocation())) {
       throw new IOException(
-          String.format("Computed target location %s and already registered target location %s do not agree.",
-              targetLocation, targetPartition.getDataLocation()));
+          String.format("Desired target location %s and already registered target location %s do not agree.",
+              desiredTargetPartition.getDataLocation(), existingTargetPartition.getDataLocation()));
     }
   }
 
