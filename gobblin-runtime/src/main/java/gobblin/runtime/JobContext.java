@@ -125,7 +125,12 @@ public class JobContext {
         jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
     FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
     String stateStoreRootDir = jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
-    this.datasetStateStore = new FsDatasetStateStore(stateStoreFs, stateStoreRootDir);
+    if (jobProps.containsKey(ConfigurationKeys.STATE_STORE_ENABLED) &&
+        !Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.STATE_STORE_ENABLED))) {
+      this.datasetStateStore = new NoopDatasetStateStore(stateStoreFs, stateStoreRootDir);
+    } else {
+      this.datasetStateStore = new FsDatasetStateStore(stateStoreFs, stateStoreRootDir);
+    }
 
     boolean jobHistoryStoreEnabled = Boolean
         .valueOf(jobProps.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, Boolean.FALSE.toString()));
