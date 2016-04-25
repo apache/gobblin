@@ -117,6 +117,11 @@ public class HiveCopyEntityHelper {
    * If the predicate returns true, the partition will be skipped. */
   public static final String FAST_PARTITION_SKIP_PREDICATE =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.fast.partition.skip.predicate";
+  /** If true, on deregistration of a partition, the entire partition location will be deleted.
+   * This is faster that deleting specific data files, but if non-data files are present in the directory it may be
+   * inconvenient. */
+  public static final String DELETE_LOCATION_RECURSIVELY_ON_DEREGISTER =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.deregister.deleteLocationRecursively";
 
   private static final String databaseToken = "$DB";
   private static final String tableToken = "$TABLE";
@@ -490,13 +495,21 @@ public class HiveCopyEntityHelper {
 
     int stepPriority = initialPriority;
 
-    InputFormat<?, ?> inputFormat = HiveUtils.getInputFormat(partition.getTPartition().getSd());
+    Collection<Path> partitionPaths;
+    if (this.dataset.properties.containsKey(DELETE_LOCATION_RECURSIVELY_ON_DEREGISTER) &&
+        Boolean.parseBoolean(this.dataset.properties.getProperty(DELETE_LOCATION_RECURSIVELY_ON_DEREGISTER))) {
+      partitionPaths = Lists.newArrayList(partition.getDataLocation());
+    } else {
+      InputFormat<?, ?> inputFormat = HiveUtils.getInputFormat(partition.getTPartition().getSd());
 
-    HiveLocationDescriptor targetLocation = new HiveLocationDescriptor(partition.getDataLocation(), inputFormat,
-        this.targetFs, this.dataset.properties);
+      HiveLocationDescriptor targetLocation =
+          new HiveLocationDescriptor(partition.getDataLocation(), inputFormat, this.targetFs, this.dataset.properties);
 
-    Collection<Path> partitionPaths = targetLocation.getPaths();
-    DeleteFileCommitStep deletePaths = DeleteFileCommitStep.fromPaths(targetFs, partitionPaths, this.dataset.properties);
+      partitionPaths = targetLocation.getPaths();
+    }
+
+    DeleteFileCommitStep deletePaths = DeleteFileCommitStep.fromPaths(targetFs, partitionPaths, this.dataset.properties,
+        table.getDataLocation());
     copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deletePaths, stepPriority++));
 
     PartitionDeregisterStep deregister =

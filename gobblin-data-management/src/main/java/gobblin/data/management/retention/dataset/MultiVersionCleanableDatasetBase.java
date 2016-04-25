@@ -262,16 +262,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   }
 
   private void deleteEmptyParentDirectories(Path datasetRoot, Path parent) throws IOException {
-    if (PathUtils.isAncestor(datasetRoot, parent)
-        && !PathUtils.getPathWithoutSchemeAndAuthority(datasetRoot).equals(PathUtils.getPathWithoutSchemeAndAuthority(parent))
-        && this.fs.listStatus(parent).length == 0) {
-      if (!this.fs.delete(parent, false)) {
-        log.warn("Failed to delete empty directory " + parent);
-      } else {
-        log.info("Deleted empty directory " + parent);
-      }
-      deleteEmptyParentDirectories(datasetRoot, parent.getParent());
-    }
+    PathUtils.deleteEmptyParentDirectories(this.fs, datasetRoot, parent);
   }
 
   @Override
