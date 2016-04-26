@@ -23,13 +23,22 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.Properties;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
 import com.google.common.io.BaseEncoding;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
@@ -43,9 +52,12 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.slf4j.Logger;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.executors.ScalingThreadPoolExecutor;
+import gobblin.util.filesystem.FileSystemUtils;
 import gobblin.writer.DataWriter;
 
 
@@ -393,24 +405,60 @@ public class HadoopUtils {
   @SuppressWarnings("deprecation")
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
-    // Need this check for hadoop2
-    if (!fileSystem.exists(from)) {
-      return;
-    }
+    FileSystem throttledFS = FileSystemUtils.getOptionallyThrottledFileSystem(fileSystem, 1000);
 
-    for (FileStatus fromFile : fileSystem.listStatus(from)) {
+    ExecutorService executorService = ScalingThreadPoolExecutor.newScalingThreadPool(1, 100, 100, ExecutorsUtils.newThreadFactory(
+        Optional.of(log), Optional.of("rename-thread-%d")));
+    Queue<Future> futures = Queues.newConcurrentLinkedQueue();
 
-      Path relativeFilePath =
-          new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.toString() + Path.SEPARATOR));
-
-      Path toFilePath = new Path(to, relativeFilePath);
-
-      if (!safeRenameIfNotExists(fileSystem, fromFile.getPath(), toFilePath)) {
-        if (fromFile.isDir()) {
-          renameRecursively(fileSystem, fromFile.getPath(), toFilePath);
-        } else {
-          log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
+    try {
+      futures.add(executorService.submit(new RenameRecursively(throttledFS, from, to, executorService, futures)));
+      while (!futures.isEmpty()) {
+        try {
+          futures.poll().get();
+        } catch (ExecutionException | InterruptedException ee) {
+          throw new IOException(ee.getCause());
         }
+      }
+    } finally {
+      ExecutorsUtils.shutdownExecutorService(executorService, Optional.of(log), 1, TimeUnit.SECONDS);
+    }
+  }
+
+  @AllArgsConstructor
+  private static class RenameRecursively implements Runnable {
+
+    private final FileSystem fileSystem;
+    private final Path from;
+    private final Path to;
+    private final ExecutorService executorService;
+    private final Queue<Future> futures;
+
+    @Override
+    public void run() {
+      try {
+        // Need this check for hadoop2
+        if (!fileSystem.exists(from)) {
+          return;
+        }
+
+        for (FileStatus fromFile : fileSystem.listStatus(from)) {
+
+          Path relativeFilePath = new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.toString() + Path.SEPARATOR));
+
+          Path toFilePath = new Path(to, relativeFilePath);
+
+          if (!safeRenameIfNotExists(fileSystem, fromFile.getPath(), toFilePath)) {
+            if (fromFile.isDir()) {
+              this.futures.add(executorService.submit(new RenameRecursively(this.fileSystem, fromFile.getPath(), toFilePath,
+                  this.executorService, this.futures)));
+            } else {
+              log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
+            }
+          }
+        }
+      } catch (IOException ioe) {
+        throw new RuntimeException(ioe);
       }
     }
   }
