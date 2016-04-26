@@ -47,7 +47,9 @@ import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
 import gobblin.dataset.IterableDatasetFinder;
 import gobblin.dataset.IterableDatasetFinderImpl;
+import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.source.extractor.Extractor;
@@ -82,6 +84,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final int DEFAULT_MAX_FILES_COPIED = 100000;
   public static final String SIMULATE = CopyConfiguration.COPY_PREFIX + ".simulate";
 
+  public MetricContext metricContext;
+
   /**
    * <ul>
    * Does the following:
@@ -101,6 +105,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    */
   @Override
   public List<WorkUnit> getWorkunits(final SourceState state) {
+    this.metricContext = Instrumented.getMetricContext(state, CopySource.class);
 
     try {
 

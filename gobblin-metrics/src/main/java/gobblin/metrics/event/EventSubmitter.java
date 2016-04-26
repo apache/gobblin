@@ -21,6 +21,8 @@ import com.google.common.collect.Maps;
 import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 
+import lombok.Getter;
+
 
 /**
  * Wrapper around Avro {@link gobblin.metrics.GobblinTrackingEvent.Builder} simplifying handling {@link gobblin.metrics.GobblinTrackingEvent}s.
@@ -34,7 +36,9 @@ public class EventSubmitter {
   public static final String EVENT_TYPE = "eventType";
 
   private final Map<String, String> metadata;
+  @Getter
   private final String namespace;
+  @Getter
   private final Optional<MetricContext> metricContext;
 
   public static class Builder {
