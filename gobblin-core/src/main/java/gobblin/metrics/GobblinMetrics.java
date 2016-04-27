@@ -467,7 +467,7 @@ public class GobblinMetrics {
       OutputStream output = append ? fs.append(metricLogFile) : fs.create(metricLogFile, true);
       OutputStreamReporter.Factory.newBuilder().outputTo(output).build(properties);
       this.scheduledReporters.add(this.codahaleReportersCloser
-          .register(OutputStreamEventReporter.forContext(this.metricContext).outputTo(output).build()));
+          .register(OutputStreamEventReporter.forContext(RootMetricContext.get()).outputTo(output).build()));
 
       LOGGER.info("Will start reporting metrics to directory " + metricsLogDir);
     } catch (IOException ioe) {
@@ -482,7 +482,7 @@ public class GobblinMetrics {
       return;
     }
 
-    this.jmxReporter = Optional.of(codahaleReportersCloser.register(JmxReporter.forRegistry(this.metricContext).
+    this.jmxReporter = Optional.of(codahaleReportersCloser.register(JmxReporter.forRegistry(RootMetricContext.get()).
         convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
   }
 
@@ -535,7 +535,7 @@ public class GobblinMetrics {
 
     if (eventsTopic.or(defaultTopic).isPresent()) {
       try {
-        KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(this.metricContext, properties);
+        KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(RootMetricContext.get(), properties);
         this.scheduledReporters
             .add(this.codahaleReportersCloser.register(builder.build(brokers, eventsTopic.or(defaultTopic).get())));
       } catch (IOException exception) {
@@ -568,7 +568,7 @@ public class GobblinMetrics {
           CustomCodahaleReporterFactory customCodahaleReporterFactory =
               ((CustomCodahaleReporterFactory) clazz.getConstructor().newInstance());
           com.codahale.metrics.ScheduledReporter scheduledReporter = this.codahaleReportersCloser
-              .register(customCodahaleReporterFactory.newScheduledReporter(this.metricContext, properties));
+              .register(customCodahaleReporterFactory.newScheduledReporter(RootMetricContext.get(), properties));
           LOGGER.info("Will start reporting metrics to " + reporterClass);
           this.scheduledReporters.add(scheduledReporter);
 
