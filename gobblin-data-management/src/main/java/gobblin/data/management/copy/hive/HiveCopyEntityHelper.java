@@ -13,6 +13,7 @@
 package gobblin.data.management.copy.hive;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -22,6 +23,7 @@ import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -678,12 +680,24 @@ public class HiveCopyEntityHelper {
     List<CopyableFile.Builder> builders = Lists.newArrayList();
     List<SourceAndDestination> dataFiles = Lists.newArrayList();
 
+    Configuration hadoopConfiguration = new Configuration();
+    FileSystem actualSourceFs = null;
+    String referenceScheme = null;
+    String referenceAuthority = null;
+
     for (FileStatus status : paths) {
       dataFiles.add(new SourceAndDestination(status, getTargetPath(status.getPath(), this.targetFs, partition, true)));
     }
 
     for (SourceAndDestination sourceAndDestination : dataFiles) {
-      FileSystem actualSourceFs = sourceAndDestination.getSource().getPath().getFileSystem(new Configuration());
+
+      URI uri = sourceAndDestination.getSource().getPath().toUri();
+      if (actualSourceFs == null || !StringUtils.equals(referenceScheme, uri.getScheme())
+          || !StringUtils.equals(referenceAuthority, uri.getAuthority())) {
+        actualSourceFs = sourceAndDestination.getSource().getPath().getFileSystem(hadoopConfiguration);
+        referenceScheme = uri.getScheme();
+        referenceAuthority = uri.getAuthority();
+      }
 
       builders.add(CopyableFile.fromOriginAndDestination(actualSourceFs, sourceAndDestination.getSource(),
           sourceAndDestination.getDestination(), configuration));
