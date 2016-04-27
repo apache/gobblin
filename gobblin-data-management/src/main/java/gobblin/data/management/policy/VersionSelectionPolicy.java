@@ -15,18 +15,18 @@ package gobblin.data.management.policy;
 import java.util.Collection;
 import java.util.List;
 
-import gobblin.data.management.version.FileSystemDatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
 
 
 /**
  * Selection policy around versions of a dataset. Specifies which versions of a dataset will be selected.
  */
-public interface VersionSelectionPolicy<T extends FileSystemDatasetVersion> {
+public interface VersionSelectionPolicy<T extends DatasetVersion> {
   /**
    * Should return class of T.
    * @return class of T.
    */
-  public Class<? extends FileSystemDatasetVersion> versionClass();
+  public Class<? extends DatasetVersion> versionClass();
 
   /**
    * Logic to decide which dataset versions will be selected.

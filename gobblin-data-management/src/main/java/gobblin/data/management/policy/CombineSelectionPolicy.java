@@ -33,7 +33,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.retention.policy.CombineRetentionPolicy;
-import gobblin.data.management.version.FileSystemDatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
 import gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -57,7 +57,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  *   Additionally, any configuration necessary for combined policies must be specified.
  * </p>
  */
-public class CombineSelectionPolicy implements VersionSelectionPolicy<FileSystemDatasetVersion> {
+public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVersion> {
 
   public static final String VERSION_SELECTION_POLICIES_PREFIX = "selection.combine.policy.classes";
   public static final String VERSION_SELECTION_COMBINE_OPERATION = "selection.combine.operation";
@@ -67,10 +67,10 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<FileSystem
     UNION
   }
 
-  private final List<VersionSelectionPolicy<FileSystemDatasetVersion>> selectionPolicies;
+  private final List<VersionSelectionPolicy<DatasetVersion>> selectionPolicies;
   private final CombineOperation combineOperation;
 
-  public CombineSelectionPolicy(List<VersionSelectionPolicy<FileSystemDatasetVersion>> selectionPolicies,
+  public CombineSelectionPolicy(List<VersionSelectionPolicy<DatasetVersion>> selectionPolicies,
       CombineOperation combineOperation) throws IOException {
     this.combineOperation = combineOperation;
     this.selectionPolicies = selectionPolicies;
@@ -80,11 +80,11 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<FileSystem
   public CombineSelectionPolicy(Config config, Properties jobProps) throws IOException {
     Preconditions.checkArgument(config.hasPath(VERSION_SELECTION_POLICIES_PREFIX), "Combine operation not specified.");
 
-    ImmutableList.Builder<VersionSelectionPolicy<FileSystemDatasetVersion>> builder = ImmutableList.builder();
+    ImmutableList.Builder<VersionSelectionPolicy<DatasetVersion>> builder = ImmutableList.builder();
 
     for (String combineClassName : config.getStringList(VERSION_SELECTION_POLICIES_PREFIX)) {
       try {
-        builder.add((VersionSelectionPolicy<FileSystemDatasetVersion>) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(combineClassName),
+        builder.add((VersionSelectionPolicy<DatasetVersion>) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(combineClassName),
             ImmutableList.<Object> of(config), ImmutableList.<Object> of(jobProps)));
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
         throw new IllegalArgumentException(e);
@@ -108,27 +108,27 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<FileSystem
    * Returns the most specific common superclass for the {@link #versionClass} of each embedded policy.
    */
   @Override
-  public Class<? extends FileSystemDatasetVersion> versionClass() {
+  public Class<? extends DatasetVersion> versionClass() {
     if (this.selectionPolicies.size() == 1) {
       return this.selectionPolicies.get(0).versionClass();
     }
 
-    Class<? extends FileSystemDatasetVersion> klazz = this.selectionPolicies.get(0).versionClass();
-    for (VersionSelectionPolicy<? extends FileSystemDatasetVersion> policy : selectionPolicies) {
+    Class<? extends DatasetVersion> klazz = this.selectionPolicies.get(0).versionClass();
+    for (VersionSelectionPolicy<? extends DatasetVersion> policy : selectionPolicies) {
       klazz = commonSuperclass(klazz, policy.versionClass());
     }
     return klazz;
   }
 
   @Override
-  public Collection<FileSystemDatasetVersion> listSelectedVersions(final List<FileSystemDatasetVersion> allVersions) {
+  public Collection<DatasetVersion> listSelectedVersions(final List<DatasetVersion> allVersions) {
 
-    List<Set<FileSystemDatasetVersion>> candidateDeletableVersions =
+    List<Set<DatasetVersion>> candidateDeletableVersions =
         Lists.newArrayList(Iterables.transform(this.selectionPolicies,
-            new Function<VersionSelectionPolicy<FileSystemDatasetVersion>, Set<FileSystemDatasetVersion>>() {
+            new Function<VersionSelectionPolicy<DatasetVersion>, Set<DatasetVersion>>() {
               @Nullable
               @Override
-              public Set<FileSystemDatasetVersion> apply(VersionSelectionPolicy<FileSystemDatasetVersion> input) {
+              public Set<DatasetVersion> apply(VersionSelectionPolicy<DatasetVersion> input) {
                 return Sets.newHashSet(input.listSelectedVersions(allVersions));
               }
             }));
@@ -146,8 +146,8 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<FileSystem
 
   @VisibleForTesting
   @SuppressWarnings("unchecked")
-  public Class<? extends FileSystemDatasetVersion> commonSuperclass(Class<? extends FileSystemDatasetVersion> classA,
-      Class<? extends FileSystemDatasetVersion> classB) {
+  public Class<? extends DatasetVersion> commonSuperclass(Class<? extends DatasetVersion> classA,
+      Class<? extends DatasetVersion> classB) {
 
     if (classA.isAssignableFrom(classB)) {
       // a is superclass of b, so return class of a
@@ -159,33 +159,33 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<FileSystem
       while (!klazz.isAssignableFrom(classB)) {
         klazz = klazz.getSuperclass();
       }
-      if (FileSystemDatasetVersion.class.isAssignableFrom(klazz)) {
-        return (Class<? extends FileSystemDatasetVersion>) klazz;
+      if (DatasetVersion.class.isAssignableFrom(klazz)) {
+        return (Class<? extends DatasetVersion>) klazz;
       } else {
         // this should never happen, but there for safety
-        return FileSystemDatasetVersion.class;
+        return DatasetVersion.class;
       }
     }
   }
 
-  private Set<FileSystemDatasetVersion> intersectDatasetVersions(Collection<Set<FileSystemDatasetVersion>> sets) {
+  private Set<DatasetVersion> intersectDatasetVersions(Collection<Set<DatasetVersion>> sets) {
     if (sets.size() <= 0) {
       return Sets.newHashSet();
     }
-    Iterator<Set<FileSystemDatasetVersion>> it = sets.iterator();
-    Set<FileSystemDatasetVersion> outputSet = it.next();
+    Iterator<Set<DatasetVersion>> it = sets.iterator();
+    Set<DatasetVersion> outputSet = it.next();
     while (it.hasNext()) {
       outputSet = Sets.intersection(outputSet, it.next());
     }
     return outputSet;
   }
 
-  private Set<FileSystemDatasetVersion> unionDatasetVersions(Collection<Set<FileSystemDatasetVersion>> sets) {
+  private Set<DatasetVersion> unionDatasetVersions(Collection<Set<DatasetVersion>> sets) {
     if (sets.size() <= 0) {
       return Sets.newHashSet();
     }
-    Iterator<Set<FileSystemDatasetVersion>> it = sets.iterator();
-    Set<FileSystemDatasetVersion> outputSet = it.next();
+    Iterator<Set<DatasetVersion>> it = sets.iterator();
+    Set<DatasetVersion> outputSet = it.next();
     while (it.hasNext()) {
       outputSet = Sets.union(outputSet, it.next());
     }
