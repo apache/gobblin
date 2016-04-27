@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.recipes.locks.InterProcessLock;
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreMutex;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
@@ -40,7 +41,7 @@ import lombok.extern.slf4j.Slf4j;
  * @author Joel Baranick
  */
 @Slf4j
-public class ZookeeperBasedJobLock implements JobLock {
+public class ZookeeperBasedJobLock implements ListenableJobLock {
   private static final String LOCKS_ROOT_PATH = "/locks";
   private static final String CONNECTION_STRING_DEFAULT = "localhost:2181";
   private static final int LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS_DEFAULT = 5000;
@@ -52,36 +53,37 @@ public class ZookeeperBasedJobLock implements JobLock {
   private static ConcurrentMap<String, JobLockEventListener> lockEventListeners = Maps.newConcurrentMap();
   private static Thread curatorFrameworkShutdownHook;
 
-  public static final String LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS = "zookeeper.locks.acquire.timeout.milliseconds";
-  public static final String CONNECTION_STRING = "zookeeper.connection.string";
-  public static final String CONNECTION_TIMEOUT_SECONDS = "zookeeper.connection.timeout.seconds";
-  public static final String SESSION_TIMEOUT_SECONDS = "zookeeper.session.timeout.seconds";
-  public static final String RETRY_BACKOFF_SECONDS = "zookeeper.retry.backoff.seconds";
-  public static final String MAX_RETRY_COUNT = "zookeeper.retry.count.max";
+  public static final String LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS = "gobblin.locks.zookeeper.acquire.timeout_milliseconds";
+  public static final String CONNECTION_STRING = "gobblin.locks.zookeeper.connection_string";
+  public static final String CONNECTION_TIMEOUT_SECONDS = "gobblin.locks.zookeeper.connection.timeout_seconds";
+  public static final String SESSION_TIMEOUT_SECONDS = "gobblin.locks.zookeeper.session.timeout_seconds";
+  public static final String RETRY_BACKOFF_SECONDS = "gobblin.locks.zookeeper.retry.backoff_seconds";
+  public static final String MAX_RETRY_COUNT = "gobblin.locks.zookeeper.retry.max_count";
 
   private String lockPath;
   private long lockAcquireTimeoutMilliseconds;
-  private InterProcessSemaphoreMutex lock;
+  private InterProcessLock lock;
 
-    /**
-   * Initializes the lock.
-   *
-   * @param properties  the job properties
-   * @param jobLockEventListener the listener for lock events
-   * @throws JobLockException thrown if the {@link JobLock} fails to initialize
-   */
-  @Override
-  public void initialize(Properties properties, JobLockEventListener jobLockEventListener) throws JobLockException {
+  public ZookeeperBasedJobLock(Properties properties) throws JobLockException {
     String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     this.lockAcquireTimeoutMilliseconds =
-            getLong(properties, LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS, LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS_DEFAULT);
+        getLong(properties, LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS, LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS_DEFAULT);
     this.lockPath = Paths.get(LOCKS_ROOT_PATH, jobName).toString();
-    lockEventListeners.putIfAbsent(this.lockPath, jobLockEventListener);
     initializeCuratorFramework(properties);
     lock = new InterProcessSemaphoreMutex(curatorFramework, lockPath);
   }
 
-    /**
+  /**
+   * Sets the job lock listener.
+   *
+   * @param jobLockEventListener the listener for lock events
+   */
+  @Override
+  public void setEventListener(JobLockEventListener jobLockEventListener) {
+    lockEventListeners.putIfAbsent(this.lockPath, jobLockEventListener);
+  }
+
+  /**
    * Acquire the lock.
    *
    * @throws IOException

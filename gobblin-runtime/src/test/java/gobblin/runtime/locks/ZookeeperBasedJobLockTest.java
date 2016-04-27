@@ -34,8 +34,8 @@ public class ZookeeperBasedJobLockTest extends JobLockTest {
     properties.setProperty(ZookeeperBasedJobLock.RETRY_BACKOFF_SECONDS, "1");
     properties.setProperty(ZookeeperBasedJobLock.SESSION_TIMEOUT_SECONDS, "180");
     properties.setProperty(ZookeeperBasedJobLock.CONNECTION_TIMEOUT_SECONDS, "30");
-    ZookeeperBasedJobLock lock = new ZookeeperBasedJobLock();
-    lock.initialize(properties, new JobLockEventListener());
+    ZookeeperBasedJobLock lock = new ZookeeperBasedJobLock(properties);
+    lock.setEventListener(new JobLockEventListener());
     return lock;
   }
 

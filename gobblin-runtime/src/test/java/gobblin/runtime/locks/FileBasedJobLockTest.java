@@ -53,9 +53,7 @@ public class FileBasedJobLockTest extends JobLockTest {
     Properties properties = new Properties();
     properties.setProperty(FileBasedJobLock.JOB_LOCK_DIR, this.path.getName());
     properties.setProperty(ConfigurationKeys.JOB_NAME_KEY, "FileBasedJobLockTest-" + System.currentTimeMillis());
-    FileBasedJobLock lock = new FileBasedJobLock();
-    lock.initialize(properties, new JobLockEventListener());
-    return lock;
+    return new FileBasedJobLock(properties);
   }
 
   @AfterClass

@@ -410,15 +410,13 @@ subprojects {
 
     sourceCompatibility = JavaVersion.VERSION_1_7
 
-    if (project.hasProperty("disableFindBugs")) {
-      plugins.apply('findbugs')
-      findbugs {
-        toolVersion = findBugsVersion
-        ignoreFailures = true
-        effort = "max"
-        // The exclude filter file must be under "ligradle/findbugs/"
-        excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
-      }
+    plugins.apply('findbugs')
+    findbugs {
+      toolVersion = findBugsVersion
+      ignoreFailures = true
+      effort = "max"
+      // The exclude filter file must be under "ligradle/findbugs/"
+      excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
     }
 
     test {

@@ -40,19 +40,11 @@ public class FileBasedJobLock implements JobLock {
   // Empty file associated with the lock
   private Path lockFile;
 
-  /**
-   * Initializes the lock.
-   *
-   * @param properties  the job properties
-   * @param jobLockEventListener the listener for lock events
-   * @throws JobLockException thrown if the {@link JobLock} fails to initialize
-   */
-  @Override
-  public void initialize(Properties properties, JobLockEventListener jobLockEventListener) throws JobLockException {
+  public FileBasedJobLock(Properties properties) throws JobLockException {
     try {
       this.fs = FileSystem.get(
-              URI.create(properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI)),
-              HadoopUtils.getConfFromProperties(properties));
+          URI.create(properties.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI)),
+          HadoopUtils.getConfFromProperties(properties));
       String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
       String lockFileDir = properties.getProperty(JOB_LOCK_DIR);
       this.lockFile = new Path(lockFileDir, jobName + LOCK_FILE_EXTENSION);
@@ -61,7 +53,7 @@ public class FileBasedJobLock implements JobLock {
     }
   }
 
-  /**
+    /**
    * Acquire the lock.
    *
    * @throws JobLockException thrown if the {@link JobLock} fails to be acquired

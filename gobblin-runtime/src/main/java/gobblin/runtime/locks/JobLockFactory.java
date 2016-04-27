@@ -12,10 +12,12 @@
 
 package gobblin.runtime.locks;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
 import com.google.common.base.Preconditions;
 import gobblin.configuration.ConfigurationKeys;
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 
 /**
@@ -44,15 +46,18 @@ public class JobLockFactory {
     if (properties.containsKey(ConfigurationKeys.JOB_LOCK_TYPE)) {
       try {
         Class<?> jobLockClass = Class.forName(
-                properties.getProperty(ConfigurationKeys.JOB_LOCK_TYPE, FileBasedJobLock.class.getName()));
-        jobLock = (JobLock) jobLockClass.newInstance();
-      } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            properties.getProperty(ConfigurationKeys.JOB_LOCK_TYPE, FileBasedJobLock.class.getName()));
+        jobLock = (JobLock) ConstructorUtils.invokeConstructor(jobLockClass, properties);
+      } catch (ClassNotFoundException | InstantiationException | IllegalAccessException |
+          NoSuchMethodException | InvocationTargetException e) {
         throw new JobLockException(e);
       }
     } else {
-      jobLock = new FileBasedJobLock();
+      jobLock = new FileBasedJobLock(properties);
     }
-    jobLock.initialize(properties, jobLockEventListener);
+    if (jobLock instanceof ListenableJobLock) {
+      ((ListenableJobLock)jobLock).setEventListener(jobLockEventListener);
+    }
     return jobLock;
   }
 }

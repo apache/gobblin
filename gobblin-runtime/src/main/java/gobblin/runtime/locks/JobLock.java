@@ -31,16 +31,6 @@ import java.util.Properties;
 public interface JobLock extends Closeable {
 
   /**
-   * Initializes the lock.
-   *
-   * @param properties  the job properties
-   * @param jobLockEventListener the listener for lock events
-   * @throws JobLockException thrown if the {@link JobLock} fails to initialize
-   */
-  void initialize(Properties properties, JobLockEventListener jobLockEventListener)
-      throws JobLockException;
-
-  /**
    * Acquire the lock.
    *
    * @throws JobLockException thrown if the {@link JobLock} fails to be acquired
