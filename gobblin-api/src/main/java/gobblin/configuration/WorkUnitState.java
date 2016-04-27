@@ -312,7 +312,10 @@ public class WorkUnitState extends State {
 
     WorkUnitState other = (WorkUnitState) object;
     return ((this.workUnit == null && other.workUnit == null)
-        || (this.workUnit != null && this.workUnit.equals(other.workUnit))) && super.equals(other);
+        || (this.workUnit != null && this.workUnit.equals(other.workUnit)))
+        && ((this.jobState == null && other.jobState == null)
+            || (this.jobState != null && this.jobState.equals(other.jobState)))
+        && super.equals(other);
   }
 
   @Override
