@@ -20,16 +20,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
-
 import com.typesafe.config.Config;
 
-import gobblin.data.management.version.FileSystemDatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
 
 
 /**
  * Select the newest k versions of the dataset.
  */
-public class NewestKSelectionPolicy<T extends FileSystemDatasetVersion> implements VersionSelectionPolicy<T> {
+public class NewestKSelectionPolicy<T extends DatasetVersion> implements VersionSelectionPolicy<T> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NewestKSelectionPolicy.class);
 
@@ -56,10 +55,10 @@ public class NewestKSelectionPolicy<T extends FileSystemDatasetVersion> implemen
   }
 
   @Override
-  public Class<? extends FileSystemDatasetVersion> versionClass() {
-    return FileSystemDatasetVersion.class;
+  public Class<? extends DatasetVersion> versionClass() {
+    return DatasetVersion.class;
   }
-  
+
   @Override
   public Collection<T> listSelectedVersions(List<T> allVersions) {
     int newerVersions = 0;
