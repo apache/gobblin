@@ -87,8 +87,8 @@ public class ConfigurationKeys {
   public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
   public static final String JOB_SCHEDULE_KEY = "job.schedule";
   public static final String JOB_LISTENERS_KEY = "job.listeners";
-  // Directory where job lock files are stored
-  public static final String JOB_LOCK_DIR_KEY = "job.lock.dir";
+  // Type of the job lock
+  public static final String JOB_LOCK_TYPE = "job.lock.type";
   //Directory that stores task staging data and task output data.
   public static final String TASK_DATA_ROOT_DIR_KEY = "task.data.root.dir";
   public static final String SOURCE_CLASS_KEY = "source.class";

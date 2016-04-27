@@ -53,6 +53,10 @@ import gobblin.runtime.listeners.CloseableJobListener;
 import gobblin.runtime.listeners.JobExecutionEventSubmitterListener;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.runtime.listeners.JobListeners;
+import gobblin.runtime.locks.JobLock;
+import gobblin.runtime.locks.JobLockEventListener;
+import gobblin.runtime.locks.JobLockException;
+import gobblin.runtime.locks.JobLockFactory;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.WorkUnit;
@@ -208,7 +212,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.FULL_JOB_EXECUTION);
 
       try {
-        if (!tryLockJob()) {
+        if (!tryLockJob(this.jobProps)) {
           this.eventSubmitter.submit(gobblin.metrics.event.EventNames.LOCK_IN_USE);
           throw new JobException(
               String.format("Previous instance of job %s is still running, skipping this scheduled run",
@@ -423,9 +427,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Get a {@link JobLock} to be used for the job.
    *
+   * @param properties the job properties
+   * @param jobLockEventListener the listener for lock events.
    * @return {@link JobLock} to be used for the job
+   * @throws JobLockException throw when the {@link JobLock} fails to initialize
    */
-  protected abstract JobLock getJobLock() throws IOException;
+  protected JobLock getJobLock(Properties properties, JobLockEventListener jobLockEventListener)
+          throws JobLockException {
+    return JobLockFactory.getJobLock(properties, jobLockEventListener);
+  }
 
   /**
    * Execute the job cancellation.
@@ -492,14 +502,21 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   /**
    * Try acquiring the job lock and return whether the lock is successfully locked.
+   *
+   * @param properties the job properties
    */
-  private boolean tryLockJob() {
+  private boolean tryLockJob(Properties properties) {
     try {
       if (this.jobContext.isJobLockEnabled()) {
-        this.jobLockOptional = Optional.of(getJobLock());
+        this.jobLockOptional = Optional.of(getJobLock(properties, new JobLockEventListener() {
+          @Override
+          public void onLost() {
+            executeCancellation();
+          }
+        }));
       }
       return !this.jobLockOptional.isPresent() || this.jobLockOptional.get().tryLock();
-    } catch (IOException ioe) {
+    } catch (JobLockException ioe) {
       LOG.error(String.format("Failed to acquire job lock for job %s: %s", this.jobContext.getJobId(), ioe), ioe);
       return false;
     }
@@ -513,8 +530,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       try {
         // Unlock so the next run of the same job can proceed
         this.jobLockOptional.get().unlock();
-      } catch (IOException ioe) {
+      } catch (JobLockException ioe) {
         LOG.error(String.format("Failed to unlock for job %s: %s", this.jobContext.getJobId(), ioe), ioe);
+      } finally {
+        try {
+          this.jobLockOptional.get().close();
+        } catch (IOException e) {
+          LOG.error(String.format("Failed to close job lock for job %s: %s", this.jobContext.getJobId(), e), e);
+        }
       }
     }
   }

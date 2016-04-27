@@ -61,9 +61,7 @@ import gobblin.metrics.Tag;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.password.PasswordManager;
 import gobblin.runtime.AbstractJobLauncher;
-import gobblin.runtime.FileBasedJobLock;
 import gobblin.runtime.JobLauncher;
-import gobblin.runtime.JobLock;
 import gobblin.runtime.JobState;
 import gobblin.runtime.Task;
 import gobblin.runtime.TaskExecutor;
@@ -228,12 +226,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
       this.taskStateCollectorService.stopAsync().awaitTerminated();
       cleanUpWorkingDirectory();
     }
-  }
-
-  @Override
-  protected JobLock getJobLock() throws IOException {
-    return new FileBasedJobLock(this.fs, this.jobProps.getProperty(ConfigurationKeys.JOB_LOCK_DIR_KEY),
-        this.jobContext.getJobName());
   }
 
   @Override
