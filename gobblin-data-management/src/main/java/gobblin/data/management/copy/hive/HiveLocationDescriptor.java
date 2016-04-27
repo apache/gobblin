@@ -38,6 +38,9 @@ class HiveLocationDescriptor {
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.additional.paths.recursively.enabled";
   public static final String HIVE_LOCATION_LISTING_METHOD =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.location.listing.method";
+  public static final String SKIP_HIDDEN_PATHS =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.locations.listing.skipHiddenPaths";
+  public static final String DEFAULT_SKIP_HIDDEN_PATHS = Boolean.toString(false);
   public static final String DEFAULT_HIVE_LOCATION_LISTING_METHOD = PathFindingMethod.INPUT_FORMAT.name();
 
   public enum PathFindingMethod {
@@ -59,14 +62,14 @@ class HiveLocationDescriptor {
       Set<Path> result = HiveUtils.getPaths(this.inputFormat, this.location);
 
       boolean useHiveLocationDescriptorWithAdditionalData =
-          Boolean.valueOf(this.properties.getProperty(HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED, "true"));
+          Boolean.valueOf(this.properties.getProperty(HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED, "false"));
 
       if (useHiveLocationDescriptorWithAdditionalData) {
         if (PathUtils.isGlob(this.location)) {
           throw new IOException("can not get additional data for glob pattern path " + this.location);
         }
         RecursivePathFinder finder = new RecursivePathFinder(this.fileSystem, this.location, this.properties);
-        result.addAll(finder.getPaths());
+        result.addAll(finder.getPaths(false));
       }
 
       return result;
@@ -74,8 +77,9 @@ class HiveLocationDescriptor {
       if (PathUtils.isGlob(this.location)) {
         throw new IOException("Cannot use recursive listing for globbed locations.");
       }
+      boolean skipHiddenPaths =  Boolean.parseBoolean(this.properties.getProperty(SKIP_HIDDEN_PATHS, DEFAULT_SKIP_HIDDEN_PATHS));
       RecursivePathFinder finder = new RecursivePathFinder(this.fileSystem, this.location, this.properties);
-      return finder.getPaths();
+      return finder.getPaths(skipHiddenPaths);
     } else {
       throw new IOException("Hive location listing method not recognized: " + pathFindingMethod);
     }
