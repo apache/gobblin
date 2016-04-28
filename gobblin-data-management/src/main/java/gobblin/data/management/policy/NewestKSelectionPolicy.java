@@ -19,6 +19,8 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
 import gobblin.data.management.version.DatasetVersion;
@@ -27,30 +29,89 @@ import gobblin.data.management.version.DatasetVersion;
 /**
  * Select the newest k versions of the dataset.
  */
-public class NewestKSelectionPolicy<T extends DatasetVersion> implements VersionSelectionPolicy<T> {
+public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVersion> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NewestKSelectionPolicy.class);
 
+  /**
+   * The number of newest versions to select. Only one of
+   * {@link #NEWEST_K_VERSIONS_SELECTED_KEY} and {@link #NEWEST_K_VERSIONS_NOTSELECTED_KEY} can
+   * be specified. The default is {@link #NEWEST_K_VERSIONS_SELECTED_KEY} with a value of
+   * {@link #VERSIONS_SELECTED_DEFAULT_INT}. Valid values are in the range
+   * [{@link #MIN_VERSIONS_ALLOWED}, {@link #MAX_VERSIONS_ALLOWED}]. Negative values are interpreted
+   * as {@link #NEWEST_K_VERSIONS_NOTSELECTED_KEY} with the absolute value.
+   */
   public static final String NEWEST_K_VERSIONS_SELECTED_KEY = "selection.newestK.versionsSelected";
 
-  public static final String VERSIONS_SELECTED_DEFAULT = Integer.toString(2);
+  /**
+   * The number of newest versions to exclude from the result. Only one of
+   * {@link #NEWEST_K_VERSIONS_SELECTED_KEY} and {@link #NEWEST_K_VERSIONS_NOTSELECTED_KEY} can
+   * be specified. The default is {@link #NEWEST_K_VERSIONS_SELECTED_KEY} with a value of
+   * {@link #VERSIONS_SELECTED_DEFAULT}. Valid values are in the range
+   * [{@link #MIN_VERSIONS_ALLOWED}, {@link #MAX_VERSIONS_ALLOWED}]. Negative values are interpreted
+   * as {@link #NEWEST_K_VERSIONS_SELECTED_KEY} with the absolute value.
+   */
+  public static final String NEWEST_K_VERSIONS_NOTSELECTED_KEY = "selection.newestK.versionsNotSelected";
 
+  public static final Integer VERSIONS_SELECTED_DEFAULT = 2;
+
+  public static final Integer MAX_VERSIONS_ALLOWED = 1000000;
+  public static final Integer MIN_VERSIONS_ALLOWED = - MAX_VERSIONS_ALLOWED;
+
+  /** Number of versions to keep if non-negative; number of versions to exclude if negative. */
   private final int versionsSelected;
 
   public NewestKSelectionPolicy(int versionsRetained) {
     this.versionsSelected = versionsRetained;
-    LOGGER.info(String.format("%s will select %d versions of each dataset.", NewestKSelectionPolicy.class.getName(),
+    LOGGER.info(String.format("Will %s %d versions of each dataset.",
+        (this.versionsSelected >= 0 ? "select" : "exclude"),
         this.versionsSelected));
   }
 
   public NewestKSelectionPolicy(Properties props) {
-    this.versionsSelected =
-        Integer.parseInt(props.getProperty(NEWEST_K_VERSIONS_SELECTED_KEY, VERSIONS_SELECTED_DEFAULT));
+    this(getNumVersionsFromProps(props));
 
   }
 
   public NewestKSelectionPolicy(Config config) {
-    this(Integer.parseInt(config.getString(NEWEST_K_VERSIONS_SELECTED_KEY)));
+    this(getNumVersionsFromConfig(config));
+  }
+
+  private static int validateNumVersions(int numVersions) {
+    Preconditions.checkArgument(numVersions >= MIN_VERSIONS_ALLOWED &&
+                                numVersions <= MAX_VERSIONS_ALLOWED);
+    return numVersions;
+  }
+
+  private static int getNumVersionsFromProps(Properties props) {
+    if (props.containsKey(NEWEST_K_VERSIONS_SELECTED_KEY)) {
+      if (props.containsKey(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
+        throw new RuntimeException("Only one of " + NEWEST_K_VERSIONS_SELECTED_KEY +
+                                   " and " + NEWEST_K_VERSIONS_NOTSELECTED_KEY +
+                                   " can be specified.");
+      }
+      String val = props.getProperty(NEWEST_K_VERSIONS_SELECTED_KEY);
+      return validateNumVersions(Integer.parseInt(props.getProperty(NEWEST_K_VERSIONS_SELECTED_KEY)));
+    } else if (props.containsKey(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
+      return -validateNumVersions(Integer.parseInt(props.getProperty(NEWEST_K_VERSIONS_NOTSELECTED_KEY)));
+    } else {
+      return VERSIONS_SELECTED_DEFAULT;
+    }
+  }
+
+  private static int getNumVersionsFromConfig(Config config) {
+    if (config.hasPath(NEWEST_K_VERSIONS_SELECTED_KEY)) {
+      if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
+        throw new RuntimeException("Only one of " + NEWEST_K_VERSIONS_SELECTED_KEY +
+                                   " and " + NEWEST_K_VERSIONS_NOTSELECTED_KEY +
+                                   " can be specified.");
+      }
+      return validateNumVersions(config.getInt(NEWEST_K_VERSIONS_SELECTED_KEY));
+    } else if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
+      return -validateNumVersions(config.getInt(NEWEST_K_VERSIONS_NOTSELECTED_KEY));
+    } else {
+      return VERSIONS_SELECTED_DEFAULT;
+    }
   }
 
   @Override
@@ -59,8 +120,16 @@ public class NewestKSelectionPolicy<T extends DatasetVersion> implements Version
   }
 
   @Override
-  public Collection<T> listSelectedVersions(List<T> allVersions) {
-    int resSize = Math.min(this.versionsSelected, allVersions.size());
-    return allVersions.subList(0, resSize);
+  public Collection<DatasetVersion> listSelectedVersions(List<DatasetVersion> allVersions) {
+    int allVersionsSize = allVersions.size();
+    int startIdx = this.versionsSelected >= 0 ? 0 : Math.min(-this.versionsSelected, allVersionsSize);
+    int endIdx = this.versionsSelected >= 0 ? Math.min(allVersionsSize, this.versionsSelected)
+        : allVersionsSize;
+    return allVersions.subList(startIdx, endIdx);
+  }
+
+  @VisibleForTesting
+  int getVersionsSelected() {
+    return versionsSelected;
   }
 }
