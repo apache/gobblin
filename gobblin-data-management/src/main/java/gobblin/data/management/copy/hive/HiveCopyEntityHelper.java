@@ -119,11 +119,10 @@ public class HiveCopyEntityHelper {
    * If the predicate returns true, the partition will be skipped. */
   public static final String FAST_PARTITION_SKIP_PREDICATE =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.fast.partition.skip.predicate";
-  /** If true, on deregistration of a partition, the entire partition location will be deleted.
-   * This is faster that deleting specific data files, but if non-data files are present in the directory it may be
-   * inconvenient. */
-  public static final String DELETE_LOCATION_RECURSIVELY_ON_DEREGISTER =
-      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.deregister.deleteLocationRecursively";
+  /** Method for deleting files on deregister. One of {@link DeregisterFileDeleteMethod}. */
+  public static final String DELETE_FILES_ON_DEREGISTER =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.deregister.fileDeleteMethod";
+  public static final DeregisterFileDeleteMethod DEFAULT_DEREGISTER_DELETE_METHOD = DeregisterFileDeleteMethod.NO_DELETE;
 
   private static final String databaseToken = "$DB";
   private static final String tableToken = "$TABLE";
@@ -164,6 +163,15 @@ public class HiveCopyEntityHelper {
     REPLACE_PARTITIONS,
     /** Abort copying of conflict table. */
     ABORT
+  }
+
+  public enum DeregisterFileDeleteMethod {
+    /** Delete the files pointed at by the input format. */
+    INPUT_FORMAT,
+    /** Delete all files at the partition location recursively. */
+    RECURSIVE,
+    /** Don't delete files, just deregister partition. */
+    NO_DELETE
   }
 
   /**
@@ -505,22 +513,29 @@ public class HiveCopyEntityHelper {
 
     int stepPriority = initialPriority;
 
-    Collection<Path> partitionPaths;
-    if (this.dataset.properties.containsKey(DELETE_LOCATION_RECURSIVELY_ON_DEREGISTER) &&
-        Boolean.parseBoolean(this.dataset.properties.getProperty(DELETE_LOCATION_RECURSIVELY_ON_DEREGISTER))) {
+    Collection<Path> partitionPaths = Lists.newArrayList();
+    DeregisterFileDeleteMethod deleteMethod = this.dataset.properties.containsKey(DELETE_FILES_ON_DEREGISTER)
+        ? DeregisterFileDeleteMethod.valueOf(this.dataset.properties.getProperty(DELETE_FILES_ON_DEREGISTER).toUpperCase())
+        : DEFAULT_DEREGISTER_DELETE_METHOD;
+
+    if (deleteMethod == DeregisterFileDeleteMethod.RECURSIVE) {
       partitionPaths = Lists.newArrayList(partition.getDataLocation());
-    } else {
+    } else if (deleteMethod == DeregisterFileDeleteMethod.INPUT_FORMAT) {
       InputFormat<?, ?> inputFormat = HiveUtils.getInputFormat(partition.getTPartition().getSd());
 
       HiveLocationDescriptor targetLocation =
           new HiveLocationDescriptor(partition.getDataLocation(), inputFormat, this.targetFs, this.dataset.properties);
 
       partitionPaths = targetLocation.getPaths();
+    } else if (deleteMethod == DeregisterFileDeleteMethod.NO_DELETE) {
+      partitionPaths = Lists.newArrayList();
     }
 
-    DeleteFileCommitStep deletePaths = DeleteFileCommitStep.fromPaths(targetFs, partitionPaths, this.dataset.properties,
-        table.getDataLocation());
-    copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deletePaths, stepPriority++));
+    if (!partitionPaths.isEmpty()) {
+      DeleteFileCommitStep deletePaths =
+          DeleteFileCommitStep.fromPaths(targetFs, partitionPaths, this.dataset.properties, table.getDataLocation());
+      copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deletePaths, stepPriority++));
+    }
 
     PartitionDeregisterStep deregister =
         new PartitionDeregisterStep(table.getTTable(), partition.getTPartition(), targetURI, hiveRegProps);
