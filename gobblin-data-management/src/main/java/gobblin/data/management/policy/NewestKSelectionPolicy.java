@@ -26,6 +26,8 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.version.DatasetVersion;
 
+import lombok.Data;
+
 
 /**
  * Select the newest k versions of the dataset.
@@ -57,49 +59,58 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
   public static final Integer MAX_VERSIONS_ALLOWED = 1000000;
   public static final Integer MIN_VERSIONS_ALLOWED = 1;
 
-  /** Number of versions to keep if non-negative; number of versions to exclude if negative. */
-  private final int versionsSelected;
+  @Data
+  private static class Params {
+    private final int versionsSelected;
+    private final boolean excludeMode;
 
-  public NewestKSelectionPolicy(int versionsRetained) {
-    this.versionsSelected = versionsRetained;
+    Params(int versionsSelected, boolean excludeMode) {
+      Preconditions.checkArgument(versionsSelected >= MIN_VERSIONS_ALLOWED &&
+                                  versionsSelected <= MAX_VERSIONS_ALLOWED);
+
+      this.versionsSelected = versionsSelected;
+      this.excludeMode = excludeMode;
+    }
+
+    static Params createFromConfig(Config config) {
+      if (config.hasPath(NEWEST_K_VERSIONS_SELECTED_KEY)) {
+        if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
+          throw new RuntimeException("Only one of " + NEWEST_K_VERSIONS_SELECTED_KEY +
+                                     " and " + NEWEST_K_VERSIONS_NOTSELECTED_KEY +
+                                     " can be specified.");
+        }
+        return new Params(config.getInt(NEWEST_K_VERSIONS_SELECTED_KEY), false);
+      } else if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
+        return new Params(config.getInt(NEWEST_K_VERSIONS_NOTSELECTED_KEY), true);
+      } else {
+        return new Params(VERSIONS_SELECTED_DEFAULT, false);
+      }
+    }
+
+    static Params createFromProps(Properties props) {
+      return createFromConfig(ConfigFactory.parseProperties(props));
+    }
+  }
+
+  private final Params params;
+
+  private NewestKSelectionPolicy(Params params) {
+    this.params = params;
     LOGGER.info(String.format("Will %s %d versions of each dataset.",
-        (this.versionsSelected >= 0 ? "select" : "exclude"),
-        this.versionsSelected));
+        (this.params.excludeMode ? "select" : "exclude"),
+        this.params.versionsSelected));
+  }
+
+  public NewestKSelectionPolicy(int versionsRetained, boolean excludeMode) {
+    this(new Params(versionsRetained, excludeMode));
   }
 
   public NewestKSelectionPolicy(Properties props) {
-    this(getNumVersionsFromProps(props));
-
+    this(Params.createFromProps(props));
   }
 
   public NewestKSelectionPolicy(Config config) {
-    this(getNumVersionsFromConfig(config));
-  }
-
-  private static int validateNumVersions(int numVersions) {
-    Preconditions.checkArgument(numVersions >= MIN_VERSIONS_ALLOWED &&
-                                numVersions <= MAX_VERSIONS_ALLOWED);
-    return numVersions;
-  }
-
-  private static int getNumVersionsFromProps(Properties props) {
-    Config conf = ConfigFactory.parseProperties(props);
-    return getNumVersionsFromConfig(conf);
-  }
-
-  private static int getNumVersionsFromConfig(Config config) {
-    if (config.hasPath(NEWEST_K_VERSIONS_SELECTED_KEY)) {
-      if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
-        throw new RuntimeException("Only one of " + NEWEST_K_VERSIONS_SELECTED_KEY +
-                                   " and " + NEWEST_K_VERSIONS_NOTSELECTED_KEY +
-                                   " can be specified.");
-      }
-      return validateNumVersions(config.getInt(NEWEST_K_VERSIONS_SELECTED_KEY));
-    } else if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
-      return -validateNumVersions(config.getInt(NEWEST_K_VERSIONS_NOTSELECTED_KEY));
-    } else {
-      return VERSIONS_SELECTED_DEFAULT;
-    }
+    this(Params.createFromConfig(config));
   }
 
   @Override
@@ -109,11 +120,11 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
 
   @Override
   public Collection<DatasetVersion> listSelectedVersions(List<DatasetVersion> allVersions) {
-    if (this.versionsSelected > 0) {
-      return getBoundarySafeSublist(allVersions, 0, this.versionsSelected);
+    if (this.isExcludeMode()) {
+      return getBoundarySafeSublist(allVersions, this.getVersionsSelected(), allVersions.size());
     }
     else {
-      return getBoundarySafeSublist(allVersions, - this.versionsSelected, allVersions.size());
+      return getBoundarySafeSublist(allVersions, 0, this.getVersionsSelected());
     }
   }
 
@@ -127,6 +138,11 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
 
   @VisibleForTesting
   int getVersionsSelected() {
-    return versionsSelected;
+    return this.params.getVersionsSelected();
+  }
+
+  @VisibleForTesting
+  boolean isExcludeMode() {
+    return this.params.isExcludeMode();
   }
 }

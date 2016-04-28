@@ -72,9 +72,7 @@ public class NewestKSelectionPolicyTest {
       ImmutableMap.<String, Integer>builder()
       .put("empty", NewestKSelectionPolicy.VERSIONS_SELECTED_DEFAULT)
       .put("selectedPos", 5)
-      .put("selectedNeg", -5)
       .put("notSelectedPos", -10)
-      .put("notSelectedNeg", 10)
       .build();
 
   public static class TestStringDatasetVersion implements DatasetVersion,
@@ -109,7 +107,10 @@ public class NewestKSelectionPolicyTest {
         testProps.setProperty(prop.getKey(), prop.getValue().toString());
       }
       NewestKSelectionPolicy policy = new NewestKSelectionPolicy(testProps);
-      Assert.assertEquals(policy.getVersionsSelected(), TEST_RESULTS.get(testName).intValue(),
+      Assert.assertEquals(policy.getVersionsSelected(),
+                          Math.abs(TEST_RESULTS.get(testName).intValue()),
+                          "Failure for test " + testName);
+      Assert.assertEquals(policy.isExcludeMode(), TEST_RESULTS.get(testName).intValue() < 0,
                           "Failure for test " + testName);
     }
 
@@ -135,8 +136,11 @@ public class NewestKSelectionPolicyTest {
       String testName = test.getKey();
       Config conf = ConfigFactory.parseMap(test.getValue());
       NewestKSelectionPolicy policy = new NewestKSelectionPolicy(conf);
-      Assert.assertEquals(policy.getVersionsSelected(), TEST_RESULTS.get(testName).intValue(),
-                         "Failure for test " + testName);
+      Assert.assertEquals(policy.getVersionsSelected(),
+                          Math.abs(TEST_RESULTS.get(testName).intValue()),
+                          "Failure for test " + testName);
+      Assert.assertEquals(policy.isExcludeMode(), TEST_RESULTS.get(testName).intValue() < 0,
+                          "Failure for test " + testName);
     }
 
     for(Map.Entry<String, Map<String, Integer>> test: NEG_TEST_CONFIGS.entrySet()) {
@@ -189,8 +193,8 @@ public class NewestKSelectionPolicyTest {
                      ConfigValueFactory.fromAnyRef(4));
     policy = new NewestKSelectionPolicy(conf);
     res = policy.listSelectedVersions(versions);
-    idx = -policy.getVersionsSelected();
-    Assert.assertEquals(res.size(), versions.size() + policy.getVersionsSelected());
+    idx = policy.getVersionsSelected();
+    Assert.assertEquals(res.size(), versions.size() - policy.getVersionsSelected());
     for (DatasetVersion v: res) {
       Assert.assertEquals(v, versions.get(idx++), "Mismatch for index " + idx);
     }
