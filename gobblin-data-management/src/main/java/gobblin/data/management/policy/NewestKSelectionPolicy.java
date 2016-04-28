@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.version.DatasetVersion;
 
@@ -82,18 +83,8 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
   }
 
   private static int getNumVersionsFromProps(Properties props) {
-    if (props.containsKey(NEWEST_K_VERSIONS_SELECTED_KEY)) {
-      if (props.containsKey(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
-        throw new RuntimeException("Only one of " + NEWEST_K_VERSIONS_SELECTED_KEY +
-                                   " and " + NEWEST_K_VERSIONS_NOTSELECTED_KEY +
-                                   " can be specified.");
-      }
-      return validateNumVersions(Integer.parseInt(props.getProperty(NEWEST_K_VERSIONS_SELECTED_KEY)));
-    } else if (props.containsKey(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
-      return -validateNumVersions(Integer.parseInt(props.getProperty(NEWEST_K_VERSIONS_NOTSELECTED_KEY)));
-    } else {
-      return VERSIONS_SELECTED_DEFAULT;
-    }
+    Config conf = ConfigFactory.parseProperties(props);
+    return getNumVersionsFromConfig(conf);
   }
 
   private static int getNumVersionsFromConfig(Config config) {
