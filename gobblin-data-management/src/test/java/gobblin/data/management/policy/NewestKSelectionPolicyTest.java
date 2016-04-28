@@ -24,14 +24,8 @@ public class NewestKSelectionPolicyTest {
       .put("selectedPos", ImmutableMap.<String, Integer>builder()
                           .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, 5)
                           .build())
-      .put("selectedNeg", ImmutableMap.<String, Integer>builder()
-          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, -5)
-          .build())
       .put("notSelectedPos", ImmutableMap.<String, Integer>builder()
-          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 10)
-          .build())
-      .put("notSelectedNeg", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, -10)
+                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 10)
                           .build())
       .build();
 
@@ -40,6 +34,26 @@ public class NewestKSelectionPolicyTest {
       .put("bothProps", ImmutableMap.<String, Integer>builder()
                           .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, 5)
                           .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 5)
+                          .build())
+      .put("selectedNeg", ImmutableMap.<String, Integer>builder()
+                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, -5)
+                          .build())
+      .put("notSelectedNeg", ImmutableMap.<String, Integer>builder()
+                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, -1)
+                          .build())
+      .put("selectedBig", ImmutableMap.<String, Integer>builder()
+                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY,
+                               NewestKSelectionPolicy.MAX_VERSIONS_ALLOWED + 1)
+                          .build())
+      .put("notSelectedBig", ImmutableMap.<String, Integer>builder()
+                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY,
+                              NewestKSelectionPolicy.MAX_VERSIONS_ALLOWED + 1)
+                          .build())
+      .put("selected0", ImmutableMap.<String, Integer>builder()
+                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, 0)
+                          .build())
+      .put("notSelected0", ImmutableMap.<String, Integer>builder()
+                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 0)
                           .build())
       .build();
 

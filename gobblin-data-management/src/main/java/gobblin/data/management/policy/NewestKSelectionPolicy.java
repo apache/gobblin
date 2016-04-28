@@ -38,8 +38,7 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
    * {@link #NEWEST_K_VERSIONS_SELECTED_KEY} and {@link #NEWEST_K_VERSIONS_NOTSELECTED_KEY} can
    * be specified. The default is {@link #NEWEST_K_VERSIONS_SELECTED_KEY} with a value of
    * {@link #VERSIONS_SELECTED_DEFAULT_INT}. Valid values are in the range
-   * [{@link #MIN_VERSIONS_ALLOWED}, {@link #MAX_VERSIONS_ALLOWED}]. Negative values are interpreted
-   * as {@link #NEWEST_K_VERSIONS_NOTSELECTED_KEY} with the absolute value.
+   * [{@link #MIN_VERSIONS_ALLOWED}, {@link #MAX_VERSIONS_ALLOWED}].
    */
   public static final String NEWEST_K_VERSIONS_SELECTED_KEY = "selection.newestK.versionsSelected";
 
@@ -48,15 +47,14 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
    * {@link #NEWEST_K_VERSIONS_SELECTED_KEY} and {@link #NEWEST_K_VERSIONS_NOTSELECTED_KEY} can
    * be specified. The default is {@link #NEWEST_K_VERSIONS_SELECTED_KEY} with a value of
    * {@link #VERSIONS_SELECTED_DEFAULT}. Valid values are in the range
-   * [{@link #MIN_VERSIONS_ALLOWED}, {@link #MAX_VERSIONS_ALLOWED}]. Negative values are interpreted
-   * as {@link #NEWEST_K_VERSIONS_SELECTED_KEY} with the absolute value.
+   * [{@link #MIN_VERSIONS_ALLOWED}, {@link #MAX_VERSIONS_ALLOWED}].
    */
   public static final String NEWEST_K_VERSIONS_NOTSELECTED_KEY = "selection.newestK.versionsNotSelected";
 
   public static final Integer VERSIONS_SELECTED_DEFAULT = 2;
 
   public static final Integer MAX_VERSIONS_ALLOWED = 1000000;
-  public static final Integer MIN_VERSIONS_ALLOWED = - MAX_VERSIONS_ALLOWED;
+  public static final Integer MIN_VERSIONS_ALLOWED = 1;
 
   /** Number of versions to keep if non-negative; number of versions to exclude if negative. */
   private final int versionsSelected;
@@ -90,7 +88,6 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
                                    " and " + NEWEST_K_VERSIONS_NOTSELECTED_KEY +
                                    " can be specified.");
       }
-      String val = props.getProperty(NEWEST_K_VERSIONS_SELECTED_KEY);
       return validateNumVersions(Integer.parseInt(props.getProperty(NEWEST_K_VERSIONS_SELECTED_KEY)));
     } else if (props.containsKey(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
       return -validateNumVersions(Integer.parseInt(props.getProperty(NEWEST_K_VERSIONS_NOTSELECTED_KEY)));
@@ -121,11 +118,20 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
 
   @Override
   public Collection<DatasetVersion> listSelectedVersions(List<DatasetVersion> allVersions) {
-    int allVersionsSize = allVersions.size();
-    int startIdx = this.versionsSelected >= 0 ? 0 : Math.min(-this.versionsSelected, allVersionsSize);
-    int endIdx = this.versionsSelected >= 0 ? Math.min(allVersionsSize, this.versionsSelected)
-        : allVersionsSize;
-    return allVersions.subList(startIdx, endIdx);
+    if (this.versionsSelected > 0) {
+      return getBoundarySafeSublist(allVersions, 0, this.versionsSelected);
+    }
+    else {
+      return getBoundarySafeSublist(allVersions, - this.versionsSelected, allVersions.size());
+    }
+  }
+
+  static List<DatasetVersion> getBoundarySafeSublist(List<DatasetVersion> l, int fromIndex,
+                                                     int toIndex) {
+    fromIndex = Math.min(fromIndex, l.size());
+    toIndex = Math.min(toIndex, l.size());
+
+    return l.subList(fromIndex, toIndex);
   }
 
   @VisibleForTesting
