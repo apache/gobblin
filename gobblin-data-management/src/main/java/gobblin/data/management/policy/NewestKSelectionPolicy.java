@@ -19,7 +19,6 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import gobblin.data.management.version.DatasetVersion;
@@ -61,16 +60,7 @@ public class NewestKSelectionPolicy<T extends DatasetVersion> implements Version
 
   @Override
   public Collection<T> listSelectedVersions(List<T> allVersions) {
-    int newerVersions = 0;
-    List<T> selectedVersions = Lists.newArrayList();
-    for (T datasetVersion : allVersions) {
-      if (newerVersions < this.versionsSelected) {
-        selectedVersions.add(datasetVersion);
-      } else {
-        break;
-      }
-      newerVersions++;
-    }
-    return selectedVersions;
+    int resSize = Math.min(this.versionsSelected, allVersions.size());
+    return allVersions.subList(0, resSize);
   }
 }
