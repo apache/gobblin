@@ -172,6 +172,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       log.info(String.format("Created %s workunits ", workUnitList.getWorkUnits().size()));
 
+      copyConfiguration.getCopyContext().logCacheStatistics();
+
       if (state.contains(SIMULATE) && state.getPropAsBoolean(SIMULATE)) {
         Map<FileSet<CopyEntity>, List<WorkUnit>> copyEntitiesMap = workUnitList.getRawWorkUnitMap();
         log.info("Simulate mode enabled. Will not execute the copy.");

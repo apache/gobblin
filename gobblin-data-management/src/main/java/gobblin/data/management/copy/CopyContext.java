@@ -25,10 +25,13 @@ import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * Context that can hold global objects required in a single copy job.
  */
+@Slf4j
 public class CopyContext {
 
   /**
@@ -39,7 +42,7 @@ public class CopyContext {
   private final Cache<Path, Optional<FileStatus>> fileStatusCache;
 
   public CopyContext() {
-    this.fileStatusCache = CacheBuilder.newBuilder().maximumSize(10000).build();
+    this.fileStatusCache = CacheBuilder.newBuilder().recordStats().maximumSize(10000).build();
   }
 
   /**
@@ -61,6 +64,10 @@ public class CopyContext {
     } catch (ExecutionException ee) {
       throw new IOException(ee.getCause());
     }
+  }
+
+  public void logCacheStatistics() {
+    log.info(this.fileStatusCache.stats().toString());
   }
 
 }
