@@ -12,7 +12,6 @@
 
 package gobblin.writer.commands;
 
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.converter.jdbc.JdbcEntryData;
 import gobblin.converter.jdbc.JdbcEntryDatum;
@@ -55,17 +54,19 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
   private int batchSize;
   private final int maxBufferSize;
   private final int maxParamSize;
+  private final Connection conn;
 
-  public MySqlBufferedInserter(State state) {
-    this.batchSize = state.getPropAsInt(ConfigurationKeys.WRITER_JDBC_INSERT_BATCH_SIZE,
-                                        ConfigurationKeys.DEFAULT_WRITER_JDBC_INSERT_BATCH_SIZE);
-    this.maxBufferSize = state.getPropAsInt(ConfigurationKeys.WRITER_JDBC_INSERT_BUFFER_SIZE,
-                                            ConfigurationKeys.DEFAULT_WRITER_JDBC_INSERT_BUFFER_SIZE);
+  public MySqlBufferedInserter(State state, Connection conn) {
+    this.conn = conn;
+    this.batchSize = state.getPropAsInt(WRITER_JDBC_INSERT_BATCH_SIZE,
+                                        DEFAULT_WRITER_JDBC_INSERT_BATCH_SIZE);
+    this.maxBufferSize = state.getPropAsInt(WRITER_JDBC_INSERT_BUFFER_SIZE,
+                                            DEFAULT_WRITER_JDBC_INSERT_BUFFER_SIZE);
     if(batchSize < 1) {
-      throw new IllegalArgumentException(ConfigurationKeys.WRITER_JDBC_INSERT_BATCH_SIZE + " should be a positive number");
+      throw new IllegalArgumentException(WRITER_JDBC_INSERT_BATCH_SIZE + " should be a positive number");
     }
-    this.maxParamSize = state.getPropAsInt(ConfigurationKeys.WRITER_JDBC_MAX_PARAM_SIZE,
-                                           ConfigurationKeys.DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE);
+    this.maxParamSize = state.getPropAsInt(WRITER_JDBC_MAX_PARAM_SIZE,
+                                           DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE);
   }
 
   /**
@@ -74,7 +75,7 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
    * @see gobblin.writer.commands.JdbcBufferedInserter#insert(java.sql.Connection, java.lang.String, java.lang.String, gobblin.converter.jdbc.JdbcEntryData)
    */
   @Override
-  public void insert(Connection conn, String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+  public void insert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
     if(columnNames == null) {
       initializeForBatch(conn, databaseName, table, jdbcEntryData);
     }
@@ -175,7 +176,7 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
   }
 
   @Override
-  public void flush(Connection conn) throws SQLException {
+  public void flush() throws SQLException {
     if(pendingInserts == null || pendingInserts.isEmpty()) {
       return;
     }

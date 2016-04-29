@@ -17,18 +17,10 @@ import gobblin.converter.jdbc.JdbcEntrySchema;
 
 import java.io.IOException;
 
-import org.apache.avro.Schema;
-
-public class JdbcWriterBuilder extends PartitionAwareDataWriterBuilder<JdbcEntrySchema, JdbcEntryData> {
-
-  @Override
-  public boolean validatePartitionSchema(Schema partitionSchema) {
-    return false;
-  }
+public class JdbcWriterBuilder extends DataWriterBuilder<JdbcEntrySchema, JdbcEntryData> {
 
   @Override
   public DataWriter<JdbcEntryData> build() throws IOException {
     return new JdbcWriter(this);
   }
-
 }

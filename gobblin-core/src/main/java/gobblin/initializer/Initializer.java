@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin;
+package gobblin.initializer;
 
 import java.io.Closeable;
 

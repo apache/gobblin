@@ -17,7 +17,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.SchemaConversionException;
 
 import org.apache.avro.Schema;
-import org.testng.Assert;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.annotations.Test;
 
 @Test(groups = { "gobblin.converter.filter" })
@@ -35,7 +35,7 @@ public class AvroFieldsPickConverterTest {
       Schema converted = converter.convertSchema(inputSchema, workUnitState);
       Schema expected = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/fieldPickExpected.avsc"));
 
-      Assert.assertEquals(converted, expected);
+      JSONAssert.assertEquals(expected.toString(), converted.toString(), false);
     }
   }
 
@@ -51,7 +51,7 @@ public class AvroFieldsPickConverterTest {
       Schema converted = converter.convertSchema(inputSchema, workUnitState);
       Schema expected = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/fieldPickExpected.avsc"));
 
-      Assert.assertEquals(converted, expected);
+      JSONAssert.assertEquals(expected.toString(), converted.toString(), false);
     }
   }
 }

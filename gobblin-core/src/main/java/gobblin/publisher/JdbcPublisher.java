@@ -45,12 +45,12 @@ import gobblin.writer.commands.JdbcWriterCommandsFactory;
  */
 public class JdbcPublisher extends DataPublisher {
   public static final String JDBC_PUBLISHER_PREFIX = "jdbc.publisher.";
-  public static final String JDBC_PUBLISHER_DATABASE_NAME = JDBC_PUBLISHER_PREFIX + "database.name";
-  public static final String JDBC_PUBLISHER_FINAL_TABLE_NAME = JDBC_PUBLISHER_PREFIX + "table.name";
-  public static final String JDBC_PUBLISHER_REPLACE_FINAL_TABLE = JDBC_PUBLISHER_PREFIX + "replace.table";
+  public static final String JDBC_PUBLISHER_DATABASE_NAME = JDBC_PUBLISHER_PREFIX + "database_name";
+  public static final String JDBC_PUBLISHER_FINAL_TABLE_NAME = JDBC_PUBLISHER_PREFIX + "table_name";
+  public static final String JDBC_PUBLISHER_REPLACE_FINAL_TABLE = JDBC_PUBLISHER_PREFIX + "replace_table";
   public static final String JDBC_PUBLISHER_USERNAME = JDBC_PUBLISHER_PREFIX + "username";
   public static final String JDBC_PUBLISHER_PASSWORD = JDBC_PUBLISHER_PREFIX + "password";
-  public static final String JDBC_PUBLISHER_ENCRYPTION_KEY_LOC = JDBC_PUBLISHER_PREFIX + "encrypt.key.loc";
+  public static final String JDBC_PUBLISHER_ENCRYPTION_KEY_LOC = JDBC_PUBLISHER_PREFIX + "encrypt_key_loc";
   public static final String JDBC_PUBLISHER_URL = JDBC_PUBLISHER_PREFIX + "url";
   public static final String JDBC_PUBLISHER_TIMEOUT = JDBC_PUBLISHER_PREFIX + "timeout";
   public static final String JDBC_PUBLISHER_DRIVER = JDBC_PUBLISHER_PREFIX + "driver";
@@ -133,8 +133,8 @@ public class JdbcPublisher extends DataPublisher {
     int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
     Set<String> emptiedDestTables = Sets.newHashSet();
 
-    final JdbcWriterCommands commands = jdbcWriterCommandsFactory.newInstance(state);
     final Connection conn = createConnection();
+    final JdbcWriterCommands commands = jdbcWriterCommandsFactory.newInstance(state, conn);
     try {
       conn.setAutoCommit(false);
 
@@ -146,7 +146,7 @@ public class JdbcPublisher extends DataPublisher {
         if(state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
            && !emptiedDestTables.contains(destinationTable)) {
           LOG.info("Deleting table " + destinationTable);
-            commands.deleteAll(conn, destinationTable);
+            commands.deleteAll(destinationTable);
             emptiedDestTables.add(destinationTable);
         }
 
@@ -154,7 +154,7 @@ public class JdbcPublisher extends DataPublisher {
         for (Map.Entry<String, List<WorkUnitState>> entry : stagingTables.entrySet()) {
           String stagingTable = entry.getKey();
           LOG.info("Copying data from staging table " + stagingTable + " into destination table " + destinationTable);
-            commands.copyTable(conn, databaseName, stagingTable, destinationTable);
+            commands.copyTable(databaseName, stagingTable, destinationTable);
             for (WorkUnitState workUnitState : entry.getValue()) {
               workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
             }

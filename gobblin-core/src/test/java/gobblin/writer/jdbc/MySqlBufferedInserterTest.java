@@ -13,7 +13,7 @@
 package gobblin.writer.jdbc;
 
 import static org.mockito.Mockito.*;
-import gobblin.configuration.ConfigurationKeys;
+import static gobblin.writer.commands.JdbcBufferedInserter.*;
 import gobblin.configuration.State;
 import gobblin.converter.jdbc.JdbcEntryData;
 import gobblin.converter.jdbc.JdbcEntryDatum;
@@ -43,18 +43,20 @@ public class MySqlBufferedInserterTest {
     final int colSize = 7;
 
     State state = new State();
-    state.setProp(ConfigurationKeys.WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
-    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state);
+    state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
 
     Connection conn = mock(Connection.class);
+
+    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state, conn);
+
     PreparedStatement pstmt = mock(PreparedStatement.class);
     when(conn.prepareStatement(anyString())).thenReturn(pstmt);
 
     List<JdbcEntryData> jdbcEntries = createJdbcEntries(colNums, colSize, entryCount);
     for(JdbcEntryData entry : jdbcEntries) {
-      inserter.insert(conn, db, table, entry);
+      inserter.insert(db, table, entry);
     }
-    inserter.flush(conn);
+    inserter.flush();
 
     verify(conn, times(2)).prepareStatement(anyString());
     verify(pstmt, times(11)).clearParameters();
@@ -74,20 +76,21 @@ public class MySqlBufferedInserterTest {
     final int bufferSize = (int) (entrySize * batchSize * bufferRatio);
 
     State state = new State();
-    state.setProp(ConfigurationKeys.WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
-    state.setProp(ConfigurationKeys.WRITER_JDBC_INSERT_BUFFER_SIZE, Integer.toString(bufferSize));
-
-    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state);
+    state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
+    state.setProp(WRITER_JDBC_INSERT_BUFFER_SIZE, Integer.toString(bufferSize));
 
     Connection conn = mock(Connection.class);
+    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state, conn);
+
+
     PreparedStatement pstmt = mock(PreparedStatement.class);
     when(conn.prepareStatement(anyString())).thenReturn(pstmt);
 
     List<JdbcEntryData> jdbcEntries = createJdbcEntries(colNums, colSize, entryCount);
     for(JdbcEntryData entry : jdbcEntries) {
-      inserter.insert(conn, db, table, entry);
+      inserter.insert(db, table, entry);
     }
-    inserter.flush(conn);
+    inserter.flush();
 
     int expectedBatchSize = (int) (batchSize * bufferRatio);
     int expectedExecuteCount = entryCount / expectedBatchSize + 1;
@@ -107,20 +110,20 @@ public class MySqlBufferedInserterTest {
     final int maxParamSize = 10000;
 
     State state = new State();
-    state.setProp(ConfigurationKeys.WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
-    state.setProp(ConfigurationKeys.WRITER_JDBC_MAX_PARAM_SIZE, maxParamSize);
-
-    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state);
+    state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
+    state.setProp(WRITER_JDBC_MAX_PARAM_SIZE, maxParamSize);
 
     Connection conn = mock(Connection.class);
+    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state, conn);
+
     PreparedStatement pstmt = mock(PreparedStatement.class);
     when(conn.prepareStatement(anyString())).thenReturn(pstmt);
 
     List<JdbcEntryData> jdbcEntries = createJdbcEntries(colNums, colSize, entryCount);
     for(JdbcEntryData entry : jdbcEntries) {
-      inserter.insert(conn, db, table, entry);
+      inserter.insert(db, table, entry);
     }
-    inserter.flush(conn);
+    inserter.flush();
 
     int expectedBatchSize = maxParamSize / colNums;
     int expectedExecuteCount = entryCount / expectedBatchSize + 1;

@@ -12,7 +12,7 @@
 
 package gobblin.writer.initializer;
 
-import gobblin.Initializer;
+import gobblin.initializer.Initializer;
 
 public interface WriterInitializer extends Initializer {
 

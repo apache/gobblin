@@ -16,10 +16,15 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 
+@ToString
+@EqualsAndHashCode
 public class JdbcEntrySchema implements Iterable<JdbcEntryMetaDatum> {
   private final Map<String, JdbcEntryMetaDatum> jdbcMetaData; //Pair of column name and JdbcType
 
@@ -45,11 +50,6 @@ public class JdbcEntrySchema implements Iterable<JdbcEntryMetaDatum> {
     return jdbcMetaData.keySet();
   }
 
-  @Override
-  public String toString() {
-    return String.format("JdbcEntrySchema [jdbcMetaData=%s]", jdbcMetaData);
-  }
-
   /**
    * Provides iterator sorted by column name
    * {@inheritDoc}
@@ -58,22 +58,5 @@ public class JdbcEntrySchema implements Iterable<JdbcEntryMetaDatum> {
   @Override
   public Iterator<JdbcEntryMetaDatum> iterator() {
     return jdbcMetaData.values().iterator();
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj)
-      return true;
-    if (obj == null)
-      return false;
-    if (getClass() != obj.getClass())
-      return false;
-    JdbcEntrySchema other = (JdbcEntrySchema) obj;
-    if (jdbcMetaData == null) {
-      if (other.jdbcMetaData != null)
-        return false;
-    } else if (!jdbcMetaData.equals(other.jdbcMetaData))
-      return false;
-    return true;
   }
 }

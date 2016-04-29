@@ -34,6 +34,9 @@ import org.apache.avro.Schema;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Maps;
+import com.google.gson.Gson;
+
 @Test(groups = {"gobblin.converter"})
 public class AvroToJdbcEntryConverterTest {
 
@@ -46,10 +49,10 @@ public class AvroToJdbcEntryConverterTest {
     dateColums.put("created", JdbcType.TIMESTAMP);
 
     JdbcWriterCommands mockWriterCommands = mock(JdbcWriterCommands.class);
-    when(mockWriterCommands.retrieveDateColumns(mock(Connection.class), table)).thenReturn(dateColums);
+    when(mockWriterCommands.retrieveDateColumns(table)).thenReturn(dateColums);
 
     JdbcWriterCommandsFactory factory = mock(JdbcWriterCommandsFactory.class);
-    when(factory.newInstance(any(State.class))).thenReturn(mockWriterCommands);
+    when(factory.newInstance(any(State.class), any(Connection.class))).thenReturn(mockWriterCommands);
 
     List<JdbcEntryMetaDatum> jdbcEntryMetaData = new ArrayList<>();
     jdbcEntryMetaData.add(new JdbcEntryMetaDatum("name", JdbcType.VARCHAR));
@@ -63,10 +66,18 @@ public class AvroToJdbcEntryConverterTest {
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/fieldPickInput.avsc"));
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.appendToListProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
-    AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState, factory);
+    AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState);
     converter = spy(converter);
     doReturn(null).when(converter).createConnection(workUnitState);
     when(converter.createConnection(workUnitState)).thenReturn(null);
+
+    Map<String, JdbcType> dateColumnMapping = Maps.newHashMap();
+    dateColumnMapping.put("date_of_birth", JdbcType.DATE);
+    dateColumnMapping.put("last_modified", JdbcType.TIME);
+    dateColumnMapping.put("created", JdbcType.TIMESTAMP);
+    workUnitState.appendToListProp(AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_DATE_FIELDS,
+                                   new Gson().toJson(dateColumnMapping));
+
     JdbcEntrySchema actual = converter.convertSchema(inputSchema, workUnitState);
 
     Assert.assertEquals(expected, actual);
@@ -79,10 +90,10 @@ public class AvroToJdbcEntryConverterTest {
 
     final String table = "users";
     JdbcWriterCommands mockWriterCommands = mock(JdbcWriterCommands.class);
-    when(mockWriterCommands.retrieveDateColumns(mock(Connection.class), table)).thenReturn(dateColums);
+    when(mockWriterCommands.retrieveDateColumns(table)).thenReturn(dateColums);
 
     JdbcWriterCommandsFactory factory = mock(JdbcWriterCommandsFactory.class);
-    when(factory.newInstance(any(State.class))).thenReturn(mockWriterCommands);
+    when(factory.newInstance(any(State.class), any(Connection.class))).thenReturn(mockWriterCommands);
 
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.appendToListProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
@@ -90,7 +101,7 @@ public class AvroToJdbcEntryConverterTest {
     workUnitState.appendToListProp(ConfigurationKeys.CONVERTER_AVRO_JDBC_ENTRY_FIELDS_PAIRS, fieldPairJson);
     workUnitState.appendToListProp(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, DestinationType.MYSQL.name());
 
-    AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState, factory);
+    AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState);
     converter = spy(converter);
     doReturn(null).when(converter).createConnection(workUnitState);
     when(converter.createConnection(workUnitState)).thenReturn(null);
@@ -110,6 +121,10 @@ public class AvroToJdbcEntryConverterTest {
     jdbcEntryMetaData.add(new JdbcEntryMetaDatum("vertical", JdbcType.VARCHAR));
 
     JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData);
+
+    Map<String, JdbcType> dateColumnMapping = Maps.newHashMap();
+    workUnitState.appendToListProp(AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_DATE_FIELDS,
+                                   new Gson().toJson(dateColumnMapping));
     JdbcEntrySchema actual = converter.convertSchema(inputSchema, workUnitState);
 
     Assert.assertEquals(expected, actual);

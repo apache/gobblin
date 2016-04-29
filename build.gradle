@@ -227,7 +227,8 @@ ext.externalDependency = [
   ],
   "servlet-api": "javax.servlet:servlet-api:3.1.0",
   "reflections" : "org.reflections:reflections:0.9.9",
-  "guavaretrying": "com.github.rholder:guava-retrying:2.0.0"
+  "guavaretrying": "com.github.rholder:guava-retrying:2.0.0",
+  "jsonAssert": "org.skyscreamer:jsonassert:1.2.3"
 ];
 
 if (!isDefaultEnvironment)

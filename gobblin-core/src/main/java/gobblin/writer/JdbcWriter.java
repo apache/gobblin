@@ -84,9 +84,9 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
                                                                         builder.branches,
                                                                         builder.branch);
     this.tableName = Preconditions.checkNotNull(state.getProp(stagingTableKey), "Staging table is missing with key " + stagingTableKey);
-    this.commands = new JdbcWriterCommandsFactory().newInstance(state);
     try {
       this.conn = createConnection();
+      this.commands = new JdbcWriterCommandsFactory().newInstance(state, conn);
       conn.setAutoCommit(false);
     } catch (SQLException e) {
       throw new RuntimeException(e);
@@ -128,7 +128,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
       LOG.debug("Writing " + record);
     }
     try {
-      commands.insert(conn, databaseName, tableName, record);
+      commands.insert(databaseName, tableName, record);
       recordWrittenCount++;
     } catch (Exception e) {
       failed = true;
@@ -145,7 +145,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   public void commit() throws IOException {
     try {
       LOG.info("Flushing pending insert.");
-      commands.flush(conn);
+      commands.flush();
       LOG.info("Commiting transaction.");
       conn.commit();
     } catch (Exception e) {

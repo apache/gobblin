@@ -12,7 +12,6 @@
 
 package gobblin.runtime;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +41,7 @@ import gobblin.commit.CommitSequenceStore;
 import gobblin.commit.DeliverySemantics;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.initializer.ConverterInitializerFactory;
 import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
@@ -61,7 +61,6 @@ import gobblin.util.ClusterNameTags;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
-import gobblin.writer.initializer.WriterInitializer;
 import gobblin.writer.initializer.WriterInitializerFactory;
 
 
@@ -253,9 +252,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             return;
           }
 
-          WriterInitializer writerInitializer = WriterInitializerFactory.newInstace(jobState, workUnits.get());
-          closer.register(writerInitializer);
-          writerInitializer.initialize();
+          //Initialize writer and converter(s)
+          closer.register(WriterInitializerFactory.newInstace(jobState, workUnits.get())).initialize();
+          closer.register(ConverterInitializerFactory.newInstace(jobState, workUnits.get())).initialize();
 
           TimingEvent stagingDataCleanTimer =
               this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_STAGING_DATA_CLEAN);

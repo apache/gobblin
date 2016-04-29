@@ -15,10 +15,13 @@ package gobblin.converter.jdbc;
 import java.util.Iterator;
 import java.util.Map;
 
+import lombok.ToString;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 
+@ToString
 public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
   private final Map<String, JdbcEntryDatum> jdbcEntryData; //Pair of column name and Object
   private final int byteSize;
@@ -42,11 +45,6 @@ public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
   public Object getVal(String columnName) {
     JdbcEntryDatum datum = jdbcEntryData.get(columnName);
     return datum == null ? null : datum.getVal();
-  }
-
-  @Override
-  public String toString() {
-    return String.format("JdbcEntryData [jdbcEntryData=%s]", jdbcEntryData);
   }
 
   /**

@@ -45,8 +45,8 @@ public class JdbcWriterCommandsTest {
     ResultSet rs = createMockResultSet();
     when(pstmt.executeQuery()).thenReturn(rs);
 
-    MySqlWriterCommands writerCommands = new MySqlWriterCommands(new State());
-    Map<String, JdbcType> actual = writerCommands.retrieveDateColumns(conn, "users");
+    MySqlWriterCommands writerCommands = new MySqlWriterCommands(new State(), conn);
+    Map<String, JdbcType> actual = writerCommands.retrieveDateColumns("users");
 
     ImmutableMap.Builder<String, JdbcType> builder = ImmutableMap.builder();
     builder.put("date_of_birth",JdbcType.DATE);

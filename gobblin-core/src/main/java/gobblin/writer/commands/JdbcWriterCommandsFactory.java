@@ -12,6 +12,8 @@
 
 package gobblin.writer.commands;
 
+import java.sql.Connection;
+
 import com.google.common.base.Preconditions;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -29,10 +31,10 @@ public class JdbcWriterCommandsFactory {
    * @param destination
    * @return Provides JdbcWriterCommands bases on destination.
    */
-  public JdbcWriterCommands newInstance(Destination destination) {
+  public JdbcWriterCommands newInstance(Destination destination, Connection conn) {
     switch (destination.getType()) {
       case MYSQL:
-        return new MySqlWriterCommands(destination.getProperties());
+        return new MySqlWriterCommands(destination.getProperties(), conn);
       default:
         throw new IllegalArgumentException(destination.getType() + " is not supported");
     }
@@ -42,12 +44,12 @@ public class JdbcWriterCommandsFactory {
    * @param state
    * @return Provides JdbcWriterCommands based on ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY
    */
-  public JdbcWriterCommands newInstance(State state) {
+  public JdbcWriterCommands newInstance(State state, Connection conn) {
     String destKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY,
                          state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1),
                          state.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY, 0));
     String destType = state.getProp(destKey);
     Preconditions.checkNotNull(destType, destKey + " is required for underlying JDBC product name");
-    return newInstance(Destination.of(DestinationType.valueOf(destType.toUpperCase()), state));
+    return newInstance(Destination.of(DestinationType.valueOf(destType.toUpperCase()), state), conn);
   }
 }

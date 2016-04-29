@@ -54,9 +54,8 @@ public class JdbcPublisherTest {
 
     commands = mock(JdbcWriterCommands.class);
     factory = mock(JdbcWriterCommandsFactory.class);
-    when(factory.newInstance(any(State.class))).thenReturn(commands);
-
     conn = mock(Connection.class);
+    when(factory.newInstance(state, conn)).thenReturn(commands);
 
     workUnitStates = new ArrayList<>();
     workUnitState = mock(WorkUnitState.class);
@@ -79,12 +78,12 @@ public class JdbcPublisherTest {
     InOrder inOrder = inOrder(conn, commands, workUnitState);
 
     inOrder.verify(conn, times(1)).setAutoCommit(false);
-    inOrder.verify(commands, times(1)).copyTable(conn, database, stagingTable, destinationTable);
+    inOrder.verify(commands, times(1)).copyTable(database, stagingTable, destinationTable);
     inOrder.verify(workUnitState, times(1)).setWorkingState(WorkUnitState.WorkingState.COMMITTED);
     inOrder.verify(conn, times(1)).commit();
     inOrder.verify(conn, times(1)).close();
 
-    verify(commands, never()).deleteAll(conn, destinationTable);
+    verify(commands, never()).deleteAll(destinationTable);
   }
 
   public void testPublishReplaceOutput() throws IOException, SQLException {
@@ -94,15 +93,15 @@ public class JdbcPublisherTest {
     InOrder inOrder = inOrder(conn, commands, workUnitState);
 
     inOrder.verify(conn, times(1)).setAutoCommit(false);
-    inOrder.verify(commands, times(1)).deleteAll(conn, destinationTable);
-    inOrder.verify(commands, times(1)).copyTable(conn, database, stagingTable, destinationTable);
+    inOrder.verify(commands, times(1)).deleteAll(destinationTable);
+    inOrder.verify(commands, times(1)).copyTable(database, stagingTable, destinationTable);
     inOrder.verify(workUnitState, times(1)).setWorkingState(WorkUnitState.WorkingState.COMMITTED);
     inOrder.verify(conn, times(1)).commit();
     inOrder.verify(conn, times(1)).close();
   }
 
   public void testPublishFailure() throws SQLException, IOException {
-    doThrow(RuntimeException.class).when(commands).copyTable(conn, database, stagingTable, destinationTable);
+    doThrow(RuntimeException.class).when(commands).copyTable(database, stagingTable, destinationTable);
 
     try {
       publisher.publish(workUnitStates);
@@ -114,13 +113,13 @@ public class JdbcPublisherTest {
     InOrder inOrder = inOrder(conn, commands, workUnitState);
 
     inOrder.verify(conn, times(1)).setAutoCommit(false);
-    inOrder.verify(commands, times(1)).copyTable(conn, database, stagingTable, destinationTable);
+    inOrder.verify(commands, times(1)).copyTable(database, stagingTable, destinationTable);
 
     inOrder.verify(conn, times(1)).rollback();
     inOrder.verify(conn, times(1)).close();
 
     verify(conn, never()).commit();
-    verify(commands, never()).deleteAll(conn, destinationTable);
+    verify(commands, never()).deleteAll(destinationTable);
     verify(workUnitState, never()).setWorkingState(any(WorkUnitState.WorkingState.class));
   }
 }

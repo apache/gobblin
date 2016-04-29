@@ -7,10 +7,15 @@ import java.util.Properties;
 
 import javax.sql.DataSource;
 
+import lombok.ToString;
+
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+
+@ToString(exclude="passWord")
 public class DataSourceBuilder {
   private static final Logger LOG = LoggerFactory.getLogger(DataSourceBuilder.class);
 
@@ -110,27 +115,11 @@ public class DataSourceBuilder {
     validateNotEmpty(url, "url");
     validateNotEmpty(driver, "driver");
     validateNotEmpty(passWord, "passWord");
-    validateTrue(maxIdleConnections == null || maxIdleConnections > 0, "maxIdleConnections should be a positive integer.");
-    validateTrue(maxActiveConnections == null || maxActiveConnections > 0, "maxActiveConnections should be a positive integer.");
+    Preconditions.checkArgument(maxIdleConnections == null || maxIdleConnections > 0, "maxIdleConnections should be a positive integer.");
+    Preconditions.checkArgument(maxActiveConnections == null || maxActiveConnections > 0, "maxActiveConnections should be a positive integer.");
   }
 
   private void validateNotEmpty(String s, String name) {
-    if(StringUtils.isEmpty(s)) {
-      throw new IllegalArgumentException(name + " should not be empty.");
-    }
-  }
-
-  private void validateTrue(boolean condition, String message) {
-    if(!condition) {
-      throw new IllegalArgumentException(message);
-    }
-  }
-
-  @Override
-  public String toString() {
-    return "DataSourceBuilder [url=" + url + ", driver=" + driver + ", userName=" + userName + ", passWord=" + passWord
-        + ", maxIdleConnections=" + maxIdleConnections + ", maxActiveConnections=" + maxActiveConnections
-        + ", cryptoKeyLocation=" + cryptoKeyLocation + ", useStrongEncryption=" + useStrongEncryption + ", state="
-        + state + "]";
+    Preconditions.checkArgument(!StringUtils.isEmpty(s), name + " should not be empty.");
   }
 }

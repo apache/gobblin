@@ -12,12 +12,20 @@
 
 package gobblin.writer.commands;
 
+import static gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
 import gobblin.converter.jdbc.JdbcEntryData;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 
 public interface JdbcBufferedInserter {
+
+  public static final String WRITER_JDBC_INSERT_BATCH_SIZE = WRITER_PREFIX + ".jdbc.batch_size";
+  public static final int DEFAULT_WRITER_JDBC_INSERT_BATCH_SIZE = 30;
+  public static final String WRITER_JDBC_INSERT_BUFFER_SIZE = WRITER_PREFIX + ".jdbc.insert_buffer_size";
+  public static final int DEFAULT_WRITER_JDBC_INSERT_BUFFER_SIZE = 1024 * 1024; //1 MBytes
+  public static final int MAX_WRITER_JDBC_INSERT_BUFFER_SIZE = 10 * 1024 * 1024; //10 MBytes
+  public static final String WRITER_JDBC_MAX_PARAM_SIZE = WRITER_PREFIX + ".jdbc.insert_max_param_size";
+  public static final int DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE = 100000; //MySQL limit
 
   /**
    * Inserts entry. Depends on the current batch size, buffer size, param size, it can either put into buffer
@@ -34,12 +42,12 @@ public interface JdbcBufferedInserter {
    * @param jdbcEntryData
    * @throws SQLException
    */
-  public void insert(Connection conn, String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException;
+  public void insert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException;
 
   /**
    * Flushes all the entries in buffer into JDBC RDBMS.
    * @param conn
    * @throws SQLException
    */
-  public void flush(Connection conn) throws SQLException;
+  public void flush() throws SQLException;
 }

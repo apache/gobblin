@@ -61,6 +61,7 @@ dependencies {
   testCompile externalDependency.testng
   testCompile externalDependency.mockRunnerJdbc
   testCompile externalDependency.mockito
+  testCompile externalDependency.jsonAssert
 }
 
 configurations {

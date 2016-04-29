@@ -38,9 +38,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -51,17 +53,18 @@ import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.publisher.JdbcPublisher;
 import gobblin.util.jdbc.DataSourceBuilder;
-import gobblin.writer.commands.JdbcWriterCommands;
-import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
 /**
  * Converts Avro Schema into JdbcEntrySchema
  * Converts Avro GenericRecord into JdbcEntryData
  * Converts Avro field name for JDBC counterpart.
  *
- * This converter is written based on Avro 1.8 specification http://avro.apache.org/docs/1.8.0/spec.html
+ * This converter is written based on Avro 1.7.7 specification https://avro.apache.org/docs/1.7.7/spec.html
  */
 public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema, GenericRecord, JdbcEntryData> {
+
+  public static final String CONVERTER_AVRO_JDBC_DATE_FIELDS = "converter.avro.jdbc.date_fields";
+
   private static final Logger LOG = LoggerFactory.getLogger(AvroToJdbcEntryConverter.class);
   private static final Set<Type> AVRO_SUPPORTED_TYPES;
   private static final Map<Type, JdbcType> AVRO_TYPE_JDBC_TYPE_MAPPING;
@@ -69,8 +72,6 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
 
   private Optional<Map<String, String>> avroToJdbcColPairs = Optional.absent();
   private Optional<Map<String, String>> jdbcToAvroColPairs = Optional.absent();
-  private final JdbcWriterCommandsFactory jdbcWriterCommandsFactory;
-  private JdbcWriterCommands commands;
 
   static {
     AVRO_TYPE_JDBC_TYPE_MAPPING = ImmutableMap.<Type, JdbcType>builder()
@@ -98,12 +99,10 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
 
   public AvroToJdbcEntryConverter() {
     super();
-    this.jdbcWriterCommandsFactory = new JdbcWriterCommandsFactory();
   }
 
   @VisibleForTesting
-  public AvroToJdbcEntryConverter(WorkUnitState workUnit, JdbcWriterCommandsFactory jdbcWriterCommandsFactory) {
-    this.jdbcWriterCommandsFactory = jdbcWriterCommandsFactory;
+  public AvroToJdbcEntryConverter(WorkUnitState workUnit) {
     init(workUnit);
   }
 
@@ -115,9 +114,6 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
    */
   @Override
   public Converter<Schema, JdbcEntrySchema, GenericRecord, JdbcEntryData> init(WorkUnitState workUnit) {
-    this.commands = jdbcWriterCommandsFactory.newInstance(workUnit);
-
-
     String avroToJdbcFieldsPairJsonStr = workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_JDBC_ENTRY_FIELDS_PAIRS);
     if(!StringUtils.isEmpty(avroToJdbcFieldsPairJsonStr)) {
       if (!avroToJdbcColPairs.isPresent()) {
@@ -173,32 +169,29 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
   @Override
   public JdbcEntrySchema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     LOG.info("Converting schema " + inputSchema);
-    try (Connection conn = createConnection(workUnit)) {
-      Map<String, Type> avroColumnType = flatten(inputSchema);
+    Map<String, Type> avroColumnType = flatten(inputSchema);
+    String jsonStr = Preconditions.checkNotNull(workUnit.getProp(CONVERTER_AVRO_JDBC_DATE_FIELDS));
+    java.lang.reflect.Type typeOfMap = new TypeToken<Map<String, JdbcType>>() {
+    }.getType();
+    Map<String, JdbcType> dateColumnMapping = new Gson().fromJson(jsonStr, typeOfMap);
+    LOG.info("Date column mapping: " + dateColumnMapping);
 
-      String table = Preconditions.checkNotNull(workUnit.getProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME));
-      Map<String, JdbcType> dateColumnMapping = commands.retrieveDateColumns(conn, table);
-      LOG.info("Date column mapping: " + dateColumnMapping);
-
-      List<JdbcEntryMetaDatum> jdbcEntryMetaData = Lists.newArrayList();
-      for(Map.Entry<String, Type> avroEntry : avroColumnType.entrySet()) {
-        String colName = tryConvertColumn(avroEntry.getKey(), avroToJdbcColPairs);
-        JdbcType JdbcType = dateColumnMapping.get(colName);
-        if(JdbcType == null) {
-          JdbcType = AVRO_TYPE_JDBC_TYPE_MAPPING.get(avroEntry.getValue());
-        }
-        Preconditions.checkNotNull(JdbcType, "Failed to convert " + avroEntry
+    List<JdbcEntryMetaDatum> jdbcEntryMetaData = Lists.newArrayList();
+    for (Map.Entry<String, Type> avroEntry : avroColumnType.entrySet()) {
+      String colName = tryConvertColumn(avroEntry.getKey(), avroToJdbcColPairs);
+      JdbcType JdbcType = dateColumnMapping.get(colName);
+      if (JdbcType == null) {
+        JdbcType = AVRO_TYPE_JDBC_TYPE_MAPPING.get(avroEntry.getValue());
+      }
+      Preconditions.checkNotNull(JdbcType, "Failed to convert " + avroEntry
                                          + " AVRO_TYPE_JDBC_TYPE_MAPPING: " + AVRO_TYPE_JDBC_TYPE_MAPPING
                                          + " , dateColumnMapping: " + dateColumnMapping);
-
-        jdbcEntryMetaData.add(new JdbcEntryMetaDatum(colName, JdbcType));
-      }
-      JdbcEntrySchema converted = new JdbcEntrySchema(jdbcEntryMetaData);
-      LOG.info("Converted schema into " + converted);
-      return converted;
-    } catch (SQLException e) {
-      throw new SchemaConversionException(e);
+      jdbcEntryMetaData.add(new JdbcEntryMetaDatum(colName, JdbcType));
     }
+
+    JdbcEntrySchema converted = new JdbcEntrySchema(jdbcEntryMetaData);
+    LOG.info("Converted schema into " + converted);
+    return converted;
   }
 
   private String tryConvertColumn(String key, Optional<Map<String, String>> mapping) {

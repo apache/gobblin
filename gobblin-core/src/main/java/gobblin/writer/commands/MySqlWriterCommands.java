@@ -43,29 +43,31 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   private static final String DELETE_STATEMENT_FORMAT = "DELETE FROM %s";
 
   private final JdbcBufferedInserter jdbcBufferedWriter;
+  private final Connection conn;
 
-  public MySqlWriterCommands(State state) {
-    this.jdbcBufferedWriter = new MySqlBufferedInserter(state);
+  public MySqlWriterCommands(State state, Connection conn) {
+    this.conn = conn;
+    this.jdbcBufferedWriter = new MySqlBufferedInserter(state, conn);
   }
 
   @Override
-  public void insert(Connection conn, String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
-    jdbcBufferedWriter.insert(conn, databaseName, table, jdbcEntryData);
+  public void insert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+    jdbcBufferedWriter.insert(databaseName, table, jdbcEntryData);
   }
 
   @Override
-  public void flush(Connection conn) throws SQLException {
-    jdbcBufferedWriter.flush(conn);
+  public void flush() throws SQLException {
+    jdbcBufferedWriter.flush();
   }
 
   @Override
-  public void createTableStructure(Connection conn, String fromStructure, String targetTableName) throws SQLException {
+  public void createTableStructure(String fromStructure, String targetTableName) throws SQLException {
     String sql = String.format(CREATE_TABLE_SQL_FORMAT, targetTableName, fromStructure);
     execute(conn.prepareStatement(sql));
   }
 
   @Override
-  public boolean isEmpty(Connection conn, String table) throws SQLException {
+  public boolean isEmpty(String table) throws SQLException {
     String sql = String.format(SELECT_SQL_FORMAT, table);
     PreparedStatement pstmt = conn.prepareStatement(sql);
     ResultSet resultSet = pstmt.executeQuery();
@@ -76,19 +78,19 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   }
 
   @Override
-  public void truncate(Connection conn, String table) throws SQLException {
+  public void truncate(String table) throws SQLException {
     String sql = String.format(TRUNCATE_TABLE_FORMAT, table);
     execute(conn.prepareStatement(sql));
   }
 
   @Override
-  public void deleteAll(Connection conn, String table) throws SQLException {
+  public void deleteAll(String table) throws SQLException {
     String deleteSql = String.format(DELETE_STATEMENT_FORMAT, table);
     execute(conn.prepareStatement(deleteSql));
   }
 
   @Override
-  public void drop(Connection conn, String table) throws SQLException {
+  public void drop(String table) throws SQLException {
     LOG.info("Dropping table " + table);
     String sql = String.format(DROP_TABLE_SQL_FORMAT, table);
     execute(conn.prepareStatement(sql));
@@ -100,7 +102,7 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
    * @see gobblin.writer.commands.JdbcWriterCommands#retrieveDateColumns(java.sql.Connection, java.lang.String)
    */
   @Override
-  public Map<String, JdbcType> retrieveDateColumns(Connection conn, String table) throws SQLException {
+  public Map<String, JdbcType> retrieveDateColumns(String table) throws SQLException {
     Map<String, JdbcType> targetDataTypes = ImmutableMap.<String, JdbcType>builder()
         .put("DATE", JdbcType.DATE)
         .put("DATETIME", JdbcType.TIME)
@@ -130,7 +132,7 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
 
 
   @Override
-  public void copyTable(Connection conn, String databaseName, String from, String to) throws SQLException {
+  public void copyTable(String databaseName, String from, String to) throws SQLException {
     String sql = String.format(COPY_INSERT_STATEMENT_FORMAT, databaseName, to, databaseName, from);
     execute(conn.prepareStatement(sql));
   }

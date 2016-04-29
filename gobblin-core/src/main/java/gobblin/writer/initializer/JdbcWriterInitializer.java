@@ -34,6 +34,8 @@ import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
+import lombok.ToString;
+
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +48,7 @@ import com.google.common.collect.Sets;
 /**
  * Initialize for JDBC writer and also performs clean up.
  */
+@ToString
 public class JdbcWriterInitializer implements WriterInitializer {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcWriterInitializer.class);
   private static final String STAGING_TABLE_FORMAT = "stage_%d";
@@ -56,7 +59,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
   private final int branchId;
   private final State state;
   private final Collection<WorkUnit> workUnits;
-  private final JdbcWriterCommands commands;
+  private final JdbcWriterCommandsFactory jdbcWriterCommandsFactory;
   private String userCreatedStagingTable;
   private Set<String> createdStagingTables;
 
@@ -71,11 +74,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
     this.workUnits = Lists.newArrayList(workUnits);
     this.branches = branches;
     this.branchId = branchId;
-
-    String destKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, branches, branchId);
-    String destType = Preconditions.checkNotNull(state.getProp(destKey), destKey + " is required for underlying JDBC product name");
-    Destination dest = Destination.of(DestinationType.valueOf(destType.toUpperCase()), state);
-    this.commands = jdbcWriterCommandsFactory.newInstance(dest);
+    this.jdbcWriterCommandsFactory = jdbcWriterCommandsFactory;
     this.createdStagingTables = Sets.newHashSet();
 
     //AbstractJobLauncher assumes that the staging is in HDFS and trying to clean it.
@@ -93,16 +92,17 @@ public class JdbcWriterInitializer implements WriterInitializer {
   public void close() {
     LOG.info("Closing " + this.getClass().getSimpleName());
     try (Connection conn = createConnection()) {
+      JdbcWriterCommands commands = createJdbcWriterCommands(conn);
       if(!createdStagingTables.isEmpty()) {
         for (String stagingTable : createdStagingTables) {
           LOG.info("Dropping staging table " + createdStagingTables);
-          commands.drop(conn, stagingTable);
+          commands.drop(stagingTable);
         }
       }
 
       if(userCreatedStagingTable != null) {
         LOG.info("Truncating staging table " + userCreatedStagingTable);
-        commands.truncate(conn, userCreatedStagingTable);
+        commands.truncate(userCreatedStagingTable);
       }
     } catch (SQLException e) {
       throw new RuntimeException("Failed to close", e);
@@ -132,7 +132,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
     return dataSource.getConnection();
   }
 
-  private String createStagingTable(Connection conn) throws SQLException {
+  private String createStagingTable(Connection conn, JdbcWriterCommands commands) throws SQLException {
     String destTableKey = ForkOperatorUtils.getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId);
     String destinationTable = state.getProp(destTableKey);
     if(StringUtils.isEmpty(destinationTable)) {
@@ -147,10 +147,10 @@ public class JdbcWriterInitializer implements WriterInitializer {
       if (!res.next()) {
         LOG.info("Staging table " + tmp + " does not exist. Creating.");
         try {
-          commands.createTableStructure(conn, destinationTable, tmp);
+          commands.createTableStructure(destinationTable, tmp);
           LOG.info("Test if staging table can be dropped. Test by dropping and Creating staging table.");
-          commands.drop(conn, tmp);
-          commands.createTableStructure(conn, destinationTable, tmp);
+          commands.drop(tmp);
+          commands.createTableStructure(destinationTable, tmp);
           stagingTable = tmp;
           break;
         } catch (SQLException e) {
@@ -198,6 +198,8 @@ public class JdbcWriterInitializer implements WriterInitializer {
   @Override
   public void initialize() {
     try (Connection conn = createConnection()) {
+      JdbcWriterCommands commands = createJdbcWriterCommands(conn);
+
       //1. Check if user chose to skip the staging table
       JobCommitPolicy jobCommitPolicy = JobCommitPolicy.getCommitPolicy(state);
       boolean isSkipStaging = !JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.equals(jobCommitPolicy);
@@ -221,7 +223,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
             //1.1. If user chose to skip the staging table, and user decided to replace final table, truncate final table.
             if (getPropAsBoolean(state, JdbcPublisher.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, branchId)) {
               LOG.info("User chose to replace final table " + publishTable + " on branch " + branchId + " workunit " + i);
-              commands.truncate(conn, publishTable);
+              commands.truncate(publishTable);
             }
           }
           continue;
@@ -240,11 +242,11 @@ public class JdbcWriterInitializer implements WriterInitializer {
                                            branchId),
                                        false)) {
               LOG.info("Truncating staging table " + stagingTable + " as requested.");
-              commands.truncate(conn, stagingTable);
+              commands.truncate(stagingTable);
              }
 
             //2.2. Confirm if staging table is empty.
-            if (!commands.isEmpty(conn, stagingTable)) {
+            if (!commands.isEmpty(stagingTable)) {
               LOG.error("Staging table " + stagingTable + " is not empty. Failing.");
               throw new IllegalArgumentException("Staging table " + stagingTable + " should be empty.");
             }
@@ -255,7 +257,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
 
         //3. Create staging table (At this point user hasn't passed the staging table, and not skipping staging table).
         LOG.info("Staging table has not been passed from user for branch " + branchId + " workunit " + i + " . Creating.");
-        String createdStagingTable = createStagingTable(conn);
+        String createdStagingTable = createStagingTable(conn, commands);
         wu.setProp(stagingTableKey, createdStagingTable);
         createdStagingTables.add(createdStagingTable);
         LOG.info("Staging table " + createdStagingTable + " has been created for branchId " + branchId + " workunit " + i);
@@ -263,6 +265,13 @@ public class JdbcWriterInitializer implements WriterInitializer {
     } catch (SQLException e) {
       throw new RuntimeException("Failed with SQL", e);
     }
+  }
+
+  private JdbcWriterCommands createJdbcWriterCommands(Connection conn) {
+    String destKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, branches, branchId);
+    String destType = Preconditions.checkNotNull(state.getProp(destKey), destKey + " is required for underlying JDBC product name");
+    Destination dest = Destination.of(DestinationType.valueOf(destType.toUpperCase()), state);
+    return jdbcWriterCommandsFactory.newInstance(dest, conn);
   }
 
   /**
@@ -300,13 +309,5 @@ public class JdbcWriterInitializer implements WriterInitializer {
       throw new IllegalArgumentException("Job commit policy should be only " + JobCommitPolicy.COMMIT_ON_FULL_SUCCESS + " when " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is true."
                                          + " Or Job commit policy should not be " + JobCommitPolicy.COMMIT_ON_FULL_SUCCESS + " and " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is false.");
     }
-  }
-
-  @Override
-  public String toString() {
-    return String
-        .format(
-            "JdbcWriterInitializer [branches=%s, branchId=%s, state=%s, workUnits=%s, commands=%s, userCreatedStagingTable=%s, createdStagingTable=%s]",
-            branches, branchId, state, workUnits, commands, userCreatedStagingTable, createdStagingTables);
   }
 }

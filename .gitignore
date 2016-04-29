@@ -19,6 +19,7 @@
 **/*.swo
 **/*.log
 */bin
+**/bin
 build
 **/build
 .gradle

@@ -13,24 +13,19 @@
 package gobblin.converter.filter;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
-
+import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
-import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
+import com.google.common.collect.Maps;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.AvroToAvroConverterBase;
@@ -46,8 +41,7 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
   private static final Logger LOG = LoggerFactory.getLogger(AvroFieldsPickConverter.class);
 
   private static final Splitter SPLITTER_ON_COMMA = Splitter.on(',').trimResults().omitEmptyStrings();
-  private static final Joiner JOINER_ON_DOT = Joiner.on('.');
-  private static final Joiner JOINER_ON_COMMA = Joiner.on(',');
+  private static final Splitter SPLITTER_ON_DOT = Splitter.on('.').trimResults().omitEmptyStrings();
 
   /**
    * Convert the schema to contain only specified field. This will reuse AvroSchemaFieldRemover by listing fields not specified and remove it
@@ -103,71 +97,98 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
                                    + " is required for converter " + this.getClass().getSimpleName());
     LOG.info("Converting schema to selected fields: " + fieldsStr);
 
-    List<String> fields = SPLITTER_ON_COMMA.splitToList(fieldsStr);
-    Set<String> fieldsToRemove = fieldsToRemove(inputSchema, fields);
-    LOG.info("Fields to be removed from schema: " + fieldsToRemove);
-    AvroSchemaFieldRemover remover = new AvroSchemaFieldRemover(JOINER_ON_COMMA.join(fieldsToRemove));
-    Schema converted = remover.removeFieldsStrictly(inputSchema);
-    LOG.info("Converted schema: " + converted);
-    return converted;
+    try {
+      return createSchema(inputSchema, fieldsStr);
+    } catch (Exception e) {
+      throw new SchemaConversionException(e);
+    }
   }
 
   /**
-   * Provides fields to be removed based on required field names.
+   * Creates Schema containing only specified fields.
+   *
+   * Traversing via either fully qualified names or input Schema is quite inefficient as it's hard to align each other.
+   * Also, as Schema's fields is immutable, all the fields need to be collected before updating field in Schema. Figuring out all
+   * required field in just input Schema and fully qualified names is also not efficient as well.
+   *
+   * This is where Trie comes into picture. Having fully qualified names in Trie means, it is aligned with input schema and also it can
+   * provides all children on specific prefix. This solves two problems mentioned above.
+   *
+   * 1. Based on fully qualified field name, build a Trie to present dependencies.
+   * 2. Traverse the Trie. If it's leaf, add field. If it's not a leaf, recurse with child schema.
+   *
    * @param schema
-   * @param requiredFields Fields chosen to be remained in Schema from user.
-   * @return Field names that needs to be removed from Schema
-   * @throws SchemaConversionException If first entry of Avro is not a Record type or if required field(s) does not exist in the Schema.
-   */
-  private Set<String> fieldsToRemove(Schema schema, Collection<String> requiredFields) throws SchemaConversionException {
-    Set<String> copiedRequiredFields = Sets.newHashSet(requiredFields);
-    Set<String> fieldsToRemove = Sets.newHashSet();
-
-    if(!Type.RECORD.equals(schema.getType())) {
-      throw new SchemaConversionException("First entry of Avro schema should be a Record type " + schema);
-    }
-    LinkedList<String> fullyQualifiedName = Lists.<String>newLinkedList();
-    for (Field f : schema.getFields()) {
-      fieldsToRemoveHelper(f.schema(), f, copiedRequiredFields, fullyQualifiedName, fieldsToRemove);
-    }
-    if (!copiedRequiredFields.isEmpty()) {
-      throw new SchemaConversionException("Failed to pick field(s) as some field(s) " + copiedRequiredFields + " does not exist in Schema " + schema);
-    }
-    return fieldsToRemove;
-  }
-
-  /**
-   * Helper method for fieldsToRemove. Note that it mutates requiredFields parameter by removing elements when selected
-   * @param schema
-   * @param field
-   * @param requiredFields Note that it mutates this parameter by removing elements. If user provided fields exist in the Schema this parameter ends up empty.
-   * @param fqn fully qualified name
-   * @param fieldsToRemove
+   * @param fieldsStr
    * @return
-   * @throws SchemaConversionException When Avro schema has duplicate field name
    */
-  private Set<String> fieldsToRemoveHelper(Schema schema, Field field, Set<String> requiredFields, LinkedList<String> fqn, Set<String> fieldsToRemove) throws SchemaConversionException {
-    if(Type.RECORD.equals(schema.getType())) { //Add name of record into fqn and recurse
-      fqn.addLast(schema.getName());
-      for (Field f : schema.getFields()) {
-        fieldsToRemoveHelper(f.schema(), f, requiredFields, fqn, fieldsToRemove);
+  private static Schema createSchema(Schema schema, String fieldsStr) {
+    List<String> fields = SPLITTER_ON_COMMA.splitToList(fieldsStr);
+    TrieNode root = buildTrie(fields);
+    return createSchemaHelper(schema, root);
+  }
+
+  private static Schema createSchemaHelper(Schema inputSchema, TrieNode node) {
+    Schema newRecord = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc(), inputSchema.getNamespace(), inputSchema.isError());
+    List<Field> newFields = Lists.newArrayList();
+    for(TrieNode child : node.children.values()) {
+      Field innerSrcField = inputSchema.getField(child.val);
+      Preconditions.checkNotNull(innerSrcField, child.val + " does not exist under " + inputSchema);
+
+      if (child.children.isEmpty()) { //Leaf
+        newFields.add(new Field(innerSrcField.name(), innerSrcField.schema(), innerSrcField.doc(), innerSrcField.defaultValue()));
+      } else {
+        Schema innerSrcSchema = innerSrcField.schema();
+        Schema innerDestSchema = createSchemaHelper(innerSrcSchema, child); //Recurse of schema
+        Field innerDestField = new Field(innerSrcField.name(), innerDestSchema, innerSrcField.doc(), innerSrcField.defaultValue());
+        newFields.add(innerDestField);
       }
-      fqn.removeLast();
-      return fieldsToRemove;
+    }
+    newRecord.setFields(newFields);
+    return newRecord;
+  }
+
+  private static TrieNode buildTrie(List<String> fqns) {
+    TrieNode root = new TrieNode(null);
+    for(String fqn : fqns) {
+      root.add(fqn);
+    }
+    return root;
+  }
+
+  private static class TrieNode {
+    private String val;
+    private Map<String, TrieNode> children;
+
+    TrieNode(String val) {
+      this.val = val;
+      children = Maps.newHashMap();
     }
 
-    fqn.addLast(field.name());
-    String fqnStr = JOINER_ON_DOT.join(fqn);
-    boolean isRequiredField = requiredFields.remove(fqnStr);
-
-    if(!isRequiredField) {
-      boolean isFirstRemoval = fieldsToRemove.add(fqnStr);
-      if (!isFirstRemoval) {
-        throw new SchemaConversionException("Duplicate name " + fqnStr + " is not allowed");
-      }
+    void add(String fqn) {
+      addHelper(this, SPLITTER_ON_DOT.splitToList(fqn).iterator(), fqn);
     }
-    fqn.removeLast();
-    return fieldsToRemove;
+
+    void addHelper(TrieNode node, Iterator<String> fqnIterator, String fqn) {
+      if (!fqnIterator.hasNext()) {
+        return;
+      }
+
+      String val = fqnIterator.next();
+      TrieNode child = node.children.get(val);
+      if(child == null) {
+        child = new TrieNode(val);
+        node.children.put(val, child);
+      } else if(!fqnIterator.hasNext()) {
+        //Leaf but there's existing record
+        throw new IllegalArgumentException("Duplicate record detected: " + fqn);
+      }
+      addHelper(child, fqnIterator, fqn);
+    }
+
+    @Override
+    public String toString() {
+      return "[val: " + val + " , children: " + children.values() + " ]";
+    }
   }
 
   @Override

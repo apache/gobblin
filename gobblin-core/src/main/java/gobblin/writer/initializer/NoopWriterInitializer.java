@@ -12,11 +12,21 @@
 
 package gobblin.writer.initializer;
 
+import lombok.ToString;
+import gobblin.initializer.Initializer;
+import gobblin.initializer.NoopInitializer;
+
+@ToString
 public class NoopWriterInitializer implements WriterInitializer {
+  private final Initializer initializer = new NoopInitializer();
 
   @Override
-  public void close() {}
+  public void initialize() {
+    initializer.initialize();
+  }
 
   @Override
-  public void initialize() {}
+  public void close() {
+    initializer.close();
+  }
 }

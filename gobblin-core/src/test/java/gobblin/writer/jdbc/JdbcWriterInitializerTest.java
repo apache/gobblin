@@ -20,7 +20,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import junit.framework.Assert;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.publisher.JdbcPublisher;
@@ -33,6 +32,7 @@ import gobblin.writer.initializer.JdbcWriterInitializer;
 
 import org.apache.commons.lang.StringUtils;
 import org.mockito.InOrder;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.annotations.BeforeMethod;
 
@@ -63,11 +63,11 @@ public class JdbcWriterInitializerTest {
 
     factory = mock(JdbcWriterCommandsFactory.class);
     commands = mock(JdbcWriterCommands.class);
-    doReturn(commands).when(factory).newInstance(any(Destination.class));
+    conn = mock(Connection.class);
+    doReturn(commands).when(factory).newInstance(any(Destination.class), eq(conn));
 
     initializer = new JdbcWriterInitializer(state, workUnits, factory, 1, 0);
     initializer = spy(initializer);
-    conn = mock(Connection.class);
     doReturn(conn).when(initializer).createConnection();
   }
 
@@ -78,9 +78,9 @@ public class JdbcWriterInitializerTest {
     initializer.initialize();
     initializer.close();
     Assert.assertEquals(DEST_TABLE, workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
-    verify(commands, never()).createTableStructure(any(Connection.class), anyString(), anyString());
-    verify(commands, never()).truncate(any(Connection.class), anyString());
-    verify(commands, never()).drop(any(Connection.class), anyString());
+    verify(commands, never()).createTableStructure( anyString(), anyString());
+    verify(commands, never()).truncate(anyString());
+    verify(commands, never()).drop(anyString());
   }
 
   public void skipStagingTableTruncateDestTable() throws SQLException {
@@ -91,47 +91,47 @@ public class JdbcWriterInitializerTest {
     initializer.initialize();
     Assert.assertEquals(DEST_TABLE, workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
 
-    verify(commands, never()).createTableStructure(any(Connection.class), anyString(), anyString());
+    verify(commands, never()).createTableStructure(anyString(), anyString());
     InOrder inOrder = inOrder(commands);
-    inOrder.verify(commands, times(1)).truncate(conn, DEST_TABLE);
+    inOrder.verify(commands, times(1)).truncate(DEST_TABLE);
 
     initializer.close();
-    inOrder.verify(commands, never()).truncate(any(Connection.class), anyString());
-    verify(commands, never()).drop(any(Connection.class), anyString());
+    inOrder.verify(commands, never()).truncate(anyString());
+    verify(commands, never()).drop(anyString());
   }
 
   public void userCreatedStagingTable() throws SQLException {
     state.setProp(ConfigurationKeys.WRITER_STAGING_TABLE, STAGING_TABLE);
-    when(commands.isEmpty(conn, STAGING_TABLE)).thenReturn(Boolean.TRUE);
+    when(commands.isEmpty(STAGING_TABLE)).thenReturn(Boolean.TRUE);
 
     initializer.initialize();
 
     Assert.assertEquals(STAGING_TABLE, workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
-    verify(commands, never()).createTableStructure(any(Connection.class), anyString(), anyString());
-    verify(commands, never()).truncate(any(Connection.class), anyString());
-    verify(commands, never()).drop(any(Connection.class), anyString());
+    verify(commands, never()).createTableStructure(anyString(), anyString());
+    verify(commands, never()).truncate(anyString());
+    verify(commands, never()).drop(anyString());
   }
 
   public void userCreatedStagingTableTruncate() throws SQLException {
     state.setProp(ConfigurationKeys.WRITER_STAGING_TABLE, STAGING_TABLE);
     state.setProp(ConfigurationKeys.WRITER_TRUNCATE_STAGING_TABLE, Boolean.toString(true));
-    when(commands.isEmpty(conn, STAGING_TABLE)).thenReturn(Boolean.TRUE);
+    when(commands.isEmpty(STAGING_TABLE)).thenReturn(Boolean.TRUE);
 
     initializer.initialize();
     Assert.assertEquals(STAGING_TABLE, workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
 
     InOrder inOrder = inOrder(commands);
-    inOrder.verify(commands, times(1)).truncate(conn, STAGING_TABLE);
+    inOrder.verify(commands, times(1)).truncate(STAGING_TABLE);
 
     initializer.close();
-    inOrder.verify(commands, times(1)).truncate(conn, STAGING_TABLE);
+    inOrder.verify(commands, times(1)).truncate(STAGING_TABLE);
 
-    verify(commands, never()).createTableStructure(any(Connection.class), anyString(), anyString());
-    verify(commands, never()).drop(any(Connection.class), anyString());
+    verify(commands, never()).createTableStructure(anyString(), anyString());
+    verify(commands, never()).drop(anyString());
   }
 
   public void initializeWithCreatingStagingTable() throws SQLException {
-    when(commands.isEmpty(conn, STAGING_TABLE)).thenReturn(Boolean.TRUE);
+    when(commands.isEmpty(STAGING_TABLE)).thenReturn(Boolean.TRUE);
     DatabaseMetaData metadata = mock(DatabaseMetaData.class);
     when(conn.getMetaData()).thenReturn(metadata);
     ResultSet rs = mock(ResultSet.class);
@@ -143,12 +143,12 @@ public class JdbcWriterInitializerTest {
     Assert.assertTrue(!StringUtils.isEmpty(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE)));
 
     InOrder inOrder = inOrder(commands);
-    inOrder.verify(commands, times(1)).createTableStructure(any(Connection.class), anyString(), anyString());
-    inOrder.verify(commands, times(1)).drop(any(Connection.class), anyString());
-    inOrder.verify(commands, times(1)).createTableStructure(any(Connection.class), anyString(), anyString());
+    inOrder.verify(commands, times(1)).createTableStructure(anyString(), anyString());
+    inOrder.verify(commands, times(1)).drop( anyString());
+    inOrder.verify(commands, times(1)).createTableStructure(anyString(), anyString());
 
     initializer.close();
-    inOrder.verify(commands, times(1)).drop(any(Connection.class), anyString());
-    inOrder.verify(commands, never()).truncate(any(Connection.class), anyString());
+    inOrder.verify(commands, times(1)).drop(anyString());
+    inOrder.verify(commands, never()).truncate(anyString());
   }
 }

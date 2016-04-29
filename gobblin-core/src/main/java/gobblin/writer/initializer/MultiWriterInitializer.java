@@ -12,46 +12,30 @@
 
 package gobblin.writer.initializer;
 
-import java.io.IOException;
+import gobblin.initializer.Initializer;
+import gobblin.initializer.MultiInitializer;
+
 import java.util.List;
 
-import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
+import lombok.ToString;
 
-/**
- * Wraps multiple writer initializer behind its interface. This is useful when there're more than one branch.
- */
+@ToString
 public class MultiWriterInitializer implements WriterInitializer {
 
-  private final List<WriterInitializer> writerInitializers;
-  private final Closer closer;
+  private final Initializer intializer;
 
   public MultiWriterInitializer(List<WriterInitializer> writerInitializers) {
-    this.writerInitializers = Lists.newArrayList(writerInitializers);
-    this.closer = Closer.create();
-    for (WriterInitializer wi : this.writerInitializers) {
-      closer.register(wi);
-    }
+    intializer = new MultiInitializer(writerInitializers);
   }
 
   @Override
   public void initialize() {
-    for (WriterInitializer wi : writerInitializers) {
-      wi.initialize();
-    }
+    intializer.initialize();
   }
 
   @Override
   public void close() {
-    try {
-      closer.close();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    intializer.close();
   }
 
-  @Override
-  public String toString() {
-    return String.format("MultiWriterInitializer [writerInitializers=%s]", writerInitializers);
-  }
 }
