@@ -18,7 +18,9 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 public class ConfigUtilsTest {
 
@@ -50,5 +52,12 @@ public class ConfigUtilsTest {
     Assert.assertEquals(conf.getString("k1.kk2"), "v2");
     Assert.assertFalse(conf.hasPath("k2.kk"), "Should not contain key k2.kk");
 
+  }
+
+  @Test
+  public void testHasNonEmptyPath() throws Exception {
+    Assert.assertTrue(ConfigUtils.hasNonEmptyPath(ConfigFactory.parseMap(ImmutableMap.of("key1", "value1")), "key1"));
+    Assert.assertFalse(ConfigUtils.hasNonEmptyPath(ConfigFactory.parseMap(ImmutableMap.of("key2", "value1")), "key1"));
+    Assert.assertFalse(ConfigUtils.hasNonEmptyPath(ConfigFactory.parseMap(ImmutableMap.of("key1", "")), "key1"));
   }
 }

@@ -22,9 +22,9 @@ import org.slf4j.LoggerFactory;
 
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import gobblin.data.management.version.TimestampedDatasetVersion;
 import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
-import gobblin.data.management.retention.version.finder.VersionFinder;
+import gobblin.data.management.version.finder.VersionFinder;
 
 
 /**
@@ -35,7 +35,7 @@ import gobblin.data.management.retention.version.finder.VersionFinder;
  */
 public class TrackingDataset extends CleanableDatasetBase<TimestampedDatasetVersion> {
 
-  private final VersionFinder<TimestampedDatasetVersion> versionFinder;
+  private final VersionFinder<? extends TimestampedDatasetVersion> versionFinder;
   private final RetentionPolicy<TimestampedDatasetVersion> retentionPolicy;
   private final Path datasetRoot;
 
@@ -48,6 +48,7 @@ public class TrackingDataset extends CleanableDatasetBase<TimestampedDatasetVers
       throws IOException {
     super(fs, props, log);
     this.datasetRoot = datasetRoot;
+    // Use the deprecated version finder which uses deprecated keys
     this.versionFinder = new DateTimeDatasetVersionFinder(fs, props);
     this.retentionPolicy = new TimeBasedRetentionPolicy(props);
   }

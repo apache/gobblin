@@ -63,7 +63,12 @@ public class JobState extends SourceState {
    * in terms of naming.
    */
   public enum RunningState {
-    PENDING, RUNNING, SUCCESSFUL, COMMITTED, FAILED, CANCELLED
+    PENDING,
+    RUNNING,
+    SUCCESSFUL,
+    COMMITTED,
+    FAILED,
+    CANCELLED
   }
 
   private String jobName;
@@ -76,8 +81,7 @@ public class JobState extends SourceState {
   private final Map<String, TaskState> taskStates = Maps.newLinkedHashMap();
 
   // Necessary for serialization/deserialization
-  public JobState() {
-  }
+  public JobState() {}
 
   public JobState(String jobName, String jobId) {
     this.jobName = jobName;
@@ -117,7 +121,7 @@ public class JobState extends SourceState {
    * @return job ID
    */
   public String getJobId() {
-    return jobId;
+    return this.jobId;
   }
 
   /**
@@ -135,7 +139,7 @@ public class JobState extends SourceState {
    * @return job start time
    */
   public long getStartTime() {
-    return startTime;
+    return this.startTime;
   }
 
   /**
@@ -153,7 +157,7 @@ public class JobState extends SourceState {
    * @return job end time
    */
   public long getEndTime() {
-    return endTime;
+    return this.endTime;
   }
 
   /**
@@ -171,7 +175,7 @@ public class JobState extends SourceState {
    * @return job duration in milliseconds
    */
   public long getDuration() {
-    return duration;
+    return this.duration;
   }
 
   /**
@@ -268,7 +272,7 @@ public class JobState extends SourceState {
    * @return a list of {@link TaskState}s
    */
   public List<TaskState> getTaskStates() {
-    return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
+    return ImmutableList.<TaskState> builder().addAll(this.taskStates.values()).build();
   }
 
   /**
@@ -343,14 +347,13 @@ public class JobState extends SourceState {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     Text text = new Text();
     text.readFields(in);
     this.jobName = text.toString();
     text.readFields(in);
     this.jobId = text.toString();
-    this.setId(jobId);
+    this.setId(this.jobId);
     this.startTime = in.readLong();
     this.endTime = in.readLong();
     this.duration = in.readLong();
@@ -367,8 +370,7 @@ public class JobState extends SourceState {
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     Text text = new Text();
     text.set(this.jobName);
     text.write(out);
@@ -395,8 +397,7 @@ public class JobState extends SourceState {
    * @param keepConfig whether to keep all configuration properties
    * @throws IOException
    */
-  public void toJson(JsonWriter jsonWriter, boolean keepConfig)
-      throws IOException {
+  public void toJson(JsonWriter jsonWriter, boolean keepConfig) throws IOException {
     jsonWriter.beginObject();
 
     jsonWriter.name("job name").value(this.getJobName()).name("job id").value(this.getJobId()).name("job state")
@@ -406,7 +407,7 @@ public class JobState extends SourceState {
 
     jsonWriter.name("task states");
     jsonWriter.beginArray();
-    for (TaskState taskState : taskStates.values()) {
+    for (TaskState taskState : this.taskStates.values()) {
       taskState.toJson(jsonWriter, keepConfig);
     }
     jsonWriter.endArray();
@@ -445,9 +446,8 @@ public class JobState extends SourceState {
   @Override
   public String toString() {
     StringWriter stringWriter = new StringWriter();
-    JsonWriter jsonWriter = new JsonWriter(stringWriter);
-    jsonWriter.setIndent("\t");
-    try {
+    try (JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
+      jsonWriter.setIndent("\t");
       this.toJson(jsonWriter, false);
     } catch (IOException ioe) {
       // Ignored
@@ -491,8 +491,8 @@ public class JobState extends SourceState {
     JobMetrics jobMetrics = JobMetrics.get(this);
     MetricArray metricArray = new MetricArray();
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
-        .getCounters().entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext().getCounters()
+        .entrySet()) {
       Metric counter = new Metric();
       counter.setGroup(MetricGroup.JOB.name());
       counter.setName(entry.getKey());
@@ -501,8 +501,8 @@ public class JobState extends SourceState {
       metricArray.add(counter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
-        .getMeters().entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext().getMeters()
+        .entrySet()) {
       Metric meter = new Metric();
       meter.setGroup(MetricGroup.JOB.name());
       meter.setName(entry.getKey());
@@ -511,13 +511,13 @@ public class JobState extends SourceState {
       metricArray.add(meter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
-        .getGauges().entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext().getGauges()
+        .entrySet()) {
       Metric gauge = new Metric();
       gauge.setGroup(MetricGroup.JOB.name());
       gauge.setName(entry.getKey());
       gauge.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.GAUGE.name()));
-      gauge.setValue(((Gauge) entry.getValue()).getValue().toString());
+      gauge.setValue(((Gauge<?>) entry.getValue()).getValue().toString());
       metricArray.add(gauge);
     }
 
@@ -528,7 +528,7 @@ public class JobState extends SourceState {
     for (String name : this.getPropertyNames()) {
       String value = this.getProp(name);
       if (!Strings.isNullOrEmpty(value))
-      jobProperties.put(name, value);
+        jobProperties.put(name, value);
     }
     jobExecutionInfo.setJobProperties(new StringMap(jobProperties));
 

@@ -153,7 +153,7 @@ public class JobExecutionInfoServerTest {
     }
   }
 
-  private String chooseRandomPort() throws IOException {
+  private static String chooseRandomPort() throws IOException {
     ServerSocket socket = null;
     try {
       socket = new ServerSocket(0);
@@ -165,7 +165,7 @@ public class JobExecutionInfoServerTest {
     }
   }
 
-  private void prepareJobHistoryStoreDatabase(Properties properties) throws Exception {
+  private static void prepareJobHistoryStoreDatabase(Properties properties) throws Exception {
     // Read the DDL statements
     List<String> statementLines = Lists.newArrayList();
     List<String> lines = Files.readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
@@ -196,7 +196,7 @@ public class JobExecutionInfoServerTest {
     }
   }
 
-  private JobExecutionInfo createJobExecutionInfo(int index) {
+  private static JobExecutionInfo createJobExecutionInfo(int index) {
     JobExecutionInfo jobExecutionInfo = new JobExecutionInfo();
     jobExecutionInfo.setJobName("TestJob" + index);
     jobExecutionInfo.setJobId(jobExecutionInfo.getJobName() + "_" + System.currentTimeMillis());
@@ -275,7 +275,7 @@ public class JobExecutionInfoServerTest {
     return jobExecutionInfo;
   }
 
-  private void assertJobExecution(JobExecutionInfo actual, JobExecutionInfo expected) {
+  private static void assertJobExecution(JobExecutionInfo actual, JobExecutionInfo expected) {
     Assert.assertEquals(actual.getJobName(), expected.getJobName());
     Assert.assertEquals(actual.getJobId(), expected.getJobId());
     if (expected.hasDuration()) {
@@ -300,7 +300,7 @@ public class JobExecutionInfoServerTest {
     }
   }
 
-  private void assertTaskExecution(TaskExecutionInfo actual, TaskExecutionInfo expected) {
+  private static void assertTaskExecution(TaskExecutionInfo actual, TaskExecutionInfo expected) {
     Assert.assertEquals(actual.getJobId(), expected.getJobId());
     Assert.assertEquals(actual.getTaskId(), expected.getTaskId());
     if (expected.hasDuration()) {
@@ -321,7 +321,7 @@ public class JobExecutionInfoServerTest {
     Assert.assertEquals(actual.getTaskProperties(), expected.getTaskProperties());
   }
 
-  private void assertMetric(Metric actual, Metric expected) {
+  private static void assertMetric(Metric actual, Metric expected) {
     Assert.assertEquals(actual.getGroup(), expected.getGroup());
     Assert.assertEquals(actual.getName(), expected.getName());
     Assert.assertEquals(actual.getType(), expected.getType());

@@ -28,7 +28,7 @@ public class JdbcCommandOutput implements CommandOutput<JdbcCommand, ResultSet> 
   private Map<JdbcCommand, ResultSet> results;
 
   public JdbcCommandOutput() {
-    results = new HashMap<JdbcCommand, ResultSet>();
+    this.results = new HashMap<>();
   }
 
   @Override
@@ -38,11 +38,11 @@ public class JdbcCommandOutput implements CommandOutput<JdbcCommand, ResultSet> 
 
   @Override
   public Map<JdbcCommand, ResultSet> getResults() {
-    return results;
+    return this.results;
   }
 
   @Override
   public void put(JdbcCommand key, ResultSet value) {
-    results.put(key, value);
+    this.results.put(key, value);
   }
 }

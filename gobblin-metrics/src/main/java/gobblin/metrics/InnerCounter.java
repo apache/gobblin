@@ -40,7 +40,7 @@ public class InnerCounter extends Counter implements InnerMetric {
       this.parentCounter = Optional.absent();
     }
 
-    this.contextAwareCounter = new WeakReference<ContextAwareCounter>(counter);
+    this.contextAwareCounter = new WeakReference<>(counter);
   }
 
   @Override
@@ -63,7 +63,8 @@ public class InnerCounter extends Counter implements InnerMetric {
     return this.name;
   }
 
-  @Override public ContextAwareMetric getContextAwareMetric() {
+  @Override
+  public ContextAwareMetric getContextAwareMetric() {
     return this.contextAwareCounter.get();
   }
 }

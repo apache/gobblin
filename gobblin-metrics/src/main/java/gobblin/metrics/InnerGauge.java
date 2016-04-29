@@ -31,7 +31,7 @@ public class InnerGauge<T> implements InnerMetric, Gauge<T> {
   InnerGauge(MetricContext context, String name, Gauge<T> gauge, ContextAwareGauge<T> contextAwareGauge) {
     this.name = name;
     this.gauge = gauge;
-    this.contextAwareGauge = new WeakReference<ContextAwareGauge<T>>(contextAwareGauge);
+    this.contextAwareGauge = new WeakReference<>(contextAwareGauge);
   }
 
   @Override
@@ -43,7 +43,8 @@ public class InnerGauge<T> implements InnerMetric, Gauge<T> {
     return this.name;
   }
 
-  @Override public ContextAwareMetric getContextAwareMetric() {
+  @Override
+  public ContextAwareMetric getContextAwareMetric() {
     return this.contextAwareGauge.get();
   }
 }

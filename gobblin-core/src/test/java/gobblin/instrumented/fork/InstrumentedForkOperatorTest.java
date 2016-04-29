@@ -35,7 +35,7 @@ public class InstrumentedForkOperatorTest {
 
     @Override
     public List<Boolean> forkDataRecordImpl(WorkUnitState workUnitState, String input) {
-      List<Boolean> output = new ArrayList<Boolean>();
+      List<Boolean> output = new ArrayList<>();
       output.add(true);
       output.add(false);
       output.add(true);
@@ -53,8 +53,7 @@ public class InstrumentedForkOperatorTest {
     }
 
     @Override
-    public void close()
-        throws IOException {
+    public void close() throws IOException {
 
     }
   }
@@ -63,7 +62,7 @@ public class InstrumentedForkOperatorTest {
 
     @Override
     public List<Boolean> forkDataRecord(WorkUnitState workUnitState, String input) {
-      List<Boolean> output = new ArrayList<Boolean>();
+      List<Boolean> output = new ArrayList<>();
       output.add(true);
       output.add(false);
       output.add(true);
@@ -71,8 +70,7 @@ public class InstrumentedForkOperatorTest {
     }
 
     @Override
-    public void init(WorkUnitState workUnitState)
-        throws Exception { }
+    public void init(WorkUnitState workUnitState) throws Exception {}
 
     @Override
     public int getBranches(WorkUnitState workUnitState) {
@@ -85,8 +83,7 @@ public class InstrumentedForkOperatorTest {
     }
 
     @Override
-    public void close()
-        throws IOException {
+    public void close() throws IOException {
 
     }
   }
@@ -99,14 +96,11 @@ public class InstrumentedForkOperatorTest {
 
   @Test
   public void testDecorated() throws Exception {
-    InstrumentedForkOperatorBase instrumentedFork = new InstrumentedForkOperatorDecorator(
-        new TestInstrumentedForkOperator()
-    );
+    InstrumentedForkOperatorBase instrumentedFork =
+        new InstrumentedForkOperatorDecorator(new TestInstrumentedForkOperator());
     testBase(instrumentedFork);
 
-    InstrumentedForkOperatorBase notInstrumentedFork = new InstrumentedForkOperatorDecorator(
-        new TestForkOperator()
-    );
+    InstrumentedForkOperatorBase notInstrumentedFork = new InstrumentedForkOperatorDecorator(new TestForkOperator());
     testBase(notInstrumentedFork);
   }
 

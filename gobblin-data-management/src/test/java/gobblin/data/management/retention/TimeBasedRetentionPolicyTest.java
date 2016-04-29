@@ -13,8 +13,6 @@
 package gobblin.data.management.retention;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
 import java.util.List;
 import java.util.Properties;
@@ -25,14 +23,17 @@ import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeUtils;
 import org.testng.Assert;
+import org.testng.annotations.AfterGroups;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
+import gobblin.data.management.version.TimestampedDatasetVersion;
+import gobblin.util.test.RetentionTestDataGenerator.FixedThreadLocalMillisProvider;
 
-import com.google.common.collect.ImmutableList;
-
-
+@Test(groups = { "SystemTimeTests"})
 public class TimeBasedRetentionPolicyTest {
 
   @Test
@@ -42,7 +43,7 @@ public class TimeBasedRetentionPolicyTest {
 
     TimeBasedRetentionPolicy policy = new TimeBasedRetentionPolicy(props);
 
-    DateTimeUtils.setCurrentMillisFixed(new DateTime(2015, 6, 2, 18, 0, 0, 0).getMillis());
+    DateTimeUtils.setCurrentMillisProvider(new FixedThreadLocalMillisProvider(new DateTime(2015, 6, 2, 18, 0, 0, 0).getMillis()));
 
     TimestampedDatasetVersion datasetVersion1 =
         new TimestampedDatasetVersion(new DateTime(2015, 6, 2, 10, 0, 0, 0), new Path("test"));
@@ -58,14 +59,12 @@ public class TimeBasedRetentionPolicyTest {
     Assert.assertEquals(deletableVersions.size(), 1);
     Assert.assertEquals(deletableVersions.get(0).getDateTime(), new DateTime(2015, 6, 1, 10, 0, 0, 0));
 
-    DateTimeUtils.setCurrentMillisSystem();
   }
 
-  @Test(dependsOnMethods = { "testDefaultRetention" })
+  @Test
   public void testISORetentionDuration() throws Exception {
 
     DateTimeUtils.setCurrentMillisFixed(new DateTime(2016, 2, 11, 10, 0, 0, 0).getMillis());
-
     // 20 Days
     verify("P20D",
         ImmutableList.of(WithDate(new DateTime(2016, 1, 5, 10, 0, 0, 0)), WithDate(new DateTime(2016, 1, 6, 10, 0, 0, 0))),
@@ -86,7 +85,6 @@ public class TimeBasedRetentionPolicyTest {
         ImmutableList.of(WithDate(new DateTime(2016, 2, 10, 11, 0, 0, 0)), WithDate(new DateTime(2016, 2, 9, 11, 0, 0, 0))),
         ImmutableList.of(WithDate(new DateTime(2016, 2, 11, 8, 0, 0, 0)), WithDate(new DateTime(2016, 2, 11, 9, 0, 0, 0))));
 
-    DateTimeUtils.setCurrentMillisSystem();
   }
 
   private static TimestampedDatasetVersion WithDate(DateTime dt){
@@ -105,5 +103,10 @@ public class TimeBasedRetentionPolicyTest {
     assertThat(deletableVersions, Matchers.containsInAnyOrder(toBeDeleted.toArray()));
     assertThat(deletableVersions, Matchers.not(Matchers.containsInAnyOrder(toBeRetained.toArray())));
 
+  }
+
+  @AfterGroups("SystemTimeTests")
+  public void resetSystemCurrentTime() {
+    DateTimeUtils.setCurrentMillisSystem();
   }
 }

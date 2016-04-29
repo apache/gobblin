@@ -49,10 +49,9 @@ public class GobblinHelixJob implements Job {
     Path appWorkDir = (Path) dataMap.get(GobblinHelixJobScheduler.APPLICATION_WORK_DIR_KEY);
     @SuppressWarnings("unchecked")
     List<? extends Tag<?>> eventMetadata = (List<? extends Tag<?>>) dataMap.get(GobblinHelixJobScheduler.METADATA_TAGS);
-    FileSystem fs = (FileSystem) dataMap.get(GobblinHelixJobScheduler.FILE_SYSTEM);
 
     try {
-      JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, fs, appWorkDir, eventMetadata);
+      JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, appWorkDir, eventMetadata);
       jobScheduler.runJob(jobProps, jobListener, jobLauncher);
     } catch (Throwable t) {
       throw new JobExecutionException(t);

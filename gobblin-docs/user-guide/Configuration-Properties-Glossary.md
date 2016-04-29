@@ -35,6 +35,8 @@ Gobblin also allows you to specify a global configuration file that contains com
 * [Writer Properties](#Writer-Properties)  
 * [Data Publisher Properties](#Data-Publisher-Properties)  
 * [Generic Properties](#Generic-Properties)  
+* [FileBasedJobLock Properties](#FileBasedJobLock-Properties)
+* [ZookeeperBasedJobLock Properties](#ZookeeperBasedJobLock-Properties)
 
 # Properties File Format <a name="Properties-File-Format"></a>
 
@@ -99,18 +101,22 @@ A description of what the jobs does.
 None
 ###### Required
 No
-#### job.lock.dir
-###### Description
-Directory where job locks are stored. Job locks are used by the scheduler to ensure two executions of a job do not run at the same time. If a job is scheduled to run, Gobblin will first check this directory to see if there is a lock file for the job. If there is one, it will not run the job, if there isn't one then it will run the job.
-###### Default Value
-None
-###### Required
-No
 #### job.lock.enabled
 ###### Description
 If set to true job locks are enabled, if set to false they are disabled
 ###### Default Value
 True
+###### Required
+No
+#### job.lock.type
+##### Description
+The fully qualified name of the JobLock class to run. The JobLock is responsible for ensuring that only a single instance of a job runs at a time.
+###### Default Value
+`gobblin.runtime.locks.FileBasedJobLock`
+###### Allowed Values
+* [gobblin.runtime.locks.FileBasedJobLock](#FileBasedJobLock-Properties)
+* [gobblin.runtime.locks.ZookeeperBasedJobLock](#ZookeeperBasedJobLock-Properties)
+
 ###### Required
 No
 #### job.runonce 
@@ -1054,5 +1060,63 @@ These properties are used throughout multiple Gobblin components.
 Default file system URI for all file storage; over-writable by more specific configuration properties.
 ###### Default Value
 file:///
+###### Required
+No
+# FileBasedJobLock Properties <a name="FileBasedJobLock-Properties"></a>
+#### job.lock.dir
+###### Description
+Directory where job locks are stored. Job locks are used by the scheduler to ensure two executions of a job do not run at the same time. If a job is scheduled to run, Gobblin will first check this directory to see if there is a lock file for the job. If there is one, it will not run the job, if there isn't one then it will run the job.
+###### Default Value
+None
+###### Required
+No
+# ZookeeperBasedJobLock Properties <a name="ZookeeperBasedJobLock-Properties"></a>
+#### zookeeper.connection.string
+###### Description
+The connection string to the ZooKeeper cluster used to manage the lock.
+###### Default Value
+localhost:2181
+###### Required
+No
+#### zookeeper.session.timeout.seconds
+###### Description
+The zookeeper session timeout.
+###### Default Value
+180
+###### Required
+No
+#### zookeeper.connection.timeout.seconds
+###### Description
+The zookeeper conection timeout.
+###### Default Value
+30
+###### Required
+No
+#### zookeeper.retry.backoff.seconds
+###### Description
+The amount of time in seconds to wait between retries.  This will increase exponentially when retries occur.
+###### Default Value
+1
+###### Required
+No
+#### zookeeper.retry.count.max
+###### Description
+The maximum number of times to retry.
+###### Default Value
+10
+###### Required
+No
+#### zookeeper.locks.acquire.timeout.milliseconds
+###### Description
+The amount of time in milliseconds to wait while attempting to acquire the lock.
+###### Default Value
+5000
+###### Required
+No
+#### zookeeper.locks.reaper.threshold.seconds
+###### Description
+The threshold in seconds that determines when a lock path can be deleted.
+###### Default Value
+300
 ###### Required
 No

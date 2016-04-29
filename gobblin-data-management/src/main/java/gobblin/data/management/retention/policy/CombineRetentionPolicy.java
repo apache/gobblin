@@ -33,7 +33,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
 
 
 /**
@@ -56,7 +56,7 @@ import gobblin.data.management.retention.version.DatasetVersion;
  *   Additionally, any configuration necessary for combined policies must be specified.
  * </p>
  */
-public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
+public class CombineRetentionPolicy<T extends DatasetVersion> implements RetentionPolicy<T> {
 
   public static final String RETENTION_POLICIES_PREFIX = DatasetCleaner.CONFIGURATION_KEY_PREFIX +
       "combine.retention.policy.class.";
@@ -67,10 +67,10 @@ public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
     INTERSECT, UNION
   }
 
-  private final List<RetentionPolicy<DatasetVersion>> retentionPolicies;
+  private final List<RetentionPolicy<T>> retentionPolicies;
   private final DeletableCombineOperation combineOperation;
 
-  public CombineRetentionPolicy(List<RetentionPolicy<DatasetVersion>> retentionPolicies, DeletableCombineOperation combineOperation) throws IOException {
+  public CombineRetentionPolicy(List<RetentionPolicy<T>> retentionPolicies, DeletableCombineOperation combineOperation) throws IOException {
     this.combineOperation = combineOperation;
     this.retentionPolicies = retentionPolicies;
   }
@@ -80,13 +80,13 @@ public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
 
     Preconditions.checkArgument(props.containsKey(DELETE_SETS_COMBINE_OPERATION), "Combine operation not specified.");
 
-    ImmutableList.Builder<RetentionPolicy<DatasetVersion>> builder = ImmutableList.builder();
+    ImmutableList.Builder<RetentionPolicy<T>> builder = ImmutableList.builder();
 
     for (String property : props.stringPropertyNames()) {
       if (property.startsWith(RETENTION_POLICIES_PREFIX)) {
 
         try {
-          builder.add((RetentionPolicy<DatasetVersion>) ConstructorUtils.invokeConstructor(Class.forName(props.getProperty(property)), props));
+          builder.add((RetentionPolicy<T>) ConstructorUtils.invokeConstructor(Class.forName(props.getProperty(property)), props));
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
           throw new IllegalArgumentException(e);
         }
@@ -105,23 +105,25 @@ public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
   /**
    * Returns the most specific common superclass for the {@link #versionClass} of each embedded policy.
    */
-  @Override public Class<? extends DatasetVersion> versionClass() {
+  @SuppressWarnings("unchecked")
+  @Override public Class<T> versionClass() {
     if(this.retentionPolicies.size() == 1) {
-      return this.retentionPolicies.get(0).versionClass();
+      return (Class<T>) this.retentionPolicies.get(0).versionClass();
     }
 
-    Class<? extends DatasetVersion> klazz = this.retentionPolicies.get(0).versionClass();
-    for(RetentionPolicy<? extends DatasetVersion> policy : retentionPolicies) {
-      klazz = commonSuperclass(klazz, policy.versionClass());
+    Class<T> klazz = (Class<T>) this.retentionPolicies.get(0).versionClass();
+    for(RetentionPolicy<T> policy : retentionPolicies) {
+      klazz = commonSuperclass(klazz, (Class<T>) policy.versionClass());
     }
     return klazz;
   }
 
-  @Override public Collection<DatasetVersion> listDeletableVersions(final List<DatasetVersion> allVersions) {
+  @Override public Collection<T> listDeletableVersions(final List<T> allVersions) {
 
-    List<Set<DatasetVersion>> candidateDeletableVersions = Lists.newArrayList(Iterables.transform(this.retentionPolicies,
-        new Function<RetentionPolicy<DatasetVersion>, Set<DatasetVersion>>() {
-      @Nullable @Override public Set<DatasetVersion> apply(RetentionPolicy<DatasetVersion> input) {
+    List<Set<T>> candidateDeletableVersions = Lists.newArrayList(Iterables.transform(this.retentionPolicies,
+        new Function<RetentionPolicy<T>, Set<T>>() {
+      @SuppressWarnings("deprecation")
+      @Nullable @Override public Set<T> apply(RetentionPolicy<T> input) {
         return Sets.newHashSet(input.listDeletableVersions(allVersions));
       }
     }));
@@ -140,8 +142,8 @@ public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
 
   @VisibleForTesting
   @SuppressWarnings("unchecked")
-  public Class<? extends DatasetVersion> commonSuperclass(Class<? extends DatasetVersion> classA,
-      Class<? extends DatasetVersion> classB) {
+  public Class<T> commonSuperclass(Class<T> classA,
+      Class<T> classB) {
 
     if(classA.isAssignableFrom(classB)) {
       // a is superclass of b, so return class of a
@@ -154,32 +156,32 @@ public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
         klazz = klazz.getSuperclass();
       }
       if(DatasetVersion.class.isAssignableFrom(klazz)) {
-        return (Class<? extends DatasetVersion>) klazz;
+        return (Class<T>) klazz;
       } else {
         // this should never happen, but there for safety
-        return DatasetVersion.class;
+        return (Class<T>) DatasetVersion.class;
       }
     }
   }
 
-  private Set<DatasetVersion> intersectDatasetVersions(Collection<Set<DatasetVersion>> sets) {
+  private Set<T> intersectDatasetVersions(Collection<Set<T>> sets) {
     if(sets.size() <= 0) {
       return Sets.newHashSet();
     }
-    Iterator<Set<DatasetVersion>> it = sets.iterator();
-    Set<DatasetVersion> outputSet = it.next();
+    Iterator<Set<T>> it = sets.iterator();
+    Set<T> outputSet = it.next();
     while(it.hasNext()) {
       outputSet = Sets.intersection(outputSet, it.next());
     }
     return outputSet;
   }
 
-  private Set<DatasetVersion> unionDatasetVersions(Collection<Set<DatasetVersion>> sets) {
+  private Set<T> unionDatasetVersions(Collection<Set<T>> sets) {
     if(sets.size() <= 0) {
       return Sets.newHashSet();
     }
-    Iterator<Set<DatasetVersion>> it = sets.iterator();
-    Set<DatasetVersion> outputSet = it.next();
+    Iterator<Set<T>> it = sets.iterator();
+    Set<T> outputSet = it.next();
     while(it.hasNext()) {
       outputSet = Sets.union(outputSet, it.next());
     }

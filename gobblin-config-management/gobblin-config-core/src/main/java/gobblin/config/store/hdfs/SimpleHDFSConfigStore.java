@@ -11,20 +11,6 @@
  */
 package gobblin.config.store.hdfs;
 
-import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
-import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
-import gobblin.config.store.api.ConfigStoreWithStableVersioning;
-import gobblin.config.store.api.VersionDoesNotExistException;
-import gobblin.config.store.deploy.ConfigStream;
-import gobblin.config.store.deploy.Deployable;
-import gobblin.config.store.deploy.DeployableConfigSource;
-import gobblin.config.store.deploy.FsDeploymentConfig;
-import gobblin.util.FileListUtils;
-import gobblin.util.PathUtils;
-import gobblin.util.io.SeekableFSInputStream;
-import gobblin.util.io.StreamUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -46,6 +32,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -57,6 +44,20 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
+import gobblin.config.store.api.ConfigKeyPath;
+import gobblin.config.store.api.ConfigStore;
+import gobblin.config.store.api.ConfigStoreWithStableVersioning;
+import gobblin.config.store.api.VersionDoesNotExistException;
+import gobblin.config.store.deploy.ConfigStream;
+import gobblin.config.store.deploy.Deployable;
+import gobblin.config.store.deploy.DeployableConfigSource;
+import gobblin.config.store.deploy.FsDeploymentConfig;
+import gobblin.util.FileListUtils;
+import gobblin.util.PathUtils;
+import gobblin.util.io.SeekableFSInputStream;
+import gobblin.util.io.StreamUtils;
 
 
 /**
@@ -118,6 +119,7 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
 
   private static final String MAIN_CONF_FILE_NAME = "main.conf";
   private static final String INCLUDES_CONF_FILE_NAME = "includes.conf";
+  private static final String INCLUDES_KEY_NAME = "includes";
 
   private final FileSystem fs;
   private final URI physicalStoreRoot;
@@ -251,15 +253,52 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
       FileStatus includesFileStatus = this.fs.getFileStatus(includesFile);
       if (!includesFileStatus.isDir()) {
         try (InputStream includesConfInStream = this.fs.open(includesFileStatus.getPath())) {
-          configKeyPaths.addAll(Lists.newArrayList(
-              Iterables.transform(IOUtils.readLines(includesConfInStream, Charsets.UTF_8), new IncludesToConfigKey())));
+          configKeyPaths.addAll(Lists.newArrayList(Iterables.transform(
+              resolveIncludesList(IOUtils.readLines(includesConfInStream, Charsets.UTF_8)),
+                  new IncludesToConfigKey())));
         }
       }
     } catch (IOException e) {
-      throw new RuntimeException(String.format("Error while getting imports for configKey: \"%s\"", configKey), e);
+      throw new RuntimeException(String.format("Error while getting config for configKey: \"%s\"", configKey), e);
     }
+
     return configKeyPaths;
   }
+
+  /**
+   * A helper to resolve System properties and Environment variables in includes paths
+   * The method loads the list of unresolved <code>includes</code> into an in-memory {@link Config} object and reolves
+   * with a fallback on {@link ConfigFactory#defaultOverrides()}
+   *
+   * @param includes list of unresolved includes
+   * @return a list of resolved includes
+   */
+  @VisibleForTesting
+  public static List<String> resolveIncludesList(List<String> includes) {
+
+    if (includes.isEmpty()) {
+      return includes;
+    }
+
+    // Build a string representation of the config as parsing the includes as Map quotes the includes.
+    // Type safe resolves substitutions only for unquoted strings
+    StringBuilder includesBuilder = new StringBuilder();
+    for (String include : includes) {
+      // Skip comments
+      if (StringUtils.isNotBlank(include) && !StringUtils.startsWith(include, "#")) {
+        includesBuilder.append(INCLUDES_KEY_NAME).append("+=").append(include).append("\n");
+      }
+    }
+
+    if (includesBuilder.length() > 0) {
+      return ConfigFactory.parseString(includesBuilder.toString())
+              .withFallback(ConfigFactory.defaultOverrides())
+              .withFallback(ConfigFactory.systemEnvironment()).resolve().getStringList(INCLUDES_KEY_NAME);
+    }
+
+    return includes;
+  }
+
 
   /**
    * Retrieves the {@link Config} for the given {@link ConfigKeyPath} by reading the {@link #MAIN_CONF_FILE_NAME}
@@ -372,6 +411,7 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
       for (String file : Splitter.on(SingleLinkedListConfigKeyPath.PATH_DELIMETER).omitEmptyStrings().split(input)) {
         configKey = configKey.createChild(file);
       }
+
       return configKey;
     }
   }
@@ -466,6 +506,10 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
         this.fs.setPermission(fileStatus.getPath(), deploymentConfig.getStorePermissions());
       }
 
+    } else {
+      log.warn(String.format(
+              "STORE WITH VERSION %s ALREADY EXISTS. NEW RESOURCES WILL NOT BE COPIED. ONLY STORE MEATADATA FILE WILL BE UPDATED TO %s",
+              deploymentConfig.getNewVersion(), deploymentConfig.getNewVersion()));
     }
 
     storeMetadata.setCurrentVersion(deploymentConfig.getNewVersion());

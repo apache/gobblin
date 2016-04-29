@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 import gobblin.metrics.reporter.OutputStreamReporter;
 
 
-@Test(groups = {"gobblin.metrics"})
+@Test(groups = { "gobblin.metrics" })
 public class OutputStreamReporterTest {
 
   private ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -46,9 +46,8 @@ public class OutputStreamReporterTest {
     Meter meter = metricContext.meter("com.linkedin.example.meter");
     Histogram histogram = metricContext.histogram("com.linkedin.example.histogram");
 
-    OutputStreamReporter reporter = OutputStreamReporter.Factory.newBuilder().
-        outputTo(stream).
-        build(new Properties());
+    OutputStreamReporter reporter =
+        OutputStreamReporter.Factory.newBuilder().outputTo(this.stream).build(new Properties());
 
     counter.inc();
     meter.mark(2);
@@ -58,13 +57,13 @@ public class OutputStreamReporterTest {
 
     reporter.report();
 
-    String[] lines = stream.toString().split("\n");
+    String[] lines = this.stream.toString().split("\n");
 
-    Map<String, Set<String>> expected = new HashMap<String, Set<String>>();
-    Set<String> counterSubMetrics = new HashSet<String>();
+    Map<String, Set<String>> expected = new HashMap<>();
+    Set<String> counterSubMetrics = new HashSet<>();
     counterSubMetrics.add("count");
     expected.put("com.linkedin.example.counter", counterSubMetrics);
-    Set<String> histogramSubMetrics = new HashSet<String>();
+    Set<String> histogramSubMetrics = new HashSet<>();
     histogramSubMetrics.add("count");
     histogramSubMetrics.add("min");
     histogramSubMetrics.add("max");
@@ -74,7 +73,7 @@ public class OutputStreamReporterTest {
     histogramSubMetrics.add("75% <");
     histogramSubMetrics.add("95% <");
     expected.put("com.linkedin.example.histogram", histogramSubMetrics);
-    Set<String> meterSubmetrics = new HashSet<String>();
+    Set<String> meterSubmetrics = new HashSet<>();
     meterSubmetrics.add("count");
     meterSubmetrics.add("mean rate");
     meterSubmetrics.add("1-minute rate");
@@ -93,26 +92,24 @@ public class OutputStreamReporterTest {
     MetricContext metricContext = MetricContext.builder(this.getClass().getCanonicalName()).build();
     Counter counter = metricContext.counter("com.linkedin.example.counter");
 
-    Map<String, String> tags = new HashMap<String, String>();
+    Map<String, String> tags = new HashMap<>();
     tags.put("testKey", "testValue");
     tags.put("key2", "value2");
 
-    OutputStreamReporter reporter = OutputStreamReporter.Factory.newBuilder().
-        withTags(tags).
-        outputTo(stream).
-        build(new Properties());
+    OutputStreamReporter reporter =
+        OutputStreamReporter.Factory.newBuilder().withTags(tags).outputTo(this.stream).build(new Properties());
 
     counter.inc();
 
     reporter.report();
-    Assert.assertTrue(stream.toString().contains("key2=value2"));
-    Assert.assertTrue(stream.toString().contains("testKey=testValue"));
-    String[] lines = stream.toString().split("\n");
+    Assert.assertTrue(this.stream.toString().contains("key2=value2"));
+    Assert.assertTrue(this.stream.toString().contains("testKey=testValue"));
+    String[] lines = this.stream.toString().split("\n");
 
-    Map<String, Set<String>> expected = new HashMap<String, Set<String>>();
+    Map<String, Set<String>> expected = new HashMap<>();
 
     expectMetrics(expected, lines);
-    Set<String> counterSubMetrics = new HashSet<String>();
+    Set<String> counterSubMetrics = new HashSet<>();
     counterSubMetrics.add("count");
     expected.put("com.linkedin.example.counter", counterSubMetrics);
 
@@ -122,24 +119,23 @@ public class OutputStreamReporterTest {
 
   @Test
   public void testTagsFromContext() throws IOException {
-    Tag<?> tag1 = new Tag<String>("tag1", "value1");
+    Tag<?> tag1 = new Tag<>("tag1", "value1");
     MetricContext context = MetricContext.builder("context").addTag(tag1).build();
     Counter counter = context.counter("com.linkedin.example.counter");
 
-    OutputStreamReporter reporter = OutputStreamReporter.Factory.newBuilder().
-        outputTo(stream).
-        build(new Properties());
+    OutputStreamReporter reporter =
+        OutputStreamReporter.Factory.newBuilder().outputTo(this.stream).build(new Properties());
 
     counter.inc();
 
     reporter.report();
-    Assert.assertTrue(stream.toString().contains("tag1=value1"));
-    String[] lines = stream.toString().split("\n");
+    Assert.assertTrue(this.stream.toString().contains("tag1=value1"));
+    String[] lines = this.stream.toString().split("\n");
 
-    Map<String, Set<String>> expected = new HashMap<String, Set<String>>();
+    Map<String, Set<String>> expected = new HashMap<>();
 
     expectMetrics(expected, lines);
-    Set<String> counterSubMetrics = new HashSet<String>();
+    Set<String> counterSubMetrics = new HashSet<>();
     counterSubMetrics.add("count");
     expected.put("com.linkedin.example.counter", counterSubMetrics);
 
@@ -149,26 +145,25 @@ public class OutputStreamReporterTest {
 
   @BeforeMethod
   public void before() {
-    stream.reset();
+    this.stream.reset();
   }
 
   private void expectMetrics(Map<String, Set<String>> metrics, String[] lines) {
 
-    Set<String> activeSet = new HashSet<String>();
+    Set<String> activeSet = new HashSet<>();
     String activeTopLevel = "";
 
     for (String line : lines) {
       System.out.println(line);
-      if(line.contains("com.linkedin.example")) {
-        Assert.assertTrue(activeSet.isEmpty(),
-            String.format("%s does not contain all expected submetrics. Missing: %s",
-                activeTopLevel, Arrays.toString(activeSet.toArray())));
+      if (line.contains("com.linkedin.example")) {
+        Assert.assertTrue(activeSet.isEmpty(), String.format("%s does not contain all expected submetrics. Missing: %s",
+            activeTopLevel, Arrays.toString(activeSet.toArray())));
         activeTopLevel = line.trim();
         if (metrics.containsKey(activeTopLevel)) {
           activeSet = metrics.get(activeTopLevel);
           metrics.remove(activeTopLevel);
         } else {
-          activeSet = new HashSet<String>();
+          activeSet = new HashSet<>();
         }
       } else if (line.contains("=")) {
         String submetric = line.split("=")[0].trim();
@@ -176,9 +171,8 @@ public class OutputStreamReporterTest {
       }
     }
 
-    Assert.assertTrue(activeSet.isEmpty(),
-        String.format("%s does not contain all expected submetrics. Missing: %s", activeTopLevel,
-            Arrays.toString(activeSet.toArray())));
+    Assert.assertTrue(activeSet.isEmpty(), String.format("%s does not contain all expected submetrics. Missing: %s",
+        activeTopLevel, Arrays.toString(activeSet.toArray())));
     Assert.assertTrue(metrics.isEmpty(),
         String.format("Output does not contain all expected top level metrics. Missing: %s",
             Arrays.toString(metrics.keySet().toArray())));

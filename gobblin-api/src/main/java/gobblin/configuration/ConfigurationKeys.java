@@ -45,6 +45,8 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_ROOT_DIR_KEY = "state.store.dir";
   // File system URI for file-system-based task store
   public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
+  // Enable / disable state store
+  public static final String STATE_STORE_ENABLED = "state.store.enabled";
 
   /**
    * Job scheduler configuration properties.
@@ -85,8 +87,8 @@ public class ConfigurationKeys {
   public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
   public static final String JOB_SCHEDULE_KEY = "job.schedule";
   public static final String JOB_LISTENERS_KEY = "job.listeners";
-  // Directory where job lock files are stored
-  public static final String JOB_LOCK_DIR_KEY = "job.lock.dir";
+  // Type of the job lock
+  public static final String JOB_LOCK_TYPE = "job.lock.type";
   //Directory that stores task staging data and task output data.
   public static final String TASK_DATA_ROOT_DIR_KEY = "task.data.root.dir";
   public static final String SOURCE_CLASS_KEY = "source.class";
@@ -128,6 +130,7 @@ public class ConfigurationKeys {
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
   public static final String JOB_STATE_FILE_PATH_KEY = "job.state.file.path";
+  public static final String JOB_STATE_DISTRIBUTED_CACHE_NAME = "job.state.distributed.cache.name";
 
   /**
    * Dataset-related configuration properties;

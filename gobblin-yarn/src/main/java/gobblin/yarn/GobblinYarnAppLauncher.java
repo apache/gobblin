@@ -330,7 +330,6 @@ public class GobblinYarnAppLauncher {
   }
 
   @Subscribe
-  @SuppressWarnings("unused")
   public void handleApplicationReportArrivalEvent(ApplicationReportArrivalEvent applicationReportArrivalEvent) {
     ApplicationReport applicationReport = applicationReportArrivalEvent.getApplicationReport();
 

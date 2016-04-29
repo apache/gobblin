@@ -102,7 +102,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    * <p>
    *   The "topic.name" field also allows regular expressions. For example, one can specify key, value
    *   "topic.name" : "myTopic.*". In this case all topics whose name matches the pattern "myTopic.*" will have all the
-   *   specified config properties added to their {@link WorkUnit}s. If more a topic matches multiple "topic.name"s then
+   *   specified config properties added to their {@link WorkUnit}s. If more than one topic matches multiple "topic.name"s then
    *   the properties from all the {@link JsonObject}s will be added to their {@link WorkUnit}s.
    * </p>
    */
@@ -163,7 +163,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    * configuration information specified in the state via the key {@link #KAFKA_TOPIC_SPECIFIC_STATE}.
    */
   @VisibleForTesting
-  Map<String, State> getTopicSpecificState(List<KafkaTopic> topics, SourceState state) {
+  static Map<String, State> getTopicSpecificState(List<KafkaTopic> topics, SourceState state) {
     if (!Strings.isNullOrEmpty(state.getProp(KAFKA_TOPIC_SPECIFIC_STATE))) {
       Map<String, State> topicSpecificConfigMap = Maps.newHashMap();
 
@@ -261,7 +261,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   @SuppressWarnings("deprecation")
-  private void skipWorkUnit(WorkUnit workUnit) {
+  private static void skipWorkUnit(WorkUnit workUnit) {
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, workUnit.getLowWaterMark());
   }
 
@@ -390,7 +390,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     this.doneGettingAllPreviousOffsets = true;
   }
 
-  private MultiLongWatermark getWatermark(WorkUnitState workUnitState) {
+  private static MultiLongWatermark getWatermark(WorkUnitState workUnitState) {
     if (workUnitState.getActualHighWatermark() != null) {
       return GSON.fromJson(workUnitState.getActualHighWatermark(), MultiLongWatermark.class);
     } else if (workUnitState.getWorkunit().getLowWatermark() != null) {
@@ -402,7 +402,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
   /**
    * A topic can be configured to move to the latest offset in {@link #TOPICS_MOVE_TO_LATEST_OFFSET}.
-   * 
+   *
    * Need to be synchronized as access by multiple threads
    */
   private synchronized boolean shouldMoveToLatestOffset(KafkaPartition partition, SourceState state) {
@@ -413,7 +413,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       this.moveToLatestTopics.addAll(
           Splitter.on(',').trimResults().omitEmptyStrings().splitToList(state.getProp(TOPICS_MOVE_TO_LATEST_OFFSET)));
     }
-    return this.moveToLatestTopics.contains(partition.getTopicName()) || moveToLatestTopics.contains(ALL_TOPICS);
+    return this.moveToLatestTopics.contains(partition.getTopicName()) || this.moveToLatestTopics.contains(ALL_TOPICS);
   }
 
   // thread safe
@@ -548,7 +548,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     public void run() {
       try {
         this.allTopicWorkUnits.put(this.topic.getName(),
-            KafkaSource.this.getWorkUnitsForTopic(this.topic, this.state, topicSpecificState));
+            KafkaSource.this.getWorkUnitsForTopic(this.topic, this.state, this.topicSpecificState));
       } catch (Throwable t) {
         LOG.error("Caught error in creating work unit for " + this.topic.getName(), t);
         throw t;

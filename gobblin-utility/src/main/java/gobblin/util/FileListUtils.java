@@ -57,15 +57,30 @@ public class FileListUtils {
    */
   public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path, PathFilter fileFilter)
       throws IOException {
-    return listFilesRecursivelyHelper(fs, Lists.<FileStatus> newArrayList(), fs.getFileStatus(path), fileFilter);
+    return listFilesRecursivelyHelper(fs, Lists.<FileStatus> newArrayList(), fs.getFileStatus(path), fileFilter, false);
+  }
+
+  /**
+   * Helper method to list out all files under a specified path. If applyFilterToDirectories is false, the supplied
+   * {@link PathFilter} will only be applied to files.
+   */
+  public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path, PathFilter fileFilter,
+      boolean applyFilterToDirectories) throws IOException {
+    return listFilesRecursivelyHelper(fs, Lists.<FileStatus> newArrayList(), fs.getFileStatus(path), fileFilter,
+        applyFilterToDirectories);
   }
 
   @SuppressWarnings("deprecation")
   private static List<FileStatus> listFilesRecursivelyHelper(FileSystem fs, List<FileStatus> files,
-      FileStatus fileStatus, PathFilter fileFilter) throws FileNotFoundException, IOException {
+      FileStatus fileStatus, PathFilter fileFilter, boolean applyFilterToDirectories)
+      throws FileNotFoundException, IOException {
     if (fileStatus.isDir()) {
-      for (FileStatus status : fs.listStatus(fileStatus.getPath())) {
-        listFilesRecursivelyHelper(fs, files, status, fileFilter);
+      for (FileStatus status : fs.listStatus(fileStatus.getPath(), applyFilterToDirectories ? fileFilter : NO_OP_PATH_FILTER)) {
+        if (fileStatus.isDir()) {
+          listFilesRecursivelyHelper(fs, files, status, fileFilter, applyFilterToDirectories);
+        } else {
+          files.add(fileStatus);
+        }
       }
     } else if (fileFilter.accept(fileStatus.getPath())) {
       files.add(fileStatus);

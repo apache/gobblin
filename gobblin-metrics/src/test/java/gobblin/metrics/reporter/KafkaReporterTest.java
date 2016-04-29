@@ -40,12 +40,10 @@ import gobblin.metrics.kafka.KafkaReporter;
 import gobblin.metrics.reporter.util.MetricReportUtils;
 
 
-@Test(groups = {"gobblin.metrics"})
+@Test(groups = { "gobblin.metrics" })
 public class KafkaReporterTest {
 
-
-  public KafkaReporterTest() throws IOException, InterruptedException {
-  }
+  public KafkaReporterTest() throws IOException, InterruptedException {}
 
   /**
    * Get builder for KafkaReporter (override if testing an extension of KafkaReporter)
@@ -61,7 +59,8 @@ public class KafkaReporterTest {
 
   @Test
   public void testKafkaReporter() throws IOException {
-    MetricContext metricContext = MetricContext.builder(this.getClass().getCanonicalName() + ".testKafkaReporter").build();
+    MetricContext metricContext =
+        MetricContext.builder(this.getClass().getCanonicalName() + ".testKafkaReporter").build();
     Counter counter = metricContext.counter("com.linkedin.example.counter");
     Meter meter = metricContext.meter("com.linkedin.example.meter");
     Histogram histogram = metricContext.histogram("com.linkedin.example.histogram");
@@ -83,7 +82,7 @@ public class KafkaReporterTest {
       Thread.currentThread().interrupt();
     }
 
-    Map<String, Double> expected = new HashMap<String, Double>();
+    Map<String, Double> expected = new HashMap<>();
     expected.put("com.linkedin.example.counter." + Measurements.COUNT, 1.0);
     expected.put("com.linkedin.example.meter." + Measurements.COUNT, 2.0);
     expected.put("com.linkedin.example.histogram." + Measurements.COUNT, 3.0);
@@ -100,7 +99,7 @@ public class KafkaReporterTest {
       Thread.currentThread().interrupt();
     }
 
-    Set<String> expectedSet = new HashSet<String>();
+    Set<String> expectedSet = new HashSet<>();
     expectedSet.add("com.linkedin.example.counter." + Measurements.COUNT);
     expectedSet.add("com.linkedin.example.meter." + Measurements.COUNT);
     expectedSet.add("com.linkedin.example.meter." + Measurements.MEAN_RATE);
@@ -126,16 +125,16 @@ public class KafkaReporterTest {
 
   @Test
   public void kafkaReporterTagsTest() throws IOException {
-    MetricContext metricContext = MetricContext.builder(this.getClass().getCanonicalName() + ".kafkaReporterTagsTest").build();
+    MetricContext metricContext =
+        MetricContext.builder(this.getClass().getCanonicalName() + ".kafkaReporterTagsTest").build();
     Counter counter = metricContext.counter("com.linkedin.example.counter");
 
-    Tag<?> tag1 = new Tag<String>("tag1", "value1");
-    Tag<?> tag2 = new Tag<Integer>("tag2", 2);
+    Tag<?> tag1 = new Tag<>("tag1", "value1");
+    Tag<?> tag2 = new Tag<>("tag2", 2);
 
     MockKafkaPusher pusher = new MockKafkaPusher();
-    KafkaReporter kafkaReporter = getBuilder(pusher).
-        withTags(Lists.newArrayList(tag1, tag2)).
-        build("localhost:0000", "topic", new Properties());
+    KafkaReporter kafkaReporter =
+        getBuilder(pusher).withTags(Lists.newArrayList(tag1, tag2)).build("localhost:0000", "topic", new Properties());
 
     counter.inc();
 
@@ -151,16 +150,14 @@ public class KafkaReporterTest {
 
     Assert.assertEquals(4, metricReport.getTags().size());
     Assert.assertTrue(metricReport.getTags().containsKey(tag1.getKey()));
-    Assert.assertEquals(metricReport.getTags().get(tag1.getKey()),
-        tag1.getValue().toString());
+    Assert.assertEquals(metricReport.getTags().get(tag1.getKey()), tag1.getValue().toString());
     Assert.assertTrue(metricReport.getTags().containsKey(tag2.getKey()));
-    Assert.assertEquals(metricReport.getTags().get(tag2.getKey()),
-        tag2.getValue().toString());
+    Assert.assertEquals(metricReport.getTags().get(tag2.getKey()), tag2.getValue().toString());
   }
 
   @Test
   public void kafkaReporterContextTest() throws IOException {
-    Tag<?> tag1 = new Tag<String>("tag1", "value1");
+    Tag<?> tag1 = new Tag<>("tag1", "value1");
     MetricContext context = MetricContext.builder("context").addTag(tag1).build();
     Counter counter = context.counter("com.linkedin.example.counter");
 
@@ -192,11 +189,10 @@ public class KafkaReporterTest {
    * @param expected map of expected metric names and their values
    * @throws IOException
    */
-  private void expectMetricsWithValues(MetricReport report, Map<String, Double> expected)
-      throws IOException {
+  private void expectMetricsWithValues(MetricReport report, Map<String, Double> expected) throws IOException {
     List<Metric> metricIterator = report.getMetrics();
 
-    for(Metric metric : metricIterator) {
+    for (Metric metric : metricIterator) {
       if (expected.containsKey(metric.getName())) {
         Assert.assertEquals(expected.get(metric.getName()), metric.getValue());
         expected.remove(metric.getName());
@@ -214,10 +210,9 @@ public class KafkaReporterTest {
    * @param strict if set to true, will fail if receiving any metric that is not expected
    * @throws IOException
    */
-  private void expectMetrics(MetricReport report, Set<String> expected, boolean strict)
-      throws IOException {
+  private void expectMetrics(MetricReport report, Set<String> expected, boolean strict) throws IOException {
     List<Metric> metricIterator = report.getMetrics();
-    for(Metric metric : metricIterator) {
+    for (Metric metric : metricIterator) {
       //System.out.println(String.format("expectedSet.add(\"%s\")", metric.name));
       if (expected.contains(metric.getName())) {
         expected.remove(metric.getName());

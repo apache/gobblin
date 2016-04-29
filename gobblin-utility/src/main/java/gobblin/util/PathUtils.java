@@ -12,15 +12,20 @@
 
 package gobblin.util;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Strings;
 
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class PathUtils {
 
   public static final Pattern GLOB_TOKENS = Pattern.compile("[,\\?\\*\\[\\{]");
@@ -151,5 +156,25 @@ public class PathUtils {
   public static boolean isAbsoluteAndSchemeAuthorityNull(Path path) {
     return  (path.isAbsolute() &&
         path.toUri().getScheme() == null && path.toUri().getAuthority() == null);
+  }
+
+  /**
+   * Deletes empty directories starting with startPath and all ancestors up to but not including limitPath.
+   * @param fs {@link FileSystem} where paths are located.
+   * @param limitPath only {@link Path}s that are strict descendants of this path will be deleted.
+   * @param startPath first {@link Path} to delete. Afterwards empty ancestors will be deleted.
+   * @throws IOException
+   */
+  public static void deleteEmptyParentDirectories(FileSystem fs, Path limitPath, Path startPath) throws IOException {
+    if (PathUtils.isAncestor(limitPath, startPath)
+        && !PathUtils.getPathWithoutSchemeAndAuthority(limitPath).equals(PathUtils.getPathWithoutSchemeAndAuthority(startPath))
+        && fs.listStatus(startPath).length == 0) {
+      if (!fs.delete(startPath, false)) {
+        log.warn("Failed to delete empty directory " + startPath);
+      } else {
+        log.info("Deleted empty directory " + startPath);
+      }
+      deleteEmptyParentDirectories(fs, limitPath, startPath.getParent());
+    }
   }
 }

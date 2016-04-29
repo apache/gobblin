@@ -18,6 +18,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 
+import com.typesafe.config.Config;
+
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.data.management.version.TimestampedDatasetVersion;
 
@@ -28,6 +30,12 @@ import gobblin.data.management.version.TimestampedDatasetVersion;
 public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
   private final Path globPattern;
+
+  private static final String VERSION_FINDER_GLOB_PATTERN_KEY = "version.globPattern";
+
+  public GlobModTimeDatasetVersionFinder(FileSystem fs, Config config) {
+    this(fs, config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY) ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY)) : new Path("*"));
+  }
 
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern) {
     super(fs);

@@ -114,7 +114,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       // which do NOT include directories created by the writer and moved by the publisher.
       // The permissions of those directories are controlled by writer.file.permissions and writer.dir.permissions.
       this.permissions.add(new FsPermission(state.getPropAsShortWithRadix(
-          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_PERMISSIONS, numBranches, i),
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_PERMISSIONS, this.numBranches, i),
           FsPermission.getDefault().toShort(), ConfigurationKeys.PERMISSION_PARSING_RADIX)));
     }
 
@@ -321,9 +321,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     // If src is a dir, add dst to the set of paths. Otherwise, add dst's parent.
     if (this.writerFileSystemByBranches.get(branchId).getFileStatus(src).isDir()) {
       return ImmutableList.<Path> of(dst);
-    } else {
-      return ImmutableList.<Path> of(dst.getParent());
     }
+    return ImmutableList.<Path> of(dst.getParent());
   }
 
   private ParallelRunner getParallelRunner(FileSystem fs) {

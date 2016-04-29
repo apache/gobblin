@@ -27,7 +27,6 @@ import com.google.common.base.Optional;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.TypeAdapter;
@@ -82,12 +81,12 @@ public class GsonInterfaceAdapter implements TypeAdapterFactory {
 
   private final Class<?> baseClass;
 
-  @Override public <R> TypeAdapter<R> create(Gson gson, TypeToken<R> type) {
-    if (ClassUtils.isPrimitiveOrWrapper(type.getRawType()) ||
-        type.getType() instanceof GenericArrayType ||
-        CharSequence.class.isAssignableFrom(type.getRawType()) ||
-        (type.getType() instanceof ParameterizedType &&
-            (Collection.class.isAssignableFrom(type.getRawType()) || Map.class.isAssignableFrom(type.getRawType())))) {
+  @Override
+  public <R> TypeAdapter<R> create(Gson gson, TypeToken<R> type) {
+    if (ClassUtils.isPrimitiveOrWrapper(type.getRawType()) || type.getType() instanceof GenericArrayType
+        || CharSequence.class.isAssignableFrom(type.getRawType())
+        || (type.getType() instanceof ParameterizedType && (Collection.class.isAssignableFrom(type.getRawType())
+            || Map.class.isAssignableFrom(type.getRawType())))) {
       // delegate primitives, arrays, collections, and maps
       return null;
     }
@@ -106,8 +105,9 @@ public class GsonInterfaceAdapter implements TypeAdapterFactory {
     private final TypeAdapterFactory factory;
     private final TypeToken<R> typeToken;
 
-    @Override public void write(JsonWriter out, R value) throws IOException {
-      if (Optional.class.isAssignableFrom(typeToken.getRawType())) {
+    @Override
+    public void write(JsonWriter out, R value) throws IOException {
+      if (Optional.class.isAssignableFrom(this.typeToken.getRawType())) {
         Optional opt = (Optional) value;
         if (opt != null && opt.isPresent()) {
           Object actualValue = opt.get();
@@ -121,14 +121,15 @@ public class GsonInterfaceAdapter implements TypeAdapterFactory {
       }
     }
 
-    @Override public R read(JsonReader in) throws IOException {
+    @Override
+    public R read(JsonReader in) throws IOException {
       JsonElement element = Streams.parse(in);
       if (element.isJsonNull()) {
         return readNull();
       }
       JsonObject jsonObject = element.getAsJsonObject();
 
-      if (typeToken.getRawType() == Optional.class) {
+      if (this.typeToken.getRawType() == Optional.class) {
         if (jsonObject.has(OBJECT_TYPE)) {
           return (R) Optional.of(readValue(jsonObject, null));
         } else if (jsonObject.entrySet().isEmpty()) {
@@ -136,24 +137,23 @@ public class GsonInterfaceAdapter implements TypeAdapterFactory {
         } else {
           throw new IOException("No class found for Optional value.");
         }
-      } else {
-        return this.readValue(jsonObject, this.typeToken);
       }
+      return this.readValue(jsonObject, this.typeToken);
     }
 
     private <S> S readNull() {
       if (this.typeToken.getRawType() == Optional.class) {
         return (S) Optional.absent();
-      } else {
-        return null;
       }
+      return null;
     }
 
     private <S> void writeObject(S value, JsonWriter out) throws IOException {
       if (value != null) {
         JsonObject jsonObject = new JsonObject();
         jsonObject.add(OBJECT_TYPE, new JsonPrimitive(value.getClass().getName()));
-        TypeAdapter<S> delegate = (TypeAdapter<S>) gson.getDelegateAdapter(this.factory, TypeToken.get(value.getClass()));
+        TypeAdapter<S> delegate =
+            (TypeAdapter<S>) this.gson.getDelegateAdapter(this.factory, TypeToken.get(value.getClass()));
         jsonObject.add(OBJECT_DATA, delegate.toJsonTree(value));
         Streams.write(jsonObject, out);
       } else {

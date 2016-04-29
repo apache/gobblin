@@ -1,5 +1,7 @@
 package gobblin.util;
 
+import com.google.common.base.Optional;
+import org.apache.avro.file.CodecFactory;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -109,5 +111,13 @@ public class WriterUtilsTest {
         .getOutputFilePath()));
     Assert.assertEquals(WriterUtils.getWriterFilePath(workUnitState, 2, 0), new Path(workUnitState.getExtract()
         .getOutputFilePath(), ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + "0"));
+  }
+
+  @Test
+  public void testGetCodecFactoryIgnoresCase() {
+    CodecFactory codecFactory = WriterUtils.getCodecFactory(Optional.of("SNAPPY"), Optional.<String>absent());
+    Assert.assertEquals(codecFactory.toString(), "snappy");
+    codecFactory = WriterUtils.getCodecFactory(Optional.of("snappy"), Optional.<String>absent());
+    Assert.assertEquals(codecFactory.toString(), "snappy");
   }
 }

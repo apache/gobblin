@@ -36,7 +36,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   private boolean isEmbeddedInstrumented;
 
   public InstrumentedDataWriterDecorator(DataWriter<D> writer, State state) {
-    super(state, Optional.<Class<?>>of(DecoratorUtils.resolveUnderlyingObject(writer).getClass()));
+    super(state, Optional.<Class<?>> of(DecoratorUtils.resolveUnderlyingObject(writer).getClass()));
     this.embeddedWriter = this.closer.register(writer);
     this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(writer);
   }
@@ -48,8 +48,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   }
 
   @Override
-  public void write(D record)
-      throws IOException {
+  public void write(D record) throws IOException {
     if (this.isEmbeddedInstrumented) {
       writeImpl(record);
     } else {
@@ -58,21 +57,18 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   }
 
   @Override
-  public void writeImpl(D record)
-      throws IOException {
+  public void writeImpl(D record) throws IOException {
     this.embeddedWriter.write(record);
   }
 
   @Override
-  public void commit()
-      throws IOException {
+  public void commit() throws IOException {
     this.embeddedWriter.commit();
     super.commit();
   }
 
   @Override
-  public void cleanup()
-      throws IOException {
+  public void cleanup() throws IOException {
     this.embeddedWriter.cleanup();
   }
 
@@ -82,8 +78,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   }
 
   @Override
-  public long bytesWritten()
-      throws IOException {
+  public long bytesWritten() throws IOException {
     return this.embeddedWriter.bytesWritten();
   }
 
@@ -91,9 +86,8 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   public State getFinalState() {
     if (this.embeddedWriter instanceof FinalState) {
       return ((FinalState) this.embeddedWriter).getFinalState();
-    } else {
-      return super.getFinalState();
     }
+    return super.getFinalState();
   }
 
   @Override

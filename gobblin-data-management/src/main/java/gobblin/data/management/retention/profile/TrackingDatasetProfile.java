@@ -42,7 +42,7 @@ public class TrackingDatasetProfile extends ConfigurableGlobDatasetFinder {
   @Override
   public List<String> requiredProperties() {
     List<String> requiredProperties = super.requiredProperties();
-    requiredProperties.add(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY);
+    requiredProperties.add(DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_KEY);
     return requiredProperties;
   }
 

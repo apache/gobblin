@@ -59,10 +59,9 @@ public class LocalJobLauncherTest {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
         "jdbc:derby:memory:gobblin1;create=true");
 
-    StateStore<JobState.DatasetState> datasetStateStore = new FsStateStore<JobState.DatasetState>(
-        this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
-        this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
-        JobState.DatasetState.class);
+    StateStore<JobState.DatasetState> datasetStateStore =
+        new FsStateStore<>(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+            this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.DatasetState.class);
 
     this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, datasetStateStore);
     this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
@@ -83,8 +82,8 @@ public class LocalJobLauncherTest {
   @Test
   public void testLaunchJobWithPullLimit() throws Exception {
     Properties jobProps = loadJobProps();
-    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
-        "-testLaunchJobWithPullLimit");
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithPullLimit");
     jobProps.setProperty(ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY, Boolean.TRUE.toString());
     jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_TYPE_KEY, BaseLimiterType.COUNT_BASED.toString());
     jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY, "10");
@@ -98,8 +97,8 @@ public class LocalJobLauncherTest {
   @Test
   public void testLaunchJobWithMultiWorkUnit() throws Exception {
     Properties jobProps = loadJobProps();
-    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
-        "-testLaunchJobWithMultiWorkUnit");
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultiWorkUnit");
     jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
     try {
       this.jobLauncherTestHelper.runTest(jobProps);
@@ -116,14 +115,14 @@ public class LocalJobLauncherTest {
   @Test
   public void testLaunchJobWithFork() throws Exception {
     Properties jobProps = loadJobProps();
-    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
-        "-testLaunchJobWithFork");
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithFork");
     jobProps.setProperty(ConfigurationKeys.CONVERTER_CLASSES_KEY, "gobblin.test.TestConverter2");
     jobProps.setProperty(ConfigurationKeys.FORK_BRANCHES_KEY, "2");
-    jobProps
-        .setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".0", "gobblin.policies.schema.SchemaRowCheckPolicy");
-    jobProps
-        .setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".1", "gobblin.policies.schema.SchemaRowCheckPolicy");
+    jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".0",
+        "gobblin.policies.schema.SchemaRowCheckPolicy");
+    jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".1",
+        "gobblin.policies.schema.SchemaRowCheckPolicy");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".0", "OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".1", "OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST + ".0",
@@ -194,8 +193,8 @@ public class LocalJobLauncherTest {
   @Test
   public void testLaunchJobWithMultipleDatasetsAndFaultyExtractorAndPartialCommitPolicy() throws Exception {
     Properties jobProps = loadJobProps();
-    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
-        "-testLaunchJobWithMultipleDatasetsAndFaultyExtractorAndPartialCommitPolicy");
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)
+        + "-testLaunchJobWithMultipleDatasetsAndFaultyExtractorAndPartialCommitPolicy");
     try {
       this.jobLauncherTestHelper.runTestWithMultipleDatasetsAndFaultyExtractor(jobProps, true);
     } finally {
@@ -204,7 +203,7 @@ public class LocalJobLauncherTest {
   }
 
   @AfterClass
-  public void tearDown() throws IOException {
+  public void tearDown() {
     try {
       DriverManager.getConnection("jdbc:derby:memory:gobblin1;shutdown=true");
     } catch (SQLException se) {
@@ -216,9 +215,9 @@ public class LocalJobLauncherTest {
     Properties jobProps = new Properties();
     jobProps.load(new FileReader("gobblin-test/resource/job-conf/GobblinTest1.pull"));
     jobProps.putAll(this.launcherProps);
-    jobProps.setProperty(JobLauncherTestHelper.SOURCE_FILE_LIST_KEY, "gobblin-test/resource/source/test.avro.0,"
-        + "gobblin-test/resource/source/test.avro.1," + "gobblin-test/resource/source/test.avro.2,"
-        + "gobblin-test/resource/source/test.avro.3");
+    jobProps.setProperty(JobLauncherTestHelper.SOURCE_FILE_LIST_KEY,
+        "gobblin-test/resource/source/test.avro.0," + "gobblin-test/resource/source/test.avro.1,"
+            + "gobblin-test/resource/source/test.avro.2," + "gobblin-test/resource/source/test.avro.3");
 
     return jobProps;
   }

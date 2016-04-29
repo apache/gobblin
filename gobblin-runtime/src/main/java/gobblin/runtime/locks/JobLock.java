@@ -10,13 +10,14 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
+package gobblin.runtime.locks;
 
-import java.io.IOException;
+import java.io.Closeable;
+import java.util.Properties;
 
 
 /**
- * A class for claiming exclusive right to proceed for each scheduled
+ * A interface for claiming exclusive right to proceed for each scheduled
  * run of a job.
  *
  * <p>
@@ -27,40 +28,41 @@ import java.io.IOException;
  *
  * @author Yinan Li
  */
-public interface JobLock {
+public interface JobLock extends Closeable {
 
   /**
    * Acquire the lock.
    *
-   * @throws IOException
+   * @throws JobLockException thrown if the {@link JobLock} fails to be acquired
    */
-  public void lock()
-      throws IOException;
+  void lock()
+      throws JobLockException;
 
   /**
    * Release the lock.
    *
-   * @throws IOException
+   * @throws JobLockException thrown if the {@link JobLock} fails to be released
    */
-  public void unlock()
-      throws IOException;
+  void unlock()
+      throws JobLockException;
 
   /**
    * Try locking the lock.
    *
    * @return <em>true</em> if the lock is successfully locked,
    *         <em>false</em> if otherwise.
-   * @throws IOException
+   * @throws JobLockException thrown if the {@link JobLock} fails to be acquired
    */
-  public boolean tryLock()
-      throws IOException;
+  boolean tryLock()
+      throws JobLockException;
 
   /**
    * Check if the lock is locked.
    *
    * @return if the lock is locked
-   * @throws IOException
+   * @throws JobLockException thrown if checking the status of the {@link JobLock} fails
    */
-  public boolean isLocked()
-      throws IOException;
+  boolean isLocked()
+      throws JobLockException;
+
 }

@@ -69,7 +69,7 @@ public abstract class HiveRegister implements Closeable {
   protected final ListeningExecutorService executor;
   protected final List<Future<Void>> futures = Lists.newArrayList();
 
-  protected HiveRegister(State state) throws IOException {
+  protected HiveRegister(State state) {
     this.props = new HiveRegProps(state);
     this.hiveDbRootDir = this.props.getDbRootDir();
     this.executor = MoreExecutors.listeningDecorator(
@@ -85,7 +85,7 @@ public abstract class HiveRegister implements Closeable {
    *
    * @return a {@link ListenableFuture} for the process of registering the given {@link HiveSpec}.
    */
-  public ListenableFuture<Void> register(final HiveSpec spec) throws IOException {
+  public ListenableFuture<Void> register(final HiveSpec spec) {
     ListenableFuture<Void> future = this.executor.submit(new Callable<Void>() {
 
       @Override

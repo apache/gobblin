@@ -17,6 +17,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
@@ -25,36 +26,49 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 
 import gobblin.commit.CommitStep;
 import gobblin.data.management.trash.Trash;
 import gobblin.data.management.trash.TrashFactory;
+import gobblin.util.PathUtils;
 
 
 /**
  * {@link CommitStep} to delete a set of paths in a {@link FileSystem}.
+ * If {@link #parentDeletionLimit} is present, will also delete newly empty parent directories up to but not including
+ * that limit.
  */
 public class DeleteFileCommitStep implements CommitStep {
 
   private final Collection<FileStatus> pathsToDelete;
   private final Properties properties;
   private final URI fsUri;
+  private final Optional<Path> parentDeletionLimit;
 
   public DeleteFileCommitStep(FileSystem fs, Path path, Properties properties) throws IOException {
-    this(fs, Lists.newArrayList(fs.getFileStatus(path)), properties);
+    this(fs, Lists.newArrayList(fs.getFileStatus(path)), properties, Optional.<Path>absent());
   }
 
   public static DeleteFileCommitStep fromPaths(FileSystem fs, Collection<Path> paths, Properties properties) throws
       IOException {
-    return new DeleteFileCommitStep(fs, toFileStatus(fs, paths), properties);
+    return new DeleteFileCommitStep(fs, toFileStatus(fs, paths), properties, Optional.<Path>absent());
   }
 
-  public DeleteFileCommitStep(FileSystem fs, Collection<FileStatus> paths, Properties properties) throws IOException {
+  public static DeleteFileCommitStep fromPaths(FileSystem fs, Collection<Path> paths, Properties properties,
+      Path parentDeletionLimit) throws IOException {
+    return new DeleteFileCommitStep(fs, toFileStatus(fs, paths), properties, Optional.of(parentDeletionLimit));
+  }
+
+  private DeleteFileCommitStep(FileSystem fs, Collection<FileStatus> paths, Properties properties,
+      Optional<Path> parentDeletionLimit) throws IOException {
     this.fsUri = fs.getUri();
     this.pathsToDelete = paths;
     this.properties = properties;
+    this.parentDeletionLimit = parentDeletionLimit;
   }
 
   private static List<FileStatus> toFileStatus(FileSystem fs, Collection<Path> paths) throws IOException {
@@ -76,9 +90,16 @@ public class DeleteFileCommitStep implements CommitStep {
 
   @Override public void execute() throws IOException {
     Trash trash = TrashFactory.createTrash(getFS(), this.properties);
+    Set<Path> parents = Sets.newHashSet();
     for (FileStatus pathToDelete : this.pathsToDelete) {
       if (existsAndIsExpectedFile(pathToDelete)) {
         trash.moveToTrash(pathToDelete.getPath());
+        parents.add(pathToDelete.getPath().getParent());
+      }
+    }
+    if (this.parentDeletionLimit.isPresent()) {
+      for (Path parent : parents) {
+        PathUtils.deleteEmptyParentDirectories(getFS(), this.parentDeletionLimit.get(), parent);
       }
     }
   }

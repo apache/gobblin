@@ -129,8 +129,7 @@ public class GobblinHelixJobLauncherTest {
     properties.setProperty(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, sourceJsonFile.getAbsolutePath());
 
     this.gobblinHelixJobLauncher = this.closer.register(
-        new GobblinHelixJobLauncher(properties, this.helixManager, this.localFs, this.appWorkDir,
-            ImmutableList.<Tag<?>>of()));
+        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of()));
 
     this.gobblinWorkUnitRunner =
         new GobblinWorkUnitRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,

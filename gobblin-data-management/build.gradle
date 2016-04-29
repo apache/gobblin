@@ -36,14 +36,15 @@ dependencies {
   compile externalDependency.commonsCodec
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
+  compile externalDependency.testng
 
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
-  testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.joptSimple
   testCompile externalDependency.hamcrest
+  testCompile externalDependency.testng
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

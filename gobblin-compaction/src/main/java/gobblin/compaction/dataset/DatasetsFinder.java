@@ -94,14 +94,14 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
   }
 
   private String getInputDir() {
-    Preconditions.checkArgument(this.state.contains(MRCompactor.COMPACTION_INPUT_DIR), "Missing required property "
-        + MRCompactor.COMPACTION_INPUT_DIR);
+    Preconditions.checkArgument(this.state.contains(MRCompactor.COMPACTION_INPUT_DIR),
+        "Missing required property " + MRCompactor.COMPACTION_INPUT_DIR);
     return this.state.getProp(MRCompactor.COMPACTION_INPUT_DIR);
   }
 
   private String getDestDir() {
-    Preconditions.checkArgument(this.state.contains(MRCompactor.COMPACTION_DEST_DIR), "Missing required property "
-        + MRCompactor.COMPACTION_DEST_DIR);
+    Preconditions.checkArgument(this.state.contains(MRCompactor.COMPACTION_DEST_DIR),
+        "Missing required property " + MRCompactor.COMPACTION_DEST_DIR);
     return this.state.getProp(MRCompactor.COMPACTION_DEST_DIR);
   }
 
@@ -114,9 +114,8 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
       if (this.state.contains(MRCompactor.COMPACTION_FILE_SYSTEM_URI)) {
         URI uri = URI.create(this.state.getProp(MRCompactor.COMPACTION_FILE_SYSTEM_URI));
         return FileSystem.get(uri, this.conf);
-      } else {
-        return FileSystem.get(this.conf);
       }
+      return FileSystem.get(this.conf);
     } catch (IOException e) {
       throw new RuntimeException("Failed to get filesystem for datasetsFinder.", e);
     }
@@ -157,13 +156,12 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
     return priority;
   }
 
-  private Map<String, Double> getDatasetRegexAndRecompactThreshold(String datasetsAndRecompactThresholds) {
+  private static Map<String, Double> getDatasetRegexAndRecompactThreshold(String datasetsAndRecompactThresholds) {
     Map<String, Double> topicRegexAndRecompactThreshold = Maps.newHashMap();
     for (String entry : Splitter.on(DATASETS_WITH_DIFFERENT_RECOMPACT_THRESHOLDS_SEPARATOR).trimResults()
         .omitEmptyStrings().splitToList(datasetsAndRecompactThresholds)) {
       List<String> topicsAndRecompactThreshold =
-          Splitter.on(DATASETS_AND_RECOMPACT_THRESHOLD_SEPARATOR).trimResults().omitEmptyStrings()
-              .splitToList(entry);
+          Splitter.on(DATASETS_AND_RECOMPACT_THRESHOLD_SEPARATOR).trimResults().omitEmptyStrings().splitToList(entry);
       if (topicsAndRecompactThreshold.size() != 2) {
         log.error("Invalid form (DATASET_NAME:THRESHOLD) in "
             + MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET + ".");
@@ -176,12 +174,10 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
   }
 
   protected double getDatasetRecompactThreshold(String datasetName) {
-    Map<String, Double> datasetRegexAndRecompactThreshold =
-        this.getDatasetRegexAndRecompactThreshold(this.state.getProp(
-            MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET, StringUtils.EMPTY));
+    Map<String, Double> datasetRegexAndRecompactThreshold = getDatasetRegexAndRecompactThreshold(
+        this.state.getProp(MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET, StringUtils.EMPTY));
     for (Map.Entry<String, Double> topicRegexEntry : datasetRegexAndRecompactThreshold.entrySet()) {
-      if (DatasetFilterUtils.stringInPatterns(
-          datasetName,
+      if (DatasetFilterUtils.stringInPatterns(datasetName,
           DatasetFilterUtils.getPatternsFromStrings(Splitter.on(DATASETS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR)
               .trimResults().omitEmptyStrings().splitToList(topicRegexEntry.getKey())))) {
         return topicRegexEntry.getValue();

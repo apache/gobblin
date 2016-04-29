@@ -12,14 +12,11 @@
 
 package gobblin.converter.filter;
 
-import gobblin.converter.SchemaConversionException;
-
 import java.util.List;
 import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
-import org.apache.commons.lang3.mutable.MutableInt;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -40,23 +37,21 @@ public class AvroSchemaFieldRemover {
   private static final AvroSchemaFieldRemover DO_NOTHING_INSTANCE = new AvroSchemaFieldRemover();
 
   private final Map<String, AvroSchemaFieldRemover> children = Maps.newHashMap();
-  private List<String> fieldsToRemove;
 
   /**
    * @param fieldNames Field names to be removed from the Avro schema. Contains comma-separated fully-qualified
    * field names, e.g., "header.memberId,mobileHeader.osVersion".
    */
   public AvroSchemaFieldRemover(String fieldNames) {
-    this.fieldsToRemove = SPLITTER_ON_COMMA.splitToList(fieldNames);
-    this.addChildren(fieldsToRemove);
+    this.addChildren(fieldNames);
   }
 
   private AvroSchemaFieldRemover() {
     this("");
   }
 
-  private void addChildren(List<String> fields) {
-    for (String fieldName : fields) {
+  private void addChildren(String fieldNames) {
+    for (String fieldName : SPLITTER_ON_COMMA.splitToList(fieldNames)) {
       List<String> fieldNameComponents = SPLITTER_ON_DOT.splitToList(fieldName);
       if (!fieldNameComponents.isEmpty()) {
         this.addChildren(fieldNameComponents, 0);
@@ -80,45 +75,29 @@ public class AvroSchemaFieldRemover {
    * @return A new Avro schema with the specified fields removed.
    */
   public Schema removeFields(Schema schema) {
-    return removeFields(schema, Maps.<String, Schema> newHashMap(), new MutableInt());
+    return removeFields(schema, Maps.<String, Schema> newHashMap());
   }
 
-  /**
-   * @param schema The Avro schema where the specified fields should be removed from.
-   * @return A new Avro schema with the specified fields removed.
-   * @throws SchemaConversionException When specified fields do not exist in the Schema.
-   */
-  public Schema removeFieldsStrictly(Schema schema) throws SchemaConversionException {
-    MutableInt count = new MutableInt();
-    Schema removed = removeFields(schema, Maps.<String, Schema> newHashMap(), count);
-    if (fieldsToRemove.size() != count.getValue()) {
-      throw new SchemaConversionException("Failed to delete fields from schema. Fields to remove: " + fieldsToRemove +
-                                          "Removed " + count.getValue() + " fields from Schema " + schema);
-    }
-    return removed;
-  }
-
-  private Schema removeFields(Schema schema, Map<String, Schema> schemaMap, MutableInt count) {
+  private Schema removeFields(Schema schema, Map<String, Schema> schemaMap) {
 
     switch (schema.getType()) {
       case RECORD:
         if (schemaMap.containsKey(schema.getFullName())) {
           return schemaMap.get(schema.getFullName());
-        } else {
-          return this.removeFieldsFromRecords(schema, schemaMap, count);
         }
+        return this.removeFieldsFromRecords(schema, schemaMap);
       case UNION:
-        return this.removeFieldsFromUnion(schema, schemaMap, count);
+        return this.removeFieldsFromUnion(schema, schemaMap);
       case ARRAY:
-        return this.removeFieldsFromArray(schema, schemaMap, count);
+        return this.removeFieldsFromArray(schema, schemaMap);
       case MAP:
-        return this.removeFieldsFromMap(schema, schemaMap, count);
+        return this.removeFieldsFromMap(schema, schemaMap);
       default:
         return schema;
     }
   }
 
-  private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap, MutableInt count) {
+  private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap) {
 
     Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
 
@@ -131,15 +110,13 @@ public class AvroSchemaFieldRemover {
       if (!this.shouldRemove(field)) {
         Field newField;
         if (this.children.containsKey(field.name())) {
-          newField = new Field(field.name(), this.children.get(field.name()).removeFields(field.schema(), schemaMap, count),
+          newField = new Field(field.name(), this.children.get(field.name()).removeFields(field.schema(), schemaMap),
               field.doc(), field.defaultValue());
         } else {
-          newField = new Field(field.name(), DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap, count), field.doc(),
+          newField = new Field(field.name(), DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
               field.defaultValue());
         }
         newFields.add(newField);
-      } else {
-        count.increment();
       }
     }
 
@@ -154,19 +131,19 @@ public class AvroSchemaFieldRemover {
     return this.children.containsKey(field.name()) && this.children.get(field.name()).children.isEmpty();
   }
 
-  private Schema removeFieldsFromUnion(Schema schema, Map<String, Schema> schemaMap, MutableInt count) {
+  private Schema removeFieldsFromUnion(Schema schema, Map<String, Schema> schemaMap) {
     List<Schema> newUnion = Lists.newArrayList();
     for (Schema unionType : schema.getTypes()) {
-      newUnion.add(this.removeFields(unionType, schemaMap, count));
+      newUnion.add(this.removeFields(unionType, schemaMap));
     }
     return Schema.createUnion(newUnion);
   }
 
-  private Schema removeFieldsFromArray(Schema schema, Map<String, Schema> schemaMap, MutableInt count) {
-    return Schema.createArray(this.removeFields(schema.getElementType(), schemaMap, count));
+  private Schema removeFieldsFromArray(Schema schema, Map<String, Schema> schemaMap) {
+    return Schema.createArray(this.removeFields(schema.getElementType(), schemaMap));
   }
 
-  private Schema removeFieldsFromMap(Schema schema, Map<String, Schema> schemaMap, MutableInt count) {
-    return Schema.createMap(this.removeFields(schema.getValueType(), schemaMap, count));
+  private Schema removeFieldsFromMap(Schema schema, Map<String, Schema> schemaMap) {
+    return Schema.createMap(this.removeFields(schema.getValueType(), schemaMap));
   }
 }

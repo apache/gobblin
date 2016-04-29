@@ -88,7 +88,7 @@ public class KafkaWrapper implements Closeable {
     }
 
     private KafkaWrapper build() {
-      Preconditions.checkArgument(!brokers.isEmpty(), "Need to specify at least one Kafka broker.");
+      Preconditions.checkArgument(!this.brokers.isEmpty(), "Need to specify at least one Kafka broker.");
       return new KafkaWrapper(this);
     }
   }

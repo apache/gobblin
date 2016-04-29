@@ -104,9 +104,8 @@ public class AvroUtils {
     }
     if ((field + 1) == pathList.size()) {
       return Optional.fromNullable(schema.getField(pathList.get(field)).schema());
-    } else {
-      return AvroUtils.getFieldSchemaHelper(schema.getField(pathList.get(field)).schema(), pathList, ++field);
     }
+    return AvroUtils.getFieldSchemaHelper(schema.getField(pathList.get(field)).schema(), pathList, ++field);
   }
 
   /**
@@ -145,9 +144,8 @@ public class AvroUtils {
 
     if ((field + 1) == pathList.size()) {
       return Optional.fromNullable(((Record) data).get(pathList.get(field)));
-    } else {
-      return AvroUtils.getFieldHelper(((Record) data).get(pathList.get(field)), pathList, ++field);
     }
+    return AvroUtils.getFieldHelper(((Record) data).get(pathList.get(field)), pathList, ++field);
   }
 
   /**
@@ -168,7 +166,7 @@ public class AvroUtils {
 
     try {
       BinaryDecoder decoder = new DecoderFactory().binaryDecoder(recordToByteArray(record), null);
-      DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(record.getSchema(), newSchema);
+      DatumReader<GenericRecord> reader = new GenericDatumReader<>(record.getSchema(), newSchema);
       return reader.read(null, decoder);
     } catch (IOException e) {
       throw new IOException(
@@ -182,18 +180,12 @@ public class AvroUtils {
    * Convert a GenericRecord to a byte array.
    */
   public static byte[] recordToByteArray(GenericRecord record) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
+    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
       Encoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
-      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
+      DatumWriter<GenericRecord> writer = new GenericDatumWriter<>(record.getSchema());
       writer.write(record, encoder);
       byte[] byteArray = out.toByteArray();
       return byteArray;
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 
@@ -201,14 +193,9 @@ public class AvroUtils {
    * Get Avro schema from an Avro data file.
    */
   public static Schema getSchemaFromDataFile(Path dataFile, FileSystem fs) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      SeekableInput sin = closer.register(new FsInput(dataFile, fs.getConf()));
-      DataFileReader<GenericRecord> reader =
-          closer.register(new DataFileReader<GenericRecord>(sin, new GenericDatumReader<GenericRecord>()));
+    try (SeekableInput sin = new FsInput(dataFile, fs.getConf());
+        DataFileReader<GenericRecord> reader = new DataFileReader<>(sin, new GenericDatumReader<GenericRecord>())) {
       return reader.getSchema();
-    } finally {
-      closer.close();
     }
   }
 
@@ -255,8 +242,8 @@ public class AvroUtils {
         FileStatus file = latest ? files.get(0) : files.get(files.size() - 1);
         LOG.debug("Path to get the avro schema: " + file);
         FsInput fi = new FsInput(file.getPath(), fs.getConf());
-        GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<GenericRecord>();
-        schema = closer.register(new DataFileReader<GenericRecord>(fi, genReader)).getSchema();
+        GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<>();
+        schema = closer.register(new DataFileReader<>(fi, genReader)).getSchema();
       }
     } catch (IOException ioe) {
       throw new IOException("Cannot get the schema for directory " + directory, ioe);
@@ -421,9 +408,8 @@ public class AvroUtils {
     // Discard the union field if one or more types are removed from the union.
     if (newUnion.size() != union.getTypes().size()) {
       return Optional.absent();
-    } else {
-      return Optional.of(Schema.createUnion(newUnion));
     }
+    return Optional.of(Schema.createUnion(newUnion));
   }
 
   /**

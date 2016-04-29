@@ -13,21 +13,20 @@
 package gobblin.hive.policy;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.regex.Pattern;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
@@ -46,16 +45,10 @@ public class HiveSnapshotRegistrationPolicy extends HiveRegistrationPolicyBase {
 
   public static final String SNAPSHOT_PATH_PATTERN = "snapshot.path.pattern";
 
-  protected final FileSystem fs;
   protected final Optional<Pattern> snapshotPathPattern;
 
   protected HiveSnapshotRegistrationPolicy(State props) throws IOException {
     super(props);
-    if (props.contains(HiveRegistrationPolicyBase.HIVE_FS_URI)) {
-      this.fs = FileSystem.get(URI.create(props.getProp(HiveRegistrationPolicyBase.HIVE_FS_URI)), new Configuration());
-    } else {
-      this.fs = FileSystem.get(new Configuration());
-    }
     this.snapshotPathPattern = props.contains(SNAPSHOT_PATH_PATTERN)
         ? Optional.of(Pattern.compile(props.getProp(SNAPSHOT_PATH_PATTERN))) : Optional.<Pattern> absent();
   }
@@ -65,27 +58,29 @@ public class HiveSnapshotRegistrationPolicy extends HiveRegistrationPolicyBase {
    */
   @Override
   public Collection<HiveSpec> getHiveSpecs(Path path) throws IOException {
-    HiveTable table = getTable(path);
+    List<HiveTable> tables = getTables(path);
 
-    if (table == null) {
+    if (tables.isEmpty()) {
       return ImmutableList.<HiveSpec> of();
-    } else {
-      return ImmutableList
-          .<HiveSpec> of(new SimpleHiveSpec.Builder<>(path).withTable(table).withPartition(getPartition(path)).build());
     }
+    Collection<HiveSpec> specs = Lists.newArrayList();
+    for (HiveTable table : tables) {
+      specs.add(new SimpleHiveSpec.Builder<>(path).withTable(table).withPartition(getPartition(path, table)).build());
+    }
+    return specs;
   }
 
   /**
-   * Get a {@link HiveTable} using the latest snapshot (returned by {@link #getLatestSnapshot(Path)}.
+   * Get {@link HiveTable}s using the latest snapshot (returned by {@link #getLatestSnapshot(Path)}.
    */
   @Override
-  protected HiveTable getTable(Path path) throws IOException {
+  protected List<HiveTable> getTables(Path path) throws IOException {
     Path latestSnapshot = getLatestSnapshot(path);
     if (latestSnapshot == null) {
-      return null;
+      return ImmutableList.<HiveTable> of();
     }
 
-    return super.getTable(latestSnapshot);
+    return super.getTables(latestSnapshot);
   }
 
   /**

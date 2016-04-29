@@ -143,13 +143,12 @@ public class HiveSerDeWrapper {
     Optional<BuiltInHiveSerDe> hiveSerDe = Enums.getIfPresent(BuiltInHiveSerDe.class, serDeType.toUpperCase());
     if (hiveSerDe.isPresent()) {
       return new HiveSerDeWrapper(hiveSerDe.get());
-    } else {
-      Preconditions.checkArgument(inputFormatClassName.isPresent(),
-          "Missing input format class name for SerDe " + serDeType);
-      Preconditions.checkArgument(outputFormatClassName.isPresent(),
-          "Missing output format class name for SerDe " + serDeType);
-      return new HiveSerDeWrapper(serDeType, inputFormatClassName.get(), outputFormatClassName.get());
     }
+    Preconditions.checkArgument(inputFormatClassName.isPresent(),
+        "Missing input format class name for SerDe " + serDeType);
+    Preconditions.checkArgument(outputFormatClassName.isPresent(),
+        "Missing output format class name for SerDe " + serDeType);
+    return new HiveSerDeWrapper(serDeType, inputFormatClassName.get(), outputFormatClassName.get());
   }
 
   /**
