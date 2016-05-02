@@ -58,7 +58,6 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
 import gobblin.util.executors.IteratorExecutor;
-import gobblin.util.filesystem.FileSystemUtils;
 import gobblin.util.guid.Guid;
 import gobblin.util.iterators.InterruptibleIterator;
 
@@ -288,11 +287,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
     Configuration conf = HadoopUtils.getConfFromState(state);
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
-    return FileSystemUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
+    return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
   private static FileSystem getTargetFileSystem(State state) throws IOException {
-    return FileSystemUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
+    return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
   }
 
   private static void computeAndSetWorkUnitGuid(WorkUnit workUnit) throws IOException {

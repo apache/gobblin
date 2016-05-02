@@ -25,14 +25,14 @@ public class DeprecationUtils {
   /**
    * Sets an option in a {@link State} to the first available value of a list of deprecatedKeys. For example, if
    * an option "optiona" was previously called "optionb" or "optionc",
-   * calling {@link #handleDeprecatedOptions(State, String, List)} will search for the first available key-value pair
+   * calling {@link #renameDeprecatedKeys(State, String, List)} will search for the first available key-value pair
    * with key optiona, optionb, or optionc, and set optiona to that value.
    *
    * @param state {@link State} to modify.
    * @param currentKey current name of an option.
    * @param deprecatedKeys all other names that {@link State}s could use to refer to that option.
    */
-  public static final void handleDeprecatedOptions(State state, String currentKey, List<String> deprecatedKeys) {
+  public static void renameDeprecatedKeys(State state, String currentKey, List<String> deprecatedKeys) {
     if (state.contains(currentKey)) {
       return;
     }

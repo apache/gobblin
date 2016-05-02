@@ -26,7 +26,6 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.Properties;
@@ -52,12 +51,11 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.slf4j.Logger;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.deprecation.DeprecationUtils;
 import gobblin.util.executors.ScalingThreadPoolExecutor;
-import gobblin.util.filesystem.FileSystemUtils;
 import gobblin.writer.DataWriter;
 
 
@@ -83,6 +81,8 @@ public class HadoopUtils {
    */
   public static final Collection<String> FS_SCHEMES_NON_ATOMIC =
       ImmutableSortedSet.orderedBy(String.CASE_INSENSITIVE_ORDER).add("s3").add("s3a").add("s3n").build();
+  public static final String MAX_FILESYSTEM_QPS = "filesystem.throttling.max.filesystem.qps";
+  private static final List<String> DEPRECATED_KEYS = Lists.newArrayList("gobblin.copy.max.filesystem.qps");
 
   public static Configuration newConfiguration() {
     Configuration conf = new Configuration();
@@ -405,7 +405,7 @@ public class HadoopUtils {
   @SuppressWarnings("deprecation")
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
-    FileSystem throttledFS = FileSystemUtils.getOptionallyThrottledFileSystem(fileSystem, 10000);
+    FileSystem throttledFS = getOptionallyThrottledFileSystem(fileSystem, 10000);
 
     ExecutorService executorService = ScalingThreadPoolExecutor.newScalingThreadPool(1, 100, 100, ExecutorsUtils.newThreadFactory(
         Optional.of(log), Optional.of("rename-thread-%d")));
@@ -428,6 +428,48 @@ public class HadoopUtils {
     } finally {
       ExecutorsUtils.shutdownExecutorService(executorService, Optional.of(log), 1, TimeUnit.SECONDS);
     }
+  }
+
+  /**
+   * Calls {@link #getOptionallyThrottledFileSystem(FileSystem, int)} parsing the qps from the input {@link State}
+   * at key {@link #MAX_FILESYSTEM_QPS}.
+   * @throws IOException
+   */
+  public static FileSystem getOptionallyThrottledFileSystem(FileSystem fs, State state) throws IOException {
+    DeprecationUtils.renameDeprecatedKeys(state, MAX_FILESYSTEM_QPS, DEPRECATED_KEYS);
+
+    if (state.contains(MAX_FILESYSTEM_QPS)) {
+      return getOptionallyThrottledFileSystem(fs, state.getPropAsInt(MAX_FILESYSTEM_QPS));
+    } else {
+      return fs;
+    }
+  }
+
+  /**
+   * Get a throttled {@link FileSystem} that limits the number of queries per second to a {@link FileSystem}. If
+   * the input qps is <= 0, no such throttling will be performed.
+   * @throws IOException
+   */
+  public static FileSystem getOptionallyThrottledFileSystem(FileSystem fs, int qpsLimit) throws IOException {
+    if (fs instanceof Decorator) {
+      for (Object obj : DecoratorUtils.getDecoratorLineage(fs)) {
+        if (obj instanceof RateControlledFileSystem) {
+          // Already rate controlled
+          return fs;
+        }
+      }
+    }
+
+    if (qpsLimit > 0) {
+      try {
+        RateControlledFileSystem newFS = new RateControlledFileSystem(fs, qpsLimit);
+        newFS.startRateControl();
+        return newFS;
+      } catch (ExecutionException ee) {
+        throw new IOException("Could not create throttled FileSystem.", ee);
+      }
+    }
+    return fs;
   }
 
   @AllArgsConstructor
