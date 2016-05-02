@@ -405,14 +405,19 @@ public class HadoopUtils {
   @SuppressWarnings("deprecation")
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
-    FileSystem throttledFS = FileSystemUtils.getOptionallyThrottledFileSystem(fileSystem, 1000);
+    FileSystem throttledFS = FileSystemUtils.getOptionallyThrottledFileSystem(fileSystem, 10000);
 
     ExecutorService executorService = ScalingThreadPoolExecutor.newScalingThreadPool(1, 100, 100, ExecutorsUtils.newThreadFactory(
         Optional.of(log), Optional.of("rename-thread-%d")));
     Queue<Future> futures = Queues.newConcurrentLinkedQueue();
 
     try {
-      futures.add(executorService.submit(new RenameRecursively(throttledFS, from, to, executorService, futures)));
+      if (!fileSystem.exists(from)) {
+        return;
+      }
+
+      futures.add(executorService.submit(
+          new RenameRecursively(throttledFS, fileSystem.getFileStatus(from), to, executorService, futures)));
       while (!futures.isEmpty()) {
         try {
           futures.poll().get();
@@ -429,7 +434,7 @@ public class HadoopUtils {
   private static class RenameRecursively implements Runnable {
 
     private final FileSystem fileSystem;
-    private final Path from;
+    private final FileStatus from;
     private final Path to;
     private final ExecutorService executorService;
     private final Queue<Future> futures;
@@ -437,26 +442,23 @@ public class HadoopUtils {
     @Override
     public void run() {
       try {
-        // Need this check for hadoop2
-        if (!fileSystem.exists(from)) {
-          return;
-        }
 
-        for (FileStatus fromFile : fileSystem.listStatus(from)) {
+        if (!safeRenameIfNotExists(fileSystem, from.getPath(), to)) {
 
-          Path relativeFilePath = new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.toString() + Path.SEPARATOR));
-
-          Path toFilePath = new Path(to, relativeFilePath);
-
-          if (!safeRenameIfNotExists(fileSystem, fromFile.getPath(), toFilePath)) {
-            if (fromFile.isDir()) {
-              this.futures.add(executorService.submit(new RenameRecursively(this.fileSystem, fromFile.getPath(), toFilePath,
-                  this.executorService, this.futures)));
-            } else {
-              log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
+          if (from.isDir()) {
+            for (FileStatus fromFile : fileSystem.listStatus(from.getPath())) {
+              Path relativeFilePath =
+                  new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.getPath().toString() + Path.SEPARATOR));
+              Path toFilePath = new Path(to, relativeFilePath);
+              this.futures.add(executorService.submit(
+                  new RenameRecursively(this.fileSystem, fromFile, toFilePath, this.executorService, this.futures)));
             }
+          } else {
+            log.info(String.format("File already exists %s. Will not rewrite", to));
           }
+
         }
+
       } catch (IOException ioe) {
         throw new RuntimeException(ioe);
       }
