@@ -149,6 +149,10 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
    */
   @Override
   public synchronized void stop() throws ApplicationException {
+    if (!this.hasStarted) {
+      LOG.warn("ApplicationLauncher was never started");
+      return;
+    }
     if (this.hasStopped) {
       LOG.warn("ApplicationLauncher has already stopped");
       return;
