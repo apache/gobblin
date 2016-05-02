@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2016 Swisscom All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -10,7 +10,8 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime.cli;
+
+package gobblin.compaction;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -23,64 +24,78 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.util.GenericOptionsParser;
 
 import gobblin.util.JobConfigurationUtils;
 
-
 /**
- * Utility class for parsing command line options for Gobblin cli jobs.
+ * Utility class for parsing command line options for Gobblin compaction jobs.
+ * 
+ * @author Lorand Bendig
+ *
  */
 public class CliOptions {
 
-  public final static Option SYS_CONFIG_OPTION = Option.builder()
-      .argName("system configuration file")
-      .desc("Gobblin system configuration file")
-      .hasArgs()
-      .longOpt("sysconfig")
-      .build();
-  public final static Option JOB_CONFIG_OPTION = Option.builder()
-      .argName("job configuration file")
-      .desc("Gobblin job configuration file")
-      .hasArgs()
-      .longOpt("jobconfig")
-      .build();
-  public final static Option HELP_OPTION = Option.builder("h").argName("help")
-      .desc("Display usage information")
-      .longOpt("help")
-      .build();
-
+  private final static Option JOB_CONFIG_OPTION = 
+      Option.builder()
+        .argName("job configuration file")
+        .desc("Gobblin compaction job configuration file")
+        .hasArgs()
+        .longOpt("jobconfig")
+        .build();
+  private final static Option HELP_OPTION =
+      Option.builder("h")
+        .argName("help")
+        .desc("Display usage information")
+        .longOpt("help")
+        .build();
+  
   /**
-   * Parse command line arguments and return a {@link java.util.Properties} object for the gobblin job found.
+   * Parse command line arguments and return a {@link java.util.Properties} object for the Gobblin job found.
    * @param caller Class of the calling main method. Used for error logs.
    * @param args Command line arguments.
+   * @param conf Hadoop configuration object
    * @return Instance of {@link Properties} for the Gobblin job to run.
    * @throws IOException
    */
-  public static Properties parseArgs(Class<?> caller, String[] args) throws IOException {
+  public static Properties parseArgs(Class<?> caller, String[] args, Configuration conf) throws IOException {
     try {
+      
       // Parse command-line options
+      if (conf != null) {
+        args = new GenericOptionsParser(conf, args).getCommandLine().getArgs();
+      }
       CommandLine cmd = new DefaultParser().parse(options(), args);
-
+      
       if (cmd.hasOption(HELP_OPTION.getOpt())) {
         printUsage(caller);
         System.exit(0);
       }
 
-      if (!cmd.hasOption(SYS_CONFIG_OPTION.getLongOpt()) || !cmd.hasOption(JOB_CONFIG_OPTION.getLongOpt())) {
+      String jobConfigLocation = JOB_CONFIG_OPTION.getLongOpt();
+      if (!cmd.hasOption(jobConfigLocation)) {
         printUsage(caller);
         System.exit(1);
       }
 
-      // Load system and job configuration properties
-      Properties sysConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(SYS_CONFIG_OPTION.getLongOpt()));
-      Properties jobConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(JOB_CONFIG_OPTION.getLongOpt()));
-
-      return JobConfigurationUtils.combineSysAndJobProperties(sysConfig, jobConfig);
+      // Load job configuration properties
+      Properties jobConfig;
+      if (conf == null) {
+        jobConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(jobConfigLocation));
+      } else {
+        jobConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(jobConfigLocation), conf);
+        JobConfigurationUtils.putConfigurationIntoProperties(conf, jobConfig);
+      }
+      return jobConfig;
     } catch (ParseException | ConfigurationException | URISyntaxException e) {
       throw new IOException(e);
-    } 
+    }
   }
-
+  
+  public static Properties parseArgs(Class<?> caller, String[] args) throws IOException {
+    return parseArgs(caller, args, null);
+  }
   /**
    * Prints the usage of cli.
    * @param caller Class of the main method called. Used in printing the usage message.
@@ -91,10 +106,9 @@ public class CliOptions {
 
   private static Options options() {
     Options options = new Options();
-    options.addOption(SYS_CONFIG_OPTION);
     options.addOption(JOB_CONFIG_OPTION);
     options.addOption(HELP_OPTION);
     return options;
   }
-
+  
 }
