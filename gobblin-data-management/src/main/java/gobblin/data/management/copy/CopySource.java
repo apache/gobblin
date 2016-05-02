@@ -56,7 +56,6 @@ import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
-import gobblin.util.RateControlledFileSystem;
 import gobblin.util.WriterUtils;
 import gobblin.util.executors.IteratorExecutor;
 import gobblin.util.guid.Guid;
@@ -79,7 +78,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String MAX_CONCURRENT_LISTING_SERVICES =
       CopyConfiguration.COPY_PREFIX + ".max.concurrent.listing.services";
   public static final int DEFAULT_MAX_CONCURRENT_LISTING_SERVICES = 20;
-  public static final String MAX_FILESYSTEM_QPS = CopyConfiguration.COPY_PREFIX + ".max.filesystem.qps";
   public static final String MAX_FILES_COPIED_KEY = CopyConfiguration.COPY_PREFIX + ".max.files.copied";
   public static final int DEFAULT_MAX_FILES_COPIED = 100000;
   public static final String SIMULATE = CopyConfiguration.COPY_PREFIX + ".simulate";
@@ -196,19 +194,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   }
 
-  private static FileSystem getOptionallyThrottledFileSystem(FileSystem fs, State state) throws IOException {
-    if (state.contains(MAX_FILESYSTEM_QPS)) {
-      try {
-        RateControlledFileSystem newFS = new RateControlledFileSystem(fs, state.getPropAsInt(MAX_FILESYSTEM_QPS));
-        newFS.startRateControl();
-        return newFS;
-      } catch (ExecutionException ee) {
-        throw new IOException("Could not create throttled FileSystem.", ee);
-      }
-    }
-    return fs;
-  }
-
   /**
    * {@link Runnable} to generate copy listing for one {@link CopyableDataset}.
    */
@@ -302,11 +287,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
     Configuration conf = HadoopUtils.getConfFromState(state);
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
-    return getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
+    return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
   private static FileSystem getTargetFileSystem(State state) throws IOException {
-    return getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
+    return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
   }
 
   private static void computeAndSetWorkUnitGuid(WorkUnit workUnit) throws IOException {

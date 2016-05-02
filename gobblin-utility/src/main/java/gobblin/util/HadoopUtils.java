@@ -23,13 +23,21 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.Properties;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
 import com.google.common.io.BaseEncoding;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
@@ -46,6 +54,8 @@ import org.apache.hadoop.util.ReflectionUtils;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.deprecation.DeprecationUtils;
+import gobblin.util.executors.ScalingThreadPoolExecutor;
 import gobblin.writer.DataWriter;
 
 
@@ -71,6 +81,8 @@ public class HadoopUtils {
    */
   public static final Collection<String> FS_SCHEMES_NON_ATOMIC =
       ImmutableSortedSet.orderedBy(String.CASE_INSENSITIVE_ORDER).add("s3").add("s3a").add("s3n").build();
+  public static final String MAX_FILESYSTEM_QPS = "filesystem.throttling.max.filesystem.qps";
+  private static final List<String> DEPRECATED_KEYS = Lists.newArrayList("gobblin.copy.max.filesystem.qps");
 
   public static Configuration newConfiguration() {
     Configuration conf = new Configuration();
@@ -393,24 +405,104 @@ public class HadoopUtils {
   @SuppressWarnings("deprecation")
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
-    // Need this check for hadoop2
-    if (!fileSystem.exists(from)) {
-      return;
+    FileSystem throttledFS = getOptionallyThrottledFileSystem(fileSystem, 10000);
+
+    ExecutorService executorService = ScalingThreadPoolExecutor.newScalingThreadPool(1, 100, 100, ExecutorsUtils.newThreadFactory(
+        Optional.of(log), Optional.of("rename-thread-%d")));
+    Queue<Future> futures = Queues.newConcurrentLinkedQueue();
+
+    try {
+      if (!fileSystem.exists(from)) {
+        return;
+      }
+
+      futures.add(executorService.submit(
+          new RenameRecursively(throttledFS, fileSystem.getFileStatus(from), to, executorService, futures)));
+      while (!futures.isEmpty()) {
+        try {
+          futures.poll().get();
+        } catch (ExecutionException | InterruptedException ee) {
+          throw new IOException(ee.getCause());
+        }
+      }
+    } finally {
+      ExecutorsUtils.shutdownExecutorService(executorService, Optional.of(log), 1, TimeUnit.SECONDS);
+    }
+  }
+
+  /**
+   * Calls {@link #getOptionallyThrottledFileSystem(FileSystem, int)} parsing the qps from the input {@link State}
+   * at key {@link #MAX_FILESYSTEM_QPS}.
+   * @throws IOException
+   */
+  public static FileSystem getOptionallyThrottledFileSystem(FileSystem fs, State state) throws IOException {
+    DeprecationUtils.renameDeprecatedKeys(state, MAX_FILESYSTEM_QPS, DEPRECATED_KEYS);
+
+    if (state.contains(MAX_FILESYSTEM_QPS)) {
+      return getOptionallyThrottledFileSystem(fs, state.getPropAsInt(MAX_FILESYSTEM_QPS));
+    } else {
+      return fs;
+    }
+  }
+
+  /**
+   * Get a throttled {@link FileSystem} that limits the number of queries per second to a {@link FileSystem}. If
+   * the input qps is <= 0, no such throttling will be performed.
+   * @throws IOException
+   */
+  public static FileSystem getOptionallyThrottledFileSystem(FileSystem fs, int qpsLimit) throws IOException {
+    if (fs instanceof Decorator) {
+      for (Object obj : DecoratorUtils.getDecoratorLineage(fs)) {
+        if (obj instanceof RateControlledFileSystem) {
+          // Already rate controlled
+          return fs;
+        }
+      }
     }
 
-    for (FileStatus fromFile : fileSystem.listStatus(from)) {
+    if (qpsLimit > 0) {
+      try {
+        RateControlledFileSystem newFS = new RateControlledFileSystem(fs, qpsLimit);
+        newFS.startRateControl();
+        return newFS;
+      } catch (ExecutionException ee) {
+        throw new IOException("Could not create throttled FileSystem.", ee);
+      }
+    }
+    return fs;
+  }
 
-      Path relativeFilePath =
-          new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.toString() + Path.SEPARATOR));
+  @AllArgsConstructor
+  private static class RenameRecursively implements Runnable {
 
-      Path toFilePath = new Path(to, relativeFilePath);
+    private final FileSystem fileSystem;
+    private final FileStatus from;
+    private final Path to;
+    private final ExecutorService executorService;
+    private final Queue<Future> futures;
 
-      if (!safeRenameIfNotExists(fileSystem, fromFile.getPath(), toFilePath)) {
-        if (fromFile.isDir()) {
-          renameRecursively(fileSystem, fromFile.getPath(), toFilePath);
-        } else {
-          log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
+    @Override
+    public void run() {
+      try {
+
+        if (!safeRenameIfNotExists(fileSystem, from.getPath(), to)) {
+
+          if (from.isDir()) {
+            for (FileStatus fromFile : fileSystem.listStatus(from.getPath())) {
+              Path relativeFilePath =
+                  new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.getPath().toString() + Path.SEPARATOR));
+              Path toFilePath = new Path(to, relativeFilePath);
+              this.futures.add(executorService.submit(
+                  new RenameRecursively(this.fileSystem, fromFile, toFilePath, this.executorService, this.futures)));
+            }
+          } else {
+            log.info(String.format("File already exists %s. Will not rewrite", to));
+          }
+
         }
+
+      } catch (IOException ioe) {
+        throw new RuntimeException(ioe);
       }
     }
   }
