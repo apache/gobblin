@@ -57,7 +57,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private volatile CountDownLatch countDownLatch;
 
   public LocalJobLauncher(Properties jobProps) throws Exception {
-    super(jobProps, ImmutableList.<Tag<?>>of());
+    super(jobProps, ImmutableList.<Tag<?>> of());
 
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.JOB_LOCAL_SETUP);
 
@@ -110,8 +110,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.WORK_UNITS_RUN);
 
     this.countDownLatch = new CountDownLatch(workUnitsToRun.size());
-    AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), workUnitsToRun, this.taskStateTracker,
-        this.taskExecutor, this.countDownLatch);
+    AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), this.jobContext.getJobState(), workUnitsToRun,
+        this.taskStateTracker, this.taskExecutor, this.countDownLatch);
 
     LOG.info(String.format("Waiting for submitted tasks of job %s to complete...", jobId));
     while (!this.countDownLatch.await(1, TimeUnit.MINUTES)) {

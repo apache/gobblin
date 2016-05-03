@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.io.Serializable;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -33,8 +32,6 @@ import gobblin.configuration.State;
 
 /**
  * A utility class for serializing and deserializing Objects to/from Strings.
- *
- * @author ziliu
  */
 public class SerializationUtils {
 
@@ -95,8 +92,8 @@ public class SerializationUtils {
    */
   public static <T extends Serializable> T deserialize(String serialized, Class<T> clazz, BaseEncoding enc)
       throws IOException {
-    try (ByteArrayInputStream bis = new ByteArrayInputStream(enc.decode(serialized));
-        ObjectInputStream ois = new ObjectInputStream(bis)) {
+
+    try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(enc.decode(serialized)))) {
       return clazz.cast(ois.readObject());
     } catch (ClassNotFoundException e) {
       throw new IOException(e);
@@ -129,8 +126,8 @@ public class SerializationUtils {
    */
   public static <T extends State> void serializeState(FileSystem fs, Path jobStateFilePath, T state, short replication)
       throws IOException {
-    try (OutputStream os = fs.create(jobStateFilePath, replication);
-        DataOutputStream dataOutputStream = new DataOutputStream(os)) {
+
+    try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(jobStateFilePath, replication))) {
       state.write(dataOutputStream);
     }
   }
@@ -159,8 +156,7 @@ public class SerializationUtils {
    * @param <T> the {@link State} object type
    * @throws IOException if it fails to deserialize the {@link State} instance
    */
-  public static <T extends State> void deserializeStateFromInputStream(InputStream is, T state)
-      throws IOException {
+  public static <T extends State> void deserializeStateFromInputStream(InputStream is, T state) throws IOException {
     try (DataInputStream dis = (new DataInputStream(is))) {
       state.readFields(dis);
     }

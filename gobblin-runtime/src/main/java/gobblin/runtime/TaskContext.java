@@ -54,12 +54,10 @@ import gobblin.writer.WriterOutputFormat;
  */
 public class TaskContext {
 
-  private final WorkUnit workUnit;
   private final TaskState taskState;
   private final TaskMetrics taskMetrics;
 
   public TaskContext(WorkUnitState workUnitState) {
-    this.workUnit = workUnitState.getWorkunit();
     this.taskState = new TaskState(workUnitState);
     this.taskMetrics = TaskMetrics.get(this.taskState);
     this.taskState.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, this.taskMetrics.getName());
@@ -91,7 +89,7 @@ public class TaskContext {
    */
   public Source getSource() {
     try {
-      return Source.class.cast(Class.forName(this.workUnit.getProp(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance());
+      return Source.class.cast(Class.forName(this.taskState.getProp(ConfigurationKeys.SOURCE_CLASS_KEY)).newInstance());
     } catch (ClassNotFoundException cnfe) {
       throw new RuntimeException(cnfe);
     } catch (InstantiationException ie) {
@@ -130,7 +128,7 @@ public class TaskContext {
    * @return interval for status reporting
    */
   public long getStatusReportingInterval() {
-    return this.workUnit.getPropAsLong(ConfigurationKeys.TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY,
+    return this.taskState.getPropAsLong(ConfigurationKeys.TASK_STATUS_REPORT_INTERVAL_IN_MS_KEY,
         ConfigurationKeys.DEFAULT_TASK_STATUS_REPORT_INTERVAL_IN_MS);
   }
 
@@ -142,7 +140,7 @@ public class TaskContext {
    * @return writer {@link Destination.DestinationType}
    */
   public Destination.DestinationType getDestinationType(int branches, int index) {
-    return Destination.DestinationType.valueOf(this.workUnit.getProp(
+    return Destination.DestinationType.valueOf(this.taskState.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, branches, index),
         Destination.DestinationType.HDFS.name()));
   }
@@ -155,7 +153,7 @@ public class TaskContext {
    * @return output format of the writer
    */
   public WriterOutputFormat getWriterOutputFormat(int branches, int index) {
-    String writerOutputFormatValue = this.workUnit.getProp(
+    String writerOutputFormatValue = this.taskState.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, branches, index),
         WriterOutputFormat.OTHER.name());
 
@@ -184,7 +182,7 @@ public class TaskContext {
     String converterClassKey =
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
 
-    if (!this.workUnit.contains(converterClassKey)) {
+    if (!this.taskState.contains(converterClassKey)) {
       return Collections.emptyList();
     }
 
@@ -194,7 +192,7 @@ public class TaskContext {
 
     List<Converter<?, ?, ?, ?>> converters = Lists.newArrayList();
     for (String converterClass : Splitter.on(",").omitEmptyStrings().trimResults()
-        .split(this.workUnit.getProp(converterClassKey))) {
+        .split(this.taskState.getProp(converterClassKey))) {
       try {
         Converter<?, ?, ?, ?> converter = Converter.class.cast(Class.forName(converterClass).newInstance());
         InstrumentedConverterDecorator instrumentedConverter = new InstrumentedConverterDecorator<>(converter);
@@ -221,7 +219,7 @@ public class TaskContext {
   public ForkOperator getForkOperator() {
     try {
       ForkOperator fork =
-          ForkOperator.class.cast(Class.forName(this.workUnit.getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY,
+          ForkOperator.class.cast(Class.forName(this.taskState.getProp(ConfigurationKeys.FORK_OPERATOR_CLASS_KEY,
               ConfigurationKeys.DEFAULT_FORK_OPERATOR_CLASS)).newInstance());
       return new InstrumentedForkOperatorDecorator<>(fork);
     } catch (ClassNotFoundException cnfe) {
@@ -288,7 +286,7 @@ public class TaskContext {
    * @return a {@link DataWriterBuilder}
    */
   public DataWriterBuilder getDataWriterBuilder(int branches, int index) {
-    String dataWriterBuilderClassName = this.workUnit.getProp(
+    String dataWriterBuilderClassName = this.taskState.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index),
         ConfigurationKeys.DEFAULT_WRITER_BUILDER_CLASS);
     try {
