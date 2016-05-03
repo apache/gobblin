@@ -260,7 +260,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
           //Initialize writer and converter(s)
           closer.register(WriterInitializerFactory.newInstace(jobState, workUnits.get())).initialize();
-          closer.register(ConverterInitializerFactory.newInstace(jobState, workUnits.get())).initialize();
+          closer.register(ConverterInitializerFactory.newInstance(jobState, workUnits.get())).initialize();
 
           TimingEvent stagingDataCleanTimer =
               this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_STAGING_DATA_CLEAN);

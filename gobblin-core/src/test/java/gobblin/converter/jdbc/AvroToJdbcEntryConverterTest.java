@@ -67,9 +67,6 @@ public class AvroToJdbcEntryConverterTest {
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.appendToListProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
     AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState);
-    converter = spy(converter);
-    doReturn(null).when(converter).createConnection(workUnitState);
-    when(converter.createConnection(workUnitState)).thenReturn(null);
 
     Map<String, JdbcType> dateColumnMapping = Maps.newHashMap();
     dateColumnMapping.put("date_of_birth", JdbcType.DATE);
@@ -102,9 +99,6 @@ public class AvroToJdbcEntryConverterTest {
     workUnitState.appendToListProp(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, DestinationType.MYSQL.name());
 
     AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState);
-    converter = spy(converter);
-    doReturn(null).when(converter).createConnection(workUnitState);
-    when(converter.createConnection(workUnitState)).thenReturn(null);
 
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/user.avsc"));
 

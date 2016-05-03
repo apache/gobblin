@@ -24,18 +24,14 @@ import com.google.common.collect.ImmutableSortedMap;
 @ToString
 public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
   private final Map<String, JdbcEntryDatum> jdbcEntryData; //Pair of column name and Object
-  private final int byteSize;
 
   public JdbcEntryData(Iterable<JdbcEntryDatum> jdbcEntryDatumEntries) {
     Preconditions.checkNotNull(jdbcEntryDatumEntries);
     ImmutableMap.Builder<String, JdbcEntryDatum> builder = ImmutableSortedMap.naturalOrder();
-    int byteCount = 0;
     for (JdbcEntryDatum datum : jdbcEntryDatumEntries) {
       builder.put(datum.getColumnName(), datum);
-      byteCount += datum.getByteSize();
     }
     this.jdbcEntryData = builder.build();
-    this.byteSize = byteCount;
   }
 
   /**
@@ -55,9 +51,5 @@ public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
   @Override
   public Iterator<JdbcEntryDatum> iterator() {
     return jdbcEntryData.values().iterator();
-  }
-
-  public int byteSize() {
-    return byteSize;
   }
 }

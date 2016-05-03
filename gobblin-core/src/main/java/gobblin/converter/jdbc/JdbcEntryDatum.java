@@ -22,12 +22,10 @@ import com.google.common.base.Preconditions;
 public class JdbcEntryDatum {
   private final String columnName;
   private final Object val;
-  private int byteSize;
 
   public JdbcEntryDatum(String columnName, Object val) {
     this.columnName = Preconditions.checkNotNull(columnName);
     this.val = Preconditions.checkNotNull(val);
-    this.byteSize = val.toString().getBytes().length;
   }
 
   public String getColumnName() {
@@ -36,12 +34,5 @@ public class JdbcEntryDatum {
 
   public Object getVal() {
     return val;
-  }
-
-  /**
-   * @return Size in terms of bytes, when it's converted into String.
-   */
-  public int getByteSize() {
-    return byteSize;
   }
 }

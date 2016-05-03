@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import lombok.ToString;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +40,7 @@ import com.google.common.collect.Lists;
  * This purpose of buffered insert is mainly for performance reason and the implementation is based on the
  * reference manual http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
  */
+@ToString
 public class MySqlBufferedInserter implements JdbcBufferedInserter {
   private static final Logger LOG = LoggerFactory.getLogger(MySqlBufferedInserter.class);
 
@@ -45,14 +48,12 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
   private static final Joiner JOINER_ON_COMMA = Joiner.on(',');
 
   private List<JdbcEntryData> pendingInserts;
-  private int usedBufferSize;
   private List<String> columnNames;
   private String insertStmtPrefix;
   private PreparedStatement insertPstmtForFixedBatch;
   private Retryer<Boolean> retryer;
 
   private int batchSize;
-  private final int maxBufferSize;
   private final int maxParamSize;
   private final Connection conn;
 
@@ -60,8 +61,6 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
     this.conn = conn;
     this.batchSize = state.getPropAsInt(WRITER_JDBC_INSERT_BATCH_SIZE,
                                         DEFAULT_WRITER_JDBC_INSERT_BATCH_SIZE);
-    this.maxBufferSize = state.getPropAsInt(WRITER_JDBC_INSERT_BUFFER_SIZE,
-                                            DEFAULT_WRITER_JDBC_INSERT_BUFFER_SIZE);
     if(batchSize < 1) {
       throw new IllegalArgumentException(WRITER_JDBC_INSERT_BATCH_SIZE + " should be a positive number");
     }
@@ -80,18 +79,10 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
       initializeForBatch(conn, databaseName, table, jdbcEntryData);
     }
     pendingInserts.add(jdbcEntryData);
-    usedBufferSize += jdbcEntryData.byteSize();
 
     if(pendingInserts.size() == batchSize) {
       insertBatch(insertPstmtForFixedBatch); //reuse pre-computed Preparedstatement.
       return;
-    }
-
-    if(usedBufferSize >= maxBufferSize) {
-      LOG.info("Try to reduce batch size for better performance. Inserting as it reached buffer limit. Buffer size: " + usedBufferSize + " , Threshold: " + maxBufferSize
-                + " , # of entries in batch: " + pendingInserts.size());
-      PreparedStatement pstmt = conn.prepareStatement(createPrepareStatementStr(insertStmtPrefix, pendingInserts.size()));
-      insertBatch(pstmt);
     }
   }
 
@@ -158,7 +149,6 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
   }
 
   private void resetBatch() {
-    usedBufferSize = 0;
     pendingInserts.clear();
   }
 
@@ -182,14 +172,5 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
     }
     PreparedStatement pstmt = conn.prepareStatement(createPrepareStatementStr(insertStmtPrefix, pendingInserts.size()));
     insertBatch(pstmt);
-  }
-
-  @Override
-  public String toString() {
-    return String
-        .format(
-            "MySqlBufferedWriter [pendingInserts=%s, usedBufferSize=%s, columnNames=%s, insertStmtPrefix=%s, retryer=%s, batchSize=%s, maxBufferSize=%s, maxParamSize=%s]",
-            pendingInserts, usedBufferSize, columnNames, insertStmtPrefix, retryer, batchSize, maxBufferSize,
-            maxParamSize);
   }
 }

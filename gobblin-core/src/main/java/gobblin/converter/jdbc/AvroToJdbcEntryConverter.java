@@ -203,22 +203,6 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     return converted != null ? converted : key;
   }
 
-  @VisibleForTesting
-  public Connection createConnection(State state) throws SQLException {
-    DataSource dataSource = DataSourceBuilder.builder()
-                                             .url(state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
-                                             .driver(state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
-                                             .userName(state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
-                                             .passWord(state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
-                                             .cryptoKeyLocation(state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
-                                             .maxActiveConnections(1)
-                                             .maxIdleConnections(1)
-                                             .state(state)
-                                             .build();
-
-    return dataSource.getConnection();
-  }
-
   /**
    * Flattens Avro's (possibly recursive) structure and provides field name and type.
    * It assumes that the leaf level field name has unique name.

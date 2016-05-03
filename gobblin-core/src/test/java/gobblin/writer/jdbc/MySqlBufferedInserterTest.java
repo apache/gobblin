@@ -64,42 +64,6 @@ public class MySqlBufferedInserterTest {
     verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
   }
 
-  public void testMySqlBufferedInsertBufferSizeLimit() throws SQLException {
-    final String db = "db";
-    final String table = "stg";
-    final int colNums = 20;
-    final int batchSize = 100;
-    final int entryCount = 1007;
-    final int colSize = 10;
-    final int entrySize = RandomStringUtils.randomAlphabetic(colSize).toString().getBytes().length * colNums;
-    final double bufferRatio = 0.8D;
-    final int bufferSize = (int) (entrySize * batchSize * bufferRatio);
-
-    State state = new State();
-    state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
-    state.setProp(WRITER_JDBC_INSERT_BUFFER_SIZE, Integer.toString(bufferSize));
-
-    Connection conn = mock(Connection.class);
-    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state, conn);
-
-
-    PreparedStatement pstmt = mock(PreparedStatement.class);
-    when(conn.prepareStatement(anyString())).thenReturn(pstmt);
-
-    List<JdbcEntryData> jdbcEntries = createJdbcEntries(colNums, colSize, entryCount);
-    for(JdbcEntryData entry : jdbcEntries) {
-      inserter.insert(db, table, entry);
-    }
-    inserter.flush();
-
-    int expectedBatchSize = (int) (batchSize * bufferRatio);
-    int expectedExecuteCount = entryCount / expectedBatchSize + 1;
-    verify(conn, times(expectedExecuteCount + 1)).prepareStatement(anyString());
-    verify(pstmt, times(expectedExecuteCount)).clearParameters();
-    verify(pstmt, times(expectedExecuteCount)).execute();
-    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
-  }
-
   public void testMySqlBufferedInsertParamLimit() throws SQLException {
     final String db = "db";
     final String table = "stg";
