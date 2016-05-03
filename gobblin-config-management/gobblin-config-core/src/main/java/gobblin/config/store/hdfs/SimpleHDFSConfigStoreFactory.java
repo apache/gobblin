@@ -41,19 +41,25 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
   protected static final String SIMPLE_HDFS_SCHEME_PREFIX = "simple-";
   protected static final String HDFS_SCHEME_NAME = "hdfs";
 
-  public final static String DEFAULT_STORE_URI_KEY = "default_store_uri";
-
-  public SimpleHDFSConfigStoreFactory() {
-    this(ConfigFactory.empty());
-  }
+  public static final String DEFAULT_CONFIG_NAMESPACE = SimpleHDFSConfigStoreFactory.class.getName();
+  public static final String DEFAULT_STORE_URI_KEY = "default_store_uri";
 
   private final Optional<URI> defaultStoreURI;
   private final FileSystem defaultStoreFS;
+
+  /** Instantiates a new instance using standard typesafe config defaults:
+   * {@link ConfigFactory#load()} */
+  public SimpleHDFSConfigStoreFactory() {
+    this(ConfigFactory.load().getConfig(DEFAULT_CONFIG_NAMESPACE));
+  }
 
   public SimpleHDFSConfigStoreFactory(Config factoryConfig) {
     try {
       if (factoryConfig.hasPath(DEFAULT_STORE_URI_KEY)) {
         String uri = factoryConfig.getString(DEFAULT_STORE_URI_KEY);
+        if (Strings.isNullOrEmpty(uri)) {
+          throw new IllegalArgumentException("Default store URI should be non-empty!");
+        }
         Path defStorePath = new Path(uri);
         this.defaultStoreFS = defStorePath.getFileSystem(new Configuration());
         this.defaultStoreURI = Optional.of(defaultStoreFS.makeQualified(defStorePath).toUri());
