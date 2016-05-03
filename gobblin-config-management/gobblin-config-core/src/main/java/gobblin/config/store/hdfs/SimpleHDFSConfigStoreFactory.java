@@ -19,7 +19,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.UserGroupInformation;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -127,7 +126,7 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
    * Gets a default root directory if one is not specified. The default root dir is {@code /jobs/[current-user]/}.
    */
   protected Path getDefaultRootDir() throws IOException {
-    return new Path("/jobs", UserGroupInformation.getCurrentUser().getUserName());
+    return this.defaultStoreFS.getHomeDirectory();
   }
 
   /**

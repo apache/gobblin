@@ -65,6 +65,8 @@ public class SimpleHdfsConfigureStoreFactoryTest {
       Assert.assertTrue(confFactory.hasDefaultStoreURI());
       Assert.assertEquals(confFactory.getDefaultStoreURI(), configRoot.toUri());
       Assert.assertEquals(confFactory.getPhysicalScheme(), "file");
+      Assert.assertEquals(confFactory.getDefaultRootDir().toString(),
+                          "file:" + System.getProperty("user.home"));
 
       // Valid path
       SimpleHDFSConfigStore store1 = confFactory.createConfigStore(new URI("simple-file:/d"));
