@@ -125,7 +125,7 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
    * {@link FileSystem} implementations, subclasses should override this method.
    */
   protected String getPhysicalScheme() {
-    return this.defaultStoreFS.getScheme();
+    return this.defaultStoreFS.getUri().getScheme();
   }
 
   /**
