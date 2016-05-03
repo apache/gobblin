@@ -123,9 +123,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       // TODO: The comparator sets the priority of file sets. Currently, all file sets have the same priority, this needs to
       // be pluggable.
-      final ConcurrentBoundedWorkUnitList workUnitList =
-          new ConcurrentBoundedWorkUnitList(state.getPropAsInt(MAX_FILES_COPIED_KEY, DEFAULT_MAX_FILES_COPIED),
-              new AllEqualComparator<FileSet<CopyEntity>>());
+      final ConcurrentBoundedWorkUnitList workUnitList = ConcurrentBoundedWorkUnitList.builder().
+          maxSize(state.getPropAsInt(MAX_FILES_COPIED_KEY, DEFAULT_MAX_FILES_COPIED)).
+          strictLimitMultiplier(2).build();
 
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
@@ -235,7 +235,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
         Iterator<FileSet<CopyEntity>> fileSets =
             this.copyableDataset.getFileSetIterator(this.targetFs, this.copyConfiguration);
 
-        while (fileSets.hasNext() && !this.workUnitList.hasRejectedFileSet()) {
+        while (fileSets.hasNext() && !shouldStopGeneratingWorkUnits(this.workUnitList)) {
           FileSet<CopyEntity> fileSet = fileSets.next();
           String extractId = fileSet.getName().replace(':', '_');
           Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, extractId);
@@ -271,7 +271,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   private boolean shouldStopGeneratingWorkUnits(ConcurrentBoundedWorkUnitList workUnitList) {
     // Stop generating work units the first time the work unit container rejects a file set due to capacity issues.
     // TODO: more sophisticated stop algorithm.
-    return workUnitList.hasRejectedFileSet();
+    return workUnitList.isFull() || workUnitList.hasRejectedFileSet();
   }
 
   /**
