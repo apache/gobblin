@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -35,6 +34,7 @@ import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InvalidInputException;
 import org.apache.thrift.TException;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -42,7 +42,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 
@@ -200,7 +199,7 @@ public class HiveCopyEntityHelper {
    */
   @Builder
   @ToString
-  private static class DiffPathSet {
+  protected static class DiffPathSet {
     /** Desired files that don't exist on target */
     @Singular(value = "copyFile") Collection<FileStatus> filesToCopy;
     /** Files in target that are not desired */
@@ -523,7 +522,7 @@ public class HiveCopyEntityHelper {
 
         multiTimer.nextStage(Stages.FULL_PATH_DIFF);
         DiffPathSet diffPathSet = fullPathDiff(sourceLocation, desiredTargetLocation, existingTargetLocation, Optional.<Partition>absent(),
-            multiTimer);
+            multiTimer, HiveCopyEntityHelper.this);
 
         multiTimer.nextStage(Stages.CREATE_DELETE_UNITS);
         if (diffPathSet.pathsToDelete.size() > 0) {
@@ -559,7 +558,7 @@ public class HiveCopyEntityHelper {
       HiveLocationDescriptor targetLocation =
           new HiveLocationDescriptor(partition.getDataLocation(), inputFormat, this.targetFs, this.dataset.properties);
 
-      partitionPaths = targetLocation.getPaths();
+      partitionPaths = targetLocation.getPaths().keySet();
     } else if (deleteMethod == DeregisterFileDeleteMethod.NO_DELETE) {
       partitionPaths = Lists.newArrayList();
     }
@@ -602,7 +601,7 @@ public class HiveCopyEntityHelper {
         Optional.<HiveLocationDescriptor>absent();
 
     DiffPathSet diffPathSet = fullPathDiff(sourceLocation, desiredTargetLocation, existingTargetLocation,
-        Optional.<Partition>absent(), multiTimer);
+        Optional.<Partition>absent(), multiTimer, this);
 
     DeleteFileCommitStep deleteStep = DeleteFileCommitStep.fromPaths(targetFs, diffPathSet.pathsToDelete,
         this.dataset.properties);
@@ -627,46 +626,47 @@ public class HiveCopyEntityHelper {
    * @return A {@link DiffPathSet} with data on files to copy and delete.
    * @throws IOException if the copy of this table / partition should be aborted.
    */
-  private DiffPathSet fullPathDiff(HiveLocationDescriptor sourceLocation, HiveLocationDescriptor desiredTargetLocation,
-      Optional<HiveLocationDescriptor> currentTargetLocation, Optional<Partition> partition, MultiTimingEvent multiTimer)
+  @VisibleForTesting
+  protected static DiffPathSet fullPathDiff(HiveLocationDescriptor sourceLocation, HiveLocationDescriptor desiredTargetLocation,
+      Optional<HiveLocationDescriptor> currentTargetLocation, Optional<Partition> partition, MultiTimingEvent multiTimer,
+      HiveCopyEntityHelper helper)
       throws IOException {
 
     DiffPathSet.DiffPathSetBuilder builder = DiffPathSet.builder();
 
     multiTimer.nextStage(Stages.SOURCE_PATH_LISTING);
     // These are the paths at the source
-    Set<Path> sourcePaths = sourceLocation.getPaths();
+    Map<Path, FileStatus> sourcePaths = sourceLocation.getPaths();
 
     multiTimer.nextStage(Stages.TARGET_EXISTING_PATH_LISTING);
     // These are the paths that the existing target table / partition uses now
-    Set<Path> targetExistingPaths = currentTargetLocation.isPresent() ? currentTargetLocation.get().getPaths() :
-        Sets.<Path>newHashSet();
+    Map<Path, FileStatus> targetExistingPaths = currentTargetLocation.isPresent() ? currentTargetLocation.get().getPaths() :
+        Maps.<Path, FileStatus>newHashMap();
 
     multiTimer.nextStage(Stages.DESIRED_PATHS_LISTING);
     // These are the paths that exist at the destination and the new table / partition would pick up
-    Set<Path> desiredTargetExistingPaths;
+    Map<Path, FileStatus> desiredTargetExistingPaths;
     try {
       desiredTargetExistingPaths = desiredTargetLocation.getPaths();
     } catch (InvalidInputException ioe) {
       // Thrown if inputFormat cannot find location in target. Since location doesn't exist, this set is empty.
-      desiredTargetExistingPaths = Sets.newHashSet();
+      desiredTargetExistingPaths = Maps.newHashMap();
     }
 
     multiTimer.nextStage(Stages.PATH_DIFF);
-    for (Path sourcePath : sourcePaths) {
+    for (FileStatus sourcePath : sourcePaths.values()) {
       // For each source path
-      Path newPath = getTargetPath(sourcePath, desiredTargetLocation.getFileSystem(), partition, true);
+      Path newPath = helper.getTargetPath(sourcePath.getPath(), desiredTargetLocation.getFileSystem(), partition, true);
       boolean shouldCopy = true;
-      FileStatus originStatus = sourceLocation.getFileSystem().getFileStatus(sourcePath);
-      if (desiredTargetExistingPaths.contains(newPath)) {
+      if (desiredTargetExistingPaths.containsKey(newPath)) {
         // If the file exists at the destination, check whether it should be replaced, if not, no need to copy
-        FileStatus existingTargetStatus = desiredTargetLocation.getFileSystem().getFileStatus(newPath);
-        if (!shouldReplaceFile(existingTargetStatus, originStatus)) {
+        FileStatus existingTargetStatus = desiredTargetExistingPaths.get(newPath);
+        if (!helper.shouldReplaceFile(existingTargetStatus, sourcePath)) {
           shouldCopy = false;
         }
       }
       if (shouldCopy) {
-        builder.copyFile(originStatus);
+        builder.copyFile(sourcePath);
       } else {
         // if not copying, we want to keep the file in the target
         // at the end of this loop, all files in targetExistingPaths will be marked for deletion, so remove this file
@@ -678,7 +678,7 @@ public class HiveCopyEntityHelper {
     multiTimer.nextStage(Stages.COMPUTE_DELETE_PATHS);
     // At this point, targetExistingPaths contains paths managed by target partition / table, but that we don't want
     // delete them
-    for (Path delete : targetExistingPaths) {
+    for (Path delete : targetExistingPaths.keySet()) {
       builder.deleteFile(delete);
       desiredTargetExistingPaths.remove(delete);
     }
@@ -688,8 +688,8 @@ public class HiveCopyEntityHelper {
     // in the new table / partition, so if there are any leftover files, abort copying this table / partition.
     if (desiredTargetExistingPaths.size() > 0) {
       throw new IOException(String.format("New table / partition would pick up existing, undesired files in target file system. "
-          + "%s, files %s.", partition.isPresent() ? partition.get().getCompleteName() : dataset.table.getCompleteName(),
-          Arrays.toString(desiredTargetExistingPaths.toArray())));
+          + "%s, files %s.", partition.isPresent() ? partition.get().getCompleteName() : helper.dataset.table.getCompleteName(),
+          Arrays.toString(desiredTargetExistingPaths.keySet().toArray())));
     }
 
     return builder.build();
