@@ -485,8 +485,11 @@ public class HadoopUtils {
     public void run() {
       try {
 
-        if (!safeRenameIfNotExists(fileSystem, from.getPath(), to)) {
+        // Attempt to move safely if directory, unsafely if file (for performance, files are much less likely to collide on target)
+        boolean moveSucessful = from.isDir() ? safeRenameIfNotExists(fileSystem, from.getPath(), to)
+            : unsafeRenameIfNotExists(fileSystem, from.getPath(), to);
 
+        if (!moveSucessful) {
           if (from.isDir()) {
             for (FileStatus fromFile : fileSystem.listStatus(from.getPath())) {
               Path relativeFilePath =
@@ -524,6 +527,19 @@ public class HadoopUtils {
    * @throws IOException if rename failed for reasons other than target exists.
    */
   public synchronized static boolean safeRenameIfNotExists(FileSystem fs, Path from, Path to) throws IOException {
+    return unsafeRenameIfNotExists(fs, from, to);
+  }
+
+  /**
+   * Renames from to to if to doesn't exist in a non-thread-safe way.
+   *
+   * @param fs filesystem where rename will be executed.
+   * @param from origin {@link Path}.
+   * @param to target {@link Path}.
+   * @return true if rename succeeded, false if the target already exists.
+   * @throws IOException if rename failed for reasons other than target exists.
+   */
+  public static boolean unsafeRenameIfNotExists(FileSystem fs, Path from, Path to) throws IOException {
     if (!fs.exists(to)) {
       if (!fs.exists(to.getParent())) {
         fs.mkdirs(to.getParent());
