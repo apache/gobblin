@@ -51,6 +51,8 @@ import gobblin.metrics.notification.EventNotification;
 import gobblin.metrics.notification.Notification;
 import gobblin.util.ExecutorsUtils;
 
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_ID;
+import static gobblin.metrics.event.TaskEvent.METADATA_TASK_ID;
 
 /**
  * Abstract class for reporting {@link gobblin.metrics.GobblinTrackingEvent}s at a fixed schedule.
@@ -64,6 +66,7 @@ import gobblin.util.ExecutorsUtils;
 public abstract class EventReporter extends ScheduledReporter implements Closeable {
 
   protected static final Joiner JOINER = Joiner.on('.').skipNulls();
+  protected static final String METRIC_KEY_PREFIX = "gobblin.metrics";
   protected static final String EVENTS_QUALIFIER = "events";
   private static final Logger LOGGER = LoggerFactory.getLogger(EventReporter.class);
   private static final int QUEUE_CAPACITY = 100;
@@ -149,6 +152,19 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     //NOOP
   }
 
+  /**
+   * Constructs the metric key to be emitted.
+   * The actual event name is enriched with the current job and task id to be able to keep track of its origin 
+   * 
+   * @param metadata metadata of the actual {@link GobblinTrackingEvent}
+   * @param eventName name of the actual {@link GobblinTrackingEvent}
+   * @return prefix of the metric key
+   */
+  protected String getMetricName(Map<String, String> metadata, String eventName) {
+    return JOINER.join(METRIC_KEY_PREFIX, metadata.get(METADATA_JOB_ID), metadata.get(METADATA_TASK_ID),
+        EVENTS_QUALIFIER, eventName);
+  }
+  
   private void immediatelyScheduleReport() {
     this.immediateReportExecutor.submit(new Runnable() {
       @Override

@@ -72,7 +72,8 @@ public class InfluxDBEventReporterTest {
         InfluxDBEventReporter influxEventReporter = getBuilder(metricContext).build();) {
 
       Map<String, String> metadata = Maps.newHashMap();
-      metadata.put(TaskEvent.METADATA_TASK_ID, "taskId123");
+      metadata.put(JobEvent.METADATA_JOB_ID, "job1");
+      metadata.put(TaskEvent.METADATA_TASK_ID, "task1");
 
       metricContext.submitEvent(GobblinTrackingEvent.newBuilder()
           .setName(JobEvent.TASKS_SUBMITTED)
@@ -94,7 +95,7 @@ public class InfluxDBEventReporterTest {
       }
 
       TimestampedValue retrievedEvent = influxDB.getMetric(
-          "gobblin.metrics.influxdb.InfluxDBEventReporterTest.testInfluxDBReporter1.taskId123.events.TasksSubmitted");
+          "gobblin.metrics.job1.task1.events.TasksSubmitted");
 
       Assert.assertEquals(retrievedEvent.getValue(), "0.0");
       Assert.assertTrue(retrievedEvent.getTimestamp() <= (System.currentTimeMillis()));
@@ -111,6 +112,8 @@ public class InfluxDBEventReporterTest {
         InfluxDBEventReporter influxEventReporter = getBuilder(metricContext).build();) {
 
       Map<String, String> metadata = Maps.newHashMap();
+      metadata.put(JobEvent.METADATA_JOB_ID, "job2");
+      metadata.put(TaskEvent.METADATA_TASK_ID, "task2");
       metadata.put(EventSubmitter.EVENT_TYPE, "JobStateEvent");
       metadata.put(JobEvent.METADATA_JOB_START_TIME, "1457736710521");
       metadata.put(JobEvent.METADATA_JOB_END_TIME, "1457736710734");
@@ -137,7 +140,7 @@ public class InfluxDBEventReporterTest {
         Thread.currentThread().interrupt();
       }
 
-      String prefix = "gobblin.metrics.influxdb.InfluxDBEventReporterTest.testInfluxDBReporter2.events.JobStateEvent";
+      String prefix = "gobblin.metrics.job2.task2.events.JobStateEvent";
 
       Assert.assertEquals(influxDB.getMetric(prefix + ".jobBeginTime").getValue(), "1457736710521.0");
       Assert.assertEquals(influxDB.getMetric(prefix + ".jobEndTime").getValue(), "1457736710734.0");

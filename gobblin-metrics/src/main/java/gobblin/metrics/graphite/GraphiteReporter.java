@@ -139,8 +139,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
     /**
      * Builds and returns {@link GraphiteReporter}.
      *
-     * @param hostname
-     * @param port
+     * @param props metrics properties
      * @return GraphiteReporter
      */
     public GraphiteReporter build(Properties props) throws IOException {

@@ -54,6 +54,7 @@ import gobblin.metrics.kafka.KafkaEventReporter;
 import gobblin.metrics.reporter.OutputStreamEventReporter;
 import gobblin.metrics.reporter.OutputStreamReporter;
 import gobblin.metrics.reporter.ScheduledReporter;
+import gobblin.password.PasswordManager;
 import gobblin.source.extractor.utils.Utils;
 
 
@@ -436,10 +437,10 @@ public class GobblinMetrics {
   private void buildFileMetricReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_FILE_ENABLED))) {
-      LOGGER.info("Not reporting metrics to log files");
       return;
     }
-
+    LOGGER.info("Reporting metrics to log files");
+    
     if (!properties.containsKey(ConfigurationKeys.METRICS_LOG_DIR_KEY)) {
       LOGGER.error(
           "Not reporting metrics to log files because " + ConfigurationKeys.METRICS_LOG_DIR_KEY + " is undefined");
@@ -487,9 +488,9 @@ public class GobblinMetrics {
   private void buildJmxMetricReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_JMX_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_JMX_ENABLED))) {
-      LOGGER.info("Not reporting metrics to JMX");
       return;
     }
+    LOGGER.info("Reporting metrics to JMX");
 
     this.jmxReporter = Optional.of(codahaleReportersCloser.register(JmxReporter.forRegistry(RootMetricContext.get()).
         convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
@@ -498,9 +499,9 @@ public class GobblinMetrics {
   private void buildKafkaMetricReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED))) {
-      LOGGER.info("Not reporting metrics to Kafka");
       return;
     }
+    LOGGER.info("Reporting metrics to Kafka");
 
     Optional<String> defaultTopic = Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC));
     Optional<String> metricsTopic = Optional.fromNullable(
@@ -508,6 +509,11 @@ public class GobblinMetrics {
     Optional<String> eventsTopic = Optional.fromNullable(
         properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS));
 
+    boolean metricsEnabled = metricsTopic.or(defaultTopic).isPresent();
+    if (metricsEnabled) LOGGER.info("Reporting metrics to Kafka");
+    boolean eventsEnabled = eventsTopic.or(defaultTopic).isPresent();
+    if (eventsEnabled) LOGGER.info("Reporting events to Kafka");
+    
     try {
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_BROKERS),
           "Kafka metrics brokers missing.");
@@ -531,18 +537,16 @@ public class GobblinMetrics {
       formatEnum = KafkaReportingFormats.JSON;
     }
 
-    if (metricsTopic.or(defaultTopic).isPresent()) {
+    if (metricsEnabled) {
       try {
         formatEnum.metricReporterBuilder(properties)
             .build(brokers, metricsTopic.or(defaultTopic).get(), properties);
       } catch (IOException exception) {
         LOGGER.error("Failed to create Kafka metrics reporter. Will not report metrics to Kafka.", exception);
       }
-    } else {
-      LOGGER.warn("Not reporting metrics to Kafka, no topic specified");
     }
 
-    if (eventsTopic.or(defaultTopic).isPresent()) {
+    if (eventsEnabled) {
       try {
         KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(RootMetricContext.get(), properties);
         this.scheduledReporters
@@ -550,9 +554,7 @@ public class GobblinMetrics {
       } catch (IOException exception) {
         LOGGER.error("Failed to create Kafka events reporter. Will not report events to Kafka.", exception);
       }
-    } else {
-      LOGGER.warn("Not reporting events to Kafka, no topic specified");
-    }
+    } 
 
     LOGGER.info("Will start reporting metrics to Kafka");
   }
@@ -561,11 +563,14 @@ public class GobblinMetrics {
     boolean metricsEnabled =
         Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_METRICS_ENABLED);
+    if (metricsEnabled) LOGGER.info("Reporting metrics to Graphite");
+    
     boolean eventsEnabled =
         Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED);
+    if (eventsEnabled) LOGGER.info("Reporting events to Graphite");
+    
     if (!metricsEnabled && !eventsEnabled) {
-      LOGGER.info("Not reporting metrics and events to Graphite");
       return;
     }
     
@@ -604,9 +609,6 @@ public class GobblinMetrics {
         LOGGER.error("Failed to create Graphite metrics reporter. Will not report metrics to Graphite.", e);
       }
     }
-    else {
-      LOGGER.info("Not reporting metrics to Graphite");
-    }
         
     if (eventsEnabled) {
       boolean emitValueAsKey =
@@ -618,7 +620,7 @@ public class GobblinMetrics {
             Integer.parseInt(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_PORT)) : Integer.parseInt(eventsPortProp);
       try {
         GraphiteEventReporter eventReporter =
-            GraphiteEventReporter.Factory.forContext(this.metricContext)
+            GraphiteEventReporter.Factory.forContext(RootMetricContext.get())
               .withConnectionType(connectionType)
               .withConnection(hostname, eventsPort)
               .withEmitValueAsKey(emitValueAsKey)
@@ -629,20 +631,20 @@ public class GobblinMetrics {
         LOGGER.error("Failed to create Graphite event reporter. Will not report events to Graphite.", e);
       }
     }
-    else  {
-      LOGGER.info("Not reporting events to Graphite");
-    }
   }
 
   private void buildInfluxDBMetricReporter(Properties properties) {
     boolean metricsEnabled =
         Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_INFLUXDB_METRICS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_INFLUXDB_METRICS_ENABLED);
+    if (metricsEnabled) LOGGER.info("Reporting metrics to InfluxDB");
+    
     boolean eventsEnabled =
         Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED);
+    if (eventsEnabled) LOGGER.info("Reporting events to InfluxDB");
+    
     if (!metricsEnabled && !eventsEnabled) {
-      LOGGER.info("Not reporting metrics and events to InfluxDB");
       return;
     }
     
@@ -656,7 +658,8 @@ public class GobblinMetrics {
     
     String url = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_URL);
     String username = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_USER);
-    String password = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_PASSWORD);
+    String password = PasswordManager.getInstance(properties)
+        .readPassword(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_PASSWORD));
     String database = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_DATABASE);
     
     InfluxDBConnectionType connectionType;
@@ -682,16 +685,13 @@ public class GobblinMetrics {
         LOGGER.error("Failed to create InfluxDB metrics reporter. Will not report metrics to InfluxDB.", e);
       }
     }
-    else {
-      LOGGER.info("Not reporting metrics to InfluxDB");
-    }
         
     if (eventsEnabled) {
       String eventsDbProp = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_EVENTS_DATABASE);
       String eventsDatabase = (eventsDbProp == null) ? (metricsEnabled ? database : null) : eventsDbProp;
       try {
         InfluxDBEventReporter eventReporter =
-            InfluxDBEventReporter.Factory.forContext(this.metricContext)
+            InfluxDBEventReporter.Factory.forContext(RootMetricContext.get())
               .withConnectionType(connectionType)
               .withConnection(url, username, password, eventsDatabase)
               .build();
@@ -700,9 +700,6 @@ public class GobblinMetrics {
       catch (IOException e) {
         LOGGER.error("Failed to create InfluxDB event reporter. Will not report events to InfluxDB.", e);
       }
-    }
-    else  {
-      LOGGER.info("Not reporting events to InfluxDB");
     }
   }
   

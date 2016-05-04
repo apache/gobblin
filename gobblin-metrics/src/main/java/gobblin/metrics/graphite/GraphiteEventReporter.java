@@ -12,17 +12,6 @@
 
 package gobblin.metrics.graphite;
 
-import static gobblin.metrics.event.TaskEvent.METADATA_TASK_ID;
-import static gobblin.metrics.event.TimingEvent.METADATA_DURATION;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinTrackingEvent;
-import gobblin.metrics.MetricContext;
-import gobblin.metrics.event.MultiPartEvent;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.JobEvent;
-import gobblin.metrics.event.TaskEvent;
-import gobblin.metrics.reporter.EventReporter;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.Queue;
@@ -32,6 +21,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.GobblinTrackingEvent;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.MultiPartEvent;
+import gobblin.metrics.event.EventSubmitter;
+import gobblin.metrics.event.JobEvent;
+import gobblin.metrics.event.TaskEvent;
+import gobblin.metrics.reporter.EventReporter;
+
+import static gobblin.metrics.event.TimingEvent.METADATA_DURATION;
 
 
 /**
@@ -44,7 +44,6 @@ import com.google.common.base.Optional;
  */
 public class GraphiteEventReporter extends EventReporter {
 
-  protected final String metricPrefix;
   private final GraphitePusher graphitePusher;
   private final boolean emitValueAsKey;
   
@@ -59,7 +58,6 @@ public class GraphiteEventReporter extends EventReporter {
       this.graphitePusher =
           this.closer.register(new GraphitePusher(builder.hostname, builder.port, builder.connectionType));
     }
-    this.metricPrefix = builder.metricPrefix;
     this.emitValueAsKey = builder.emitValueAsKey;
   }
 
@@ -74,6 +72,11 @@ public class GraphiteEventReporter extends EventReporter {
       this.graphitePusher.flush();
     } catch (IOException e) {
       LOGGER.error("Error sending event to Graphite", e);
+      try {
+        this.graphitePusher.flush();
+      } catch (IOException e1) {
+        LOGGER.error("Unable to flush previous events to Graphite", e);
+      }
     }
   }
   
@@ -87,11 +90,11 @@ public class GraphiteEventReporter extends EventReporter {
   private void pushEvent(GobblinTrackingEvent event) throws IOException {
 
     Map<String, String> metadata = event.getMetadata();
-    String name = JOINER.join(metricPrefix, metadata.get(METADATA_TASK_ID), EVENTS_QUALIFIER, event.getName()); 
+    String name = getMetricName(metadata, event.getName());
     long timestamp = Long.valueOf(event.getTimestamp()) / 1000l;
     MultiPartEvent multipartEvent = MultiPartEvent.getEvent(metadata.get(EventSubmitter.EVENT_TYPE));
     if (multipartEvent == null) {
-      graphitePusher.push(name, EMTPY_VALUE, timestamp); graphitePusher.push(name, EMTPY_VALUE, timestamp);
+      graphitePusher.push(name, EMTPY_VALUE, timestamp);
     }
     else {
       for (String field : multipartEvent.getMetadataFields()) {
@@ -145,7 +148,6 @@ public class GraphiteEventReporter extends EventReporter {
    
     private BuilderImpl(MetricContext context) {
       super(context);
-      this.metricPrefix = context.getName();
     }
 
     @Override
@@ -175,7 +177,6 @@ public class GraphiteEventReporter extends EventReporter {
     protected String hostname;
     protected int port;
     protected GraphiteConnectionType connectionType;
-    protected String metricPrefix;
     protected Optional<GraphitePusher> graphitePusher;
     protected boolean emitValueAsKey;
     

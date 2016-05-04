@@ -68,7 +68,8 @@ public class GraphiteEventReporterTest {
         GraphiteEventReporter graphiteEventReporter = getBuilder(metricContext).withEmitValueAsKey(false).build();) {
 
       Map<String, String> metadata = Maps.newHashMap();
-      metadata.put(TaskEvent.METADATA_TASK_ID, "taskId123");
+      metadata.put(JobEvent.METADATA_JOB_ID, "job1");
+      metadata.put(TaskEvent.METADATA_TASK_ID, "task1");
 
       metricContext.submitEvent(GobblinTrackingEvent.newBuilder()
           .setName(JobEvent.TASKS_SUBMITTED)
@@ -89,8 +90,7 @@ public class GraphiteEventReporterTest {
         Thread.currentThread().interrupt();
       }
 
-      TimestampedValue retrievedEvent = graphiteSender.getMetric(
-          "gobblin.metrics.graphite.GraphiteEventReporterTest.testGraphiteReporter1.taskId123.events.TasksSubmitted");
+      TimestampedValue retrievedEvent = graphiteSender.getMetric("gobblin.metrics.job1.task1.events.TasksSubmitted");
 
       Assert.assertEquals(retrievedEvent.getValue(), "0");
       Assert.assertTrue(retrievedEvent.getTimestamp() <= (System.currentTimeMillis() / 1000l));
@@ -107,6 +107,8 @@ public class GraphiteEventReporterTest {
         GraphiteEventReporter graphiteEventReporter = getBuilder(metricContext).withEmitValueAsKey(true).build();) {
 
       Map<String, String> metadata = Maps.newHashMap();
+      metadata.put(JobEvent.METADATA_JOB_ID, "job2");
+      metadata.put(TaskEvent.METADATA_TASK_ID, "task2");
       metadata.put(EventSubmitter.EVENT_TYPE, "JobStateEvent");
       metadata.put(JobEvent.METADATA_JOB_START_TIME, "1457736710521");
       metadata.put(JobEvent.METADATA_JOB_END_TIME, "1457736710734");
@@ -133,7 +135,7 @@ public class GraphiteEventReporterTest {
         Thread.currentThread().interrupt();
       }
 
-      String prefix = "gobblin.metrics.graphite.GraphiteEventReporterTest.testGraphiteReporter2.events.JobStateEvent";
+      String prefix = "gobblin.metrics.job2.task2.events.JobStateEvent";
 
       Assert.assertEquals(graphiteSender.getMetric(prefix + ".jobBeginTime").getValue(), "1457736710521");
       Assert.assertEquals(graphiteSender.getMetric(prefix + ".jobEndTime").getValue(), "1457736710734");

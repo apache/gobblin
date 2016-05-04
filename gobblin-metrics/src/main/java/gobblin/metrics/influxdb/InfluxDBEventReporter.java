@@ -31,7 +31,7 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.MultiPartEvent;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.reporter.EventReporter;
-import static gobblin.metrics.event.TaskEvent.METADATA_TASK_ID;
+
 import static gobblin.metrics.event.TimingEvent.METADATA_DURATION;
 
 /**
@@ -44,7 +44,6 @@ import static gobblin.metrics.event.TimingEvent.METADATA_DURATION;
  */
 public class InfluxDBEventReporter extends EventReporter {
 
-  protected final String metricPrefix;
   private final InfluxDBPusher influxDBPusher;
   
   private static final double EMTPY_VALUE = 0d;
@@ -55,11 +54,9 @@ public class InfluxDBEventReporter extends EventReporter {
     if (builder.influxDBPusher.isPresent()) {
       this.influxDBPusher = builder.influxDBPusher.get();
     } else {
-      this.influxDBPusher =
-          new InfluxDBPusher.Builder(builder.url, builder.username, builder.password, builder.database,
-              builder.connectionType).build();
-  }
-    this.metricPrefix = builder.metricPrefix;
+      this.influxDBPusher = new InfluxDBPusher.Builder(builder.url, builder.username, builder.password,
+          builder.database, builder.connectionType).build();
+    }
   }
 
   @Override
@@ -85,7 +82,7 @@ public class InfluxDBEventReporter extends EventReporter {
   private void pushEvent(GobblinTrackingEvent event) throws IOException {
 
     Map<String, String> metadata = event.getMetadata();
-    String name = JOINER.join(metricPrefix, metadata.get(METADATA_TASK_ID), EVENTS_QUALIFIER, event.getName()); 
+    String name = getMetricName(metadata, event.getName());
     long timestamp = Long.valueOf(event.getTimestamp());
     MultiPartEvent multiPartEvent = MultiPartEvent.getEvent(metadata.get(EventSubmitter.EVENT_TYPE));
     if (multiPartEvent == null) {
@@ -122,7 +119,6 @@ public class InfluxDBEventReporter extends EventReporter {
     }
   }
   
-  
   /**
    * Returns a new {@link InfluxDBEventReporter.Builder} for {@link InfluxDBEventReporter}.
    * Will automatically add all Context tags to the reporter.
@@ -140,7 +136,6 @@ public class InfluxDBEventReporter extends EventReporter {
    
     private BuilderImpl(MetricContext context) {
       super(context);
-      this.metricPrefix = context.getName();
     }
 
     @Override
@@ -173,7 +168,6 @@ public class InfluxDBEventReporter extends EventReporter {
     protected String password;
     protected String database;
     protected InfluxDBConnectionType connectionType;
-    protected String metricPrefix;
     protected Optional<InfluxDBPusher> influxDBPusher;
     
     protected Builder(MetricContext context) {
