@@ -501,7 +501,7 @@ public class HiveCopyEntityHelper {
 
       for (CopyableFile.Builder builder : getCopyableFilesFromPaths(diffPathSet.filesToCopy,
           configuration, Optional.of(partition))) {
-        copyEntities.add(builder.fileSet(fileSet).build());
+        copyEntities.add(builder.fileSet(fileSet).checksum(new byte[0]).build());
       }
 
       return copyEntities;
