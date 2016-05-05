@@ -12,7 +12,6 @@
 
 package gobblin.metrics.reporter;
 
-import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
@@ -24,8 +23,6 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
-import com.google.common.base.Function;
-import com.google.common.collect.Maps;
 
 import gobblin.metrics.MetricContext;
 

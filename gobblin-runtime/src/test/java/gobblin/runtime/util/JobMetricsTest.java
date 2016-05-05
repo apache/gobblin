@@ -28,6 +28,7 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.metrics.event.JobEvent;
 import gobblin.runtime.JobState;
 
 
@@ -50,8 +51,8 @@ public class JobMetricsTest {
     String contextName = tagMap.get(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME).toString();
 
     Assert.assertEquals(tagMap.size(), 4);
-    Assert.assertEquals(tagMap.get("jobId"), jobId);
-    Assert.assertEquals(tagMap.get("jobName"), jobName);
+    Assert.assertEquals(tagMap.get(JobEvent.METADATA_JOB_ID), jobId);
+    Assert.assertEquals(tagMap.get(JobEvent.METADATA_JOB_NAME), jobName);
     Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME), contextId);
     Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME), contextName);
 

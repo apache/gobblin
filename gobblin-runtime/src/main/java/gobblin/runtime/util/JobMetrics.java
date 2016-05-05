@@ -20,6 +20,7 @@ import com.google.common.collect.Lists;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.metrics.event.JobEvent;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
 import gobblin.util.ClustersNames;
@@ -115,9 +116,8 @@ public class JobMetrics extends GobblinMetrics {
 
   private static List<Tag<?>> tagsForJob(JobState jobState) {
     List<Tag<?>> tags = Lists.newArrayList();
-    tags.add(new Tag<>("jobName", jobState.getJobName() == null ? "" : jobState.getJobName()));
-    tags.add(new Tag<>("jobId", jobState.getJobId()));
-
+    tags.add(new Tag<>(JobEvent.METADATA_JOB_NAME, jobState.getJobName() == null ? "" : jobState.getJobName()));
+    tags.add(new Tag<>(JobEvent.METADATA_JOB_ID, jobState.getJobId()));
     tags.addAll(getCustomTagsFromState(jobState));
     return tags;
   }

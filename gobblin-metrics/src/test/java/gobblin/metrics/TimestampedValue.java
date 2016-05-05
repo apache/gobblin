@@ -10,17 +10,28 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.event;
+package gobblin.metrics;
 
 /**
- * Constants used as names for {@link gobblin.metrics.GobblinTrackingEvent}s.
+ * 
+ * @author Yinan Li
+ *
  */
-public class EventNames {
+public class TimestampedValue {
 
-  public static final String LOCK_IN_USE = "LockInUse";
-  public static final String WORK_UNITS_MISSING = "WorkUnitsMissing";
-  public static final String WORK_UNITS_EMPTY = "WorkUnitsEmpty";
-  public static final String TASKS_SUBMITTED = "TasksSubmitted";
-  public static final String TASK_FAILED = "TaskFailed";
+  private final long timestamp;
+  private final String value;
 
+  public TimestampedValue(long timestamp, String value) {
+    this.timestamp = timestamp;
+    this.value = value;
+  }
+
+  public long getTimestamp() {
+    return this.timestamp;
+  }
+
+  public String getValue() {
+    return this.value;
+  }
 }
