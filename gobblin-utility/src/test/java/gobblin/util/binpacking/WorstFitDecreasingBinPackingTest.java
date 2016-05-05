@@ -17,7 +17,7 @@ import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Lists;
 
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.MultiWorkUnit;
