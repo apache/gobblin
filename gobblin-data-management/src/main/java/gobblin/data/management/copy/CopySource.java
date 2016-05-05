@@ -87,6 +87,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final int DEFAULT_MAX_FILES_COPIED = 100000;
   public static final String SIMULATE = CopyConfiguration.COPY_PREFIX + ".simulate";
   public static final String MAX_SIZE_MULTI_WORKUNITS = CopyConfiguration.COPY_PREFIX + ".binPacking.maxSizePerBin";
+  public static final String MAX_WORK_UNITS_PER_BIN = CopyConfiguration.COPY_PREFIX + ".binPacking.maxWorkUnitsPerBin";
 
   private static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
 
@@ -120,6 +121,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       final FileSystem sourceFs = getSourceFileSystem(state);
       final FileSystem targetFs = getTargetFileSystem(state);
       long maxSizePerBin = state.getPropAsLong(MAX_SIZE_MULTI_WORKUNITS, 0);
+      long maxWorkUnitsPerMultiWorkUnit = state.getPropAsLong(MAX_WORK_UNITS_PER_BIN, 50);
+      final long minWorkUnitWeight = Math.max(1, maxSizePerBin / maxWorkUnitsPerMultiWorkUnit);
 
       // TODO: The comparator sets the priority of file sets. Currently, all file sets have the same priority, this needs to
       // be pluggable.
@@ -161,7 +164,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
               }
 
               return new DatasetWorkUnitGenerator(iterableCopyableDataset, sourceFs, targetFs, state, workUnitList,
-                  copyConfiguration);
+                  copyConfiguration, minWorkUnitWeight);
             }
           });
 
@@ -222,6 +225,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     private final State state;
     private final ConcurrentBoundedWorkUnitList workUnitList;
     private final CopyConfiguration copyConfiguration;
+    private final long minWorkUnitWeight;
 
     @Override
     public Void call() {
@@ -254,7 +258,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetAndPartition.toString());
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, this.copyableDataset.datasetURN());
             workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyEntity.getFileSet());
-            setWorkUnitWeight(workUnit, copyEntity);
+            setWorkUnitWeight(workUnit, copyEntity, minWorkUnitWeight);
             computeAndSetWorkUnitGuid(workUnit);
             workUnitsForPartition.add(workUnit);
           }
@@ -311,12 +315,12 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
   }
 
-  private void setWorkUnitWeight(WorkUnit workUnit, CopyEntity copyEntity) {
+  private void setWorkUnitWeight(WorkUnit workUnit, CopyEntity copyEntity, long minWeight) {
     long weight = 0;
     if (copyEntity instanceof CopyableFile) {
       weight = ((CopyableFile) copyEntity).getOrigin().getLen();
     }
-    weight = Math.max(weight, 10000);
+    weight = Math.max(weight, minWeight);
     workUnit.setProp(WORK_UNIT_WEIGHT, Long.toString(weight));
   }
 
