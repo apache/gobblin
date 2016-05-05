@@ -12,6 +12,7 @@
 
 package gobblin.yarn;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -109,6 +110,12 @@ public class GobblinHelixJobLauncherTest {
     this.helixManager = HelixManagerFactory
         .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
             zkConnectingString);
+    this.closer.register(new Closeable() {
+      @Override
+      public void close() throws IOException {
+        helixManager.disconnect();
+      }
+    });
     this.helixManager.connect();
 
     Properties properties = ConfigUtils.configToProperties(config);
@@ -116,6 +123,14 @@ public class GobblinHelixJobLauncherTest {
     this.localFs = FileSystem.getLocal(new Configuration());
 
     this.appWorkDir = new Path(GobblinHelixJobLauncherTest.class.getSimpleName());
+    this.closer.register(new Closeable() {
+      @Override
+      public void close() throws IOException {
+        if (localFs.exists(appWorkDir)) {
+          localFs.delete(appWorkDir, true);
+        }
+      }
+    });
 
     this.jobName = config.getString(ConfigurationKeys.JOB_NAME_KEY);
 
@@ -173,13 +188,6 @@ public class GobblinHelixJobLauncherTest {
       this.thread.join();
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
-    }
-
-    try {
-      this.helixManager.disconnect();
-      if (this.localFs.exists(this.appWorkDir)) {
-        this.localFs.delete(this.appWorkDir, true);
-      }
     } finally {
       this.closer.close();
     }

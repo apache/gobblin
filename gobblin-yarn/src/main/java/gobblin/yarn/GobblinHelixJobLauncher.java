@@ -160,8 +160,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void executeCancellation() {
-    if (this.jobSubmitted && !this.jobComplete) {
-      this.helixTaskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
+    if (this.jobSubmitted) {
+      try {
+        this.helixTaskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
+      } catch (IllegalArgumentException e) {
+        LOGGER.warn(String.format("Failed to cleanup job %s in Helix", this.jobContext.getJobId()), e);
+      }
     }
   }
 
