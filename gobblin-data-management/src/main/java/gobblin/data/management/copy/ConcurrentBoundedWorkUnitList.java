@@ -13,6 +13,8 @@
 package gobblin.data.management.copy;
 
 import java.util.Map;
+
+import lombok.Builder;
 import lombok.Getter;
 
 import java.util.Comparator;
@@ -46,6 +48,7 @@ class ConcurrentBoundedWorkUnitList {
   @Getter
   private final Comparator<FileSet<CopyEntity>> comparator;
   private final int maxSize;
+  private final int strictMaxSize;
   private int currentSize;
   /** Set to true the first time a file set is rejected (i.e. doesn't fit in the container) */
   private boolean rejectedFileSet;
@@ -74,12 +77,19 @@ class ConcurrentBoundedWorkUnitList {
    * Creates a new {@link ConcurrentBoundedWorkUnitList}.
    * @param maxSize Maximum number of {@link WorkUnit}s to contain.
    * @param comparator {@link Comparator} for {@link gobblin.data.management.partition.FileSet}s to use for {@link gobblin.data.management.partition.FileSet} priority.
+   * @param strictLimitMultiplier the list will only start rejecting {@link WorkUnit}s if its capacity exceeds
+   *                              maxSize * strictLimitMultiplier. If this parameter is < 1, it will be auto-set to 1.
    */
-  public ConcurrentBoundedWorkUnitList(int maxSize, final Comparator<FileSet<CopyEntity>> comparator) {
+  @Builder
+  public ConcurrentBoundedWorkUnitList(int maxSize, final Comparator<FileSet<CopyEntity>> comparator,
+      double strictLimitMultiplier) {
     this.currentSize = 0;
     this.maxSize = maxSize;
-    this.comparator = comparator;
-    this.workUnitsMap = new TreeMap<>(new AugmentedComparator(comparator));
+    double actualStrictLimitMultiplier =
+        Math.min((double) (Integer.MAX_VALUE / this.maxSize), Math.max(1.0, strictLimitMultiplier));
+    this.strictMaxSize = (int) (this.maxSize * actualStrictLimitMultiplier);
+    this.comparator = comparator == null ? new AllEqualComparator<FileSet<CopyEntity>>() : comparator;
+    this.workUnitsMap = new TreeMap<>(new AugmentedComparator(this.comparator));
     this.rejectedFileSet = false;
   }
 
@@ -98,7 +108,7 @@ class ConcurrentBoundedWorkUnitList {
   }
 
   private synchronized boolean addFileSetImpl(FileSet<CopyEntity> fileSet, List<WorkUnit> workUnits) {
-    if (this.currentSize + workUnits.size() > this.maxSize) {
+    if (this.currentSize + workUnits.size() > this.strictMaxSize) {
       if (this.comparator.compare(this.workUnitsMap.lastKey(), fileSet) <= 0) {
         return false;
       }
@@ -111,7 +121,7 @@ class ConcurrentBoundedWorkUnitList {
         }
         tmpSize -= this.workUnitsMap.get(existingFileSet).size();
         partitionsToDelete.add(existingFileSet);
-        if (tmpSize + workUnits.size() <= this.maxSize) {
+        if (tmpSize + workUnits.size() <= this.strictMaxSize) {
           break;
         }
       }
@@ -132,17 +142,24 @@ class ConcurrentBoundedWorkUnitList {
     }
 
     this.currentSize += workUnits.size();
-    log.info(String.format("Added %d work units to bounded list. Total size: %d, limit: %d.", workUnits.size(),
-        this.currentSize, this.maxSize));
+    log.info(String.format("Added %d work units to bounded list. Total size: %d, soft limit: %d, hard limit: %d.", workUnits.size(),
+        this.currentSize, this.maxSize, this.strictMaxSize));
     return true;
   }
 
   /**
    * @return Whether any calls to {@link #addFileSet} have returned false, i.e. some file set has been rejected due
-   * to capacity issues.
+   * to strict capacity issues.
    */
   public boolean hasRejectedFileSet() {
     return rejectedFileSet;
+  }
+
+  /**
+   * @return Whether the list has reached its max size.
+   */
+  public boolean isFull() {
+    return this.currentSize >= this.maxSize;
   }
 
   /**
