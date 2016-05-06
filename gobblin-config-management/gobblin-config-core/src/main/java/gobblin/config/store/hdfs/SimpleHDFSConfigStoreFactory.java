@@ -15,13 +15,16 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import com.google.common.base.Strings;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.UserGroupInformation;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.base.Strings;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.api.ConfigStoreFactory;
@@ -37,6 +40,59 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
 
   protected static final String SIMPLE_HDFS_SCHEME_PREFIX = "simple-";
   protected static final String HDFS_SCHEME_NAME = "hdfs";
+
+  /** Global namespace for properties if no scope is used */
+  public static final String DEFAULT_CONFIG_NAMESPACE = SimpleHDFSConfigStoreFactory.class.getName();
+  /** Scoped configuration properties */
+  public static final String DEFAULT_STORE_URI_KEY = "default_store_uri";
+
+  private final Optional<URI> defaultStoreURI;
+  private final FileSystem defaultStoreFS;
+
+  /** Instantiates a new instance using standard typesafe config defaults:
+   * {@link ConfigFactory#load()} */
+  public SimpleHDFSConfigStoreFactory() {
+    this(ConfigFactory.load().getConfig(DEFAULT_CONFIG_NAMESPACE));
+  }
+
+  /**
+   * Instantiates a new instance of the factory with the specified config. The configuration is
+   * expected to be scoped, i.e. the properties should not be prefixed.
+   */
+  public SimpleHDFSConfigStoreFactory(Config factoryConfig) {
+    try {
+      if (factoryConfig.hasPath(DEFAULT_STORE_URI_KEY)) {
+        String uri = factoryConfig.getString(DEFAULT_STORE_URI_KEY);
+        if (Strings.isNullOrEmpty(uri)) {
+          throw new IllegalArgumentException("Default store URI should be non-empty!");
+        }
+        Path defStorePath = new Path(uri);
+        this.defaultStoreFS = defStorePath.getFileSystem(new Configuration());
+        this.defaultStoreURI = Optional.of(defaultStoreFS.makeQualified(defStorePath).toUri());
+        if (!isValidStoreRootPath(this.defaultStoreFS, defStorePath)) {
+          throw new IllegalArgumentException("Path does not appear to be a config store root: " +
+              this.defaultStoreFS);
+        }
+       }
+      else {
+        this.defaultStoreFS = FileSystem.get(new Configuration());
+        Path candidateStorePath = getDefaultRootDir();
+        if (isValidStoreRootPath(this.defaultStoreFS, candidateStorePath)) {
+          this.defaultStoreURI = Optional.of(this.defaultStoreFS.makeQualified(candidateStorePath).toUri());
+        }
+        else {
+          this.defaultStoreURI = Optional.absent();
+        }
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to initialize Hadoop FS store factory:" + e, e);
+    }
+  }
+
+  private static boolean isValidStoreRootPath(FileSystem fs, Path storeRootPath) throws IOException {
+    Path storeRoot = new Path(storeRootPath, SimpleHDFSConfigStore.CONFIG_STORE_NAME);
+    return fs.exists(storeRoot);
+  }
 
   @Override
   public String getScheme() {
@@ -75,23 +131,24 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
    * {@link FileSystem} implementations, subclasses should override this method.
    */
   protected String getPhysicalScheme() {
-    return HDFS_SCHEME_NAME;
+    return this.defaultStoreFS.getUri().getScheme();
   }
 
   /**
    * Gets a default root directory if one is not specified. The default root dir is {@code /jobs/[current-user]/}.
    */
   protected Path getDefaultRootDir() throws IOException {
-    return new Path("/jobs", UserGroupInformation.getCurrentUser().getUserName());
+    return this.defaultStoreFS.getHomeDirectory();
   }
 
   /**
-   * Gets a default authority if one is not specified. The default authority is the authority of the {@link FileSystem}
-   * the current process is running on. For example, when running on a HDFS node, the authority will taken from the
-   * NameNode {@link URI}.
+   * Gets a default authority if one is not specified. The default authority is the authority
+   * configured as part of the {@link #DEFAULT_STORE_URI_KEY} configuration setting or the {@link FileSystem}
+   * the current process is running if the setting is missing.. For example, when running on a
+   * HDFS node, the authority will taken from the NameNode {@link URI}.
    */
   private String getDefaultAuthority() throws IOException {
-    return FileSystem.get(new Configuration()).getUri().getAuthority();
+    return this.defaultStoreFS.getUri().getAuthority();
   }
 
   /**
@@ -99,17 +156,17 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
    */
   private FileSystem createFileSystem(URI configKey) throws ConfigStoreCreationException {
     try {
-      return FileSystem.get(createHDFSURI(configKey), new Configuration());
+      return FileSystem.get(createFileSystemURI(configKey), new Configuration());
     } catch (IOException | URISyntaxException e) {
       throw new ConfigStoreCreationException(configKey, e);
     }
   }
 
   /**
-   * Creates a HDFS {@link URI} given a user specified configKey. If the given configKey does not have an authority,
+   * Creates a Hadoop FS {@link URI} given a user-specified configKey. If the given configKey does not have an authority,
    * a default one is used instead, provided by the {@link #getDefaultAuthority()} method.
    */
-  private URI createHDFSURI(URI configKey) throws URISyntaxException, IOException {
+  private URI createFileSystemURI(URI configKey) throws URISyntaxException, IOException {
     // Validate the scheme
     String configKeyScheme = configKey.getScheme();
     if (!configKeyScheme.startsWith(SIMPLE_HDFS_SCHEME_PREFIX)) {
@@ -120,7 +177,11 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
     if (Strings.isNullOrEmpty(configKey.getAuthority())) {
       return new URI(getPhysicalScheme(), getDefaultAuthority(), "", "", "");
     }
-    return new URI(getPhysicalScheme(), configKey.getAuthority(), "", "", "");
+    else {
+      String uriPhysicalScheme =
+          configKeyScheme.substring(SIMPLE_HDFS_SCHEME_PREFIX.length(), configKeyScheme.length());
+      return new URI(uriPhysicalScheme, configKey.getAuthority(), "", "", "");
+    }
   }
 
   /**
@@ -138,18 +199,11 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
    */
   private URI getStoreRoot(FileSystem fs, URI configKey) throws ConfigStoreCreationException {
     if (Strings.isNullOrEmpty(configKey.getAuthority())) {
-      try {
-        Path defaultRootDir = getDefaultRootDir();
-        Path configStoreDir = new Path(defaultRootDir, SimpleHDFSConfigStore.CONFIG_STORE_NAME);
-        if (fs.exists(configStoreDir)) {
-          return fs.getUri().resolve(defaultRootDir.toUri());
-        } else {
-          throw new ConfigStoreCreationException(configKey,
-              String.format("Cannot find store root for default path \"%s\"", configStoreDir));
-        }
-      } catch (IOException e) {
-        throw new ConfigStoreCreationException(configKey, e);
+      if (! hasDefaultStoreURI()) {
+        throw new ConfigStoreCreationException(configKey,
+                                               "No default store has been configured.");
       }
+      return defaultStoreURI.get();
     }
 
     Path path = new Path(configKey.getPath());
@@ -173,6 +227,16 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
       path = path.getParent();
     }
     throw new ConfigStoreCreationException(configKey, "Cannot find the store root!");
+  }
+
+  @VisibleForTesting
+  boolean hasDefaultStoreURI() {
+    return this.defaultStoreURI.isPresent();
+  }
+
+  @VisibleForTesting
+  URI getDefaultStoreURI() {
+    return this.defaultStoreURI.get();
   }
 }
 
