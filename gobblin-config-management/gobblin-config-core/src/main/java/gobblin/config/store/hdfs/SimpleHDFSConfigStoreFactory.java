@@ -41,7 +41,9 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
   protected static final String SIMPLE_HDFS_SCHEME_PREFIX = "simple-";
   protected static final String HDFS_SCHEME_NAME = "hdfs";
 
+  /** Global namespace for properties if no scope is used */
   public static final String DEFAULT_CONFIG_NAMESPACE = SimpleHDFSConfigStoreFactory.class.getName();
+  /** Scoped configuration properties */
   public static final String DEFAULT_STORE_URI_KEY = "default_store_uri";
 
   private final Optional<URI> defaultStoreURI;
@@ -53,6 +55,10 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
     this(ConfigFactory.load().getConfig(DEFAULT_CONFIG_NAMESPACE));
   }
 
+  /**
+   * Instantiates a new instance of the factory with the specified config. The configuration is
+   * expected to be scoped, i.e. the properties should not be prefixed.
+   */
   public SimpleHDFSConfigStoreFactory(Config factoryConfig) {
     try {
       if (factoryConfig.hasPath(DEFAULT_STORE_URI_KEY)) {
