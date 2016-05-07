@@ -60,7 +60,7 @@ public abstract class AvroSerializer<T extends SpecificRecord> implements Closea
    * Change the {@link gobblin.metrics.reporter.util.SchemaVersionWriter} used by this serializer.
    * @param schemaVersionWriter new {@link gobblin.metrics.reporter.util.SchemaVersionWriter} to use.
    */
-  public void setSchemaVersionWriter(SchemaVersionWriter schemaVersionWriter) {
+  public synchronized void setSchemaVersionWriter(SchemaVersionWriter schemaVersionWriter) {
     this.schemaVersionWriter = schemaVersionWriter;
   }
 

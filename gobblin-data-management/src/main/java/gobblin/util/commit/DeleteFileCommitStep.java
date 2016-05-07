@@ -134,7 +134,7 @@ public class DeleteFileCommitStep implements CommitStep {
       @Nullable
       @Override
       public Path apply(@Nullable FileStatus input) {
-        return input.getPath();
+        return input != null ? input.getPath() : null;
       }
     })));
   }

@@ -16,26 +16,26 @@ import gobblin.metrics.GobblinTrackingEvent;
 
 /**
  * Job-related event types and their metadata, stored in {@link GobblinTrackingEvent#metadata}
- * 
+ *
  * @author Lorand Bendig
  *
  */
 public class JobEvent {
-  
-  public static String JOB_STATE = "JobStateEvent";
-  public static String LOCK_IN_USE = "LockInUse";
-  public static String WORK_UNITS_MISSING = "WorkUnitsMissing";
-  public static String WORK_UNITS_EMPTY = "WorkUnitsEmpty";
-  public static String TASKS_SUBMITTED = "TasksSubmitted";
 
-  public static String METADATA_JOB_ID = "jobId";
-  public static String METADATA_JOB_NAME = "jobName";
-  public static String METADATA_JOB_START_TIME = "jobBeginTime";
-  public static String METADATA_JOB_END_TIME = "jobEndTime";
-  public static String METADATA_JOB_STATE = "jobState";
-  public static String METADATA_JOB_LAUNCHED_TASKS = "jobLaunchedTasks";
-  public static String METADATA_JOB_COMPLETED_TASKS = "jobCompletedTasks";
-  public static String METADATA_JOB_LAUNCHER_TYPE = "jobLauncherType";
-  public static String METADATA_JOB_TRACKING_URL = "jobTrackingURL";
+  public static final String JOB_STATE = "JobStateEvent";
+  public static final String LOCK_IN_USE = "LockInUse";
+  public static final String WORK_UNITS_MISSING = "WorkUnitsMissing";
+  public static final String WORK_UNITS_EMPTY = "WorkUnitsEmpty";
+  public static final String TASKS_SUBMITTED = "TasksSubmitted";
+
+  public static final String METADATA_JOB_ID = "jobId";
+  public static final String METADATA_JOB_NAME = "jobName";
+  public static final String METADATA_JOB_START_TIME = "jobBeginTime";
+  public static final String METADATA_JOB_END_TIME = "jobEndTime";
+  public static final String METADATA_JOB_STATE = "jobState";
+  public static final String METADATA_JOB_LAUNCHED_TASKS = "jobLaunchedTasks";
+  public static final String METADATA_JOB_COMPLETED_TASKS = "jobCompletedTasks";
+  public static final String METADATA_JOB_LAUNCHER_TYPE = "jobLauncherType";
+  public static final String METADATA_JOB_TRACKING_URL = "jobTrackingURL";
 
 }

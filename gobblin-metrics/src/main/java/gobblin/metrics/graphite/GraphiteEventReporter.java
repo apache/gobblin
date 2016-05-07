@@ -35,10 +35,10 @@ import static gobblin.metrics.event.TimingEvent.METADATA_DURATION;
 
 
 /**
- * 
- * {@link gobblin.metrics.reporter.EventReporter} that emits {@link gobblin.metrics.GobblinTrackingEvent} events 
+ *
+ * {@link gobblin.metrics.reporter.EventReporter} that emits {@link gobblin.metrics.GobblinTrackingEvent} events
  * as timestamped name - value pairs through the Graphite protocol
- * 
+ *
  * @author Lorand Bendig
  *
  */
@@ -46,10 +46,10 @@ public class GraphiteEventReporter extends EventReporter {
 
   private final GraphitePusher graphitePusher;
   private final boolean emitValueAsKey;
-  
+
   private static final String EMTPY_VALUE = "0";
   private static final Logger LOGGER = LoggerFactory.getLogger(GraphiteEventReporter.class);
-  
+
   public GraphiteEventReporter(Builder<?> builder) throws IOException {
     super(builder);
     if (builder.graphitePusher.isPresent()) {
@@ -79,11 +79,11 @@ public class GraphiteEventReporter extends EventReporter {
       }
     }
   }
-  
+
   /**
    * Extracts the event and its metadata from {@link GobblinTrackingEvent} and creates
    * timestamped name value pairs
-   * 
+   *
    * @param event {@link GobblinTrackingEvent} to be reported
    * @throws IOException
    */
@@ -91,7 +91,7 @@ public class GraphiteEventReporter extends EventReporter {
 
     Map<String, String> metadata = event.getMetadata();
     String name = getMetricName(metadata, event.getName());
-    long timestamp = Long.valueOf(event.getTimestamp()) / 1000l;
+    long timestamp = event.getTimestamp() / 1000l;
     MultiPartEvent multipartEvent = MultiPartEvent.getEvent(metadata.get(EventSubmitter.EVENT_TYPE));
     if (multipartEvent == null) {
       graphitePusher.push(name, EMTPY_VALUE, timestamp);
@@ -112,17 +112,17 @@ public class GraphiteEventReporter extends EventReporter {
       }
     }
   }
-  
+
   private String convertValue(String field, String value) {
-    return METADATA_DURATION.equals(field) ? 
-        Double.toString(convertDuration(TimeUnit.MILLISECONDS.toNanos(Long.valueOf(value)))) : value;
+    return METADATA_DURATION.equals(field) ?
+        Double.toString(convertDuration(TimeUnit.MILLISECONDS.toNanos(Long.parseLong(value)))) : value;
   }
-  
+
   /**
    * Non-numeric event values may be emitted as part of the key by applying them to the end of the key if
    * {@link ConfigurationKeys#METRICS_REPORTING_GRAPHITE_EVENT_VALUE_AS_KEY} is set. Thus such events can be still
    * reported even when the backend doesn't accept text values through Graphite
-   * 
+   *
    * @param field name of the metric's metadata fields
    * @return true if event value is emitted in the key
    */
@@ -145,7 +145,7 @@ public class GraphiteEventReporter extends EventReporter {
   }
 
   public static class BuilderImpl extends Builder<BuilderImpl> {
-   
+
     private BuilderImpl(MetricContext context) {
       super(context);
     }
@@ -179,7 +179,7 @@ public class GraphiteEventReporter extends EventReporter {
     protected GraphiteConnectionType connectionType;
     protected Optional<GraphitePusher> graphitePusher;
     protected boolean emitValueAsKey;
-    
+
     protected Builder(MetricContext context) {
       super(context);
       this.graphitePusher = Optional.absent();
@@ -193,7 +193,7 @@ public class GraphiteEventReporter extends EventReporter {
       this.graphitePusher = Optional.of(pusher);
       return self();
     }
-    
+
     /**
      * Set connection parameters for the {@link gobblin.metrics.graphite.GraphitePusher} creation
      */
@@ -210,7 +210,7 @@ public class GraphiteEventReporter extends EventReporter {
       this.connectionType = connectionType;
       return self();
     }
-    
+
     /**
      * Set flag that forces the reporter to emit non-numeric event values as part of the key
      */
@@ -218,7 +218,7 @@ public class GraphiteEventReporter extends EventReporter {
       this.emitValueAsKey = emitValueAsKey;
       return self();
     }
-    
+
     /**
      * Builds and returns {@link GraphiteEventReporter}.
      *
@@ -228,5 +228,5 @@ public class GraphiteEventReporter extends EventReporter {
       return new GraphiteEventReporter(this);
     }
   }
-  
+
 }

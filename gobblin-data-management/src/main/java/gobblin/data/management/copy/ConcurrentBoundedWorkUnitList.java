@@ -86,7 +86,7 @@ class ConcurrentBoundedWorkUnitList {
     this.currentSize = 0;
     this.maxSize = maxSize;
     double actualStrictLimitMultiplier =
-        Math.min((double) (Integer.MAX_VALUE / this.maxSize), Math.max(1.0, strictLimitMultiplier));
+        Math.min((Integer.MAX_VALUE / (double) this.maxSize), Math.max(1.0, strictLimitMultiplier));
     this.strictMaxSize = (int) (this.maxSize * actualStrictLimitMultiplier);
     this.comparator = comparator == null ? new AllEqualComparator<FileSet<CopyEntity>>() : comparator;
     this.workUnitsMap = new TreeMap<>(new AugmentedComparator(this.comparator));
@@ -158,7 +158,7 @@ class ConcurrentBoundedWorkUnitList {
   /**
    * @return Whether the list has reached its max size.
    */
-  public boolean isFull() {
+  public synchronized boolean isFull() {
     return this.currentSize >= this.maxSize;
   }
 

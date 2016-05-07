@@ -57,7 +57,7 @@ public class MultiTimingEvent implements Closeable {
   private long currentStageStart;
 
   @Data
-  private class Stage {
+  private static class Stage {
     private final String name;
     private final long duration;
   }
