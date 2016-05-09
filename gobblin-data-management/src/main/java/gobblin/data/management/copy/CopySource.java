@@ -158,9 +158,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
               } else if (copyableDataset instanceof CopyableDataset) {
                 iterableCopyableDataset = new IterableCopyableDatasetImpl((CopyableDataset) copyableDataset);
               } else {
-                throw new RuntimeException(
-                    String.format("Cannot process %s, can only copy %s or %s.", copyableDataset.getClass().getName(),
-                        CopyableDataset.class.getName(), IterableCopyableDataset.class.getName()));
+                throw new RuntimeException(String.format("Cannot process %s, can only copy %s or %s.",
+                    copyableDataset == null ? null : copyableDataset.getClass().getName(),
+                    CopyableDataset.class.getName(), IterableCopyableDataset.class.getName()));
               }
 
               return new DatasetWorkUnitGenerator(iterableCopyableDataset, sourceFs, targetFs, state, workUnitList,
