@@ -131,6 +131,14 @@ public class HiveCopyEntityHelperTest {
     Assert.assertTrue(diff.pathsToDelete.contains(targetPath5));
 
   }
+  
+  @Test public void testReplacedPrefix() throws Exception {
+    Path sourcePath = new Path("/data/databases/DB1/Table1/SS1/part1.avro");
+    Path prefixTobeReplaced = new Path("/data/databases");
+    Path prefixReplacement = new Path("/data/databases/_parallel");
+    Path expected = new Path("/data/databases/_parallel/DB1/Table1/SS1/part1.avro");
+    Assert.assertEquals(HiveCopyEntityHelper.replacedPrefix(sourcePath, prefixTobeReplaced, prefixReplacement), expected);
+  }
 
   private boolean containsPath(Collection<FileStatus> statuses, Path path) {
     for (FileStatus status : statuses) {
