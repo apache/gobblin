@@ -330,7 +330,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       // ConfigurationKeys.ESCAPE_CHARS_IN_COLUMN_NAME, "_"));
       this.log.info("Schema:" + targetSchema);
       this.log.info("Extract query: " + this.getExtractSql());
-    } catch (Exception e) {
+    } catch (RuntimeException | IOException | SchemaException e) {
       throw new SchemaException("Failed to get metadata using JDBC; error - " + e.getMessage(), e);
     }
   }
@@ -617,16 +617,17 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     try {
       this.jdbcSource = createJdbcSource();
       this.dataConnection = this.jdbcSource.getConnection();
-      Statement statement = this.dataConnection.createStatement();
+      try (Statement statement = this.dataConnection.createStatement()) {
 
-      if (fetchSize != 0 && this.getExpectedRecordCount() > 2000) {
-        statement.setFetchSize(fetchSize);
+        if (fetchSize != 0 && this.getExpectedRecordCount() > 2000) {
+          statement.setFetchSize(fetchSize);
+        }
+        final boolean status = statement.execute(query);
+        if (status == false) {
+          log.error("Failed to execute sql:" + query);
+        }
+        resultSet = statement.getResultSet();
       }
-      final boolean status = statement.execute(query);
-      if (status == false) {
-        log.error("Failed to execute sql:" + query);
-      }
-      resultSet = statement.getResultSet();
     } catch (Exception e) {
       log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
     }
@@ -675,24 +676,25 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       this.jdbcSource = createJdbcSource();
       this.dataConnection = this.jdbcSource.getConnection();
 
-      PreparedStatement statement =
-          this.dataConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+      try (PreparedStatement statement =
+          this.dataConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
 
-      int parameterPosition = 1;
-      if (queryParameters != null && queryParameters.size() > 0) {
-        for (String parameter : queryParameters) {
-          statement.setString(parameterPosition, parameter);
-          parameterPosition++;
+        int parameterPosition = 1;
+        if (queryParameters != null && queryParameters.size() > 0) {
+          for (String parameter : queryParameters) {
+            statement.setString(parameterPosition, parameter);
+            parameterPosition++;
+          }
         }
+        if (fetchSize != 0) {
+          statement.setFetchSize(fetchSize);
+        }
+        final boolean status = statement.execute();
+        if (status == false) {
+          log.error("Failed to execute sql:" + query);
+        }
+        resultSet = statement.getResultSet();
       }
-      if (fetchSize != 0) {
-        statement.setFetchSize(fetchSize);
-      }
-      final boolean status = statement.execute();
-      if (status == false) {
-        log.error("Failed to execute sql:" + query);
-      }
-      resultSet = statement.getResultSet();
     } catch (Exception e) {
       log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
     }

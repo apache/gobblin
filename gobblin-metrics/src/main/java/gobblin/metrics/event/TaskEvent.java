@@ -16,19 +16,19 @@ import gobblin.metrics.GobblinTrackingEvent;
 
 /**
  * Task-related event types and their metadata, stored in {@link GobblinTrackingEvent#metadata}
- * 
+ *
  * @author Lorand Bendig
  *
  */
 public class TaskEvent {
 
-  public static String TASK_STATE = "TaskStateEvent";
-  public static String TASK_FAILED = "TaskFailed";
+  public static final String TASK_STATE = "TaskStateEvent";
+  public static final String TASK_FAILED = "TaskFailed";
 
-  public static String METADATA_TASK_ID = "taskId";
-  public static String METADATA_TASK_START_TIME = "taskStartTime";
-  public static String METADATA_TASK_END_TIME = "taskEndTime";
-  public static String METADATA_TASK_WORKING_STATE = "taskWorkingState";
-  public static String METADATA_TASK_FAILURE_CONTEXT = "taskFailureContext";
+  public static final String METADATA_TASK_ID = "taskId";
+  public static final String METADATA_TASK_START_TIME = "taskStartTime";
+  public static final String METADATA_TASK_END_TIME = "taskEndTime";
+  public static final String METADATA_TASK_WORKING_STATE = "taskWorkingState";
+  public static final String METADATA_TASK_FAILURE_CONTEXT = "taskFailureContext";
 
 }

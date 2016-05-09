@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
@@ -130,7 +131,7 @@ public class TokenUtils {
 
     LOG.info("Created JH token: " + jhToken.toString());
     LOG.info("Token kind: " + jhToken.getKind());
-    LOG.info("Token id: " + jhToken.getIdentifier());
+    LOG.info("Token id: " + Arrays.toString(jhToken.getIdentifier()));
     LOG.info("Token service: " + jhToken.getService());
 
     cred.addToken(jhToken.getService(), jhToken);
@@ -172,7 +173,7 @@ public class TokenUtils {
     }
     LOG.info("Created DFS token: " + fsToken.toString());
     LOG.info("Token kind: " + fsToken.getKind());
-    LOG.info("Token id: " + fsToken.getIdentifier());
+    LOG.info("Token id: " + Arrays.toString(fsToken.getIdentifier()));
     LOG.info("Token service: " + fsToken.getService());
 
     cred.addToken(fsToken.getService(), fsToken);
@@ -202,7 +203,7 @@ public class TokenUtils {
       }
       LOG.info("Created JT token: " + mrdt.toString());
       LOG.info("Token kind: " + mrdt.getKind());
-      LOG.info("Token id: " + mrdt.getIdentifier());
+      LOG.info("Token id: " + Arrays.toString(mrdt.getIdentifier()));
       LOG.info("Token service: " + mrdt.getService());
       cred.addToken(mrdt.getService(), mrdt);
     } catch (InterruptedException ie) {

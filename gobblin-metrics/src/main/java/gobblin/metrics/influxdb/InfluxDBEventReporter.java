@@ -35,20 +35,20 @@ import gobblin.metrics.reporter.EventReporter;
 import static gobblin.metrics.event.TimingEvent.METADATA_DURATION;
 
 /**
- * 
- * {@link gobblin.metrics.reporter.EventReporter} that emits {@link gobblin.metrics.GobblinTrackingEvent} events 
+ *
+ * {@link gobblin.metrics.reporter.EventReporter} that emits {@link gobblin.metrics.GobblinTrackingEvent} events
  * as timestamped name - value pairs to InfluxDB
- * 
+ *
  * @author Lorand Bendig
  *
  */
 public class InfluxDBEventReporter extends EventReporter {
 
   private final InfluxDBPusher influxDBPusher;
-  
+
   private static final double EMTPY_VALUE = 0d;
   private static final Logger LOGGER = LoggerFactory.getLogger(InfluxDBEventReporter.class);
-  
+
   public InfluxDBEventReporter(Builder<?> builder) throws IOException {
     super(builder);
     if (builder.influxDBPusher.isPresent()) {
@@ -71,11 +71,11 @@ public class InfluxDBEventReporter extends EventReporter {
       LOGGER.error("Error sending event to InfluxDB", e);
     }
   }
-  
+
   /**
    * Extracts the event and its metadata from {@link GobblinTrackingEvent} and creates
    * timestamped name value pairs
-   * 
+   *
    * @param event {@link GobblinTrackingEvent} to be reported
    * @throws IOException
    */
@@ -83,7 +83,7 @@ public class InfluxDBEventReporter extends EventReporter {
 
     Map<String, String> metadata = event.getMetadata();
     String name = getMetricName(metadata, event.getName());
-    long timestamp = Long.valueOf(event.getTimestamp());
+    long timestamp = event.getTimestamp();
     MultiPartEvent multiPartEvent = MultiPartEvent.getEvent(metadata.get(EventSubmitter.EVENT_TYPE));
     if (multiPartEvent == null) {
       influxDBPusher.push(buildEventAsPoint(name, EMTPY_VALUE, timestamp));
@@ -97,13 +97,13 @@ public class InfluxDBEventReporter extends EventReporter {
       influxDBPusher.push(points);
     }
   }
-  
+
   /**
    * Convert the event value taken from the metadata to double (default type).
    * It falls back to string type if the value is missing or it is non-numeric
-   * is of string or missing  
+   * is of string or missing
    * Metadata entries are emitted as distinct events (see {@link MultiPartEvent})
-   * 
+   *
    * @param field {@link GobblinTrackingEvent} metadata key
    * @param value {@link GobblinTrackingEvent} metadata value
    * @return The converted event value
@@ -111,14 +111,14 @@ public class InfluxDBEventReporter extends EventReporter {
   private Object convertValue(String field, String value) {
     if (value == null) return EMTPY_VALUE;
     if (METADATA_DURATION.equals(field)) {
-      return convertDuration(TimeUnit.MILLISECONDS.toNanos(Long.valueOf(value)));
+      return convertDuration(TimeUnit.MILLISECONDS.toNanos(Long.parseLong(value)));
     }
     else {
       Double doubleValue = Doubles.tryParse(value);
       return (doubleValue == null) ? value : doubleValue;
     }
   }
-  
+
   /**
    * Returns a new {@link InfluxDBEventReporter.Builder} for {@link InfluxDBEventReporter}.
    * Will automatically add all Context tags to the reporter.
@@ -133,7 +133,7 @@ public class InfluxDBEventReporter extends EventReporter {
   }
 
   public static class BuilderImpl extends Builder<BuilderImpl> {
-   
+
     private BuilderImpl(MetricContext context) {
       super(context);
     }
@@ -169,7 +169,7 @@ public class InfluxDBEventReporter extends EventReporter {
     protected String database;
     protected InfluxDBConnectionType connectionType;
     protected Optional<InfluxDBPusher> influxDBPusher;
-    
+
     protected Builder(MetricContext context) {
       super(context);
       this.influxDBPusher = Optional.absent();
@@ -183,7 +183,7 @@ public class InfluxDBEventReporter extends EventReporter {
       this.influxDBPusher = Optional.of(pusher);
       return self();
     }
-    
+
     /**
      * Set connection parameters for the {@link gobblin.metrics.influxdb.InfluxDBPusher} creation
      */
@@ -194,7 +194,7 @@ public class InfluxDBEventReporter extends EventReporter {
       this.database = database;
       return self();
     }
-    
+
     /**
      * Set {@link gobblin.metrics.influxdb.InfluxDBConnectionType} to use.
      */
@@ -202,7 +202,7 @@ public class InfluxDBEventReporter extends EventReporter {
       this.connectionType = connectionType;
       return self();
     }
-    
+
     /**
      * Builds and returns {@link InfluxDBEventReporter}.
      *
@@ -212,9 +212,9 @@ public class InfluxDBEventReporter extends EventReporter {
       return new InfluxDBEventReporter(this);
     }
   }
-  
+
   private Point buildEventAsPoint(String name, Object value, long timestamp) throws IOException {
     return Point.measurement(name).field("value", value).time(timestamp, TimeUnit.MILLISECONDS).build();
   }
-  
+
 }

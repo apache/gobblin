@@ -20,6 +20,7 @@ import gobblin.source.extractor.exception.RestApiConnectionException;
 import gobblin.source.extractor.exception.RestApiProcessingException;
 import gobblin.source.extractor.utils.Utils;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -171,14 +172,16 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
           this.updatedQuery = "SELECT " + Joiner.on(",").join(columnList) + " FROM " + entity;
         } else {
           // if input query is not null, build the query with intersection of columns from input query and columns from Metadata
-          String queryLowerCase = inputQuery.toLowerCase();
-          int columnsStartIndex = queryLowerCase.indexOf("select ") + 7;
-          int columnsEndIndex = queryLowerCase.indexOf(" from ");
-          if (columnsStartIndex > 0 && columnsEndIndex > 0) {
-            String givenColumnList = inputQuery.substring(columnsStartIndex, columnsEndIndex);
-            this.updatedQuery = inputQuery.replace(givenColumnList, Joiner.on(",").join(this.columnList));
-          } else {
-            this.updatedQuery = inputQuery;
+          if (inputQuery != null) {
+            String queryLowerCase = inputQuery.toLowerCase();
+            int columnsStartIndex = queryLowerCase.indexOf("select ") + 7;
+            int columnsEndIndex = queryLowerCase.indexOf(" from ");
+            if (columnsStartIndex > 0 && columnsEndIndex > 0) {
+              String givenColumnList = inputQuery.substring(columnsStartIndex, columnsEndIndex);
+              this.updatedQuery = inputQuery.replace(givenColumnList, Joiner.on(",").join(this.columnList));
+            } else {
+              this.updatedQuery = inputQuery;
+            }
           }
         }
 
@@ -186,7 +189,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
         this.log.debug("Schema:" + columnArray);
         this.setOutputSchema(columnArray);
       }
-    } catch (Exception e) {
+    } catch (RuntimeException | RestApiConnectionException | RestApiProcessingException | IOException | SchemaException e) {
       throw new SchemaException("Failed to get schema using rest api; error - " + e.getMessage(), e);
     }
   }

@@ -264,10 +264,10 @@ public class HiveRegistrationUnit {
     boolean isExistingField = true;
     switch (key) {
       case HiveConstants.CREATE_TIME:
-        this.createTime = Optional.of((long) value);
+        this.createTime = Optional.of((Long) value);
         break;
       case HiveConstants.LAST_ACCESS_TIME:
-        this.createTime = Optional.of((long) value);
+        this.createTime = Optional.of((Long) value);
         break;
       default:
         isExistingField = false;
@@ -290,16 +290,16 @@ public class HiveRegistrationUnit {
         this.outputFormat = Optional.of((String) value);
         break;
       case HiveConstants.COMPRESSED:
-        this.isCompressed = Optional.of((boolean) value);
+        this.isCompressed = Optional.of((Boolean) value);
         break;
       case HiveConstants.NUM_BUCKETS:
-        this.numBuckets = Optional.of((int) value);
+        this.numBuckets = Optional.of((Integer) value);
         break;
       case HiveConstants.BUCKET_COLUMNS:
         this.bucketColumns = Optional.of(Splitter.on(',').omitEmptyStrings().trimResults().splitToList((String) value));
         break;
       case HiveConstants.STORED_AS_SUB_DIRS:
-        this.isStoredAsSubDirs = Optional.of((boolean) value);
+        this.isStoredAsSubDirs = Optional.of((Boolean) value);
         break;
       default:
         isExistingField = false;
@@ -341,7 +341,7 @@ public class HiveRegistrationUnit {
    *
    * <p>
    *   A benefit of doing this is to avoid obtaining the schema multiple times when creating a table and a partition
-   *   with the same schema, or creating several tables and partitions with the same schema. After the first 
+   *   with the same schema, or creating several tables and partitions with the same schema. After the first
    *   table/partition is created, one can use the same SerDe properties to create the other tables/partitions.
    * </p>
    */
