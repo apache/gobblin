@@ -45,6 +45,8 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import gobblin.commit.CommitStep;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
@@ -584,6 +586,8 @@ public class HiveCopyEntityHelper {
     return priority;
   }
 
+  // Suppress warnings for "stepPriority++" in the PrePublishStep constructor, as stepPriority may be used later
+  @SuppressFBWarnings("DLS_DEAD_LOCAL_STORE")
   private List<CopyEntity> getCopyEntitiesForUnpartitionedTable() throws IOException {
 
     MultiTimingEvent multiTimer = new MultiTimingEvent(this.eventSubmitter, "TableCopy", true);

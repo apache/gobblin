@@ -414,9 +414,10 @@ subprojects {
     plugins.apply('findbugs')
     findbugs {
       toolVersion = findBugsVersion
-      ignoreFailures = true
+      ignoreFailures = false
       effort = "max"
-      // The exclude filter file must be under "ligradle/findbugs/"
+      sourceSets = [sourceSets.main] // Only analyze src/java/main, not src/java/test/
+      // The exclude filter file must be under "ligradle/findbugs/" for internal compatibility with ligradle FindBugs
       excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
     }
 

@@ -46,8 +46,7 @@ public class SeekableFSInputStream extends FSInputStream {
 
   @Override
   public void seek(long pos) throws IOException {
-    in.skip(pos);
-    this.pos = pos;
+    this.pos += this.in.skip(pos - this.pos);
   }
 
   @Override

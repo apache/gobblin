@@ -22,4 +22,9 @@
   <Match>
     <Package name="~gobblin\.audit\.values\.auditor.*" />
 	</Match>
+  <!-- Ignored until https://github.com/linkedin/gobblin/issues/969 has been resolved -->
+  <Match>
+     <Class name="gobblin.metastore.DatabaseJobHistoryStore" />
+     <Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING" />
+  </Match>
 </FindBugsFilter>

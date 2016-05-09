@@ -18,10 +18,14 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyRecordReader;
+
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 
 /**
  * A subclass of {@link org.apache.avro.mapreduce.AvroKeyRecordReader}. The purpose is to add a constructor
@@ -35,6 +39,7 @@ public class AvroKeyCombineFileRecordReader extends AvroKeyRecordReader<GenericR
   private final AvroCombineFileSplit split;
   private final Integer idx;
 
+  @SuppressFBWarnings("BC_UNCONFIRMED_CAST")
   public AvroKeyCombineFileRecordReader(CombineFileSplit split, TaskAttemptContext cx, Integer idx) {
       this(split,
           AvroJob.getInputKeySchema(cx.getConfiguration()) != null ?
