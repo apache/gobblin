@@ -27,4 +27,9 @@
      <Class name="gobblin.metastore.DatabaseJobHistoryStore" />
      <Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING" />
   </Match>
+  <!-- Ignored until https://github.com/linkedin/gobblin/issues/976 has been resolved -->
+  <Match>
+    <Class name="gobblin.source.extractor.extract.jdbc.JdbcExtractor" />
+    <Bug pattern="OBL_UNSATISFIED_OBLIGATION,ODR_OPEN_DATABASE_RESOURCE" />
+  </Match>
 </FindBugsFilter>
