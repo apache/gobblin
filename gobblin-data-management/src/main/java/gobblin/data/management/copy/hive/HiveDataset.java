@@ -57,6 +57,7 @@ public class HiveDataset implements IterableCopyableDataset {
   protected final Properties properties;
   protected final FileSystem fs;
   protected final HiveMetastoreClientPool clientPool;
+  @Getter
   protected final Table table;
 
   // Only set if table has exactly one location
