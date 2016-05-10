@@ -64,11 +64,18 @@ public class WorstFitDecreasingBinPacking implements WorkUnitBinPacker {
 
     List<WorkUnit> workUnits = Lists.newArrayList(workUnitsIn);
 
-    long totalSize = 0;
+    long smallUnitSize = 0; // total size of work units smaller than maxWeightPerUnit
+    int largeUnits = 0; // number of work units larger than maxWeightPerUnit
     for (WorkUnit workUnit : workUnits) {
-      totalSize += weighter.weight(workUnit);
+      long weight = weighter.weight(workUnit);
+      if (weight <= this.maxWeightPerUnit) {
+        smallUnitSize += weight;
+      } else {
+        largeUnits++;
+      }
     }
-    int estimatedMultiWorkUnits = Math.min((int) ((totalSize - 1) / this.maxWeightPerUnit) + 1, workUnits.size());
+    int estimateByWeight = largeUnits + (int) ((smallUnitSize - 1) / this.maxWeightPerUnit) + 1;
+    int estimatedMultiWorkUnits = Math.min(estimateByWeight, workUnits.size());
 
     MinMaxPriorityQueue<MultiWorkUnit> pQueue =
         MinMaxPriorityQueue.orderedBy(new MultiWorkUnitComparator()).create();
@@ -116,7 +123,7 @@ public class WorstFitDecreasingBinPacking implements WorkUnitBinPacker {
         @Override
         public Long load(WorkUnit key)
             throws Exception {
-          return weighter.weight(key);
+          return WeightComparator.this.weighter.weight(key);
         }
       });
     }
