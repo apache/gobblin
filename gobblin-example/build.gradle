@@ -22,11 +22,7 @@ dependencies {
     compile externalDependency.slf4j
     compile externalDependency.gson
     compile externalDependency.commonsVfs
-    if (useHadoop2) {
-      compile externalDependency.avroMapredH2
-    } else {
-      compile externalDependency.avroMapredH1
-    }
+    compile externalDependency.avroMapredH2
 
     testCompile externalDependency.testng
 }

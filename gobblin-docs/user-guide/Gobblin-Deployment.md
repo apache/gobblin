@@ -5,9 +5,9 @@ Table of Contents
 
 Deployment Overview <a name="Standalone-Overview"></a>
 --------------------
-One important feature of Gobblin is that it can be run on different platforms. Currently, Gobblin can run in standalone mode (which runs on a single machine), and on Hadoop MapReduce mode (which runs on a Hadoop cluster, both Hadoop 1.x and Hadoop 2.x are supported). This page summarizes the different deployment modes of Gobblin. It is important to understand the architecture of Gobblin in a specific deployment mode, so this page also describes the architecture of each deployment mode.  
+One important feature of Gobblin is that it can be run on different platforms. Currently, Gobblin can run in standalone mode (which runs on a single machine), and on Hadoop MapReduce mode (which runs on a Hadoop cluster). This page summarizes the different deployment modes of Gobblin. It is important to understand the architecture of Gobblin in a specific deployment mode, so this page also describes the architecture of each deployment mode.  
 
-Gobblin supports Java 6 and up, and can run on either Hadoop 1.x or Hadoop 2.x. By default, Gobblin will build against Hadoop 1.x, in order to build against Hadoop 2.x, run `./gradlew -PuseHadoop2 clean build`. More information on how to build Gobblin can be found [here](https://github.com/linkedin/gobblin/blob/master/README.md). All directories/paths referred below are relative to `gobblin-dist`.
+Gobblin supports Java 7 and up, but can only run on Hadoop 2.x. By default, Gobblin will build against Hadoop 2.x, run `./gradlew clean build`. More information on how to build Gobblin can be found [here](https://github.com/linkedin/gobblin/blob/master/README.md). All directories/paths referred below are relative to `gobblin-dist`.
 
 Standalone Architecture <a name="Standalone-Architecture"></a>
 --------------------

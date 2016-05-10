@@ -27,10 +27,6 @@ script: ./travis/test.sh
 after_success: ./gradlew coveralls
 after_failure: ./travis/junit-errors-to-stdout.sh
 
-env:
-  - USEHADOOP2=false
-  - USEHADOOP2=true
-
 jdk:
   - oraclejdk8
   - oraclejdk7

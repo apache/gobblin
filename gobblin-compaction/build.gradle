@@ -16,7 +16,6 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
   compile project(":gobblin-core")
-  compile internalDependency."gobblin-hadoop"
 
   compile externalDependency.calciteCore
   compile externalDependency.calciteAvatica
@@ -25,14 +24,11 @@ dependencies {
   compile externalDependency.commonsLang
   compile externalDependency.commonsMath
   compile externalDependency.hiveExec
-  if (useHadoop2) {
-    runtime externalDependency.hadoopCommon
-    runtime externalDependency.hadoopClientCore
-    runtime externalDependency.hadoopHdfs
-    runtime externalDependency.hadoopAuth
-  } else {
-    runtime externalDependency.hadoop
-  }
+
+  runtime externalDependency.hadoopCommon
+  runtime externalDependency.hadoopClientCore
+  runtime externalDependency.hadoopHdfs
+  runtime externalDependency.hadoopAuth
 
   runtime(externalDependency.hiveService) {
     exclude group: 'org.apache.hive', module: 'hive-exec'

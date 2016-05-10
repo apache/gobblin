@@ -49,11 +49,7 @@ dependencies {
   compile externalDependency.curatorFramework
   compile externalDependency.curatorClient
   compile externalDependency.curatorRecipes
-  if (useHadoop2) {
-    compile externalDependency.avroMapredH2
-  } else {
-    compile externalDependency.avroMapredH1
-  }
+  compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
 
   testCompile externalDependency.calciteCore

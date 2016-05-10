@@ -38,9 +38,7 @@ dependencies {
   compile project(":gobblin-rest-service:gobblin-rest-server")
   compile project(":gobblin-config-management:gobblin-config-client")
   compile project(":gobblin-config-management:gobblin-config-core")
-  if (useHadoop2) {
-    compile project(':gobblin-yarn')
-  }
+  compile project(':gobblin-yarn')
 }
 
 task buildDistributionTar(type: Tar, overwrite: true) {

@@ -22,7 +22,7 @@ cd gobblin
 ./gradlew clean build
 ```
 
-To build against Hadoop 2, add `-PuseHadoop2`. To skip unit tests, add `-x test`.
+To skip unit tests, add `-x test`.
 
 # Run Your First Job
 

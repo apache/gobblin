@@ -3,7 +3,7 @@
 PROG=$(basename $0)
 
 function usage() {
-    echo -e "USAGE: $PROG -hadoop1|-hadoop2"
+    echo -e "USAGE: $PROG"
 }
 
 # main()
@@ -13,17 +13,9 @@ if [ "$#" -eq 0 ] ; then
     exit
 fi
 
-hadoop_version_flag=
-
 while [ "$#" -gt 0 ] ; do
     A="$1"
     case "$A" in
-        -hadoop1)
-            hadoop_version_flag=$A
-            ;;
-        -hadoop2)
-            hadoop_version_flag=
-            ;;
         -h|--help)
             usage
             exit
@@ -54,7 +46,7 @@ for P in :gobblin-admin :gobblin-api :gobblin-azkaban :gobblin-compaction :gobbl
         ans="y" 
     fi
     if [ "$ans" == "y" -o "$ans" == "yes" ] ; then
-       ./maven-sonatype.sh ${hadoop_version_flag} -remote -noclean -packages $P
+       ./maven-sonatype.sh -remote -noclean -packages $P
     else
        echo "Skipping $P"
     fi

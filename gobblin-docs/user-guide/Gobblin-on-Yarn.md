@@ -265,16 +265,16 @@ A standard deployment of Gobblin on Yarn requires a Yarn cluster running Hadoop 
 
 ## Deployment on a Unsecured Yarn Cluster
 
-To do a deployment of the Gobblin Yarn application, first build Gobblin using the following command from the root directory of the Gobblin project. Gobblin on Yarn requires Hadoop 2.x, so make sure `-PuseHadoop2` is used.
+To do a deployment of the Gobblin Yarn application, first build Gobblin using the following command from the root directory of the Gobblin project.
 
 ```
-./gradlew clean build -PuseHadoop2
+./gradlew clean build
 ```
 
 To build Gobblin against a specific version of Hadoop 2.x, e.g., `2.7.0`, run the following command instead:
 
 ```
-./gradlew clean build -PuseHadoop2 -PhadoopVersion=2.7.0
+./gradlew clean build  -PhadoopVersion=2.7.0
 ```
  
 After Gobblin is successfully built, a tarball named `gobblin-dist-[project-version].tar.gz` should have been created under the root directory of the project. To deploy the Gobblin Yarn application on a unsecured Yarn cluster, uncompress the tarball somewhere and run the following commands:  

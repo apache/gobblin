@@ -5,11 +5,9 @@ script_name=$(basename $0)
 GRADLE="$script_dir/gradlew"
 
 function print_usage() {
-    echo -e "USAGE: $0 [-remote|-local] [-hadoop1] [-noclean] [gradle_args]"
+    echo -e "USAGE: $0 [-remote|-local] [-noclean] [gradle_args]"
     echo
     echo -e "Publishes signed maven artifacts locally ($HOME/.m2/repository) or remotely (Sonatype)."
-    echo -e "By default, Hadoop2 artifacts are generated."
-    echo -e "\t-hadoop1    Generate hadoop1 artifacts"
     echo -e "\t-local      Publish to local repository"
     echo -e "\t-noclean    Don't run gradlew clean (useful if re-running)"
     echo -e "\t-remote     Publish to Sonatype repository"
@@ -46,7 +44,6 @@ if [ "$#" -eq 0 ] ; then
 fi
 
 install_target=
-hadoop_version=-PuseHadoop2
 gradle_args=
 noclean=
 declare -a packages
@@ -63,9 +60,6 @@ while [ "$#" -gt 0 ] ; do
             ;;
         -remote)
             install_target=uploadArchives
-            ;;
-        -hadoop1)
-            hadoop_version=
             ;;
         -h|--help|-help)
             print_usage
@@ -103,6 +97,4 @@ fi
 if [ -z "$noclean" ] ; then
     $GRADLE clean
 fi
-$GRADLE -PpublishToMaven -Porg.gradle.parallel=false -Porg.gradle.daemon=false -xtest $hadoop_version $gradle_args $install_target 2>&1 | tee /tmp/${script_name}.out
-
-
+$GRADLE -PpublishToMaven -Porg.gradle.parallel=false -Porg.gradle.daemon=false -xtest $gradle_args $install_target 2>&1 | tee /tmp/${script_name}.out

@@ -15,7 +15,7 @@ Currently, Gobblin supports the following feature list:
 
 * Different Deployment Types
     * standalone deploy on a single machine
-    * cluster deploy on hadoop 1.2.1, hadoop 2.3.0
+    * cluster deploy on hadoop 2.3.0
 
 * Compaction
     * Merge delta changes into snapshot.

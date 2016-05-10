@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.hadoop.token;
+package gobblin.util.hadoop;
 
 import java.io.DataOutputStream;
 import java.io.File;

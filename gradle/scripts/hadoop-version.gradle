@@ -9,19 +9,15 @@
 // CONDITIONS OF ANY KIND, either express or implied.
 
 /**
- * Gradle script to handle proper setting of the useHadoop2 property
+ * Gradle script to handle proper setting of the hadoopVersion property
  */
 
-if (!hasProperty('hadoopVersion')) {
-  if (hasProperty('useHadoop2')) {
-    ext.hadoopVersion = '2.3.0'
-    ext.useHadoop2 = true
-  } else {
-    ext.hadoopVersion = '1.2.1'
-    ext.useHadoop2 = false
+if (ext.has('hadoopVersion')) {
+  if (!isHadoopTwo(hadoopVersion)) {
+    throw new IllegalArgumentException("Hadoop 1.x.x is not supported in Gobblin! Please use a Hadoop 2.x.x version")
   }
 } else {
-  ext.useHadoop2 = isHadoopTwo(hadoopVersion)
+  ext.set('hadoopVersion', '2.3.0')
 }
 
 /**

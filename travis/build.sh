@@ -18,8 +18,4 @@
 #!/bin/bash
 set -e
 
-if [ "$USEHADOOP2" = true ] ; then
-  ./gradlew clean assemble -PuseHadoop2 -Dorg.gradle.parallel=false
-else
-  ./gradlew clean assemble -Dorg.gradle.parallel=false
-fi
+./gradlew clean assemble -Dorg.gradle.parallel=false

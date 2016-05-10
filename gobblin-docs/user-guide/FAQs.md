@@ -13,15 +13,15 @@ Gobblin is a universal ingestion framework. It's goal is to pull data from any s
 
 ##### What programming languages does Gobblin support?
 
-Gobblin currently only supports Java 6 and up.
+Gobblin currently only supports Java 7 and up.
 
 ##### Does Gobblin require any external software to be installed?
 
 The machine that Gobblin is built on must have Java installed, and the `$JAVA_HOME` environment variable must be set.
 
-##### What Hadoop version can Gobblin run on?
+##### What Hadoop versions can Gobblin run on?
 
-Gobblin can run on both Hadoop 1.x and Hadoop 2.x. By default, Gobblin compiles against Hadoop 1.2.1, and can compiled against Hadoop 2.3.0 by running `./gradlew -PuseHadoop2 clean build`.
+Gobblin can only be run on Hadoop 2.x. By default, Gobblin compiles against Hadoop 2.3.0.
 
 ##### How do I run and schedule a Gobblin job?
 
@@ -43,7 +43,7 @@ Gobblin takes all WorkUnits created by the Source class and serializes each one 
 
 ##### How do I fix `UnsupportedFileSystemException: No AbstractFileSystem for scheme: null`?
 
-This error typically occurs due to Hadoop version conflict issues. If Gobblin is compiled against a specific Hadoop version, but then deployed on a different Hadoop version or installation, this error may be thrown. For example, if you simply compile Gobblin using `./gradlew clean build -PuseHadoop2`, but deploy Gobblin to a cluster with [CDH](https://www.cloudera.com/content/www/en-us/products/apache-hadoop/key-cdh-components.html) installed, you may hit this error.
+This error typically occurs due to Hadoop version conflict issues. If Gobblin is compiled against a specific Hadoop version, but then deployed on a different Hadoop version or installation, this error may be thrown. For example, if you simply compile Gobblin using `./gradlew clean build`, but deploy Gobblin to a cluster with [CDH](https://www.cloudera.com/content/www/en-us/products/apache-hadoop/key-cdh-components.html) installed, you may hit this error.
 
 It is important to realize that the the `gobblin-dist.tar.gz` file produced by `./gradlew clean build` will include all the Hadoop jar dependencies; and if one follows the [MR deployment guide](Gobblin-Deployment#Hadoop-MapReduce-Deployment), Gobblin will be launched with these dependencies on the classpath.
 
@@ -54,7 +54,7 @@ To fix this take the following steps:
 
 ##### How do I compile Gobblin against CDH?
 
-[Cloudera Distributed Hadoop](https://www.cloudera.com/content/www/en-us/products/apache-hadoop/key-cdh-components.html) (often abbreviated as CDH) is a popular Hadoop distribution. Typically, when running Gobblin on a CDH cluster it is recommended that one also compile Gobblin against the same CDH version. Not doing so may cause unexpected runtime behavior. To compile against a specific CDH version simply use the `hadoopVersion` parameter. For example, to compile against version `2.5.0-cdh5.3.0` run `./gradlew clean build -PuseHadoop2 -PhadoopVersion=2.5.0-cdh5.3.0`.
+[Cloudera Distributed Hadoop](https://www.cloudera.com/content/www/en-us/products/apache-hadoop/key-cdh-components.html) (often abbreviated as CDH) is a popular Hadoop distribution. Typically, when running Gobblin on a CDH cluster it is recommended that one also compile Gobblin against the same CDH version. Not doing so may cause unexpected runtime behavior. To compile against a specific CDH version simply use the `hadoopVersion` parameter. For example, to compile against version `2.5.0-cdh5.3.0` run `./gradlew clean build -PhadoopVersion=2.5.0-cdh5.3.0`.
 
 ##### Resolve Gobblin-on-MR Exception `IOException: Not all tasks running in mapper attempt_id completed successfully`
 

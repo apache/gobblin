@@ -99,7 +99,7 @@ Go to the [S3 dashboard](https://console.aws.amazon.com/s3)
     * Build Gobblin using the following commands (it is important to use Hadoop version 2.6.0 as it includes the `s3a` file system implementation):
 ```
 cd gobblin
-./gradlew clean build -PuseHadoop2 -PhadoopVersion=2.6.0 -x test
+./gradlew clean build -PhadoopVersion=2.6.0 -x test
 ```
 * Upload the Gobblin Tar to EC2
     * Execute the command: 

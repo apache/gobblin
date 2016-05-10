@@ -49,7 +49,7 @@ import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.runtime.listeners.EmailNotificationJobListener;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.util.TimeRangeChecker;
-import gobblin.hadoop.token.TokenUtils;
+import gobblin.util.hadoop.TokenUtils;
 
 import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
 

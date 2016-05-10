@@ -132,7 +132,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
     JobConfigurationUtils.putPropertiesIntoConfiguration(this.jobProps, this.conf);
 
     // Let the job and all mappers finish even if some mappers fail
-    this.conf.set("mapred.max.map.failures.percent", "100"); // For Hadoop 1.x
     this.conf.set("mapreduce.map.failures.maxpercent", "100"); // For Hadoop 2.x
 
     // Do not cancel delegation tokens after job has completed (HADOOP-7002)

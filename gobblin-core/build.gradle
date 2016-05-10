@@ -16,8 +16,8 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
   compile project(":gobblin-hive-registration")
-  compile internalDependency."gobblin-hadoop"
 
+  compile externalDependency.avroMapredH2
   compile externalDependency.commonsCodec
   compile externalDependency.commonsDbcp
   compile externalDependency.commonsMath
@@ -47,13 +47,7 @@ dependencies {
 
   runtime externalDependency.protobuf
 
-  if (useHadoop2) {
-    compile externalDependency.avroMapredH2
-    testRuntime externalDependency.hadoopAws
-  } else {
-    compile externalDependency.avroMapredH1
-  }
-
+  testRuntime externalDependency.hadoopAws
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
