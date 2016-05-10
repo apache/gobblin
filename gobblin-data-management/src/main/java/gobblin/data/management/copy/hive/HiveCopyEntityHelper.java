@@ -32,6 +32,7 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InvalidInputException;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -97,6 +98,25 @@ public class HiveCopyEntityHelper {
    */
   public static final String COPY_TARGET_TABLE_ROOT =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.table.root";
+  
+  /**
+   * These two options, in pair, specify the output location of the data files on copy
+   * {@link #COPY_TARGET_TABLE_PREFIX_TOBE_REPLACED} specified the prefix of the path (without Scheme and Authority ) to be replaced
+   * {@link #COPY_TARGET_TABLE_PREFIX_REPLACEMENT} specified the replacement of {@link #COPY_TARGET_TABLE_PREFIX_TOBE_REPLACED}
+   * <p>
+   * for example, if the data file is $sourceFs/data/databases/DB/Table/Snapshot/part-00000.avro , 
+   * {@link #COPY_TARGET_TABLE_PREFIX_TOBE_REPLACED} is /data/databases
+   * {@link #COPY_TARGET_TABLE_PREFIX_REPLACEMENT} is /data/databases/_parallel
+   * 
+   * then, the output location for that file will be
+   * $targetFs/data/databases/_parallel/DB/Table/Snapshot/part-00000.avro
+   * </p>
+   */
+  public static final String COPY_TARGET_TABLE_PREFIX_TOBE_REPLACED =
+	      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.table.prefixToBeReplaced";
+  public static final String COPY_TARGET_TABLE_PREFIX_REPLACEMENT =
+	      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.table.prefixReplacement";
+  
   /**
    * Specifies that, on copy, data files for this table should all be relocated to a single directory per partition.
    * See javadoc for {@link #getCopyEntities} for further explanation.
@@ -160,6 +180,8 @@ public class HiveCopyEntityHelper {
   private final FileSystem targetFs;
 
   private final Optional<Path> targetTableRoot;
+  private final Optional<Path> targetTablePrefixTobeReplaced;
+  private final Optional<Path> targetTablePrefixReplacement;
   private final boolean relocateDataFiles;
   private final HiveMetastoreClientPool targetClientPool;
   private final String targetDatabase;
@@ -235,6 +257,13 @@ public class HiveCopyEntityHelper {
           Boolean.valueOf(this.dataset.properties.getProperty(RELOCATE_DATA_FILES_KEY, DEFAULT_RELOCATE_DATA_FILES));
       this.targetTableRoot = this.dataset.properties.containsKey(COPY_TARGET_TABLE_ROOT) ? Optional.of(
           resolvePath(this.dataset.properties.getProperty(COPY_TARGET_TABLE_ROOT), this.dataset.table.getDbName(), this.dataset.table.getTableName())) : Optional.<Path>absent();
+
+      
+      this.targetTablePrefixTobeReplaced = this.dataset.properties.containsKey(COPY_TARGET_TABLE_PREFIX_TOBE_REPLACED) ? 
+    		  Optional.of( new Path(this.dataset.properties.getProperty(COPY_TARGET_TABLE_PREFIX_TOBE_REPLACED))) : Optional.<Path>absent();
+
+      this.targetTablePrefixReplacement = this.dataset.properties.containsKey(COPY_TARGET_TABLE_PREFIX_REPLACEMENT) ?
+    		  Optional.of( new Path(this.dataset.properties.getProperty(COPY_TARGET_TABLE_PREFIX_REPLACEMENT))) : Optional.<Path>absent();
 
       this.hiveRegProps = new HiveRegProps(new State(this.dataset.properties));
       this.targetURI = Optional.fromNullable(this.dataset.properties.getProperty(TARGET_METASTORE_URI_KEY));
@@ -423,6 +452,10 @@ public class HiveCopyEntityHelper {
 
       targetTable.setDbName(this.targetDatabase);
       targetTable.setDataLocation(targetLocation);
+      /*
+       * Need to set the table owner as the flow executor
+       */
+      targetTable.setOwner(UserGroupInformation.getCurrentUser().getShortUserName());
       targetTable.getTTable().putToParameters(HiveDataset.REGISTERER, GOBBLIN_DISTCP);
       targetTable.getTTable().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS, Long.toString(this.startTime));
 
@@ -790,7 +823,6 @@ public class HiveCopyEntityHelper {
    * @param isConcreteFile true if this is a path to an existing file in HDFS.
    */
   public Path getTargetPath(Path sourcePath, FileSystem targetFs, Optional<Partition> partition, boolean isConcreteFile) {
-
     if (this.relocateDataFiles) {
       Preconditions.checkArgument(this.targetTableRoot.isPresent(), "Must define %s to relocate data files.",
           COPY_TARGET_TABLE_ROOT);
@@ -804,20 +836,47 @@ public class HiveCopyEntityHelper {
         return targetFs.makeQualified(new Path(path, sourcePath.getName()));
       }
     }
-
-    if (this.targetTableRoot.isPresent()) {
-      Preconditions.checkArgument(this.dataset.tableRootPath.isPresent(),
-          "Cannot move paths to a new root unless table has exactly one location.");
-      Preconditions.checkArgument(PathUtils.isAncestor(this.dataset.tableRootPath.get(), sourcePath),
-          "When moving paths to a new root, all locations must be descendants of the table root location. "
-              + "Table root location: %s, file location: %s.", this.dataset.tableRootPath, sourcePath);
-
-      Path relativePath = PathUtils.relativizePath(sourcePath, this.dataset.tableRootPath.get());
-      return targetFs.makeQualified(new Path(this.targetTableRoot.get(), relativePath));
-    } else {
+    
+    // both prefixs must be present as the same time
+    // can not used with option {@link #COPY_TARGET_TABLE_ROOT}
+    if (this.targetTablePrefixTobeReplaced.isPresent() || this.targetTablePrefixReplacement.isPresent()){
+      Preconditions.checkState(this.targetTablePrefixTobeReplaced.isPresent(), 
+          String.format("Must specify both %s option and %s option together", COPY_TARGET_TABLE_PREFIX_TOBE_REPLACED, COPY_TARGET_TABLE_PREFIX_REPLACEMENT));
+      Preconditions.checkState(this.targetTablePrefixReplacement.isPresent(), 
+          String.format("Must specify both %s option and %s option together", COPY_TARGET_TABLE_PREFIX_TOBE_REPLACED, COPY_TARGET_TABLE_PREFIX_REPLACEMENT));
+      
+      Preconditions.checkState(!this.targetTableRoot.isPresent(),
+          String.format("Can not specify the option %s with option %s ", COPY_TARGET_TABLE_ROOT, COPY_TARGET_TABLE_PREFIX_REPLACEMENT));
+      
+      Path targetPathWithoutSchemeAndAuthority = replacedPrefix(sourcePath, this.targetTablePrefixTobeReplaced.get(), this.targetTablePrefixReplacement.get());
+      return targetFs.makeQualified(targetPathWithoutSchemeAndAuthority);
+    }
+    else if (this.targetTableRoot.isPresent()){
+      Preconditions.checkArgument(this.targetTableRoot.isPresent(), "Must define %s to relocate data files.",
+          COPY_TARGET_TABLE_ROOT);
+      Path path = this.targetTableRoot.get();
+      if (partition.isPresent()) {
+        addPartitionToPath(path, partition.get());
+      }
+      if (!isConcreteFile) {
+        return targetFs.makeQualified(path);
+      } else {
+        return targetFs.makeQualified(new Path(path, sourcePath.getName()));
+      }
+    }
+    else {
       return targetFs.makeQualified(PathUtils.getPathWithoutSchemeAndAuthority(sourcePath));
     }
-
+  }
+  
+  protected static Path replacedPrefix(Path sourcePath, Path prefixTobeReplaced, Path prefixReplacement){
+    Path sourcePathWithoutSchemeAndAuthority = PathUtils.getPathWithoutSchemeAndAuthority(sourcePath);
+    Preconditions.checkArgument(PathUtils.isAncestor(prefixTobeReplaced, sourcePathWithoutSchemeAndAuthority),
+        "When replacing prefix, all locations must be descendants of the prefix. "
+            + "The prefix: %s, file location: %s.", prefixTobeReplaced, sourcePathWithoutSchemeAndAuthority);
+    Path relativePath = PathUtils.relativizePath(sourcePathWithoutSchemeAndAuthority, prefixTobeReplaced);
+    Path result = new Path(prefixReplacement, relativePath);
+    return result;
   }
 
   private Path addPartitionToPath(Path path, Partition partition) {
