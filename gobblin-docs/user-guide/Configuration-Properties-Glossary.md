@@ -31,12 +31,15 @@ Gobblin also allows you to specify a global configuration file that contains com
   * [JsonIntermediateToAvroConverter Properties](#JsonIntermediateToAvroConverter-Properties)  
   * [AvroFilterConverter Properties](#AvroFilterConverter-Properties)  
   * [AvroFieldRetrieverConverter Properties](#AvroFieldRetrieverConverter-Properties)  
+  * [AvroFieldsPickConverter Properties](#AvroFieldsPickConverter-Properties)  
+  * [AvroToJdbcEntryConverter Properties](#AvroToJdbcEntryConverter-Properties)  
 * [Quality Checker Properties](#Quality-Checker-Properties)  
 * [Writer Properties](#Writer-Properties)  
 * [Data Publisher Properties](#Data-Publisher-Properties)  
 * [Generic Properties](#Generic-Properties)  
 * [FileBasedJobLock Properties](#FileBasedJobLock-Properties)
 * [ZookeeperBasedJobLock Properties](#ZookeeperBasedJobLock-Properties)
+* [JDBC Writer Properties](#JdbcWriter-Properties)
 
 # Properties File Format <a name="Properties-File-Format"></a>
 
@@ -197,6 +200,13 @@ No
 #### job.jars 
 ###### Description
 Comma-separated list of jar files the job depends on. These jars will be added to the classpath of the job, and to the classpath of any containers the job launches.
+###### Default Value
+None
+###### Required
+No
+#### job.hdfs.jars 
+###### Description
+Comma-separated list of jar files the job depends on located in HDFS. These jars will be added to the classpath of the job, and to the classpath of any containers the job launches.
 ###### Default Value
 None
 ###### Required
@@ -871,6 +881,24 @@ The field in the Avro record to retrieve. If it is a nested field, then each lev
 None
 ###### Required
 Yes
+## AvroFieldsPickConverter Properties <a name="AvroFieldsPickConverter-Properties"></a>
+Unlike AvroFieldRetriever, this converter takes multiple fields from Avro schema and convert schema and generic record.
+#### converter.avro.fields
+###### Description
+Comma-separted list of the fields in the Avro record. If it is a nested field, then each level must be separated by a period.
+###### Default Value
+None
+###### Required
+Yes
+## AvroToJdbcEntryConverter Properties <a name="AvroToJdbcEntryConverter-Properties"></a>
+Converts Avro schema and generic record into Jdbc entry schema and data.
+#### converter.avro.jdbc.entry_fields_pairs
+###### Description
+Converts Avro field name(s) to fit for JDBC underlying data base. Input format is key value pairs of JSON array where key is avro field name and value is corresponding JDBC column name.
+###### Default Value
+None
+###### Required
+No
 # Fork Properties <a name="Fork-Properties"></a>
 Properties for Gobblin's fork operator.
 #### fork.operator.class 
@@ -1118,5 +1146,96 @@ No
 The threshold in seconds that determines when a lock path can be deleted.
 ###### Default Value
 300
+###### Required
+No
+
+# JDBC Writer properties <a name="JdbcWriter-Properties"></a>
+Writer(and publisher) that writes to JDBC database. Please configure below two properties to use JDBC writer & publisher.
+
+*  writer.builder.class=gobblin.writer.JdbcWriterBuilder
+*  data.publisher.type=gobblin.publisher.JdbcPublisher
+
+#### jdbc.publisher.database_name
+###### Description
+Destination database name
+###### Default Value
+None
+###### Required
+Yes
+#### jdbc.publisher.table_name
+###### Description
+Destination table name
+###### Default Value
+None
+###### Required
+Yes
+#### jdbc.publisher.replace_table
+###### Description
+Gobblin will replace the data in destination table.
+###### Default Value
+false
+###### Required
+No
+#### jdbc.publisher.username
+###### Description
+User name to connect to destination database
+###### Default Value
+None
+###### Required
+Yes
+#### jdbc.publisher.password
+###### Description
+Password to connect to destination database. Also, accepts encrypted password.
+###### Default Value
+None
+###### Required
+Yes
+#### jdbc.publisher.encrypt_key_loc
+###### Description
+Location of a key to decrypt an encrypted password
+###### Default Value
+None
+###### Required
+No
+#### jdbc.publisher.url
+###### Description
+Connection URL
+###### Default Value
+None
+###### Required
+Yes
+#### jdbc.publisher.driver
+###### Description
+JDBC driver class 
+###### Default Value
+None
+###### Required
+Yes
+#### writer.staging.table
+###### Description
+User can pass staging table for Gobblin to use instead of Gobblin to create one. (e.g: For the user who does not have create table previlege can pass staging table for Gobblin to use).
+###### Default Value
+None
+###### Required
+No
+#### writer.truncate.staging.table
+###### Description
+Truncate staging table if user passed their own staging table via "writer.staging.table".
+###### Default Value
+false
+###### Required
+No
+#### writer.jdbc.batch_size
+###### Description
+Batch size for Insert operation
+###### Default Value
+30
+###### Required
+No
+#### writer.jdbc.insert_max_param_size
+###### Description
+Maximum number of parameters for JDBC insert operation.
+###### Default Value
+100,000 (MySQL limitation)
 ###### Required
 No
