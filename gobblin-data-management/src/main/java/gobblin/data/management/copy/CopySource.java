@@ -203,8 +203,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
         return Lists.newArrayList();
       }
 
+      List<WorkUnit> flatWorkUnits = workUnitList.getWorkUnits();
       List<? extends WorkUnit> workUnits =
-          new WorstFitDecreasingBinPacking(maxSizePerBin).pack(workUnitList.getWorkUnits(), this.weighter);
+          new WorstFitDecreasingBinPacking(maxSizePerBin).pack(flatWorkUnits, this.weighter);
+      log.info(String.format("Bin packed work units. Initial work units: %d, packed work units: %d, max weight per bin: %d, "
+          + "max work units per bin: %d.", flatWorkUnits.size(), workUnits.size(), maxSizePerBin, maxWorkUnitsPerMultiWorkUnit));
       return Lists.newArrayList(workUnits);
 
     } catch (IOException e) {
