@@ -21,7 +21,6 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
@@ -29,7 +28,6 @@ import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskUtil;
 import org.apache.helix.task.WorkflowContext;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +41,6 @@ import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateCollectorService;
-import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -143,13 +140,13 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       this.taskStateCollectorService.startAsync().awaitRunning();
 
       TimingEvent jobSubmissionTimer =
-          this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.HELIX_JOB_SUBMISSION);
+          this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_SUBMISSION);
       submitJobToHelix(createJob(workUnits));
       jobSubmissionTimer.stop();
       LOGGER.info(String.format("Submitted job %s to Helix", this.jobContext.getJobId()));
       this.jobSubmitted = true;
 
-      TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.HELIX_JOB_RUN);
+      TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_RUN);
       waitForJobCompletion();
       jobRunTimer.stop();
       LOGGER.info(String.format("Job %s completed", this.jobContext.getJobId()));
@@ -163,8 +160,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void executeCancellation() {
-    if (this.jobSubmitted && !this.jobComplete) {
-      this.helixTaskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
+    if (this.jobSubmitted) {
+      try {
+        this.helixTaskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
+      } catch (IllegalArgumentException e) {
+        LOGGER.warn(String.format("Failed to cleanup job %s in Helix", this.jobContext.getJobId()), e);
+      }
     }
   }
 

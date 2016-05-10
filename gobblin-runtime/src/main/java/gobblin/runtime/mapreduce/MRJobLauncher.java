@@ -70,7 +70,6 @@ import gobblin.runtime.TaskStateCollectorService;
 import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
-import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.HadoopUtils;
@@ -126,7 +125,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   public MRJobLauncher(Properties jobProps, Configuration conf) throws Exception {
-    super(jobProps, ImmutableList.<Tag<?>>of());
+    super(jobProps, ImmutableList.<Tag<?>> of());
 
     this.conf = conf;
     // Put job configuration properties into the Hadoop configuration so they are available in the mappers
@@ -141,7 +140,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     this.fs = buildFileSystem(jobProps, this.conf);
 
-    this.mrJobDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobContext.getJobName());
+    this.mrJobDir =
+        new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobContext.getJobName());
     if (this.fs.exists(this.mrJobDir)) {
       LOG.warn("Job working directory already exists for job " + this.jobContext.getJobName());
       this.fs.delete(this.mrJobDir, true);
@@ -204,7 +204,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
       }
 
-      TimingEvent mrJobRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_JOB_RUN);
+      TimingEvent mrJobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_JOB_RUN);
       LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
       this.job.waitForCompletion(true);
       mrJobRunTimer.stop(ImmutableMap.of("hadoopMRJobId", this.job.getJobID().toString()));
@@ -247,7 +247,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   private void addDependencies() throws IOException {
     TimingEvent distributedCacheSetupTimer =
-        this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_DISTRIBUTED_CACHE_SETUP);
+        this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_DISTRIBUTED_CACHE_SETUP);
 
     Path jarFileDir = new Path(this.mrJobDir, JARS_DIR_NAME);
 
@@ -285,7 +285,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Prepare the Hadoop MR job, including configuring the job and setting up the input/output paths.
    */
   private void prepareHadoopJob(List<WorkUnit> workUnits) throws IOException {
-    TimingEvent mrJobSetupTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_JOB_SETUP);
+    TimingEvent mrJobSetupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_JOB_SETUP);
 
     this.job.setJarByClass(MRJobLauncher.class);
     this.job.setMapperClass(TaskRunner.class);
@@ -328,10 +328,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
   }
 
   @VisibleForTesting
-  static void serializeJobState(FileSystem fs, Path mrJobDir, Configuration conf, JobState jobState,
-                                Job job) throws IOException {
+  static void serializeJobState(FileSystem fs, Path mrJobDir, Configuration conf, JobState jobState, Job job)
+      throws IOException {
     Path jobStateFilePath = new Path(mrJobDir, JOB_STATE_FILE_NAME);
-    short jobStateRF = (short)conf.getInt("dfs.replication.max", 20);
+    short jobStateRF = (short) conf.getInt("dfs.replication.max", 20);
     SerializationUtils.serializeState(fs, jobStateFilePath, jobState, jobStateRF);
     job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());
 
@@ -527,8 +527,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       try(Closer closer = Closer.create()) {
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore =
-            new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(),
-                TaskState.class);
+            new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
 
         String jobStateFileName = context.getConfiguration().get(ConfigurationKeys.JOB_STATE_DISTRIBUTED_CACHE_NAME);
         boolean foundStateFile = false;
@@ -578,7 +577,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
         // Actually run the list of WorkUnits
-        runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(), this.workUnits,
+        runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(), this.jobState, this.workUnits,
             this.taskStateTracker, this.taskExecutor, this.taskStateStore, LOG);
       } finally {
         this.cleanup(context);
@@ -586,28 +585,22 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     @Override
-    public void map(LongWritable key, Text value, Context context)
-        throws IOException, InterruptedException {
-      WorkUnit workUnit = (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ?
-          MultiWorkUnit.createEmpty() : WorkUnit.createEmpty());
+    public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+      WorkUnit workUnit = (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ? MultiWorkUnit.createEmpty()
+          : WorkUnit.createEmpty());
       SerializationUtils.deserializeState(this.fs, new Path(value.toString()), workUnit);
 
       if (workUnit instanceof MultiWorkUnit) {
         List<WorkUnit> flattenedWorkUnits =
             JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits());
-        for (WorkUnit flattenedWorkUnit : flattenedWorkUnits) {
-          flattenedWorkUnit.addAllIfNotExist(this.jobState);
-        }
         this.workUnits.addAll(flattenedWorkUnits);
       } else {
-        workUnit.addAllIfNotExist(this.jobState);
         this.workUnits.add(workUnit);
       }
     }
 
     @Override
-    protected void cleanup(Context context)
-        throws IOException, InterruptedException {
+    protected void cleanup(Context context) throws IOException, InterruptedException {
       try {
         this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
       } catch (TimeoutException te) {

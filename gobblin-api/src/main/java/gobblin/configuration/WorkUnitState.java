@@ -27,6 +27,7 @@ import gobblin.source.extractor.Watermark;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.ImmutableWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import lombok.Getter;
 
 
 /**
@@ -66,22 +67,35 @@ public class WorkUnitState extends State {
     CANCELLED
   }
 
-  private WorkUnit workunit;
+  private final WorkUnit workUnit;
+
+  @Getter
+  private State jobState;
 
   /**
    * Default constructor used for deserialization.
    */
   public WorkUnitState() {
-    this.workunit = WorkUnit.createEmpty();
+    this.workUnit = WorkUnit.createEmpty();
+    this.jobState = new State();
   }
 
   /**
    * Constructor.
    *
    * @param workUnit a {@link WorkUnit} instance based on which a {@link WorkUnitState} instance is constructed
+   * @deprecated It is recommended to use {@link #WorkUnitState(WorkUnit, State)} rather than combining properties
+   * in the job state into the workunit.
    */
+  @Deprecated
   public WorkUnitState(WorkUnit workUnit) {
-    this.workunit = workUnit;
+    this.workUnit = workUnit;
+    this.jobState = new State();
+  }
+
+  public WorkUnitState(WorkUnit workUnit, State jobState) {
+    this.workUnit = workUnit;
+    this.jobState = jobState;
   }
 
   /**
@@ -90,7 +104,7 @@ public class WorkUnitState extends State {
    * @return an {@link ImmutableWorkUnit} that wraps the internal {@link WorkUnit}
    */
   public WorkUnit getWorkunit() {
-    return new ImmutableWorkUnit(workunit);
+    return new ImmutableWorkUnit(this.workUnit);
   }
 
   /**
@@ -161,7 +175,7 @@ public class WorkUnitState extends State {
    * Backoff the actual high watermark to the low watermark returned by {@link WorkUnit#getLowWatermark()}.
    */
   public void backoffActualHighWatermark() {
-    JsonElement lowWatermark = this.workunit.getLowWatermark();
+    JsonElement lowWatermark = this.workUnit.getLowWatermark();
     if (lowWatermark == null) {
       return;
     }
@@ -194,19 +208,34 @@ public class WorkUnitState extends State {
   @Override
   public Properties getProperties() {
     Properties props = new Properties();
-    props.putAll(this.workunit.getProperties());
+    props.putAll(this.jobState.getProperties());
+    props.putAll(this.workUnit.getProperties());
     props.putAll(super.getProperties());
     return props;
   }
 
   @Override
   public String getProp(String key) {
-    return getProperty(key);
+    String value = super.getProp(key);
+    if (value == null) {
+      value = this.workUnit.getProp(key);
+    }
+    if (value == null) {
+      value = this.jobState.getProp(key);
+    }
+    return value;
   }
 
   @Override
   public String getProp(String key, String def) {
-    return getProperty(key, def);
+    String value = super.getProp(key);
+    if (value == null) {
+      value = this.workUnit.getProp(key);
+    }
+    if (value == null) {
+      value = this.jobState.getProp(key, def);
+    }
+    return value;
   }
 
   /**
@@ -215,12 +244,7 @@ public class WorkUnitState extends State {
   @Deprecated
   @Override
   protected String getProperty(String key) {
-    String propStr = super.getProperty(key);
-    if (propStr != null) {
-      return propStr;
-    } else {
-      return workunit.getProperty(key);
-    }
+    return getProp(key);
   }
 
   /**
@@ -229,24 +253,20 @@ public class WorkUnitState extends State {
   @Deprecated
   @Override
   protected String getProperty(String key, String def) {
-    String propStr = super.getProperty(key);
-    if (propStr != null) {
-      return propStr;
-    } else {
-      return workunit.getProperty(key, def);
-    }
+    return getProp(key, def);
   }
 
   @Override
   public Set<String> getPropertyNames() {
     Set<String> set = Sets.newHashSet(super.getPropertyNames());
-    set.addAll(workunit.getPropertyNames());
+    set.addAll(this.workUnit.getPropertyNames());
+    set.addAll(this.jobState.getPropertyNames());
     return set;
   }
 
   @Override
   public boolean contains(String key) {
-    return super.contains(key) || workunit.contains(key);
+    return super.contains(key) || this.workUnit.contains(key) || this.jobState.contains(key);
   }
 
   /**
@@ -255,7 +275,7 @@ public class WorkUnitState extends State {
    * @return {@link gobblin.source.workunit.Extract} associated with the {@link WorkUnit}
    */
   public Extract getExtract() {
-    Extract curExtract = new Extract(workunit.getExtract());
+    Extract curExtract = new Extract(this.workUnit.getExtract());
     return curExtract;
   }
 
@@ -268,15 +288,19 @@ public class WorkUnitState extends State {
     return getExtract().getPreviousTableState();
   }
 
+  public void setJobState(State jobState) {
+    this.jobState = jobState;
+  }
+
   @Override
   public void readFields(DataInput in) throws IOException {
-    this.workunit.readFields(in);
+    this.workUnit.readFields(in);
     super.readFields(in);
   }
 
   @Override
   public void write(DataOutput out) throws IOException {
-    this.workunit.write(out);
+    this.workUnit.write(out);
     super.write(out);
   }
 
@@ -287,21 +311,25 @@ public class WorkUnitState extends State {
     }
 
     WorkUnitState other = (WorkUnitState) object;
-    return ((this.workunit == null && other.workunit == null)
-        || (this.workunit != null && this.workunit.equals(other.workunit))) && super.equals(other);
+    return ((this.workUnit == null && other.workUnit == null)
+        || (this.workUnit != null && this.workUnit.equals(other.workUnit)))
+        && ((this.jobState == null && other.jobState == null)
+            || (this.jobState != null && this.jobState.equals(other.jobState)))
+        && super.equals(other);
   }
 
   @Override
   public int hashCode() {
     final int prime = 31;
     int result = super.hashCode();
-    result = prime * result + (this.workunit == null ? 0 : this.workunit.hashCode());
+    result = prime * result + (this.workUnit == null ? 0 : this.workUnit.hashCode());
     return result;
   }
 
   @Override
   public String toString() {
-    return super.toString() + "\nWorkUnit: " + getWorkunit().toString() + "\nExtract: " + getExtract().toString();
+    return super.toString() + "\nWorkUnit: " + getWorkunit().toString() + "\nExtract: " + getExtract().toString()
+        + "\nJobState: " + this.jobState.toString();
   }
 
   /**

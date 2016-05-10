@@ -10,17 +10,20 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.event;
+package gobblin.source.workunit;
+
+import java.util.List;
 
 /**
- * Constants used as names for {@link gobblin.metrics.GobblinTrackingEvent}s.
+ * A bin packing algorithm for packing {@link WorkUnit}s into {@link MultiWorkUnit}s.
  */
-public class EventNames {
+public interface WorkUnitBinPacker {
 
-  public static final String LOCK_IN_USE = "LockInUse";
-  public static final String WORK_UNITS_MISSING = "WorkUnitsMissing";
-  public static final String WORK_UNITS_EMPTY = "WorkUnitsEmpty";
-  public static final String TASKS_SUBMITTED = "TasksSubmitted";
-  public static final String TASK_FAILED = "TaskFailed";
+  /**
+   * Packs the input {@link WorkUnit}s into {@link MultiWorkUnit}s.
+   * @param workUnitsIn List of {@link WorkUnit}s to pack.
+   * @param weighter {@link WorkUnitWeighter} that provides weights for {@link WorkUnit}s.
+   */
+  public List<WorkUnit> pack(List<WorkUnit> workUnitsIn, WorkUnitWeighter weighter);
 
 }

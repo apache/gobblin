@@ -27,6 +27,7 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 
+import gobblin.metrics.event.JobEvent;
 import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
@@ -55,9 +56,7 @@ public class ReporterExampleBase {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ReporterExampleBase.class);
 
-  private static final String JOB_NAME_KEY = "jobName";
   private static final String JOB_NAME = "ExampleJob";
-  private static final String JOB_ID_KEY = "jobId";
   private static final String TASK_ID_KEY = "task.id";
   private static final String TASK_ID_PREFIX = "ExampleTask_";
 
@@ -77,8 +76,8 @@ public class ReporterExampleBase {
     this.executor = Executors.newFixedThreadPool(10);
 
     this.context = MetricContext.builder("Job")
-        .addTag(new Tag<String>(JOB_NAME_KEY, "ExampleJob"))
-        .addTag(new Tag<String>(JOB_ID_KEY, JOB_NAME + "_" + System.currentTimeMillis()))
+        .addTag(new Tag<String>(JobEvent.METADATA_JOB_NAME, "ExampleJob"))
+        .addTag(new Tag<String>(JobEvent.METADATA_JOB_ID, JOB_NAME + "_" + System.currentTimeMillis()))
         .build();
 
     this.reporterBuilder = reporterBuilder;

@@ -22,14 +22,19 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
+import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.IterableCopyableDataset;
 import gobblin.data.management.partition.FileSet;
 import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.util.PathUtils;
 
 import lombok.Getter;
@@ -46,6 +51,8 @@ public class HiveDataset implements IterableCopyableDataset {
 
   public static final String REGISTERER = "registerer";
   public static final String REGISTRATION_GENERATION_TIME_MILLIS = "registrationGenerationTimeMillis";
+  public static final String DATABASE = "Database";
+  public static final String TABLE = "Table";
 
   protected final Properties properties;
   protected final FileSystem fs;
@@ -56,6 +63,8 @@ public class HiveDataset implements IterableCopyableDataset {
   protected final Optional<Path> tableRootPath;
 
   protected final String tableIdentifier;
+  @Getter
+  private final MetricContext metricContext;
 
 
   public HiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties properties) throws IOException {
@@ -69,6 +78,11 @@ public class HiveDataset implements IterableCopyableDataset {
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
     log.info("Created Hive dataset for table " + tableIdentifier);
+
+    this.metricContext = Instrumented.getMetricContext(new State(properties), HiveDataset.class,
+        Lists.<Tag<?>>newArrayList(
+            new Tag<>(DATABASE, table.getDbName()),
+            new Tag<>(TABLE, table.getTableName())));
   }
 
   /**

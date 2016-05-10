@@ -149,6 +149,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     // Add the TaskStates of completed tasks to the JobState so when the control
     // returns to the launcher, it sees the TaskStates of all completed tasks.
     for (TaskState taskState : taskStateQueue) {
+      taskState.setJobState(this.jobState);
       this.jobState.addTaskState(taskState);
     }
 

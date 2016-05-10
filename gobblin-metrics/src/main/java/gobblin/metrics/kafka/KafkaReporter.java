@@ -87,6 +87,8 @@ public class KafkaReporter extends MetricReportReporter {
     protected Optional<KafkaPusher> kafkaPusher;
 
     protected Builder() {
+      super();
+      this.name = "KafkaReporter";
       this.kafkaPusher = Optional.absent();
     }
 

@@ -219,7 +219,7 @@ ext.externalDependency = [
   "salesforceWsc": "com.force.api:force-wsc:37.0",
   "salesforcePartner": "com.force.api:force-partner-api:36.0.0",
   "scala": "org.scala-lang:scala-library:2.11.8",
-  "influxdbJava": "org.influxdb:influxdb-java:2.2",
+  "influxdbJava": "org.influxdb:influxdb-java:2.1",
   "libthrift":"org.apache.thrift:libthrift:0.9.3",
   "lombok":"org.projectlombok:lombok:1.16.8",
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
@@ -416,9 +416,10 @@ subprojects {
     plugins.apply('findbugs')
     findbugs {
       toolVersion = findBugsVersion
-      ignoreFailures = true
+      ignoreFailures = false
       effort = "max"
-      // The exclude filter file must be under "ligradle/findbugs/"
+      sourceSets = [sourceSets.main] // Only analyze src/java/main, not src/java/test/
+      // The exclude filter file must be under "ligradle/findbugs/" for internal compatibility with ligradle FindBugs
       excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
     }
 

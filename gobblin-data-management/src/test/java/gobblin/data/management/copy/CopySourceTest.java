@@ -17,6 +17,7 @@ import gobblin.configuration.SourceState;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.JobLauncherUtils;
 
 import java.util.List;
 
@@ -39,6 +40,7 @@ public class CopySourceTest {
     CopySource source = new CopySource();
 
     List<WorkUnit> workunits = source.getWorkunits(state);
+    workunits = JobLauncherUtils.flattenWorkUnits(workunits);
 
     Assert.assertEquals(workunits.size(), TestCopyableDataset.FILE_COUNT);
 
@@ -67,6 +69,7 @@ public class CopySourceTest {
     CopySource source = new CopySource();
 
     List<WorkUnit> workunits = source.getWorkunits(state);
+    workunits = JobLauncherUtils.flattenWorkUnits(workunits);
 
     Assert.assertEquals(workunits.size(), TestCopyableDataset.FILE_COUNT);
 

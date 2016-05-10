@@ -18,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.RateLimiter;
 
+import lombok.Getter;
+
 
 /**
  * An implementation of {@link Limiter} that limits the rate of some events. This implementation uses
@@ -35,13 +37,16 @@ import com.google.common.util.concurrent.RateLimiter;
 public class RateBasedLimiter extends NonRefillableLimiter {
 
   private final RateLimiter rateLimiter;
+  @Getter
+  private double rateLimitPerSecond;
 
   public RateBasedLimiter(double rateLimit) {
     this(rateLimit, TimeUnit.SECONDS);
   }
 
   public RateBasedLimiter(double rateLimit, TimeUnit timeUnit) {
-    this.rateLimiter = RateLimiter.create(convertRate(rateLimit, timeUnit, TimeUnit.SECONDS));
+    this.rateLimitPerSecond = convertRate(rateLimit, timeUnit, TimeUnit.SECONDS);
+    this.rateLimiter = RateLimiter.create(this.rateLimitPerSecond);
   }
 
   @Override

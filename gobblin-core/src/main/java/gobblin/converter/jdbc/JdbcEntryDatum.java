@@ -25,7 +25,7 @@ public class JdbcEntryDatum {
 
   public JdbcEntryDatum(String columnName, Object val) {
     this.columnName = Preconditions.checkNotNull(columnName);
-    this.val = Preconditions.checkNotNull(val);
+    this.val = val;
   }
 
   public String getColumnName() {

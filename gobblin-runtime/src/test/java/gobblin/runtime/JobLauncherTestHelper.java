@@ -41,6 +41,7 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.StateStore;
+import gobblin.runtime.JobState.DatasetState;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.test.TestExtractor;
@@ -80,19 +81,19 @@ public class JobLauncherTestHelper {
     }
 
     List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
-    JobState jobState = datasetStateList.get(0);
+    DatasetState datasetState = datasetStateList.get(0);
 
-    Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(jobState.getCompletedTasks(), 4);
-    Assert.assertEquals(jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY), 0);
-    for (TaskState taskState : jobState.getTaskStates()) {
+    Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
+    Assert.assertEquals(datasetState.getCompletedTasks(), 4);
+    Assert.assertEquals(datasetState.getJobFailures(), 0);
+    for (TaskState taskState : datasetState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
           TestExtractor.TOTAL_RECORDS);
     }
   }
 
-  public void runTestWithPullLimit(Properties jobProps) throws Exception {
+  public void runTestWithPullLimit(Properties jobProps, long limit) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
@@ -106,18 +107,16 @@ public class JobLauncherTestHelper {
     }
 
     List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
-    JobState jobState = datasetStateList.get(0);
+    DatasetState datasetState = datasetStateList.get(0);
 
-    Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(jobState.getCompletedTasks(), 4);
-    Assert.assertEquals(jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY), 0);
+    Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
+    Assert.assertEquals(datasetState.getCompletedTasks(), 4);
+    Assert.assertEquals(datasetState.getJobFailures(), 0);
 
-    for (TaskState taskState : jobState.getTaskStates()) {
+    for (TaskState taskState : datasetState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
-      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED),
-          taskState.getPropAsLong(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY));
-      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN),
-          taskState.getPropAsLong(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY));
+      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED), limit);
+      Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_ROWS_WRITTEN), limit);
     }
   }
 
@@ -161,32 +160,28 @@ public class JobLauncherTestHelper {
     String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
-    Closer closer = Closer.create();
-    try {
-      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
+    try (JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps)) {
       jobLauncher.launchJob(null);
-    } finally {
-      closer.close();
     }
 
     List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
-    JobState jobState = datasetStateList.get(0);
+    DatasetState datasetState = datasetStateList.get(0);
 
-    Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(jobState.getCompletedTasks(), 4);
-    Assert.assertEquals(jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY), 0);
+    Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
+    Assert.assertEquals(datasetState.getCompletedTasks(), 4);
+    Assert.assertEquals(datasetState.getJobFailures(), 0);
 
     FileSystem lfs = FileSystem.getLocal(new Configuration());
-    for (TaskState taskState : jobState.getTaskStates()) {
+    for (TaskState taskState : datasetState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
-      Path path = new Path(taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
+      Path path = new Path(this.launcherProps.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
           new Path(taskState.getExtract().getOutputFilePath(), "fork_0"));
       Assert.assertTrue(lfs.exists(path));
       Assert.assertEquals(lfs.listStatus(path).length, 2);
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN + ".0"),
           TestExtractor.TOTAL_RECORDS);
 
-      path = new Path(taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
+      path = new Path(this.launcherProps.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
           new Path(taskState.getExtract().getOutputFilePath(), "fork_1"));
       Assert.assertTrue(lfs.exists(path));
       Assert.assertEquals(lfs.listStatus(path).length, 2);
@@ -212,13 +207,13 @@ public class JobLauncherTestHelper {
     for (int i = 0; i < 4; i++) {
       List<JobState.DatasetState> datasetStateList =
           this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
-      JobState jobState = datasetStateList.get(0);
+      DatasetState datasetState = datasetStateList.get(0);
 
-      Assert.assertEquals(jobState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
-      Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
-      Assert.assertEquals(jobState.getCompletedTasks(), 1);
-      Assert.assertEquals(jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY), 0);
-      for (TaskState taskState : jobState.getTaskStates()) {
+      Assert.assertEquals(datasetState.getDatasetUrn(), "Dataset" + i);
+      Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
+      Assert.assertEquals(datasetState.getCompletedTasks(), 1);
+      Assert.assertEquals(datasetState.getJobFailures(), 0);
+      for (TaskState taskState : datasetState.getTaskStates()) {
         Assert.assertEquals(taskState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
         Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
         Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
@@ -299,7 +294,7 @@ public class JobLauncherTestHelper {
           this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
       JobState.DatasetState datasetState = datasetStateList.get(0);
 
-      Assert.assertEquals(datasetState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
+      Assert.assertEquals(datasetState.getDatasetUrn(), "Dataset" + i);
       Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
       Assert.assertEquals(datasetState.getCompletedTasks(), 1);
       for (TaskState taskState : datasetState.getTaskStates()) {

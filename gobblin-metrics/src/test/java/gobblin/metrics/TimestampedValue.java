@@ -10,14 +10,28 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime;
-
+package gobblin.metrics;
 
 /**
- * An enumeration of metric groups used internally.
- *
+ * 
  * @author Yinan Li
+ *
  */
-public enum MetricGroup {
-  JOB, TASK
+public class TimestampedValue {
+
+  private final long timestamp;
+  private final String value;
+
+  public TimestampedValue(long timestamp, String value) {
+    this.timestamp = timestamp;
+    this.value = value;
+  }
+
+  public long getTimestamp() {
+    return this.timestamp;
+  }
+
+  public String getValue() {
+    return this.value;
+  }
 }

@@ -50,7 +50,7 @@ public class KafkaRecord implements Comparable<KafkaRecord> {
         } else if (!this.key.equals(other.key)) {
             return false;
         }
-        if (this.offset != other.offset) {
+        if (!this.offset.equals(other.offset)) {
             return false;
         }
         if (this.payload == null) {

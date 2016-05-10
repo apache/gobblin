@@ -741,7 +741,9 @@ public class MRCompactor implements Compactor {
       try {
         ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG), 0, TimeUnit.NANOSECONDS);
       } finally {
-        this.verifier.get().closeNow();
+        if (this.verifier.isPresent()) {
+          this.verifier.get().closeNow();
+        }
       }
     }
   }

@@ -24,7 +24,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -63,7 +62,6 @@ public class DatasetStateStoreTest {
   private static final String BAR = "bar";
   private static final String WORK_UNIT_INDEX_KEY = "work.unit.index";
   private static final String LAST_READ_RECORD_KEY = "last.read.record";
-  private static final String CURRENT_RUN_KEY = "current.run";
 
   private StateStore<JobState.DatasetState> datasetStateStore;
   private Properties jobConfig = new Properties();
@@ -71,7 +69,9 @@ public class DatasetStateStoreTest {
   @BeforeClass
   public void setUp() throws Exception {
     Properties properties = new Properties();
-    properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
+    try (FileReader fr = new FileReader("gobblin-test/resource/gobblin.test.properties")) {
+      properties.load(fr);
+    }
 
     this.datasetStateStore = new FsStateStore<>(
         properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
@@ -85,33 +85,24 @@ public class DatasetStateStoreTest {
 
   @Test
   public void testLaunchFirstJob() throws Exception {
-    Closer closer = Closer.create();
-    try {
-      closer.register(new LocalJobLauncher(this.jobConfig)).launchJob(null);
-    } finally {
-      closer.close();
+    try (JobLauncher launcher = new LocalJobLauncher(this.jobConfig)) {
+      launcher.launchJob(null);
     }
     verifyJobState(1);
   }
 
   @Test(dependsOnMethods = "testLaunchFirstJob")
   public void testLaunchSecondJob() throws Exception {
-    Closer closer = Closer.create();
-    try {
-      closer.register(new LocalJobLauncher(this.jobConfig)).launchJob(null);
-    } finally {
-      closer.close();
+    try (JobLauncher launcher = new LocalJobLauncher(this.jobConfig)) {
+      launcher.launchJob(null);
     }
     verifyJobState(2);
   }
 
   @Test(dependsOnMethods = "testLaunchSecondJob")
   public void testLaunchThirdJob() throws Exception {
-    Closer closer = Closer.create();
-    try {
-      closer.register(new LocalJobLauncher(this.jobConfig)).launchJob(null);
-    } finally {
-      closer.close();
+    try (JobLauncher launcher = new LocalJobLauncher(this.jobConfig)) {
+      launcher.launchJob(null);
     }
     verifyJobState(3);
   }
@@ -128,8 +119,6 @@ public class DatasetStateStoreTest {
     JobState jobState = datasetStateList.get(0);
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(jobState.getTaskStates().size(), DummySource.NUM_WORK_UNITS);
-    Assert.assertEquals(jobState.getProp(FOO), BAR);
-    Assert.assertEquals(jobState.getPropAsInt(CURRENT_RUN_KEY), run);
 
     for (TaskState taskState : jobState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
@@ -160,9 +149,6 @@ public class DatasetStateStoreTest {
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState sourceState) {
-      SourceState previousSourceState = sourceState.getPreviousSourceState();
-      sourceState.setProp(CURRENT_RUN_KEY,
-          previousSourceState != null ? previousSourceState.getPropAsInt(CURRENT_RUN_KEY) + 1 : 1);
       sourceState.setProp(FOO, BAR);
 
       if (Iterables.isEmpty(sourceState.getPreviousWorkUnitStates())) {

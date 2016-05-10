@@ -170,7 +170,8 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
     if(pendingInserts == null || pendingInserts.isEmpty()) {
       return;
     }
-    PreparedStatement pstmt = conn.prepareStatement(createPrepareStatementStr(insertStmtPrefix, pendingInserts.size()));
-    insertBatch(pstmt);
+    try (PreparedStatement pstmt = conn.prepareStatement(createPrepareStatementStr(insertStmtPrefix, pendingInserts.size()));) {
+      insertBatch(pstmt);
+    }
   }
 }

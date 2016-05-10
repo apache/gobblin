@@ -19,6 +19,7 @@ import java.io.StringWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.hadoop.io.Text;
 
@@ -48,6 +49,7 @@ import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.util.JobMetrics;
+import gobblin.runtime.util.MetricGroup;
 
 
 /**
@@ -294,7 +296,7 @@ public class JobState extends SourceState {
       String datasetUrn = taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
       if (!datasetStatesByUrns.containsKey(datasetUrn)) {
         DatasetState datasetState = newDatasetState(false);
-        datasetState.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
+        datasetState.setDatasetUrn(datasetUrn);
         datasetStatesByUrns.put(datasetUrn, datasetState);
       }
 
@@ -313,7 +315,7 @@ public class JobState extends SourceState {
   public List<WorkUnitState> getTaskStatesAsWorkUnitStates() {
     ImmutableList.Builder<WorkUnitState> builder = ImmutableList.builder();
     for (TaskState taskState : this.taskStates.values()) {
-      WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit());
+      WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit(), taskState.getJobState());
       workUnitState.setId(taskState.getId());
       workUnitState.addAll(taskState);
       builder.add(workUnitState);
@@ -543,7 +545,6 @@ public class JobState extends SourceState {
    */
   public DatasetState newDatasetState(boolean fullCopy) {
     DatasetState datasetState = new DatasetState(this.jobName, this.jobId);
-    datasetState.addAll(this);
     datasetState.setStartTime(this.startTime);
     datasetState.setEndTime(this.endTime);
     datasetState.setDuration(this.duration);
@@ -564,8 +565,12 @@ public class JobState extends SourceState {
   }
 
   /**
-   * A subclass of {@link JobState} that is used to represent dataset states. This class is currently
-   * identical to {@link JobState} except that the name is more meaningful and less confusing.
+   * A subclass of {@link JobState} that is used to represent dataset states.
+   *
+   * <p>
+   *   A {@code DatasetState} does <em>not</em> contain any properties. Operations such as {@link #getProp(String)}
+   *   and {@link #setProp(String, Object)} are not supported.
+   * </p>
    */
   public static class DatasetState extends JobState {
 
@@ -579,11 +584,50 @@ public class JobState extends SourceState {
     }
 
     public void setDatasetUrn(String datasetUrn) {
-      setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
+      super.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
     }
 
     public String getDatasetUrn() {
-      return getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
+      return super.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
+    }
+
+    public void incrementJobFailures() {
+      super.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
+          Integer.parseInt(super.getProp(ConfigurationKeys.JOB_FAILURES_KEY, "0")) + 1);
+    }
+
+    public void setNoJobFailure() {
+      super.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
+    }
+
+    public int getJobFailures() {
+      return Integer.parseInt(super.getProp(ConfigurationKeys.JOB_FAILURES_KEY));
+    }
+
+    public String getProp(String key) {
+      throw new UnsupportedOperationException();
+    }
+
+    public String getProp(String key, String def) {
+      throw new UnsupportedOperationException();
+    }
+
+    public void setProp(String key, Object value) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addAll(Properties properties) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addAllIfNotExist(Properties properties) {
+      throw new UnsupportedOperationException();
+    }
+
+    public void overrideWith(Properties properties) {
+      throw new UnsupportedOperationException();
     }
   }
 }

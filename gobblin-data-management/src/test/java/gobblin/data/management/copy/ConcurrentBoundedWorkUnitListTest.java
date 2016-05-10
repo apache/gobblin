@@ -40,7 +40,7 @@ public class ConcurrentBoundedWorkUnitListTest {
   public void testBoundedAdd() throws IOException {
 
     ConcurrentBoundedWorkUnitList list = new ConcurrentBoundedWorkUnitList(10,
-        new AllEqualComparator<FileSet<CopyEntity>>());
+        new AllEqualComparator<FileSet<CopyEntity>>(), 1);
 
     Assert.assertTrue(addFiles(list, "fs", 6));
     Assert.assertFalse(list.hasRejectedFileSet());
@@ -52,10 +52,30 @@ public class ConcurrentBoundedWorkUnitListTest {
   }
 
   @Test
+  public void testNonStrictBoundAdd() throws IOException {
+
+    ConcurrentBoundedWorkUnitList list = new ConcurrentBoundedWorkUnitList(10,
+        new AllEqualComparator<FileSet<CopyEntity>>(), 2.0);
+
+    Assert.assertTrue(addFiles(list, "fs", 6));
+    Assert.assertFalse(list.hasRejectedFileSet());
+    Assert.assertFalse(list.isFull());
+    Assert.assertTrue(addFiles(list, "fs", 5));
+    Assert.assertFalse(list.hasRejectedFileSet());
+    Assert.assertTrue(list.isFull());
+    Assert.assertTrue(addFiles(list, "fs", 4));
+    Assert.assertFalse(list.hasRejectedFileSet());
+    Assert.assertFalse(addFiles(list, "fs", 6));
+    Assert.assertTrue(list.hasRejectedFileSet());
+    Assert.assertTrue(list.isFull());
+
+  }
+
+  @Test
   public void testPriority() throws IOException {
 
     ConcurrentBoundedWorkUnitList list = new ConcurrentBoundedWorkUnitList(10,
-        new NameComparator());
+        new NameComparator(), 1);
 
     // Fill container
     Assert.assertTrue(addFiles(list, "z-1", 10));

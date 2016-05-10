@@ -20,6 +20,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
@@ -213,6 +214,10 @@ public class Utils {
     return (Strings.isNullOrEmpty(value) ? defaultValue : Integer.parseInt(value));
   }
 
+  public static boolean getPropAsBoolean(Properties properties, String key, String defaultValue) {
+    return Boolean.valueOf(properties.getProperty(key, defaultValue));
+  }
+  
   // escape characters in column name or table name
   public static String escapeSpecialCharacters(String columnName, String escapeChars, String character) {
     if (Strings.isNullOrEmpty(columnName)) {

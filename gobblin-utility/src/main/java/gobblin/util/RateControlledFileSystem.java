@@ -34,7 +34,6 @@ import com.google.common.cache.CacheBuilder;
 
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.RateBasedLimiter;
-import gobblin.util.Decorator;
 
 
 /**
@@ -54,12 +53,12 @@ import gobblin.util.Decorator;
 public class RateControlledFileSystem extends FileSystem implements Decorator {
 
   private static final int DEFAULT_MAX_CACHE_SIZE = 100;
-  private static final Cache<String, Limiter> FS_URI_TO_RATE_LIMITER_CACHE = CacheBuilder.newBuilder()
+  private static final Cache<String, RateBasedLimiter> FS_URI_TO_RATE_LIMITER_CACHE = CacheBuilder.newBuilder()
       .maximumSize(DEFAULT_MAX_CACHE_SIZE).build();
 
   private final FileSystem fs;
   private final long limitPerSecond;
-  private final Callable<Limiter> callableLimiter;
+  private final Callable<RateBasedLimiter> callableLimiter;
 
   /**
    * Determines whether the file system is rate controlled, and if so, returns the allowed rate in operations per
@@ -84,9 +83,9 @@ public class RateControlledFileSystem extends FileSystem implements Decorator {
   public RateControlledFileSystem(FileSystem fs, final long limitPerSecond) {
     this.fs = fs;
     this.limitPerSecond = limitPerSecond;
-    this.callableLimiter = new Callable<Limiter>() {
+    this.callableLimiter = new Callable<RateBasedLimiter>() {
       @Override
-      public Limiter call() throws Exception {
+      public RateBasedLimiter call() throws Exception {
         return new RateBasedLimiter(limitPerSecond);
       }
     };
@@ -198,8 +197,19 @@ public class RateControlledFileSystem extends FileSystem implements Decorator {
     }
   }
 
-  private Limiter getRateLimiter() throws ExecutionException {
-    return FS_URI_TO_RATE_LIMITER_CACHE.get(this.fs.getUri().toString(), this.callableLimiter);
+  protected Limiter getRateLimiter() throws ExecutionException {
+    String key = this.fs.getUri().toString();
+    RateBasedLimiter limiter = FS_URI_TO_RATE_LIMITER_CACHE.get(key, this.callableLimiter);
+    if (limiter.getRateLimitPerSecond() < this.limitPerSecond) {
+      try {
+        limiter = this.callableLimiter.call();
+        FS_URI_TO_RATE_LIMITER_CACHE.put(key, limiter);
+      } catch (Exception exc) {
+        throw new ExecutionException(exc);
+      }
+    }
+
+    return limiter;
   }
 
   @Override

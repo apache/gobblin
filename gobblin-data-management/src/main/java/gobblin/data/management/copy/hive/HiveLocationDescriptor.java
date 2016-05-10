@@ -13,17 +13,20 @@
 package gobblin.data.management.copy.hive;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.mapred.InputFormat;
+
+import com.google.common.collect.Maps;
 
 import gobblin.data.management.copy.RecursivePathFinder;
 import gobblin.util.PathUtils;
@@ -52,14 +55,16 @@ class HiveLocationDescriptor {
   protected final FileSystem fileSystem;
   protected final Properties properties;
 
-  public Set<Path> getPaths() throws IOException {
+  public Map<Path, FileStatus> getPaths() throws IOException {
 
     PathFindingMethod pathFindingMethod = PathFindingMethod.valueOf(
         this.properties.getProperty(HIVE_LOCATION_LISTING_METHOD, DEFAULT_HIVE_LOCATION_LISTING_METHOD).toUpperCase());
 
+    Map<Path, FileStatus> result = Maps.newHashMap();
     if (pathFindingMethod == PathFindingMethod.INPUT_FORMAT) {
-
-      Set<Path> result = HiveUtils.getPaths(this.inputFormat, this.location);
+      for (Path path : HiveUtils.getPaths(this.inputFormat, this.location)) {
+        result.put(path, this.fileSystem.getFileStatus(path));
+      }
 
       boolean useHiveLocationDescriptorWithAdditionalData =
           Boolean.valueOf(this.properties.getProperty(HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED, "false"));
@@ -69,7 +74,9 @@ class HiveLocationDescriptor {
           throw new IOException("can not get additional data for glob pattern path " + this.location);
         }
         RecursivePathFinder finder = new RecursivePathFinder(this.fileSystem, this.location, this.properties);
-        result.addAll(finder.getPaths(false));
+        for (FileStatus status : finder.getPaths(false)) {
+          result.put(status.getPath(), status);
+        }
       }
 
       return result;
@@ -79,7 +86,11 @@ class HiveLocationDescriptor {
       }
       boolean skipHiddenPaths =  Boolean.parseBoolean(this.properties.getProperty(SKIP_HIDDEN_PATHS, DEFAULT_SKIP_HIDDEN_PATHS));
       RecursivePathFinder finder = new RecursivePathFinder(this.fileSystem, this.location, this.properties);
-      return finder.getPaths(skipHiddenPaths);
+
+      for (FileStatus status : finder.getPaths(skipHiddenPaths)) {
+        result.put(status.getPath(), status);
+      }
+      return result;
     } else {
       throw new IOException("Hive location listing method not recognized: " + pathFindingMethod);
     }

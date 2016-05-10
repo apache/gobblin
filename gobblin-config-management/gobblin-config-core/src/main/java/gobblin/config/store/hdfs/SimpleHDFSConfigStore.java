@@ -22,9 +22,6 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -58,6 +55,9 @@ import gobblin.util.FileListUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.io.SeekableFSInputStream;
 import gobblin.util.io.StreamUtils;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -515,5 +515,10 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
     storeMetadata.setCurrentVersion(deploymentConfig.getNewVersion());
 
     log.info(String.format("New version %s of config store deployed at %s", deploymentConfig.getNewVersion(), hdfsconfigStoreRoot));
+  }
+
+  @VisibleForTesting
+  URI getPhysicalStoreRoot() {
+    return physicalStoreRoot;
   }
 }

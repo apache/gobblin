@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
+import com.sforce.async.AsyncApiException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -649,7 +650,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       partnerConfig.setPassword(PasswordManager.getInstance(this.workUnit)
           .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD)));
       partnerConfig.setAuthEndpoint(soapAuthEndPoint);
-      PartnerConnection connection = new PartnerConnection(partnerConfig);
+      new PartnerConnection(partnerConfig);
       String soapEndpoint = partnerConfig.getServiceEndpoint();
       String restEndpoint = soapEndpoint.substring(0, soapEndpoint.indexOf("Soap/")) + "async/" + apiVersion;
 
@@ -742,7 +743,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 
       return Arrays.asList(list.getResult());
 
-    } catch (Exception e) {
+    } catch (RuntimeException | AsyncApiException | InterruptedException e) {
       throw new RuntimeException(
           "Failed to get query result ids from salesforce using bulk api; error - " + e.getMessage(), e);
     }

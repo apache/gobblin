@@ -99,7 +99,7 @@ public class GsonInterfaceAdapter implements TypeAdapterFactory {
   }
 
   @AllArgsConstructor
-  private class InterfaceAdapter<R> extends TypeAdapter<R> {
+  private static class InterfaceAdapter<R> extends TypeAdapter<R> {
 
     private final Gson gson;
     private final TypeAdapterFactory factory;

@@ -180,6 +180,12 @@ public class ZookeeperBasedJobLock implements ListenableJobLock {
           public void stateChanged(CuratorFramework curatorFramework, ConnectionState connectionState) {
             switch (connectionState) {
               case LOST:
+                log.warn("Lost connection with zookeeper");
+                for (Map.Entry<String, JobLockEventListener> lockEventListener : lockEventListeners.entrySet()) {
+                  log.warn("Informing job %s that lock was lost", lockEventListener.getKey());
+                  lockEventListener.getValue().onLost();
+                }
+                break;
               case SUSPENDED:
                 log.warn("Lost connection with zookeeper");
                 for (Map.Entry<String, JobLockEventListener> lockEventListener : lockEventListeners.entrySet()) {
@@ -192,6 +198,9 @@ public class ZookeeperBasedJobLock implements ListenableJobLock {
                 break;
               case RECONNECTED:
                 log.warn("Regained connection with zookeeper");
+                break;
+              case READ_ONLY:
+                log.warn("Zookeeper connection went into read-only mode");
                 break;
             }
           }

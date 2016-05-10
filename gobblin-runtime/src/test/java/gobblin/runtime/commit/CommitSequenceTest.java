@@ -64,8 +64,8 @@ public class CommitSequenceTest {
     this.fs.createNewFile(src2);
 
     DatasetState ds = new DatasetState("job-name", "job-id");
-    ds.setProp("key1", "value1");
-    ds.setProp("key2", "value2");
+    ds.setDatasetUrn("urn");
+    ds.setNoJobFailure();
 
     State state = new State();
     state.setProp(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, storeRootDir.toString());

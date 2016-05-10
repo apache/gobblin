@@ -23,7 +23,7 @@ class RetentionEvents {
   /**
    * This event is submitted when {@link CleanableDataset#clean()} throws an exception
    */
-  class CleanFailed {
+  static class CleanFailed {
     static final String EVENT_NAME = "CleanFailed";
     /**
      * Value for this key will be a stacktrace of any exception caused while deleting a dataset

@@ -12,17 +12,13 @@
 
 package gobblin.converter.jdbc;
 
-import java.sql.Connection;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import javax.sql.DataSource;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
@@ -45,14 +41,11 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
-import gobblin.publisher.JdbcPublisher;
-import gobblin.util.jdbc.DataSourceBuilder;
 
 /**
  * Converts Avro Schema into JdbcEntrySchema
@@ -283,7 +276,8 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
       final Object val = record.get(tryConvertColumn(colName, jdbcToAvroColPairs));
 
       if (val == null) {
-        jdbcEntryData.add(new JdbcEntryDatum(colName, val));
+        jdbcEntryData.add(new JdbcEntryDatum(colName, null));
+        continue;
       }
 
       if (!JDBC_SUPPORTED_TYPES.contains(jdbcType)) {
@@ -295,28 +289,32 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
           jdbcEntryData.add(new JdbcEntryDatum(colName, val.toString()));
           continue;
         case INTEGER:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, Integer.valueOf((int) val)));
-          continue;
         case BOOLEAN:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, Boolean.valueOf((boolean) val)));
-          continue;
         case BIGINT:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, Long.valueOf((long) val)));
-          continue;
         case FLOAT:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, Float.valueOf((float) val)));
-          continue;
         case DOUBLE:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, Double.valueOf((double) val)));
+          jdbcEntryData.add(new JdbcEntryDatum(colName, val));
           continue;
+//        case BOOLEAN:
+//          jdbcEntryData.add(new JdbcEntryDatum(colName, Boolean.valueOf((boolean) val)));
+//          continue;
+//        case BIGINT:
+//          jdbcEntryData.add(new JdbcEntryDatum(colName, Long.valueOf((long) val)));
+//          continue;
+//        case FLOAT:
+//          jdbcEntryData.add(new JdbcEntryDatum(colName, Float.valueOf((float) val)));
+//          continue;
+//        case DOUBLE:
+//          jdbcEntryData.add(new JdbcEntryDatum(colName, Double.valueOf((double) val)));
+//          continue;
         case DATE:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, new Date(Long.valueOf((long) val))));
+          jdbcEntryData.add(new JdbcEntryDatum(colName, new Date((long) val)));
           continue;
         case TIME:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, new Time(Long.valueOf((long) val))));
+          jdbcEntryData.add(new JdbcEntryDatum(colName, new Time((long) val)));
           continue;
         case TIMESTAMP:
-          jdbcEntryData.add(new JdbcEntryDatum(colName, new Timestamp(Long.valueOf((long) val))));
+          jdbcEntryData.add(new JdbcEntryDatum(colName, new Timestamp((long) val)));
           continue;
         default:
           throw new DataConversionException(jdbcType + " is not supported");

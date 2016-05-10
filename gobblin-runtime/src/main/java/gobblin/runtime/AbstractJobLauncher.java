@@ -47,8 +47,8 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
-import gobblin.metrics.event.EventNames;
 import gobblin.metrics.event.EventSubmitter;
+import gobblin.metrics.event.JobEvent;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.runtime.listeners.CloseableJobListener;
 import gobblin.runtime.listeners.JobExecutionEventSubmitterListener;
@@ -59,7 +59,6 @@ import gobblin.runtime.locks.JobLockEventListener;
 import gobblin.runtime.locks.JobLockException;
 import gobblin.runtime.locks.JobLockFactory;
 import gobblin.runtime.util.JobMetrics;
-import gobblin.runtime.util.TimingEventNames;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ClusterNameTags;
 import gobblin.util.ExecutorsUtils;
@@ -191,7 +190,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           // Wait for the cancellation to be executed
           this.cancellationExecution.wait();
         }
-        notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_CANCEL,
+        notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_CANCEL,
             new JobListenerAction() {
               @Override
               public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
@@ -211,18 +210,17 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     try {
       TimingEvent launchJobTimer =
-          this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.FULL_JOB_EXECUTION);
+          this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.FULL_JOB_EXECUTION);
 
       try {
         if (!tryLockJob(this.jobProps)) {
-          this.eventSubmitter.submit(gobblin.metrics.event.EventNames.LOCK_IN_USE);
+          this.eventSubmitter.submit(JobEvent.LOCK_IN_USE);
           throw new JobException(
               String.format("Previous instance of job %s is still running, skipping this scheduled run",
                   this.jobContext.getJobName()));
         }
-
         try (Closer closer = Closer.create()) {
-          notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_PREPARE,
+          notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_PREPARE,
               new JobListenerAction() {
                 @Override
                 public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
@@ -238,7 +236,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           }
 
           TimingEvent workUnitsCreationTimer =
-              this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.WORK_UNITS_CREATION);
+              this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
           // Generate work units of the job from the source
           Optional<List<WorkUnit>> workUnits =
               Optional.fromNullable(this.jobContext.getSource().getWorkunits(jobState));
@@ -246,14 +244,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
           // The absence means there is something wrong getting the work units
           if (!workUnits.isPresent()) {
-            this.eventSubmitter.submit(gobblin.metrics.event.EventNames.WORK_UNITS_MISSING);
+            this.eventSubmitter.submit(JobEvent.WORK_UNITS_MISSING);
             jobState.setState(JobState.RunningState.FAILED);
             throw new JobException("Failed to get work units for job " + jobId);
           }
 
           // No work unit to run
           if (workUnits.get().isEmpty()) {
-            this.eventSubmitter.submit(gobblin.metrics.event.EventNames.WORK_UNITS_EMPTY);
+            this.eventSubmitter.submit(JobEvent.WORK_UNITS_EMPTY);
             LOG.warn("No work units have been created for job " + jobId);
             return;
           }
@@ -263,7 +261,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           closer.register(ConverterInitializerFactory.newInstance(jobState, workUnits.get())).initialize();
 
           TimingEvent stagingDataCleanTimer =
-              this.eventSubmitter.getTimingEvent(TimingEventNames.RunJobTimings.MR_STAGING_DATA_CLEAN);
+              this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_STAGING_DATA_CLEAN);
           // Cleanup left-over staging data possibly from the previous run. This is particularly
           // important if the current batch of WorkUnits include failed WorkUnits from the previous
           // run which may still have left-over staging data not cleaned up yet.
@@ -277,7 +275,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           try {
             LOG.info("Starting job " + jobId);
 
-            notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_START,
+            notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_START,
                 new JobListenerAction() {
                   @Override
                   public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
@@ -286,14 +284,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 });
 
             TimingEvent workUnitsPreparationTimer =
-                this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.WORK_UNITS_PREPARATION);
+                this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_PREPARATION);
             prepareWorkUnits(JobLauncherUtils.flattenWorkUnits(workUnits.get()), jobState);
             workUnitsPreparationTimer.stop();
 
             // Write job execution info to the job history store before the job starts to run
             this.jobContext.storeJobExecutionInfo();
 
-            TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_RUN);
+            TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_RUN);
             // Start the job and wait for it to finish
             runWorkUnits(workUnits.get());
             jobRunTimer.stop();
@@ -307,8 +305,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               return;
             }
 
-            TimingEvent jobCommitTimer =
-                this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_COMMIT);
+            TimingEvent jobCommitTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_COMMIT);
             this.jobContext.finalizeJobStateBeforeCommit();
             this.jobContext.commit();
             postProcessJobState(jobState);
@@ -324,14 +321,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           LOG.error(errMsg + ": " + t, t);
         } finally {
           try {
-            TimingEvent jobCleanupTimer =
-                this.eventSubmitter.getTimingEvent(TimingEventNames.LauncherTimings.JOB_CLEANUP);
+            TimingEvent jobCleanupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CLEANUP);
             cleanupStagingData(jobState);
             jobCleanupTimer.stop();
 
             // Write job execution info to the job history store upon job termination
             this.jobContext.storeJobExecutionInfo();
-          } finally {
+          }
+          finally {
             unlockJob();
           }
         }
@@ -347,7 +344,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
 
-      notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_COMPLETE,
+      notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_COMPLETE,
           new JobListenerAction() {
             @Override
             public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
@@ -356,7 +353,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           });
 
       if (jobState.getState() == JobState.RunningState.FAILED) {
-        notifyListeners(this.jobContext, jobListener, TimingEventNames.LauncherTimings.JOB_FAILED,
+        notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_FAILED,
             new JobListenerAction() {
               @Override
               public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
@@ -503,7 +500,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       jobState.incrementTaskCount();
       // Pre-add a task state so if the task fails and no task state is written out,
       // there is still task state for the task when job/task states are persisted.
-      jobState.addTaskState(new TaskState(new WorkUnitState(workUnit)));
+      jobState.addTaskState(new TaskState(new WorkUnitState(workUnit, jobState)));
     }
   }
 
@@ -609,7 +606,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * @throws IOException if there's something wrong with any IO operations
    * @throws InterruptedException if the task execution gets cancelled
    */
-  public static void runWorkUnits(String jobId, String containerId, List<WorkUnit> workUnits,
+  public static void runWorkUnits(String jobId, String containerId, JobState jobState, List<WorkUnit> workUnits,
       TaskStateTracker taskStateTracker, TaskExecutor taskExecutor, StateStore<TaskState> taskStateStore, Logger logger)
       throws IOException, InterruptedException {
 
@@ -628,7 +625,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
-    List<Task> tasks = runWorkUnits(jobId, workUnits, taskStateTracker, taskExecutor, countDownLatch);
+    List<Task> tasks = runWorkUnits(jobId, jobState, workUnits, taskStateTracker, taskExecutor, countDownLatch);
 
     logger.info(
         String.format("Waiting for submitted tasks of job %s to complete in container %s...", jobId, containerId));
@@ -679,13 +676,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
    * @return a list of {@link Task}s from the {@link WorkUnit}s
    */
-  public static List<Task> runWorkUnits(String jobId, List<WorkUnit> workUnits, TaskStateTracker stateTracker,
-      TaskExecutor taskExecutor, CountDownLatch countDownLatch) {
+  public static List<Task> runWorkUnits(String jobId, JobState jobState, List<WorkUnit> workUnits,
+      TaskStateTracker stateTracker, TaskExecutor taskExecutor, CountDownLatch countDownLatch) {
 
     List<Task> tasks = Lists.newArrayList();
     for (WorkUnit workUnit : workUnits) {
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-      WorkUnitState workUnitState = new WorkUnitState(workUnit);
+      WorkUnitState workUnitState = new WorkUnitState(workUnit, jobState);
       workUnitState.setId(taskId);
       workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
@@ -698,7 +695,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build()
-        .submit(EventNames.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
+        .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
 
     return tasks;
   }
@@ -733,9 +730,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
         try {
           for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits)) {
-            WorkUnit fatWorkUnit = WorkUnit.copyOf(workUnit);
-            fatWorkUnit.addAllIfNotExist(jobState);
-            JobLauncherUtils.cleanTaskStagingData(fatWorkUnit, LOG, closer, parallelRunners);
+            JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(workUnit, jobState), LOG, closer, parallelRunners);
           }
         } catch (Throwable t) {
           throw closer.rethrow(t);
@@ -798,10 +793,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
     try {
       for (TaskState taskState : jobState.getTaskStates()) {
-        TaskState fatTaskState = new TaskState(taskState);
-        fatTaskState.addAllIfNotExist(jobState);
         try {
-          JobLauncherUtils.cleanTaskStagingData(fatTaskState, LOG, closer, parallelRunners);
+          JobLauncherUtils.cleanTaskStagingData(taskState, LOG, closer, parallelRunners);
         } catch (IOException e) {
           LOG.error(String.format("Failed to clean staging data for task %s: %s", taskState.getTaskId(), e), e);
         }

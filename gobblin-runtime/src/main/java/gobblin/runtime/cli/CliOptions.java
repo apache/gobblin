@@ -76,13 +76,9 @@ public class CliOptions {
       Properties jobConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(JOB_CONFIG_OPTION.getLongOpt()));
 
       return JobConfigurationUtils.combineSysAndJobProperties(sysConfig, jobConfig);
-    } catch (ParseException pe) {
-      throw new IOException(pe);
-    } catch (ConfigurationException ce) {
-      throw new IOException(ce);
-    } catch (URISyntaxException use) {
-      throw new IOException(use);
-    }
+    } catch (ParseException | ConfigurationException | URISyntaxException e) {
+      throw new IOException(e);
+    } 
   }
 
   /**
