@@ -61,6 +61,7 @@ import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HiveRegProps;
 import gobblin.hive.HiveRegisterStep;
 import gobblin.hive.PartitionDeregisterStep;
+import gobblin.hive.TableDeregisterStep;
 import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.hive.spec.SimpleHiveSpec;
@@ -186,7 +187,7 @@ public class HiveCopyEntityHelper {
   private final HiveMetastoreClientPool targetClientPool;
   private final String targetDatabase;
   private final HiveRegProps hiveRegProps;
-  private final Optional<Table> existingTargetTable;
+  private Optional<Table> existingTargetTable;
   private final Table targetTable;
   private final Optional<String> targetURI;
   private final ExistingEntityPolicy existingEntityPolicy;
@@ -205,6 +206,8 @@ public class HiveCopyEntityHelper {
   public enum ExistingEntityPolicy {
     /** Deregister target partition, delete its files, and create a new partition with correct values. */
     REPLACE_PARTITIONS,
+    /** Deregister target table, do NOT delete its files, and create a new table with correct values. */
+    REPLACE_TABLE,
     /** Abort copying of conflict table. */
     ABORT
   }
@@ -310,6 +313,10 @@ public class HiveCopyEntityHelper {
           this.existingTargetTable = Optional.absent();
         }
 
+        log.info("AAA existingTargetTable exist?" + this.existingTargetTable.isPresent());
+        if(this.existingTargetTable.isPresent()){
+          log.info("AAA table is " + this.existingTargetTable.get());
+        }
         Path targetPath = getTargetLocation(dataset.fs, this.targetFs, dataset.table.getDataLocation(), Optional.<Partition>absent());
         this.targetTable = getTargetTable(this.dataset.table, targetPath);
         HiveSpec tableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath).
@@ -318,8 +325,8 @@ public class HiveCopyEntityHelper {
 
         this.tableRegistrationStep = Optional.of(tableRegistrationStep);
 
-        if (this.existingTargetTable.isPresent()) {
-          checkTableCompatibility(this.targetTable, this.existingTargetTable.get());
+        if (this.existingTargetTable.isPresent() && this.existingTargetTable.get().isPartitioned()) {
+          checkPartitionedTableCompatibility(this.targetTable, this.existingTargetTable.get()); 
         }
 
         if (HiveUtils.isPartitioned(this.dataset.table)) {
@@ -368,8 +375,10 @@ public class HiveCopyEntityHelper {
    */
   Iterator<FileSet<CopyEntity>> getCopyEntities() throws IOException {
     if (HiveUtils.isPartitioned(this.dataset.table)) {
+      log.info("DDD table is partitioned");
       return new PartitionIterator(this.sourcePartitions);
     } else {
+      log.info("DDD table is NOT partitioned");
       FileSet<CopyEntity> fileSet = new FileSet.Builder<>(this.dataset.table.getCompleteName(), this.dataset).
           add(getCopyEntitiesForUnpartitionedTable()).build();
       return Iterators.singletonIterator(fileSet);
@@ -412,7 +421,7 @@ public class HiveCopyEntityHelper {
         String deregisterFileSet = "deregister";
         for (Map.Entry<List<String>, Partition> partitionEntry : targetPartitions.entrySet()) {
           try {
-            priority = addDeregisterSteps(deregisterCopyEntities, deregisterFileSet, priority, targetTable,
+            priority = addPartitionDeregisterSteps(deregisterCopyEntities, deregisterFileSet, priority, targetTable,
                 partitionEntry.getValue());
           } catch (IOException ioe) {
             log.error("Could not create work unit to deregister partition " + partitionEntry.getValue().getCompleteName());
@@ -530,7 +539,7 @@ public class HiveCopyEntityHelper {
               return Lists.newArrayList();
             }
             log.warn("Source and target partitions are not compatible. Will override target partition.", ioe);
-            stepPriority = addDeregisterSteps(copyEntities, fileSet, stepPriority, targetTable, existingTargetPartition.get());
+            stepPriority = addPartitionDeregisterSteps(copyEntities, fileSet, stepPriority, targetTable, existingTargetPartition.get());
             existingTargetPartition = Optional.absent();
           }
         }
@@ -575,7 +584,7 @@ public class HiveCopyEntityHelper {
     }
   }
 
-  private int addDeregisterSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
+  private int addPartitionDeregisterSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
       Table table, Partition partition) throws IOException {
 
     int stepPriority = initialPriority;
@@ -609,10 +618,46 @@ public class HiveCopyEntityHelper {
     copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deregister, stepPriority++));
     return stepPriority;
   }
+  
+  private int addTableDeregisterSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
+      Table table) throws IOException {
+
+    int stepPriority = initialPriority;
+
+    Collection<Path> tablePaths = Lists.newArrayList();
+    DeregisterFileDeleteMethod deleteMethod = this.dataset.properties.containsKey(DELETE_FILES_ON_DEREGISTER)
+        ? DeregisterFileDeleteMethod.valueOf(this.dataset.properties.getProperty(DELETE_FILES_ON_DEREGISTER).toUpperCase())
+        : DeregisterFileDeleteMethod.NO_DELETE;
+
+    if (deleteMethod == DeregisterFileDeleteMethod.RECURSIVE) {
+      tablePaths = Lists.newArrayList(table.getDataLocation());
+    } else if (deleteMethod == DeregisterFileDeleteMethod.INPUT_FORMAT) {
+      InputFormat<?, ?> inputFormat = HiveUtils.getInputFormat(table.getSd());
+
+      HiveLocationDescriptor targetLocation =
+          new HiveLocationDescriptor(table.getDataLocation(), inputFormat, this.targetFs, this.dataset.properties);
+
+      tablePaths = targetLocation.getPaths().keySet();
+    } else if (deleteMethod == DeregisterFileDeleteMethod.NO_DELETE) {
+      tablePaths = Lists.newArrayList();
+    }
+
+    if (!tablePaths.isEmpty()) {
+      DeleteFileCommitStep deletePaths =
+          DeleteFileCommitStep.fromPaths(targetFs, tablePaths, this.dataset.properties, table.getDataLocation());
+      copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deletePaths, stepPriority++));
+    }
+
+    TableDeregisterStep deregister =
+        new TableDeregisterStep(table.getTTable(), targetURI, hiveRegProps);
+    copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deregister, stepPriority++));
+    return stepPriority;
+  }
 
   private int addSharedSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority) {
     int priority = initialPriority;
     if (this.tableRegistrationStep.isPresent()) {
+      log.info("CCC add prepublish step " + fileSet + " step is " + this.tableRegistrationStep.get());
       copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), this.tableRegistrationStep.get(),
           priority++));
     }
@@ -623,12 +668,31 @@ public class HiveCopyEntityHelper {
   @SuppressFBWarnings("DLS_DEAD_LOCAL_STORE")
   private List<CopyEntity> getCopyEntitiesForUnpartitionedTable() throws IOException {
 
+    log.info("DDD here " + this.targetTable.getDataLocation());
+    log.info("DDD here 2 " + this.existingTargetTable.get().getDataLocation());
     MultiTimingEvent multiTimer = new MultiTimingEvent(this.eventSubmitter, "TableCopy", true);
 
     int stepPriority = 0;
     String fileSet = this.dataset.table.getTableName();
     List<CopyEntity> copyEntities = Lists.newArrayList();
 
+    if (this.existingTargetTable.isPresent()) {
+      if (!this.targetTable.getDataLocation().equals(this.existingTargetTable.get().getDataLocation())) {
+        if (existingEntityPolicy != ExistingEntityPolicy.REPLACE_TABLE) {
+          log.error("Source and target table are not compatible. Aborting copy of table " + this.targetTable,
+              new HiveTableLocationNotMatchException(this.targetTable.getDataLocation(), this.existingTargetTable.get().getDataLocation()));
+          return Lists.newArrayList();
+        }
+        
+        log.warn("Source and target table are not compatible. Will override target table.", this.existingTargetTable.get().getDataLocation());
+        stepPriority = addTableDeregisterSteps(copyEntities, fileSet, stepPriority, targetTable);
+        this.existingTargetTable = Optional.absent();
+      }
+      else {
+        log.info("DDD here 3 ");
+      }
+    }
+    
     stepPriority = addSharedSteps(copyEntities, fileSet, stepPriority);
 
     HiveLocationDescriptor sourceLocation = HiveLocationDescriptor.forTable(this.dataset.table, this.dataset.fs, this.dataset.properties);
@@ -640,6 +704,10 @@ public class HiveCopyEntityHelper {
     DiffPathSet diffPathSet = fullPathDiff(sourceLocation, desiredTargetLocation, existingTargetLocation,
         Optional.<Partition>absent(), multiTimer, this);
 
+    log.info("DDD diff for copy  " + Arrays.toString(diffPathSet.filesToCopy.toArray()));
+    log.info("DDD diff for delete  " + Arrays.toString(diffPathSet.pathsToDelete.toArray()));
+    
+    // Could used to delete files for the existing snapshot
     DeleteFileCommitStep deleteStep = DeleteFileCommitStep.fromPaths(targetFs, diffPathSet.pathsToDelete,
         this.dataset.properties);
     copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deleteStep, stepPriority++));
@@ -737,12 +805,13 @@ public class HiveCopyEntityHelper {
         referencePath.getModificationTime() < replacementFile.getModificationTime();
   }
 
-  private void checkTableCompatibility(Table desiredTargetTable, Table existingTargetTable) throws IOException {
+  private void checkPartitionedTableCompatibility(Table desiredTargetTable, Table existingTargetTable) throws IOException {
 
+    log.info("BBB existing location : " + existingTargetTable.getDataLocation());
+    log.info("BBB desired location : " + desiredTargetTable.getDataLocation());
     if (!desiredTargetTable.getDataLocation().equals(existingTargetTable.getDataLocation())) {
-      throw new IOException(
-          String.format("Desired target location %s and already registered target location %s do not agree.",
-              desiredTargetTable.getDataLocation(), existingTargetTable.getDataLocation()));
+      throw new HiveTableLocationNotMatchException(desiredTargetTable.getDataLocation(), 
+          existingTargetTable.getDataLocation());
     }
 
     if (HiveUtils.isPartitioned(desiredTargetTable) != HiveUtils.isPartitioned(existingTargetTable)) {
