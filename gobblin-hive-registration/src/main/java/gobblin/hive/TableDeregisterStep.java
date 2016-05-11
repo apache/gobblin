@@ -41,7 +41,6 @@ public class TableDeregisterStep implements CommitStep {
   @Override
   public void execute() throws IOException {
     try (HiveRegister hiveRegister = HiveRegister.get(this.props, this.metastoreURI)) {
-      System.out.println("will deregister table with db: " + this.table.getDbName() + " table: " + this.table.getTableName());
       hiveRegister.dropTableIfExists(this.table.getDbName(), this.table.getTableName());
     }
   }

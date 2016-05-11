@@ -313,10 +313,6 @@ public class HiveCopyEntityHelper {
           this.existingTargetTable = Optional.absent();
         }
 
-        log.info("AAA existingTargetTable exist?" + this.existingTargetTable.isPresent());
-        if(this.existingTargetTable.isPresent()){
-          log.info("AAA table is " + this.existingTargetTable.get());
-        }
         Path targetPath = getTargetLocation(dataset.fs, this.targetFs, dataset.table.getDataLocation(), Optional.<Partition>absent());
         this.targetTable = getTargetTable(this.dataset.table, targetPath);
         HiveSpec tableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath).
@@ -375,10 +371,8 @@ public class HiveCopyEntityHelper {
    */
   Iterator<FileSet<CopyEntity>> getCopyEntities() throws IOException {
     if (HiveUtils.isPartitioned(this.dataset.table)) {
-      log.info("DDD table is partitioned");
       return new PartitionIterator(this.sourcePartitions);
     } else {
-      log.info("DDD table is NOT partitioned");
       FileSet<CopyEntity> fileSet = new FileSet.Builder<>(this.dataset.table.getCompleteName(), this.dataset).
           add(getCopyEntitiesForUnpartitionedTable()).build();
       return Iterators.singletonIterator(fileSet);
@@ -657,7 +651,6 @@ public class HiveCopyEntityHelper {
   private int addSharedSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority) {
     int priority = initialPriority;
     if (this.tableRegistrationStep.isPresent()) {
-      log.info("CCC add prepublish step " + fileSet + " step is " + this.tableRegistrationStep.get());
       copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), this.tableRegistrationStep.get(),
           priority++));
     }
@@ -667,9 +660,6 @@ public class HiveCopyEntityHelper {
   // Suppress warnings for "stepPriority++" in the PrePublishStep constructor, as stepPriority may be used later
   @SuppressFBWarnings("DLS_DEAD_LOCAL_STORE")
   private List<CopyEntity> getCopyEntitiesForUnpartitionedTable() throws IOException {
-
-    log.info("DDD here " + this.targetTable.getDataLocation());
-    log.info("DDD here 2 " + this.existingTargetTable.get().getDataLocation());
     MultiTimingEvent multiTimer = new MultiTimingEvent(this.eventSubmitter, "TableCopy", true);
 
     int stepPriority = 0;
@@ -688,9 +678,6 @@ public class HiveCopyEntityHelper {
         stepPriority = addTableDeregisterSteps(copyEntities, fileSet, stepPriority, targetTable);
         this.existingTargetTable = Optional.absent();
       }
-      else {
-        log.info("DDD here 3 ");
-      }
     }
     
     stepPriority = addSharedSteps(copyEntities, fileSet, stepPriority);
@@ -704,9 +691,6 @@ public class HiveCopyEntityHelper {
     DiffPathSet diffPathSet = fullPathDiff(sourceLocation, desiredTargetLocation, existingTargetLocation,
         Optional.<Partition>absent(), multiTimer, this);
 
-    log.info("DDD diff for copy  " + Arrays.toString(diffPathSet.filesToCopy.toArray()));
-    log.info("DDD diff for delete  " + Arrays.toString(diffPathSet.pathsToDelete.toArray()));
-    
     // Could used to delete files for the existing snapshot
     DeleteFileCommitStep deleteStep = DeleteFileCommitStep.fromPaths(targetFs, diffPathSet.pathsToDelete,
         this.dataset.properties);
@@ -806,9 +790,6 @@ public class HiveCopyEntityHelper {
   }
 
   private void checkPartitionedTableCompatibility(Table desiredTargetTable, Table existingTargetTable) throws IOException {
-
-    log.info("BBB existing location : " + existingTargetTable.getDataLocation());
-    log.info("BBB desired location : " + desiredTargetTable.getDataLocation());
     if (!desiredTargetTable.getDataLocation().equals(existingTargetTable.getDataLocation())) {
       throw new HiveTableLocationNotMatchException(desiredTargetTable.getDataLocation(), 
           existingTargetTable.getDataLocation());
