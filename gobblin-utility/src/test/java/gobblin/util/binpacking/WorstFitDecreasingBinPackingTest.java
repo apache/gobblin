@@ -73,6 +73,21 @@ public class WorstFitDecreasingBinPackingTest {
   }
 
   @Test
+  public void testOneLargeUnitManySmallUnits() throws Exception {
+    // Check that a large work unit doesn't prevent small work units from being packed together
+    // (this was an issue in a previous implementation of the algorithm)
+    List<WorkUnit> workUnitList = Lists.newArrayList(
+        getWorkUnitWithWeight(10),
+        getWorkUnitWithWeight(10),
+        getWorkUnitWithWeight(10),
+        getWorkUnitWithWeight(10000));
+    List<WorkUnit> multiWorkUnits = new WorstFitDecreasingBinPacking(50).pack(workUnitList, weighter);
+    Assert.assertEquals(multiWorkUnits.size(), 2);
+    Assert.assertEquals(((MultiWorkUnit) multiWorkUnits.get(0)).getWorkUnits().size(), 3);
+    Assert.assertEquals(((MultiWorkUnit) multiWorkUnits.get(1)).getWorkUnits().size(), 1);
+  }
+
+  @Test
   public void testMaxSizeZero() throws Exception {
     // If maxSize is 0, one work unit per bin
     List<WorkUnit> workUnitList = Lists.newArrayList(
