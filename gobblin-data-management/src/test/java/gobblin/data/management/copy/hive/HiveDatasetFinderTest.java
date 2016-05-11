@@ -27,6 +27,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.SetMultimap;
+import com.google.common.collect.Sets;
 
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.util.AutoReturnableObject;
@@ -69,9 +70,9 @@ public class HiveDatasetFinderTest {
 
     Assert.assertEquals(datasets.size(), 2);
     Assert.assertEquals(datasets.get(0).getTable().getDbName(), "db1");
-    Assert.assertEquals(datasets.get(0).getTable().getTableName(), "table1");
     Assert.assertEquals(datasets.get(1).getTable().getDbName(), "db1");
-    Assert.assertEquals(datasets.get(1).getTable().getTableName(), "table2");
+    Assert.assertEquals(Sets.newHashSet(datasets.get(0).getTable().getTableName(), datasets.get(1).getTable().getTableName()),
+        Sets.newHashSet("table1", "table2"));
   }
 
   @Test
@@ -93,9 +94,9 @@ public class HiveDatasetFinderTest {
 
     Assert.assertEquals(datasets.size(), 2);
     Assert.assertEquals(datasets.get(0).getTable().getDbName(), "db1");
-    Assert.assertEquals(datasets.get(0).getTable().getTableName(), "table1");
     Assert.assertEquals(datasets.get(1).getTable().getDbName(), "db1");
-    Assert.assertEquals(datasets.get(1).getTable().getTableName(), "table2");
+    Assert.assertEquals(Sets.newHashSet(datasets.get(0).getTable().getTableName(), datasets.get(1).getTable().getTableName()),
+        Sets.newHashSet("table1", "table2"));
   }
 
   @Test
@@ -117,9 +118,9 @@ public class HiveDatasetFinderTest {
 
     Assert.assertEquals(datasets.size(), 2);
     Assert.assertEquals(datasets.get(0).getTable().getDbName(), "db1");
-    Assert.assertEquals(datasets.get(0).getTable().getTableName(), "table1");
     Assert.assertEquals(datasets.get(1).getTable().getDbName(), "db1");
-    Assert.assertEquals(datasets.get(1).getTable().getTableName(), "table2");
+    Assert.assertEquals(Sets.newHashSet(datasets.get(0).getTable().getTableName(), datasets.get(1).getTable().getTableName()),
+        Sets.newHashSet("table1", "table2"));
   }
 
   private HiveMetastoreClientPool getTestPool(List<HiveDatasetFinder.DbAndTable> dbAndTables) throws Exception {
