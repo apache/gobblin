@@ -58,4 +58,28 @@ public class GobblinConstructorUtils {
     }
     throw new NoSuchMethodException("No accessible constructor found");
   }
+
+  /**
+   * Utility method to create an instance of <code>clsName</code> using the constructor matching the arguments, <code>args</code>
+   *
+   * @param superType of <code>clsName</code>. The new instance is cast to superType
+   * @param clsName complete cannonical name of the class to be instantiated
+   * @param args constructor args to be used
+   *
+   * @throws IllegalArgumentException if there was an issue creating the instance due to
+   * {@link NoSuchMethodException}, {@link InvocationTargetException},{@link InstantiationException},
+   *  {@link ClassNotFoundException}
+   *
+   * @return A new instance of <code>clsName</code>
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> T invokeConstructor(final Class<T> superType, final String clsName, Object... args) {
+
+    try {
+      return (T) ConstructorUtils.invokeConstructor(Class.forName(clsName), args);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new IllegalArgumentException(e);
+    }
+  }
 }

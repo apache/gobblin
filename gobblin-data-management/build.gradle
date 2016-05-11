@@ -14,6 +14,7 @@ dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-hive-registration")
+  compile project(":gobblin-compaction")
   compile project(":gobblin-metrics")
   compile project(":gobblin-utility")
   compile project(":gobblin-config-management:gobblin-config-client")

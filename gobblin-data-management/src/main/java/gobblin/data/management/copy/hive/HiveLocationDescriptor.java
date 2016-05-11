@@ -17,7 +17,6 @@ import java.util.Properties;
 import java.util.Set;
 
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -32,8 +31,7 @@ import gobblin.util.PathUtils;
  * Contains data for a Hive location as well as additional data if {@link #HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED} set to true.
  */
 @Data
-@Slf4j
-class HiveLocationDescriptor {
+public class HiveLocationDescriptor {
   public static final String HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.additional.paths.recursively.enabled";
   public static final String HIVE_LOCATION_LISTING_METHOD =
