@@ -46,3 +46,4 @@ Please refer to the page [Getting Started](http://gobblin.readthedocs.org/en/lat
 ## Configuration
 
 Please refer to the page [Configuration Glossary](http://gobblin.readthedocs.org/en/latest/user-guide/Configuration-Properties-Glossary/)in the documentation for an overview on the configuration properties of Gobblin.
+
