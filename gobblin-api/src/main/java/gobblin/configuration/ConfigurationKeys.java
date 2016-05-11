@@ -277,6 +277,13 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
 
   /**
+   * Metadata configuration properties used internally
+   */
+  public static final String DATA_PUBLISHER_METADATA_OUTPUT_DIR =  "metadata.output.dir";
+  //Metadata String in the configuration file
+  public static final String DATA_PUBLISHER_METADATA_STR = "metadata string";
+
+  /**
    * @deprecated Use {@link #TASK_DATA_PUBLISHER_TYPE} and {@link #JOB_DATA_PUBLISHER_TYPE}.
    */
   @Deprecated
