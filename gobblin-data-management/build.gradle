@@ -18,7 +18,6 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-config-management:gobblin-config-client")
   compile project(":gobblin-config-management:gobblin-config-core")
-  compile internalDependency."gobblin-hadoop"
 
   compile externalDependency.lombok
   compile externalDependency.commonsLang

@@ -88,17 +88,10 @@ public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
 
   private static long getRecordCountFromCounter(TaskAttemptContext context, Enum<?> counterName) {
     try {
-      //In Hadoop 2, TaskAttemptContext.getCounter() is available
       Method getCounterMethod = context.getClass().getMethod("getCounter", Enum.class);
       return ((Counter) getCounterMethod.invoke(context, counterName)).getValue();
-    } catch (NoSuchMethodException e) {
-      //In Hadoop 1, TaskAttemptContext.getCounter() is not available
-      //Have to cast context to TaskAttemptContext in the mapred package, then get a StatusReporter instance
-      org.apache.hadoop.mapred.TaskAttemptContext mapredContext = (org.apache.hadoop.mapred.TaskAttemptContext) context;
-      return ((StatusReporter) mapredContext.getProgressible()).getCounter(counterName).getValue();
     } catch (Exception e) {
       throw new RuntimeException("Error reading record count counter", e);
     }
   }
-
 }

@@ -130,12 +130,8 @@ public class GobblinOutputCommitter extends OutputCommitter {
    * Replicates the default behavior of the {@link OutputCommitter} used by
    * {@link org.apache.hadoop.mapreduce.lib.output.NullOutputFormat}.
    * @return true
-   *
-   * <p>
-   *   {@code OutputCommitter} in Hadoop 1 doesn't have this method, hence no
-   *   override annotation.
-   * </p>
    */
+  @Override
   public boolean isRecoverySupported() {
     return true;
   }
@@ -143,12 +139,8 @@ public class GobblinOutputCommitter extends OutputCommitter {
   /**
    * Replicates the default behavior of the {@link OutputCommitter} used by
    * {@link org.apache.hadoop.mapreduce.lib.output.NullOutputFormat}.
-   *
-   * <p>
-   *   {@code OutputCommitter} in Hadoop 1 doesn't have this method, hence no
-   *   override annotation.
-   * </p>
    */
+  @Override
   public void recoverTask(TaskAttemptContext taskContext) throws IOException {}
 
   /**

@@ -43,11 +43,7 @@ dependencies {
   compile externalDependency.hadoopYarnApi
   compile externalDependency.hadoopYarnCommon
   compile externalDependency.hadoopYarnClient
-  if (useHadoop2) {
-    compile externalDependency.avroMapredH2
-  } else {
-    compile externalDependency.avroMapredH1
-  }
+  compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
 
   testCompile project(":gobblin-example")

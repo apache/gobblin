@@ -37,4 +37,4 @@ if [ -z "$GROUP" ]; then
 fi
 
 
-./gradlew install -Dorg.gradle.parallel=false -PuseHadoop2 -Pversion=$VERSION -Pgroup=$GROUP
+./gradlew install -Dorg.gradle.parallel=false -Pversion=$VERSION -Pgroup=$GROUP

@@ -18,7 +18,7 @@ These options just need to be added to the command above to take effect.
 
 #### Hadoop Version
 
-The Hadoop version can be specified by adding the option `-PhadoopVersion=[my-hadoop-version]`. If using a Hadoop version over `2.0.0` the option `-PuseHadoop2` must also be added.
+The Hadoop version can be specified by adding the option `-PhadoopVersion=[my-hadoop-version]`. 
 
 #### Hive Version
 

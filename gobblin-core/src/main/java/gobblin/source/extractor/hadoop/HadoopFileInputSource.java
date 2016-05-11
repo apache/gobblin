@@ -185,20 +185,12 @@ public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S
   private TaskAttemptContext getTaskAttemptContext(Configuration configuration, TaskAttemptID taskAttemptID) {
     Class<?> taskAttemptContextClass;
 
-    // This is a method learned from Spark (See "org.apache.spark.mapreduce.SparkHadoopMapReduceUtil").
-    // The order of attempts below is important since "org.apache.hadoop.mapreduce.TaskAttemptContext"
-    // turns into an interface in Hadoop 2.x from a concrete class in Hadoop 1.x. If the order gets
-    // reversed, a NoSuchMethodException will be thrown.
     try {
       // For Hadoop 2.x
       taskAttemptContextClass = Class.forName("org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl");
     } catch (ClassNotFoundException cnfe) {
-      try {
-        // For Hadoop 1.x
-        taskAttemptContextClass = Class.forName("org.apache.hadoop.mapreduce.TaskAttemptContext");
-      } catch (ClassNotFoundException cnfe1) {
-        throw new RuntimeException(cnfe1);
-      }
+      throw new RuntimeException(cnfe);
+
     }
 
     try {

@@ -228,12 +228,11 @@ public class MRJobLauncherTest extends BMNGRunner {
    * Seems setting mapreduce.map.failures.maxpercent=100 does not prevent Hadoop2's LocalJobRunner from
    * failing and aborting a job if any mapper task fails. Aborting the job causes its working directory
    * to be deleted in {@link GobblinOutputCommitter}, which further fails this test since all the output
-   * {@link gobblin.runtime.TaskState}s are deleted. It works fine in Hadoop1 though by setting
-   * mapred.max.map.failures.percent=100. There may be a bug in Hadoop2's LocalJobRunner.
+   * {@link gobblin.runtime.TaskState}s are deleted. There may be a bug in Hadoop2's LocalJobRunner.
    *
    * Also applicable to the two tests below.
    */
-  @Test(groups = { "Hadoop1Only" })
+  @Test(groups = { "ignore" })
   public void testLaunchJobWithCommitSuccessfulTasksPolicy() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
@@ -245,7 +244,7 @@ public class MRJobLauncherTest extends BMNGRunner {
     }
   }
 
-  @Test(groups = { "Hadoop1Only" })
+  @Test(groups = { "ignore" })
   public void testLaunchJobWithMultipleDatasetsAndFaultyExtractor() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
@@ -257,7 +256,7 @@ public class MRJobLauncherTest extends BMNGRunner {
     }
   }
 
-  @Test(groups = { "Hadoop1Only" })
+  @Test(groups = { "ignore" })
   public void testLaunchJobWithMultipleDatasetsAndFaultyExtractorAndPartialCommitPolicy() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)

@@ -66,6 +66,8 @@ allprojects {
   }
 }
 
+println "Building against Hadoop version " + ext.hadoopVersion
+
 gradle.taskGraph.afterTask {
   if (it in serializedTasks && lock.heldByCurrentThread) {
     busy.set(false)
@@ -112,9 +114,6 @@ if (!project.hasProperty('version') || project.version == 'unspecified') {
     else {
         project.version = tagStr
     }
-    if (!useHadoop2) {
-      project.version = project.version + "-hadoop1"
-    }
 }
 
 println "name=" + project.name + " group=" + project.group
@@ -136,22 +135,9 @@ ext.avroVersion = '1.7.7'
 ext.dropwizardMetricsVersion = '3.1.0'
 ext.findBugsVersion = '3.0.0'
 
-if (useHadoop2) {
-  println "Using Hadoop 2 adaptor."
-  ext.gobblinHadoop = ":gobblin-hadoop2"
-} else {
-  println "Using Hadoop 1 adaptor."
-  ext.gobblinHadoop = ":gobblin-hadoop1"
-}
-
-ext.internalDependency = [
-  "gobblin-hadoop": project(ext.gobblinHadoop)
-]
-
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
   "avro": "org.apache.avro:avro:" + avroVersion,
-  "avroMapredH1": "org.apache.avro:avro-mapred:" + avroVersion + ":hadoop1",
   "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion + ":hadoop2",
   "commonsCli": "commons-cli:commons-cli:1.3.1",
   "commonsCodec": "commons-codec:commons-codec:1.10",
@@ -170,7 +156,6 @@ ext.externalDependency = [
   "guava": "com.google.guava:guava:15.0",
   "gson": "com.google.code.gson:gson:2.6.2",
   "findBugsAnnotations": "com.google.code.findbugs:jsr305:" + findBugsVersion,
-  "hadoop": "org.apache.hadoop:hadoop-core:" + hadoopVersion,
   "hadoopCommon": "org.apache.hadoop:hadoop-common:" + hadoopVersion,
   "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:" + hadoopVersion,
   "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:" + hadoopVersion,
@@ -430,26 +415,19 @@ subprojects {
         if (project.hasProperty('skipTestGroup')) {
           excludeGroups skipTestGroup
         }
-        if (useHadoop2) {
-          excludeGroups 'Hadoop1Only'
-        }
       }
     }
 
     configurations {
       compile
       dependencies {
-        if (useHadoop2) {
-          compile(externalDependency.hadoopCommon) {
-            exclude module: 'servlet-api'
-          }
-          compile externalDependency.hadoopClientCore
-          compile externalDependency.hadoopAnnotations
-          if (project.name.equals('gobblin-runtime') || project.name.equals('gobblin-test')) {
-            compile externalDependency.hadoopClientCommon
-          }
-        } else {
-          compile externalDependency.hadoop
+        compile(externalDependency.hadoopCommon) {
+          exclude module: 'servlet-api'
+        }
+        compile externalDependency.hadoopClientCore
+        compile externalDependency.hadoopAnnotations
+        if (project.name.equals('gobblin-runtime') || project.name.equals('gobblin-test')) {
+          compile externalDependency.hadoopClientCommon
         }
         compile(externalDependency.guava) {
           force = true

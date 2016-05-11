@@ -13,7 +13,6 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
-  compile internalDependency."gobblin-hadoop"
 
   compile externalDependency.avro
   compile externalDependency.datanucleusCore
@@ -31,11 +30,7 @@ dependencies {
   compile externalDependency.commonsPool
   compile externalDependency.findBugsAnnotations
   compile externalDependency.lombok
-  if (useHadoop2) {
-    compile externalDependency.avroMapredH2
-  } else {
-    compile externalDependency.avroMapredH1
-  }
+  compile externalDependency.avroMapredH2
 
   testCompile externalDependency.testng
 }

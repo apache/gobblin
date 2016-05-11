@@ -137,8 +137,7 @@ public class ClustersNames {
    *
    * <p>
    * <b>MapReduce mode</b> Uses the value for "yarn.resourcemanager.address" from {@link Configuration} excluding the
-   * port number. If "yarn.resourcemanager.address" is not set, (possible in Hadoop1), falls back to
-   * "mapreduce.jobtracker.address"
+   * port number.
    * </p>
    *
    * <p>
@@ -155,12 +154,6 @@ public class ClustersNames {
   public String getClusterName(Configuration conf) {
     // ResourceManager address in Hadoop2
     String clusterIdentifier = conf.get("yarn.resourcemanager.address");
-
-    // If job is running on Hadoop1 use jobtracker address
-    if (clusterIdentifier == null) {
-      clusterIdentifier = conf.get("mapreduce.jobtracker.address");
-    }
-
     clusterIdentifier = getClusterName(clusterIdentifier);
 
     // If job is running outside of Hadoop (Standalone) use hostname
