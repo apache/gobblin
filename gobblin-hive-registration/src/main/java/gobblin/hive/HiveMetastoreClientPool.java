@@ -12,13 +12,13 @@
 
 package gobblin.hive;
 
-import lombok.Getter;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+
+import lombok.Getter;
 
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;

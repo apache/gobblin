@@ -83,7 +83,7 @@ public class PathUtils {
    * @return true if path has glob tokens (e.g. *, {, \, }, etc.)
    */
   public static boolean isGlob(Path path) {
-    return GLOB_TOKENS.matcher(path.toString()).find();
+    return (path != null) && GLOB_TOKENS.matcher(path.toString()).find();
   }
 
   /**
