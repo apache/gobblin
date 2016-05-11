@@ -61,7 +61,7 @@ public class JobConfigurationManagerTest {
     this.eventBus.register(this);
 
     // Prepare the test job configuration files
-    Assert.assertTrue(this.jobConfigFileDir.mkdirs());
+    Assert.assertTrue(this.jobConfigFileDir.mkdirs(), "Failed to create " + this.jobConfigFileDir);
     Closer closer = Closer.create();
     try {
       for (int i = 0; i < NUM_JOB_CONFIG_FILES; i++) {

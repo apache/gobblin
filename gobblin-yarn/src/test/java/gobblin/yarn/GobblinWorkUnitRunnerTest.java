@@ -47,7 +47,7 @@ import gobblin.testing.AssertWithBackoff;
 @Test(groups = { "gobblin.yarn" })
 public class GobblinWorkUnitRunnerTest {
 
-  private static final int TEST_ZK_PORT = 3183;
+  private static final int TEST_ZK_PORT = 3083;
 
   private TestingServer testingZKServer;
 

@@ -54,7 +54,7 @@ import gobblin.yarn.event.ApplicationMasterShutdownRequest;
 @Test(groups = { "gobblin.yarn" })
 public class GobblinApplicationMasterTest implements HelixMessageTestBase {
 
-  private static final int TEST_ZK_PORT = 3182;
+  private static final int TEST_ZK_PORT = 3082;
 
   private TestingServer testingZKServer;
 

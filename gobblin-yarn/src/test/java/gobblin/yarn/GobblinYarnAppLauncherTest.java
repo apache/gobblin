@@ -55,7 +55,7 @@ import gobblin.testing.AssertWithBackoff;
 @Test(groups = { "gobblin.yarn" })
 public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
-  private static final int TEST_ZK_PORT = 3181;
+  private static final int TEST_ZK_PORT = 3081;
 
   private YarnClient yarnClient;
 

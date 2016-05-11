@@ -67,7 +67,7 @@ import gobblin.testing.AssertWithBackoff;
 @Test(groups = { "gobblin.yarn" })
 public class YarnSecurityManagerTest {
 
-  private static final int TEST_ZK_PORT = 3185;
+  private static final int TEST_ZK_PORT = 3085;
 
   private CuratorFramework curatorFramework;
 
