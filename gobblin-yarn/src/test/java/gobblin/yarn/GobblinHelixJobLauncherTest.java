@@ -70,7 +70,7 @@ import gobblin.util.ConfigUtils;
 @Test(groups = { "gobblin.yarn" })
 public class GobblinHelixJobLauncherTest {
 
-  private static final int TEST_ZK_PORT = 3184;
+  private static final int TEST_ZK_PORT = 3084;
 
   private HelixManager helixManager;
 
