@@ -46,7 +46,7 @@ for P in :gobblin-admin :gobblin-api :gobblin-azkaban :gobblin-compaction :gobbl
         ans="y" 
     fi
     if [ "$ans" == "y" -o "$ans" == "yes" ] ; then
-       ./maven-sonatype.sh -remote -noclean -packages $P
+       ./maven-sonatype/maven-sonatype.sh -remote -noclean -packages $P
     else
        echo "Skipping $P"
     fi
