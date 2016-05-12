@@ -40,6 +40,7 @@ import gobblin.commit.CommitSequence;
 import gobblin.commit.CommitSequenceStore;
 import gobblin.commit.DeliverySemantics;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.initializer.ConverterInitializerFactory;
 import gobblin.metastore.StateStore;
@@ -62,6 +63,7 @@ import gobblin.runtime.util.JobMetrics;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ClusterNameTags;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.HadoopUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.writer.initializer.WriterInitializerFactory;
@@ -127,6 +129,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     // Make a copy for both the system and job configuration properties
     this.jobProps = new Properties();
     this.jobProps.putAll(jobProps);
+
+    HDFSAuthUtils.login(new State(jobProps));
 
     this.jobContext = new JobContext(this.jobProps, LOG);
     this.eventBus.register(this.jobContext);

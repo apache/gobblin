@@ -265,7 +265,7 @@ public class WriterUtils {
       }
     } else {
       // Initialize file system as the current user.
-      return FileSystem.get(uri, new Configuration());
+      return FileSystem.get(uri, HadoopUtils.getConfFromState(state));
     }
   }
 }
