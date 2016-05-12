@@ -12,6 +12,7 @@
 package gobblin.data.management.convertion.hive;
 
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import com.google.gson.Gson;
@@ -24,11 +25,13 @@ import gobblin.source.extractor.Watermark;
  */
 @Getter
 @AllArgsConstructor
+@EqualsAndHashCode
 public class LongWatermark implements Watermark, Comparable<LongWatermark> {
 
   private static final Gson GSON = new Gson();
 
   private long value;
+
   @Override
   public JsonElement toJson() {
     return GSON.toJsonTree(this);

@@ -24,7 +24,7 @@
 	</Match>
   <!-- Ignored until https://github.com/linkedin/gobblin/issues/969 has been resolved -->
   <Match>
-     <Class name="gobblin.metastore.DatabaseJobHistoryStore" />
+     <Class name="~gobblin\.metastore\.database\.DatabaseJobHistoryStoreV.*" />
      <Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING" />
   </Match>
   <!-- Ignored until https://github.com/linkedin/gobblin/issues/976 has been resolved -->

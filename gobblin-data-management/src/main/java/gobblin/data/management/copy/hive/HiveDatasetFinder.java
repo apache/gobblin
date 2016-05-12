@@ -136,6 +136,9 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
       @Nullable
       @Override
       public HiveDataset apply(@Nullable DbAndTable dbAndTable) {
+        if (dbAndTable == null) {
+          return null;
+        }
         try (AutoReturnableObject<IMetaStoreClient> client = clientPool.getClient()) {
           Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
           return createHiveDataset(table);
