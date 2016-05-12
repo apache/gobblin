@@ -14,8 +14,6 @@ package gobblin.runtime.local;
 
 import java.io.FileReader;
 import java.io.IOException;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.util.Properties;
 
 import org.testng.annotations.AfterClass;
@@ -25,6 +23,8 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
+import gobblin.metastore.testing.ITestMetastoreDatabase;
+import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
 import gobblin.util.limiter.BaseLimiterType;
@@ -43,28 +43,24 @@ public class LocalJobLauncherTest {
 
   private Properties launcherProps;
   private JobLauncherTestHelper jobLauncherTestHelper;
+  private ITestMetastoreDatabase testMetastoreDatabase;
 
   @BeforeClass
   public void startUp() throws Exception {
-    System.setProperty("derby.locks.deadlockTrace", "true");
-    System.setProperty("derby.locks.waitTimeout", "180");
-    System.setProperty("derby.locks.deadlockTimeout", "120");
+    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
     this.launcherProps = new Properties();
     this.launcherProps.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
-    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
-        "org.apache.derby.jdbc.EmbeddedDriver");
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
-        "jdbc:derby:memory:gobblin1;create=true");
+        testMetastoreDatabase.getJdbcUrl());
 
     StateStore<JobState.DatasetState> datasetStateStore =
         new FsStateStore<>(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
             this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.DatasetState.class);
 
     this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, datasetStateStore);
-    this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
   }
 
   @Test
@@ -203,12 +199,10 @@ public class LocalJobLauncherTest {
     }
   }
 
-  @AfterClass
-  public void tearDown() {
-    try {
-      DriverManager.getConnection("jdbc:derby:memory:gobblin1;shutdown=true");
-    } catch (SQLException se) {
-      // An exception is expected when shutting down the database
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws IOException {
+    if (testMetastoreDatabase != null) {
+      testMetastoreDatabase.close();
     }
   }
 

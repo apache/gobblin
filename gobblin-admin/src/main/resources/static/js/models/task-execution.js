@@ -25,10 +25,16 @@ var app = app || {}
       return this.attributes.state
     },
     getTaskStartTime: function () {
-      return this._formatTime(this.attributes.startTime)
+      if (this.attributes.startTime) {
+        return this._formatTime(this.attributes.startTime)
+      }
+      return '-'
     },
     getTaskEndTime: function () {
-      return this._formatTime(this.attributes.endTime)
+      if (this.attributes.endTime) {
+        return this._formatTime(this.attributes.endTime)
+      }
+      return '-'
     },
     getTaskDurationInSeconds: function () {
       if (this.attributes.state === 'COMMITTED') {
