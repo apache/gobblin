@@ -17,7 +17,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -31,6 +34,7 @@ import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
+
 import org.apache.thrift.TException;
 
 import com.google.common.base.Function;
@@ -56,7 +60,10 @@ public class HiveUtils {
       Optional<String> filter) throws IOException {
     return Maps.uniqueIndex(getPartitions(client, table, filter), new Function<Partition, List<String>>() {
       @Override
-      public List<String> apply(Partition partition) {
+      public List<String> apply(@Nullable Partition partition) {
+        if (partition == null) {
+          return null;
+        }
         return partition.getValues();
       }
     });

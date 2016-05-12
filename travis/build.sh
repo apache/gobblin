@@ -18,4 +18,4 @@
 #!/bin/bash
 set -e
 
-./gradlew clean assemble -Dorg.gradle.parallel=false
+./gradlew clean build -x test -Dorg.gradle.parallel=false
