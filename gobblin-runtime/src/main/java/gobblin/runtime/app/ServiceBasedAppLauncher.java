@@ -13,12 +13,15 @@
 package gobblin.runtime.app;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -220,12 +223,19 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
   }
 
   private void addServicesFromProperties(Properties properties)
-      throws IllegalAccessException, InstantiationException, ClassNotFoundException {
-    if (properties.contains(APP_ADDITIONAL_SERVICES)) {
+      throws IllegalAccessException, InstantiationException, ClassNotFoundException, InvocationTargetException {
+    if (properties.containsKey(APP_ADDITIONAL_SERVICES)) {
       for (String serviceClassName : new State(properties).getPropAsSet(APP_ADDITIONAL_SERVICES)) {
         Class<?> serviceClass = Class.forName(serviceClassName);
         if (Service.class.isAssignableFrom(serviceClass)) {
-          addService((Service) serviceClass.newInstance());
+          Service service;
+          Constructor<?> constructor = ConstructorUtils.getMatchingAccessibleConstructor(serviceClass, Properties.class);
+          if (constructor != null) {
+            service = (Service)constructor.newInstance(properties);
+          } else {
+            service = (Service) serviceClass.newInstance();
+          }
+          addService(service);
         } else {
           throw new IllegalArgumentException(String
               .format("Class %s specified by %s does not implement %s", serviceClassName, APP_ADDITIONAL_SERVICES,
