@@ -14,12 +14,17 @@ package gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.UnknownHostException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+import java.util.concurrent.ConcurrentMap;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -40,12 +45,11 @@ import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.tools.ClusterSetup;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValue;
-
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
-import gobblin.configuration.State;
+import com.typesafe.config.Config;
 
 
 /**
@@ -54,6 +58,10 @@ import gobblin.configuration.State;
  * @author Yinan Li
  */
 public class YarnHelixUtils {
+
+  private static final Joiner JOINER = Joiner.on(" ").skipNulls();
+
+  private static final ConcurrentMap<Integer, Boolean> usedPorts = Maps.newConcurrentMap();
 
   /**
    * Create a Helix cluster for the Gobblin Yarn application.
@@ -198,5 +206,47 @@ public class YarnHelixUtils {
     }
 
     return environmentVariableMap;
+  }
+
+  public static Optional<Integer> takePort() {
+    for (int i = 0; i < 25; i++) {
+      try (ServerSocket socket = new ServerSocket(0)) {
+        int port = socket.getLocalPort();
+        if (usedPorts.putIfAbsent(port, true) == null) {
+          return Optional.of(port);
+        }
+      } catch (IOException ignored) {
+      }
+  }
+    return Optional.absent();
+  }
+
+  public static void returnPort(Optional<Integer> port) {
+    if (port.isPresent()) {
+      usedPorts.remove(port.get());
+    }
+  }
+
+  public static String getJvmInputArguments() {
+    RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
+    List<String> arguments = runtimeMxBean.getInputArguments();
+    return String.format("JVM Input Arguments: %s", JOINER.join(arguments));
+  }
+
+  public static Optional<Integer> getJmxPort(Config config, String key) {
+    return config.hasPath(key) &&
+            config.getBoolean(key) ? YarnHelixUtils.takePort() :
+            Optional.<Integer>absent();
+  }
+
+  public static String getJmxJvmArguments(Config config, Optional<Integer> jmxPort) {
+    if (jmxPort.isPresent()) {
+      String configuration = GobblinYarnConfigurationKeys.DEFAULT_JMX_CONFIGURATION;
+      if (config.hasPath(GobblinYarnConfigurationKeys.JMX_CONFIGURATION)) {
+        configuration = config.getString(GobblinYarnConfigurationKeys.JMX_CONFIGURATION);
+      }
+      return " " + configuration.replace("$JMX_PORT", Integer.toString(jmxPort.get()));
+    }
+    return StringUtils.EMPTY;
   }
 }

@@ -15,7 +15,6 @@ package gobblin.yarn;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.AbstractMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -132,7 +131,7 @@ public class YarnService extends AbstractIdleService {
   private final Object allContainersStopped = new Object();
 
   // A map from container IDs to pairs of Container instances and Helix participant IDs of the containers
-  private final ConcurrentMap<ContainerId, Map.Entry<Container, String>> containerMap = Maps.newConcurrentMap();
+  private final ConcurrentMap<ContainerId, ContainerInfo> containerMap = Maps.newConcurrentMap();
 
   // A generator for an integer ID of a Helix instance (participant)
   private final AtomicInteger helixInstanceIdGenerator = new AtomicInteger(0);
@@ -247,10 +246,10 @@ public class YarnService extends AbstractIdleService {
       ExecutorsUtils.shutdownExecutorService(this.containerLaunchExecutor, Optional.of(LOGGER));
 
       // Stop the running containers
-      for (Map.Entry<Container, String> entry : this.containerMap.values()) {
-        LOGGER.info(String.format("Stopping container %s running participant %s", entry.getKey().getId(),
-            entry.getValue()));
-        this.nmClientAsync.stopContainerAsync(entry.getKey().getId(), entry.getKey().getNodeId());
+      for (ContainerInfo entry : this.containerMap.values()) {
+        LOGGER.info(String.format("Stopping container %s running participant %s", entry.getContainer().getId(),
+            entry.getParticipantId()));
+        this.nmClientAsync.stopContainerAsync(entry.getContainer().getId(), entry.getContainer().getNodeId());
       }
 
       if (!this.containerMap.isEmpty()) {
@@ -321,7 +320,8 @@ public class YarnService extends AbstractIdleService {
         new AMRMClient.ContainerRequest(capability, preferredNodes, null, priority));
   }
 
-  private ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
+  private ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName,
+                                                           Optional<Integer> jmxPort)
       throws IOException {
     Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId);
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
@@ -340,7 +340,8 @@ public class YarnService extends AbstractIdleService {
     ContainerLaunchContext containerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     containerLaunchContext.setLocalResources(resourceMap);
     containerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
-    containerLaunchContext.setCommands(Lists.newArrayList(buildContainerCommand(container, helixInstanceName)));
+    containerLaunchContext.setCommands(
+            Lists.newArrayList(buildContainerCommand(container, helixInstanceName, jmxPort)));
 
     if (UserGroupInformation.isSecurityEnabled()) {
       containerLaunchContext.setTokens(this.tokens.duplicate());
@@ -395,10 +396,11 @@ public class YarnService extends AbstractIdleService {
     }
   }
 
-  private String buildContainerCommand(Container container, String helixInstanceName) {
+  private String buildContainerCommand(Container container, String helixInstanceName, Optional<Integer> jmxPort) {
     String containerProcessName = GobblinWorkUnitRunner.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
+        .append(YarnHelixUtils.getJmxJvmArguments(config, jmxPort))
         .append(" -Xmx").append(container.getResource().getMemory()).append("M")
         .append(" ").append(this.containerJvmArgs.or(""))
         .append(" ").append(GobblinWorkUnitRunner.class.getName())
@@ -445,8 +447,8 @@ public class YarnService extends AbstractIdleService {
    * A replacement container is needed in all but the last case.
    */
   private void handleContainerCompletion(ContainerStatus containerStatus) {
-    Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
-    String completedInstanceName = completedContainerEntry.getValue();
+    ContainerInfo completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
+    String completedInstanceName = completedContainerEntry.getParticipantId();
 
     LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
         containerStatus.getContainerId(), completedInstanceName, containerStatus.getExitStatus()));
@@ -485,6 +487,10 @@ public class YarnService extends AbstractIdleService {
     // instance names so they can be reused by a replacement container.
     this.unusedHelixInstanceNames.offer(completedInstanceName);
 
+    // Remove the container jmx port from set of used ports so that it
+    // can be reused by a replacement container.
+    YarnHelixUtils.returnPort(completedContainerEntry.getJmxPort());
+
     if (this.eventSubmitter.isPresent()) {
       this.eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.HELIX_INSTANCE_COMPLETION,
           eventMetadataBuilder.get().build());
@@ -494,7 +500,7 @@ public class YarnService extends AbstractIdleService {
         containerStatus.getContainerId(), completedInstanceName));
     this.eventBus.post(new NewContainerRequest(
         shouldStickToTheSameNode(containerStatus.getExitStatus()) ?
-            Optional.of(completedContainerEntry.getKey()) : Optional.<Container>absent()));
+            Optional.of(completedContainerEntry.getContainer()) : Optional.<Container>absent()));
   }
 
   private ImmutableMap.Builder<String, String> buildContainerStatusEventMetadata(ContainerStatus containerStatus) {
@@ -512,6 +518,30 @@ public class YarnService extends AbstractIdleService {
     }
 
     return eventMetadataBuilder;
+  }
+
+  private class ContainerInfo {
+    private Container container;
+    private String participantId;
+    private Optional<Integer> jmxPort;
+
+    public ContainerInfo(Container container, String participantId, Optional<Integer> jmxPort) {
+      this.container = container;
+      this.participantId = participantId;
+      this.jmxPort = jmxPort;
+    }
+
+    public Container getContainer() {
+      return container;
+    }
+
+    public String getParticipantId() {
+      return participantId;
+    }
+
+    public Optional<Integer> getJmxPort() {
+      return jmxPort;
+    }
   }
 
   /**
@@ -546,7 +576,10 @@ public class YarnService extends AbstractIdleService {
         }
 
         final String finalInstanceName = instanceName;
-        containerMap.put(container.getId(), new AbstractMap.SimpleImmutableEntry<>(container, finalInstanceName));
+        final Optional<Integer> jmxPort =
+                YarnHelixUtils.getJmxPort(config, GobblinYarnConfigurationKeys.CONTAINER_JMX_ENABLED);
+
+        containerMap.put(container.getId(), new ContainerInfo(container, finalInstanceName, jmxPort));
 
         containerLaunchExecutor.submit(new Runnable() {
           @Override
@@ -554,7 +587,8 @@ public class YarnService extends AbstractIdleService {
             try {
               LOGGER.info("Starting container " + container.getId());
 
-              nmClientAsync.startContainerAsync(container, newContainerLaunchContext(container, finalInstanceName));
+              nmClientAsync.startContainerAsync(container,
+                      newContainerLaunchContext(container, finalInstanceName, jmxPort));
             } catch (IOException ioe) {
               LOGGER.error("Failed to start container " + container.getId(), ioe);
             }
