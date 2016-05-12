@@ -271,8 +271,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
       addHDFSFiles(this.jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
     }
 
+    // Add job-specific jars existing in HDFS to the classpath for the mappers
+    if (jobProps.containsKey(ConfigurationKeys.JOB_JAR_HDFS_FILES_KEY)) {
+      addHdfsJars(jobProps.getProperty(ConfigurationKeys.JOB_JAR_HDFS_FILES_KEY));
+    }
+
     distributedCacheSetupTimer.stop();
   }
+
 
   /**
    * Prepare the Hadoop MR job, including configuring the job and setting up the input/output paths.
@@ -388,6 +394,19 @@ public class MRJobLauncher extends AbstractJobLauncher {
       LOG.info(String.format("Adding %s to DistributedCache", srcFileUri));
       // Finally add the file to DistributedCache with a symlink named after the file name
       DistributedCache.addCacheFile(srcFileUri, this.conf);
+    }
+  }
+
+  private void addHdfsJars(String hdfsJarFileList) throws IOException {
+    for (String jarFile : SPLITTER.split(hdfsJarFileList)) {
+      FileStatus[] status = fs.listStatus(new Path(jarFile));
+      for(FileStatus fileStatus : status) {
+        if(!fileStatus.isDir()) {
+          Path path = new Path(jarFile, fileStatus.getPath().getName());
+          LOG.info(String.format("Adding %s to classpath", path));
+          DistributedCache.addFileToClassPath(path, this.conf, this.fs);
+        }
+      }
     }
   }
 

@@ -81,7 +81,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
   private static final String HADOOP_JAVA_JOB = "hadoopJava";
   private static final String JAVA_JOB = "java";
-  private static final Set<String> JOB_TYPES_WITH_AUTOMATIC_TOKEN = Sets.newHashSet(HADOOP_JAVA_JOB, JAVA_JOB);
+  private static final String GOBBLIN_JOB = "gobblin";
+  private static final Set<String> JOB_TYPES_WITH_AUTOMATIC_TOKEN = Sets.newHashSet(HADOOP_JAVA_JOB, JAVA_JOB, GOBBLIN_JOB);
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;

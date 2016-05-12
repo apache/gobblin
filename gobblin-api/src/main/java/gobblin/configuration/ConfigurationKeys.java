@@ -104,6 +104,7 @@ public class ConfigurationKeys {
   public static final String JOB_JAR_FILES_KEY = "job.jars";
   public static final String JOB_LOCAL_FILES_KEY = "job.local.files";
   public static final String JOB_HDFS_FILES_KEY = "job.hdfs.files";
+  public static final String JOB_JAR_HDFS_FILES_KEY = "job.hdfs.jars";
   public static final String JOB_LOCK_ENABLED_KEY = "job.lock.enabled";
   public static final String JOB_MAX_FAILURES_KEY = "job.max.failures";
   public static final int DEFAULT_JOB_MAX_FAILURES = 1;
@@ -115,6 +116,7 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE = false;
   public static final String CLEANUP_STAGING_DATA_PER_TASK = "cleanup.staging.data.per.task";
   public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
+  public static final String CLEANUP_STAGING_DATA_BY_INITIALIZER = "cleanup.staging.data.by.initializer";
 
   /**
    * Configuration properties used internally.
@@ -189,6 +191,9 @@ public class ConfigurationKeys {
   public static final String CONVERTER_STRING_SPLITTER_DELIMITER = "converter.string.splitter.delimiter";
   public static final String CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "converter.csv.to.json.enclosedchar";
   public static final String DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "\0";
+  public static final String CONVERTER_AVRO_FIELD_PICK_FIELDS = "converter.avro.fields";
+  public static final String CONVERTER_AVRO_JDBC_ENTRY_FIELDS_PAIRS = "converter.avro.jdbc.entry_fields_pairs";
+
 
   /**
    * Fork operator configuration properties.
@@ -212,6 +217,8 @@ public class ConfigurationKeys {
   public static final String WRITER_OUTPUT_FORMAT_KEY = WRITER_PREFIX + ".output.format";
   public static final String WRITER_FILE_SYSTEM_URI = WRITER_PREFIX + ".fs.uri";
   public static final String WRITER_STAGING_DIR = WRITER_PREFIX + ".staging.dir";
+  public static final String WRITER_STAGING_TABLE = WRITER_PREFIX + ".staging.table";
+  public static final String WRITER_TRUNCATE_STAGING_TABLE = WRITER_PREFIX + ".truncate.staging.table";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "gobblin.writer.AvroDataWriterBuilder";

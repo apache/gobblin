@@ -241,6 +241,8 @@ ext.externalDependency = [
           "org.eclipse.jetty:jetty-servlet:9.2.14.v20151106"
   ],
   "servlet-api": "javax.servlet:servlet-api:3.1.0",
+  "guavaretrying": "com.github.rholder:guava-retrying:2.0.0",
+  "jsonAssert": "org.skyscreamer:jsonassert:1.2.3",
   "reflections" : "org.reflections:reflections:0.9.10"
 ];
 

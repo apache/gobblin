@@ -28,6 +28,7 @@ pages:
         - Schedulers: user-guide/Gobblin-Schedulers.md
         - Job Execution History Store: user-guide/Job-Execution-History-Store.md
         - Gobblin Build Options: user-guide/Gobblin-Build-Options.md
+        - JDBC Writer: user-guide/Gobblin-JDBC-Writer.md
         - Troubleshooting: user-guide/Troubleshooting.md
         - FAQs: user-guide/FAQs.md
     - Case Studies:

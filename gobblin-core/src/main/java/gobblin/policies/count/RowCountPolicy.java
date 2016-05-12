@@ -12,12 +12,16 @@
 
 package gobblin.policies.count;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.qualitychecker.task.TaskLevelPolicy;
 
 
 public class RowCountPolicy extends TaskLevelPolicy {
+  private static final Logger LOG = LoggerFactory.getLogger(RowCountPolicy.class);
   private final long rowsRead;
   private final long rowsWritten;
 
@@ -32,7 +36,13 @@ public class RowCountPolicy extends TaskLevelPolicy {
     if (this.rowsRead == this.rowsWritten) {
       return Result.PASSED;
     } else {
+      LOG.warn(this.getClass().getSimpleName() + " fails as read count and write count mismatch: " + this);
       return Result.FAILED;
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format("RowCountPolicy [rowsRead=%s, rowsWritten=%s]", rowsRead, rowsWritten);
   }
 }

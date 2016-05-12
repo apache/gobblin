@@ -41,6 +41,7 @@ import gobblin.commit.CommitSequenceStore;
 import gobblin.commit.DeliverySemantics;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.initializer.ConverterInitializerFactory;
 import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
@@ -63,6 +64,7 @@ import gobblin.util.ClusterNameTags;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
+import gobblin.writer.initializer.WriterInitializerFactory;
 
 
 /**
@@ -217,7 +219,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               String.format("Previous instance of job %s is still running, skipping this scheduled run",
                   this.jobContext.getJobName()));
         }
-        try {
+        try (Closer closer = Closer.create()) {
           notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_PREPARE,
               new JobListenerAction() {
                 @Override
@@ -253,6 +255,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             LOG.warn("No work units have been created for job " + jobId);
             return;
           }
+
+          //Initialize writer and converter(s)
+          closer.register(WriterInitializerFactory.newInstace(jobState, workUnits.get())).initialize();
+          closer.register(ConverterInitializerFactory.newInstance(jobState, workUnits.get())).initialize();
 
           TimingEvent stagingDataCleanTimer =
               this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_STAGING_DATA_CLEAN);
@@ -704,6 +710,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Staging data will not be cleaned if the job has unfinished {@link CommitSequence}s.
    */
   private void cleanLeftoverStagingData(List<WorkUnit> workUnits, JobState jobState) throws JobException {
+    if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_BY_INITIALIZER, false)) {
+      //Clean up will be done by initializer.
+      return;
+    }
 
     try {
       if (!canCleanStagingData(jobState)) {
@@ -748,6 +758,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Staging data will not be cleaned if the job has unfinished {@link CommitSequence}s.
    */
   private void cleanupStagingData(JobState jobState) throws JobException {
+    if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_BY_INITIALIZER, false)) {
+      //Clean up will be done by initializer.
+      return;
+    }
 
     try {
       if (!canCleanStagingData(jobState)) {
