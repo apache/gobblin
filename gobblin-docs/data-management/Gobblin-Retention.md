@@ -1,6 +1,6 @@
-#Table Of COntents
+#Table Of Contents
 [TOC]
-#Intrduction
+#Introduction
 Gobblin retention management is a framework to manage the retention of Hadoop datasets. The system allows users to configure the retention policies for individual datasets using the Gobblin config store. This framework gives the flexibility to associate retention configurations both at a dataset level and a cluster level.
 For HDFS datasets, the framework comes with several standard policies like timebased policy, policy to retain top k files in a dataset and many more. It also has in-built support for standard data layouts like daily/hourly paritioned data and snapshot data.
 
@@ -8,7 +8,7 @@ For HDFS datasets, the framework comes with several standard policies like timeb
 The design has two parts. The first parts describes the contructs like dataset finders, version finders and policies. The second part describes the configuration aspects of gobblin retention management.
 
 ## Overview of Gobblin Config Management Library
-To support all the retention configuration requirements, we use Gobblin Dataset Config Management library.This is a short overview. In the gobblin code base it can be found in the module `gobblin-config-management`
+To support all the retention configuration requirements, we use Gobblin Dataset Config Management library.This is a short overview. In the gobblin code base it can be found in the module ```gobblin-config-management```
 
 The Gobblin Dataset Config Management Library is a library for storing, managing and accessing configuration. The library is an extension to TypeSafe Config with additional features like dataset awareness and tags.
 
@@ -29,29 +29,29 @@ ConfigStore is implemented but other physical stores can be implemented
 ![Gobblin Retention Architecture](../img/Gobblin-Retention-Architecture.png)
 
 ### DatasetCleaner
-The `DatasetCleaner` is the retention runner. The class takes in job properites as key value pairs. A single `DatasetCleaner` can manage retention for different kinds of datasets. Each kind of dataset gets its own `DatasetFinder`. `DatasetCleaner` is responsible for instantiating all the `DatasetFinder`s. For each `DatasetFinder` it finds all the `CleanableDataset`s and calls the `CleanableDataset.clean()` method to delete data. 
+The ```DatasetCleaner``` is the retention runner. The class takes in job properites as key value pairs. A single ```DatasetCleaner``` can manage retention for different kinds of datasets. Each kind of dataset gets its own ```DatasetFinder```. ```DatasetCleaner``` is responsible for instantiating all the ```DatasetFinder```s. For each ```DatasetFinder``` it finds all the ```CleanableDataset```s and calls the ```CleanableDataset.clean()``` method to delete data. 
 
-To instantiate all the dataset finders, it uses the `gobblin.retention.tag` job property. This is a comma seperated list of tag URIs in the `ConfigStore`. A `DatasetFinder` will be created for every dataset that imports any of these tags. 
+To instantiate all the dataset finders, it uses the ```gobblin.retention.tag``` job property. This is a comma seperated list of tag URIs in the ```ConfigStore```. A ```DatasetFinder``` will be created for every dataset that imports any of these tags. 
 
-For instance let's say we have a all the event based datasets at `/datasets/trackingData` in the `ConfigStore` and it is tagged with a tag `/tags/retention/TimeBased`. When `gobblin.retention.tag` is set to `/tags/retention/TimeBased`. All datasets that are tagged with `/tags/retention/TimeBased` in the `ConfigStore` will be processed by this retention job. So in this case a `DatasetFinder` will be created for `/datasets/trackingData`. More details about the `ConfigStore` in [Retention Configuration](#Retention Configuration) section.
+For instance let's say we have a all the event based datasets at ```/datasets/trackingData``` in the ```ConfigStore``` and it is tagged with a tag ```/tags/retention/TimeBased```. When ```gobblin.retention.tag``` is set to ```/tags/retention/TimeBased```. All datasets that are tagged with ```/tags/retention/TimeBased``` in the ```ConfigStore``` will be processed by this retention job. So in this case a ```DatasetFinder``` will be created for ```/datasets/trackingData```. More details about the ```ConfigStore``` in [Retention Configuration](#Retention Configuration) section.
 
 ### DatasetFinder
-A `DatasetFinder ` is an interface to find all `CleanableDataset`s
+A ```DatasetFinder ``` is an interface to find all ```CleanableDataset```s
 
 ### ManagedCleanableDatasetFinder
-This is the most basic implementation of a `DatasetFinder` that extends a `ConfigurableGlobDatasetFinder` to find HDFS datasets based on a glob pattern. It uses the `ConfigClient` to connect to the `ConfigStore` and get the dataset specific configs for each dataset found.
+This is the most basic implementation of a ```DatasetFinder``` that extends a ```ConfigurableGlobDatasetFinder``` to find HDFS datasets based on a glob pattern. It uses the ```ConfigClient``` to connect to the ```ConfigStore``` and get the dataset specific configs for each dataset found.
 
 ### ConfigurableCleanableDataset
-The `ManagedCleanableDatasetFinder` instantiates a `ConfigurableClenableDataset` for every match in the glob pattern. This class reads the dataset config to instatiate a list of `VersionFinder` and `VersionSelectionPolicy` pairs. The Retention Configuration section provides details on config keys used to specify the `VersionFinder` and `VersionSelectionPolicy` classes.
+The ```ManagedCleanableDatasetFinder``` instantiates a ```ConfigurableClenableDataset``` for every match in the glob pattern. This class reads the dataset config to instatiate a list of ```VersionFinder``` and ```VersionSelectionPolicy``` pairs. The Retention Configuration section provides details on config keys used to specify the ```VersionFinder``` and ```VersionSelectionPolicy``` classes.
 
 ### VersionFinder
-A version is defined as a deletable entity (or a path) in a dataset. A version can either be retained or deleted. The `VersionFinder` finds all the versions of a dataset.
+A version is defined as a deletable entity (or a path) in a dataset. A version can either be retained or deleted. The ```VersionFinder``` finds all the versions of a dataset.
 
 ### VersionSelectionPolicy
 A policy to find all the versions that need to be deleted. Note that the versions selected by this policy will be **Deleted** not retained.
 
 ## Retention Configuration
-Gobblin Retention is configured through Gobblin config management. All dataset configs are stored in a config store that can be accessed through a `ConfigClient`. The gobblin config management uses [TypeSafe Config](https://github.com/typesafehub/config). The language used is [HOCON](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation), a more readable JSON superset.
+Gobblin Retention is configured through Gobblin config management. All dataset configs are stored in a config store that can be accessed through a ```ConfigClient```. The gobblin config management uses [TypeSafe Config](https://github.com/typesafehub/config). The language used is [HOCON](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation), a more readable JSON superset.
 
 The gobblin config management library allows any implementation of config store but for the scope of this document we assume a HDFS based ConfigStore that stores dataset configs in files on HDFS.
 
@@ -75,14 +75,14 @@ Let us take an example ConfigStore instance on HDFS as below.
        
 </pre>
 
-Every config store has a store root directory named `_CONFIG_STORE`. Each new deployment of a store creates a new version (2.0 shown above). Each directory in the store may have a main.conf file and an includes.conf file. The main.conf file holds the config key/value pairs. And includes.conf are used to import other directory paths in the same store. For instance, `_CONFIG_STORE/2.0/data/events` can import `/tags/retention` in its includes.conf file. All the key value pairs in `/tags/retention/main.conf` are automatically imported into `/data/events`.
+Every config store has a store root directory named ```_CONFIG_STORE```. Each new deployment of a store creates a new version (2.0 shown above). Each directory in the store may have a main.conf file and an includes.conf file. The main.conf file holds the config key/value pairs. And includes.conf are used to import other directory paths in the same store. For instance, ```_CONFIG_STORE/2.0/data/events``` can import ```/tags/retention``` in its includes.conf file. All the key value pairs in ```/tags/retention/main.conf``` are automatically imported into ```/data/events```.
 
-Note that the directory structure under the configStore correspond to the direcctory structure of data on HDFS. In this case `hdfs://data/events/loginEvent`'s retention configs are at `hdfs://_CONFIG_STORE/2.0/data/events/loginEvent/main.conf` in the config store.
+Note that the directory structure under the configStore correspond to the direcctory structure of data on HDFS. In this case ```hdfs://data/events/loginEvent```'s retention configs are at ```hdfs://_CONFIG_STORE/2.0/data/events/loginEvent/main.conf``` in the config store.
 
 ### Tags
 For maintainability and reusablity we define all the configs as tags and import them into the dataset.
 
-- Below is a sample timebased retention tag, `/tags/retention/timebased/main.conf`
+- Below is a sample timebased retention tag, ```/tags/retention/timebased/main.conf```
 
 <pre>
 
@@ -111,14 +111,14 @@ gobblin.retention : {
 }   
 </pre>
 
-- To apply this retention config to `hdfs://data/events` the tag `/tags/retention/timeBased` can be imported by `_CONFIG_STORE/2.0/data/events/includes.conf` shown below.
+- To apply this retention config to ```hdfs://data/events``` the tag ```/tags/retention/timeBased``` can be imported by ```_CONFIG_STORE/2.0/data/events/includes.conf``` shown below.
 
 <pre>
 ###### Include files for /data/events ######
 tags/retention/timeBased
 </pre>
 
-- `_CONFIG_STORE/2.0/data/events/includes.conf` Will have the configs specific to `data/events` shown below.
+- ```_CONFIG_STORE/2.0/data/events/includes.conf``` Will have the configs specific to ```data/events``` shown below.
 
 <pre>
 ##### Common configs for all of /data/events ######
@@ -126,10 +126,10 @@ tags/retention/timeBased
 gobblin.dataset.pattern = "/data/events/*"
 </pre>
 
-Similarly the same tag `/tags/retention/timebased` can be imported by other datasets as well.
+Similarly the same tag ```/tags/retention/timebased``` can be imported by other datasets as well.
 
 ### Dataset overrides
-By default all the event datasets under `hdfs://data/events` get the configs from `_CONFIG_STORE/2.0/data/events` but sometimes it becomes necessary to override the retention for a specific dataset under `hdfs://data/events`. This can be done by creating a directory under `_CONFIG_STORE/2.0/data/events` with the name of dataset and overriding config keys. For instance if we want retention of 1d for `loginEvent` we can create `_CONFIG_STORE/2.0/data/events/loginEvent/main.conf` as below.
+By default all the event datasets under ```hdfs://data/events``` get the configs from ```_CONFIG_STORE/2.0/data/events``` but sometimes it becomes necessary to override the retention for a specific dataset under ```hdfs://data/events```. This can be done by creating a directory under ```_CONFIG_STORE/2.0/data/events``` with the name of dataset and overriding config keys. For instance if we want retention of 1d for ```loginEvent``` we can create ```_CONFIG_STORE/2.0/data/events/loginEvent/main.conf``` as below.
 All other event datasets will have the default retention of 1000d.
 
 <pre>
@@ -143,7 +143,7 @@ gobblin.retention : {
 </pre>
 
 ## Supported Retention Configurations
-Below is a list of ready to use supported retention configurations. But users can always implement their own `DatasetFinder`,`VersionFinder` and `VersionSelectionPolicy` and plug it in.
+Below is a list of ready to use supported retention configurations. But users can always implement their own ```DatasetFinder```,```VersionFinder``` and ```VersionSelectionPolicy``` and plug it in.
 
 ### 1. Time based retention
 To delete data older than some time
@@ -259,20 +259,3 @@ gobblin.retention : {
 }
 
 </pre>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
