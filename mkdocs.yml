@@ -34,6 +34,8 @@ pages:
     - Case Studies:
         - Kafka-HDFS Ingestion: case-studies/Kafka-HDFS-Ingestion.md
         - Publishing Data to S3: case-studies/Publishing-Data-to-S3.md
+    - Gobblin Data Management:
+        - Retention: data-management/Gobblin-Retention.md
     - Gobblin Metrics:
         - Quick Start: metrics/Gobblin-Metrics.md
         - Existing Reporters: metrics/Existing-Reporters.md
