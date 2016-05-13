@@ -31,6 +31,8 @@ pages:
         - JDBC Writer: user-guide/Gobblin-JDBC-Writer.md
         - Troubleshooting: user-guide/Troubleshooting.md
         - FAQs: user-guide/FAQs.md
+    - Gobblin Adaptors:
+        - Gobblin Distcp: adaptors/Gobblin-Distcp.md
     - Case Studies:
         - Kafka-HDFS Ingestion: case-studies/Kafka-HDFS-Ingestion.md
         - Publishing Data to S3: case-studies/Publishing-Data-to-S3.md
