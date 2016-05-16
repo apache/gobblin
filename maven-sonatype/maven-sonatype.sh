@@ -2,7 +2,7 @@
 
 script_dir=$(dirname $0)
 script_name=$(basename $0)
-GRADLE="$script_dir/gradlew"
+GRADLE="$script_dir/../gradlew"
 
 function print_usage() {
     echo -e "USAGE: $0 [-remote|-local] [-noclean] [gradle_args]"
