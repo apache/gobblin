@@ -46,7 +46,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 
-//import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import gobblin.commit.CommitStep;
 import gobblin.configuration.State;
@@ -622,17 +622,23 @@ public class HiveCopyEntityHelper {
     int stepPriority = initialPriority;
     Collection<Path> tablePaths = Lists.newArrayList();
 
-    if (helper.getDeleteMethod() == DeregisterFileDeleteMethod.RECURSIVE) {
-      tablePaths = Lists.newArrayList(table.getDataLocation());
-    } else if (helper.getDeleteMethod() == DeregisterFileDeleteMethod.INPUT_FORMAT) {
-      InputFormat<?, ?> inputFormat = HiveUtils.getInputFormat(table.getSd());
+    switch (helper.getDeleteMethod()) {
+      case RECURSIVE:
+        tablePaths = Lists.newArrayList(table.getDataLocation());
+        break;
+      case INPUT_FORMAT:
+        InputFormat<?, ?> inputFormat = HiveUtils.getInputFormat(table.getSd());
 
-      HiveLocationDescriptor targetLocation =
-          new HiveLocationDescriptor(table.getDataLocation(), inputFormat, helper.getTargetFs(), helper.getDataset().getProperties());
+        HiveLocationDescriptor targetLocation =
+            new HiveLocationDescriptor(table.getDataLocation(), inputFormat, helper.getTargetFs(), helper.getDataset().getProperties());
 
-      tablePaths = targetLocation.getPaths().keySet();
-    } else if (helper.getDeleteMethod() == DeregisterFileDeleteMethod.NO_DELETE) {
-      tablePaths = Lists.newArrayList();
+        tablePaths = targetLocation.getPaths().keySet();
+        break;
+      case NO_DELETE: 
+        tablePaths = Lists.newArrayList();
+        break;
+      default:
+        tablePaths = Lists.newArrayList();
     }
 
     if (!tablePaths.isEmpty()) {
@@ -657,7 +663,7 @@ public class HiveCopyEntityHelper {
   }
 
   // Suppress warnings for "stepPriority++" in the PrePublishStep constructor, as stepPriority may be used later
-  //@SuppressFBWarnings("DLS_DEAD_LOCAL_STORE")
+  @SuppressFBWarnings("DLS_DEAD_LOCAL_STORE")
   private List<CopyEntity> getCopyEntitiesForUnpartitionedTable() throws IOException {
     MultiTimingEvent multiTimer = new MultiTimingEvent(this.eventSubmitter, "TableCopy", true);
 
