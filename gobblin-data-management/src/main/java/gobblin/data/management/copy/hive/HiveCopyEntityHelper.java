@@ -615,46 +615,36 @@ public class HiveCopyEntityHelper {
     return stepPriority;
   }
   
-  protected int addTableDeregisterSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
-      Table table) throws IOException {
+  @VisibleForTesting
+  protected static int addTableDeregisterSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
+      Table table, HiveCopyEntityHelper helper) throws IOException {
 
-    System.out.println("in here =0");
     int stepPriority = initialPriority;
     Collection<Path> tablePaths = Lists.newArrayList();
 
-    System.out.println("in here =1");
-    if (this.getDeleteMethod() == DeregisterFileDeleteMethod.RECURSIVE) {
+    if (helper.getDeleteMethod() == DeregisterFileDeleteMethod.RECURSIVE) {
       tablePaths = Lists.newArrayList(table.getDataLocation());
-    } else if (this.getDeleteMethod() == DeregisterFileDeleteMethod.INPUT_FORMAT) {
+    } else if (helper.getDeleteMethod() == DeregisterFileDeleteMethod.INPUT_FORMAT) {
       InputFormat<?, ?> inputFormat = HiveUtils.getInputFormat(table.getSd());
 
       HiveLocationDescriptor targetLocation =
-          new HiveLocationDescriptor(table.getDataLocation(), inputFormat, this.getTargetFs(), this.getDataset().getProperties());
+          new HiveLocationDescriptor(table.getDataLocation(), inputFormat, helper.getTargetFs(), helper.getDataset().getProperties());
 
       tablePaths = targetLocation.getPaths().keySet();
-    } else if (this.getDeleteMethod() == DeregisterFileDeleteMethod.NO_DELETE) {
+    } else if (helper.getDeleteMethod() == DeregisterFileDeleteMethod.NO_DELETE) {
       tablePaths = Lists.newArrayList();
     }
 
-    System.out.println("in here =2");
     if (!tablePaths.isEmpty()) {
       DeleteFileCommitStep deletePaths =
-          DeleteFileCommitStep.fromPaths(this.getTargetFs(), tablePaths, this.getDataset().getProperties(), table.getDataLocation());
+          DeleteFileCommitStep.fromPaths(helper.getTargetFs(), tablePaths, helper.getDataset().getProperties(), table.getDataLocation());
       copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deletePaths, stepPriority++));
     }
 
-    System.out.println("in here =3");
     TableDeregisterStep deregister =
-        new TableDeregisterStep(table.getTTable(), this.getTargetURI(), this.getHiveRegProps());
+        new TableDeregisterStep(table.getTTable(), helper.getTargetURI(), helper.getHiveRegProps());
     copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deregister, stepPriority++));
-    System.out.println("in here result is " + stepPriority);
     return stepPriority;
-  }
-  
-  protected int addTableDeregisterStepsFOO(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
-      Table table) throws IOException {
-
-    return 5;
   }
 
   private int addSharedSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority) {
@@ -684,7 +674,7 @@ public class HiveCopyEntityHelper {
         }
         
         log.warn("Source and target table are not compatible. Will override target table " + this.existingTargetTable.get().getDataLocation());
-        stepPriority = addTableDeregisterSteps(copyEntities, fileSet, stepPriority, targetTable);
+        stepPriority = addTableDeregisterSteps(copyEntities, fileSet, stepPriority, targetTable, this);
         this.existingTargetTable = Optional.absent();
       }
     }
@@ -730,7 +720,6 @@ public class HiveCopyEntityHelper {
       HiveCopyEntityHelper helper)
       throws IOException {
 
-    System.out.println("AAA BB");
     DiffPathSet.DiffPathSetBuilder builder = DiffPathSet.builder();
 
     multiTimer.nextStage(Stages.SOURCE_PATH_LISTING);

@@ -35,6 +35,7 @@ import com.google.common.collect.Maps;
 
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyEntity;
+import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.data.management.copy.hive.HiveCopyEntityHelper.DeregisterFileDeleteMethod;
 import gobblin.hive.HiveRegProps;
 import gobblin.metrics.event.MultiTimingEvent;
@@ -148,7 +149,6 @@ public class HiveCopyEntityHelperTest {
     Mockito.when(helper.getTargetURI()).thenReturn(Optional.of("/targetURI"));
     Mockito.when(helper.getHiveRegProps()).thenReturn(new HiveRegProps(new State()));
     Mockito.when(helper.getDataset()).thenReturn(dataset);
-    System.out.println("target uri " + helper.getTargetURI());
 
     org.apache.hadoop.hive.ql.metadata.Table meta_table = Mockito.mock(org.apache.hadoop.hive.ql.metadata.Table.class);
     org.apache.hadoop.hive.metastore.api.Table api_table = Mockito.mock(org.apache.hadoop.hive.metastore.api.Table.class);
@@ -158,13 +158,14 @@ public class HiveCopyEntityHelperTest {
     
     List<CopyEntity> copyEntities = new ArrayList<CopyEntity>();
     String fileSet = "testFileSet";
-    int initialPriority = 10;
-    System.out.println("AA begin");
-    int priority = helper.addTableDeregisterStepsFOO(copyEntities, fileSet, initialPriority, meta_table);
-    System.out.println("AA A priority is " + priority);
-    //System.out.println("table deregister step is " + copyEntities.get(0));
-    //Assert.assertTrue(priority == 1);
-    //Assert.assertTrue(copyEntities.size() == 0);
+    int initialPriority = 0;
+    int priority = HiveCopyEntityHelper.addTableDeregisterSteps(copyEntities, fileSet, initialPriority, meta_table, helper);
+    Assert.assertTrue(priority == 1);
+    Assert.assertTrue(copyEntities.size() == 1);
+    
+    Assert.assertTrue(copyEntities.get(0) instanceof PrePublishStep);
+    PrePublishStep p = (PrePublishStep)(copyEntities.get(0));
+    Assert.assertTrue(p.getStep().toString().contains("Deregister table TestDB.TestTable on Hive metastore /targetURI"));
   }
   
   @Test public void testReplacedPrefix() throws Exception {
