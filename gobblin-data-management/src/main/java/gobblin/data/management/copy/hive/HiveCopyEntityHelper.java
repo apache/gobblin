@@ -46,7 +46,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import com.google.gson.Gson;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+//import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import gobblin.commit.CommitStep;
 import gobblin.configuration.State;
@@ -615,35 +615,46 @@ public class HiveCopyEntityHelper {
     return stepPriority;
   }
   
-  private int addTableDeregisterSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
+  protected int addTableDeregisterSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
       Table table) throws IOException {
 
+    System.out.println("in here =0");
     int stepPriority = initialPriority;
     Collection<Path> tablePaths = Lists.newArrayList();
 
-    if (this.deleteMethod == DeregisterFileDeleteMethod.RECURSIVE) {
+    System.out.println("in here =1");
+    if (this.getDeleteMethod() == DeregisterFileDeleteMethod.RECURSIVE) {
       tablePaths = Lists.newArrayList(table.getDataLocation());
-    } else if (this.deleteMethod == DeregisterFileDeleteMethod.INPUT_FORMAT) {
+    } else if (this.getDeleteMethod() == DeregisterFileDeleteMethod.INPUT_FORMAT) {
       InputFormat<?, ?> inputFormat = HiveUtils.getInputFormat(table.getSd());
 
       HiveLocationDescriptor targetLocation =
-          new HiveLocationDescriptor(table.getDataLocation(), inputFormat, this.targetFs, this.dataset.getProperties());
+          new HiveLocationDescriptor(table.getDataLocation(), inputFormat, this.getTargetFs(), this.getDataset().getProperties());
 
       tablePaths = targetLocation.getPaths().keySet();
-    } else if (this.deleteMethod == DeregisterFileDeleteMethod.NO_DELETE) {
+    } else if (this.getDeleteMethod() == DeregisterFileDeleteMethod.NO_DELETE) {
       tablePaths = Lists.newArrayList();
     }
 
+    System.out.println("in here =2");
     if (!tablePaths.isEmpty()) {
       DeleteFileCommitStep deletePaths =
-          DeleteFileCommitStep.fromPaths(targetFs, tablePaths, this.dataset.getProperties(), table.getDataLocation());
+          DeleteFileCommitStep.fromPaths(this.getTargetFs(), tablePaths, this.getDataset().getProperties(), table.getDataLocation());
       copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deletePaths, stepPriority++));
     }
 
+    System.out.println("in here =3");
     TableDeregisterStep deregister =
-        new TableDeregisterStep(table.getTTable(), targetURI, hiveRegProps);
+        new TableDeregisterStep(table.getTTable(), this.getTargetURI(), this.getHiveRegProps());
     copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object>newHashMap(), deregister, stepPriority++));
+    System.out.println("in here result is " + stepPriority);
     return stepPriority;
+  }
+  
+  protected int addTableDeregisterStepsFOO(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
+      Table table) throws IOException {
+
+    return 5;
   }
 
   private int addSharedSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority) {
@@ -656,7 +667,7 @@ public class HiveCopyEntityHelper {
   }
 
   // Suppress warnings for "stepPriority++" in the PrePublishStep constructor, as stepPriority may be used later
-  @SuppressFBWarnings("DLS_DEAD_LOCAL_STORE")
+  //@SuppressFBWarnings("DLS_DEAD_LOCAL_STORE")
   private List<CopyEntity> getCopyEntitiesForUnpartitionedTable() throws IOException {
     MultiTimingEvent multiTimer = new MultiTimingEvent(this.eventSubmitter, "TableCopy", true);
 
@@ -719,6 +730,7 @@ public class HiveCopyEntityHelper {
       HiveCopyEntityHelper helper)
       throws IOException {
 
+    System.out.println("AAA BB");
     DiffPathSet.DiffPathSetBuilder builder = DiffPathSet.builder();
 
     multiTimer.nextStage(Stages.SOURCE_PATH_LISTING);
