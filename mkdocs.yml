@@ -36,6 +36,7 @@ pages:
     - Case Studies:
         - Kafka-HDFS Ingestion: case-studies/Kafka-HDFS-Ingestion.md
         - Publishing Data to S3: case-studies/Publishing-Data-to-S3.md
+        - Writing ORC Data: case-studies/Writing-ORC-Data.md
     - Gobblin Data Management:
         - Retention: data-management/Gobblin-Retention.md
     - Gobblin Metrics:
