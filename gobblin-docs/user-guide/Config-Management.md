@@ -94,14 +94,14 @@ The configuration is partitioned in a number of Config Stores . Each Config Stor
 * responsible for managing the mapping of config keys (represented through URIs with the Config Store scheme) to unresolved configs;
 
 <p align="center">
-    <img src=../img/configStoreDataModel.png>
+    <img src=../../img/configStoreDataModel.png>
 </p>
 
 ###Client application 
 The client application interacts using the **ConfigClient** API . The ConfigClient maintains a set of **ConfigStoreAccessor** objects which interact through the **ConfigStore** API with the appropriate ConfigStore implementation depending on the scheme of the ConfigStore URI . There can be a native implementation of the API like the **HadoopFS ConfigStore** or an adapter to an existing config/metadata store like the Hive MetaStore, etc
 
 <p align="center">
-    <img src=../img/configStoreClientApi.png>
+    <img src=../../img/configStoreClientApi.png>
 </p>
 
 ###File System layout
