@@ -1,3 +1,7 @@
+# Table of Contents
+
+[TOC]
+
 #Introduction
 There are multiple challenges in dataset configuration management in the context of ETL data processing as ETL infrastructure employs multi-state processing flows to ingest and publish data on HDFS. Here are some examples types of datasets and types of processing:
 

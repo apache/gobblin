@@ -30,6 +30,7 @@ pages:
         - Gobblin Build Options: user-guide/Gobblin-Build-Options.md
         - JDBC Writer: user-guide/Gobblin-JDBC-Writer.md
         - Hive Registration: user-guide/Hive-Registration.md
+        - Config Management : user-guide/Config-Management.md
         - Troubleshooting: user-guide/Troubleshooting.md
         - FAQs: user-guide/FAQs.md
     - Gobblin Adaptors:
