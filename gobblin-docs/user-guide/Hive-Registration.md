@@ -1,3 +1,7 @@
+# Table of Contents
+
+[TOC]
+
 Gobblin has the ability to register the ingested/compacted data in Hive. This allows registering data in Hive immediately after data is published at the destination, offering much lower latency compared to doing data ingestion and Hive registration separately.
 
 ## How Hive Registration Works in Gobblin
@@ -17,7 +21,7 @@ An example is [`HiveRegistrationPolicyBase`](https://github.com/linkedin/gobblin
 * A database/table name can be specified explicitly in `hive.database.name` or `hive.table.name`.
 * Alternatively, a database/table regex can be provided in `hive.database.regex` or `hive.table.regex`. The regex will be matched against the path to be registered, and if they match, the first group is considered the database/table name.
 * It is possible to register a path to multiple databases or tables by specifying `additional.hive.database.names` and `additional.hive.table.names`. If multiple databases and tables are specified, the path will be registered to the cross product.
-* If the provided/derived Hive database/table names are invalid, they are sanitized into a valid name. A database/table name is valid if it starts with an alphanumeric character, contains only alphanumeric characters and '_', and is not composed of numbers only.
+* If the provided/derived Hive database/table names are invalid, they are sanitized into a valid name. A database/table name is valid if it starts with an alphanumeric character, contains only alphanumeric characters and `_`, and is not composed of numbers only.
 
 One should in general extend `HiveRegistrationPolicyBase` when implementing a new `HiveRegistrationPolicy`.
 
@@ -41,6 +45,7 @@ Then, specify the appropriate table/partition properties in `hive.table.partitio
 Example table/partition properties are "owner" and "retention", example storage descriptor properties are "location", "compressed", "numBuckets", example SerDe properties are "serializationLib", "avro.schema.url".
 
 If you are running a Gobblin ingestion job:
+
 * If data is published in the job (which is the default case), use a job-level data publisher that can perform Hive registration, such as [`BaseDataPublisherWithHiveRegistration`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/publisher/BaseDataPublisherWithHiveRegistration.java). If you need to do Hive registration with a different publisher than `BaseDataPublisher`, you will need to extend that publisher to do Hive registration, which will be similar as how `BaseDataPublisher` is extended into `BaseDataPublisherWithHiveRegistration`.
 * If data is published in the tasks, use [`HiveRegistrationPublisher`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/publisher/HiveRegistrationPublisher.java) as the job-level data publisher. This publisher does not publish any data; it only does Hive registration.
 
