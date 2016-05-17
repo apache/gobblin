@@ -12,10 +12,6 @@
 
 package gobblin.source.extractor.extract.kafka;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.DatasetFilterUtils;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
@@ -26,6 +22,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.NotImplementedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.net.HostAndPort;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.util.DatasetFilterUtils;
 import kafka.api.PartitionFetchInfo;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.common.TopicAndPartition;
@@ -39,16 +48,6 @@ import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
-
-import org.apache.commons.lang3.NotImplementedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.net.HostAndPort;
 
 
 /**
@@ -190,6 +189,15 @@ public class KafkaWrapper implements Closeable {
       List<KafkaPartition> partitions = Lists.newArrayList();
 
       for (PartitionMetadata partitionMetadata : topicMetadata.partitionsMetadata()) {
+        if (null == partitionMetadata) {
+          LOG.error("Ignoring topic with null partition metadata " + topicMetadata.topic());
+          return Collections.emptyList();
+        }
+        if (null == partitionMetadata.leader()) {
+          LOG.error("Ignoring topic with null partition leader " + topicMetadata.topic() +
+                    " metatada=" + partitionMetadata);
+          return Collections.emptyList();
+        }
         partitions.add(new KafkaPartition.Builder().withId(partitionMetadata.partitionId())
             .withTopicName(topicMetadata.topic()).withLeaderId(partitionMetadata.leader().id())
             .withLeaderHostAndPort(partitionMetadata.leader().host(), partitionMetadata.leader().port()).build());
