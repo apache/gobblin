@@ -87,9 +87,8 @@ public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
   }
 
   @Override
-  public void close() throws IOException {
+  public void commit() throws IOException {
     this.writer.close(false);
-    super.close();
+    super.commit();
   }
-
 }
