@@ -13,15 +13,30 @@
 package gobblin.util;
 
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
+import gobblin.configuration.State;
 
 
 /**
  * A utility class for filtering datasets through blacklist and whitelist.
  */
 public class DatasetFilterUtils {
+
+  public static List<Pattern> getPatternList(State state, String propKey) {
+    return getPatternList(state, propKey, StringUtils.EMPTY);
+  }
+
+  public static List<Pattern> getPatternList(State state, String propKey, String def) {
+    List<String> list = state.getPropAsList(propKey, def);
+    return getPatternsFromStrings(list);
+  }
 
   /**
    * Convert a list of Strings to a list of Patterns.
@@ -32,6 +47,26 @@ public class DatasetFilterUtils {
       patterns.add(Pattern.compile(s));
     }
     return patterns;
+  }
+
+  public static List<String> filter(List<String> topics, List<Pattern> blacklist, List<Pattern> whitelist) {
+    List<String> result = Lists.newArrayList();
+    for (String topic : topics) {
+      if (survived(topic, blacklist, whitelist)) {
+        result.add(topic);
+      }
+    }
+    return result;
+  }
+
+  public static Set<String> filter(Set<String> topics, List<Pattern> blacklist, List<Pattern> whitelist) {
+    Set<String> result = Sets.newHashSet();
+    for (String topic : topics) {
+      if (survived(topic, blacklist, whitelist)) {
+        result.add(topic);
+      }
+    }
+    return result;
   }
 
   /**

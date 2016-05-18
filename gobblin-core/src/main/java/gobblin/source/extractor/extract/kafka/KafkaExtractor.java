@@ -30,8 +30,6 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.io.Closer;
-import com.google.gson.Gson;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -53,7 +51,6 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaExtractor.class);
 
   protected static final int INITIAL_PARTITION_IDX = -1;
-  protected static final Gson GSON = new Gson();
   protected static final Integer MAX_LOG_DECODING_ERRORS = 5;
 
   protected final WorkUnitState workUnitState;
@@ -62,7 +59,6 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   protected final MultiLongWatermark lowWatermark;
   protected final MultiLongWatermark highWatermark;
   protected final MultiLongWatermark nextWatermark;
-  protected final Closer closer;
   protected final KafkaWrapper kafkaWrapper;
   protected final Stopwatch stopwatch;
 
@@ -83,10 +79,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.workUnitState = state;
     this.topicName = KafkaUtils.getTopicName(state);
     this.partitions = KafkaUtils.getPartitions(state);
-    this.lowWatermark = GSON.fromJson(state.getWorkunit().getLowWatermark(), MultiLongWatermark.class);
-    this.highWatermark = GSON.fromJson(state.getWorkunit().getExpectedHighWatermark(), MultiLongWatermark.class);
+    this.lowWatermark = state.getWorkunit().getLowWatermark(MultiLongWatermark.class);
+    this.highWatermark = state.getWorkunit().getExpectedHighWatermark(MultiLongWatermark.class);
     this.nextWatermark = new MultiLongWatermark(this.lowWatermark);
-    this.closer = Closer.create();
     this.kafkaWrapper = this.closer.register(KafkaWrapper.create(state));
     this.stopwatch = Stopwatch.createUnstarted();
 
@@ -103,7 +98,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   @Override
   public List<Tag<?>> generateTags(State state) {
     List<Tag<?>> tags = super.generateTags(state);
-    tags.add(new Tag<String>("kafkaTopic", KafkaUtils.getTopicName(state)));
+    tags.add(new Tag<>("kafkaTopic", KafkaUtils.getTopicName(state)));
     return tags;
   }
 
@@ -220,7 +215,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       return;
     }
     int currentPartitionId = this.getCurrentPartition().getId();
-    switchMetricContext(Lists.<Tag<?>> newArrayList(new Tag<Integer>("kafka_partition", currentPartitionId)));
+    switchMetricContext(Lists.<Tag<?>> newArrayList(new Tag<>("kafka_partition", currentPartitionId)));
   }
 
   private Iterator<MessageAndOffset> fetchNextMessageBuffer() {

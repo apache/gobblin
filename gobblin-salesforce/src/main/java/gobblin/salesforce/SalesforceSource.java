@@ -12,34 +12,88 @@
 
 package gobblin.salesforce;
 
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+
+import com.google.common.base.Throwables;
+import com.google.common.collect.Sets;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.exception.ExtractPrepareException;
+import gobblin.source.extractor.exception.RestApiConnectionException;
+import gobblin.source.extractor.exception.RestApiProcessingException;
+import gobblin.source.extractor.extract.Command;
+import gobblin.source.extractor.extract.CommandOutput;
 import gobblin.source.extractor.extract.QueryBasedSource;
-
-import java.io.IOException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
+import gobblin.source.extractor.extract.restapi.RestApiConnector;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * An implementation of salesforce source to get work units
+ * An implementation of {@link QueryBasedSource} for salesforce data sources.
  */
+@Slf4j
 public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
-  private static final Logger LOG = LoggerFactory.getLogger(QueryBasedSource.class);
 
+  public static final String USE_ALL_OBJECTS = "use.all.objects";
+  public static final boolean DEFAULT_USE_ALL_OBJECTS = true;
+
+  @Override
   public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
-    Extractor<JsonArray, JsonElement> extractor = null;
     try {
-      extractor = new SalesforceExtractor(state).build();
+      return new SalesforceExtractor(state).build();
     } catch (ExtractPrepareException e) {
-      LOG.error("Failed to prepare extractor: error - " + e.getMessage());
+      log.error("Failed to prepare extractor", e);
       throw new IOException(e);
     }
-    return extractor;
   }
+
+  @Override
+  protected Set<String> getSourceEntities(State state) {
+    if (!state.getPropAsBoolean(USE_ALL_OBJECTS, DEFAULT_USE_ALL_OBJECTS)) {
+      return super.getSourceEntities(state);
+    }
+
+    SalesforceConnector connector = new SalesforceConnector(state);
+    try {
+      if (!connector.connect()) {
+        throw new RuntimeException("Failed to connect.");
+      }
+    } catch (RestApiConnectionException e) {
+      throw new RuntimeException("Failed to connect.", e);
+    }
+
+    List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri("/sobjects"));
+    try {
+      CommandOutput<?, ?> response = connector.getResponse(commands);
+      Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
+      if (itr.hasNext()) {
+        String next = itr.next();
+        return getSourceEntities(next);
+      }
+      throw new RuntimeException("Unable to retrieve source entities");
+    } catch (RestApiProcessingException e) {
+      throw Throwables.propagate(e);
+    }
+
+  }
+
+  private static Set<String> getSourceEntities(String response) {
+    Set<String> result = Sets.newHashSet();
+    JsonObject jsonObject = new Gson().fromJson(response, JsonObject.class).getAsJsonObject();
+    JsonArray array = jsonObject.getAsJsonArray("sobjects");
+    for (JsonElement element : array) {
+      result.add(element.getAsJsonObject().get("name").getAsString());
+    }
+    return result;
+  }
+
 }

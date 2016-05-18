@@ -22,6 +22,7 @@ import java.util.Set;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 
@@ -257,7 +258,7 @@ public class State implements Writable {
    * @return value associated with the key as a {@link Set} of strings
    */
   public Set<String> getPropAsSet(String key) {
-    return Sets.newHashSet(LIST_SPLITTER.splitToList(getProp(key)));
+    return ImmutableSet.copyOf(LIST_SPLITTER.splitToList(getProp(key)));
   }
 
   /**
@@ -268,7 +269,7 @@ public class State implements Writable {
    * @return value (the default value if the property is not set) associated with the key as a {@link Set} of strings
    */
   public Set<String> getPropAsSet(String key, String def) {
-    return Sets.newHashSet(LIST_SPLITTER.splitToList(getProp(key, def)));
+    return ImmutableSet.copyOf(LIST_SPLITTER.splitToList(getProp(key, def)));
   }
 
   /**
