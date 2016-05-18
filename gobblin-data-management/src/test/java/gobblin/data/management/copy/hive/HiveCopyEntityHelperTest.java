@@ -13,14 +13,17 @@
 package gobblin.data.management.copy.hive;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -31,6 +34,11 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import gobblin.configuration.State;
+import gobblin.data.management.copy.CopyEntity;
+import gobblin.data.management.copy.entities.PrePublishStep;
+import gobblin.data.management.copy.hive.HiveCopyEntityHelper.DeregisterFileDeleteMethod;
+import gobblin.hive.HiveRegProps;
 import gobblin.metrics.event.MultiTimingEvent;
 
 
@@ -130,6 +138,40 @@ public class HiveCopyEntityHelperTest {
     Assert.assertTrue(diff.pathsToDelete.contains(targetPath4));
     Assert.assertTrue(diff.pathsToDelete.contains(targetPath5));
 
+  }
+  
+  @Test
+  public void testAddTableDeregisterSteps() throws Exception {
+    HiveDataset dataset = Mockito.mock(HiveDataset.class);
+    Mockito.when(dataset.getProperties()).thenReturn(new Properties());
+
+    HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
+    Mockito.when(helper.getDeleteMethod()).thenReturn(DeregisterFileDeleteMethod.NO_DELETE);
+    Mockito.when(helper.getTargetURI()).thenReturn(Optional.of("/targetURI"));
+    Mockito.when(helper.getHiveRegProps()).thenReturn(new HiveRegProps(new State()));
+    Mockito.when(helper.getDataset()).thenReturn(dataset);
+
+    Mockito.when(helper.addTableDeregisterSteps(Mockito.any(List.class), Mockito.any(String.class), Mockito.anyInt(),
+        Mockito.any(org.apache.hadoop.hive.ql.metadata.Table.class))).thenCallRealMethod();
+
+    org.apache.hadoop.hive.ql.metadata.Table meta_table = Mockito.mock(org.apache.hadoop.hive.ql.metadata.Table.class);
+    org.apache.hadoop.hive.metastore.api.Table api_table =
+        Mockito.mock(org.apache.hadoop.hive.metastore.api.Table.class);
+    Mockito.when(api_table.getDbName()).thenReturn("TestDB");
+    Mockito.when(api_table.getTableName()).thenReturn("TestTable");
+    Mockito.when(meta_table.getTTable()).thenReturn(api_table);
+
+    List<CopyEntity> copyEntities = new ArrayList<CopyEntity>();
+    String fileSet = "testFileSet";
+    int initialPriority = 0;
+    int priority = helper.addTableDeregisterSteps(copyEntities, fileSet, initialPriority, meta_table);
+    Assert.assertTrue(priority == 1);
+    Assert.assertTrue(copyEntities.size() == 1);
+
+    Assert.assertTrue(copyEntities.get(0) instanceof PrePublishStep);
+    PrePublishStep p = (PrePublishStep) (copyEntities.get(0));
+    Assert
+        .assertTrue(p.getStep().toString().contains("Deregister table TestDB.TestTable on Hive metastore /targetURI"));
   }
   
   @Test public void testReplacedPrefix() throws Exception {
