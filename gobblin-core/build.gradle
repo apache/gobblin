@@ -54,6 +54,7 @@ dependencies {
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
+  testCompile externalDependency.jsonAssert
   testCompile externalDependency.testng
   testCompile externalDependency.mockRunnerJdbc
 }
