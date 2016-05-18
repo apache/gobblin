@@ -50,7 +50,7 @@ import gobblin.configuration.State;
  * A class for managing password encryption and decryption. To encrypt or decrypt a password, a master password
  * should be provided which is used as encryption or decryption key.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class PasswordManager {
 

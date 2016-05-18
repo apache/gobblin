@@ -24,7 +24,7 @@ import gobblin.hive.spec.HiveSpec;
 /**
  * An interface for generating a {@link HiveSpec} for a {@link Path}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public interface HiveRegistrationPolicy {

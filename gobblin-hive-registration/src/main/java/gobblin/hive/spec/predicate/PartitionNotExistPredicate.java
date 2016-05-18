@@ -26,7 +26,7 @@ import lombok.AllArgsConstructor;
 /**
  * A {@link Predicate} that returns true if the given Hive partition does not exist.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @AllArgsConstructor
 public class PartitionNotExistPredicate implements Predicate<HiveRegister> {

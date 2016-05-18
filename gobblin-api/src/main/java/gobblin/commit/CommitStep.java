@@ -22,7 +22,7 @@ import gobblin.annotation.Alpha;
  * An example is publishing the data files of a dataset, which should be executed atomically with persisting the
  * dataset state in order to avoid pulling duplicate data.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public interface CommitStep {

@@ -81,7 +81,7 @@ import gobblin.util.recordcount.IngestionRecordCountProvider;
  * MapReduce-based {@link gobblin.compaction.Compactor}. Compaction will run on each qualified {@link Dataset}
  * under {@link #COMPACTION_INPUT_DIR}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 
 public class MRCompactor implements Compactor {

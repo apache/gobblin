@@ -28,7 +28,7 @@ import gobblin.configuration.State;
 /**
  * Test for {@link FsRenameCommitStep}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Test(groups = { "gobblin.commit" })
 public class FsRenameCommitStepTest {

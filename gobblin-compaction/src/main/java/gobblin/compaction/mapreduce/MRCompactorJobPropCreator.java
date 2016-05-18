@@ -39,7 +39,7 @@ import gobblin.util.FileListUtils;
  * This class creates the following properties for a single MapReduce job for compaction:
  * compaction.topic, compaction.job.input.dir, compaction.job.dest.dir, compaction.job.dest.dir.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class MRCompactorJobPropCreator {
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactorJobPropCreator.class);

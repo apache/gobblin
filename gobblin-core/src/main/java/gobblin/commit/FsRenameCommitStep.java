@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * A {@link CommitStep} for renaming files within a {@link FileSystem} or between {@link FileSystem}s.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 @Slf4j

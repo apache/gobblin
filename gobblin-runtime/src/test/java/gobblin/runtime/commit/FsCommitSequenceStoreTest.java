@@ -39,7 +39,7 @@ import gobblin.util.io.GsonInterfaceAdapter;
 /**
  * Tests for {@link FsCommitSequenceStore}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class FsCommitSequenceStoreTest {
 

@@ -73,7 +73,7 @@ import gobblin.util.recordcount.LateFileRecordCountProvider;
  * {@value MRCompactor#COMPACTION_JOB_LATE_DATA_FILES} to a 'late' subdirectory within
  * the output directory.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @SuppressWarnings("deprecation")
 public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCompactorJobRunner> {

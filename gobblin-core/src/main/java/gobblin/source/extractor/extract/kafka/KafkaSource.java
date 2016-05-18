@@ -55,7 +55,7 @@ import gobblin.util.dataset.DatasetUtils;
 /**
  * A {@link gobblin.source.Source} implementation for Kafka source.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 

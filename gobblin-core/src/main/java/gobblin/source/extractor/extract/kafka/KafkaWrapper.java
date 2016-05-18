@@ -54,7 +54,7 @@ import kafka.message.MessageAndOffset;
  * Wrapper class that contains two alternative Kakfa APIs: an old low-level Scala-based API, and a new API.
  * The new API has not been implemented since it's not ready to be open sourced.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaWrapper implements Closeable {
 

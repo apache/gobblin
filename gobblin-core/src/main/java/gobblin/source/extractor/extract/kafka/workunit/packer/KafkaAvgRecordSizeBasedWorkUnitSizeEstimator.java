@@ -38,7 +38,7 @@ import gobblin.source.workunit.WorkUnit;
  *
  * If a partition was not pulled in the previous run, a default value of 1024 is used.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaAvgRecordSizeBasedWorkUnitSizeEstimator implements KafkaWorkUnitSizeEstimator {
 

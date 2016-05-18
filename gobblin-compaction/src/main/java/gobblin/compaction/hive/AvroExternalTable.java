@@ -33,8 +33,6 @@ import gobblin.hive.util.HiveJdbcConnector;
 
 /**
  * A class for managing Hive external tables created on Avro files.
- *
- * @author ziliu
  */
 public class AvroExternalTable extends HiveTable {
 

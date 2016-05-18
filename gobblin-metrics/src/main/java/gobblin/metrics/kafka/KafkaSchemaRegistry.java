@@ -38,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
  * @param <K> key type
  * @param <S> schema type
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Slf4j
 public abstract class KafkaSchemaRegistry<K, S> {

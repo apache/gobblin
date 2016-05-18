@@ -46,7 +46,7 @@ import gobblin.source.workunit.WorkUnit;
  * if we pack lots of partitions of the same topic to the same mapper, and we underestimate the avg time per record
  * for this topic, then this mapper could be much slower than other mappers.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 

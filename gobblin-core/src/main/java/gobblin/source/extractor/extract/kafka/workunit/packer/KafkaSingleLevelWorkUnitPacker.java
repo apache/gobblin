@@ -34,7 +34,7 @@ import gobblin.source.workunit.WorkUnit;
  * Please refer to the Javadoc of {@link KafkaBiLevelWorkUnitPacker} for a comparison between
  * {@link KafkaSingleLevelWorkUnitPacker} and {@link KafkaBiLevelWorkUnitPacker}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaSingleLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
