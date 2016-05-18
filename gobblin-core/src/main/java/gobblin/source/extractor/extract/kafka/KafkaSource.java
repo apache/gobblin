@@ -407,7 +407,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     private long latestOffset = 0;
 
     private void startAt(long offset) throws StartOffsetOutOfRangeException {
-      if (offset < this.earliestOffset || offset > this.latestOffset + 1) {
+      if (offset < this.earliestOffset || offset > this.latestOffset) {
         throw new StartOffsetOutOfRangeException(
             String.format("start offset = %d, earliest offset = %d, latest offset = %d", offset, this.earliestOffset,
                 this.latestOffset));
