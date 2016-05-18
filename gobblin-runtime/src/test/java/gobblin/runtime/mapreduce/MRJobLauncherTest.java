@@ -58,8 +58,7 @@ public class MRJobLauncherTest extends BMNGRunner {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
-    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
-        testMetastoreDatabase.getJdbcUrl());
+    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, testMetastoreDatabase.getJdbcUrl());
 
     StateStore<JobState.DatasetState> datasetStateStore =
         new FsStateStore<>(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
@@ -101,7 +100,7 @@ public class MRJobLauncherTest extends BMNGRunner {
     }
   }
 
-  @Test
+  @Test(enabled = false)
   public void testLaunchJobWithPullLimit() throws Exception {
     int limit = 10;
     Properties jobProps = loadJobProps();
@@ -208,7 +207,7 @@ public class MRJobLauncherTest extends BMNGRunner {
     Assert.assertEquals(FileUtils.listFiles(outputDir, null, true).size(), 0);
   }
 
-  @Test
+  @Test(enabled = false)
   public void testLaunchJobWithMultipleDatasets() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
