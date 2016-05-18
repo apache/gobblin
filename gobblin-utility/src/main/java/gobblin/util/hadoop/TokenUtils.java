@@ -56,8 +56,6 @@ import gobblin.configuration.State;
  * <p>
  *   This class is compatible with Hadoop 2.
  * </p>
- *
- * @author ziliu
  */
 public class TokenUtils {
 

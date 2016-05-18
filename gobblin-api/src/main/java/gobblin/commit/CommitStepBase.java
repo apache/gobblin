@@ -24,7 +24,7 @@ import gobblin.configuration.State;
 /**
  * A base implementation of {@link CommitStep}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public abstract class CommitStepBase implements CommitStep {

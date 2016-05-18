@@ -29,7 +29,7 @@ import gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 /**
  * An extension to {@link State} for Hive registration.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 @Getter

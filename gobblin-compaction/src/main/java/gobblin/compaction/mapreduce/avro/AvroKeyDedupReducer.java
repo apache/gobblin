@@ -26,7 +26,7 @@ import org.apache.hadoop.mapreduce.Reducer;
  *
  * If there are multiple values of the same key, it keeps the last value read.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroKeyDedupReducer
     extends Reducer<AvroKey<GenericRecord>, AvroValue<GenericRecord>, AvroKey<GenericRecord>, NullWritable> {

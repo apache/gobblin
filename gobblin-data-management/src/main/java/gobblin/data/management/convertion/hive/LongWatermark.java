@@ -20,6 +20,7 @@ import com.google.gson.JsonElement;
 
 import gobblin.source.extractor.Watermark;
 
+
 /**
  * A {@link Watermark} that uses a single long value as watermark.
  */

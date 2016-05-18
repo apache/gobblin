@@ -30,7 +30,7 @@ import gobblin.util.WriterUtils;
  * @param <S> schema type
  * @param <S> data record type
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriterBuilder<S, D> {
 
@@ -56,7 +56,7 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
     return fileName;
   }
 
-  private String getExtension(State properties) {
+  private static String getExtension(State properties) {
     return properties.getProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, StringUtils.EMPTY);
   }
 

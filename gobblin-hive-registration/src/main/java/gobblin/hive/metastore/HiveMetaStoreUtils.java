@@ -39,7 +39,7 @@ import gobblin.hive.HiveTable;
  * A utility class for converting Hive's {@link Table} and {@link Partition} objects into Gobblin's
  * {@link HiveTable} and {@link HivePartition} objects, and vice versa.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public class HiveMetaStoreUtils {

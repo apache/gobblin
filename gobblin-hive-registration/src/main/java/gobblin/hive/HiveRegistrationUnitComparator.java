@@ -57,7 +57,7 @@ import gobblin.configuration.State;
  *   </pre>
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitComparator<?>> {

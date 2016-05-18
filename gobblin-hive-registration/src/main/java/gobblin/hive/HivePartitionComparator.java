@@ -18,7 +18,7 @@ import com.google.common.base.Optional;
 /**
  * An extension to {@link HiveRegistrationUnitComparator} for {@link HivePartition}s.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class HivePartitionComparator<T extends HivePartitionComparator<?>> extends HiveRegistrationUnitComparator<T> {
 

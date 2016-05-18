@@ -36,7 +36,7 @@ import lombok.Setter;
  *   {@link gobblin.hive.metastore.HiveMetaStoreUtils}.
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Getter
 @Alpha

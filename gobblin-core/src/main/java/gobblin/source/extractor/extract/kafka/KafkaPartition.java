@@ -19,7 +19,7 @@ import com.google.common.net.HostAndPort;
  * A kafka topic partition.
  * Two partitions are considered equivalent if they have the same topic name and partition id. They may have different leaders.
  *
- * @author ziliu
+ * @author Ziyang Liu
  *
  */
 public final class KafkaPartition {

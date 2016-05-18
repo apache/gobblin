@@ -14,8 +14,6 @@ package gobblin.compaction.hive;
 
 /**
  * An immutable class for managing Hive attributes.
- *
- * @author ziliu
  */
 public final class HiveAttribute {
   private final String name;

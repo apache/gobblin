@@ -17,8 +17,6 @@ import java.io.IOException;
 
 /**
  * Compactor interface.
- *
- * @author ziliu
  */
 public interface Compactor {
 

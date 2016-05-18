@@ -20,6 +20,7 @@ import java.util.Set;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
@@ -48,6 +49,8 @@ public class WorkUnitState extends State {
   private static final String FINAL_CONSTRUCT_STATE_PREFIX = "construct.final.state.";
 
   private static final JsonParser JSON_PARSER = new JsonParser();
+
+  private static final Gson GSON = new Gson();
 
   /**
    * Runtime state of the {@link WorkUnit}.
@@ -137,6 +140,42 @@ public class WorkUnitState extends State {
       return null;
     }
     return JSON_PARSER.parse(getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY));
+  }
+
+  /**
+   * Get the actual high {@link Watermark}. If the {@code WorkUnitState} does not contain the actual high watermark
+   * (which may be caused by task failures), the low watermark in the corresponding {@link WorkUnit} will be returned.
+   *
+   * @param watermarkClass the watermark class for this {@code WorkUnitState}.
+   * @param gson a {@link Gson} object used to deserialize the watermark.
+   * @return the actual high watermark in this {@code WorkUnitState}. null is returned if this {@code WorkUnitState}
+   * does not contain an actual high watermark, and the corresponding {@code WorkUnit} does not contain a low
+   * watermark.
+   */
+  public <T extends Watermark> T getActualHighWatermark(Class<T> watermarkClass, Gson gson) {
+    JsonElement json = getActualHighWatermark();
+    if (json == null) {
+      json = this.workUnit.getLowWatermark();
+      if (json == null) {
+        return null;
+      }
+    }
+    return gson.fromJson(json, watermarkClass);
+  }
+
+  /**
+   * Get the actual high {@link Watermark}. If the {@code WorkUnitState} does not contain the actual high watermark
+   * (which may be caused by task failures), the low watermark in the corresponding {@link WorkUnit} will be returned.
+   *
+   * <p>A default {@link Gson} object will be used to deserialize the watermark.</p>
+   *
+   * @param watermarkClass the watermark class for this {@code WorkUnitState}.
+   * @return the actual high watermark in this {@code WorkUnitState}. null is returned if this {@code WorkUnitState}
+   * does not contain an actual high watermark, and the corresponding {@code WorkUnit} does not contain a low
+   * watermark.
+   */
+  public <T extends Watermark> T getActualHighWatermark(Class<T> watermarkClass) {
+    return getActualHighWatermark(watermarkClass, GSON);
   }
 
   /**
@@ -275,8 +314,7 @@ public class WorkUnitState extends State {
    * @return {@link gobblin.source.workunit.Extract} associated with the {@link WorkUnit}
    */
   public Extract getExtract() {
-    Extract curExtract = new Extract(this.workUnit.getExtract());
-    return curExtract;
+    return new Extract(this.workUnit.getExtract());
   }
 
   /**

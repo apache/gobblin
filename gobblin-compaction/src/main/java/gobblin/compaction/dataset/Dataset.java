@@ -32,7 +32,7 @@ import gobblin.dataset.FileSystemDataset;
 /**
  * A class that represents a dataset whose data should be compacted.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Slf4j
 public class Dataset implements Comparable<Dataset>, FileSystemDataset {

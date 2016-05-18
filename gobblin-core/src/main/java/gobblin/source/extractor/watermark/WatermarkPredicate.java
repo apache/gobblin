@@ -54,7 +54,7 @@ public class WatermarkPredicate {
     }
   }
 
-  public Predicate getPredicate(QueryBasedExtractor extractor, long watermarkValue, String operator,
+  public Predicate getPredicate(QueryBasedExtractor<?, ?> extractor, long watermarkValue, String operator,
       Predicate.PredicateType type) {
     String condition = "";
 
@@ -62,14 +62,14 @@ public class WatermarkPredicate {
       condition = this.watermark.getWatermarkCondition(extractor, watermarkValue, operator);
     }
 
-    if (StringUtils.isBlank(watermarkColumn) || condition.equals("")) {
+    if (StringUtils.isBlank(this.watermarkColumn) || condition.equals("")) {
       return null;
     }
     return new Predicate(this.watermarkColumn, watermarkValue, condition, this.getWatermarkSourceFormat(extractor),
         type);
   }
 
-  public String getWatermarkSourceFormat(QueryBasedExtractor extractor) {
+  public String getWatermarkSourceFormat(QueryBasedExtractor<?, ?> extractor) {
     return extractor.getWatermarkSourceFormat(this.watermarkType);
   }
 

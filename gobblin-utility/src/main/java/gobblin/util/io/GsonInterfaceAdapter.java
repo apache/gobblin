@@ -69,8 +69,6 @@ import com.google.gson.stream.JsonWriter;
  *   all types except for java generics.
  * </p>
  *
- * @author ziliu, ibuenros
- *
  * @param <T> The interface or abstract type to be serialized and deserialized with {@link Gson}.
  */
 @RequiredArgsConstructor

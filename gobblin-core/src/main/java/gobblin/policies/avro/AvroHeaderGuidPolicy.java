@@ -20,7 +20,7 @@ import gobblin.qualitychecker.row.RowLevelPolicy;
 /**
  * A policy that checks whether an Avro record has header.guid field.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroHeaderGuidPolicy extends RowLevelPolicy {
   public AvroHeaderGuidPolicy(State state, Type type) {

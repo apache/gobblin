@@ -47,7 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * A class for registering Hive tables and partitions.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Slf4j
 @Alpha

@@ -27,7 +27,6 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -35,6 +34,8 @@ import com.google.common.collect.Sets;
 
 import gobblin.source.workunit.WorkUnit;
 import gobblin.source.workunit.Extract;
+
+import lombok.Getter;
 
 
 /**
@@ -55,7 +56,10 @@ public class SourceState extends State {
   private static final DateTimeFormatter DTF =
       DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
 
+  @Getter
   private final Map<String, SourceState> previousDatasetStatesByUrns;
+
+  @Getter
   private final List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
 
   /**
@@ -126,15 +130,6 @@ public class SourceState extends State {
   }
 
   /**
-   * Get {@link WorkUnitState}s from the previous job run.
-   *
-   * @return an {@link Iterable} of {@link WorkUnitState}s from the previous job run
-   */
-  public Iterable<WorkUnitState> getPreviousWorkUnitStates() {
-    return ImmutableList.<WorkUnitState> builder().addAll(this.previousWorkUnitStates).build();
-  }
-
-  /**
    * Get a {@link Map} from dataset URNs (as being specified by {@link ConfigurationKeys#DATASET_URN_KEY}
    * to the {@link WorkUnitState} with the dataset URNs.
    *
@@ -149,10 +144,10 @@ public class SourceState extends State {
     Map<String, Iterable<WorkUnitState>> previousWorkUnitStatesByDatasetUrns = Maps.newHashMap();
 
     for (WorkUnitState workUnitState : this.previousWorkUnitStates) {
-      String datasetUrn = workUnitState.getProp(ConfigurationKeys.DATASET_URN_KEY,
-          ConfigurationKeys.DEFAULT_DATASET_URN);
+      String datasetUrn =
+          workUnitState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
       if (!previousWorkUnitStatesByDatasetUrns.containsKey(datasetUrn)) {
-        previousWorkUnitStatesByDatasetUrns.put(datasetUrn, Lists.<WorkUnitState>newArrayList());
+        previousWorkUnitStatesByDatasetUrns.put(datasetUrn, Lists.<WorkUnitState> newArrayList());
       }
       ((List<WorkUnitState>) previousWorkUnitStatesByDatasetUrns.get(datasetUrn)).add(workUnitState);
     }

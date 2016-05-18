@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * A {@link HiveSerDeManager} for registering Avro tables and partitions.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Slf4j
 @Alpha

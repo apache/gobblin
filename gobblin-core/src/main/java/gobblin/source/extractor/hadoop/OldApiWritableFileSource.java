@@ -33,7 +33,7 @@ import gobblin.source.workunit.WorkUnit;
  * {@link HadoopFileInputSource#FILE_INPUT_FORMAT_CLASS_KEY}, or by specifying a deserializer via
  * {@link HiveSerDeWrapper#SERDE_DESERIALIZER_TYPE}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class OldApiWritableFileSource extends OldApiHadoopFileInputSource<Object, Writable, Object, Writable> {
 

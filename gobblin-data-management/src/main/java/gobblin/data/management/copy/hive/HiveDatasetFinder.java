@@ -18,6 +18,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
+import javax.annotation.Nullable;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -38,7 +40,6 @@ import gobblin.dataset.IterableDatasetFinder;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.util.AutoReturnableObject;
 
-import javax.annotation.Nullable;
 import lombok.Data;
 
 
@@ -63,7 +64,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     this(fs, properties, createClientPool(properties));
   }
 
-  protected HiveDatasetFinder(FileSystem fs, Properties properties, HiveMetastoreClientPool clientPool) throws IOException {
+  protected HiveDatasetFinder(FileSystem fs, Properties properties, HiveMetastoreClientPool clientPool)
+      throws IOException {
     this.properties = properties;
     this.clientPool = clientPool;
     this.fs = fs;
@@ -93,19 +95,19 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   public Collection<DbAndTable> getTables() throws IOException {
     List<DbAndTable> tables = Lists.newArrayList();
 
-    try(AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       Iterable<String> databases = Iterables.filter(client.get().getAllDatabases(), new Predicate<String>() {
         @Override
-        public boolean apply(@Nullable String db) {
-          return whitelistBlacklist.acceptDb(db);
+        public boolean apply(String db) {
+          return HiveDatasetFinder.this.whitelistBlacklist.acceptDb(db);
         }
       });
       for (final String db : databases) {
 
         Iterable<String> tableNames = Iterables.filter(client.get().getAllTables(db), new Predicate<String>() {
           @Override
-          public boolean apply(@Nullable String table) {
-            return whitelistBlacklist.acceptTable(db, table);
+          public boolean apply(String table) {
+            return HiveDatasetFinder.this.whitelistBlacklist.acceptTable(db, table);
           }
         });
         for (String tableName : tableNames) {
@@ -125,21 +127,20 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     private final String table;
   }
 
-  @Override public List<HiveDataset> findDatasets() throws IOException {
+  @Override
+  public List<HiveDataset> findDatasets() throws IOException {
     return Lists.newArrayList(getDatasetsIterator());
   }
 
   @Override
-  public Iterator<HiveDataset> getDatasetsIterator()
-      throws IOException {
+  public Iterator<HiveDataset> getDatasetsIterator() throws IOException {
     return Iterators.transform(getTables().iterator(), new Function<DbAndTable, HiveDataset>() {
-      @Nullable
       @Override
       public HiveDataset apply(@Nullable DbAndTable dbAndTable) {
         if (dbAndTable == null) {
           return null;
         }
-        try (AutoReturnableObject<IMetaStoreClient> client = clientPool.getClient()) {
+        try (AutoReturnableObject<IMetaStoreClient> client = HiveDatasetFinder.this.clientPool.getClient()) {
           Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
           return createHiveDataset(table);
         } catch (IOException | TException ioe) {
@@ -150,10 +151,12 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   }
 
   protected HiveDataset createHiveDataset(Table table) throws IOException {
-    return new HiveDataset(fs, clientPool, new org.apache.hadoop.hive.ql.metadata.Table(table), properties);
+    return new HiveDataset(this.fs, this.clientPool, new org.apache.hadoop.hive.ql.metadata.Table(table),
+        this.properties);
   }
 
-  @Override public Path commonDatasetRoot() {
+  @Override
+  public Path commonDatasetRoot() {
     return new Path("/");
   }
 }

@@ -30,7 +30,7 @@ import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
  * An abstract {@link RowLevelPolicy} for checking a record's timestamp against the earliest allowed timestamp.
  * Records whose timestamps are earlier than the earliest allowed timestamp will fail.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public abstract class RecordTimestampLowerBoundPolicy extends RowLevelPolicy {
 

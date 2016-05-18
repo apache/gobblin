@@ -32,7 +32,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * with signature (CombineFileSplit, TaskAttemptContext, Integer), which is required in order to use
  * {@link org.apache.hadoop.mapreduce.lib.input.CombineFileRecordReader}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroKeyCombineFileRecordReader extends AvroKeyRecordReader<GenericRecord> {
 

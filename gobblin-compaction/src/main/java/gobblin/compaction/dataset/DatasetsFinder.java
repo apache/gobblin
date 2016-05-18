@@ -68,8 +68,8 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
     this.inputDir = getInputDir();
     this.destDir = getDestDir();
     this.tmpOutputDir = getTmpOutputDir();
-    this.blacklist = getBlacklist();
-    this.whitelist = getWhitelist();
+    this.blacklist = DatasetFilterUtils.getPatternList(state, MRCompactor.COMPACTION_BLACKLIST);
+    this.whitelist = DatasetFilterUtils.getPatternList(state, MRCompactor.COMPACTION_WHITELIST);
     this.highPriority = getHighPriorityPatterns();
     this.normalPriority = getNormalPriorityPatterns();
     this.recompactDatasets = getRecompactDatasets();
@@ -119,16 +119,6 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
     } catch (IOException e) {
       throw new RuntimeException("Failed to get filesystem for datasetsFinder.", e);
     }
-  }
-
-  private List<Pattern> getBlacklist() {
-    List<String> list = this.state.getPropAsList(MRCompactor.COMPACTION_BLACKLIST, StringUtils.EMPTY);
-    return DatasetFilterUtils.getPatternsFromStrings(list);
-  }
-
-  private List<Pattern> getWhitelist() {
-    List<String> list = this.state.getPropAsList(MRCompactor.COMPACTION_WHITELIST, StringUtils.EMPTY);
-    return DatasetFilterUtils.getPatternsFromStrings(list);
   }
 
   private List<Pattern> getHighPriorityPatterns() {
