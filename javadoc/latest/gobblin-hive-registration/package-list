@@ -1,0 +1,7 @@
+gobblin.hive
+gobblin.hive.avro
+gobblin.hive.metastore
+gobblin.hive.policy
+gobblin.hive.spec
+gobblin.hive.spec.activity
+gobblin.hive.spec.predicate
