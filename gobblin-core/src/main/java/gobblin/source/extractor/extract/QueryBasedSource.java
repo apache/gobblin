@@ -12,41 +12,60 @@
 
 package gobblin.source.extractor.extract;
 
-import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
+import gobblin.config.client.ConfigClient;
+import gobblin.config.client.ConfigClientCache;
+import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
+import gobblin.config.client.api.VersionStabilityPolicy;
+import gobblin.config.store.api.ConfigStoreCreationException;
+import gobblin.config.store.api.VersionDoesNotExistException;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.partition.Partitioner;
 import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.WatermarkPredicate;
-import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.Extract.TableType;
+import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ConfigUtils;
+import gobblin.util.DatasetFilterUtils;
+import gobblin.util.PathUtils;
+import gobblin.util.dataset.DatasetUtils;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * A base implementation of {@link gobblin.source.Source} for
  * query-based sources.
  */
+@Slf4j
 public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(QueryBasedSource.class);
+  public static final String ENTITY_BLACKLIST = "entity.blacklist";
+  public static final String ENTITY_WHITELIST = "entity.whitelist";
+  public static final String SOURCE_OBTAIN_TABLE_PROPS_FROM_CONFIG_STORE =
+      "source.obtain_table_props_from_config_store";
+  public static final boolean DEFAULT_SOURCE_OBTAIN_TABLE_PROPS_FROM_CONFIG_STORE = false;
+  private static final String QUERY_BASED_SOURCE = "query_based_source";
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -54,194 +73,188 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 
     List<WorkUnit> workUnits = Lists.newArrayList();
     String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
-    String entityName = state.getProp(ConfigurationKeys.SOURCE_ENTITY);
 
-    String extractTableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
-    // If extract table name is not found then use the entity name
-    if (StringUtils.isBlank(extractTableName)) {
-      extractTableName = Utils.escapeSpecialCharacters(entityName, ConfigurationKeys.ESCAPE_CHARS_IN_TABLE_NAME, "_");
+    Map<String, String> tableNameToEntityMap = Maps.newHashMap();
+    Set<String> entities = getSourceEntities(state);
+    List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, ENTITY_BLACKLIST);
+    List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, ENTITY_WHITELIST);
+    for (String entity : DatasetFilterUtils.filter(entities, blacklist, whitelist)) {
+      tableNameToEntityMap.put(Utils.escapeSpecialCharacters(entity, ConfigurationKeys.ESCAPE_CHARS_IN_TABLE_NAME, "_"),
+          entity);
     }
 
-    TableType tableType = TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
-    long previousWatermark = this.getLatestWatermarkFromMetadata(state);
+    Map<String, State> tableSpecificPropsMap = shouldObtainTablePropsFromConfigStore(state)
+        ? getTableSpecificPropsFromConfigStore(tableNameToEntityMap.keySet(), state)
+        : DatasetUtils.getDatasetSpecificProps(tableNameToEntityMap.keySet(), state);
+    Map<String, Long> prevWatermarksByTable = getPreviousWatermarksForAllTables(state);
 
-    Map<Long, Long> sortedPartitions = Maps.newTreeMap();
-    sortedPartitions.putAll(new Partitioner(state).getPartitions(previousWatermark));
+    for (String tableName : Sets.union(tableNameToEntityMap.keySet(), prevWatermarksByTable.keySet())) {
 
-    // Use extract table name to create extract
-    SourceState partitionState = new SourceState();
-    partitionState.addAll(state);
-    Extract extract = partitionState.createExtract(tableType, nameSpaceName, extractTableName);
+      log.info(String.format("Table to be processed: %s, %s", tableName,
+          tableNameToEntityMap.containsKey(tableName) ? "source entity = " + tableNameToEntityMap.get(tableName)
+              : "which does not have source entity but has previous watermark"));
 
-    // Setting current time for the full extract
-    if (Boolean.valueOf(state.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY))) {
-      extract.setFullTrue(System.currentTimeMillis());
+      SourceState combinedState = getCombinedState(state, tableSpecificPropsMap.get(tableName));
+      TableType tableType =
+          TableType.valueOf(combinedState.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
+
+      long previousWatermark = prevWatermarksByTable.containsKey(tableName) ? prevWatermarksByTable.get(tableName)
+          : ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+
+      // If a table name exists in prevWatermarksByTable (i.e., it has a previous watermark) but does not exist
+      // in talbeNameToEntityMap, create an empty workunit for it, so that its previous watermark is preserved.
+      // This is done by overriding the high watermark to be the same as the previous watermark.
+      if (!tableNameToEntityMap.containsKey(tableName)) {
+        combinedState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE, previousWatermark);
+      }
+
+      Map<Long, Long> sortedPartitions = Maps.newTreeMap();
+      sortedPartitions.putAll(new Partitioner(combinedState).getPartitions(previousWatermark));
+
+      Extract extract = createExtract(tableType, nameSpaceName, tableName);
+
+      // Setting current time for the full extract
+      if (Boolean.valueOf(combinedState.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY))) {
+        extract.setFullTrue(System.currentTimeMillis());
+      }
+
+      for (Entry<Long, Long> entry : sortedPartitions.entrySet()) {
+        WorkUnit workunit = WorkUnit.create(extract);
+        workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, tableName);
+        workunit.setWatermarkInterval(
+            new WatermarkInterval(new LongWatermark(entry.getKey()), new LongWatermark(entry.getValue())));
+        workUnits.add(workunit);
+      }
     }
-
-    for (Entry<Long, Long> entry : sortedPartitions.entrySet()) {
-      partitionState.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, entry.getKey());
-      partitionState.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, entry.getValue());
-      workUnits.add(partitionState.createWorkUnit(extract));
-    }
-
-    LOG.info("Total number of work units for the current run: " + workUnits.size());
+    log.info("Total number of workunits for the current run: " + workUnits.size());
 
     List<WorkUnit> previousWorkUnits = this.getPreviousWorkUnitsForRetry(state);
-    LOG.info("Total number of incomplete tasks from the previous run: " + previousWorkUnits.size());
+    log.info("Total number of incomplete tasks from the previous run: " + previousWorkUnits.size());
     workUnits.addAll(previousWorkUnits);
 
-    return workUnits;
+    int numOfMultiWorkunits =
+        state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
+
+    return pack(workUnits, numOfMultiWorkunits);
+  }
+
+  protected Set<String> getSourceEntities(State state) {
+    if (state.contains(ConfigurationKeys.SOURCE_ENTITIES)) {
+      log.info("Using entity names in " + ConfigurationKeys.SOURCE_ENTITIES);
+      return state.getPropAsSet(ConfigurationKeys.SOURCE_ENTITIES);
+    } else if (state.contains(ConfigurationKeys.SOURCE_ENTITY)) {
+      log.info("Using entity name in " + ConfigurationKeys.SOURCE_ENTITY);
+      return ImmutableSet.of(state.getProp(ConfigurationKeys.SOURCE_ENTITY));
+    }
+
+    throw new IllegalStateException(String.format("One of the following properties must be specified: %s, %s.",
+        ConfigurationKeys.SOURCE_ENTITIES, ConfigurationKeys.SOURCE_ENTITY));
+  }
+
+  private static boolean shouldObtainTablePropsFromConfigStore(SourceState state) {
+    return state.getPropAsBoolean(SOURCE_OBTAIN_TABLE_PROPS_FROM_CONFIG_STORE,
+        DEFAULT_SOURCE_OBTAIN_TABLE_PROPS_FROM_CONFIG_STORE);
+  }
+
+  private static Map<String, State> getTableSpecificPropsFromConfigStore(Set<String> tables, State state) {
+    ConfigClient client = ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY);
+    String configStoreUri = state.getProp(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI);
+    Preconditions.checkNotNull(configStoreUri);
+
+    Map<String, State> result = Maps.newHashMap();
+
+    for (String table : tables) {
+      try {
+        result.put(table, ConfigUtils.configToState(
+            client.getConfig(PathUtils.combinePaths(configStoreUri, QUERY_BASED_SOURCE, table).toUri())));
+      } catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException
+          | ConfigStoreCreationException e) {
+        throw new RuntimeException("Unable to get table config for " + table, e);
+      }
+    }
+
+    return result;
+  }
+
+  private static SourceState getCombinedState(SourceState state, State tableSpecificState) {
+    if (tableSpecificState == null) {
+      return state;
+    }
+    SourceState combinedState =
+        new SourceState(state, state.getPreviousDatasetStatesByUrns(), state.getPreviousWorkUnitStates());
+    combinedState.addAll(tableSpecificState);
+    return combinedState;
+  }
+
+  /**
+   * Pack the list of {@code WorkUnit}s into {@code MultiWorkUnit}s.
+   *
+   * TODO: this is currently a simple round-robin packing. More sophisticated bin packing may be necessary
+   * if the round-robin approach leads to mapper skew.
+   */
+  private static List<WorkUnit> pack(List<WorkUnit> workUnits, int numOfMultiWorkunits) {
+    Preconditions.checkArgument(numOfMultiWorkunits > 0);
+
+    if (workUnits.size() <= numOfMultiWorkunits) {
+      return workUnits;
+    }
+    List<WorkUnit> result = Lists.newArrayListWithCapacity(numOfMultiWorkunits);
+    for (int i = 0; i < numOfMultiWorkunits; i++) {
+      result.add(MultiWorkUnit.createEmpty());
+    }
+    for (int i = 0; i < workUnits.size(); i++) {
+      ((MultiWorkUnit) result.get(i % numOfMultiWorkunits)).addWorkUnit(workUnits.get(i));
+    }
+    return result;
   }
 
   @Override
-  public void shutdown(SourceState state) {
-  }
+  public void shutdown(SourceState state) {}
 
   /**
-   * Get latest water mark from previous work unit states.
-   *
-   * @param state
-   *            Source state
-   * @return latest water mark (high water mark)
+   * For each table, if job commit policy is to commit on full success, and the table has failed tasks in the
+   * previous run, return the lowest low watermark among all previous {@code WorkUnitState}s of the table.
+   * Otherwise, return the highest high watermark among all previous {@code WorkUnitState}s of the table.
    */
-  private long getLatestWatermarkFromMetadata(SourceState state) {
-    LOG.debug("Get latest watermark from the previous run");
-    long latestWaterMark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+  private static Map<String, Long> getPreviousWatermarksForAllTables(SourceState state) {
+    Map<String, Long> result = Maps.newHashMap();
+    Map<String, Long> prevLowWatermarksByTable = Maps.newHashMap();
+    Map<String, Long> prevActualHighWatermarksByTable = Maps.newHashMap();
+    Set<String> tablesWithFailedTasks = Sets.newHashSet();
+    boolean commitOnFullSuccess = JobCommitPolicy.getCommitPolicy(state) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
 
-    List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList(state.getPreviousWorkUnitStates());
-    List<Long> previousWorkUnitStateHighWatermarks = Lists.newArrayList();
-    List<Long> previousWorkUnitLowWatermarks = Lists.newArrayList();
+    for (WorkUnitState previousWus : state.getPreviousWorkUnitStates()) {
+      String table = previousWus.getExtract().getTable();
 
-    if (previousWorkUnitStates.isEmpty()) {
-      LOG.info("No previous work unit states found; Latest watermark - Default watermark: " + latestWaterMark);
-      return latestWaterMark;
-    }
-
-    boolean hasFailedRun = false;
-    boolean isCommitOnFullSuccess = false;
-    boolean isDataProcessedInPreviousRun = false;
-
-    JobCommitPolicy commitPolicy = JobCommitPolicy
-        .forName(state.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
-    if (commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
-      isCommitOnFullSuccess = true;
-    }
-
-    for (WorkUnitState workUnitState : previousWorkUnitStates) {
-      long processedRecordCount = 0;
-      LOG.info("State of the previous task: " + workUnitState.getId() + ":" + workUnitState.getWorkingState());
-      if (workUnitState.getWorkingState() == WorkingState.FAILED
-          || workUnitState.getWorkingState() == WorkingState.CANCELLED
-          || workUnitState.getWorkingState() == WorkingState.RUNNING
-          || workUnitState.getWorkingState() == WorkingState.PENDING) {
-        hasFailedRun = true;
+      long lowWm = previousWus.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
+      if (!prevLowWatermarksByTable.containsKey(table)) {
+        prevLowWatermarksByTable.put(table, lowWm);
       } else {
-        processedRecordCount = workUnitState.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED);
-        if (processedRecordCount != 0) {
-          isDataProcessedInPreviousRun = true;
-        }
+        prevLowWatermarksByTable.put(table, Math.min(prevLowWatermarksByTable.get(table), lowWm));
       }
 
-      LOG.info("Low watermark of the previous task: " + workUnitState.getId() + ":" + workUnitState.getWorkunit()
-          .getLowWaterMark());
-      LOG.info(
-          "High watermark of the previous task: " + workUnitState.getId() + ":" + workUnitState.getHighWaterMark());
-      LOG.info("Record count of the previous task: " + processedRecordCount + "\n");
-
-      // Consider high water mark of the previous work unit, if it is
-      // extracted any data
-      if (processedRecordCount != 0) {
-        previousWorkUnitStateHighWatermarks.add(workUnitState.getHighWaterMark());
-      }
-
-      previousWorkUnitLowWatermarks.add(this.getLowWatermarkFromWorkUnit(workUnitState));
-    }
-
-    // If commit policy is full and it has failed run, get latest water mark
-    // as
-    // minimum of low water marks from previous states.
-    if (isCommitOnFullSuccess && hasFailedRun) {
-      long previousLowWatermark = Collections.min(previousWorkUnitLowWatermarks);
-
-      WorkUnitState previousState = previousWorkUnitStates.get(0);
-      ExtractType extractType =
-          ExtractType.valueOf(previousState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
-
-      // add backup seconds only for snapshot extracts but not for appends
-      if (extractType == ExtractType.SNAPSHOT) {
-        int backupSecs = previousState.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS, 0);
-        String watermarkType = previousState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE);
-        latestWaterMark = this.addBackedUpSeconds(previousLowWatermark, backupSecs, watermarkType);
+      long highWm = previousWus.getActualHighWatermark(LongWatermark.class).getValue();
+      if (!prevActualHighWatermarksByTable.containsKey(table)) {
+        prevActualHighWatermarksByTable.put(table, highWm);
       } else {
-        latestWaterMark = previousLowWatermark;
+        prevActualHighWatermarksByTable.put(table, Math.max(prevActualHighWatermarksByTable.get(table), highWm));
       }
 
-      LOG.info("Previous job was COMMIT_ON_FULL_SUCCESS but it was failed; Latest watermark - "
-          + "Min watermark from WorkUnits: " + latestWaterMark);
-    }
-
-    // If commit policy is full and there are no failed tasks or commit
-    // policy is partial,
-    // get latest water mark as maximum of high water marks from previous
-    // tasks.
-    else {
-      if (isDataProcessedInPreviousRun) {
-        latestWaterMark = Collections.max(previousWorkUnitStateHighWatermarks);
-        LOG.info(
-            "Previous run was successful. Latest watermark - Max watermark from WorkUnitStates: " + latestWaterMark);
-      } else {
-        latestWaterMark = Collections.min(previousWorkUnitLowWatermarks);
-        LOG.info("Previous run was successful but no data found. Latest watermark - Min watermark from WorkUnitStates: "
-            + latestWaterMark);
+      if (commitOnFullSuccess && !isSuccessfulOrCommited(previousWus)) {
+        tablesWithFailedTasks.add(table);
       }
     }
 
-    return latestWaterMark;
+    for (Map.Entry<String, Long> entry : prevLowWatermarksByTable.entrySet()) {
+      result.put(entry.getKey(), tablesWithFailedTasks.contains(entry.getKey()) ? entry.getValue()
+          : prevActualHighWatermarksByTable.get(entry.getKey()));
+    }
+
+    return result;
   }
 
-  private long addBackedUpSeconds(long lowWatermark, int backupSecs, String watermarkType) {
-    if (lowWatermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
-      return lowWatermark;
-    }
-    WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
-
-    switch (wmType) {
-      case SIMPLE:
-        return lowWatermark + backupSecs;
-      default:
-        Date lowWaterMarkDate = Utils.toDate(lowWatermark, "yyyyMMddHHmmss");
-        return Long
-            .parseLong(Utils.dateToString(Utils.addSecondsToDate(lowWaterMarkDate, backupSecs), "yyyyMMddHHmmss"));
-    }
-  }
-
-  /**
-   * Get low water mark from the given work unit state.
-   *
-   * @param workUnitState
-   *            Work unit state
-   * @return latest low water mark
-   */
-  private long getLowWatermarkFromWorkUnit(WorkUnitState workUnitState) {
-    String watermarkType = workUnitState
-        .getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, ConfigurationKeys.DEFAULT_WATERMARK_TYPE);
-    long lowWaterMark = workUnitState.getWorkunit().getLowWaterMark();
-
-    if (lowWaterMark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
-      return lowWaterMark;
-    }
-
-    WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
-    int deltaNum = new WatermarkPredicate(wmType).getDeltaNumForNextWatermark();
-
-    switch (wmType) {
-      case SIMPLE:
-        return lowWaterMark - deltaNum;
-      default:
-        Date lowWaterMarkDate = Utils.toDate(lowWaterMark, "yyyyMMddHHmmss");
-        return Long
-            .parseLong(Utils.dateToString(Utils.addSecondsToDate(lowWaterMarkDate, deltaNum * -1), "yyyyMMddHHmmss"));
-    }
+  private static boolean isSuccessfulOrCommited(WorkUnitState wus) {
+    return wus.getWorkingState() == WorkingState.SUCCESSFUL || wus.getWorkingState() == WorkingState.COMMITTED;
   }
 
   /**
@@ -250,7 +263,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
    * @param state
    *            Source state
    */
-  private void initLogger(SourceState state) {
+  private static void initLogger(SourceState state) {
     StringBuilder sb = new StringBuilder();
     sb.append("[");
     sb.append(StringUtils.stripToEmpty(state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));

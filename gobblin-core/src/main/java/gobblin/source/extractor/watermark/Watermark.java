@@ -25,7 +25,7 @@ public interface Watermark {
    * @param relational operator between water mark column and value
    * @return condition statement
    */
-  public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator);
+  public String getWatermarkCondition(QueryBasedExtractor<?, ?> extractor, long watermarkValue, String operator);
 
   /**
    * Get partitions for the given range
