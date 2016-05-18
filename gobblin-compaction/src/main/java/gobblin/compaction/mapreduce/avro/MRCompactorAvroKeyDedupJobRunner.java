@@ -55,7 +55,7 @@ import gobblin.util.AvroUtils;
  * To dedup using entire records set compaction.use.all.attributes=true. Otherwise, a schema needs
  * to be provided by compaction.avro.key.schema.loc, based on which the dedup is performed.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 

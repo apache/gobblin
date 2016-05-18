@@ -32,7 +32,7 @@ import gobblin.runtime.JobState.DatasetState;
 /**
  * Tests for {@link CommitSequence}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Test(groups = { "gobblin.runtime.commit" })
 public class CommitSequenceTest {

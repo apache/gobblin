@@ -24,8 +24,6 @@ import gobblin.util.HadoopUtils;
 
 /**
  * A class for write operations on HDFS.
- *
- * @author ziliu
  */
 public class HdfsWriter extends HdfsIO {
 

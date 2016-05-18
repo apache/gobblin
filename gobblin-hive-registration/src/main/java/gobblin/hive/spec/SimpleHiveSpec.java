@@ -35,8 +35,6 @@ import java.util.Collection;
 
 /**
  * A base implementation of {@link HiveSpec}.
- *
- * @author ziliu
  */
 @Getter
 @Alpha

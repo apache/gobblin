@@ -37,7 +37,7 @@ import gobblin.password.PasswordManager;
 /**
  * A class for managing a Hive JDBC connection.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class HiveJdbcConnector implements Closeable {
 

@@ -35,8 +35,6 @@ import gobblin.compaction.mapreduce.MRCompactionRunner;
 
 /**
  * Run Hive compaction based on config files.
- *
- * @author ziliu
  */
 public class CompactionRunner {
 

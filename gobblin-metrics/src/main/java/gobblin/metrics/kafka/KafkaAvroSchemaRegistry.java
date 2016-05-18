@@ -38,7 +38,7 @@ import com.google.common.base.Preconditions;
 /**
  * An implementation of {@link KafkaSchemaRegistry}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema> {
 

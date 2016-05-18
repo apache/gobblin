@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * An implementation of {@link CommitStep} for persisting dataset states.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 @Slf4j

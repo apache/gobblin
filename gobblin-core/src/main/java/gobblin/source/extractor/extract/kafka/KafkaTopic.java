@@ -21,7 +21,7 @@ import com.google.common.collect.Lists;
 /**
  * A kafka topic is composed of a topic name, and a list of partitions.
  *
- * @author ziliu
+ * @author Ziyang Liu
  *
  */
 public final class KafkaTopic {

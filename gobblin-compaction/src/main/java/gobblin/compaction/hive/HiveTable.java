@@ -27,8 +27,6 @@ import gobblin.hive.util.HiveJdbcConnector;
 
 /**
  * A class for managing general Hive tables.
- *
- * @author ziliu
  */
 public abstract class HiveTable {
 

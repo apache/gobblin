@@ -28,7 +28,7 @@ import gobblin.hive.spec.SimpleHiveSpec;
 /**
  * Unit test for {@link HiveRegistrationPolicyBase}
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Test(groups = { "gobblin.hive" })
 public class HiveRegistrationPolicyBaseTest {
@@ -63,7 +63,7 @@ public class HiveRegistrationPolicyBaseTest {
     examine(spec, "db2", "tbl3");
   }
 
-  private void examine(HiveSpec spec, String dbName, String tableName) {
+  private static void examine(HiveSpec spec, String dbName, String tableName) {
     Assert.assertEquals(spec.getClass(), SimpleHiveSpec.class);
     Assert.assertEquals(spec.getTable().getDbName(), dbName);
     Assert.assertEquals(spec.getTable().getTableName(), tableName);

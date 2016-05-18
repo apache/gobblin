@@ -47,7 +47,7 @@ import gobblin.hive.spec.SimpleHiveSpec;
  * table name from property {@link #HIVE_TABLE_NAME} and {@link #HIVE_TABLE_REGEX} (group 1),
  * and builds a {@link SimpleHiveSpec}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {

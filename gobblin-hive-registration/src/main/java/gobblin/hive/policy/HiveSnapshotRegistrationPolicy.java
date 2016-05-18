@@ -38,7 +38,7 @@ import gobblin.hive.spec.SimpleHiveSpec;
 /**
  * A {@link gobblin.hive.policy.HiveRegistrationPolicy} for registering snapshots.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public class HiveSnapshotRegistrationPolicy extends HiveRegistrationPolicyBase {

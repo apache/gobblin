@@ -49,7 +49,7 @@ import gobblin.util.FileListUtils;
  * This class is able to handle the case where the input path has subdirs which contain data files, which
  * is not the case with {@link org.apache.hadoop.mapreduce.lib.input.CombineFileInputFormat}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroKeyRecursiveCombineFileInputFormat
     extends CombineFileInputFormat<AvroKey<GenericRecord>, NullWritable> {

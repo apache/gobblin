@@ -50,7 +50,7 @@ import lombok.extern.slf4j.Slf4j;
  *   that documents the published paths, such as {@link BaseDataPublisher}.
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Slf4j
 public class HiveRegistrationPublisher extends DataPublisher {

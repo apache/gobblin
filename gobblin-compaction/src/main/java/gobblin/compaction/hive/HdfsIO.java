@@ -26,8 +26,6 @@ import com.google.common.base.Strings;
 
 /**
  * Management for HDFS reads and writes.
- *
- * @author ziliu
  */
 public abstract class HdfsIO {
   private static final Logger LOG = LoggerFactory.getLogger(HdfsIO.class);

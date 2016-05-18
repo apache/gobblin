@@ -59,7 +59,7 @@ import lombok.extern.slf4j.Slf4j;
  *   thread pool whose size is controlled by {@link HiveRegProps#HIVE_REGISTER_THREADS}.
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Slf4j
 @Alpha

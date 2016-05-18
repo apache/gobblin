@@ -37,7 +37,7 @@ import gobblin.source.workunit.Extract.TableType;
  *   {@link WikipediaExtractor} to pull the data from Wikipedia.
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class WikipediaSource extends AbstractSource<String, JsonElement> {
 

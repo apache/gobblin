@@ -49,7 +49,7 @@ import gobblin.source.workunit.WorkUnit;
  *   for each specified title from Wikipedia. Each revision is returned as a JSON document.
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class WikipediaExtractor implements Extractor<String, JsonElement> {
 

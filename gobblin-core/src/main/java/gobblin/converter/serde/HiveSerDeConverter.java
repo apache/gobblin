@@ -52,7 +52,7 @@ import gobblin.util.HadoopUtils;
  *   are set (refer to the Gobblin documentation for a full example).
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @SuppressWarnings("deprecation")
 @Slf4j

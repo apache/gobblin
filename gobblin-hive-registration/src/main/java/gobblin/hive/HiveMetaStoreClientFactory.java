@@ -27,8 +27,6 @@ import com.google.common.base.Optional;
 
 /**
  * An implementation of {@link BasePooledObjectFactory} for {@link IMetaStoreClient}.
- *
- * @author ziliu
  */
 public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaStoreClient> {
 

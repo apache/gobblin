@@ -15,7 +15,7 @@ package gobblin.hive;
 /**
  * An extension to {@link HiveRegistrationUnitComparator} for {@link HiveTable}s.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class HiveTableComparator<T extends HiveTableComparator<?>> extends HiveRegistrationUnitComparator<T> {
 

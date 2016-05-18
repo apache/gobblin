@@ -27,7 +27,7 @@ import com.google.common.collect.Maps;
 /**
  * A class that removes specific fields from a (possibly recursive) Avro schema.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroSchemaFieldRemover {
 

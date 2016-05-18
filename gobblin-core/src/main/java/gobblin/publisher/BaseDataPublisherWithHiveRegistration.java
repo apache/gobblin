@@ -30,7 +30,7 @@ import gobblin.configuration.WorkUnitState;
  *   {@link HiveRegistrationPublisher} as the job level publisher.
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class BaseDataPublisherWithHiveRegistration extends BaseDataPublisher {
 

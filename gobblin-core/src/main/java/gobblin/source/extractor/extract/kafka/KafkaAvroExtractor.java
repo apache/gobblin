@@ -42,7 +42,7 @@ import gobblin.util.AvroUtils;
  * schema registry is not used (i.e., property {@link KafkaSchemaRegistry#KAFKA_SCHEMA_REGISTRY_CLASS} is not
  * specified, method {@link #getExtractorSchema()} should be overriden.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Slf4j
 public abstract class KafkaAvroExtractor<K> extends KafkaExtractor<Schema, GenericRecord> {

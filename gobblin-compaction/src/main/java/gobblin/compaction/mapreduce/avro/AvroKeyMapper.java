@@ -37,7 +37,7 @@ import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
  *
  * If the number of reducers is set to 0, then it is an identity mapper.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, AvroKey<GenericRecord>, Object> {
 

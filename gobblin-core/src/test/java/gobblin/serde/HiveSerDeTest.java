@@ -50,7 +50,7 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * Unit test for data ingestion using Hive SerDes.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class HiveSerDeTest {
 

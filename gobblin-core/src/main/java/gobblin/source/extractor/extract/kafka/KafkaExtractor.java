@@ -44,7 +44,7 @@ import gobblin.source.extractor.extract.EventBasedExtractor;
  * An implementation of {@link Extractor} for Apache Kafka. Each {@link KafkaExtractor} processes
  * one or more partitions of the same topic.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 

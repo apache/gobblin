@@ -28,7 +28,7 @@ import gobblin.hive.avro.HiveAvroSerDeManager;
 /**
  * This class manages SerDe properties (including schema properties) for Hive registration.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public abstract class HiveSerDeManager {

@@ -28,7 +28,7 @@ import gobblin.source.extractor.Watermark;
 /**
  * A {@link gobblin.source.extractor.Watermark} that holds multiple long values.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class MultiLongWatermark implements Watermark {
 

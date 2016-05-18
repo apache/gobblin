@@ -33,7 +33,7 @@ import gobblin.configuration.State;
  * {@link HiveOutputFormat#getHiveRecordWriter(JobConf, org.apache.hadoop.fs.Path, Class, boolean,
  * java.util.Properties, org.apache.hadoop.util.Progressable)}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
 
