@@ -93,8 +93,10 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     Config config = ConfigFactory.parseProperties(properties);
 
     if (properties.containsKey(DB_KEY)) {
-      this.whitelistBlacklist = new WhitelistBlacklist(this.properties.getProperty(DB_KEY) + "."
-          + this.properties.getProperty(TABLE_PATTERN_KEY, DEFAULT_TABLE_PATTERN), "");
+      // since all db/tables are in lower case in hive
+      // if not converting to lower case, the black/white list will fail
+      this.whitelistBlacklist = new WhitelistBlacklist(this.properties.getProperty(DB_KEY).toLowerCase() + "."
+          + this.properties.getProperty(TABLE_PATTERN_KEY, DEFAULT_TABLE_PATTERN).toLowerCase(), "");
     } else {
       this.whitelistBlacklist = new WhitelistBlacklist(config.getConfig(HIVE_DATASET_PREFIX));
     }
