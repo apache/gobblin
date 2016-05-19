@@ -26,6 +26,8 @@ import com.google.gson.Gson;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Watermark;
+import gobblin.source.extractor.extract.LongWatermark;
+
 
 /**
  * A {@link HiveSourceWatermarker} that manages {@link Watermark} at a per {@link Table} basis.
@@ -40,17 +42,18 @@ public class TableLevelWatermarker implements HiveSourceWatermarker {
 
   public TableLevelWatermarker(SourceState state) {
     this.tableWatermarks = Maps.newHashMap();
-    SourceState sourceState = (SourceState)state;
+    SourceState sourceState = (SourceState) state;
 
-    for (Map.Entry<String, Iterable<WorkUnitState>> datasetWorkUnitStates : sourceState.getPreviousWorkUnitStatesByDatasetUrns().entrySet()) {
+    for (Map.Entry<String, Iterable<WorkUnitState>> datasetWorkUnitStates : sourceState
+        .getPreviousWorkUnitStatesByDatasetUrns().entrySet()) {
 
-      LongWatermark tableWatermark = Collections.min(Lists.newArrayList(Iterables.transform(datasetWorkUnitStates.getValue(),
-          new Function<WorkUnitState, LongWatermark>() {
+      LongWatermark tableWatermark = Collections.min(Lists.newArrayList(
+          Iterables.transform(datasetWorkUnitStates.getValue(), new Function<WorkUnitState, LongWatermark>() {
             @Override
             public LongWatermark apply(WorkUnitState w) {
               return GSON.fromJson(w.getActualHighWatermark(), LongWatermark.class);
             }
-      })));
+          })));
 
       this.tableWatermarks.put(datasetWorkUnitStates.getKey(), tableWatermark);
 
@@ -60,8 +63,8 @@ public class TableLevelWatermarker implements HiveSourceWatermarker {
 
   @Override
   public LongWatermark getPreviousHighWatermark(Table table) {
-    if (tableWatermarks.containsKey(table.getCompleteName())) {
-      return tableWatermarks.get(table.getCompleteName());
+    if (this.tableWatermarks.containsKey(table.getCompleteName())) {
+      return this.tableWatermarks.get(table.getCompleteName());
     }
     return new LongWatermark(0);
   }

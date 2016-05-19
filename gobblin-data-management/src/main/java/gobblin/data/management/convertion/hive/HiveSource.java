@@ -39,6 +39,7 @@ import gobblin.hive.metastore.HiveMetaStoreUtils;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.WatermarkInterval;
+import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.HadoopUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
@@ -70,7 +71,8 @@ public class HiveSource implements Source {
 
   private static final String OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS_KEY =
       "hive.unit.updateProviderFactory.class";
-  private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS = HdfsBasedUpdateProviderFactory.class.getName();
+  private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS =
+      HdfsBasedUpdateProviderFactory.class.getName();
 
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
@@ -85,7 +87,9 @@ public class HiveSource implements Source {
 
       // Initialize
       HiveSourceWatermarker watermaker = new TableLevelWatermarker(state);
-      HiveUnitUpdateProviderFactory updateProviderFactory = GobblinConstructorUtils.invokeConstructor(HiveUnitUpdateProviderFactory.class, state.getProp(OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS));
+      HiveUnitUpdateProviderFactory updateProviderFactory =
+          GobblinConstructorUtils.invokeConstructor(HiveUnitUpdateProviderFactory.class, state.getProp(
+              OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS));
       HiveUnitUpdateProvider updateProvider = updateProviderFactory.create(state);
       IterableDatasetFinder<HiveDataset> datasetFinder = new HiveDatasetFinder(getSourceFs(), state.getProperties());
 
@@ -98,20 +102,19 @@ public class HiveSource implements Source {
 
         // Create workunits for partitions
         if (HiveUtils.isPartitioned(hiveDataset.getTable())) {
-          List<Partition> sourcePartitions =
-              HiveUtils.getPartitions(hiveDataset.getClientPool().getClient().get(), hiveDataset.getTable(),
-                  Optional.<String> absent());
+          List<Partition> sourcePartitions = HiveUtils.getPartitions(hiveDataset.getClientPool().getClient().get(),
+              hiveDataset.getTable(), Optional.<String> absent());
 
           for (Partition sourcePartition : sourcePartitions) {
             LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);
             long updateTime = updateProvider.getUpdateTime(sourcePartition);
             if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
 
-              HivePartition hivePartition =
-                  HiveMetaStoreUtils.getHivePartition(sourcePartition.getTPartition());
+              HivePartition hivePartition = HiveMetaStoreUtils.getHivePartition(sourcePartition.getTPartition());
               WorkUnit workUnit = WorkUnit.createEmpty();
 
-              workUnit.setProp(HIVE_UNIT_SERIALIZED_KEY, GENERICS_AWARE_GSON.toJson(hivePartition, HivePartition.class));
+              workUnit.setProp(HIVE_UNIT_SERIALIZED_KEY,
+                  GENERICS_AWARE_GSON.toJson(hivePartition, HivePartition.class));
               workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
               workUnit.setProp(PARTITION_COMPLETE_NAME_KEY, sourcePartition.getCompleteName());
               workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
@@ -136,9 +139,9 @@ public class HiveSource implements Source {
             workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
             workunits.add(workUnit);
           } else {
-            log.info(String.format(
-                "Not creating workunit for table %s as updateTime %s is lesser than low watermark %s", hiveDataset
-                    .getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
+            log.info(
+                String.format("Not creating workunit for table %s as updateTime %s is lesser than low watermark %s",
+                    hiveDataset.getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
           }
         }
       }
@@ -155,10 +158,9 @@ public class HiveSource implements Source {
   }
 
   @Override
-  public void shutdown(SourceState state) {
-  }
+  public void shutdown(SourceState state) {}
 
-  private FileSystem getSourceFs() throws IOException {
+  private static FileSystem getSourceFs() throws IOException {
     return FileSystem.get(HadoopUtils.newConfiguration());
   }
 }
