@@ -53,6 +53,7 @@ dependencies {
   testRuntime externalDependency.hadoopAws
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
+  testCompile externalDependency.jsonAssert
   testCompile externalDependency.jhyde
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.testng
