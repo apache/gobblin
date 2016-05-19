@@ -12,12 +12,16 @@
 
 package gobblin.writer.jdbc;
 
-import static org.mockito.Mockito.*;
-import static gobblin.writer.commands.JdbcBufferedInserter.*;
-import gobblin.configuration.State;
-import gobblin.converter.jdbc.JdbcEntryData;
-import gobblin.converter.jdbc.JdbcEntryDatum;
-import gobblin.writer.commands.MySqlBufferedInserter;
+import static gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_INSERT_BATCH_SIZE;
+import static gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_MAX_PARAM_SIZE;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -31,7 +35,12 @@ import java.util.Set;
 import org.apache.commons.lang.RandomStringUtils;
 import org.testng.annotations.Test;
 
-@Test(groups = {"gobblin.writer"})
+import gobblin.configuration.State;
+import gobblin.converter.jdbc.JdbcEntryData;
+import gobblin.converter.jdbc.JdbcEntryDatum;
+import gobblin.writer.commands.MySqlBufferedInserter;
+
+@Test(groups = {"gobblin.writer"}, singleThreaded=true)
 public class MySqlBufferedInserterTest {
 
   public void testMySqlBufferedInsert() throws SQLException {
@@ -62,16 +71,17 @@ public class MySqlBufferedInserterTest {
     verify(pstmt, times(11)).clearParameters();
     verify(pstmt, times(11)).execute();
     verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    reset(pstmt);
   }
 
   public void testMySqlBufferedInsertParamLimit() throws SQLException {
     final String db = "db";
     final String table = "stg";
-    final int colNums = 1000;
-    final int batchSize = 100;
-    final int entryCount = 1007;
+    final int colNums = 100;
+    final int batchSize = 10;
+    final int entryCount = 107;
     final int colSize = 3;
-    final int maxParamSize = 10000;
+    final int maxParamSize = 1000;
 
     State state = new State();
     state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
@@ -95,6 +105,7 @@ public class MySqlBufferedInserterTest {
     verify(pstmt, times(expectedExecuteCount)).clearParameters();
     verify(pstmt, times(expectedExecuteCount)).execute();
     verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    reset(pstmt);
   }
 
   private List<JdbcEntryData> createJdbcEntries(int colNums, int colSize, int entryCount) {

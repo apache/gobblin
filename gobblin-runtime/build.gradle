@@ -102,7 +102,6 @@ artifacts {
 test {
     workingDir rootProject.rootDir
     maxParallelForks = 1
-    maxHeapSize = '128m'
 }
 
 clean {
