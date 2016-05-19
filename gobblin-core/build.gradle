@@ -70,7 +70,6 @@ configurations {
 
 test {
   workingDir rootProject.rootDir
-  maxHeapSize '512m'
 }
 
 ext.classification="library"
