@@ -23,6 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.DefaultCodec;
@@ -94,7 +95,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   @Override
   public boolean create(String storeName) throws IOException {
     Path storePath = new Path(this.storeRootDir, storeName);
-    return this.fs.exists(storePath) || this.fs.mkdirs(storePath);
+    return this.fs.exists(storePath) || this.fs.mkdirs(storePath, new FsPermission((short)0755));
   }
 
   @Override
