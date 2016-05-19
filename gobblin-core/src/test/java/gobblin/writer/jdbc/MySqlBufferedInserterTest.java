@@ -47,8 +47,8 @@ public class MySqlBufferedInserterTest {
     final String db = "db";
     final String table = "stg";
     final int colNums = 20;
-    final int batchSize = 100;
-    final int entryCount = 1007;
+    final int batchSize = 10;
+    final int entryCount = 107;
     final int colSize = 7;
 
     State state = new State();
@@ -77,11 +77,11 @@ public class MySqlBufferedInserterTest {
   public void testMySqlBufferedInsertParamLimit() throws SQLException {
     final String db = "db";
     final String table = "stg";
-    final int colNums = 100;
+    final int colNums = 50;
     final int batchSize = 10;
     final int entryCount = 107;
     final int colSize = 3;
-    final int maxParamSize = 1000;
+    final int maxParamSize = 500;
 
     State state = new State();
     state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
