@@ -18,6 +18,8 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.publisher.DataPublisher;
+import gobblin.source.extractor.extract.LongWatermark;
+
 
 /**
  * A simple {@link DataPublisher} updates the watermark and working state
@@ -34,7 +36,8 @@ public class HiveConvertPublisher extends DataPublisher {
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
     for (WorkUnitState wus : states) {
       wus.setWorkingState(WorkingState.COMMITTED);
-      wus.setActualHighWatermark(TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(), LongWatermark.class));
+      wus.setActualHighWatermark(
+          TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(), LongWatermark.class));
     }
   }
 
