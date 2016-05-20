@@ -154,7 +154,7 @@ public class Partitioner {
       }
       DateTime wm =
           Utils.toDateTime(previousWatermark, WATERMARKTIMEFORMAT, timeZone).plusSeconds((deltaForNextWatermark
-              - this.state.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS)));
+              - this.state.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS, 0)));
 
       return Long.parseLong(Utils.dateTimeToString(wm, WATERMARKTIMEFORMAT, timeZone));
     }
