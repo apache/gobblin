@@ -25,8 +25,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A class for read operations on HDFS.
- *
- * @author ziliu
  */
 public class HdfsReader extends HdfsIO {
 

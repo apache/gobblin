@@ -39,12 +39,13 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.mock.MockUpdateProvider;
 import gobblin.data.management.conversion.hive.mock.MockUpdateProviderFactory;
 import gobblin.data.management.convertion.hive.HiveSource;
-import gobblin.data.management.convertion.hive.LongWatermark;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HivePartition;
 import gobblin.hive.HiveRegistrationUnit;
 import gobblin.hive.HiveTable;
+import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.WorkUnit;
+
 
 @Slf4j
 @Test(groups = { "gobblin.data.management.conversion" })
@@ -73,15 +74,16 @@ public class HiveSourceTest {
 
     SourceState testState = getTestState(dbName);
 
-    createTestTable(dbName, tableName, tableSdLoc, Optional.<String>absent());
+    createTestTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
 
-    updateProvider.addMockUpdateTime(dbName + "@" + tableName, 10);
+    this.updateProvider.addMockUpdateTime(dbName + "@" + tableName, 10);
 
-    List<WorkUnit> workUnits = hiveSource.getWorkunits(testState);
+    List<WorkUnit> workUnits = this.hiveSource.getWorkunits(testState);
 
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
-    HiveRegistrationUnit hiveUnit = HiveSource.GENERICS_AWARE_GSON.fromJson(wu.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY), HiveRegistrationUnit.class);
+    HiveRegistrationUnit hiveUnit = HiveSource.GENERICS_AWARE_GSON
+        .fromJson(wu.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY), HiveRegistrationUnit.class);
     Assert.assertTrue(hiveUnit instanceof HiveTable, "Serialized hive unit is not a table");
     Assert.assertEquals(hiveUnit.getDbName(), dbName);
     Assert.assertEquals(hiveUnit.getTableName(), tableName);
@@ -104,14 +106,14 @@ public class HiveSourceTest {
 
     Partition partition = addTestPartition(tbl, ImmutableList.of("f1"));
 
-    updateProvider.addMockUpdateTime("testdb3@testtable3@field=f1", 2);
+    this.updateProvider.addMockUpdateTime("testdb3@testtable3@field=f1", 2);
 
-    List<WorkUnit> workUnits = hiveSource.getWorkunits(testState);
+    List<WorkUnit> workUnits = this.hiveSource.getWorkunits(testState);
 
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
-    HiveRegistrationUnit hiveUnit = HiveSource.GENERICS_AWARE_GSON.fromJson(wu.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY),
-            HiveRegistrationUnit.class);
+    HiveRegistrationUnit hiveUnit = HiveSource.GENERICS_AWARE_GSON
+        .fromJson(wu.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY), HiveRegistrationUnit.class);
 
     Assert.assertEquals(hiveUnit.getDbName(), dbName);
     Assert.assertEquals(hiveUnit.getTableName(), tableName);
@@ -140,24 +142,25 @@ public class HiveSourceTest {
 
     SourceState testState = new SourceState(getTestState(dbName), previousWorkUnitStates);
 
-    createTestTable(dbName, tableName1, tableSdLoc1, Optional.<String>absent());
-    createTestTable(dbName, tableName2, tableSdLoc2, Optional.<String>absent(), true);
+    createTestTable(dbName, tableName1, tableSdLoc1, Optional.<String> absent());
+    createTestTable(dbName, tableName2, tableSdLoc2, Optional.<String> absent(), true);
 
-    updateProvider.addMockUpdateTime(dbName + "@" + tableName1, 10);
-    updateProvider.addMockUpdateTime(dbName + "@" + tableName2, 15);
+    this.updateProvider.addMockUpdateTime(dbName + "@" + tableName1, 10);
+    this.updateProvider.addMockUpdateTime(dbName + "@" + tableName2, 15);
 
-    List<WorkUnit> workUnits = hiveSource.getWorkunits(testState);
+    List<WorkUnit> workUnits = this.hiveSource.getWorkunits(testState);
 
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
-    HiveRegistrationUnit hiveUnit = HiveSource.GENERICS_AWARE_GSON.fromJson(wu.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY), HiveRegistrationUnit.class);
+    HiveRegistrationUnit hiveUnit = HiveSource.GENERICS_AWARE_GSON
+        .fromJson(wu.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY), HiveRegistrationUnit.class);
     Assert.assertTrue(hiveUnit instanceof HiveTable, "Serialized hive unit is not a table");
     Assert.assertEquals(hiveUnit.getDbName(), dbName);
     Assert.assertEquals(hiveUnit.getTableName(), tableName2);
 
   }
 
-  private WorkUnitState createPreviousWus(String dbName, String tableName, long watermark) {
+  private static WorkUnitState createPreviousWus(String dbName, String tableName, long watermark) {
 
     WorkUnitState wus = new WorkUnitState();
     wus.setActualHighWatermark(new LongWatermark(watermark));
@@ -166,11 +169,13 @@ public class HiveSourceTest {
     return wus;
   }
 
-  private Table createTestTable(String dbName, String tableName, String tableSdLoc, Optional<String> partitionFieldName) throws Exception {
+  private Table createTestTable(String dbName, String tableName, String tableSdLoc, Optional<String> partitionFieldName)
+      throws Exception {
     return createTestTable(dbName, tableName, tableSdLoc, partitionFieldName, false);
   }
 
-  private Table createTestTable(String dbName, String tableName, String tableSdLoc, Optional<String> partitionFieldName, boolean ignoreDbCreation) throws Exception {
+  private Table createTestTable(String dbName, String tableName, String tableSdLoc, Optional<String> partitionFieldName,
+      boolean ignoreDbCreation) throws Exception {
     if (!ignoreDbCreation) {
       createTestDb(dbName);
     }
@@ -195,7 +200,7 @@ public class HiveSourceTest {
 
   }
 
-  private SourceState getTestState(String dbName) {
+  private static SourceState getTestState(String dbName) {
     SourceState testState = new SourceState();
     testState.setProp("hive.dataset.database", dbName);
     testState.setProp("hive.dataset.table.pattern", "*");
@@ -210,10 +215,9 @@ public class HiveSourceTest {
     partitionSd.setCols(tbl.getPartitionKeys());
 
     Partition partition =
-        new Partition(values, tbl.getDbName(), tbl.getTableName(), 1, 1, partitionSd,
-            new HashMap<String, String>());
+        new Partition(values, tbl.getDbName(), tbl.getTableName(), 1, 1, partitionSd, new HashMap<String, String>());
 
-    localMetastoreClient.add_partition(partition);
+    this.localMetastoreClient.add_partition(partition);
 
     return partition;
   }

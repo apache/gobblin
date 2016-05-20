@@ -34,7 +34,7 @@ import lombok.Getter;
 /**
  * A class that represents a Hive table or partition.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Getter
 @Alpha

@@ -437,7 +437,8 @@ public class JobContext {
       Class<? extends DataPublisher> dataPublisherClass, Closer closer)
       throws ReflectiveOperationException, IOException {
     if (UnpublishedHandling.class.isAssignableFrom(dataPublisherClass)) {
-      DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, datasetState));
+      // pass in jobstate to retrieve properties
+      DataPublisher publisher = closer.register(DataPublisher.getInstance(dataPublisherClass, this.jobState));
       this.logger.info(String.format("Calling publisher to handle unpublished work units for dataset %s of job %s.",
           datasetUrn, this.jobId));
       ((UnpublishedHandling) publisher).handleUnpublishedWorkUnits(datasetState.getTaskStatesAsWorkUnitStates());

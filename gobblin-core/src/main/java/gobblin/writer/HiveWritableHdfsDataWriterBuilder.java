@@ -32,7 +32,7 @@ import gobblin.hive.HiveSerDeWrapper;
  * {@link HiveSerDeWrapper#SERDE_SERIALIZER_TYPE} is required, which will be used to create a 
  * {@link HiveSerDeWrapper} that contains the information needed to create {@link HiveWritableHdfsDataWriter}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class HiveWritableHdfsDataWriterBuilder<S> extends FsDataWriterBuilder<S, Writable> {
 

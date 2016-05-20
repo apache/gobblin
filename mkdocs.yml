@@ -29,6 +29,8 @@ pages:
         - Job Execution History Store: user-guide/Job-Execution-History-Store.md
         - Gobblin Build Options: user-guide/Gobblin-Build-Options.md
         - JDBC Writer: user-guide/Gobblin-JDBC-Writer.md
+        - Hive Registration: user-guide/Hive-Registration.md
+        - Config Management : user-guide/Config-Management.md
         - Troubleshooting: user-guide/Troubleshooting.md
         - FAQs: user-guide/FAQs.md
     - Gobblin Adaptors:
@@ -36,6 +38,7 @@ pages:
     - Case Studies:
         - Kafka-HDFS Ingestion: case-studies/Kafka-HDFS-Ingestion.md
         - Publishing Data to S3: case-studies/Publishing-Data-to-S3.md
+        - Writing ORC Data: case-studies/Writing-ORC-Data.md
     - Gobblin Data Management:
         - Retention: data-management/Gobblin-Retention.md
     - Gobblin Metrics:

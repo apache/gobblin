@@ -78,13 +78,13 @@ public class HiveUtils {
    *               (e.g. "part = \"part1\"" or "date > \"2015\"".
    * @return a list of {@link Partition}s
    */
-  public static List<Partition> getPartitions(IMetaStoreClient client, Table table,
-      Optional<String> filter) throws IOException {
+  public static List<Partition> getPartitions(IMetaStoreClient client, Table table, Optional<String> filter)
+      throws IOException {
     try {
       List<Partition> partitions = Lists.newArrayList();
-      List<org.apache.hadoop.hive.metastore.api.Partition> partitionsList = filter.isPresent() ?
-          client.listPartitionsByFilter(table.getDbName(), table.getTableName(), filter.get(), (short) -1) :
-          client.listPartitions(table.getDbName(), table.getTableName(), (short) -1);
+      List<org.apache.hadoop.hive.metastore.api.Partition> partitionsList = filter.isPresent()
+          ? client.listPartitionsByFilter(table.getDbName(), table.getTableName(), filter.get(), (short) -1)
+          : client.listPartitions(table.getDbName(), table.getTableName(), (short) -1);
       for (org.apache.hadoop.hive.metastore.api.Partition p : partitionsList) {
         Partition partition = new Partition(table, p);
         partitions.add(partition);
@@ -100,8 +100,8 @@ public class HiveUtils {
    */
   public static InputFormat<?, ?> getInputFormat(StorageDescriptor sd) throws IOException {
     try {
-      InputFormat<?, ?> inputFormat = ConstructorUtils
-          .invokeConstructor((Class<? extends InputFormat>) Class.forName(sd.getInputFormat()));
+      InputFormat<?, ?> inputFormat =
+          ConstructorUtils.invokeConstructor((Class<? extends InputFormat>) Class.forName(sd.getInputFormat()));
       if (inputFormat instanceof JobConfigurable) {
         ((JobConfigurable) inputFormat).configure(new JobConf(getHadoopConfiguration()));
       }

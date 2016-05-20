@@ -20,7 +20,7 @@ import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 /**
  * An implementation of {@link RecordTimestampLowerBoundPolicy} for Avro records.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroRecordTimestampLowerBoundPolicy extends RecordTimestampLowerBoundPolicy {
 

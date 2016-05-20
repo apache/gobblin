@@ -37,7 +37,7 @@ import gobblin.configuration.State;
  * A wrapper around {@link SerDe} that bundles input format, output format and file extension with a {@link SerDe},
  * and provides additional functionalities.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 @SuppressWarnings("deprecation")

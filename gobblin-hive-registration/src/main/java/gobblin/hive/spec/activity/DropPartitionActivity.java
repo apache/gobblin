@@ -23,7 +23,7 @@ import lombok.AllArgsConstructor;
 /**
  * An {@link Activity} that drops a collection of Hive partitions given a {@link HiveRegister}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @AllArgsConstructor
 public class DropPartitionActivity implements Activity {

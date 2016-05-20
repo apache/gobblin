@@ -46,7 +46,7 @@ import gobblin.util.io.GsonInterfaceAdapter;
  *    and deserialized with {@link Gson}.
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public class FsCommitSequenceStore implements CommitSequenceStore {

@@ -18,8 +18,6 @@ import gobblin.configuration.SourceState;
 /**
  * A base implementation of {@link gobblin.source.Source} for
  * event-based sources.
- *
- * @author ziliu
  */
 public abstract class EventBasedSource<S, D> extends AbstractSource<S, D> {
   @Override

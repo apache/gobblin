@@ -31,8 +31,6 @@ import gobblin.hive.util.HiveJdbcConnector;
  * An implementation of compactor. This class assumes that the snapshot table
  * and the delta tables are taken one after another (hence the name
  * "SerialCompactor").
- *
- * @author ziliu
  */
 public class SerialCompactor implements Compactor {
 

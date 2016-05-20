@@ -45,7 +45,7 @@ import gobblin.util.ForkOperatorUtils;
  * A prefix and a suffix can be added to the partition, e.g., the partition path can be
  * 'prefix/2015/11/05/suffix'.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner<D> {
 

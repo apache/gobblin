@@ -32,7 +32,7 @@ import gobblin.util.AvroUtils;
 /**
  * A {@link Converter} that removes certain fields from an Avro schema or an Avro record.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroProjectionConverter extends AvroToAvroConverterBase {
 

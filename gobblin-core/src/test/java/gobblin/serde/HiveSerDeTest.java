@@ -12,7 +12,6 @@
 
 package gobblin.serde;
 
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.List;
@@ -51,7 +50,7 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * Unit test for data ingestion using Hive SerDes.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class HiveSerDeTest {
 
@@ -68,7 +67,7 @@ public class HiveSerDeTest {
    */
   @Test(groups = { "gobblin.serde" })
   public void testAvroOrcSerDes()
-      throws FileNotFoundException, IOException, DataRecordException, DataConversionException {
+      throws IOException, DataRecordException, DataConversionException {
     Properties properties = new Properties();
     properties.load(new FileReader("gobblin-core/src/test/resources/serde/serde.properties"));
     SourceState sourceState = new SourceState(new State(properties), ImmutableList.<WorkUnitState> of());
@@ -83,16 +82,17 @@ public class HiveSerDeTest {
 
     Closer closer = Closer.create();
 
+    HiveWritableHdfsDataWriter writer = null;
     try {
       OldApiWritableFileExtractor extractor = closer.register((OldApiWritableFileExtractor) source.getExtractor(wus));
       HiveSerDeConverter converter = closer.register(new HiveSerDeConverter());
-      HiveWritableHdfsDataWriter writer =
+      writer =
           closer.register((HiveWritableHdfsDataWriter) new HiveWritableHdfsDataWriterBuilder<>().withBranches(1)
               .withWriterId("0").writeTo(Destination.of(DestinationType.HDFS, sourceState))
               .writeInFormat(WriterOutputFormat.ORC).build());
 
       converter.init(wus);
-      Writable record = null;
+      Writable record;
 
       while ((record = extractor.readRecord(null)) != null) {
         Iterable<Writable> convertedRecordIterable = converter.convertRecordImpl(null, record, wus);
@@ -103,9 +103,12 @@ public class HiveSerDeTest {
       throw closer.rethrow(t);
     } finally {
       closer.close();
-      Assert.assertTrue(this.fs.exists(new Path(sourceState.getProp(ConfigurationKeys.WRITER_STAGING_DIR),
+      if (writer != null) {
+        writer.commit();
+      }
+      Assert.assertTrue(this.fs.exists(new Path(sourceState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
           sourceState.getProp(ConfigurationKeys.WRITER_FILE_NAME))));
-      HadoopUtils.deletePath(this.fs, new Path(sourceState.getProp(ConfigurationKeys.WRITER_STAGING_DIR)), true);
+      HadoopUtils.deletePath(this.fs, new Path(sourceState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)), true);
     }
   }
 }

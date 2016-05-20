@@ -36,7 +36,7 @@ import gobblin.converter.ToAvroConverterBase;
  *   and each input JSON document into an Avro {@link org.apache.avro.generic.GenericRecord}.
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement> {
 

@@ -34,8 +34,6 @@ import gobblin.metrics.Tag;
 
 /**
  * A class for launching a Gobblin MR job for compaction through Azkaban.
- *
- * @author ziliu
  */
 public class AzkabanCompactionJobLauncher extends AbstractJob {
 

@@ -29,6 +29,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.config.client.ConfigClient;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.dataset.CleanableDatasetBase;
@@ -77,7 +78,7 @@ public class RetentionTestHelper {
      when(client.getConfig(any(String.class))).thenReturn(testConfig);
      Properties jobProps = new Properties();
      jobProps.setProperty(CleanableDatasetBase.SKIP_TRASH_KEY, Boolean.toString(true));
-     jobProps.setProperty(ManagedCleanableDatasetFinder.CONFIG_MANAGEMENT_STORE_URI, "dummy");
+     jobProps.setProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI, "dummy");
 
      @SuppressWarnings("unchecked")
      DatasetsFinder<CleanableDataset> finder =

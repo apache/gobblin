@@ -23,7 +23,7 @@ import gobblin.configuration.State;
 /**
  * The semantics for data delivery.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public enum DeliverySemantics {
 

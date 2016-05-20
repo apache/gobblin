@@ -32,7 +32,7 @@ public class RestApiCommand implements Command {
   private RestApiCommandType cmd;
 
   public RestApiCommand() {
-    this.params = new ArrayList<String>();
+    this.params = new ArrayList<>();
   }
 
   @Override
@@ -55,6 +55,6 @@ public class RestApiCommand implements Command {
   @Override
   public String toString() {
     Joiner joiner = Joiner.on(":").skipNulls();
-    return cmd.toString() + ":" + joiner.join(params);
+    return this.cmd.toString() + ":" + joiner.join(this.params);
   }
 }
