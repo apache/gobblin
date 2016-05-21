@@ -21,13 +21,16 @@ public class WhitelistBlacklistTest {
 
   @Test
   public void testSimpleWhitelist() throws Exception {
-    WhitelistBlacklist whitelistBlacklist = new WhitelistBlacklist("dba.tablea", "");
+    WhitelistBlacklist whitelistBlacklist = new WhitelistBlacklist("Dba.Tablea", "");
     Assert.assertTrue(whitelistBlacklist.acceptDb("dba"));
     Assert.assertFalse(whitelistBlacklist.acceptDb("dbb"));
 
     Assert.assertTrue(whitelistBlacklist.acceptTable("dba", "tablea"));
     Assert.assertFalse(whitelistBlacklist.acceptTable("dba", "tableb"));
     Assert.assertFalse(whitelistBlacklist.acceptTable("dbb", "tablea"));
+    
+    Assert.assertTrue(whitelistBlacklist.acceptTable("dbA", "tablea"));
+    Assert.assertTrue(whitelistBlacklist.acceptTable("dbA", "TableA"));
   }
 
   @Test
