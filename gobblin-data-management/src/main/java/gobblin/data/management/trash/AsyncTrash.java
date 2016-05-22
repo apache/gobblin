@@ -97,7 +97,7 @@ public class AsyncTrash implements GobblinProxiedTrash, Closeable, Decorator {
     });
   }
 
-  public boolean moveToTrashAsOwner(Path path) throws IOException {
+  public boolean moveToTrashAsOwner(Path path) {
     moveToTrashAsOwnerFuture(path);
     return true;
   }

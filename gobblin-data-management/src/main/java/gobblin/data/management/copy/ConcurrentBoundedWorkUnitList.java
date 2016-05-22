@@ -60,7 +60,8 @@ class ConcurrentBoundedWorkUnitList {
       this.userProvidedComparator = userProvidedComparator;
     }
 
-    @Override public int compare(FileSet<CopyEntity> p1, FileSet<CopyEntity> p2) {
+    @Override
+    public int compare(FileSet<CopyEntity> p1, FileSet<CopyEntity> p2) {
       int userProvidedCompare = this.userProvidedComparator.compare(p1, p2);
       if (userProvidedCompare == 0) {
         int datasetCompare = p1.getDataset().datasetURN().compareTo(p2.getDataset().datasetURN());
@@ -142,8 +143,8 @@ class ConcurrentBoundedWorkUnitList {
     }
 
     this.currentSize += workUnits.size();
-    log.info(String.format("Added %d work units to bounded list. Total size: %d, soft limit: %d, hard limit: %d.", workUnits.size(),
-        this.currentSize, this.maxSize, this.strictMaxSize));
+    log.info(String.format("Added %d work units to bounded list. Total size: %d, soft limit: %d, hard limit: %d.",
+        workUnits.size(), this.currentSize, this.maxSize, this.strictMaxSize));
     return true;
   }
 
@@ -152,7 +153,7 @@ class ConcurrentBoundedWorkUnitList {
    * to strict capacity issues.
    */
   public boolean hasRejectedFileSet() {
-    return rejectedFileSet;
+    return this.rejectedFileSet;
   }
 
   /**

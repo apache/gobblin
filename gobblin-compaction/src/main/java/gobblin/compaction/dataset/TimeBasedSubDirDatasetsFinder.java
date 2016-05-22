@@ -89,12 +89,11 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   /**
    * Each subdir in {@link DatasetsFinder#inputDir} is considered a dataset, if it satisfies blacklist and whitelist.
    */
-  @SuppressWarnings("deprecation")
   @Override
   public Set<Dataset> findDistinctDatasets() throws IOException {
     Set<Dataset> datasets = Sets.newHashSet();
     for (FileStatus datasetsFileStatus : this.fs.listStatus(new Path(this.inputDir))) {
-      if (datasetsFileStatus.isDir()) {
+      if (datasetsFileStatus.isDirectory()) {
         String datasetName = datasetsFileStatus.getPath().getName();
         if (DatasetFilterUtils.survived(datasetName, this.blacklist, this.whitelist)) {
           log.info("Found dataset: " + datasetsFileStatus.getPath().getName());

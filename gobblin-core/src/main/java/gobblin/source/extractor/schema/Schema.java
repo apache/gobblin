@@ -33,7 +33,7 @@ public class Schema {
   private boolean isUnique;
 
   public String getColumnName() {
-    return columnName;
+    return this.columnName;
   }
 
   public void setColumnName(String columnName) {
@@ -41,7 +41,7 @@ public class Schema {
   }
 
   public JsonObject getDataType() {
-    return dataType;
+    return this.dataType;
   }
 
   public void setDataType(JsonObject dataType) {
@@ -49,7 +49,7 @@ public class Schema {
   }
 
   public int getPrimaryKey() {
-    return primaryKey;
+    return this.primaryKey;
   }
 
   public void setPrimaryKey(int primaryKey) {
@@ -57,7 +57,7 @@ public class Schema {
   }
 
   public long getLength() {
-    return length;
+    return this.length;
   }
 
   public void setLength(long length) {
@@ -65,7 +65,7 @@ public class Schema {
   }
 
   public int getPrecision() {
-    return precision;
+    return this.precision;
   }
 
   public void setPrecision(int precision) {
@@ -73,7 +73,7 @@ public class Schema {
   }
 
   public int getScale() {
-    return scale;
+    return this.scale;
   }
 
   public void setScale(int scale) {
@@ -81,7 +81,7 @@ public class Schema {
   }
 
   public String getFormat() {
-    return format;
+    return this.format;
   }
 
   public void setFormat(String format) {
@@ -89,7 +89,7 @@ public class Schema {
   }
 
   public String getComment() {
-    return comment;
+    return this.comment;
   }
 
   public void setComment(String comment) {
@@ -97,7 +97,7 @@ public class Schema {
   }
 
   public String getDefaultValue() {
-    return defaultValue;
+    return this.defaultValue;
   }
 
   public void setDefaultValue(String defaultValue) {
@@ -105,7 +105,7 @@ public class Schema {
   }
 
   public boolean isWaterMark() {
-    return isWaterMark;
+    return this.isWaterMark;
   }
 
   public void setWaterMark(boolean isWaterMark) {
@@ -113,7 +113,7 @@ public class Schema {
   }
 
   public boolean isNullable() {
-    return isNullable;
+    return this.isNullable;
   }
 
   public void setNullable(boolean isNullable) {
@@ -121,7 +121,7 @@ public class Schema {
   }
 
   public boolean isUnique() {
-    return isUnique;
+    return this.isUnique;
   }
 
   public void setUnique(boolean isUnique) {

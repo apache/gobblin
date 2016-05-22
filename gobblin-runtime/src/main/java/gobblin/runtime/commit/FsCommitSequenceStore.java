@@ -136,7 +136,7 @@ public class FsCommitSequenceStore implements CommitSequenceStore {
    * Replace a null or empty dataset URN with {@link #DEFAULT_DATASET_URN}, and replaces illegal HDFS
    * characters with '_'.
    */
-  private String sanitizeDatasetUrn(String datasetUrn) {
+  private static String sanitizeDatasetUrn(String datasetUrn) {
     return Strings.isNullOrEmpty(datasetUrn) ? DEFAULT_DATASET_URN : HadoopUtils.sanitizePath(datasetUrn, "_");
   }
 

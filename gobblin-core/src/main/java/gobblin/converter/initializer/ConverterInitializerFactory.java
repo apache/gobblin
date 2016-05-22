@@ -15,9 +15,6 @@ package gobblin.converter.initializer;
 import java.util.Collection;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -29,9 +26,8 @@ import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
-public class ConverterInitializerFactory {
-  private static final Logger LOG = LoggerFactory.getLogger(ConverterInitializerFactory.class);
 
+public class ConverterInitializerFactory {
   private static final NoopConverterInitializer NOOP = new NoopConverterInitializer();
   private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().omitEmptyStrings();
 
@@ -55,13 +51,15 @@ public class ConverterInitializerFactory {
     return new MultiConverterInitializer(cis);
   }
 
-  private static ConverterInitializer newInstance(State state, Collection<WorkUnit> workUnits, int branches, int branchId) {
+  private static ConverterInitializer newInstance(State state, Collection<WorkUnit> workUnits, int branches,
+      int branchId) {
     Preconditions.checkNotNull(state);
 
-    String converterClassesParam = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, branches, branchId);
+    String converterClassesParam =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, branches, branchId);
     List<String> converterClasses = COMMA_SPLITTER.splitToList(state.getProp(converterClassesParam, ""));
 
-    if(converterClasses.isEmpty()) {
+    if (converterClasses.isEmpty()) {
       return NOOP;
     }
 

@@ -68,24 +68,25 @@ public class SimpleHDFSStoreMetadata {
         new Path(this.storeMetadataFilePath.getParent(), this.storeMetadataFilePath.getName() + ".bkp");
 
     // Delete old backup file if exists
-    HadoopUtils.deleteIfExists(fs, storeMetadataFileBkpPath, true);
+    HadoopUtils.deleteIfExists(this.fs, storeMetadataFileBkpPath, true);
 
     // Move current storeMetadataFile to backup
-    if (fs.exists(this.storeMetadataFilePath)) {
-      HadoopUtils.renamePath(fs, this.storeMetadataFilePath, storeMetadataFileBkpPath);
+    if (this.fs.exists(this.storeMetadataFilePath)) {
+      HadoopUtils.renamePath(this.fs, this.storeMetadataFilePath, storeMetadataFileBkpPath);
     }
 
     // Write new storeMetadataFile
     try (FSDataOutputStream outputStream =
-            FileSystem.create(this.fs, this.storeMetadataFilePath, FsDeploymentConfig.DEFAULT_STORE_PERMISSIONS);) {
+        FileSystem.create(this.fs, this.storeMetadataFilePath, FsDeploymentConfig.DEFAULT_STORE_PERMISSIONS);) {
       outputStream.write(config.root().render(ConfigRenderOptions.concise()).getBytes(Charsets.UTF_8));
     } catch (Exception e) {
       // Restore from backup
-      HadoopUtils.deleteIfExists(fs, this.storeMetadataFilePath, true);
-      HadoopUtils.renamePath(fs, storeMetadataFileBkpPath, this.storeMetadataFilePath);
-      throw new IOException(String.format(
-          "Failed to write store metadata at %s. Restored existing store metadata file from backup",
-          this.storeMetadataFilePath), e);
+      HadoopUtils.deleteIfExists(this.fs, this.storeMetadataFilePath, true);
+      HadoopUtils.renamePath(this.fs, storeMetadataFileBkpPath, this.storeMetadataFilePath);
+      throw new IOException(
+          String.format("Failed to write store metadata at %s. Restored existing store metadata file from backup",
+              this.storeMetadataFilePath),
+          e);
     }
   }
 

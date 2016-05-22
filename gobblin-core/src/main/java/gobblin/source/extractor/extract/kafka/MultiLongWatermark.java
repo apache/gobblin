@@ -18,7 +18,6 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.math.LongMath;
-import com.google.common.primitives.Shorts;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 

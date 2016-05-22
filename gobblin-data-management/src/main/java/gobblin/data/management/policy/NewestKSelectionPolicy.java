@@ -65,8 +65,7 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
     private final boolean excludeMode;
 
     Params(int versionsSelected, boolean excludeMode) {
-      Preconditions.checkArgument(versionsSelected >= MIN_VERSIONS_ALLOWED &&
-                                  versionsSelected <= MAX_VERSIONS_ALLOWED);
+      Preconditions.checkArgument(versionsSelected >= MIN_VERSIONS_ALLOWED && versionsSelected <= MAX_VERSIONS_ALLOWED);
 
       this.versionsSelected = versionsSelected;
       this.excludeMode = excludeMode;
@@ -75,9 +74,8 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
     static Params createFromConfig(Config config) {
       if (config.hasPath(NEWEST_K_VERSIONS_SELECTED_KEY)) {
         if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
-          throw new RuntimeException("Only one of " + NEWEST_K_VERSIONS_SELECTED_KEY +
-                                     " and " + NEWEST_K_VERSIONS_NOTSELECTED_KEY +
-                                     " can be specified.");
+          throw new RuntimeException("Only one of " + NEWEST_K_VERSIONS_SELECTED_KEY + " and "
+              + NEWEST_K_VERSIONS_NOTSELECTED_KEY + " can be specified.");
         }
         return new Params(config.getInt(NEWEST_K_VERSIONS_SELECTED_KEY), false);
       } else if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
@@ -96,8 +94,7 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
 
   private NewestKSelectionPolicy(Params params) {
     this.params = params;
-    LOGGER.info(String.format("Will %s %d versions of each dataset.",
-        (this.params.excludeMode ? "select" : "exclude"),
+    LOGGER.info(String.format("Will %s %d versions of each dataset.", (this.params.excludeMode ? "select" : "exclude"),
         this.params.versionsSelected));
   }
 
@@ -123,13 +120,10 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
     if (this.isExcludeMode()) {
       return getBoundarySafeSublist(allVersions, this.getVersionsSelected(), allVersions.size());
     }
-    else {
-      return getBoundarySafeSublist(allVersions, 0, this.getVersionsSelected());
-    }
+    return getBoundarySafeSublist(allVersions, 0, this.getVersionsSelected());
   }
 
-  static List<DatasetVersion> getBoundarySafeSublist(List<DatasetVersion> l, int fromIndex,
-                                                     int toIndex) {
+  static List<DatasetVersion> getBoundarySafeSublist(List<DatasetVersion> l, int fromIndex, int toIndex) {
     fromIndex = Math.min(fromIndex, l.size());
     toIndex = Math.min(toIndex, l.size());
 

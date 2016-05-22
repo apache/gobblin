@@ -68,9 +68,8 @@ public class CompactionRecordCountProvider extends RecordCountProvider {
     String prefixWithCounts = filename.split(Pattern.quote(SEPARATOR))[0];
     if (filename.startsWith(M_OUTPUT_FILE_PREFIX)) {
       return Long.parseLong(prefixWithCounts.substring(M_OUTPUT_FILE_PREFIX.length()));
-    } else {
-      return Long.parseLong(prefixWithCounts.substring(MR_OUTPUT_FILE_PREFIX.length()));
     }
+    return Long.parseLong(prefixWithCounts.substring(MR_OUTPUT_FILE_PREFIX.length()));
   }
 
   /**

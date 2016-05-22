@@ -16,7 +16,7 @@ import gobblin.configuration.State;
 
 
 public class TaskLevelPolicyCheckerBuilderFactory {
-  public TaskLevelPolicyCheckerBuilder newPolicyCheckerBuilder(State state, int index) {
+  public static TaskLevelPolicyCheckerBuilder newPolicyCheckerBuilder(State state, int index) {
     return TaskLevelPolicyCheckerBuilder.newBuilder(state, index);
   }
 }

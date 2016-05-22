@@ -42,7 +42,7 @@ public class RowLevelPolicyCheckerBuilder {
   @SuppressWarnings("unchecked")
   private List<RowLevelPolicy> createPolicyList()
       throws Exception {
-    List<RowLevelPolicy> list = new ArrayList<RowLevelPolicy>();
+    List<RowLevelPolicy> list = new ArrayList<>();
     Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
     String rowLevelPoliciesKey =
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, this.index);

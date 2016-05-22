@@ -19,23 +19,24 @@ import java.util.List;
 
 import lombok.ToString;
 
+
 @ToString
 public class MultiWriterInitializer implements WriterInitializer {
 
   private final Initializer intializer;
 
   public MultiWriterInitializer(List<WriterInitializer> writerInitializers) {
-    intializer = new MultiInitializer(writerInitializers);
+    this.intializer = new MultiInitializer(writerInitializers);
   }
 
   @Override
   public void initialize() {
-    intializer.initialize();
+    this.intializer.initialize();
   }
 
   @Override
   public void close() {
-    intializer.close();
+    this.intializer.close();
   }
 
 }

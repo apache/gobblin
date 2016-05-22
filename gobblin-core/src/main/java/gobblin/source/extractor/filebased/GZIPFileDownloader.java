@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.IOUtils;
 
+
 /**
  * A {@link FileDownloader} that downloads a single gzip file and iterates line by line.
  *
@@ -36,13 +37,15 @@ public class GZIPFileDownloader<D> extends FileDownloader<D> {
 
   @SuppressWarnings("unchecked")
   public Iterator<D> downloadFile(String file) throws IOException {
-    
+
     log.info("Beginning to download gzip compressed file: " + file);
 
     try {
-      InputStream inputStream = fileBasedExtractor.getCloser().register(fileBasedExtractor.getFsHelper().getFileStream(file));     
-      Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(new GZIPInputStream(inputStream), ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
-      if (fileBasedExtractor.isShouldSkipFirstRecord() && fileItr.hasNext()) {
+      InputStream inputStream =
+          this.fileBasedExtractor.getCloser().register(this.fileBasedExtractor.getFsHelper().getFileStream(file));
+      Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(new GZIPInputStream(inputStream),
+          ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
+      if (this.fileBasedExtractor.isShouldSkipFirstRecord() && fileItr.hasNext()) {
         fileItr.next();
       }
       return fileItr;

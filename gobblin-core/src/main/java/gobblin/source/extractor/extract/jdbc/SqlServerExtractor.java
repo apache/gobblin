@@ -27,9 +27,6 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 
@@ -39,6 +36,7 @@ import gobblin.source.extractor.exception.RecordCountException;
 import gobblin.source.extractor.exception.SchemaException;
 import gobblin.source.extractor.extract.Command;
 import gobblin.source.workunit.WorkUnit;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -46,23 +44,21 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author nveeramr
  */
+@Slf4j
 public class SqlServerExtractor extends JdbcExtractor {
   private static final String TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss";
   private static final String DATE_FORMAT = "yyyy-MM-dd";
   private static final String HOUR_FORMAT = "HH";
   private static final long SAMPLERECORDCOUNT = -1;
 
-  private Logger log = LoggerFactory.getLogger(SqlServerExtractor.class);
-
   public SqlServerExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
   }
 
   @Override
-  public List<Command> getSchemaMetadata(String schema, String entity)
-      throws SchemaException {
-    this.log.debug("Build query to get schema");
-    List<Command> commands = new ArrayList<Command>();
+  public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
+    log.debug("Build query to get schema");
+    List<Command> commands = new ArrayList<>();
     List<String> queryParams = Arrays.asList(entity, schema);
 
     String metadataSql = "select " + " col.column_name, " + " col.data_type, "
@@ -81,10 +77,9 @@ public class SqlServerExtractor extends JdbcExtractor {
 
   @Override
   public List<Command> getHighWatermarkMetadata(String schema, String entity, String watermarkColumn,
-      List<Predicate> predicateList)
-      throws HighWatermarkException {
-    this.log.debug("Build query to get high watermark");
-    List<Command> commands = new ArrayList<Command>();
+      List<Predicate> predicateList) throws HighWatermarkException {
+    log.debug("Build query to get high watermark");
+    List<Command> commands = new ArrayList<>();
 
     String columnProjection = "max(" + Utils.getCoalesceColumnNames(watermarkColumn) + ")";
     String watermarkFilter = this.concatPredicates(predicateList);
@@ -103,8 +98,8 @@ public class SqlServerExtractor extends JdbcExtractor {
   @Override
   public List<Command> getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws RecordCountException {
-    this.log.debug("Build query to get source record count");
-    List<Command> commands = new ArrayList<Command>();
+    log.debug("Build query to get source record count");
+    List<Command> commands = new ArrayList<>();
 
     String columnProjection = "COUNT(1)";
     String watermarkFilter = this.concatPredicates(predicateList);
@@ -128,11 +123,11 @@ public class SqlServerExtractor extends JdbcExtractor {
   @Override
   public List<Command> getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws DataRecordException {
-    this.log.debug("Build query to extract data");
-    List<Command> commands = new ArrayList<Command>();
+    log.debug("Build query to extract data");
+    List<Command> commands = new ArrayList<>();
     int fetchSize = this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE,
         ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_JDBC_RESULTSET_FETCH_SIZE);
-    this.log.info("Setting jdbc resultset fetch size as " + fetchSize);
+    log.info("Setting jdbc resultset fetch size as " + fetchSize);
 
     String watermarkFilter = this.concatPredicates(predicateList);
     String query = this.getExtractSql();
@@ -156,22 +151,20 @@ public class SqlServerExtractor extends JdbcExtractor {
 
   @Override
   public Map<String, String> getDataTypeMap() {
-    Map<String, String> dataTypeMap =
-        ImmutableMap.<String, String>builder().put("smallint", "int").put("tinyint", "int").put("int", "int")
-            .put("bigint", "long").put("decimal", "double").put("numeric", "double").put("float", "float")
-            .put("real", "double").put("money", "double").put("smallmoney", "double").put("binary", "string")
-            .put("varbinary", "string").put("char", "string").put("varchar", "string").put("nchar", "string")
-            .put("nvarchar", "string").put("text", "string").put("ntext", "string").put("image", "string")
-            .put("hierarchyid", "string").put("uniqueidentifier", "string").put("date", "date")
-            .put("datetime", "timestamp").put("datetime2", "timestamp").put("datetimeoffset", "timestamp")
-            .put("smalldatetime", "timestamp").put("time", "time").put("bit", "boolean").build();
+    Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder().put("smallint", "int")
+        .put("tinyint", "int").put("int", "int").put("bigint", "long").put("decimal", "double").put("numeric", "double")
+        .put("float", "float").put("real", "double").put("money", "double").put("smallmoney", "double")
+        .put("binary", "string").put("varbinary", "string").put("char", "string").put("varchar", "string")
+        .put("nchar", "string").put("nvarchar", "string").put("text", "string").put("ntext", "string")
+        .put("image", "string").put("hierarchyid", "string").put("uniqueidentifier", "string").put("date", "date")
+        .put("datetime", "timestamp").put("datetime2", "timestamp").put("datetimeoffset", "timestamp")
+        .put("smalldatetime", "timestamp").put("time", "time").put("bit", "boolean").build();
     return dataTypeMap;
   }
 
   @Override
   public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit,
-      List<Predicate> predicateList)
-      throws IOException {
+      List<Predicate> predicateList) throws IOException {
     return null;
   }
 
@@ -193,7 +186,7 @@ public class SqlServerExtractor extends JdbcExtractor {
     String inputQuery = query.toLowerCase();
 
     int limitStartIndex = inputQuery.indexOf(" top ");
-    int limitEndIndex = this.getLimitEndIndex(inputQuery, limitStartIndex);
+    int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
     if (limitStartIndex > 0) {
       String limitValue = query.substring(limitStartIndex + 5, limitEndIndex);
       try {
@@ -214,14 +207,14 @@ public class SqlServerExtractor extends JdbcExtractor {
     String outputQuery = query;
     String inputQuery = query.toLowerCase();
     int limitStartIndex = inputQuery.indexOf(" top ");
-    int limitEndIndex = this.getLimitEndIndex(inputQuery, limitStartIndex);
+    int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
     if (limitStartIndex > 0) {
       outputQuery = query.substring(0, limitStartIndex) + " " + query.substring(limitEndIndex);
     }
     return outputQuery;
   }
 
-  private int getLimitEndIndex(String inputQuery, int limitStartIndex) {
+  private static int getLimitEndIndex(String inputQuery, int limitStartIndex) {
     int limitEndIndex = -1;
     if (limitStartIndex > 0) {
       limitEndIndex = limitStartIndex + 5;
@@ -273,21 +266,21 @@ public class SqlServerExtractor extends JdbcExtractor {
 
   @Override
   public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.debug("Getting hour predicate for Sqlserver");
+    log.debug("Getting hour predicate for Sqlserver");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, HOUR_FORMAT);
     return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.debug("Getting date predicate for Sqlserver");
+    log.debug("Getting date predicate for Sqlserver");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, DATE_FORMAT);
     return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.debug("Getting timestamp predicate for Sqlserver");
+    log.debug("Getting timestamp predicate for Sqlserver");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, TIMESTAMP_FORMAT);
     return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }

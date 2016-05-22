@@ -17,6 +17,7 @@ import gobblin.util.Decorator;
 import java.io.InputStream;
 import java.util.List;
 
+
 /**
  * A decorator that delegates to inner {@link FileBasedHelper}.
  * {@link #getFileSize(String)} is not implemented by this class.
@@ -31,22 +32,22 @@ public class SizeAwareFileBasedHelperDecorator implements SizeAwareFileBasedHelp
 
   @Override
   public void connect() throws FileBasedHelperException {
-    fileBasedHelper.connect();
+    this.fileBasedHelper.connect();
   }
 
   @Override
   public void close() throws FileBasedHelperException {
-    fileBasedHelper.close();
+    this.fileBasedHelper.close();
   }
 
   @Override
   public List<String> ls(String path) throws FileBasedHelperException {
-    return fileBasedHelper.ls(path);
+    return this.fileBasedHelper.ls(path);
   }
 
   @Override
   public InputStream getFileStream(String path) throws FileBasedHelperException {
-    return fileBasedHelper.getFileStream(path);
+    return this.fileBasedHelper.getFileStream(path);
   }
 
   @Override
@@ -56,6 +57,6 @@ public class SizeAwareFileBasedHelperDecorator implements SizeAwareFileBasedHelp
 
   @Override
   public Object getDecoratedObject() {
-    return fileBasedHelper;
+    return this.fileBasedHelper;
   }
 }

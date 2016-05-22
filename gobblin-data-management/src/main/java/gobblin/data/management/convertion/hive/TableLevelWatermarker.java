@@ -42,7 +42,7 @@ public class TableLevelWatermarker implements HiveSourceWatermarker {
 
   public TableLevelWatermarker(SourceState state) {
     this.tableWatermarks = Maps.newHashMap();
-    SourceState sourceState = (SourceState) state;
+    SourceState sourceState = state;
 
     for (Map.Entry<String, Iterable<WorkUnitState>> datasetWorkUnitStates : sourceState
         .getPreviousWorkUnitStatesByDatasetUrns().entrySet()) {

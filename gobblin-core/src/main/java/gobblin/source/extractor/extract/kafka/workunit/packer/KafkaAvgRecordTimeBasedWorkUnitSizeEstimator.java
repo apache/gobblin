@@ -88,9 +88,8 @@ public class KafkaAvgRecordTimeBasedWorkUnitSizeEstimator implements KafkaWorkUn
   private double getEstAvgMillisForTopic(String topic) {
     if (this.estAvgMillis.containsKey(topic)) {
       return this.estAvgMillis.get(topic);
-    } else {
-      return this.avgEstAvgMillis;
     }
+    return this.avgEstAvgMillis;
   }
 
   /**

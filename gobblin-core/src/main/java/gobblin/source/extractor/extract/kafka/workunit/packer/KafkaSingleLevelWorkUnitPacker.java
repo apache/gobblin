@@ -60,7 +60,7 @@ public class KafkaSingleLevelWorkUnitPacker extends KafkaWorkUnitPacker {
         }
       }
       if (!zeroSizeWorkUnit.getWorkUnits().isEmpty()) {
-        workUnits.add(squeezeMultiWorkUnit(zeroSizeWorkUnit, this.state));
+        workUnits.add(squeezeMultiWorkUnit(zeroSizeWorkUnit));
       }
     }
     return worstFitDecreasingBinPacking(workUnits, numContainers);

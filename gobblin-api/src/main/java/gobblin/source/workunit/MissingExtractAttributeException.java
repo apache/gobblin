@@ -14,6 +14,8 @@ package gobblin.source.workunit;
 
 public class MissingExtractAttributeException extends Exception {
 
+  private static final long serialVersionUID = 1L;
+
   /**
    * Thrown if a required attributes hasn't been set for an extract.
    *

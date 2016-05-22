@@ -34,6 +34,7 @@ import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.util.AvroUtils;
 
+
 /**
  * Converts schema and data by choosing only selected fields provided by user.
  */
@@ -94,7 +95,7 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
     LOG.info("Converting schema " + inputSchema);
     String fieldsStr = workUnit.getProp(ConfigurationKeys.CONVERTER_AVRO_FIELD_PICK_FIELDS);
     Preconditions.checkNotNull(fieldsStr, ConfigurationKeys.CONVERTER_AVRO_FIELD_PICK_FIELDS
-                                   + " is required for converter " + this.getClass().getSimpleName());
+        + " is required for converter " + this.getClass().getSimpleName());
     LOG.info("Converting schema to selected fields: " + fieldsStr);
 
     try {
@@ -128,18 +129,21 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
   }
 
   private static Schema createSchemaHelper(Schema inputSchema, TrieNode node) {
-    Schema newRecord = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc(), inputSchema.getNamespace(), inputSchema.isError());
+    Schema newRecord = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc(), inputSchema.getNamespace(),
+        inputSchema.isError());
     List<Field> newFields = Lists.newArrayList();
-    for(TrieNode child : node.children.values()) {
+    for (TrieNode child : node.children.values()) {
       Field innerSrcField = inputSchema.getField(child.val);
       Preconditions.checkNotNull(innerSrcField, child.val + " does not exist under " + inputSchema);
 
       if (child.children.isEmpty()) { //Leaf
-        newFields.add(new Field(innerSrcField.name(), innerSrcField.schema(), innerSrcField.doc(), innerSrcField.defaultValue()));
+        newFields.add(
+            new Field(innerSrcField.name(), innerSrcField.schema(), innerSrcField.doc(), innerSrcField.defaultValue()));
       } else {
         Schema innerSrcSchema = innerSrcField.schema();
         Schema innerDestSchema = createSchemaHelper(innerSrcSchema, child); //Recurse of schema
-        Field innerDestField = new Field(innerSrcField.name(), innerDestSchema, innerSrcField.doc(), innerSrcField.defaultValue());
+        Field innerDestField =
+            new Field(innerSrcField.name(), innerDestSchema, innerSrcField.doc(), innerSrcField.defaultValue());
         newFields.add(innerDestField);
       }
     }
@@ -149,7 +153,7 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
 
   private static TrieNode buildTrie(List<String> fqns) {
     TrieNode root = new TrieNode(null);
-    for(String fqn : fqns) {
+    for (String fqn : fqns) {
       root.add(fqn);
     }
     return root;
@@ -161,7 +165,7 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
 
     TrieNode(String val) {
       this.val = val;
-      children = Maps.newHashMap();
+      this.children = Maps.newHashMap();
     }
 
     void add(String fqn) {
@@ -175,10 +179,10 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
 
       String val = fqnIterator.next();
       TrieNode child = node.children.get(val);
-      if(child == null) {
+      if (child == null) {
         child = new TrieNode(val);
         node.children.put(val, child);
-      } else if(!fqnIterator.hasNext()) {
+      } else if (!fqnIterator.hasNext()) {
         //Leaf but there's existing record
         throw new IllegalArgumentException("Duplicate record detected: " + fqn);
       }
@@ -187,7 +191,7 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
 
     @Override
     public String toString() {
-      return "[val: " + val + " , children: " + children.values() + " ]";
+      return "[val: " + this.val + " , children: " + this.children.values() + " ]";
     }
   }
 
@@ -195,7 +199,7 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     try {
-      return new SingleRecordIterable<GenericRecord>(AvroUtils.convertRecordSchema(inputRecord, outputSchema));
+      return new SingleRecordIterable<>(AvroUtils.convertRecordSchema(inputRecord, outputSchema));
     } catch (IOException e) {
       throw new DataConversionException(e);
     }

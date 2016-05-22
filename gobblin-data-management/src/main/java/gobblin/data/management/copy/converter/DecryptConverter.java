@@ -50,11 +50,14 @@ public class DecryptConverter extends DistcpConverter {
     return super.init(workUnit);
   }
 
-  @Override public Function<FSDataInputStream, FSDataInputStream> inputStreamTransformation() {
+  @Override
+  public Function<FSDataInputStream, FSDataInputStream> inputStreamTransformation() {
     return new Function<FSDataInputStream, FSDataInputStream>() {
-      @Nullable @Override public FSDataInputStream apply(FSDataInputStream input) {
+      @Nullable
+      @Override
+      public FSDataInputStream apply(FSDataInputStream input) {
         try {
-          return GPGFileDecrypter.decryptFile(input, passphrase);
+          return GPGFileDecrypter.decryptFile(input, DecryptConverter.this.passphrase);
         } catch (NoSuchProviderException | IOException exception) {
           throw new RuntimeException(exception);
         }
@@ -62,7 +65,8 @@ public class DecryptConverter extends DistcpConverter {
     };
   }
 
-  @Override public List<String> extensionsToRemove() {
+  @Override
+  public List<String> extensionsToRemove() {
     return Lists.newArrayList(GPG_EXTENSION);
   }
 

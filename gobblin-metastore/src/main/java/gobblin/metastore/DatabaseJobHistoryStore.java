@@ -33,9 +33,7 @@ import gobblin.metastore.database.VersionedDatabaseJobHistoryStore;
 import gobblin.rest.JobExecutionInfo;
 import gobblin.rest.JobExecutionQuery;
 
-import lombok.extern.slf4j.Slf4j;
 import org.reflections.util.ClasspathHelper;
-import org.reflections.util.ConfigurationBuilder;
 
 
 /**
@@ -47,13 +45,12 @@ import org.reflections.util.ConfigurationBuilder;
  *
  * @author Yinan Li
  */
-@Slf4j
 public class DatabaseJobHistoryStore implements JobHistoryStore {
   private final VersionedDatabaseJobHistoryStore versionedStore;
 
   @Inject
   public DatabaseJobHistoryStore(DataSource dataSource)
-          throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+      throws InstantiationException, IllegalAccessException, ClassNotFoundException {
     MigrationVersion databaseVersion = getDatabaseVersion(dataSource);
     this.versionedStore = findVersionedDatabaseJobHistoryStore(databaseVersion);
     this.versionedStore.init(dataSource);
@@ -74,8 +71,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     this.versionedStore.close();
   }
 
-  private static MigrationVersion getDatabaseVersion(DataSource dataSource)
-          throws FlywayException {
+  private static MigrationVersion getDatabaseVersion(DataSource dataSource) throws FlywayException {
     Flyway flyway = new Flyway();
     flyway.setDataSource(dataSource);
     MigrationInfoService info = flyway.info();
@@ -87,7 +83,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   }
 
   private static Collection<URL> effectiveClassPathUrls(ClassLoader... classLoaders) {
-      return ClasspathHelper.forManifest(ClasspathHelper.forClassLoader(classLoaders));
+    return ClasspathHelper.forManifest(ClasspathHelper.forClassLoader(classLoaders));
   }
 
   private static VersionedDatabaseJobHistoryStore findVersionedDatabaseJobHistoryStore(MigrationVersion requiredVersion)
@@ -96,9 +92,10 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
     Class<?> defaultClazz = null;
     MigrationVersion defaultVersion = MigrationVersion.EMPTY;
     // Scan all packages
-    Reflections reflections = new Reflections("gobblin.metastore.database", effectiveClassPathUrls(DatabaseJobHistoryStore.class.getClassLoader()));
+    Reflections reflections = new Reflections("gobblin.metastore.database",
+        effectiveClassPathUrls(DatabaseJobHistoryStore.class.getClassLoader()));
     for (Class<?> clazz : Sets.intersection(reflections.getTypesAnnotatedWith(SupportedDatabaseVersion.class),
-          reflections.getSubTypesOf(VersionedDatabaseJobHistoryStore.class))) {
+        reflections.getSubTypesOf(VersionedDatabaseJobHistoryStore.class))) {
       SupportedDatabaseVersion annotation = clazz.getAnnotation(SupportedDatabaseVersion.class);
       String version = annotation.version();
       MigrationVersion actualVersion = MigrationVersion.fromVersion(Strings.isNullOrEmpty(version) ? null : version);
@@ -114,9 +111,10 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
       foundClazz = defaultClazz;
     }
     if (foundClazz == null) {
-      throw new ClassNotFoundException(String.format("Could not find an instance of %s which supports database " +
-              "version %s.", VersionedDatabaseJobHistoryStore.class.getSimpleName(), requiredVersion.toString()));
+      throw new ClassNotFoundException(
+          String.format("Could not find an instance of %s which supports database " + "version %s.",
+              VersionedDatabaseJobHistoryStore.class.getSimpleName(), requiredVersion.toString()));
     }
-    return (VersionedDatabaseJobHistoryStore)foundClazz.newInstance();
+    return (VersionedDatabaseJobHistoryStore) foundClazz.newInstance();
   }
 }

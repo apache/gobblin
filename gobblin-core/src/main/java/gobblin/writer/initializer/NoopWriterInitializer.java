@@ -22,11 +22,11 @@ public class NoopWriterInitializer implements WriterInitializer {
 
   @Override
   public void initialize() {
-    initializer.initialize();
+    this.initializer.initialize();
   }
 
   @Override
   public void close() {
-    initializer.close();
+    this.initializer.close();
   }
 }

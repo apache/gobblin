@@ -55,9 +55,11 @@ public class CopyEntity implements HasGuid {
    */
   private String fileSet;
   /** Contains arbitrary metadata usable by converters and/or publisher. */
-  @Singular(value = "metadata") private Map<String, Object> additionalMetadata;
+  @Singular(value = "metadata")
+  private Map<String, Object> additionalMetadata;
 
-  @Override public Guid guid() throws IOException {
+  @Override
+  public Guid guid() throws IOException {
     return Guid.fromStrings(toString());
   }
 
@@ -78,7 +80,7 @@ public class CopyEntity implements HasGuid {
    * @return serialized string
    */
   public static String serializeList(List<CopyEntity> copyEntities) {
-    return GSON.toJson(copyEntities, new TypeToken<List<CopyEntity>>(){}.getType());
+    return GSON.toJson(copyEntities, new TypeToken<List<CopyEntity>>() {}.getType());
   }
 
   /**
@@ -99,7 +101,7 @@ public class CopyEntity implements HasGuid {
    * @return a new {@link List} of {@link CopyEntity}s
    */
   public static List<CopyEntity> deserializeList(String serialized) {
-    return GSON.fromJson(serialized, new TypeToken<List<CopyEntity>>(){}.getType());
+    return GSON.fromJson(serialized, new TypeToken<List<CopyEntity>>() {}.getType());
   }
 
   @Override
@@ -136,7 +138,7 @@ public class CopyEntity implements HasGuid {
      * @return a unique string identifier for this {@link DatasetAndPartition}.
      */
     public String identifier() {
-      return Hex.encodeHexString(DigestUtils.sha(this.dataset.toString() + this.partition));
+      return Hex.encodeHexString(DigestUtils.sha1(this.dataset.toString() + this.partition));
     }
   }
 }

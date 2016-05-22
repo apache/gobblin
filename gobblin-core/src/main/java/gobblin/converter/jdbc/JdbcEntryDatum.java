@@ -17,8 +17,9 @@ import lombok.ToString;
 
 import com.google.common.base.Preconditions;
 
+
 @ToString
-@EqualsAndHashCode(of={"columnName"})
+@EqualsAndHashCode(of = { "columnName" })
 public class JdbcEntryDatum {
   private final String columnName;
   private final Object val;
@@ -29,10 +30,10 @@ public class JdbcEntryDatum {
   }
 
   public String getColumnName() {
-    return columnName;
+    return this.columnName;
   }
 
   public Object getVal() {
-    return val;
+    return this.val;
   }
 }

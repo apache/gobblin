@@ -76,25 +76,25 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
     this.state.appendToListProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, Integer.toString(builder.branch));
 
     String databaseTableKey = ForkOperatorUtils.getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_DATABASE_NAME,
-                                                                         builder.branches,
-                                                                         builder.branch);
-    this.databaseName = Preconditions.checkNotNull(state.getProp(databaseTableKey), "Staging table is missing with key " + databaseTableKey);
+        builder.branches, builder.branch);
+    this.databaseName = Preconditions.checkNotNull(this.state.getProp(databaseTableKey),
+        "Staging table is missing with key " + databaseTableKey);
 
     String stagingTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE,
-                                                                        builder.branches,
-                                                                        builder.branch);
-    this.tableName = Preconditions.checkNotNull(state.getProp(stagingTableKey), "Staging table is missing with key " + stagingTableKey);
+        builder.branches, builder.branch);
+    this.tableName = Preconditions.checkNotNull(this.state.getProp(stagingTableKey),
+        "Staging table is missing with key " + stagingTableKey);
     try {
       this.conn = createConnection();
-      this.commands = new JdbcWriterCommandsFactory().newInstance(state, conn);
-      conn.setAutoCommit(false);
+      this.commands = new JdbcWriterCommandsFactory().newInstance(this.state, this.conn);
+      this.conn.setAutoCommit(false);
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
   }
 
   @VisibleForTesting
-  public JdbcWriter(JdbcWriterCommands commands, State state, String databaseName, String table, Connection conn) throws SQLException {
+  public JdbcWriter(JdbcWriterCommands commands, State state, String databaseName, String table, Connection conn) {
     this.commands = commands;
     this.state = state;
     this.databaseName = databaseName;
@@ -103,16 +103,12 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   }
 
   private Connection createConnection() throws SQLException {
-    DataSource dataSource = DataSourceBuilder.builder()
-                                             .url(state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
-                                             .driver(state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
-                                             .userName(state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
-                                             .passWord(state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
-                                             .cryptoKeyLocation(state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
-                                             .maxActiveConnections(1)
-                                             .maxIdleConnections(1)
-                                             .state(state)
-                                             .build();
+    DataSource dataSource = DataSourceBuilder.builder().url(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
+        .driver(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
+        .userName(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
+        .passWord(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
+        .cryptoKeyLocation(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC)).maxActiveConnections(1)
+        .maxIdleConnections(1).state(this.state).build();
 
     return dataSource.getConnection();
   }
@@ -124,14 +120,14 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
    */
   @Override
   public void write(JdbcEntryData record) throws IOException {
-    if(LOG.isDebugEnabled()) {
+    if (LOG.isDebugEnabled()) {
       LOG.debug("Writing " + record);
     }
     try {
-      commands.insert(databaseName, tableName, record);
-      recordWrittenCount++;
+      this.commands.insert(this.databaseName, this.tableName, record);
+      this.recordWrittenCount++;
     } catch (Exception e) {
-      failed = true;
+      this.failed = true;
       throw new RuntimeException(e);
     }
   }
@@ -145,11 +141,11 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   public void commit() throws IOException {
     try {
       LOG.info("Flushing pending insert.");
-      commands.flush();
+      this.commands.flush();
       LOG.info("Commiting transaction.");
-      conn.commit();
+      this.conn.commit();
     } catch (Exception e) {
-      failed = true;
+      this.failed = true;
       throw new RuntimeException(e);
     }
   }
@@ -160,8 +156,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
    * @see gobblin.writer.DataWriter#cleanup()
    */
   @Override
-  public void cleanup() throws IOException {
-  }
+  public void cleanup() throws IOException {}
 
   /**
    * If there's a failure, it will execute roll back.
@@ -172,12 +167,12 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
   public void close() throws IOException {
     try {
       try {
-        if (failed && conn != null) {
-          conn.rollback();
+        if (this.failed && this.conn != null) {
+          this.conn.rollback();
         }
       } finally {
-        if(conn != null) {
-          conn.close();
+        if (this.conn != null) {
+          this.conn.close();
         }
       }
     } catch (SQLException e) {
@@ -187,7 +182,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
 
   @Override
   public long recordsWritten() {
-    return recordWrittenCount;
+    return this.recordWrittenCount;
   }
 
   /**

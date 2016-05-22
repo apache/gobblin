@@ -23,7 +23,7 @@ import java.util.List;
  * @param <D> type of data record
  */
 public class RecordSetList<D> implements RecordSet<D> {
-  private List<D> list = new ArrayList<D>();
+  private List<D> list = new ArrayList<>();
 
   @Override
   public Iterator<D> iterator() {
@@ -32,7 +32,7 @@ public class RecordSetList<D> implements RecordSet<D> {
 
   @Override
   public void add(D record) {
-    list.add(record);
+    this.list.add(record);
   }
 
   @Override

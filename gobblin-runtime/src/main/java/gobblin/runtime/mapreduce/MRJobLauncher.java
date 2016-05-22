@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.filecache.DistributedCache;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -38,10 +37,10 @@ import org.apache.hadoop.mapreduce.CounterGroup;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -273,13 +272,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     // Add job-specific jars existing in HDFS to the classpath for the mappers
-    if (jobProps.containsKey(ConfigurationKeys.JOB_JAR_HDFS_FILES_KEY)) {
-      addHdfsJars(jobProps.getProperty(ConfigurationKeys.JOB_JAR_HDFS_FILES_KEY));
+    if (this.jobProps.containsKey(ConfigurationKeys.JOB_JAR_HDFS_FILES_KEY)) {
+      addHdfsJars(this.jobProps.getProperty(ConfigurationKeys.JOB_JAR_HDFS_FILES_KEY));
     }
 
     distributedCacheSetupTimer.stop();
   }
-
 
   /**
    * Prepare the Hadoop MR job, including configuring the job and setting up the input/output paths.
@@ -400,9 +398,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   private void addHdfsJars(String hdfsJarFileList) throws IOException {
     for (String jarFile : SPLITTER.split(hdfsJarFileList)) {
-      FileStatus[] status = fs.listStatus(new Path(jarFile));
-      for(FileStatus fileStatus : status) {
-        if(!fileStatus.isDir()) {
+      FileStatus[] status = this.fs.listStatus(new Path(jarFile));
+      for (FileStatus fileStatus : status) {
+        if (!fileStatus.isDirectory()) {
           Path path = new Path(jarFile, fileStatus.getPath().getName());
           LOG.info(String.format("Adding %s to classpath", path));
           DistributedCache.addFileToClassPath(path, this.conf, this.fs);
@@ -524,17 +522,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     @Override
     protected void setup(Context context) {
-      try(Closer closer = Closer.create()) {
+      try (Closer closer = Closer.create()) {
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore =
-            new FsStateStore<>(this.fs, SequenceFileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
+            new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
 
         String jobStateFileName = context.getConfiguration().get(ConfigurationKeys.JOB_STATE_DISTRIBUTED_CACHE_NAME);
         boolean foundStateFile = false;
         for (Path dcPath : DistributedCache.getLocalCacheFiles(context.getConfiguration())) {
           if (dcPath.getName().equals(jobStateFileName)) {
-            SerializationUtils.deserializeStateFromInputStream(closer.register(new FileInputStream(dcPath.toUri().getPath())),
-                this.jobState);
+            SerializationUtils.deserializeStateFromInputStream(
+                closer.register(new FileInputStream(dcPath.toUri().getPath())), this.jobState);
             foundStateFile = true;
             break;
           }

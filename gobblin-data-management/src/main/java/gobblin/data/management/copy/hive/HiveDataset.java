@@ -67,30 +67,28 @@ public class HiveDataset implements IterableCopyableDataset {
   @Getter
   private final MetricContext metricContext;
 
-
-  public HiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties properties) throws IOException {
+  public HiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties properties) {
     this.fs = fs;
     this.clientPool = clientPool;
     this.table = table;
     this.properties = properties;
 
-    this.tableRootPath = PathUtils.isGlob(this.table.getDataLocation()) ? Optional.<Path>absent() :
-        Optional.of(this.table.getDataLocation());
+    this.tableRootPath = PathUtils.isGlob(this.table.getDataLocation()) ? Optional.<Path> absent()
+        : Optional.of(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
-    log.info("Created Hive dataset for table " + tableIdentifier);
+    log.info("Created Hive dataset for table " + this.tableIdentifier);
 
     this.metricContext = Instrumented.getMetricContext(new State(properties), HiveDataset.class,
-        Lists.<Tag<?>>newArrayList(
-            new Tag<>(DATABASE, table.getDbName()),
-            new Tag<>(TABLE, table.getTableName())));
+        Lists.<Tag<?>> newArrayList(new Tag<>(DATABASE, table.getDbName()), new Tag<>(TABLE, table.getTableName())));
   }
 
   /**
    * Finds all files read by the table and generates CopyableFiles.
    * For the specific semantics see {@link HiveCopyEntityHelper#getCopyEntities}.
    */
-  @Override public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
+  @Override
+  public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
     try {
       return new HiveCopyEntityHelper(this, configuration, targetFs).getCopyEntities();
@@ -100,7 +98,8 @@ public class HiveDataset implements IterableCopyableDataset {
     }
   }
 
-  @Override public String datasetURN() {
+  @Override
+  public String datasetURN() {
     return this.table.getCompleteName();
   }
 

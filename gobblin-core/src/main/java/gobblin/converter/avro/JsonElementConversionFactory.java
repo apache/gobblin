@@ -202,9 +202,8 @@ public class JsonElementConversionFactory {
         list.add(Schema.create(Schema.Type.NULL));
         list.add(schema());
         return Schema.createUnion(list);
-      } else {
-        return schema();
       }
+      return schema();
     }
 
     protected Schema schema() {
@@ -222,9 +221,8 @@ public class JsonElementConversionFactory {
       if (value.isJsonNull()) {
         if (this.nullable) {
           return null;
-        } else {
-          throw new RuntimeException("Field: " + getName() + " is not nullable and contains a null value");
         }
+        throw new RuntimeException("Field: " + getName() + " is not nullable and contains a null value");
       }
       return convertField(value);
     }
@@ -419,7 +417,7 @@ public class JsonElementConversionFactory {
     private JsonElementConverter elementConverter;
 
     public ComplexConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
-        WorkUnitState state) throws UnsupportedDateTypeException {
+        WorkUnitState state) {
       super(fieldName, nullable, sourceType);
     }
 

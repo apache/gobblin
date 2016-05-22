@@ -71,7 +71,7 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
   private final CombineOperation combineOperation;
 
   public CombineSelectionPolicy(List<VersionSelectionPolicy<DatasetVersion>> selectionPolicies,
-      CombineOperation combineOperation) throws IOException {
+      CombineOperation combineOperation) {
     this.combineOperation = combineOperation;
     this.selectionPolicies = selectionPolicies;
   }
@@ -84,9 +84,10 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
 
     for (String combineClassName : config.getStringList(VERSION_SELECTION_POLICIES_PREFIX)) {
       try {
-        builder.add((VersionSelectionPolicy<DatasetVersion>) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(combineClassName),
-            ImmutableList.<Object> of(config), ImmutableList.<Object> of(jobProps)));
-      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
+        builder.add((VersionSelectionPolicy<DatasetVersion>) GobblinConstructorUtils.invokeFirstConstructor(
+            Class.forName(combineClassName), ImmutableList.<Object> of(config), ImmutableList.<Object> of(jobProps)));
+      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+          | ClassNotFoundException e) {
         throw new IllegalArgumentException(e);
       }
     }
@@ -96,7 +97,8 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
       throw new IOException("No selection policies specified for " + CombineSelectionPolicy.class.getCanonicalName());
     }
 
-    this.combineOperation = CombineOperation.valueOf(config.getString(VERSION_SELECTION_COMBINE_OPERATION).toUpperCase());
+    this.combineOperation =
+        CombineOperation.valueOf(config.getString(VERSION_SELECTION_COMBINE_OPERATION).toUpperCase());
   }
 
   public CombineSelectionPolicy(Properties props) throws IOException {
@@ -114,7 +116,7 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
     }
 
     Class<? extends DatasetVersion> klazz = this.selectionPolicies.get(0).versionClass();
-    for (VersionSelectionPolicy<? extends DatasetVersion> policy : selectionPolicies) {
+    for (VersionSelectionPolicy<? extends DatasetVersion> policy : this.selectionPolicies) {
       klazz = commonSuperclass(klazz, policy.versionClass());
     }
     return klazz;
@@ -123,15 +125,14 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
   @Override
   public Collection<DatasetVersion> listSelectedVersions(final List<DatasetVersion> allVersions) {
 
-    List<Set<DatasetVersion>> candidateDeletableVersions =
-        Lists.newArrayList(Iterables.transform(this.selectionPolicies,
-            new Function<VersionSelectionPolicy<DatasetVersion>, Set<DatasetVersion>>() {
-              @Nullable
-              @Override
-              public Set<DatasetVersion> apply(VersionSelectionPolicy<DatasetVersion> input) {
-                return Sets.newHashSet(input.listSelectedVersions(allVersions));
-              }
-            }));
+    List<Set<DatasetVersion>> candidateDeletableVersions = Lists.newArrayList(Iterables
+        .transform(this.selectionPolicies, new Function<VersionSelectionPolicy<DatasetVersion>, Set<DatasetVersion>>() {
+          @Nullable
+          @Override
+          public Set<DatasetVersion> apply(VersionSelectionPolicy<DatasetVersion> input) {
+            return Sets.newHashSet(input.listSelectedVersions(allVersions));
+          }
+        }));
 
     switch (this.combineOperation) {
       case INTERSECT:
@@ -146,29 +147,27 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
 
   @VisibleForTesting
   @SuppressWarnings("unchecked")
-  public Class<? extends DatasetVersion> commonSuperclass(Class<? extends DatasetVersion> classA,
+  public static Class<? extends DatasetVersion> commonSuperclass(Class<? extends DatasetVersion> classA,
       Class<? extends DatasetVersion> classB) {
 
     if (classA.isAssignableFrom(classB)) {
       // a is superclass of b, so return class of a
       return classA;
-    } else {
-      // a is not superclass of b. Either b is superclass of a, or they are not in same branch
-      // find closest superclass of a that is also a superclass of b
-      Class<?> klazz = classA;
-      while (!klazz.isAssignableFrom(classB)) {
-        klazz = klazz.getSuperclass();
-      }
-      if (DatasetVersion.class.isAssignableFrom(klazz)) {
-        return (Class<? extends DatasetVersion>) klazz;
-      } else {
-        // this should never happen, but there for safety
-        return DatasetVersion.class;
-      }
     }
+    // a is not superclass of b. Either b is superclass of a, or they are not in same branch
+    // find closest superclass of a that is also a superclass of b
+    Class<?> klazz = classA;
+    while (!klazz.isAssignableFrom(classB)) {
+      klazz = klazz.getSuperclass();
+    }
+    if (DatasetVersion.class.isAssignableFrom(klazz)) {
+      return (Class<? extends DatasetVersion>) klazz;
+    }
+    // this should never happen, but there for safety
+    return DatasetVersion.class;
   }
 
-  private Set<DatasetVersion> intersectDatasetVersions(Collection<Set<DatasetVersion>> sets) {
+  private static Set<DatasetVersion> intersectDatasetVersions(Collection<Set<DatasetVersion>> sets) {
     if (sets.size() <= 0) {
       return Sets.newHashSet();
     }
@@ -180,7 +179,7 @@ public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVer
     return outputSet;
   }
 
-  private Set<DatasetVersion> unionDatasetVersions(Collection<Set<DatasetVersion>> sets) {
+  private static Set<DatasetVersion> unionDatasetVersions(Collection<Set<DatasetVersion>> sets) {
     if (sets.size() <= 0) {
       return Sets.newHashSet();
     }

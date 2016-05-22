@@ -233,13 +233,14 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
    * The method makes sure it always grants execute permissions for an owner if the <code>file</code> passed is a
    * directory. The publisher needs it to publish it to the final directory and list files under this directory.
    */
-  private OwnerAndPermission addExecutePermissionsIfRequired(FileStatus file, OwnerAndPermission ownerAndPermission) {
+  private static OwnerAndPermission addExecutePermissionsIfRequired(FileStatus file,
+      OwnerAndPermission ownerAndPermission) {
 
     if (ownerAndPermission.getFsPermission() == null) {
       return ownerAndPermission;
     }
 
-    if (!file.isDir()) {
+    if (!file.isDirectory()) {
       return ownerAndPermission;
     }
 

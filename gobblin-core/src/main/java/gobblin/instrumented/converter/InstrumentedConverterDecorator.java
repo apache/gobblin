@@ -49,17 +49,16 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
 
   @Override
   public MetricContext getMetricContext() {
-    return this.isEmbeddedInstrumented ?
-        ((InstrumentedConverterBase)embeddedConverter).getMetricContext() :
-        super.getMetricContext();
+    return this.isEmbeddedInstrumented
+        ? ((InstrumentedConverterBase<SI, SO, DI, DO>) this.embeddedConverter).getMetricContext()
+        : super.getMetricContext();
   }
 
   @Override
   public Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    return this.isEmbeddedInstrumented ?
-        convertRecordImpl(outputSchema, inputRecord, workUnit) :
-        super.convertRecord(outputSchema, inputRecord, workUnit);
+    return this.isEmbeddedInstrumented ? convertRecordImpl(outputSchema, inputRecord, workUnit)
+        : super.convertRecord(outputSchema, inputRecord, workUnit);
   }
 
   @Override
@@ -69,14 +68,12 @@ public class InstrumentedConverterDecorator<SI, SO, DI, DO> extends Instrumented
   }
 
   @Override
-  public SO convertSchema(SI inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public SO convertSchema(SI inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     return this.embeddedConverter.convertSchema(inputSchema, workUnit);
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     this.embeddedConverter.close();
   }
 

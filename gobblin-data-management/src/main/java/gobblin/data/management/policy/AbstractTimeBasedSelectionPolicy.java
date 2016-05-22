@@ -46,8 +46,9 @@ public abstract class AbstractTimeBasedSelectionPolicy implements VersionSelecti
   }
 
   public AbstractTimeBasedSelectionPolicy(Config conf) {
-    Preconditions.checkArgument(conf.hasPath(TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY), String.format("%s is required", TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY));
-    this.lookBackPeriod = this.getLookBackPeriod(conf.getString(TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY));
+    Preconditions.checkArgument(conf.hasPath(TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY),
+        String.format("%s is required", TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY));
+    this.lookBackPeriod = getLookBackPeriod(conf.getString(TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY));
   }
 
   @Override
@@ -62,10 +63,9 @@ public abstract class AbstractTimeBasedSelectionPolicy implements VersionSelecti
 
   protected abstract Predicate<TimestampedDatasetVersion> getSelectionPredicate();
 
-  private Period getLookBackPeriod(String lookbackTime) {
-    PeriodFormatter periodFormatter =
-        new PeriodFormatterBuilder().appendMonths().appendSuffix("M").appendDays().appendSuffix("d").appendHours()
-            .appendSuffix("h").appendMinutes().appendSuffix("m").toFormatter();
+  private static Period getLookBackPeriod(String lookbackTime) {
+    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendMonths().appendSuffix("M").appendDays()
+        .appendSuffix("d").appendHours().appendSuffix("h").appendMinutes().appendSuffix("m").toFormatter();
     return periodFormatter.parsePeriod(lookbackTime);
   }
 }

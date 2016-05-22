@@ -49,7 +49,7 @@ public class JobExecutionEventSubmitter {
    * Submits an event for the given {@link JobState}.
    */
   private void submitJobStateEvent(JobState jobState) {
-    ImmutableMap.Builder<String, String> jobMetadataBuilder = new ImmutableMap.Builder<String, String>();
+    ImmutableMap.Builder<String, String> jobMetadataBuilder = new ImmutableMap.Builder<>();
 
     jobMetadataBuilder.put(METADATA_JOB_ID, jobState.getJobId());
     jobMetadataBuilder.put(METADATA_JOB_NAME, jobState.getJobName());
@@ -61,7 +61,7 @@ public class JobExecutionEventSubmitter {
     jobMetadataBuilder.put(METADATA_JOB_LAUNCHER_TYPE, jobState.getLauncherType().toString());
     jobMetadataBuilder.put(METADATA_JOB_TRACKING_URL, jobState.getTrackingURL().or(UNKNOWN_VALUE));
     jobMetadataBuilder.put(EventSubmitter.EVENT_TYPE, JOB_STATE);
-    
+
     this.eventSubmitter.submit(JOB_STATE, jobMetadataBuilder.build());
   }
 
@@ -70,7 +70,7 @@ public class JobExecutionEventSubmitter {
    */
   private void submitTaskStateEvents(JobState jobState) {
     // Build Job Metadata applicable for TaskStates
-    ImmutableMap.Builder<String, String> jobMetadataBuilder = new ImmutableMap.Builder<String, String>();
+    ImmutableMap.Builder<String, String> jobMetadataBuilder = new ImmutableMap.Builder<>();
     jobMetadataBuilder.put(METADATA_JOB_ID, jobState.getJobId());
     jobMetadataBuilder.put(METADATA_JOB_NAME, jobState.getJobName());
     jobMetadataBuilder.put(METADATA_JOB_TRACKING_URL, jobState.getTrackingURL().or(UNKNOWN_VALUE));
@@ -86,7 +86,7 @@ public class JobExecutionEventSubmitter {
    * Submits an event for a given {@link TaskState}. It will include all metadata specified in the jobMetadata parameter.
    */
   private void submitTaskStateEvent(TaskState taskState, Map<String, String> jobMetadata) {
-    ImmutableMap.Builder<String, String> taskMetadataBuilder = new ImmutableMap.Builder<String, String>();
+    ImmutableMap.Builder<String, String> taskMetadataBuilder = new ImmutableMap.Builder<>();
 
     taskMetadataBuilder.putAll(jobMetadata);
     taskMetadataBuilder.put(METADATA_TASK_ID, taskState.getTaskId());

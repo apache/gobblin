@@ -17,8 +17,9 @@ import lombok.ToString;
 
 import com.google.common.base.Preconditions;
 
+
 @ToString
-@EqualsAndHashCode(of={"columnName"})
+@EqualsAndHashCode(of = { "columnName" })
 public class JdbcEntryMetaDatum {
   private final String columnName;
   private final JdbcType jdbcType;
@@ -29,10 +30,10 @@ public class JdbcEntryMetaDatum {
   }
 
   public String getColumnName() {
-    return columnName;
+    return this.columnName;
   }
 
   public JdbcType getJdbcType() {
-    return jdbcType;
+    return this.jdbcType;
   }
 }

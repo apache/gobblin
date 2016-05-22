@@ -36,6 +36,7 @@ import gobblin.util.jdbc.DataSourceBuilder;
 import gobblin.writer.commands.JdbcWriterCommands;
 import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
+
 /**
  * Initialize for AvroToJdbcEntryConverter. ConverterInitializer is being invoked at driver which means
  * it will only invoked once per converter. This is to remove any duplication work among task, and
@@ -55,8 +56,7 @@ public class AvroToJdbcEntryConverterInitializer implements ConverterInitializer
   }
 
   public AvroToJdbcEntryConverterInitializer(State state, Collection<WorkUnit> workUnits,
-                                             JdbcWriterCommandsFactory jdbcWriterCommandsFactory,
-                                             int branches, int branchId) {
+      JdbcWriterCommandsFactory jdbcWriterCommandsFactory, int branches, int branchId) {
     this.state = state;
     this.workUnits = workUnits;
     this.jdbcWriterCommandsFactory = jdbcWriterCommandsFactory;
@@ -74,19 +74,16 @@ public class AvroToJdbcEntryConverterInitializer implements ConverterInitializer
    */
   @Override
   public void initialize() {
-    String table = Preconditions.checkNotNull(state.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-                                                            JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME,
-                                                            branches,
-                                                            branchId)));
+    String table = Preconditions.checkNotNull(this.state.getProp(ForkOperatorUtils
+        .getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, this.branches, this.branchId)));
     try (Connection conn = createConnection()) {
-      JdbcWriterCommands commands = jdbcWriterCommandsFactory.newInstance(state, conn);
+      JdbcWriterCommands commands = this.jdbcWriterCommandsFactory.newInstance(this.state, conn);
       Map<String, JdbcType> dateColumnMapping = commands.retrieveDateColumns(table);
       LOG.info("Date column mapping: " + dateColumnMapping);
 
-      final String dateFieldsKey = ForkOperatorUtils.getPropertyNameForBranch(AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_DATE_FIELDS,
-                                                                              branches,
-                                                                              branchId);
-      for (WorkUnit wu : workUnits) {
+      final String dateFieldsKey = ForkOperatorUtils.getPropertyNameForBranch(
+          AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_DATE_FIELDS, this.branches, this.branchId);
+      for (WorkUnit wu : this.workUnits) {
         wu.setProp(dateFieldsKey, new Gson().toJson(dateColumnMapping));
       }
     } catch (SQLException e) {
@@ -95,20 +92,16 @@ public class AvroToJdbcEntryConverterInitializer implements ConverterInitializer
   }
 
   @Override
-  public void close() { }
+  public void close() {}
 
   @VisibleForTesting
   public Connection createConnection() throws SQLException {
-    DataSource dataSource = DataSourceBuilder.builder()
-                                             .url(state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
-                                             .driver(state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
-                                             .userName(state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
-                                             .passWord(state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
-                                             .cryptoKeyLocation(state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
-                                             .maxActiveConnections(1)
-                                             .maxIdleConnections(1)
-                                             .state(state)
-                                             .build();
+    DataSource dataSource = DataSourceBuilder.builder().url(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
+        .driver(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
+        .userName(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
+        .passWord(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
+        .cryptoKeyLocation(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC)).maxActiveConnections(1)
+        .maxIdleConnections(1).state(this.state).build();
 
     return dataSource.getConnection();
   }

@@ -59,13 +59,11 @@ import gobblin.util.executors.ScalingThreadPoolExecutor;
  */
 public class DatasetCleaner implements Instrumentable, Closeable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DatasetCleaner.class);
-
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
-  public static final String MAX_CONCURRENT_DATASETS_CLEANED = CONFIGURATION_KEY_PREFIX
-      + "max.concurrent.datasets.cleaned";
-  public static final String DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT = CONFIGURATION_KEY_PREFIX
-      + "hdfs.calls.per.second.limit";
+  public static final String MAX_CONCURRENT_DATASETS_CLEANED =
+      CONFIGURATION_KEY_PREFIX + "max.concurrent.datasets.cleaned";
+  public static final String DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT =
+      CONFIGURATION_KEY_PREFIX + "hdfs.calls.per.second.limit";
 
   public static final String DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED = "1000";
 
@@ -88,9 +86,8 @@ public class DatasetCleaner implements Instrumentable, Closeable {
     try {
       FileSystem optionalRateControlledFs = fs;
       if (props.contains(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT)) {
-        optionalRateControlledFs =
-            this.closer.register(new RateControlledFileSystem(fs, Long.parseLong(props
-                .getProperty(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT))));
+        optionalRateControlledFs = this.closer.register(new RateControlledFileSystem(fs,
+            Long.parseLong(props.getProperty(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT))));
         ((RateControlledFileSystem) optionalRateControlledFs).startRateControl();
       }
       this.datasetFinder = new MultiCleanableDatasetFinder(optionalRateControlledFs, props);
@@ -99,19 +96,18 @@ public class DatasetCleaner implements Instrumentable, Closeable {
     } catch (ExecutionException exception) {
       throw new IOException(exception);
     }
-    ExecutorService executor =
-        ScalingThreadPoolExecutor.newScalingThreadPool(0, Integer
-            .parseInt(props.getProperty(MAX_CONCURRENT_DATASETS_CLEANED, DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED)), 100,
-            ExecutorsUtils.newThreadFactory(Optional.of(LOG),
-            Optional.of("Dataset-cleaner-pool-%d")));
+    ExecutorService executor = ScalingThreadPoolExecutor.newScalingThreadPool(0,
+        Integer.parseInt(props.getProperty(MAX_CONCURRENT_DATASETS_CLEANED, DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED)),
+        100, ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("Dataset-cleaner-pool-%d")));
     this.service = MoreExecutors.listeningDecorator(executor);
 
     List<Tag<?>> tags = Lists.newArrayList();
     tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
     // TODO -- Remove the dependency on gobblin-core after new Gobblin Metrics does not depend on gobblin-core.
-    this.metricContext = this.closer.register(Instrumented.getMetricContext(new State(props), DatasetCleaner.class, tags));
+    this.metricContext =
+        this.closer.register(Instrumented.getMetricContext(new State(props), DatasetCleaner.class, tags));
     this.isMetricEnabled = GobblinMetrics.isEnabled(props);
-    this.eventSubmitter = new EventSubmitter.Builder(metricContext, RetentionEvents.NAMESPACE).build();
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, RetentionEvents.NAMESPACE).build();
     this.throwables = Lists.newArrayList();
   }
 
@@ -121,7 +117,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
    */
   public void clean() throws IOException {
     List<Dataset> dataSets = this.datasetFinder.findDatasets();
-    finishCleanSignal = Optional.of(new CountDownLatch(dataSets.size()));
+    this.finishCleanSignal = Optional.of(new CountDownLatch(dataSets.size()));
     for (final Dataset dataset : dataSets) {
       ListenableFuture<Void> future = this.service.submit(new Callable<Void>() {
         @Override
@@ -135,35 +131,35 @@ public class DatasetCleaner implements Instrumentable, Closeable {
       Futures.addCallback(future, new FutureCallback<Void>() {
         @Override
         public void onFailure(Throwable throwable) {
-          finishCleanSignal.get().countDown();
+          DatasetCleaner.this.finishCleanSignal.get().countDown();
           LOG.warn("Exception caught when cleaning " + dataset.datasetURN() + ".", throwable);
-          throwables.add(throwable);
-          Instrumented.markMeter(datasetsCleanFailureMeter);
-          eventSubmitter.submit(RetentionEvents.CleanFailed.EVENT_NAME,
-              ImmutableMap.of(RetentionEvents.CleanFailed.FAILURE_CONTEXT_METADATA_KEY, ExceptionUtils.getFullStackTrace(throwable),
-              RetentionEvents.DATASET_URN_METADATA_KEY, dataset.datasetURN()));
+          DatasetCleaner.this.throwables.add(throwable);
+          Instrumented.markMeter(DatasetCleaner.this.datasetsCleanFailureMeter);
+          DatasetCleaner.this.eventSubmitter.submit(RetentionEvents.CleanFailed.EVENT_NAME,
+              ImmutableMap.of(RetentionEvents.CleanFailed.FAILURE_CONTEXT_METADATA_KEY,
+                  ExceptionUtils.getFullStackTrace(throwable), RetentionEvents.DATASET_URN_METADATA_KEY,
+                  dataset.datasetURN()));
         }
 
         @Override
         public void onSuccess(Void arg0) {
-          finishCleanSignal.get().countDown();
+          DatasetCleaner.this.finishCleanSignal.get().countDown();
           LOG.info("Successfully cleaned: " + dataset.datasetURN());
-          Instrumented.markMeter(datasetsCleanSuccessMeter);
+          Instrumented.markMeter(DatasetCleaner.this.datasetsCleanSuccessMeter);
         }
 
       });
     }
   }
 
-
   @Override
   public void close() throws IOException {
     try {
       if (this.finishCleanSignal.isPresent()) {
-        finishCleanSignal.get().await();
+        this.finishCleanSignal.get().await();
       }
       if (!this.throwables.isEmpty()) {
-        for (Throwable t : throwables) {
+        for (Throwable t : this.throwables) {
           LOG.error("Failed clean due to ", t);
         }
         throw new RuntimeException("Clean failed for one or more datasets");
@@ -195,9 +191,8 @@ public class DatasetCleaner implements Instrumentable, Closeable {
 
   @Override
   public void switchMetricContext(List<Tag<?>> tags) {
-    this.metricContext =
-        this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
-            Optional.<String> absent()));
+    this.metricContext = this.closer
+        .register(Instrumented.newContextFromReferenceContext(this.metricContext, tags, Optional.<String> absent()));
     this.regenerateMetrics();
   }
 

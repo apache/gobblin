@@ -278,9 +278,8 @@ public class AvroUtils {
     return files;
   }
 
-  @SuppressWarnings("deprecation")
   private static void getAllNestedAvroFiles(FileStatus dir, List<FileStatus> files, FileSystem fs) throws IOException {
-    if (dir.isDir()) {
+    if (dir.isDirectory()) {
       FileStatus[] filesInDir = fs.listStatus(dir.getPath());
       if (filesInDir != null) {
         for (FileStatus f : filesInDir) {
