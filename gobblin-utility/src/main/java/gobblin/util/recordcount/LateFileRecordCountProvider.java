@@ -40,11 +40,10 @@ public class LateFileRecordCountProvider extends RecordCountProvider {
   public Path constructLateFilePath(String originalFilename, FileSystem fs, Path outputDir) throws IOException {
     if (!fs.exists(new Path(outputDir, originalFilename))) {
       return new Path(outputDir, originalFilename);
-    } else {
-      return constructLateFilePath(FilenameUtils.getBaseName(originalFilename) + LATE_COMPONENT
-          + new Random().nextInt(Integer.MAX_VALUE) + SEPARATOR + FilenameUtils.getExtension(originalFilename), fs,
-          outputDir);
     }
+    return constructLateFilePath(FilenameUtils.getBaseName(originalFilename) + LATE_COMPONENT
+        + new Random().nextInt(Integer.MAX_VALUE) + SEPARATOR + FilenameUtils.getExtension(originalFilename), fs,
+        outputDir);
   }
 
   /**

@@ -26,10 +26,10 @@ import gobblin.data.management.version.FileSystemDatasetVersion;
 /**
  * Creates {@link ConfigurableCleanableDataset} from a glob for retention jobs.
  */
-public class GlobCleanableDatasetFinder extends
-    ConfigurableGlobDatasetFinder<ConfigurableCleanableDataset<FileSystemDatasetVersion>> {
+public class GlobCleanableDatasetFinder
+    extends ConfigurableGlobDatasetFinder<ConfigurableCleanableDataset<FileSystemDatasetVersion>> {
 
-  public GlobCleanableDatasetFinder(FileSystem fs, Properties props) throws IOException {
+  public GlobCleanableDatasetFinder(FileSystem fs, Properties props) {
     super(fs, props);
   }
 

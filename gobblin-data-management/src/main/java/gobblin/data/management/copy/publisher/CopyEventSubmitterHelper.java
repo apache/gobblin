@@ -11,8 +11,6 @@
  */
 package gobblin.data.management.copy.publisher;
 
-import java.io.IOException;
-
 import com.google.common.collect.ImmutableMap;
 
 import gobblin.configuration.WorkUnitState;
@@ -37,21 +35,17 @@ public class CopyEventSubmitterHelper {
   public static final String SOURCE_PATH = "SourcePath";
   public static final String SIZE_IN_BYTES = "SizeInBytes";
 
-  static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter, CopyEntity.DatasetAndPartition
-      datasetAndPartition, String originTimestamp, String upstreamTimestamp) {
+  static void submitSuccessfulDatasetPublish(EventSubmitter eventSubmitter,
+      CopyEntity.DatasetAndPartition datasetAndPartition, String originTimestamp, String upstreamTimestamp) {
     SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(DATASET_PUBLISHED_EVENT_NAME)
-        .datasetUrn(datasetAndPartition.getDataset().getDatasetURN())
-        .partition(datasetAndPartition.getPartition())
-        .originTimestamp(originTimestamp)
-        .upstreamTimestamp(upstreamTimestamp)
-        .build()
-        .submit();
+        .datasetUrn(datasetAndPartition.getDataset().getDatasetURN()).partition(datasetAndPartition.getPartition())
+        .originTimestamp(originTimestamp).upstreamTimestamp(upstreamTimestamp).build().submit();
   }
 
   static void submitFailedDatasetPublish(EventSubmitter eventSubmitter,
       CopyEntity.DatasetAndPartition datasetAndPartition) {
-    eventSubmitter.submit(DATASET_PUBLISHED_FAILED_EVENT_NAME, ImmutableMap.of(DATASET_ROOT_METADATA_NAME,
-        datasetAndPartition.getDataset().getDatasetURN()));
+    eventSubmitter.submit(DATASET_PUBLISHED_FAILED_EVENT_NAME,
+        ImmutableMap.of(DATASET_ROOT_METADATA_NAME, datasetAndPartition.getDataset().getDatasetURN()));
   }
 
   /**
@@ -63,8 +57,7 @@ public class CopyEventSubmitterHelper {
    * @param eventSubmitter
    * @param workUnitState
    */
-  static void submitSuccessfulFilePublish(EventSubmitter eventSubmitter, CopyableFile cf, WorkUnitState workUnitState)
-      throws IOException {
+  static void submitSuccessfulFilePublish(EventSubmitter eventSubmitter, CopyableFile cf, WorkUnitState workUnitState) {
     String datasetUrn = workUnitState.getProp(SlaEventKeys.DATASET_URN_KEY);
     String partition = workUnitState.getProp(SlaEventKeys.PARTITION_KEY);
     String completenessPercentage = workUnitState.getProp(SlaEventKeys.COMPLETENESS_PERCENTAGE_KEY);
@@ -73,12 +66,10 @@ public class CopyEventSubmitterHelper {
     String dedupeStatus = workUnitState.getProp(SlaEventKeys.DEDUPE_STATUS_KEY);
     SlaEventSubmitter.builder().eventSubmitter(eventSubmitter).eventName(FILE_PUBLISHED_EVENT_NAME)
         .datasetUrn(datasetUrn).partition(partition).originTimestamp(Long.toString(cf.getOriginTimestamp()))
-        .upstreamTimestamp(Long.toString(cf.getUpstreamTimestamp()))
-        .completenessPercentage(completenessPercentage).recordCount(recordCount)
-        .previousPublishTimestamp(previousPublishTimestamp).dedupeStatus(dedupeStatus)
+        .upstreamTimestamp(Long.toString(cf.getUpstreamTimestamp())).completenessPercentage(completenessPercentage)
+        .recordCount(recordCount).previousPublishTimestamp(previousPublishTimestamp).dedupeStatus(dedupeStatus)
         .additionalMetadata(TARGET_PATH, cf.getDestination().toString())
         .additionalMetadata(SOURCE_PATH, cf.getOrigin().getPath().toString())
-        .additionalMetadata(SIZE_IN_BYTES, Long.toString(cf.getOrigin().getLen()))
-        .build().submit();
+        .additionalMetadata(SIZE_IN_BYTES, Long.toString(cf.getOrigin().getLen())).build().submit();
   }
 }

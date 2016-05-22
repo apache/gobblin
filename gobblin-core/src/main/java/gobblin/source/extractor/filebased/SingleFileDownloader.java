@@ -40,9 +40,10 @@ public class SingleFileDownloader<D> extends FileDownloader<D> {
     log.info("Beginning to download file: " + file);
 
     try {
-      InputStream inputStream = fileBasedExtractor.getCloser().register(fileBasedExtractor.getFsHelper().getFileStream(file));
+      InputStream inputStream =
+          this.fileBasedExtractor.getCloser().register(this.fileBasedExtractor.getFsHelper().getFileStream(file));
       Iterator<D> fileItr = (Iterator<D>) IOUtils.lineIterator(inputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
-      if (fileBasedExtractor.isShouldSkipFirstRecord() && fileItr.hasNext()) {
+      if (this.fileBasedExtractor.isShouldSkipFirstRecord() && fileItr.hasNext()) {
         fileItr.next();
       }
       return fileItr;

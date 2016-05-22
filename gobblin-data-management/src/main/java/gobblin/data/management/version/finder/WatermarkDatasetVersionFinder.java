@@ -99,9 +99,8 @@ public class WatermarkDatasetVersionFinder extends DatasetVersionFinder<StringDa
         return null;
       }
       return new StringDatasetVersion(matcher.group(1), fullPath);
-    } else {
-      return new StringDatasetVersion(pathRelativeToDatasetRoot.getName(), fullPath);
     }
+    return new StringDatasetVersion(pathRelativeToDatasetRoot.getName(), fullPath);
   }
 
 }

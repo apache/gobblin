@@ -93,8 +93,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
   private ServiceManager serviceManager;
 
   public ServiceBasedAppLauncher(Properties properties, String appName) throws Exception {
-    this.stopTime =
-        Integer.parseInt(properties.getProperty(APP_STOP_TIME_SECONDS, DEFAULT_APP_STOP_TIME_SECONDS));
+    this.stopTime = Integer.parseInt(properties.getProperty(APP_STOP_TIME_SECONDS, DEFAULT_APP_STOP_TIME_SECONDS));
     this.appId = ApplicationLauncherUtils.newAppId(appName);
     this.services = new ArrayList<>();
 
@@ -126,6 +125,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
     this.serviceManager = new ServiceManager(this.services);
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
+      @Override
       public void run() {
         try {
           ServiceBasedAppLauncher.this.stop();
@@ -195,8 +195,8 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
 
     boolean jobExecInfoServerEnabled = Boolean
         .valueOf(properties.getProperty(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
-    boolean adminUiServerEnabled = Boolean
-        .valueOf(properties.getProperty(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
+    boolean adminUiServerEnabled =
+        Boolean.valueOf(properties.getProperty(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY, Boolean.FALSE.toString()));
 
     if (jobExecInfoServerEnabled) {
       LOG.info("Will launch the job execution info server");
@@ -207,7 +207,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
         LOG.info("Will launch the admin UI server");
         addService(new AdminWebServer(properties, executionInfoServer.getAdvertisedServerUri()));
       }
-    }  else if (adminUiServerEnabled) {
+    } else if (adminUiServerEnabled) {
       LOG.warn("Not launching the admin UI because the job execution info server is not enabled");
     }
   }
@@ -229,17 +229,17 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
         Class<?> serviceClass = Class.forName(serviceClassName);
         if (Service.class.isAssignableFrom(serviceClass)) {
           Service service;
-          Constructor<?> constructor = ConstructorUtils.getMatchingAccessibleConstructor(serviceClass, Properties.class);
+          Constructor<?> constructor =
+              ConstructorUtils.getMatchingAccessibleConstructor(serviceClass, Properties.class);
           if (constructor != null) {
-            service = (Service)constructor.newInstance(properties);
+            service = (Service) constructor.newInstance(properties);
           } else {
             service = (Service) serviceClass.newInstance();
           }
           addService(service);
         } else {
-          throw new IllegalArgumentException(String
-              .format("Class %s specified by %s does not implement %s", serviceClassName, APP_ADDITIONAL_SERVICES,
-                  Service.class.getSimpleName()));
+          throw new IllegalArgumentException(String.format("Class %s specified by %s does not implement %s",
+              serviceClassName, APP_ADDITIONAL_SERVICES, Service.class.getSimpleName()));
         }
       }
     }
@@ -249,7 +249,8 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
     final Thread mainThread = Thread.currentThread();
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
-      @Override public void run() {
+      @Override
+      public void run() {
         mainThread.interrupt();
       }
     });

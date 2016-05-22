@@ -22,8 +22,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
@@ -42,8 +40,6 @@ import lombok.Getter;
  * </p>
  */
 public class TestTrash extends MockTrash {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(TestTrash.class);
 
   private static final String DELAY_TICKS_KEY = "gobblin.trash.test.delays.ticks";
 
@@ -111,25 +107,24 @@ public class TestTrash extends MockTrash {
   @Getter
   private final boolean skipTrash;
 
-  public TestTrash(FileSystem fs, Properties props, String user)
-      throws IOException {
+  public TestTrash(FileSystem fs, Properties props, String user) throws IOException {
     super(fs, propertiesForConstruction(props), user);
     this.user = user;
     this.deleteOperations = Lists.newArrayList();
-    this.simulate = props.containsKey(TrashFactory.SIMULATE) &&
-        Boolean.parseBoolean(props.getProperty(TrashFactory.SIMULATE));
-    this.skipTrash = props.containsKey(TrashFactory.SKIP_TRASH) &&
-        Boolean.parseBoolean(props.getProperty(TrashFactory.SKIP_TRASH));
+    this.simulate =
+        props.containsKey(TrashFactory.SIMULATE) && Boolean.parseBoolean(props.getProperty(TrashFactory.SIMULATE));
+    this.skipTrash =
+        props.containsKey(TrashFactory.SKIP_TRASH) && Boolean.parseBoolean(props.getProperty(TrashFactory.SKIP_TRASH));
 
     this.operationsReceived = new AtomicLong();
 
     this.lock = new ReentrantLock();
-    this.clockStateUpdated = lock.newCondition();
-    this.signalReceived = lock.newCondition();
+    this.clockStateUpdated = this.lock.newCondition();
+    this.signalReceived = this.lock.newCondition();
     this.clockState = 0;
     this.operationsWaiting = new AtomicLong();
     this.callsReceivedSignal = new AtomicLong();
-    if(props.containsKey(DELAY_TICKS_KEY)) {
+    if (props.containsKey(DELAY_TICKS_KEY)) {
       this.delay = Long.parseLong(props.getProperty(DELAY_TICKS_KEY));
     } else {
       this.delay = 0;
@@ -137,24 +132,21 @@ public class TestTrash extends MockTrash {
   }
 
   @Override
-  public boolean moveToTrash(Path path)
-      throws IOException {
+  public boolean moveToTrash(Path path) throws IOException {
     this.operationsReceived.incrementAndGet();
     addDeleteOperation(new DeleteOperation(path, null));
     return true;
   }
 
   @Override
-  public boolean moveToTrashAsUser(Path path, String user)
-      throws IOException {
+  public boolean moveToTrashAsUser(Path path, String user) throws IOException {
     this.operationsReceived.incrementAndGet();
     addDeleteOperation(new DeleteOperation(path, user));
     return true;
   }
 
   @Override
-  public boolean moveToTrashAsOwner(Path path)
-      throws IOException {
+  public boolean moveToTrashAsOwner(Path path) throws IOException {
     return moveToTrashAsUser(path, this.user);
   }
 
@@ -186,7 +178,7 @@ public class TestTrash extends MockTrash {
       // Send signal
       this.clockStateUpdated.signalAll();
 
-      while(this.callsReceivedSignal.get() < callsAwaitingSignalOld) {
+      while (this.callsReceivedSignal.get() < callsAwaitingSignalOld) {
         // this will release the lock, and it will periodically compare the number of threads that were awaiting
         // signal against the number of threads that have already received the signal. Therefore, this statement
         // will block until all threads have acked signal.
@@ -211,11 +203,11 @@ public class TestTrash extends MockTrash {
 
     try {
       // If delay is 0, this continues immediately.
-      while(this.clockState < executeAt) {
+      while (this.clockState < executeAt) {
         // If this is not the first loop, it means we have received a signal from tick, but still not at
         // appropriate clock state. Ack the receive (this is done here because if it is ready to "delete", it should
         // only ack after actually adding the DeleteOperation to the list).
-        if(!firstLoop) {
+        if (!firstLoop) {
           this.callsReceivedSignal.incrementAndGet();
           this.signalReceived.signalAll();
         }

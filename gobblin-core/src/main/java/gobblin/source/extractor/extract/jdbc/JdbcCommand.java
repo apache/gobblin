@@ -60,7 +60,7 @@ public class JdbcCommand implements Command {
   @Override
   public String toString() {
     Joiner joiner = Joiner.on(":").skipNulls();
-    return cmd.toString() + ":" + joiner.join(params);
+    return this.cmd.toString() + ":" + joiner.join(this.params);
   }
 
   @Override

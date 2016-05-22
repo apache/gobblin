@@ -206,9 +206,8 @@ public class WriterUtils {
     } else if (codecName.get().equalsIgnoreCase(DataFileConstants.DEFLATE_CODEC)) {
       if (!deflateLevel.isPresent()) {
         return CodecFactory.deflateCodec(ConfigurationKeys.DEFAULT_DEFLATE_LEVEL);
-      } else {
-        return CodecFactory.deflateCodec(Integer.parseInt(deflateLevel.get()));
       }
+      return CodecFactory.deflateCodec(Integer.parseInt(deflateLevel.get()));
     } else {
       return CodecFactory.fromString(codecName.get().toLowerCase());
     }
@@ -253,19 +252,16 @@ public class WriterUtils {
         String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
         Optional<Token<?>> token = ProxiedFileSystemUtils.getTokenFromSeqFile(user,
             new Path(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE)));
-        if(!token.isPresent()) {
+        if (!token.isPresent()) {
           throw new IOException("No token found for user " + user);
         }
-        return
-            ProxiedFileSystemCache.fromToken().
-                userNameToken(token.get()).
-                userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri).build();
+        return ProxiedFileSystemCache.fromToken().userNameToken(token.get())
+            .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri).build();
       } catch (ExecutionException e) {
         throw new IOException(e);
       }
-    } else {
-      // Initialize file system as the current user.
-      return FileSystem.get(uri, new Configuration());
     }
+    // Initialize file system as the current user.
+    return FileSystem.get(uri, new Configuration());
   }
 }

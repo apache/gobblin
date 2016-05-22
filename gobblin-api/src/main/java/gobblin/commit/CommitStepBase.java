@@ -59,7 +59,7 @@ public abstract class CommitStepBase implements CommitStep {
     public CommitSequence.Builder endStep() throws IOException {
       Preconditions.checkState(this.commitSequenceBuilder.isPresent());
       this.commitSequenceBuilder.get().addStep(build());
-      return commitSequenceBuilder.get();
+      return this.commitSequenceBuilder.get();
     }
 
     public abstract CommitStep build() throws IOException;

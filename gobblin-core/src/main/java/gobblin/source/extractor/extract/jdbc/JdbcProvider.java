@@ -14,8 +14,6 @@ package gobblin.source.extractor.extract.jdbc;
 
 import gobblin.tunnel.Tunnel;
 import org.apache.commons.dbcp.BasicDataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -53,7 +51,7 @@ public class JdbcProvider extends BasicDataSource {
       // TODO make connection Url parsing much more robust -- some connections URLs can have colons and slashes in the
       // weirdest places
       int hostStart = connectionUrl.indexOf("://") + 3;
-      int portStart =  connectionUrl.indexOf(":", hostStart);
+      int portStart = connectionUrl.indexOf(":", hostStart);
       remoteHost = connectionUrl.substring(hostStart, portStart);
       remotePort = Integer.decode(connectionUrl.substring(portStart + 1, connectionUrl.indexOf("/", portStart)));
 
@@ -61,8 +59,8 @@ public class JdbcProvider extends BasicDataSource {
         this.tunnel = Tunnel.build(remoteHost, remotePort, proxyHost, proxyPort);
         int tunnelPort = this.tunnel.getPort();
         //mangle connectionUrl, replace hostname with localhost -- hopefully the hostname is not needed!!!
-        String newConnectionUrl = connectionUrl.replaceFirst(remoteHost, "127.0.0.1")
-            .replaceFirst(":" + remotePort, ":" + tunnelPort);
+        String newConnectionUrl =
+            connectionUrl.replaceFirst(remoteHost, "127.0.0.1").replaceFirst(":" + remotePort, ":" + tunnelPort);
         connectionUrl = newConnectionUrl;
       } catch (IOException ioe) {
         throw new IllegalStateException("Failed to open tunnel to remote host " + remoteHost + ":" + remotePort

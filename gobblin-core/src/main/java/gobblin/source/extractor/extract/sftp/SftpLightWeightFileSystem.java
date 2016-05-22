@@ -84,9 +84,9 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public void initialize(URI name, Configuration conf) throws IOException {
     super.initialize(name, conf);
     State state = HadoopUtils.getStateFromConf(conf);
-    fsHelper = new SftpFsHelper(state);
+    this.fsHelper = new SftpFsHelper(state);
     try {
-      fsHelper.connect();
+      this.fsHelper.connect();
     } catch (FileBasedHelperException e) {
       throw new IOException(e);
     }
@@ -96,8 +96,8 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public boolean delete(Path path) throws IOException {
     ChannelSftp channel = null;
     try {
-      channel = fsHelper.getSftpChannel();
-      if (getFileStatus(path).isDir()) {
+      channel = this.fsHelper.getSftpChannel();
+      if (getFileStatus(path).isDirectory()) {
         channel.rmdir(HadoopUtils.toUriPath(path));
       } else {
         channel.rm(HadoopUtils.toUriPath(path));
@@ -121,21 +121,19 @@ public class SftpLightWeightFileSystem extends FileSystem {
     ChannelExec channelExec1 = null;
     ChannelExec channelExec2 = null;
     try {
-      channelSftp = fsHelper.getSftpChannel();
+      channelSftp = this.fsHelper.getSftpChannel();
       SftpATTRS sftpAttrs = channelSftp.stat(HadoopUtils.toUriPath(path));
       FsPermission permission = new FsPermission((short) sftpAttrs.getPermissions());
 
-      channelExec1 = fsHelper.getExecChannel("id " + sftpAttrs.getUId());
+      channelExec1 = this.fsHelper.getExecChannel("id " + sftpAttrs.getUId());
       String userName = IOUtils.toString(channelExec1.getInputStream());
 
-
-      channelExec2 = fsHelper.getExecChannel("id " + sftpAttrs.getGId());
+      channelExec2 = this.fsHelper.getExecChannel("id " + sftpAttrs.getGId());
       String groupName = IOUtils.toString(channelExec2.getInputStream());
 
       FileStatus fs =
-          new FileStatus(sftpAttrs.getSize(), sftpAttrs.isDir(), 1, 0l, (long) sftpAttrs.getMTime(),
-              (long) sftpAttrs.getATime(), permission, StringUtils.trimToEmpty(userName),
-              StringUtils.trimToEmpty(groupName), path);
+          new FileStatus(sftpAttrs.getSize(), sftpAttrs.isDir(), 1, 0l, sftpAttrs.getMTime(), sftpAttrs.getATime(),
+              permission, StringUtils.trimToEmpty(userName), StringUtils.trimToEmpty(groupName), path);
 
       return fs;
     } catch (SftpException e) {
@@ -157,7 +155,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public Path getWorkingDirectory() {
     ChannelSftp channelSftp = null;
     try {
-      channelSftp = fsHelper.getSftpChannel();
+      channelSftp = this.fsHelper.getSftpChannel();
       Path workingDir = new Path(channelSftp.pwd());
 
       return workingDir;
@@ -172,7 +170,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public FileStatus[] listStatus(Path path) throws IOException {
 
     try {
-      List<String> fileNames = fsHelper.ls(HadoopUtils.toUriPath(path));
+      List<String> fileNames = this.fsHelper.ls(HadoopUtils.toUriPath(path));
       List<FileStatus> status = Lists.newArrayListWithCapacity(fileNames.size());
       for (String name : fileNames) {
         Path filePath = new Path(name);
@@ -190,9 +188,9 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public boolean mkdirs(Path path, FsPermission permission) throws IOException {
     ChannelSftp channel = null;
     try {
-      channel = fsHelper.getSftpChannel();
+      channel = this.fsHelper.getSftpChannel();
       channel.mkdir(HadoopUtils.toUriPath(path));
-      channel.chmod((int) permission.toShort(), HadoopUtils.toUriPath(path));
+      channel.chmod(permission.toShort(), HadoopUtils.toUriPath(path));
     } catch (SftpException e) {
       throw new IOException(e);
     } finally {
@@ -205,7 +203,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public FSDataInputStream open(Path path, int bufferSize) throws IOException {
     SftpGetMonitor monitor = new SftpGetMonitor();
     try {
-      ChannelSftp channelSftp = fsHelper.getSftpChannel();
+      ChannelSftp channelSftp = this.fsHelper.getSftpChannel();
       InputStream is = channelSftp.get(HadoopUtils.toUriPath(path), monitor);
       return new FSDataInputStream(new BufferedFSInputStream(new SftpFsFileInputStream(is, channelSftp), bufferSize));
     } catch (SftpException e) {
@@ -222,7 +220,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public boolean rename(Path oldPath, Path newPath) throws IOException {
     ChannelSftp channelSftp = null;
     try {
-      channelSftp = fsHelper.getSftpChannel();
+      channelSftp = this.fsHelper.getSftpChannel();
       channelSftp.rename(HadoopUtils.toUriPath(oldPath), HadoopUtils.toUriPath(newPath));
 
     } catch (SftpException e) {
@@ -237,7 +235,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public void setWorkingDirectory(Path path) {
     ChannelSftp channelSftp = null;
     try {
-      channelSftp = fsHelper.getSftpChannel();
+      channelSftp = this.fsHelper.getSftpChannel();
       channelSftp.lcd(HadoopUtils.toUriPath(path));
 
     } catch (SftpException e) {
@@ -249,7 +247,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
 
   @Override
   public void close() {
-    fsHelper.close();
+    this.fsHelper.close();
   }
 
   @Override

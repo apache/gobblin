@@ -67,9 +67,10 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
   private static final Map<String, String> DEPRECATIONS = ImmutableMap.of(DATASET_FINDER_PATTERN_KEY,
       DATASET_PATTERN_KEY, DATASET_FINDER_BLACKLIST_KEY, DATASET_BLACKLIST_KEY);
 
-  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties jobProps, Config config) throws IOException {
+  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties jobProps, Config config) {
     for (String property : requiredProperties()) {
-      Preconditions.checkArgument(config.hasPath(property) || config.hasPath(DEPRECATIONS.get(property)), String.format("Missing required property %s", property));
+      Preconditions.checkArgument(config.hasPath(property) || config.hasPath(DEPRECATIONS.get(property)),
+          String.format("Missing required property %s", property));
     }
 
     if (ConfigUtils.hasNonEmptyPath(config, DATASET_BLACKLIST_KEY)) {
@@ -88,14 +89,14 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
     } else {
       tmpDatasetPattern = new Path(config.getString(DATASET_PATTERN_KEY));
     }
-    this.datasetPattern = tmpDatasetPattern.isAbsolute() ? tmpDatasetPattern :
-        new Path(this.fs.getWorkingDirectory(), tmpDatasetPattern);
+    this.datasetPattern =
+        tmpDatasetPattern.isAbsolute() ? tmpDatasetPattern : new Path(this.fs.getWorkingDirectory(), tmpDatasetPattern);
 
     this.commonRoot = PathUtils.deepestNonGlobPath(this.datasetPattern);
     this.props = jobProps;
   }
 
-  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties props) throws IOException {
+  public ConfigurableGlobDatasetFinder(FileSystem fs, Properties props) {
     this(fs, props, ConfigFactory.parseProperties(props));
   }
 
@@ -136,7 +137,8 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
   /**
    * Returns the deepest non-glob ancestor of the dataset pattern.
    */
-  @Override public Path commonDatasetRoot() {
+  @Override
+  public Path commonDatasetRoot() {
     return this.commonRoot;
   }
 

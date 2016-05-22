@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 
+
 /**
  * The implementation of JdbcWriterCommands for MySQL.
  */
@@ -37,8 +38,8 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   private static final String SELECT_SQL_FORMAT = "SELECT COUNT(*) FROM %s";
   private static final String TRUNCATE_TABLE_FORMAT = "TRUNCATE TABLE %s";
   private static final String DROP_TABLE_SQL_FORMAT = "DROP TABLE %s";
-  private static final String INFORMATION_SCHEMA_SELECT_SQL_PSTMT
-                              = "SELECT column_name, column_type FROM information_schema.columns where table_name = ?";
+  private static final String INFORMATION_SCHEMA_SELECT_SQL_PSTMT =
+      "SELECT column_name, column_type FROM information_schema.columns where table_name = ?";
   private static final String COPY_INSERT_STATEMENT_FORMAT = "INSERT INTO %s.%s SELECT * FROM %s.%s";
   private static final String DELETE_STATEMENT_FORMAT = "DELETE FROM %s";
 
@@ -52,12 +53,12 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
 
   @Override
   public void insert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
-    jdbcBufferedWriter.insert(databaseName, table, jdbcEntryData);
+    this.jdbcBufferedWriter.insert(databaseName, table, jdbcEntryData);
   }
 
   @Override
   public void flush() throws SQLException {
-    jdbcBufferedWriter.flush();
+    this.jdbcBufferedWriter.flush();
   }
 
   @Override
@@ -69,9 +70,8 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   @Override
   public boolean isEmpty(String table) throws SQLException {
     String sql = String.format(SELECT_SQL_FORMAT, table);
-    try (PreparedStatement pstmt = conn.prepareStatement(sql);
-         ResultSet resultSet = pstmt.executeQuery();) {
-      if(!resultSet.first()) {
+    try (PreparedStatement pstmt = this.conn.prepareStatement(sql); ResultSet resultSet = pstmt.executeQuery();) {
+      if (!resultSet.first()) {
         throw new RuntimeException("Should have received at least one row from SQL " + pstmt);
       }
       return 0 == resultSet.getInt(1);
@@ -104,15 +104,11 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
    */
   @Override
   public Map<String, JdbcType> retrieveDateColumns(String table) throws SQLException {
-    Map<String, JdbcType> targetDataTypes = ImmutableMap.<String, JdbcType>builder()
-        .put("DATE", JdbcType.DATE)
-        .put("DATETIME", JdbcType.TIME)
-        .put("TIME", JdbcType.TIME)
-        .put("TIMESTAMP", JdbcType.TIMESTAMP)
-        .build();
+    Map<String, JdbcType> targetDataTypes = ImmutableMap.<String, JdbcType> builder().put("DATE", JdbcType.DATE)
+        .put("DATETIME", JdbcType.TIME).put("TIME", JdbcType.TIME).put("TIMESTAMP", JdbcType.TIMESTAMP).build();
 
     ImmutableMap.Builder<String, JdbcType> dateColumnsBuilder = ImmutableMap.builder();
-    try (PreparedStatement pstmt = conn.prepareStatement(INFORMATION_SCHEMA_SELECT_SQL_PSTMT)) {
+    try (PreparedStatement pstmt = this.conn.prepareStatement(INFORMATION_SCHEMA_SELECT_SQL_PSTMT)) {
       pstmt.setString(1, table);
       LOG.info("Retrieving column type information from SQL: " + pstmt);
       try (ResultSet rs = pstmt.executeQuery()) {
@@ -131,8 +127,6 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
     return dateColumnsBuilder.build();
   }
 
-
-
   @Override
   public void copyTable(String databaseName, String from, String to) throws SQLException {
     String sql = String.format(COPY_INSERT_STATEMENT_FORMAT, databaseName, to, databaseName, from);
@@ -141,13 +135,13 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
 
   private void execute(String sql) throws SQLException {
     LOG.info("Executing SQL " + sql);
-    try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+    try (PreparedStatement pstmt = this.conn.prepareStatement(sql)) {
       pstmt.execute();
     }
   }
 
   @Override
   public String toString() {
-    return String.format("MySqlWriterCommands [bufferedWriter=%s]", jdbcBufferedWriter);
+    return String.format("MySqlWriterCommands [bufferedWriter=%s]", this.jdbcBufferedWriter);
   }
 }

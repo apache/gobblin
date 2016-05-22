@@ -68,19 +68,16 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
         }
         Path defStorePath = new Path(uri);
         this.defaultStoreFS = defStorePath.getFileSystem(new Configuration());
-        this.defaultStoreURI = Optional.of(defaultStoreFS.makeQualified(defStorePath).toUri());
+        this.defaultStoreURI = Optional.of(this.defaultStoreFS.makeQualified(defStorePath).toUri());
         if (!isValidStoreRootPath(this.defaultStoreFS, defStorePath)) {
-          throw new IllegalArgumentException("Path does not appear to be a config store root: " +
-              this.defaultStoreFS);
+          throw new IllegalArgumentException("Path does not appear to be a config store root: " + this.defaultStoreFS);
         }
-       }
-      else {
+      } else {
         this.defaultStoreFS = FileSystem.get(new Configuration());
         Path candidateStorePath = getDefaultRootDir();
         if (isValidStoreRootPath(this.defaultStoreFS, candidateStorePath)) {
           this.defaultStoreURI = Optional.of(this.defaultStoreFS.makeQualified(candidateStorePath).toUri());
-        }
-        else {
+        } else {
           this.defaultStoreURI = Optional.absent();
         }
       }
@@ -170,18 +167,15 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
     // Validate the scheme
     String configKeyScheme = configKey.getScheme();
     if (!configKeyScheme.startsWith(SIMPLE_HDFS_SCHEME_PREFIX)) {
-      throw new IllegalArgumentException(String.format("Scheme for configKey \"%s\" must begin with \"%s\"!", configKey,
-          SIMPLE_HDFS_SCHEME_PREFIX));
+      throw new IllegalArgumentException(
+          String.format("Scheme for configKey \"%s\" must begin with \"%s\"!", configKey, SIMPLE_HDFS_SCHEME_PREFIX));
     }
 
     if (Strings.isNullOrEmpty(configKey.getAuthority())) {
       return new URI(getPhysicalScheme(), getDefaultAuthority(), "", "", "");
     }
-    else {
-      String uriPhysicalScheme =
-          configKeyScheme.substring(SIMPLE_HDFS_SCHEME_PREFIX.length(), configKeyScheme.length());
-      return new URI(uriPhysicalScheme, configKey.getAuthority(), "", "", "");
-    }
+    String uriPhysicalScheme = configKeyScheme.substring(SIMPLE_HDFS_SCHEME_PREFIX.length(), configKeyScheme.length());
+    return new URI(uriPhysicalScheme, configKey.getAuthority(), "", "", "");
   }
 
   /**
@@ -199,11 +193,10 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
    */
   private URI getStoreRoot(FileSystem fs, URI configKey) throws ConfigStoreCreationException {
     if (Strings.isNullOrEmpty(configKey.getAuthority())) {
-      if (! hasDefaultStoreURI()) {
-        throw new ConfigStoreCreationException(configKey,
-                                               "No default store has been configured.");
+      if (!hasDefaultStoreURI()) {
+        throw new ConfigStoreCreationException(configKey, "No default store has been configured.");
       }
-      return defaultStoreURI.get();
+      return this.defaultStoreURI.get();
     }
 
     Path path = new Path(configKey.getPath());
@@ -213,9 +206,10 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
         // the abs URI may point to an unexist path for
         // 1. phantom node
         // 2. as URI did not specify the version
-        if(fs.exists(path)){
+        if (fs.exists(path)) {
           for (FileStatus fileStatus : fs.listStatus(path)) {
-            if (fileStatus.isDir() && fileStatus.getPath().getName().equals(SimpleHDFSConfigStore.CONFIG_STORE_NAME)) {
+            if (fileStatus.isDirectory()
+                && fileStatus.getPath().getName().equals(SimpleHDFSConfigStore.CONFIG_STORE_NAME)) {
               return fs.getUri().resolve(fileStatus.getPath().getParent().toUri());
             }
           }
@@ -239,4 +233,3 @@ public class SimpleHDFSConfigStoreFactory implements ConfigStoreFactory<SimpleHD
     return this.defaultStoreURI.get();
   }
 }
-

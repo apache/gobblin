@@ -43,8 +43,8 @@ public class TimestampedDatasetVersion implements FileSystemDatasetVersion {
   @Override
   public int compareTo(FileSystemDatasetVersion other) {
     TimestampedDatasetVersion otherAsDateTime = (TimestampedDatasetVersion) other;
-    return this.version.equals(otherAsDateTime.version) ? this.path.compareTo(otherAsDateTime.path) : this.version
-        .compareTo(otherAsDateTime.version);
+    return this.version.equals(otherAsDateTime.version) ? this.path.compareTo(otherAsDateTime.path)
+        : this.version.compareTo(otherAsDateTime.version);
   }
 
   @Override
@@ -59,7 +59,7 @@ public class TimestampedDatasetVersion implements FileSystemDatasetVersion {
 
   @Override
   public String toString() {
-    return "Version " + version.toString(DateTimeFormat.shortDateTime()) + " at path " + this.path;
+    return "Version " + this.version.toString(DateTimeFormat.shortDateTime()) + " at path " + this.path;
   }
 
   @Override

@@ -10,8 +10,9 @@ import gobblin.config.ConfigBuilder;
 import gobblin.configuration.State;
 import gobblin.writer.FluentDataWriterBuilder;
 
+
 public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWriterBuilder<S, D, B>>
-       extends FluentDataWriterBuilder<S, D, B> {
+    extends FluentDataWriterBuilder<S, D, B> {
   public static final String CONF_PREFIX = "gobblin.writer.http.";
 
   private HttpClientBuilder _httpClientBuilder =
@@ -30,22 +31,21 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
   }
 
   public B withHttpClientBuilder(HttpClientBuilder builder) {
-    _httpClientBuilder = builder;
+    this._httpClientBuilder = builder;
     return typedSelf();
   }
 
   public HttpClientBuilder getHttpClientBuilder() {
-    return _httpClientBuilder;
+    return this._httpClientBuilder;
   }
 
   public B withHttpClientConnectionManager(HttpClientConnectionManager connManager) {
-    _httpConnManager = connManager;
+    this._httpConnManager = connManager;
     return typedSelf();
   }
 
   HttpClientConnectionManager getHttpConnManager() {
-    return _httpConnManager;
+    return this._httpConnManager;
   }
-
 
 }

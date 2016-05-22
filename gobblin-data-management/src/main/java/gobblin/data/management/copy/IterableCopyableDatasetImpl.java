@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import org.apache.hadoop.fs.FileSystem;
@@ -45,7 +47,8 @@ public class IterableCopyableDatasetImpl implements IterableCopyableDataset {
     return this.dataset.datasetURN();
   }
 
-  private Iterator<FileSet<CopyEntity>> partitionCopyableFiles(Dataset dataset, Collection<? extends CopyEntity> files) {
+  private static Iterator<FileSet<CopyEntity>> partitionCopyableFiles(Dataset dataset,
+      Collection<? extends CopyEntity> files) {
     Map<String, FileSet.Builder<CopyEntity>> partitionBuildersMaps = Maps.newHashMap();
     for (CopyEntity file : files) {
       if (!partitionBuildersMaps.containsKey(file.getFileSet())) {
@@ -56,7 +59,8 @@ public class IterableCopyableDatasetImpl implements IterableCopyableDataset {
     return Iterators.transform(partitionBuildersMaps.values().iterator(),
         new Function<FileSet.Builder<CopyEntity>, FileSet<CopyEntity>>() {
           @Nullable
-          @Override public FileSet<CopyEntity> apply(FileSet.Builder<CopyEntity> input) {
+          @Override
+          public FileSet<CopyEntity> apply(@Nonnull FileSet.Builder<CopyEntity> input) {
             return input.build();
           }
         });

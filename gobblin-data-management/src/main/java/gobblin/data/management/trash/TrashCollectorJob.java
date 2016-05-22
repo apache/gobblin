@@ -24,7 +24,7 @@ public class TrashCollectorJob extends AbstractJob implements Tool {
     ToolRunner.run(new TrashCollectorJob(TrashCollectorJob.class.getName()), args);
   }
 
-  public TrashCollectorJob(String id) throws IOException {
+  public TrashCollectorJob(String id) {
     super(id, Logger.getLogger(TrashCollectorJob.class));
   }
 
@@ -35,8 +35,7 @@ public class TrashCollectorJob extends AbstractJob implements Tool {
   }
 
   @Override
-  public int run(String[] args)
-      throws Exception {
+  public int run(String[] args) throws Exception {
     if (args.length < 1) {
       System.out.println("Must provide properties file as first argument.");
       return 1;
@@ -57,9 +56,8 @@ public class TrashCollectorJob extends AbstractJob implements Tool {
   }
 
   @Override
-  public void run()
-      throws Exception {
-    if(this.trash != null) {
+  public void run() throws Exception {
+    if (this.trash != null) {
       this.trash.createTrashSnapshot();
       this.trash.purgeTrashSnapshots();
     }

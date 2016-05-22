@@ -18,6 +18,7 @@ import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
 
+
 /**
  * Class that wraps an {@link InputStream} to support {@link Seekable} and {@link PositionedReadable}
  */
@@ -32,7 +33,7 @@ public class SeekableFSInputStream extends FSInputStream {
 
   @Override
   public int read(byte[] b, int off, int len) throws IOException {
-    int val = in.read(b, off, len);
+    int val = this.in.read(b, off, len);
     if (val > 0) {
       this.pos += val;
     }
@@ -56,7 +57,7 @@ public class SeekableFSInputStream extends FSInputStream {
 
   @Override
   public int read() throws IOException {
-    int val = in.read();
+    int val = this.in.read();
     if (val > 0) {
       this.pos += val;
     }

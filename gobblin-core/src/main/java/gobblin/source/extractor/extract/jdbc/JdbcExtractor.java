@@ -74,7 +74,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   private static final Gson gson = new Gson();
   private List<String> headerRecord;
   private boolean firstPull = true;
-  private CommandOutput<?, ?> dataResponse = null;;
+  private CommandOutput<?, ?> dataResponse = null;
   protected String extractSql;
   protected long sampleRecordCount;
   protected JdbcProvider jdbcSource;
@@ -97,7 +97,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return metadata(schema) column mapping
    */
   public Map<String, Schema> getMetadataColumnMap() {
-    return metadataColumnMap;
+    return this.metadataColumnMap;
   }
 
   /**
@@ -113,7 +113,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return metadata(schema) column list
    */
   public List<String> getMetadataColumnList() {
-    return metadataColumnList;
+    return this.metadataColumnList;
   }
 
   /**
@@ -129,7 +129,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return sample record count
    */
   public long getSampleRecordCount() {
-    return sampleRecordCount;
+    return this.sampleRecordCount;
   }
 
   /**
@@ -145,7 +145,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return query
    */
   public String getExtractSql() {
-    return extractSql;
+    return this.extractSql;
   }
 
   /**
@@ -161,7 +161,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return column projection
    */
   public String getOutputColumnProjection() {
-    return outputColumnProjection;
+    return this.outputColumnProjection;
   }
 
   /**
@@ -177,7 +177,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return column projection
    */
   public String getInputColumnProjection() {
-    return inputColumnProjection;
+    return this.inputColumnProjection;
   }
 
   /**
@@ -193,7 +193,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return map of column name and alias name
    */
   public List<ColumnAttributes> getColumnAliasMap() {
-    return columnAliasMap;
+    return this.columnAliasMap;
   }
 
   /**
@@ -212,7 +212,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *         first run
    */
   public boolean isFirstPull() {
-    return firstPull;
+    return this.firstPull;
   }
 
   /**
@@ -228,7 +228,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return header record with list of columns
    */
   protected List<String> getHeaderRecord() {
-    return headerRecord;
+    return this.headerRecord;
   }
 
   /**
@@ -242,14 +242,14 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return connection timeout
    */
   public int getTimeOut() {
-    return timeOut;
+    return this.timeOut;
   }
 
   /**
    * @return true, if records available. Otherwise, false
    */
   public boolean hasNextRecord() {
-    return nextRecord;
+    return this.nextRecord;
   }
 
   /**
@@ -382,8 +382,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (obj == null) {
       obj = getCustomColumnSchema(targetColumnName);
     } else {
-      String watermarkColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
-      String primarykeyColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
+      String watermarkColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
+      String primarykeyColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
       boolean isMultiColumnWatermark = this.hasMultipleWatermarkColumns(watermarkColumn);
 
       obj.setColumnName(targetColumnName);
@@ -606,7 +606,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
             fetchSize = Integer.parseInt(cmd.getParams().get(0));
             break;
           default:
-            log.error("Command " + type.toString() + " not recognized");
+            this.log.error("Command " + type.toString() + " not recognized");
             break;
         }
       }
@@ -624,11 +624,11 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
       final boolean status = statement.execute(query);
       if (status == false) {
-        log.error("Failed to execute sql:" + query);
+        this.log.error("Failed to execute sql:" + query);
       }
       resultSet = statement.getResultSet();
     } catch (Exception e) {
-      log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
+      this.log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
     }
 
     CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
@@ -663,7 +663,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
             fetchSize = Integer.parseInt(cmd.getParams().get(0));
             break;
           default:
-            log.error("Command " + type.toString() + " not recognized");
+            this.log.error("Command " + type.toString() + " not recognized");
             break;
         }
       }
@@ -690,12 +690,12 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
       final boolean status = statement.execute();
       if (status == false) {
-        log.error("Failed to execute sql:" + query);
+        this.log.error("Failed to execute sql:" + query);
       }
       resultSet = statement.getResultSet();
 
     } catch (Exception e) {
-      log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
+      this.log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
     }
 
     CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
@@ -855,7 +855,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         try {
           date = inFormat.parse(watermark);
         } catch (ParseException e) {
-          log.error("ParseException: " + e.getMessage(), e);
+          this.log.error("ParseException: " + e.getMessage(), e);
         }
         SimpleDateFormat outFormat = new SimpleDateFormat("yyyyMMddHHmmss");
         HighWatermark = Long.parseLong(outFormat.format(date));
@@ -968,9 +968,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     if (isBlob(resultsetMetadata.getColumnType(i))) {
       return readBlobAsString(resultset.getBlob(i));
-    } else {
-      return resultset.getString(i);
     }
+    return resultset.getString(i);
   }
 
   private static boolean isBlob(int columnType) {
@@ -1080,7 +1079,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *
    * @return RecordSetList
    */
-  private RecordSetList<JsonElement> getNewRecordSetList() {
+  private static RecordSetList<JsonElement> getNewRecordSetList() {
     return new RecordSetList<>();
   }
 
@@ -1114,7 +1113,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       try {
         this.dataConnection.close();
       } catch (SQLException e) {
-        log.error("Failed to close connection ;error-" + e.getMessage(), e);
+        this.log.error("Failed to close connection ;error-" + e.getMessage(), e);
       }
     }
   }

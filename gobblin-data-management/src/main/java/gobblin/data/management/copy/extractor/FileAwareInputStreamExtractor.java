@@ -40,7 +40,7 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   /** True indicates the unique record has already been read. */
   private boolean recordRead;
 
-  public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file) throws IOException {
+  public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file) {
 
     this.fs = fs;
     this.file = file;
@@ -62,7 +62,7 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
 
     if (!this.recordRead) {
       this.recordRead = true;
-      return new FileAwareInputStream(this.file, fs.open(this.file.getFileStatus().getPath()));
+      return new FileAwareInputStream(this.file, this.fs.open(this.file.getFileStatus().getPath()));
     }
     return null;
 

@@ -10,16 +10,17 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+
 /** A helper class to create {@link Config} objects */
 public class ConfigBuilder {
-  private final Map<String, Object> _primitiveProps = new HashMap<>();
-  private final Optional<String> _originDestription;
-  private Config _currentConfig;
+  private final Map<String, Object> primitiveProps = new HashMap<>();
+  private final Optional<String> originDestription;
+  private Config currentConfig;
 
   ConfigBuilder(Optional<String> originDescription) {
-    _originDestription = originDescription;
-    _currentConfig = originDescription.isPresent() ? ConfigFactory.empty(_originDestription.get())
-                                                   : ConfigFactory.empty();
+    this.originDestription = originDescription;
+    this.currentConfig =
+        originDescription.isPresent() ? ConfigFactory.empty(this.originDestription.get()) : ConfigFactory.empty();
   }
 
   /**
@@ -41,18 +42,18 @@ public class ConfigBuilder {
 
     int scopePrefixLen = scopePrefix.length();
 
-    for (Map.Entry<Object, Object> propEntry: props.entrySet()) {
+    for (Map.Entry<Object, Object> propEntry : props.entrySet()) {
       String propName = propEntry.getKey().toString();
       if (propName.startsWith(scopePrefix)) {
         String scopedName = propName.substring(scopePrefixLen);
         if (scopedName.isEmpty()) {
           throw new RuntimeException("Illegal scoped property:" + propName);
         }
-        if (! Character.isAlphabetic(scopedName.charAt(0))) {
-          throw new RuntimeException("Scoped name for property " + propName +
-                                     " should start with a character: " + scopedName);
+        if (!Character.isAlphabetic(scopedName.charAt(0))) {
+          throw new RuntimeException(
+              "Scoped name for property " + propName + " should start with a character: " + scopedName);
         }
-        _primitiveProps.put(scopedName, propEntry.getValue());
+        this.primitiveProps.put(scopedName, propEntry.getValue());
       }
     }
 
@@ -60,19 +61,19 @@ public class ConfigBuilder {
   }
 
   public ConfigBuilder addPrimitive(String name, Object value) {
-    _primitiveProps.put(name, value);
+    this.primitiveProps.put(name, value);
     return this;
   }
 
   public ConfigBuilder addList(String name, Iterable<? extends Object> values) {
-    _currentConfig = _originDestription.isPresent()
-        ? _currentConfig.withValue(name, ConfigValueFactory.fromIterable(values, _originDestription.get()))
-        : _currentConfig.withValue(name, ConfigValueFactory.fromIterable(values));
+    this.currentConfig = this.originDestription.isPresent()
+        ? this.currentConfig.withValue(name, ConfigValueFactory.fromIterable(values, this.originDestription.get()))
+        : this.currentConfig.withValue(name, ConfigValueFactory.fromIterable(values));
     return this;
   }
 
   public static ConfigBuilder create() {
-    return new ConfigBuilder(Optional.<String>absent());
+    return new ConfigBuilder(Optional.<String> absent());
   }
 
   public static ConfigBuilder create(String originDescription) {
@@ -80,7 +81,7 @@ public class ConfigBuilder {
   }
 
   public Config build() {
-    return ConfigFactory.parseMap(_primitiveProps).withFallback(_currentConfig);
+    return ConfigFactory.parseMap(this.primitiveProps).withFallback(this.currentConfig);
   }
 
 }

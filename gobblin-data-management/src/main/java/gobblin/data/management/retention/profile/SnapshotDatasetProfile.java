@@ -21,6 +21,7 @@ import org.apache.hadoop.fs.Path;
 import gobblin.data.management.retention.dataset.SnapshotDataset;
 import gobblin.dataset.Dataset;
 
+
 /**
  * {@link gobblin.dataset.DatasetsFinder} for snapshot datasets.
  *
@@ -30,15 +31,12 @@ import gobblin.dataset.Dataset;
  */
 public class SnapshotDatasetProfile extends ConfigurableGlobDatasetFinder<Dataset> {
 
-
-  public SnapshotDatasetProfile(FileSystem fs, Properties props)
-      throws IOException {
+  public SnapshotDatasetProfile(FileSystem fs, Properties props) {
     super(fs, props);
   }
 
   @Override
-  public Dataset datasetAtPath(Path path)
-      throws IOException {
+  public Dataset datasetAtPath(Path path) throws IOException {
     return new SnapshotDataset(this.fs, this.props, path);
   }
 

@@ -13,7 +13,6 @@
 package gobblin.data.management.copy;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -55,7 +54,8 @@ public class RecursivePathFinder {
     if (!this.fs.exists(this.rootPath)) {
       return Sets.newHashSet();
     }
-    PathFilter actualFilter = skipHiddenPaths ? new AndPathFilter(new HiddenFilter(), this.pathFilter) : this.pathFilter;
+    PathFilter actualFilter =
+        skipHiddenPaths ? new AndPathFilter(new HiddenFilter(), this.pathFilter) : this.pathFilter;
     List<FileStatus> files = FileListUtils.listFilesRecursively(this.fs, this.rootPath, actualFilter);
 
     return Sets.newHashSet(files);

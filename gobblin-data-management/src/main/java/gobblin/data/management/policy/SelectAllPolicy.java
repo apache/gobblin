@@ -24,8 +24,7 @@ import gobblin.data.management.version.FileSystemDatasetVersion;
  */
 public class SelectAllPolicy implements VersionSelectionPolicy<FileSystemDatasetVersion> {
 
-  public SelectAllPolicy(Properties properties) {
-  }
+  public SelectAllPolicy(Properties properties) {}
 
   @Override
   public Class<? extends FileSystemDatasetVersion> versionClass() {

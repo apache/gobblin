@@ -77,7 +77,7 @@ public class FsRenameCommitStep extends CommitStepBase {
 
     @Override
     public T withProps(State props) {
-      return (T) super.withProps(props);
+      return super.withProps(props);
     }
 
     @SuppressWarnings("unchecked")
