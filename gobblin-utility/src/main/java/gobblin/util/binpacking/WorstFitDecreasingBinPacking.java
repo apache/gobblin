@@ -12,6 +12,7 @@
 
 package gobblin.util.binpacking;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -55,6 +56,7 @@ public class WorstFitDecreasingBinPacking implements WorkUnitBinPacker {
 
   private final long maxWeightPerUnit;
 
+  @Override
   @OverridingMethodsMustInvokeSuper
   public List<WorkUnit> pack(List<WorkUnit> workUnitsIn, WorkUnitWeighter weighter) {
 
@@ -77,8 +79,7 @@ public class WorstFitDecreasingBinPacking implements WorkUnitBinPacker {
     int estimateByWeight = largeUnits + (int) ((smallUnitSize - 1) / this.maxWeightPerUnit) + 1;
     int estimatedMultiWorkUnits = Math.min(estimateByWeight, workUnits.size());
 
-    MinMaxPriorityQueue<MultiWorkUnit> pQueue =
-        MinMaxPriorityQueue.orderedBy(new MultiWorkUnitComparator()).create();
+    MinMaxPriorityQueue<MultiWorkUnit> pQueue = MinMaxPriorityQueue.orderedBy(new MultiWorkUnitComparator()).create();
     for (int i = 0; i < estimatedMultiWorkUnits; i++) {
       pQueue.add(MultiWorkUnit.createEmpty());
     }
@@ -89,9 +90,8 @@ public class WorstFitDecreasingBinPacking implements WorkUnitBinPacker {
       MultiWorkUnit lightestMultiWorkUnit = pQueue.peek();
       long weight = Math.max(1, weighter.weight(workUnit));
       long multiWorkUnitWeight = getMultiWorkUnitWeight(lightestMultiWorkUnit);
-      if (multiWorkUnitWeight == 0 ||
-          (weight + multiWorkUnitWeight <= this.maxWeightPerUnit &&
-          weight + multiWorkUnitWeight > multiWorkUnitWeight)) { // check for overflow
+      if (multiWorkUnitWeight == 0 || (weight + multiWorkUnitWeight <= this.maxWeightPerUnit
+          && weight + multiWorkUnitWeight > multiWorkUnitWeight)) { // check for overflow
         // if it fits, add it to lightest work unit
         addToMultiWorkUnit(lightestMultiWorkUnit, workUnit, weight);
         pQueue.poll();
@@ -104,7 +104,7 @@ public class WorstFitDecreasingBinPacking implements WorkUnitBinPacker {
       }
     }
 
-    return Lists.<WorkUnit>newArrayList(Iterables.filter(pQueue, new Predicate<MultiWorkUnit>() {
+    return Lists.<WorkUnit> newArrayList(Iterables.filter(pQueue, new Predicate<MultiWorkUnit>() {
       @Override
       public boolean apply(@Nullable MultiWorkUnit input) {
         return getMultiWorkUnitWeight(input) > 0;
@@ -121,8 +121,7 @@ public class WorstFitDecreasingBinPacking implements WorkUnitBinPacker {
       this.weighter = weighter;
       this.weightCache = CacheBuilder.newBuilder().softValues().build(new CacheLoader<WorkUnit, Long>() {
         @Override
-        public Long load(WorkUnit key)
-            throws Exception {
+        public Long load(WorkUnit key) throws Exception {
           return WeightComparator.this.weighter.weight(key);
         }
       });
@@ -138,24 +137,26 @@ public class WorstFitDecreasingBinPacking implements WorkUnitBinPacker {
     }
   }
 
-  private void addToMultiWorkUnit(MultiWorkUnit multiWorkUnit, WorkUnit workUnit, long weight) {
+  private static void addToMultiWorkUnit(MultiWorkUnit multiWorkUnit, WorkUnit workUnit, long weight) {
     multiWorkUnit.addWorkUnit(workUnit);
     setMultiWorkUnitWeight(multiWorkUnit, getMultiWorkUnitWeight(multiWorkUnit) + weight);
   }
 
-  private class MultiWorkUnitComparator implements Comparator<MultiWorkUnit> {
+  private static class MultiWorkUnitComparator implements Comparator<MultiWorkUnit>, Serializable {
+    private static final long serialVersionUID = 1L;
+
     @Override
     public int compare(MultiWorkUnit o1, MultiWorkUnit o2) {
       return Long.compare(getMultiWorkUnitWeight(o1), getMultiWorkUnitWeight(o2));
     }
   }
 
-  private long getMultiWorkUnitWeight(MultiWorkUnit multiWorkUnit) {
+  private static long getMultiWorkUnitWeight(MultiWorkUnit multiWorkUnit) {
     return multiWorkUnit.contains(TOTAL_MULTI_WORK_UNIT_WEIGHT)
         ? multiWorkUnit.getPropAsLong(TOTAL_MULTI_WORK_UNIT_WEIGHT) : 0;
   }
 
-  private void setMultiWorkUnitWeight(MultiWorkUnit multiWorkUnit, long weight) {
+  private static void setMultiWorkUnitWeight(MultiWorkUnit multiWorkUnit, long weight) {
     multiWorkUnit.setProp(TOTAL_MULTI_WORK_UNIT_WEIGHT, Long.toString(weight));
   }
 

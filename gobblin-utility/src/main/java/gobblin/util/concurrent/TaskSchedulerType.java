@@ -38,9 +38,9 @@ public enum TaskSchedulerType {
    * @return the specified {@link TaskSchedulerType} or {@link #SCHEDULEDEXECUTORSERVICE}
    */
   public static TaskSchedulerType parse(String name) {
-      if (StringUtils.isEmpty(name)) {
-          return SCHEDULEDEXECUTORSERVICE;
-      }
-      return Enums.getIfPresent(TaskSchedulerType.class, name.toUpperCase()).or(SCHEDULEDEXECUTORSERVICE);
+    if (StringUtils.isEmpty(name)) {
+      return SCHEDULEDEXECUTORSERVICE;
+    }
+    return Enums.getIfPresent(TaskSchedulerType.class, name.toUpperCase()).or(SCHEDULEDEXECUTORSERVICE);
   }
 }

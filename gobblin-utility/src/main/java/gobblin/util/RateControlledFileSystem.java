@@ -53,8 +53,8 @@ import gobblin.util.limiter.RateBasedLimiter;
 public class RateControlledFileSystem extends FileSystem implements Decorator {
 
   private static final int DEFAULT_MAX_CACHE_SIZE = 100;
-  private static final Cache<String, RateBasedLimiter> FS_URI_TO_RATE_LIMITER_CACHE = CacheBuilder.newBuilder()
-      .maximumSize(DEFAULT_MAX_CACHE_SIZE).build();
+  private static final Cache<String, RateBasedLimiter> FS_URI_TO_RATE_LIMITER_CACHE =
+      CacheBuilder.newBuilder().maximumSize(DEFAULT_MAX_CACHE_SIZE).build();
 
   private final FileSystem fs;
   private final long limitPerSecond;
@@ -67,17 +67,16 @@ public class RateControlledFileSystem extends FileSystem implements Decorator {
    * @return {@link Optional#absent} if file system is not rate controlled, otherwise, the rate in operations per second.
    */
   public static Optional<Long> getRateIfRateControlled(FileSystem fs) {
-    if(fs instanceof Decorator) {
+    if (fs instanceof Decorator) {
       List<Object> lineage = DecoratorUtils.getDecoratorLineage(fs);
-      for(Object obj : lineage) {
-        if(obj instanceof RateControlledFileSystem) {
+      for (Object obj : lineage) {
+        if (obj instanceof RateControlledFileSystem) {
           return Optional.of(((RateControlledFileSystem) obj).limitPerSecond);
         }
       }
       return Optional.absent();
-    } else {
-      return Optional.absent();
     }
+    return Optional.absent();
   }
 
   public RateControlledFileSystem(FileSystem fs, final long limitPerSecond) {

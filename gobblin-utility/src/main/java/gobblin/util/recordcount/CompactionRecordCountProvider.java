@@ -40,7 +40,7 @@ public class CompactionRecordCountProvider extends RecordCountProvider {
   /**
    * Construct the file name as {filenamePrefix}{recordCount}.{SystemCurrentTimeInMills}.{RandomInteger}{SUFFIX}.
    */
-  public String constructFileName(String filenamePrefix, long recordCount) {
+  public static String constructFileName(String filenamePrefix, long recordCount) {
     Preconditions.checkArgument(
         filenamePrefix.equals(M_OUTPUT_FILE_PREFIX) || filenamePrefix.equals(MR_OUTPUT_FILE_PREFIX),
         String.format("%s is not a supported prefix, which should be %s, or %s.", filenamePrefix, M_OUTPUT_FILE_PREFIX,

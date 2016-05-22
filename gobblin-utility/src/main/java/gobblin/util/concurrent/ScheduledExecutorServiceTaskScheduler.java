@@ -42,8 +42,7 @@ class ScheduledExecutorServiceTaskScheduler<K, T extends ScheduledTask<K>> exten
   /**
    * Instantiates a new instance of {@link ScheduledExecutorServiceTaskScheduler}.
    */
-  ScheduledExecutorServiceTaskScheduler() {
-  }
+  ScheduledExecutorServiceTaskScheduler() {}
 
   /**
    * Start the {@link TaskScheduler}.
@@ -52,8 +51,8 @@ class ScheduledExecutorServiceTaskScheduler<K, T extends ScheduledTask<K>> exten
    */
   @Override
   final void startImpl(Optional<String> name) {
-    this.executorService = Executors.newScheduledThreadPool(0,
-            ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), name));
+    this.executorService =
+        Executors.newScheduledThreadPool(0, ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), name));
   }
 
   /**
@@ -92,7 +91,7 @@ class ScheduledExecutorServiceTaskScheduler<K, T extends ScheduledTask<K>> exten
      * @param task the {@link ScheduledTask} to run
      */
     public RunnableTask(T task) {
-        this.task = task;
+      this.task = task;
     }
 
     /**
@@ -108,17 +107,17 @@ class ScheduledExecutorServiceTaskScheduler<K, T extends ScheduledTask<K>> exten
      */
     @Override
     public void run() {
-      task.runOneIteration();
+      this.task.runOneIteration();
     }
   }
 
   /**
    * An implementation of {@link CancellableTask} which can cancel the underlying {@link ScheduledFuture}.
    *
-   * @param <K> the type of the key of the {@link ScheduledTask}
-   * @param <T> the type of the {@link ScheduledTask}
+   * @param <K2> the type of the key of the {@link ScheduledTask}
+   * @param <T2> the type of the {@link ScheduledTask}
    */
-  private class CancellableScheduledFuture<K, T extends ScheduledTask<K>> extends CancellableTask<K, T> {
+  private class CancellableScheduledFuture<K2, T2 extends ScheduledTask<K2>> extends CancellableTask<K2, T2> {
     private final ScheduledFuture<?> future;
 
     /**
@@ -127,7 +126,7 @@ class ScheduledExecutorServiceTaskScheduler<K, T extends ScheduledTask<K>> exten
      * @param task the underlying {@link ScheduledTask}
      * @param future the underlying {@link ScheduledFuture}
      */
-    public CancellableScheduledFuture(T task, ScheduledFuture<?> future) {
+    public CancellableScheduledFuture(T2 task, ScheduledFuture<?> future) {
       super(task);
       this.future = future;
     }
@@ -141,7 +140,7 @@ class ScheduledExecutorServiceTaskScheduler<K, T extends ScheduledTask<K>> exten
      */
     @Override
     public boolean cancel() {
-      future.cancel(true);
+      this.future.cancel(true);
       return true;
     }
   }

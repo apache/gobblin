@@ -38,7 +38,8 @@ import org.testng.annotations.BeforeMethod;
 
 import com.google.common.collect.Lists;
 
-@Test(groups = {"gobblin.writer"})
+
+@Test(groups = { "gobblin.writer" })
 public class JdbcWriterInitializerTest {
   private static final String DEST_TABLE = "dest";
   private static final String STAGING_TABLE = "stage";
@@ -53,102 +54,102 @@ public class JdbcWriterInitializerTest {
 
   @BeforeMethod
   private void setup() throws SQLException {
-    state = new State();
-    state.setProp(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, DestinationType.MYSQL.name());
-    state.setProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, DEST_TABLE);
+    this.state = new State();
+    this.state.setProp(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, DestinationType.MYSQL.name());
+    this.state.setProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, DEST_TABLE);
 
-    workUnit = WorkUnit.createEmpty();
-    workUnits = Lists.newArrayList();
-    workUnits.add(workUnit);
+    this.workUnit = WorkUnit.createEmpty();
+    this.workUnits = Lists.newArrayList();
+    this.workUnits.add(this.workUnit);
 
-    factory = mock(JdbcWriterCommandsFactory.class);
-    commands = mock(JdbcWriterCommands.class);
-    conn = mock(Connection.class);
-    doReturn(commands).when(factory).newInstance(any(Destination.class), eq(conn));
+    this.factory = mock(JdbcWriterCommandsFactory.class);
+    this.commands = mock(JdbcWriterCommands.class);
+    this.conn = mock(Connection.class);
+    doReturn(this.commands).when(this.factory).newInstance(any(Destination.class), eq(this.conn));
 
-    initializer = new JdbcWriterInitializer(state, workUnits, factory, 1, 0);
-    initializer = spy(initializer);
-    doReturn(conn).when(initializer).createConnection();
+    this.initializer = new JdbcWriterInitializer(this.state, this.workUnits, this.factory, 1, 0);
+    this.initializer = spy(this.initializer);
+    doReturn(this.conn).when(this.initializer).createConnection();
   }
 
   public void skipStagingTable() throws SQLException {
-    state.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
-    state.setProp(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.toString(false));
+    this.state.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
+    this.state.setProp(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.toString(false));
 
-    initializer.initialize();
-    initializer.close();
-    Assert.assertEquals(DEST_TABLE, workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
-    verify(commands, never()).createTableStructure( anyString(), anyString());
-    verify(commands, never()).truncate(anyString());
-    verify(commands, never()).drop(anyString());
+    this.initializer.initialize();
+    this.initializer.close();
+    Assert.assertEquals(DEST_TABLE, this.workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
+    verify(this.commands, never()).createTableStructure(anyString(), anyString());
+    verify(this.commands, never()).truncate(anyString());
+    verify(this.commands, never()).drop(anyString());
   }
 
   public void skipStagingTableTruncateDestTable() throws SQLException {
-    state.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
-    state.setProp(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.toString(false));
-    state.setProp(JdbcPublisher.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, Boolean.toString(true));
+    this.state.setProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
+    this.state.setProp(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.toString(false));
+    this.state.setProp(JdbcPublisher.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, Boolean.toString(true));
 
-    initializer.initialize();
-    Assert.assertEquals(DEST_TABLE, workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
+    this.initializer.initialize();
+    Assert.assertEquals(DEST_TABLE, this.workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
 
-    verify(commands, never()).createTableStructure(anyString(), anyString());
-    InOrder inOrder = inOrder(commands);
-    inOrder.verify(commands, times(1)).truncate(DEST_TABLE);
+    verify(this.commands, never()).createTableStructure(anyString(), anyString());
+    InOrder inOrder = inOrder(this.commands);
+    inOrder.verify(this.commands, times(1)).truncate(DEST_TABLE);
 
-    initializer.close();
-    inOrder.verify(commands, never()).truncate(anyString());
-    verify(commands, never()).drop(anyString());
+    this.initializer.close();
+    inOrder.verify(this.commands, never()).truncate(anyString());
+    verify(this.commands, never()).drop(anyString());
   }
 
   public void userCreatedStagingTable() throws SQLException {
-    state.setProp(ConfigurationKeys.WRITER_STAGING_TABLE, STAGING_TABLE);
-    when(commands.isEmpty(STAGING_TABLE)).thenReturn(Boolean.TRUE);
+    this.state.setProp(ConfigurationKeys.WRITER_STAGING_TABLE, STAGING_TABLE);
+    when(this.commands.isEmpty(STAGING_TABLE)).thenReturn(Boolean.TRUE);
 
-    initializer.initialize();
+    this.initializer.initialize();
 
-    Assert.assertEquals(STAGING_TABLE, workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
-    verify(commands, never()).createTableStructure(anyString(), anyString());
-    verify(commands, never()).truncate(anyString());
-    verify(commands, never()).drop(anyString());
+    Assert.assertEquals(STAGING_TABLE, this.workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
+    verify(this.commands, never()).createTableStructure(anyString(), anyString());
+    verify(this.commands, never()).truncate(anyString());
+    verify(this.commands, never()).drop(anyString());
   }
 
   public void userCreatedStagingTableTruncate() throws SQLException {
-    state.setProp(ConfigurationKeys.WRITER_STAGING_TABLE, STAGING_TABLE);
-    state.setProp(ConfigurationKeys.WRITER_TRUNCATE_STAGING_TABLE, Boolean.toString(true));
-    when(commands.isEmpty(STAGING_TABLE)).thenReturn(Boolean.TRUE);
+    this.state.setProp(ConfigurationKeys.WRITER_STAGING_TABLE, STAGING_TABLE);
+    this.state.setProp(ConfigurationKeys.WRITER_TRUNCATE_STAGING_TABLE, Boolean.toString(true));
+    when(this.commands.isEmpty(STAGING_TABLE)).thenReturn(Boolean.TRUE);
 
-    initializer.initialize();
-    Assert.assertEquals(STAGING_TABLE, workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
+    this.initializer.initialize();
+    Assert.assertEquals(STAGING_TABLE, this.workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE));
 
-    InOrder inOrder = inOrder(commands);
-    inOrder.verify(commands, times(1)).truncate(STAGING_TABLE);
+    InOrder inOrder = inOrder(this.commands);
+    inOrder.verify(this.commands, times(1)).truncate(STAGING_TABLE);
 
-    initializer.close();
-    inOrder.verify(commands, times(1)).truncate(STAGING_TABLE);
+    this.initializer.close();
+    inOrder.verify(this.commands, times(1)).truncate(STAGING_TABLE);
 
-    verify(commands, never()).createTableStructure(anyString(), anyString());
-    verify(commands, never()).drop(anyString());
+    verify(this.commands, never()).createTableStructure(anyString(), anyString());
+    verify(this.commands, never()).drop(anyString());
   }
 
   public void initializeWithCreatingStagingTable() throws SQLException {
-    when(commands.isEmpty(STAGING_TABLE)).thenReturn(Boolean.TRUE);
+    when(this.commands.isEmpty(STAGING_TABLE)).thenReturn(Boolean.TRUE);
     DatabaseMetaData metadata = mock(DatabaseMetaData.class);
-    when(conn.getMetaData()).thenReturn(metadata);
+    when(this.conn.getMetaData()).thenReturn(metadata);
     ResultSet rs = mock(ResultSet.class);
     when(metadata.getTables(anyString(), anyString(), anyString(), any(String[].class))).thenReturn(rs);
     when(rs.next()).thenReturn(Boolean.FALSE);
 
-    initializer.initialize();
+    this.initializer.initialize();
 
-    Assert.assertTrue(!StringUtils.isEmpty(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE)));
+    Assert.assertTrue(!StringUtils.isEmpty(this.workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE)));
 
-    InOrder inOrder = inOrder(commands);
-    inOrder.verify(commands, times(1)).createTableStructure(anyString(), anyString());
-    inOrder.verify(commands, times(1)).drop( anyString());
-    inOrder.verify(commands, times(1)).createTableStructure(anyString(), anyString());
+    InOrder inOrder = inOrder(this.commands);
+    inOrder.verify(this.commands, times(1)).createTableStructure(anyString(), anyString());
+    inOrder.verify(this.commands, times(1)).drop(anyString());
+    inOrder.verify(this.commands, times(1)).createTableStructure(anyString(), anyString());
 
-    initializer.close();
-    inOrder.verify(commands, times(1)).drop(anyString());
-    inOrder.verify(commands, never()).truncate(anyString());
+    this.initializer.close();
+    inOrder.verify(this.commands, times(1)).drop(anyString());
+    inOrder.verify(this.commands, never()).truncate(anyString());
   }
 }

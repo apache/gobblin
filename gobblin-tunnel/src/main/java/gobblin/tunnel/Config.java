@@ -27,18 +27,18 @@ class Config {
   }
 
   public String getRemoteHost() {
-    return remoteHost;
+    return this.remoteHost;
   }
 
   public int getRemotePort() {
-    return remotePort;
+    return this.remotePort;
   }
 
   public String getProxyHost() {
-    return proxyHost;
+    return this.proxyHost;
   }
 
   public int getProxyPort() {
-    return proxyPort;
+    return this.proxyPort;
   }
 }

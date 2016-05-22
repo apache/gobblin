@@ -14,7 +14,6 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.Map.Entry;
@@ -78,7 +77,7 @@ public class JobConfigurationUtils {
       properties.put(entry.getKey(), entry.getValue());
     }
   }
-  
+
   /**
    * Put all configuration properties in a given {@link State} object into a given
    * {@link Configuration} object.
@@ -92,7 +91,6 @@ public class JobConfigurationUtils {
     }
   }
 
-  
   /**
    * Load the properties from the specified file into a {@link Properties} object.
    *
@@ -101,7 +99,7 @@ public class JobConfigurationUtils {
    * @return a new {@link Properties} instance
    */
   public static Properties fileToProperties(String fileName, Configuration conf)
-      throws IOException, ConfigurationException, URISyntaxException {
+      throws IOException, ConfigurationException {
 
     PropertiesConfiguration propsConfig = new PropertiesConfiguration();
     Path filePath = new Path(fileName);
@@ -114,16 +112,15 @@ public class JobConfigurationUtils {
     }
     return ConfigurationConverter.getProperties(propsConfig);
   }
-  
+
   /**
    * Load the properties from the specified file into a {@link Properties} object.
    *
    * @param fileName the name of the file to load properties from
    * @return a new {@link Properties} instance
    */
-  public static Properties fileToProperties(String fileName)
-      throws IOException, ConfigurationException, URISyntaxException {
+  public static Properties fileToProperties(String fileName) throws IOException, ConfigurationException {
     return fileToProperties(fileName, new Configuration());
   }
-  
+
 }

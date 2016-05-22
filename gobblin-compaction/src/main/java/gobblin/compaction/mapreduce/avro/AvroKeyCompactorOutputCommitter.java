@@ -21,7 +21,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.mapreduce.Counter;
-import org.apache.hadoop.mapreduce.StatusReporter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.slf4j.Logger;
@@ -69,7 +68,7 @@ public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
       } else {
         fileNamePrefix = CompactionRecordCountProvider.MR_OUTPUT_FILE_PREFIX;
       }
-      String fileName = new CompactionRecordCountProvider().constructFileName(fileNamePrefix, recordCount);
+      String fileName = CompactionRecordCountProvider.constructFileName(fileNamePrefix, recordCount);
 
       for (FileStatus status : fs.listStatus(workPath, new PathFilter() {
         @Override
