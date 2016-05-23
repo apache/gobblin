@@ -97,21 +97,21 @@ bin/gobblin-standalone.sh stop
 
 The job output is written in `GOBBLIN_WORK_DIR/job-output` folder as an Avro file.
 
-To see the content of the job output, use the Avro tools to convert Avro to JSON. Download the latest version of Avro tools (e.g. avro-tools-1.7.7.jar):
+To see the content of the job output, use the Avro tools to convert Avro to JSON. Download the latest version of Avro tools (e.g. avro-tools-1.8.1.jar):
 
 ```bash
-curl -O http://central.maven.org/maven2/org/apache/avro/avro-tools/1.7.7/avro-tools-1.7.7.jar
+curl -O http://central.maven.org/maven2/org/apache/avro/avro-tools/1.8.1/avro-tools-1.8.1.jar
 ```
 
 and run 
 
 ```bash
-java -jar avro-tools-1.7.7.jar tojson --pretty [job_output].avro > output.json
+java -jar avro-tools-1.8.1.jar tojson --pretty [job_output].avro > output.json
 ```
 
 `output.json` will contain all retrieved records in JSON format.
 
-Note that since this job configuration file we used ([wikipedia.pull](https://github.com/linkedin/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull)) doesn't specify a job schedule, the job will run immediately and will run only once. To schedule a job to run at a certain time and/or repeatedly, set the `job.schedule` property with a cron-based syntax. For example, `job.schedule=0 0/2 * * * ?` will run the job every two minutes. See [this link](http://www.quartz-scheduler.org/documentation/quartz-1.x/tutorials/crontrigger) (Quartz CronTrigger) for more details.
+Note that since this job configuration file we used ([wikipedia.pull](https://github.com/linkedin/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull)) doesn't specify a job schedule, the job will run immediately and will run only once. To schedule a job to run at a certain time and/or repeatedly, set the `job.schedule` property with a cron-based syntax. For example, `job.schedule=0 0/2 * * * ?` will run the job every two minutes. See [this link](http://www.quartz-scheduler.org/documentation/quartz-2.1.x/tutorials/crontrigger.html) (Quartz CronTrigger) for more details.
 
 
 # Other Example Jobs
@@ -120,4 +120,4 @@ Besides the Wikipedia example, we have another example job [SimpleJson](https://
 
 To create your own jobs, simply implement the relevant interfaces such as [Source](https://github.com/linkedin/gobblin/blob/master/gobblin-api/src/main/java/gobblin/source/Source.java), [Extractor](https://github.com/linkedin/gobblin/blob/master/gobblin-api/src/main/java/gobblin/source/extractor/Extractor.java), [Converter](https://github.com/linkedin/gobblin/blob/master/gobblin-api/src/main/java/gobblin/converter/Converter.java) and [DataWriter](https://github.com/linkedin/gobblin/blob/master/gobblin-api/src/main/java/gobblin/writer/DataWriter.java). In the job configuration file, set properties such as `source.class` and `converter.class` to point to these classes.
 
-On a side note: while users are free to directly implement the Extractor interface (e.g., WikipediaExtractor), Gobblin also provides several extractor implementations based on commonly used protocols, e.g., [RestApiExtractor](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/restapi/RestApiExtractor.java), [JdbcExtractor](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/jdbc/JdbcExtractor.java), [SftpExtractor](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/sftp/SftpExtractor.java), etc. Users are encouraged to extend these classes to take advantage of existing implementations.
+On a side note: while users are free to directly implement the Extractor interface (e.g., WikipediaExtractor), Gobblin also provides several extractor implementations based on commonly used protocols, e.g., [KafkaExtractor](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/KafkaExtractor.java), [RestApiExtractor](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/restapi/RestApiExtractor.java), [JdbcExtractor](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/jdbc/JdbcExtractor.java), [SftpExtractor](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/sftp/SftpExtractor.java), etc. Users are encouraged to extend these classes to take advantage of existing implementations.
