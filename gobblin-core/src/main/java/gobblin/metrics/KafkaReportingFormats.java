@@ -27,7 +27,8 @@ import gobblin.metrics.kafka.KafkaReporter;
  */
 public enum KafkaReportingFormats {
 
-  AVRO, JSON;
+  AVRO,
+  JSON;
 
   /**
    * Get a {@link gobblin.metrics.kafka.KafkaReporter.Builder} for this reporting format.
@@ -61,14 +62,14 @@ public enum KafkaReportingFormats {
   public KafkaEventReporter.Builder<?> eventReporterBuilder(MetricContext context, Properties properties) {
     switch (this) {
       case AVRO:
-        KafkaAvroEventReporter.Builder<?> builder = KafkaAvroEventReporter.forContext(context);
+        KafkaAvroEventReporter.Builder<?> builder = KafkaAvroEventReporter.Factory.forContext(context);
         if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
           builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
         }
         return builder;
       case JSON:
-        return KafkaEventReporter.forContext(context);
+        return KafkaEventReporter.Factory.forContext(context);
       default:
         // This should never happen.
         throw new IllegalArgumentException("KafkaReportingFormat not recognized.");

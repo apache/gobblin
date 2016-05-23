@@ -70,7 +70,7 @@ public class WhitelistBlacklist {
    * @return Whether database db might contain tables accepted by this {@link WhitelistBlacklist}.
    */
   public boolean acceptDb(String db) {
-    return accept(db, Optional.<String>absent());
+    return accept(db, Optional.<String> absent());
   }
 
   /**
@@ -88,7 +88,7 @@ public class WhitelistBlacklist {
     return this.whitelistMultimap.isEmpty() || multimapContains(this.whitelistMultimap, db, table, false);
   }
 
-  private void populateMultimap(SetMultimap<Pattern, Pattern> multimap, String list) throws IOException {
+  private static void populateMultimap(SetMultimap<Pattern, Pattern> multimap, String list) throws IOException {
     Splitter tokenSplitter = Splitter.on(",").omitEmptyStrings().trimResults();
     Splitter partSplitter = Splitter.on(".").omitEmptyStrings().trimResults();
     Splitter tableSplitter = Splitter.on("|").omitEmptyStrings().trimResults();
@@ -121,8 +121,8 @@ public class WhitelistBlacklist {
     }
   }
 
-  private boolean multimapContains(SetMultimap<Pattern, Pattern> multimap, String database, Optional<String> table,
-      boolean blacklist) {
+  private static boolean multimapContains(SetMultimap<Pattern, Pattern> multimap, String database,
+      Optional<String> table, boolean blacklist) {
     for (Pattern dbPattern : multimap.keySet()) {
       if (dbPattern.matcher(database).matches()) {
         if (!table.isPresent()) {

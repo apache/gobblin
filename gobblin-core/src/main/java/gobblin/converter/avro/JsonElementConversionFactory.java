@@ -202,9 +202,8 @@ public class JsonElementConversionFactory {
         list.add(Schema.create(Schema.Type.NULL));
         list.add(schema());
         return Schema.createUnion(list);
-      } else {
-        return schema();
       }
+      return schema();
     }
 
     protected Schema schema() {
@@ -222,9 +221,8 @@ public class JsonElementConversionFactory {
       if (value.isJsonNull()) {
         if (this.nullable) {
           return null;
-        } else {
-          throw new RuntimeException("Field: " + getName() + " is not nullable and contains a null value");
         }
+        throw new RuntimeException("Field: " + getName() + " is not nullable and contains a null value");
       }
       return convertField(value);
     }
@@ -418,8 +416,7 @@ public class JsonElementConversionFactory {
   public static abstract class ComplexConverter extends JsonElementConverter {
     private JsonElementConverter elementConverter;
 
-    public ComplexConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
-        WorkUnitState state) throws UnsupportedDateTypeException {
+    public ComplexConverter(String fieldName, boolean nullable, String sourceType) {
       super(fieldName, nullable, sourceType);
     }
 
@@ -436,7 +433,7 @@ public class JsonElementConversionFactory {
 
     public ArrayConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
         WorkUnitState state) throws UnsupportedDateTypeException {
-      super(fieldName, nullable, sourceType, schemaNode, state);
+      super(fieldName, nullable, sourceType);
       super.setElementConverter(
           getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("items").getAsString(),
               schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
@@ -470,7 +467,7 @@ public class JsonElementConversionFactory {
 
     public MapConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
         WorkUnitState state) throws UnsupportedDateTypeException {
-      super(fieldName, nullable, sourceType, schemaNode, state);
+      super(fieldName, nullable, sourceType);
       super.setElementConverter(
           getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("values").getAsString(),
               schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));

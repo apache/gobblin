@@ -25,13 +25,14 @@ import gobblin.config.store.api.ConfigStore;
 import gobblin.config.store.api.ConfigStoreWithBatchFetches;
 import gobblin.config.store.api.ConfigStoreWithResolution;
 
+
 /**
  * ConfigStoreBackedValueInspector always query the underline {@link ConfigStore} to get the freshest
  * {@link com.typesafe.config.Config}
  * @author mitu
  *
  */
-public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspector{
+public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspector {
 
   private final ConfigStore cs;
   private final String version;
@@ -65,7 +66,7 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
    */
   @Override
   public Config getOwnConfig(ConfigKeyPath configKey) {
-    return this.cs.getOwnConfig(configKey, version);
+    return this.cs.getOwnConfig(configKey, this.version);
   }
 
   /**
@@ -79,21 +80,20 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
    */
   @Override
   public Map<ConfigKeyPath, Config> getOwnConfigs(Collection<ConfigKeyPath> configKeys) {
-    if(this.cs instanceof ConfigStoreWithBatchFetches){
-      ConfigStoreWithBatchFetches batchStore = (ConfigStoreWithBatchFetches)this.cs;
-      return batchStore.getOwnConfigs(configKeys, version);
+    if (this.cs instanceof ConfigStoreWithBatchFetches) {
+      ConfigStoreWithBatchFetches batchStore = (ConfigStoreWithBatchFetches) this.cs;
+      return batchStore.getOwnConfigs(configKeys, this.version);
     }
 
     Map<ConfigKeyPath, Config> result = new HashMap<>();
-    for(ConfigKeyPath configKey: configKeys){
-      result.put(configKey, this.cs.getOwnConfig(configKey, version));
+    for (ConfigKeyPath configKey : configKeys) {
+      result.put(configKey, this.cs.getOwnConfig(configKey, this.version));
     }
 
     return result;
   }
 
   private Config getResolvedConfigRecursive(ConfigKeyPath configKey) {
-
 
     if (this.cs instanceof ConfigStoreWithResolution) {
       return ((ConfigStoreWithResolution) this.cs).getResolvedConfig(configKey, this.version);
@@ -124,14 +124,14 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     this.topology.getImportsRecursively(configKey);
 
     Config initialConfig = this.getOwnConfig(configKey);
-    if(configKey.isRootPath()){
+    if (configKey.isRootPath()) {
       return initialConfig;
     }
 
     List<ConfigKeyPath> ownImports = this.topology.getOwnImports(configKey);
     // merge with other configs from imports
-    if(ownImports!=null){
-      for(ConfigKeyPath p: ownImports){
+    if (ownImports != null) {
+      for (ConfigKeyPath p : ownImports) {
         initialConfig = initialConfig.withFallback(this.getResolvedConfigRecursive(p));
       }
     }
@@ -142,7 +142,6 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
     return initialConfig;
 
   }
-
 
   /**
    * {@inheritDoc}.
@@ -172,13 +171,13 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
    */
   @Override
   public Map<ConfigKeyPath, Config> getResolvedConfigs(Collection<ConfigKeyPath> configKeys) {
-    if(this.cs instanceof ConfigStoreWithBatchFetches){
-      ConfigStoreWithBatchFetches batchStore = (ConfigStoreWithBatchFetches)this.cs;
-      return batchStore.getResolvedConfigs(configKeys, version);
+    if (this.cs instanceof ConfigStoreWithBatchFetches) {
+      ConfigStoreWithBatchFetches batchStore = (ConfigStoreWithBatchFetches) this.cs;
+      return batchStore.getResolvedConfigs(configKeys, this.version);
     }
 
     Map<ConfigKeyPath, Config> result = new HashMap<>();
-    for(ConfigKeyPath configKey: configKeys){
+    for (ConfigKeyPath configKey : configKeys) {
       result.put(configKey, this.getResolvedConfig(configKey));
     }
 
@@ -186,4 +185,3 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
   }
 
 }
-

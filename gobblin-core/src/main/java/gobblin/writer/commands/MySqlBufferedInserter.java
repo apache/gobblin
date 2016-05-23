@@ -35,6 +35,7 @@ import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
+
 /**
  * The implementation of JdbcBufferedInserter for MySQL.
  * This purpose of buffered insert is mainly for performance reason and the implementation is based on the
@@ -59,13 +60,11 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
 
   public MySqlBufferedInserter(State state, Connection conn) {
     this.conn = conn;
-    this.batchSize = state.getPropAsInt(WRITER_JDBC_INSERT_BATCH_SIZE,
-                                        DEFAULT_WRITER_JDBC_INSERT_BATCH_SIZE);
-    if(batchSize < 1) {
+    this.batchSize = state.getPropAsInt(WRITER_JDBC_INSERT_BATCH_SIZE, DEFAULT_WRITER_JDBC_INSERT_BATCH_SIZE);
+    if (this.batchSize < 1) {
       throw new IllegalArgumentException(WRITER_JDBC_INSERT_BATCH_SIZE + " should be a positive number");
     }
-    this.maxParamSize = state.getPropAsInt(WRITER_JDBC_MAX_PARAM_SIZE,
-                                           DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE);
+    this.maxParamSize = state.getPropAsInt(WRITER_JDBC_MAX_PARAM_SIZE, DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE);
   }
 
   /**
@@ -75,29 +74,29 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
    */
   @Override
   public void insert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
-    if(columnNames == null) {
-      initializeForBatch(conn, databaseName, table, jdbcEntryData);
+    if (this.columnNames == null) {
+      initializeForBatch(this.conn, databaseName, table, jdbcEntryData);
     }
-    pendingInserts.add(jdbcEntryData);
+    this.pendingInserts.add(jdbcEntryData);
 
-    if(pendingInserts.size() == batchSize) {
-      insertBatch(insertPstmtForFixedBatch); //reuse pre-computed Preparedstatement.
+    if (this.pendingInserts.size() == this.batchSize) {
+      insertBatch(this.insertPstmtForFixedBatch); //reuse pre-computed Preparedstatement.
       return;
     }
   }
 
-  private void insertBatch(final PreparedStatement pstmt) throws SQLException {
+  private void insertBatch(final PreparedStatement pstmt) {
     Callable<Boolean> insertCall = new Callable<Boolean>() { //Need a Callable interface to be wrapped by Retryer.
       @Override
       public Boolean call() throws Exception {
         int i = 0;
         pstmt.clearParameters();
-        for (JdbcEntryData pendingEntry : pendingInserts) {
-          for(JdbcEntryDatum datum : pendingEntry) {
+        for (JdbcEntryData pendingEntry : MySqlBufferedInserter.this.pendingInserts) {
+          for (JdbcEntryDatum datum : pendingEntry) {
             pstmt.setObject(++i, datum.getVal());
           }
         }
-        if(LOG.isDebugEnabled()) {
+        if (LOG.isDebugEnabled()) {
           LOG.debug("Executing SQL " + pstmt);
         }
         return pstmt.execute();
@@ -105,7 +104,7 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
     };
 
     try {
-      retryer.wrap(insertCall).call();
+      this.retryer.wrap(insertCall).call();
     } catch (Exception e) {
       throw new RuntimeException("Failed to insert.", e);
     }
@@ -120,57 +119,60 @@ public class MySqlBufferedInserter implements JdbcBufferedInserter {
    * @param jdbcEntryData
    * @throws SQLException
    */
-  private void initializeForBatch(Connection conn, String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
-    columnNames = Lists.newArrayList();
+  private void initializeForBatch(Connection conn, String databaseName, String table, JdbcEntryData jdbcEntryData)
+      throws SQLException {
+    this.columnNames = Lists.newArrayList();
     for (JdbcEntryDatum datum : jdbcEntryData) {
-      columnNames.add(datum.getColumnName());
+      this.columnNames.add(datum.getColumnName());
     }
-    pendingInserts = Lists.newArrayList();
+    this.pendingInserts = Lists.newArrayList();
 
-    insertStmtPrefix = String.format(INSERT_STATEMENT_PREFIX_FORMAT, databaseName, table, JOINER_ON_COMMA.join(columnNames));
-    int actualBatchSize = Math.min(batchSize, maxParamSize / columnNames.size());
-    if(batchSize != actualBatchSize) {
-      LOG.info("Changing batch size from " + batchSize + " to " + actualBatchSize + " due to # of params limitation " + maxParamSize + " , # of columns: " + columnNames.size());
+    this.insertStmtPrefix =
+        String.format(INSERT_STATEMENT_PREFIX_FORMAT, databaseName, table, JOINER_ON_COMMA.join(this.columnNames));
+    int actualBatchSize = Math.min(this.batchSize, this.maxParamSize / this.columnNames.size());
+    if (this.batchSize != actualBatchSize) {
+      LOG.info("Changing batch size from " + this.batchSize + " to " + actualBatchSize
+          + " due to # of params limitation " + this.maxParamSize + " , # of columns: " + this.columnNames.size());
     }
-    batchSize = actualBatchSize;
-    insertPstmtForFixedBatch = conn.prepareStatement(createPrepareStatementStr(insertStmtPrefix, batchSize));
-    if(batchSize == 1) {
+    this.batchSize = actualBatchSize;
+    this.insertPstmtForFixedBatch =
+        conn.prepareStatement(createPrepareStatementStr(this.insertStmtPrefix, this.batchSize));
+    if (this.batchSize == 1) {
       LOG.info("Initialized for insert " + this);
     } else {
       LOG.info("Initialized for batch insert " + this);
     }
 
     //retry after 2, 4, 8, 16... sec, max 30 sec delay
-    retryer = RetryerBuilder.<Boolean>newBuilder()
-                            .retryIfException()
-                            .withWaitStrategy(WaitStrategies.exponentialWait(1000, 30, TimeUnit.SECONDS))
-                            .withStopStrategy(StopStrategies.stopAfterAttempt(5))
-                            .build();
+    this.retryer = RetryerBuilder.<Boolean> newBuilder().retryIfException()
+        .withWaitStrategy(WaitStrategies.exponentialWait(1000, 30, TimeUnit.SECONDS))
+        .withStopStrategy(StopStrategies.stopAfterAttempt(5)).build();
   }
 
   private void resetBatch() {
-    pendingInserts.clear();
+    this.pendingInserts.clear();
   }
 
   private String createPrepareStatementStr(String insertStmtPrefix, int batchSize) {
     final String VALUE_FORMAT = "(%s)";
 
     StringBuilder sb = new StringBuilder(insertStmtPrefix);
-    String values = String.format(VALUE_FORMAT, JOINER_ON_COMMA.useForNull("?").join(new String[columnNames.size()]));
+    String values =
+        String.format(VALUE_FORMAT, JOINER_ON_COMMA.useForNull("?").join(new String[this.columnNames.size()]));
     sb.append(values);
     for (int i = 1; i < batchSize; i++) {
-      sb.append(',')
-        .append(values);
+      sb.append(',').append(values);
     }
     return sb.append(';').toString();
   }
 
   @Override
   public void flush() throws SQLException {
-    if(pendingInserts == null || pendingInserts.isEmpty()) {
+    if (this.pendingInserts == null || this.pendingInserts.isEmpty()) {
       return;
     }
-    try (PreparedStatement pstmt = conn.prepareStatement(createPrepareStatementStr(insertStmtPrefix, pendingInserts.size()));) {
+    try (PreparedStatement pstmt =
+        this.conn.prepareStatement(createPrepareStatementStr(this.insertStmtPrefix, this.pendingInserts.size()));) {
       insertBatch(pstmt);
     }
   }

@@ -20,65 +20,56 @@ import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.conn.routing.HttpRoute;
 import org.apache.http.protocol.HttpContext;
 
+
 /**
  * Helper class to decorate HttpClientConnectionManager instances.
  */
 public class DelegatingHttpClientConnectionManager implements HttpClientConnectionManager {
-  protected final HttpClientConnectionManager _fallbackConnManager;
+  protected final HttpClientConnectionManager fallbackConnManager;
 
   public DelegatingHttpClientConnectionManager(HttpClientConnectionManager fallback) {
-    _fallbackConnManager = fallback;
-  }
-
-
-  @Override
-  public void releaseConnection(HttpClientConnection conn,
-                                Object newState,
-                                long validDuration,
-                                TimeUnit timeUnit) {
-    _fallbackConnManager.releaseConnection(conn, newState, validDuration, timeUnit);
+    this.fallbackConnManager = fallback;
   }
 
   @Override
-  public void connect(HttpClientConnection conn,
-                      HttpRoute route,
-                      int connectTimeout,
-                      HttpContext context) throws IOException {
-    _fallbackConnManager.connect(conn, route, connectTimeout, context);
+  public void releaseConnection(HttpClientConnection conn, Object newState, long validDuration, TimeUnit timeUnit) {
+    this.fallbackConnManager.releaseConnection(conn, newState, validDuration, timeUnit);
   }
 
   @Override
-  public void upgrade(HttpClientConnection conn, HttpRoute route, HttpContext context)
+  public void connect(HttpClientConnection conn, HttpRoute route, int connectTimeout, HttpContext context)
       throws IOException {
-    _fallbackConnManager.upgrade(conn, route, context);
+    this.fallbackConnManager.connect(conn, route, connectTimeout, context);
   }
 
   @Override
-  public void routeComplete(HttpClientConnection conn,
-                            HttpRoute route,
-                            HttpContext context) throws IOException {
-    _fallbackConnManager.routeComplete(conn, route, context);
+  public void upgrade(HttpClientConnection conn, HttpRoute route, HttpContext context) throws IOException {
+    this.fallbackConnManager.upgrade(conn, route, context);
+  }
+
+  @Override
+  public void routeComplete(HttpClientConnection conn, HttpRoute route, HttpContext context) throws IOException {
+    this.fallbackConnManager.routeComplete(conn, route, context);
   }
 
   @Override
   public void closeIdleConnections(long idletime, TimeUnit tunit) {
-    _fallbackConnManager.closeIdleConnections(idletime, tunit);
+    this.fallbackConnManager.closeIdleConnections(idletime, tunit);
   }
 
   @Override
   public void closeExpiredConnections() {
-    _fallbackConnManager.closeExpiredConnections();
+    this.fallbackConnManager.closeExpiredConnections();
   }
 
   @Override
   public void shutdown() {
-    _fallbackConnManager.shutdown();
+    this.fallbackConnManager.shutdown();
   }
-
 
   @Override
   public ConnectionRequest requestConnection(HttpRoute route, Object state) {
-    return _fallbackConnManager.requestConnection(route, state);
+    return this.fallbackConnManager.requestConnection(route, state);
   }
 
 }

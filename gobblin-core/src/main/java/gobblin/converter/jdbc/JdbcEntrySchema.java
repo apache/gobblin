@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 
+
 @ToString
 @EqualsAndHashCode
 public class JdbcEntrySchema implements Iterable<JdbcEntryMetaDatum> {
@@ -34,7 +35,7 @@ public class JdbcEntrySchema implements Iterable<JdbcEntryMetaDatum> {
     for (JdbcEntryMetaDatum datum : jdbcMetaDatumEntries) {
       builder.put(datum.getColumnName(), datum);
     }
-    jdbcMetaData = builder.build();
+    this.jdbcMetaData = builder.build();
   }
 
   /**
@@ -42,12 +43,12 @@ public class JdbcEntrySchema implements Iterable<JdbcEntryMetaDatum> {
    * @return Returns JdbcType. If column name does not exist, returns null.
    */
   public JdbcType getJdbcType(String columnName) {
-    JdbcEntryMetaDatum datum = jdbcMetaData.get(columnName);
+    JdbcEntryMetaDatum datum = this.jdbcMetaData.get(columnName);
     return datum == null ? null : datum.getJdbcType();
   }
 
   public Set<String> getColumnNames() {
-    return jdbcMetaData.keySet();
+    return this.jdbcMetaData.keySet();
   }
 
   /**
@@ -57,6 +58,6 @@ public class JdbcEntrySchema implements Iterable<JdbcEntryMetaDatum> {
    */
   @Override
   public Iterator<JdbcEntryMetaDatum> iterator() {
-    return jdbcMetaData.values().iterator();
+    return this.jdbcMetaData.values().iterator();
   }
 }

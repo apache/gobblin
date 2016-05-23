@@ -45,8 +45,8 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  * {@link RetentionPolicy} should be under key {@link #RETENTION_POLICY_CLASS_KEY}.
  * </p>
  */
-public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion> extends
-    MultiVersionCleanableDatasetBase<T> {
+public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
+    extends MultiVersionCleanableDatasetBase<T> {
 
   public static final String RETENTION_CONFIGURATION_KEY = "gobblin.retention";
   public static final String CONFIGURATION_KEY_PREFIX = RETENTION_CONFIGURATION_KEY + ".";
@@ -117,9 +117,9 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion> ex
         initWithSelectionPolicy(versionAndPolicy, jobProps);
       }
     } else {
-      throw new IllegalArgumentException(String.format(
-          "Either set version finder at %s and retention policy at %s or set partitions at %s",
-          VERSION_FINDER_CLASS_KEY, RETENTION_POLICY_CLASS_KEY, DATASET_PARTITIONS_LIST_KEY));
+      throw new IllegalArgumentException(
+          String.format("Either set version finder at %s and retention policy at %s or set partitions at %s",
+              VERSION_FINDER_CLASS_KEY, RETENTION_POLICY_CLASS_KEY, DATASET_PARTITIONS_LIST_KEY));
     }
   }
 
@@ -127,7 +127,8 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion> ex
     this(fs, props, datasetRoot, LoggerFactory.getLogger(ConfigurableCleanableDataset.class));
   }
 
-  public ConfigurableCleanableDataset(FileSystem fs, Properties props, Path datasetRoot, Logger log) throws IOException {
+  public ConfigurableCleanableDataset(FileSystem fs, Properties props, Path datasetRoot, Logger log)
+      throws IOException {
     this(fs, props, datasetRoot, ConfigFactory.parseProperties(props), log);
   }
 
@@ -143,9 +144,9 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion> ex
 
   private void initWithRetentionPolicy(Config config, Properties jobProps, String retentionPolicyKey,
       String versionFinderKey) {
-    this.versionFindersAndPolicies.add(new VersionFinderAndPolicy<>(createRetentionPolicy(
-        config.getString(retentionPolicyKey), config, jobProps), createVersionFinder(
-        config.getString(versionFinderKey), config, jobProps)));
+    this.versionFindersAndPolicies
+        .add(new VersionFinderAndPolicy<>(createRetentionPolicy(config.getString(retentionPolicyKey), config, jobProps),
+            createVersionFinder(config.getString(versionFinderKey), config, jobProps)));
   }
 
   private void initWithSelectionPolicy(Config config, Properties jobProps) {
@@ -154,14 +155,13 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion> ex
     String versionFinderKey = StringUtils.substringAfter(VERSION_FINDER_CLASS_KEY, CONFIGURATION_KEY_PREFIX);
 
     if (config.hasPath(selectionPolicyKey) && config.hasPath(versionFinderKey)) {
-      this.versionFindersAndPolicies.add(new VersionFinderAndPolicy<>(createSelectionPolicy(
-          config.getString(selectionPolicyKey), config, jobProps), createVersionFinder(
-          config.getString(versionFinderKey), config, jobProps)));
+      this.versionFindersAndPolicies.add(
+          new VersionFinderAndPolicy<>(createSelectionPolicy(config.getString(selectionPolicyKey), config, jobProps),
+              createVersionFinder(config.getString(versionFinderKey), config, jobProps)));
     } else {
-      log.warn(String
-          .format(
-              "Version finder and policy not initialized for partition. Set version finder at %s and Selection policy at %s",
-              VERSION_FINDER_CLASS_KEY, SELECTION_POLICY_CLASS_KEY));
+      this.log.warn(String.format(
+          "Version finder and policy not initialized for partition. Set version finder at %s and Selection policy at %s",
+          VERSION_FINDER_CLASS_KEY, SELECTION_POLICY_CLASS_KEY));
     }
   }
 
@@ -191,8 +191,8 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion> ex
   @SuppressWarnings("unchecked")
   private VersionSelectionPolicy<T> createSelectionPolicy(String className, Config config, Properties jobProps) {
     try {
-      log.info(String.format("Configuring selection policy %s for %s with %s", className, this.datasetRoot,
-                    config.root().render(ConfigRenderOptions.concise())));
+      this.log.info(String.format("Configuring selection policy %s for %s with %s", className, this.datasetRoot,
+          config.root().render(ConfigRenderOptions.concise())));
       return (VersionSelectionPolicy<T>) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(className),
           ImmutableList.<Object> of(config), ImmutableList.<Object> of(config, jobProps),
           ImmutableList.<Object> of(jobProps));

@@ -13,18 +13,12 @@
 package gobblin.data.management.copy.predicates;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.ql.metadata.Partition;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 
-import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.hive.HiveCopyEntityHelper;
-import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.util.PathUtils;
 
 import javax.annotation.Nullable;
@@ -57,13 +51,13 @@ public class RootDirectoryModtimeSkipPredicate implements Predicate<HiveCopyEnti
     try {
 
       if (PathUtils.isGlob(input.getPartition().getDataLocation())) {
-        log.error(String.format("%s cannot be applied to globbed location %s. Will not skip.", this.getClass().getSimpleName(),
-            input.getPartition().getDataLocation()));
+        log.error(String.format("%s cannot be applied to globbed location %s. Will not skip.",
+            this.getClass().getSimpleName(), input.getPartition().getDataLocation()));
         return false;
       }
 
-      Path targetPath = this.helper.getTargetFileSystem().makeQualified(
-          this.helper.getTargetPath(input.getPartition().getDataLocation(), this.helper.getTargetFs(), Optional.of(input.getPartition()), false));
+      Path targetPath = this.helper.getTargetFileSystem().makeQualified(this.helper.getTargetPath(
+          input.getPartition().getDataLocation(), this.helper.getTargetFs(), Optional.of(input.getPartition()), false));
 
       Optional<FileStatus> targetFileStatus =
           this.helper.getConfiguration().getCopyContext().getFileStatus(this.helper.getTargetFs(), targetPath);
@@ -72,12 +66,12 @@ public class RootDirectoryModtimeSkipPredicate implements Predicate<HiveCopyEnti
         return false;
       }
 
-      Optional<FileStatus> sourceFileStatus = this.helper.getConfiguration().getCopyContext().
-          getFileStatus(this.helper.getDataset().getFs(), input.getPartition().getDataLocation());
-
+      Optional<FileStatus> sourceFileStatus = this.helper.getConfiguration().getCopyContext()
+          .getFileStatus(this.helper.getDataset().getFs(), input.getPartition().getDataLocation());
 
       if (!sourceFileStatus.isPresent()) {
-        throw new RuntimeException(String.format("Source path %s does not exist!", input.getPartition().getDataLocation()));
+        throw new RuntimeException(
+            String.format("Source path %s does not exist!", input.getPartition().getDataLocation()));
       }
 
       return targetFileStatus.get().getModificationTime() > sourceFileStatus.get().getModificationTime();

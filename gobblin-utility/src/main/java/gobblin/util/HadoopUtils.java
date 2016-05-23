@@ -377,10 +377,9 @@ public class HadoopUtils {
     }
   }
 
-  @SuppressWarnings("deprecation")
   private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws IOException {
     for (FileStatus status : fileSystem.listStatus(path)) {
-      if (!status.isDir()) {
+      if (!status.isDirectory()) {
         results.add(status);
       } else {
         walk(results, fileSystem, status.getPath());
@@ -402,22 +401,21 @@ public class HadoopUtils {
    * @param from path of the data to be moved
    * @param to path of the data to be moved
    */
-  @SuppressWarnings("deprecation")
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
     FileSystem throttledFS = getOptionallyThrottledFileSystem(fileSystem, 10000);
 
-    ExecutorService executorService = ScalingThreadPoolExecutor.newScalingThreadPool(1, 100, 100, ExecutorsUtils.newThreadFactory(
-        Optional.of(log), Optional.of("rename-thread-%d")));
-    Queue<Future> futures = Queues.newConcurrentLinkedQueue();
+    ExecutorService executorService = ScalingThreadPoolExecutor.newScalingThreadPool(1, 100, 100,
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("rename-thread-%d")));
+    Queue<Future<?>> futures = Queues.newConcurrentLinkedQueue();
 
     try {
       if (!fileSystem.exists(from)) {
         return;
       }
 
-      futures.add(executorService.submit(
-          new RenameRecursively(throttledFS, fileSystem.getFileStatus(from), to, executorService, futures)));
+      futures.add(executorService
+          .submit(new RenameRecursively(throttledFS, fileSystem.getFileStatus(from), to, executorService, futures)));
       while (!futures.isEmpty()) {
         try {
           futures.poll().get();
@@ -440,9 +438,8 @@ public class HadoopUtils {
 
     if (state.contains(MAX_FILESYSTEM_QPS)) {
       return getOptionallyThrottledFileSystem(fs, state.getPropAsInt(MAX_FILESYSTEM_QPS));
-    } else {
-      return fs;
     }
+    return fs;
   }
 
   /**
@@ -479,27 +476,28 @@ public class HadoopUtils {
     private final FileStatus from;
     private final Path to;
     private final ExecutorService executorService;
-    private final Queue<Future> futures;
+    private final Queue<Future<?>> futures;
 
     @Override
     public void run() {
       try {
 
         // Attempt to move safely if directory, unsafely if file (for performance, files are much less likely to collide on target)
-        boolean moveSucessful = from.isDir() ? safeRenameIfNotExists(fileSystem, from.getPath(), to)
-            : unsafeRenameIfNotExists(fileSystem, from.getPath(), to);
+        boolean moveSucessful =
+            this.from.isDirectory() ? safeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to)
+                : unsafeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to);
 
         if (!moveSucessful) {
-          if (from.isDir()) {
-            for (FileStatus fromFile : fileSystem.listStatus(from.getPath())) {
-              Path relativeFilePath =
-                  new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.getPath().toString() + Path.SEPARATOR));
-              Path toFilePath = new Path(to, relativeFilePath);
-              this.futures.add(executorService.submit(
+          if (this.from.isDirectory()) {
+            for (FileStatus fromFile : this.fileSystem.listStatus(this.from.getPath())) {
+              Path relativeFilePath = new Path(StringUtils.substringAfter(fromFile.getPath().toString(),
+                  this.from.getPath().toString() + Path.SEPARATOR));
+              Path toFilePath = new Path(this.to, relativeFilePath);
+              this.futures.add(this.executorService.submit(
                   new RenameRecursively(this.fileSystem, fromFile, toFilePath, this.executorService, this.futures)));
             }
           } else {
-            log.info(String.format("File already exists %s. Will not rewrite", to));
+            log.info(String.format("File already exists %s. Will not rewrite", this.to));
           }
 
         }
@@ -548,9 +546,8 @@ public class HadoopUtils {
         throw new IOException(String.format("Failed to rename %s to %s.", from, to));
       }
       return true;
-    } else {
-      return false;
     }
+    return false;
   }
 
   /**
@@ -583,9 +580,8 @@ public class HadoopUtils {
       if (!fileSystem.exists(toFilePath)) {
         if (!fileSystem.rename(fromFile.getPath(), toFilePath)) {
           throw new IOException(String.format("Failed to rename %s to %s.", fromFile.getPath(), toFilePath));
-        } else {
-          log.info(String.format("Renamed %s to %s", fromFile.getPath(), toFilePath));
         }
+        log.info(String.format("Renamed %s to %s", fromFile.getPath(), toFilePath));
       } else {
         log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
       }
@@ -601,11 +597,11 @@ public class HadoopUtils {
   }
 
   public static Configuration getConfFromProperties(Properties properties) {
-      Configuration conf = newConfiguration();
-      for (String propName : properties.stringPropertyNames()) {
-          conf.set(propName, properties.getProperty(propName));
-      }
-      return conf;
+    Configuration conf = newConfiguration();
+    for (String propName : properties.stringPropertyNames()) {
+      conf.set(propName, properties.getProperty(propName));
+    }
+    return conf;
   }
 
   public static State getStateFromConf(Configuration conf) {

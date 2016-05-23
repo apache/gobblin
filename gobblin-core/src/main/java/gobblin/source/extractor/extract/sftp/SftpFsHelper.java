@@ -40,22 +40,20 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.password.PasswordManager;
 import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Connects to a source via SFTP and executes a given list of SFTP commands
  * @author stakiar
  */
+@Slf4j
 public class SftpFsHelper implements TimestampAwareFileBasedHelper {
-  private static Logger log = LoggerFactory.getLogger(SftpFsHelper.class);
   private Session session;
   private State state;
 
@@ -93,7 +91,7 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
   public ChannelSftp getSftpChannel() throws SftpException {
 
     try {
-      ChannelSftp channelSftp = (ChannelSftp) session.openChannel("sftp");
+      ChannelSftp channelSftp = (ChannelSftp) this.session.openChannel("sftp");
       channelSftp.connect();
       return channelSftp;
     } catch (JSchException e) {
@@ -111,7 +109,7 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
   public ChannelExec getExecChannel(String command) throws SftpException {
     ChannelExec channelExec;
     try {
-      channelExec = (ChannelExec) session.openChannel("exec");
+      channelExec = (ChannelExec) this.session.openChannel("exec");
       channelExec.setCommand(command);
       channelExec.connect();
       return channelExec;
@@ -127,35 +125,33 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
    * @throws gobblin.source.extractor.filebased.FileBasedHelperException
    */
   @Override
-  public void connect()
-      throws FileBasedHelperException {
+  public void connect() throws FileBasedHelperException {
 
-    String privateKey = PasswordManager.getInstance(state).readPassword(state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY));
-    String password = PasswordManager.getInstance(state).readPassword(state.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
-    String knownHosts = state.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS);
+    String privateKey = PasswordManager.getInstance(this.state)
+        .readPassword(this.state.getProp(ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY));
+    String password = PasswordManager.getInstance(this.state)
+        .readPassword(this.state.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+    String knownHosts = this.state.getProp(ConfigurationKeys.SOURCE_CONN_KNOWN_HOSTS);
 
-    String userName = state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String hostName = state.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
-    int port = state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_PORT, ConfigurationKeys.SOURCE_CONN_DEFAULT_PORT);
+    String userName = this.state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
+    String hostName = this.state.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
+    int port = this.state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_PORT, ConfigurationKeys.SOURCE_CONN_DEFAULT_PORT);
 
-    String proxyHost = state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL);
-    int proxyPort = state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1);
+    String proxyHost = this.state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL);
+    int proxyPort = this.state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, -1);
 
     JSch.setLogger(new JSchLogger());
     JSch jsch = new JSch();
 
-    log.info(
-        "Attempting to connect to source via SFTP with" + " privateKey: " + privateKey + " knownHosts: " + knownHosts
-            + " userName: " + userName + " hostName: " + hostName + " port: " + port + " proxyHost: " + proxyHost
-            + " proxyPort: " + proxyPort);
-
+    log.info("Attempting to connect to source via SFTP with" + " privateKey: " + privateKey + " knownHosts: "
+        + knownHosts + " userName: " + userName + " hostName: " + hostName + " port: " + port + " proxyHost: "
+        + proxyHost + " proxyPort: " + proxyPort);
 
     try {
 
       if (!Strings.isNullOrEmpty(privateKey)) {
-        List<IdentityStrategy> identityStrategies =
-            ImmutableList.of(new LocalFileIdentityStrategy(), new DistributedCacheIdentityStrategy(),
-                new HDFSIdentityStrategy());
+        List<IdentityStrategy> identityStrategies = ImmutableList.of(new LocalFileIdentityStrategy(),
+            new DistributedCacheIdentityStrategy(), new HDFSIdentityStrategy());
 
         for (IdentityStrategy identityStrategy : identityStrategies) {
           if (identityStrategy.setIdentity(privateKey, jsch)) {
@@ -164,33 +160,33 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
         }
       }
 
-      session = jsch.getSession(userName, hostName, port);
-      session.setConfig("PreferredAuthentications","publickey,password");
+      this.session = jsch.getSession(userName, hostName, port);
+      this.session.setConfig("PreferredAuthentications", "publickey,password");
 
       if (Strings.isNullOrEmpty(knownHosts)) {
         log.info("Known hosts path is not set, StrictHostKeyChecking will be turned off");
-        session.setConfig("StrictHostKeyChecking", "no");
+        this.session.setConfig("StrictHostKeyChecking", "no");
       } else {
         jsch.setKnownHosts(knownHosts);
       }
 
       if (!Strings.isNullOrEmpty(password)) {
-        session.setPassword(password);
+        this.session.setPassword(password);
       }
 
       if (proxyHost != null && proxyPort >= 0) {
-        session.setProxy(new ProxyHTTP(proxyHost, proxyPort));
+        this.session.setProxy(new ProxyHTTP(proxyHost, proxyPort));
       }
 
       UserInfo ui = new MyUserInfo();
-      session.setUserInfo(ui);
-      session.setDaemonThread(true);
-      session.connect();
+      this.session.setUserInfo(ui);
+      this.session.setDaemonThread(true);
+      this.session.connect();
 
       log.info("Finished connecting to source");
     } catch (JSchException e) {
-      if (session != null) {
-        session.disconnect();
+      if (this.session != null) {
+        this.session.disconnect();
       }
       log.error(e.getMessage(), e);
       throw new FileBasedHelperException("Cannot connect to SFTP source", e);
@@ -203,8 +199,8 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
    * @param sftp is the channel to execute the command on
    * @throws SftpException
    */
-  public InputStream getFileStream(String file)
-      throws FileBasedHelperException {
+  @Override
+  public InputStream getFileStream(String file) throws FileBasedHelperException {
     SftpGetMonitor monitor = new SftpGetMonitor();
     try {
       return getSftpChannel().get(file, monitor);
@@ -214,11 +210,9 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public List<String> ls(String path)
-      throws FileBasedHelperException {
+  public List<String> ls(String path) throws FileBasedHelperException {
     try {
-      List<String> list = new ArrayList<String>();
+      List<String> list = new ArrayList<>();
       ChannelSftp channel = getSftpChannel();
       Vector<LsEntry> vector = channel.ls(path);
       for (LsEntry entry : vector) {
@@ -233,8 +227,8 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
 
   @Override
   public void close() {
-    if (session != null) {
-      session.disconnect();
+    if (this.session != null) {
+      this.session.disconnect();
     }
   }
 
@@ -246,8 +240,8 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
       channelSftp.disconnect();
       return fileSize;
     } catch (SftpException e) {
-      throw new FileBasedHelperException(String.format("Failed to get size for file at path %s due to error %s",
-          filePath, e.getMessage()), e);
+      throw new FileBasedHelperException(
+          String.format("Failed to get size for file at path %s due to error %s", filePath, e.getMessage()), e);
     }
   }
 
@@ -272,8 +266,8 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
       this.dest = dest;
       this.startime = System.currentTimeMillis();
       this.logFrequency = 0L;
-      log.info(
-          "Operation GET (" + op + ") has started with src: " + src + " dest: " + dest + " and file length: " + (max/ 1000000L) + " mb");
+      log.info("Operation GET (" + op + ") has started with src: " + src + " dest: " + dest + " and file length: "
+          + (max / 1000000L) + " mb");
     }
 
     @Override
@@ -282,8 +276,9 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
 
       if (this.logFrequency == 0L) {
         this.logFrequency = 1000L;
-        log.info("Transfer is in progress for file: " + src + ". Finished transferring " + this.totalCount + " bytes ");
-        long mb = totalCount / 1000000L;
+        log.info(
+            "Transfer is in progress for file: " + this.src + ". Finished transferring " + this.totalCount + " bytes ");
+        long mb = this.totalCount / 1000000L;
         log.info("Transferd " + mb + " Mb. Speed " + getMbps() + " Mbps");
       }
       this.logFrequency--;
@@ -292,13 +287,14 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
 
     @Override
     public void end() {
-      long secs = (System.currentTimeMillis() - startime) / 1000L;
-      log.info("Transfer finished " + this.op + " src: " + this.src + " dest: " + this.dest + " in " + secs + " at " + getMbps());
+      long secs = (System.currentTimeMillis() - this.startime) / 1000L;
+      log.info("Transfer finished " + this.op + " src: " + this.src + " dest: " + this.dest + " in " + secs + " at "
+          + getMbps());
     }
 
     private String getMbps() {
-      long mb = totalCount / 1000000L;
-      long secs = (System.currentTimeMillis() - startime) / 1000L;
+      long mb = this.totalCount / 1000000L;
+      long secs = (System.currentTimeMillis() - this.startime) / 1000L;
       double mbps = secs == 0L ? 0.0D : mb * 1.0D / secs;
       return String.format("%.2f", new Object[] { Double.valueOf(mbps) });
     }
@@ -309,6 +305,7 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
    * @author stakiar
    */
   public static class JSchLogger implements com.jcraft.jsch.Logger {
+    @Override
     public boolean isEnabled(int level) {
       switch (level) {
         case DEBUG:
@@ -326,6 +323,7 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
       }
     }
 
+    @Override
     public void log(int level, String message) {
       switch (level) {
         case DEBUG:
@@ -400,6 +398,7 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
    * Sets identity using a file on HDFS
    */
   private static class HDFSIdentityStrategy implements IdentityStrategy {
+    @Override
     public boolean setIdentity(String privateKey, JSch jsch) {
 
       FileSystem fs;
@@ -427,6 +426,7 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
    * Sets identity using a local file
    */
   private static class LocalFileIdentityStrategy implements IdentityStrategy {
+    @Override
     public boolean setIdentity(String privateKey, JSch jsch) {
       try {
         jsch.addIdentity(privateKey);
@@ -443,6 +443,7 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
    * Sets identity using a file on distributed cache
    */
   private static class DistributedCacheIdentityStrategy extends LocalFileIdentityStrategy {
+    @Override
     public boolean setIdentity(String privateKey, JSch jsch) {
       return super.setIdentity(new File(privateKey).getName(), jsch);
     }
@@ -454,8 +455,8 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
       ChannelSftp channelSftp = getSftpChannel();
       return channelSftp.lstat(filePath).getMTime();
     } catch (SftpException e) {
-      throw new FileBasedHelperException(String.format(
-          "Failed to get modified timestamp for file at path %s due to error %s", filePath, e.getMessage()), e);
+      throw new FileBasedHelperException(String
+          .format("Failed to get modified timestamp for file at path %s due to error %s", filePath, e.getMessage()), e);
     }
   }
 }

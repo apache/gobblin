@@ -36,17 +36,14 @@ public class RowCountRangePolicy extends TaskLevelPolicy {
 
   @Override
   public Result executePolicy() {
-    double computedRange = Math.abs((this.rowsWritten - this.rowsRead) / (double)this.rowsRead);
+    double computedRange = Math.abs((this.rowsWritten - this.rowsRead) / (double) this.rowsRead);
     if (computedRange <= this.range) {
       return Result.PASSED;
-    } else {
-
-      LOG.error(String
-          .format(
-              "RowCountRangePolicy check failed. Rows read %s, Rows written %s, computed range %s, expected range %s ",
-              this.rowsRead, this.rowsWritten, computedRange, this.range));
-
-      return Result.FAILED;
     }
+    LOG.error(String.format(
+        "RowCountRangePolicy check failed. Rows read %s, Rows written %s, computed range %s, expected range %s ",
+        this.rowsRead, this.rowsWritten, computedRange, this.range));
+
+    return Result.FAILED;
   }
 }

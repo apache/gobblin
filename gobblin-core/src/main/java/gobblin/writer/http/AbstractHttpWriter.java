@@ -31,24 +31,23 @@ import com.google.common.util.concurrent.ListenableFuture;
 import gobblin.configuration.State;
 import gobblin.instrumented.writer.InstrumentedDataWriter;
 
+
 /**
  * Base class for HTTP writers. Defines the main extension points for different implementations.
  */
-public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D>
-                                            implements HttpWriterDecoration<D> {
+public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> implements HttpWriterDecoration<D> {
 
   // Immutable state
-  protected final Logger _log;
-  protected final boolean _debugLogEnabled;
-  protected final CloseableHttpClient _client;
+  protected final Logger log;
+  protected final boolean debugLogEnabled;
+  protected final CloseableHttpClient client;
   // Mutable state
-  private HttpHost _curHttpHost = null;
-  private long _numRecordsWritten = 0;
-  private long _numBytesWritten = 0;
-  private Optional<HttpUriRequest> _curRequest = Optional.absent();
+  private HttpHost curHttpHost = null;
+  private long numRecordsWritten = 0;
+  private long numBytesWritten = 0;
+  private Optional<HttpUriRequest> curRequest = Optional.absent();
 
-  class HttpClientConnectionManagerWithConnTracking
-        extends DelegatingHttpClientConnectionManager {
+  class HttpClientConnectionManagerWithConnTracking extends DelegatingHttpClientConnectionManager {
 
     public HttpClientConnectionManagerWithConnTracking(HttpClientConnectionManager fallback) {
       super(fallback);
@@ -58,8 +57,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D>
     public ConnectionRequest requestConnection(HttpRoute route, Object state) {
       try {
         onConnect(route.getTargetHost());
-      }
-      catch (IOException e) {
+      } catch (IOException e) {
         throw new RuntimeException("onConnect() callback failure: " + e, e);
       }
       return super.requestConnection(route, state);
@@ -67,21 +65,19 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D>
 
   }
 
-  public AbstractHttpWriter(State state, Optional<Logger> log,
-                            HttpClientBuilder httpClientInject,
-                            HttpClientConnectionManager connManager) {
+  public AbstractHttpWriter(State state, Optional<Logger> log, HttpClientBuilder httpClientInject,
+      HttpClientConnectionManager connManager) {
     super(state);
-    _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(this.getClass());
-    _debugLogEnabled = _log.isDebugEnabled();
+    this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(this.getClass());
+    this.debugLogEnabled = this.log.isDebugEnabled();
     httpClientInject.setConnectionManager(new HttpClientConnectionManagerWithConnTracking(connManager));
-    _client = httpClientInject.build();
+    this.client = httpClientInject.build();
   }
-
 
   /** {@inheritDoc} */
   @Override
   public void cleanup() throws IOException {
-    _client.close();
+    this.client.close();
   }
 
   /**
@@ -89,7 +85,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D>
    */
   @Override
   public long recordsWritten() {
-    return _numRecordsWritten;
+    return this.numRecordsWritten;
   }
 
   /**
@@ -97,7 +93,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D>
    */
   @Override
   public long bytesWritten() throws IOException {
-    return _numBytesWritten;
+    return this.numBytesWritten;
   }
 
   /**
@@ -105,43 +101,41 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D>
    */
   @Override
   public void writeImpl(D record) throws IOException {
-    _curRequest = onNewRecord(record, _curRequest);
-    if (_curRequest.isPresent()) {
-      ListenableFuture<HttpResponse> responseFuture = sendRequest(_curRequest.get());
+    this.curRequest = onNewRecord(record, this.curRequest);
+    if (this.curRequest.isPresent()) {
+      ListenableFuture<HttpResponse> responseFuture = sendRequest(this.curRequest.get());
       waitForResponse(responseFuture);
       try {
         processResponse(responseFuture.get());
-      }
-      catch (InterruptedException | ExecutionException e) {
+      } catch (InterruptedException | ExecutionException e) {
         throw new RuntimeException(e);
       }
     }
   }
 
-
   public Logger getLog() {
-    return _log;
+    return this.log;
   }
 
   public HttpHost getCurServerHost() {
-    if (null == _curHttpHost) {
+    if (null == this.curHttpHost) {
       setCurServerHost(chooseServerHost());
     }
-    if (null == _curHttpHost) {
+    if (null == this.curHttpHost) {
       throw new RuntimeException("No server host selected!");
     }
-    return _curHttpHost;
+    return this.curHttpHost;
   }
 
   /** Clears the current http host so that next request will trigger a new selection using
    * {@link #chooseServerHost() */
   void clearCurServerHost() {
-    _curHttpHost = null;
+    this.curHttpHost = null;
   }
 
   void setCurServerHost(HttpHost curHttpHost) {
-    _log.info("Setting current HTTP server host to: " + curHttpHost );
-    _curHttpHost = curHttpHost;
+    this.log.info("Setting current HTTP server host to: " + curHttpHost);
+    this.curHttpHost = curHttpHost;
   }
 
 }

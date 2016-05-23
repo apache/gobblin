@@ -292,7 +292,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         @Override
         public Void call() throws Exception {
           Path convertedFilePath = MRCompactorJobRunner.this.outputRecordCountProvider.convertPath(
-              MRCompactorJobRunner.this.lateInputRecordCountProvider.restoreFilePath(filePath),
+              LateFileRecordCountProvider.restoreFilePath(filePath),
               MRCompactorJobRunner.this.inputRecordCountProvider);
           String targetFileName = convertedFilePath.getName();
           Path outPath = MRCompactorJobRunner.this.lateOutputRecordCountProvider.constructLateFilePath(targetFileName,

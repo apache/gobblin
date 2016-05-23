@@ -72,16 +72,13 @@ public class CommitSequencePublisher extends BaseDataPublisher {
    * This method does not actually move data, but it creates an {@link FsRenameCommitStep}.
    */
   @Override
-  protected void movePath(ParallelRunner parallelRunner, State state, Path src, Path dst, int branchId) throws IOException {
+  protected void movePath(ParallelRunner parallelRunner, State state, Path src, Path dst, int branchId)
+      throws IOException {
     log.info(String.format("Creating CommitStep for moving %s to %s", src, dst));
     boolean overwrite = state.getPropAsBoolean(ConfigurationKeys.DATA_PUBLISHER_OVERWRITE_ENABLED, false);
-    FsRenameCommitStep.Builder builder = this.commitSequenceBuilder.get()
-            .beginStep(FsRenameCommitStep.Builder.class)
-            .withProps(this.state)
-            .from(src)
-            .withSrcFs(this.writerFileSystemByBranches.get(branchId))
-            .to(dst)
-            .withDstFs(this.publisherFileSystemByBranches.get(branchId));
+    FsRenameCommitStep.Builder<?> builder = this.commitSequenceBuilder.get().beginStep(FsRenameCommitStep.Builder.class)
+        .withProps(this.state).from(src).withSrcFs(this.writerFileSystemByBranches.get(branchId)).to(dst)
+        .withDstFs(this.publisherFileSystemByBranches.get(branchId));
     if (overwrite) {
       builder.overwrite();
     }

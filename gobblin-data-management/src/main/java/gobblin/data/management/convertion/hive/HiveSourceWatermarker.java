@@ -14,6 +14,8 @@ package gobblin.data.management.convertion.hive;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
+import gobblin.source.extractor.extract.LongWatermark;
+
 /**
  * An interface to read previous high watermarks and write new high watermarks to state.
  */

@@ -47,7 +47,7 @@ public class HourWatermark implements Watermark {
   }
 
   @Override
-  public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator) {
+  public String getWatermarkCondition(QueryBasedExtractor<?, ?> extractor, long watermarkValue, String operator) {
     return extractor.getHourPredicateCondition(this.watermarkColumn, watermarkValue, this.watermarkFormat, operator);
   }
 
@@ -71,12 +71,12 @@ public class HourWatermark implements Watermark {
 
     final Calendar calendar = Calendar.getInstance();
     Date nextTime;
-    Date lowWatermarkDate = this.extractFromTimestamp(Long.toString(lowWatermarkValue));
-    Date highWatermarkDate = this.extractFromTimestamp(Long.toString(highWatermarkValue));
+    Date lowWatermarkDate = extractFromTimestamp(Long.toString(lowWatermarkValue));
+    Date highWatermarkDate = extractFromTimestamp(Long.toString(highWatermarkValue));
     final long lowWatermark = lowWatermarkDate.getTime();
     final long highWatermark = highWatermarkDate.getTime();
 
-    int interval = this.getInterval(highWatermark - lowWatermark, partitionIntervalInHours, maxIntervals);
+    int interval = getInterval(highWatermark - lowWatermark, partitionIntervalInHours, maxIntervals);
     LOG.info("Recalculated partition interval:" + interval + " hours");
 
     Date startTime = new Date(lowWatermark);
@@ -106,7 +106,7 @@ public class HourWatermark implements Watermark {
    * @param Maximum number of allowed partitions
    * @return calculated interval in hours
    */
-  private int getInterval(long diffInMilliSecs, long hourInterval, int maxIntervals) {
+  private static int getInterval(long diffInMilliSecs, long hourInterval, int maxIntervals) {
     int totalHours = DoubleMath.roundToInt((double) diffInMilliSecs / (60 * 60 * 1000), RoundingMode.CEILING);
     int totalIntervals = DoubleMath.roundToInt((double) totalHours / hourInterval, RoundingMode.CEILING);
     if (totalIntervals > maxIntervals) {
@@ -121,7 +121,7 @@ public class HourWatermark implements Watermark {
    * @param watermark value
    * @return value in hour format
    */
-  synchronized private Date extractFromTimestamp(String watermark) {
+  synchronized private static Date extractFromTimestamp(String watermark) {
     final SimpleDateFormat inputFormat = new SimpleDateFormat(INPUTFORMAT);
     final SimpleDateFormat outputFormat = new SimpleDateFormat(OUTPUTFORMAT);
     Date outDate = null;

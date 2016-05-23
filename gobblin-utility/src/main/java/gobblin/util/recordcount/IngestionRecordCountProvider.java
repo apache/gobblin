@@ -37,7 +37,7 @@ public class IngestionRecordCountProvider extends RecordCountProvider {
    * For example, given path: "/a/b/c/file.avro" and record count: 123,
    * the new path returned will be: "/a/b/c/file.123.avro"
    */
-  public String constructFilePath(String oldFilePath, long recordCounts) {
+  public static String constructFilePath(String oldFilePath, long recordCounts) {
     return new Path(new Path(oldFilePath).getParent(), Files.getNameWithoutExtension(oldFilePath).toString() + SEPARATOR
         + recordCounts + SEPARATOR + Files.getFileExtension(oldFilePath)).toString();
   }

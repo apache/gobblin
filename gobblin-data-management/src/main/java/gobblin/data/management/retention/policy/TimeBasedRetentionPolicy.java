@@ -38,18 +38,17 @@ import gobblin.data.management.version.TimestampedDatasetVersion;
 @Slf4j
 public class TimeBasedRetentionPolicy implements RetentionPolicy<TimestampedDatasetVersion> {
 
-  public static final String RETENTION_MINUTES_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX +
-      "minutes.retained";
+  public static final String RETENTION_MINUTES_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX + "minutes.retained";
   public static final String RETENTION_MINUTES_DEFAULT = Long.toString(24 * 60); // one day
 
   // ISO8601 Standard PyYmMwWdDThHmMsS
-  public static final String RETENTION_TIMEBASED_DURATION_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX +
-      "timebased.duration";
+  public static final String RETENTION_TIMEBASED_DURATION_KEY =
+      DatasetCleaner.CONFIGURATION_KEY_PREFIX + "timebased.duration";
   private final Duration retention;
 
   public TimeBasedRetentionPolicy(Properties props) {
-    this.retention = Duration.standardMinutes(
-        Long.parseLong(props.getProperty(RETENTION_MINUTES_KEY, RETENTION_MINUTES_DEFAULT)));
+    this.retention =
+        Duration.standardMinutes(Long.parseLong(props.getProperty(RETENTION_MINUTES_KEY, RETENTION_MINUTES_DEFAULT)));
   }
 
   /**
@@ -71,7 +70,8 @@ public class TimeBasedRetentionPolicy implements RetentionPolicy<TimestampedData
 
   public TimeBasedRetentionPolicy(String duration) {
     this.retention = parseDuration(duration);
-    log.info(String.format("%s will delete dataset versions older than %s.", TimeBasedRetentionPolicy.class.getName(), duration));
+    log.info(String.format("%s will delete dataset versions older than %s.", TimeBasedRetentionPolicy.class.getName(),
+        duration));
   }
 
   @Override
@@ -84,7 +84,8 @@ public class TimeBasedRetentionPolicy implements RetentionPolicy<TimestampedData
     return Lists.newArrayList(Collections2.filter(allVersions, new Predicate<DatasetVersion>() {
       @Override
       public boolean apply(DatasetVersion version) {
-        return ((TimestampedDatasetVersion) version).getDateTime().plus(retention).isBeforeNow();
+        return ((TimestampedDatasetVersion) version).getDateTime().plus(TimeBasedRetentionPolicy.this.retention)
+            .isBeforeNow();
       }
     }));
   }

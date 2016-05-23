@@ -90,12 +90,12 @@ public class Guid {
    * @return a single {@link Guid} for the array.
    * @throws IOException
    */
-  public static Guid fromByteArrays(byte[] ... byteArrays) throws IOException {
+  public static Guid fromByteArrays(byte[]... byteArrays) throws IOException {
     if (byteArrays == null || byteArrays.length == 0) {
       throw new IOException("Attempting to compute guid for an empty array.");
     }
 
-    if (byteArrays.length == 1 ) {
+    if (byteArrays.length == 1) {
       return new Guid(byteArrays[0]);
     }
     byte[] tmp = new byte[0];
@@ -126,7 +126,7 @@ public class Guid {
    * Combine multiple {@link Guid}s into a single {@link Guid}.
    * @throws IOException
    */
-  public static Guid combine(Guid ... guids) throws IOException {
+  public static Guid combine(Guid... guids) throws IOException {
     byte[][] byteArrays = new byte[guids.length][];
     for (int i = 0; i < guids.length; i++) {
       byteArrays[i] = guids[i].sha;
@@ -140,7 +140,7 @@ public class Guid {
    * @return a new {@link Guid}.
    * @throws IOException
    */
-  public Guid append(byte[] ... byteArrays) throws IOException {
+  public Guid append(byte[]... byteArrays) throws IOException {
     if (byteArrays == null || byteArrays.length == 0) {
       return this;
     }
@@ -167,7 +167,7 @@ public class Guid {
    * @return a new {@link Guid}.
    * @throws IOException
    */
-  public Guid append(HasGuid ... objs) throws IOException {
+  public Guid append(HasGuid... objs) throws IOException {
     if (objs == null || objs.length == 0) {
       return this;
     }
@@ -177,12 +177,13 @@ public class Guid {
   /**
    * Serializes the guid into a hex string. The original {@link Guid} can be recovered using {@link #deserialize}.
    */
+  @Override
   public String toString() {
     return Hex.encodeHexString(this.sha);
   }
 
   private static byte[] computeGuid(byte[] bytes) {
-    return DigestUtils.sha(bytes);
+    return DigestUtils.sha1(bytes);
   }
 
   static class SimpleHasGuid implements HasGuid {
@@ -192,7 +193,8 @@ public class Guid {
       this.guid = guid;
     }
 
-    @Override public Guid guid() throws IOException {
+    @Override
+    public Guid guid() throws IOException {
       return this.guid;
     }
   }

@@ -63,7 +63,7 @@ class ReadWriteHandler implements Callable<HandlerState> {
   public HandlerState call()
       throws Exception {
     try {
-      switch (state) {
+      switch (this.state) {
         case READING:
           read();
           break;
@@ -71,13 +71,13 @@ class ReadWriteHandler implements Callable<HandlerState> {
           write();
           break;
         default:
-          throw new IllegalStateException("ReadWriteHandler should never be in state " + state);
+          throw new IllegalStateException("ReadWriteHandler should never be in state " + this.state);
       }
     } catch (CancelledKeyException e) {
-      LOG.warn("Encountered canceled key while " + state, e);
+      LOG.warn("Encountered canceled key while " + this.state, e);
     } catch (IOException ioe) {
       closeChannels();
-      throw new IOException(String.format("Could not read/write between %s and %s", proxy, client), ioe);
+      throw new IOException(String.format("Could not read/write between %s and %s", this.proxy, this.client), ioe);
     } catch (Exception e) {
       LOG.error("Unexpected exception", e);
       try {
@@ -86,53 +86,53 @@ class ReadWriteHandler implements Callable<HandlerState> {
         throw e;
       }
     }
-    return state;
+    return this.state;
   }
 
   private void write()
       throws IOException {
-    SelectionKey proxyKey = proxy.keyFor(selector);
-    SelectionKey clientKey = client.keyFor(selector);
+    SelectionKey proxyKey = this.proxy.keyFor(this.selector);
+    SelectionKey clientKey = this.client.keyFor(this.selector);
 
     SocketChannel writeChannel = null;
     SocketChannel readChannel = null;
     SelectionKey writeKey = null;
 
-    if (selector.selectedKeys().contains(proxyKey) && proxyKey.isValid() && proxyKey.isWritable()) {
-      writeChannel = proxy;
-      readChannel = client;
+    if (this.selector.selectedKeys().contains(proxyKey) && proxyKey.isValid() && proxyKey.isWritable()) {
+      writeChannel = this.proxy;
+      readChannel = this.client;
       writeKey = proxyKey;
-    } else if (selector.selectedKeys().contains(clientKey) && clientKey.isValid() && clientKey.isWritable()) {
-      writeChannel = client;
-      readChannel = proxy;
+    } else if (this.selector.selectedKeys().contains(clientKey) && clientKey.isValid() && clientKey.isWritable()) {
+      writeChannel = this.client;
+      readChannel = this.proxy;
       writeKey = clientKey;
     }
 
     if (writeKey != null) {
       int lastWrite, totalWrite = 0;
 
-      buffer.flip();
+      this.buffer.flip();
 
-      int available = buffer.remaining();
+      int available = this.buffer.remaining();
 
-      while ((lastWrite = writeChannel.write(buffer)) > 0) {
+      while ((lastWrite = writeChannel.write(this.buffer)) > 0) {
         totalWrite += lastWrite;
       }
 
-      LOG.debug("{} bytes written to {}", totalWrite, writeChannel == proxy ? "proxy" : "client");
+      LOG.debug("{} bytes written to {}", totalWrite, writeChannel == this.proxy ? "proxy" : "client");
 
       if (totalWrite == available) {
-        buffer.clear();
+        this.buffer.clear();
         if(readChannel.isOpen()) {
-          readChannel.register(selector, SelectionKey.OP_READ, this);
-          writeChannel.register(selector, SelectionKey.OP_READ, this);
+          readChannel.register(this.selector, SelectionKey.OP_READ, this);
+          writeChannel.register(this.selector, SelectionKey.OP_READ, this);
         }
         else{
           writeChannel.close();
         }
-        state = HandlerState.READING;
+        this.state = HandlerState.READING;
       } else {
-        buffer.compact();
+        this.buffer.compact();
       }
       if (lastWrite == -1) {
         closeChannels();
@@ -142,20 +142,20 @@ class ReadWriteHandler implements Callable<HandlerState> {
 
   private void read()
       throws IOException {
-    SelectionKey proxyKey = proxy.keyFor(selector);
-    SelectionKey clientKey = client.keyFor(selector);
+    SelectionKey proxyKey = this.proxy.keyFor(this.selector);
+    SelectionKey clientKey = this.client.keyFor(this.selector);
 
     SocketChannel readChannel = null;
     SocketChannel writeChannel = null;
     SelectionKey readKey = null;
 
-    if (selector.selectedKeys().contains(proxyKey) && proxyKey.isReadable()) {
-      readChannel = proxy;
-      writeChannel = client;
+    if (this.selector.selectedKeys().contains(proxyKey) && proxyKey.isReadable()) {
+      readChannel = this.proxy;
+      writeChannel = this.client;
       readKey = proxyKey;
-    } else if (selector.selectedKeys().contains(clientKey) && clientKey.isReadable()) {
-      readChannel = client;
-      writeChannel = proxy;
+    } else if (this.selector.selectedKeys().contains(clientKey) && clientKey.isReadable()) {
+      readChannel = this.client;
+      writeChannel = this.proxy;
       readKey = clientKey;
     }
 
@@ -163,16 +163,16 @@ class ReadWriteHandler implements Callable<HandlerState> {
 
       int lastRead, totalRead = 0;
 
-      while ((lastRead = readChannel.read(buffer)) > 0) {
+      while ((lastRead = readChannel.read(this.buffer)) > 0) {
         totalRead += lastRead;
       }
 
-      LOG.debug("{} bytes read from {}", totalRead, readChannel == proxy ? "proxy":"client");
+      LOG.debug("{} bytes read from {}", totalRead, readChannel == this.proxy ? "proxy":"client");
 
       if (totalRead > 0) {
         readKey.cancel();
-        writeChannel.register(selector, SelectionKey.OP_WRITE, this);
-        state = HandlerState.WRITING;
+        writeChannel.register(this.selector, SelectionKey.OP_WRITE, this);
+        this.state = HandlerState.WRITING;
       }
       if (lastRead == -1) {
         readChannel.close();
@@ -181,19 +181,19 @@ class ReadWriteHandler implements Callable<HandlerState> {
   }
 
   private void closeChannels() {
-    if (proxy.isOpen()) {
+    if (this.proxy.isOpen()) {
       try {
-        proxy.close();
+        this.proxy.close();
       } catch (IOException log) {
-        LOG.warn("Failed to close proxy channel {}", proxy,log);
+        LOG.warn("Failed to close proxy channel {}", this.proxy,log);
       }
     }
 
-    if (client.isOpen()) {
+    if (this.client.isOpen()) {
       try {
-        client.close();
+        this.client.close();
       } catch (IOException log) {
-        LOG.warn("Failed to close client channel {}", client,log);
+        LOG.warn("Failed to close client channel {}", this.client,log);
       }
     }
   }

@@ -44,7 +44,7 @@ public class Predicate {
   }
 
   public String getColumnName() {
-    return columnName;
+    return this.columnName;
   }
 
   public void setColumnName(String columnName) {
@@ -52,7 +52,7 @@ public class Predicate {
   }
 
   public long getValue() {
-    return value;
+    return this.value;
   }
 
   public void setValue(long value) {
@@ -60,7 +60,7 @@ public class Predicate {
   }
 
   public String getCondition() {
-    return condition;
+    return this.condition;
   }
 
   public void setCondition(String condition) {
@@ -68,7 +68,7 @@ public class Predicate {
   }
 
   public String getFormat() {
-    return format;
+    return this.format;
   }
 
   public void setFormat(String format) {
@@ -76,7 +76,7 @@ public class Predicate {
   }
 
   public PredicateType getType() {
-    return type;
+    return this.type;
   }
 
   public void setType(PredicateType type) {

@@ -13,21 +13,22 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
 
+
 /**
  * Common parent for {@link AbstractHttpWriter} decorators. Delegates extension methods to another
  * implementation and simplifies the overriding of only selected methods
  */
 public abstract class HttpWriterDecorator<D> implements HttpWriterDecoration<D> {
 
-  private final HttpWriterDecoration<D> _fallback;
+  private final HttpWriterDecoration<D> fallback;
 
   public HttpWriterDecorator(HttpWriterDecoration<D> fallback) {
     Preconditions.checkNotNull(fallback);
-    _fallback = fallback;
+    this.fallback = fallback;
   }
 
   protected HttpWriterDecoration<D> getFallback() {
-    return _fallback;
+    return this.fallback;
   }
 
   @Override
@@ -46,8 +47,7 @@ public abstract class HttpWriterDecorator<D> implements HttpWriterDecoration<D> 
   }
 
   @Override
-  public ListenableFuture<HttpResponse> sendRequest(HttpUriRequest request)
-         throws IOException {
+  public ListenableFuture<HttpResponse> sendRequest(HttpUriRequest request) throws IOException {
     return getFallback().sendRequest(request);
   }
 
@@ -57,8 +57,7 @@ public abstract class HttpWriterDecorator<D> implements HttpWriterDecoration<D> 
   }
 
   @Override
-  public void processResponse(HttpResponse response) throws IOException,
-      UnexpectedResponseException {
+  public void processResponse(HttpResponse response) throws IOException, UnexpectedResponseException {
     getFallback().processResponse(response);
   }
 

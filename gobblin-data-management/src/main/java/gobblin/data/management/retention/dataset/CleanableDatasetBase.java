@@ -80,7 +80,8 @@ import gobblin.dataset.FileSystemDataset;
  * @param <T> type of {@link gobblin.data.management.retention.version.DatasetVersion} supported by this
  *           {@link CleanableDataset}.
  */
-public abstract class CleanableDatasetBase<T extends FileSystemDatasetVersion> extends MultiVersionCleanableDatasetBase<T> implements CleanableDataset, FileSystemDataset {
+public abstract class CleanableDatasetBase<T extends FileSystemDatasetVersion>
+    extends MultiVersionCleanableDatasetBase<T> implements CleanableDataset, FileSystemDataset {
 
   /**
    * Get {@link gobblin.data.management.retention.version.finder.VersionFinder} to use.
@@ -102,17 +103,20 @@ public abstract class CleanableDatasetBase<T extends FileSystemDatasetVersion> e
   }
 
   public CleanableDatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
-      boolean deleteEmptyDirectories, boolean deleteAsOwner, boolean isDatasetBlacklisted, Logger log) throws IOException {
+      boolean deleteEmptyDirectories, boolean deleteAsOwner, boolean isDatasetBlacklisted, Logger log)
+      throws IOException {
     super(fs, properties, simulate, skipTrash, deleteEmptyDirectories, deleteAsOwner, isDatasetBlacklisted, log);
   }
 
   public CleanableDatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
       boolean deleteEmptyDirectories, boolean deleteAsOwner, Logger log) throws IOException {
-    super(fs, properties, simulate, skipTrash, deleteEmptyDirectories, deleteAsOwner, Boolean
-        .parseBoolean(IS_DATASET_BLACKLISTED_DEFAULT), log);
+    super(fs, properties, simulate, skipTrash, deleteEmptyDirectories, deleteAsOwner,
+        Boolean.parseBoolean(IS_DATASET_BLACKLISTED_DEFAULT), log);
   }
 
+  @Override
   public List<VersionFinderAndPolicy<T>> getVersionFindersAndPolicies() {
-    return ImmutableList.<VersionFinderAndPolicy<T>> of(new VersionFinderAndPolicy<T>(getRetentionPolicy(), getVersionFinder()));
+    return ImmutableList
+        .<VersionFinderAndPolicy<T>> of(new VersionFinderAndPolicy<>(getRetentionPolicy(), getVersionFinder()));
   }
 }

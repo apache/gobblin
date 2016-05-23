@@ -41,6 +41,6 @@ public class CommitStepCopyEntity extends CopyEntity {
 
   @Override
   public String explain() {
-    return step.toString();
+    return this.step.toString();
   }
 }

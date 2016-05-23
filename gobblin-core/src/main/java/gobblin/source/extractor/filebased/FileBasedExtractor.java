@@ -72,7 +72,7 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
     FileBytesRead;
   }
 
-  protected Counters<CounterNames> counters = new Counters<CounterNames>();
+  protected Counters<CounterNames> counters = new Counters<>();
 
   @SuppressWarnings("unchecked")
   public FileBasedExtractor(WorkUnitState workUnitState, FileBasedHelper fsHelper) {
@@ -106,7 +106,7 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
         throw new RuntimeException(e);
       }
     } else {
-      this.fileDownloader = new SingleFileDownloader<D>(this);
+      this.fileDownloader = new SingleFileDownloader<>(this);
     }
 
     this.counters.initialize(getMetricContext(), CounterNames.class, this.getClass());
@@ -203,7 +203,7 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
    * TODO Add support for different file formats besides text e.g. avro iterator, byte iterator, json iterator.
    */
   public Iterator<D> downloadFile(String file) throws IOException {
-    return fileDownloader.downloadFile(file);
+    return this.fileDownloader.downloadFile(file);
   }
 
   /**
@@ -230,7 +230,7 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 
   private void incrementBytesReadCounter() {
     try {
-      this.counters.inc(CounterNames.FileBytesRead, fsHelper.getFileSize(currentFile));
+      this.counters.inc(CounterNames.FileBytesRead, this.fsHelper.getFileSize(this.currentFile));
     } catch (FileBasedHelperException e) {
       LOG.info("Unable to get file size. Will skip increment to bytes counter " + e.getMessage());
       LOG.debug(e.getMessage(), e);

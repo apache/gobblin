@@ -60,7 +60,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
   private final HiveRegistrationPolicy policy;
   private final ExecutorService hivePolicyExecutor;
 
-  public HiveRegistrationPublisher(State state) throws IOException {
+  public HiveRegistrationPublisher(State state) {
     super(state);
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
     this.policy = HiveRegistrationPolicyBase.getPolicy(state);

@@ -10,11 +10,9 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-
 package gobblin.compaction;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.Properties;
 
 import org.apache.commons.cli.CommandLine;
@@ -29,6 +27,7 @@ import org.apache.hadoop.util.GenericOptionsParser;
 
 import gobblin.util.JobConfigurationUtils;
 
+
 /**
  * Utility class for parsing command line options for Gobblin compaction jobs.
  * 
@@ -37,20 +36,11 @@ import gobblin.util.JobConfigurationUtils;
  */
 public class CliOptions {
 
-  private final static Option JOB_CONFIG_OPTION = 
-      Option.builder()
-        .argName("job configuration file")
-        .desc("Gobblin compaction job configuration file")
-        .hasArgs()
-        .longOpt("jobconfig")
-        .build();
+  private final static Option JOB_CONFIG_OPTION = Option.builder().argName("job configuration file")
+      .desc("Gobblin compaction job configuration file").hasArgs().longOpt("jobconfig").build();
   private final static Option HELP_OPTION =
-      Option.builder("h")
-        .argName("help")
-        .desc("Display usage information")
-        .longOpt("help")
-        .build();
-  
+      Option.builder("h").argName("help").desc("Display usage information").longOpt("help").build();
+
   /**
    * Parse command line arguments and return a {@link java.util.Properties} object for the Gobblin job found.
    * @param caller Class of the calling main method. Used for error logs.
@@ -61,13 +51,13 @@ public class CliOptions {
    */
   public static Properties parseArgs(Class<?> caller, String[] args, Configuration conf) throws IOException {
     try {
-      
+
       // Parse command-line options
       if (conf != null) {
         args = new GenericOptionsParser(conf, args).getCommandLine().getArgs();
       }
       CommandLine cmd = new DefaultParser().parse(options(), args);
-      
+
       if (cmd.hasOption(HELP_OPTION.getOpt())) {
         printUsage(caller);
         System.exit(0);
@@ -88,14 +78,15 @@ public class CliOptions {
         JobConfigurationUtils.putConfigurationIntoProperties(conf, jobConfig);
       }
       return jobConfig;
-    } catch (ParseException | ConfigurationException | URISyntaxException e) {
+    } catch (ParseException | ConfigurationException e) {
       throw new IOException(e);
     }
   }
-  
+
   public static Properties parseArgs(Class<?> caller, String[] args) throws IOException {
     return parseArgs(caller, args, null);
   }
+
   /**
    * Prints the usage of cli.
    * @param caller Class of the main method called. Used in printing the usage message.
@@ -110,5 +101,5 @@ public class CliOptions {
     options.addOption(HELP_OPTION);
     return options;
   }
-  
+
 }

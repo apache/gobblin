@@ -95,8 +95,8 @@ public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S
         return ImmutableList.of();
       }
 
-      Extract.TableType tableType = state.contains(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY) ?
-          Extract.TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase()) : null;
+      Extract.TableType tableType = state.contains(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY)
+          ? Extract.TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase()) : null;
       String tableNamespace = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
       String tableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
 
@@ -162,8 +162,8 @@ public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S
   protected FileInputFormat<K, V> getFileInputFormat(State state, Configuration configuration) {
     Preconditions.checkArgument(state.contains(FILE_INPUT_FORMAT_CLASS_KEY));
     try {
-      return (FileInputFormat<K, V>) ReflectionUtils.newInstance(
-          Class.forName(state.getProp(FILE_INPUT_FORMAT_CLASS_KEY)), configuration);
+      return (FileInputFormat<K, V>) ReflectionUtils
+          .newInstance(Class.forName(state.getProp(FILE_INPUT_FORMAT_CLASS_KEY)), configuration);
     } catch (ClassNotFoundException cnfe) {
       throw new RuntimeException(cnfe);
     }
@@ -182,7 +182,7 @@ public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S
   protected abstract HadoopFileInputExtractor<S, D, K, V> getExtractor(WorkUnitState workUnitState,
       RecordReader<K, V> recordReader, FileSplit fileSplit, boolean readKeys);
 
-  private TaskAttemptContext getTaskAttemptContext(Configuration configuration, TaskAttemptID taskAttemptID) {
+  private static TaskAttemptContext getTaskAttemptContext(Configuration configuration, TaskAttemptID taskAttemptID) {
     Class<?> taskAttemptContextClass;
 
     try {
@@ -194,8 +194,8 @@ public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S
     }
 
     try {
-      return (TaskAttemptContext) taskAttemptContextClass.getDeclaredConstructor(
-          Configuration.class, TaskAttemptID.class).newInstance(configuration, taskAttemptID);
+      return (TaskAttemptContext) taskAttemptContextClass
+          .getDeclaredConstructor(Configuration.class, TaskAttemptID.class).newInstance(configuration, taskAttemptID);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -217,8 +217,8 @@ public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S
      * @return a new {@link TaskAttemptID} instance
      */
     public static TaskAttemptID newTaskAttemptID() {
-      return TaskAttemptID.forName(ATTEMPT + SEPARATOR + Long.toString(System.currentTimeMillis()) +
-          SEPARATOR + 0 + SEPARATOR + 'm' + SEPARATOR + 0 + SEPARATOR + 0);
+      return TaskAttemptID.forName(ATTEMPT + SEPARATOR + Long.toString(System.currentTimeMillis()) + SEPARATOR + 0
+          + SEPARATOR + 'm' + SEPARATOR + 0 + SEPARATOR + 0);
     }
   }
 }

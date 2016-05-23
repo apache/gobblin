@@ -21,6 +21,7 @@ import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
+
 public class GenericJdbcBufferedInserter implements JdbcBufferedInserter {
   private static final Logger LOG = LoggerFactory.getLogger(GenericJdbcBufferedInserter.class);
 
@@ -41,27 +42,25 @@ public class GenericJdbcBufferedInserter implements JdbcBufferedInserter {
     this.maxParamSize = state.getPropAsInt(WRITER_JDBC_MAX_PARAM_SIZE, DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE);
 
     //retry after 2, 4, 8, 16... sec, max 30 sec delay
-    this.retryer = RetryerBuilder.<Void>newBuilder()
-                                 .retryIfException()
-                                 .withWaitStrategy(WaitStrategies.exponentialWait(1000, 30, TimeUnit.SECONDS))
-                                 .withStopStrategy(StopStrategies.stopAfterAttempt(5))
-                                 .build();
+    this.retryer = RetryerBuilder.<Void> newBuilder().retryIfException()
+        .withWaitStrategy(WaitStrategies.exponentialWait(1000, 30, TimeUnit.SECONDS))
+        .withStopStrategy(StopStrategies.stopAfterAttempt(5)).build();
   }
 
   @Override
   public void insert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
-    if (pStmt == null) {
+    if (this.pStmt == null) {
       initializeBatch(databaseName, table, jdbcEntryData);
     }
 
     int i = 0;
     for (JdbcEntryDatum datum : jdbcEntryData) {
-      pStmt.setObject(++i, datum.getVal());
+      this.pStmt.setObject(++i, datum.getVal());
     }
-    pStmt.addBatch();
-    currBatchSize++;
+    this.pStmt.addBatch();
+    this.currBatchSize++;
 
-    if(currBatchSize >= maxBatchSize) {
+    if (this.currBatchSize >= this.maxBatchSize) {
       insertBatch();
     }
   }
@@ -71,33 +70,31 @@ public class GenericJdbcBufferedInserter implements JdbcBufferedInserter {
     for (JdbcEntryDatum datum : jdbcEntryData) {
       columnNames.add(datum.getColumnName());
     }
-    String insertPstmtStr = String.format(INSERT_STATEMENT_PREFIX_FORMAT,
-                                          databaseName,
-                                          table,
-                                          JOINER_ON_COMMA.join(columnNames),
-                                          JOINER_ON_COMMA.useForNull("?").join(new String[columnNames.size()]));
+    String insertPstmtStr = String.format(INSERT_STATEMENT_PREFIX_FORMAT, databaseName, table,
+        JOINER_ON_COMMA.join(columnNames), JOINER_ON_COMMA.useForNull("?").join(new String[columnNames.size()]));
 
     LOG.info("Prepared insert statement: " + insertPstmtStr);
-    pStmt = conn.prepareStatement(insertPstmtStr);
+    this.pStmt = this.conn.prepareStatement(insertPstmtStr);
 
-    int actualBatchSize = Math.min(maxBatchSize, maxParamSize / columnNames.size());
-    if(maxBatchSize != actualBatchSize) {
-      LOG.info("Changing batch size from " + maxBatchSize + " to " + actualBatchSize + " due to # of params limitation " + maxParamSize + " , # of columns: " + columnNames.size());
+    int actualBatchSize = Math.min(this.maxBatchSize, this.maxParamSize / columnNames.size());
+    if (this.maxBatchSize != actualBatchSize) {
+      LOG.info("Changing batch size from " + this.maxBatchSize + " to " + actualBatchSize
+          + " due to # of params limitation " + this.maxParamSize + " , # of columns: " + columnNames.size());
     }
-    maxBatchSize = actualBatchSize;
+    this.maxBatchSize = actualBatchSize;
   }
 
   private void insertBatch() throws SQLException {
     Callable<Void> insertCall = new Callable<Void>() { //Need a Callable interface to be wrapped by Retryer.
       @Override
       public Void call() throws Exception {
-        pStmt.executeBatch();
+        GenericJdbcBufferedInserter.this.pStmt.executeBatch();
         return null;
       }
     };
 
     try {
-      retryer.wrap(insertCall).call();
+      this.retryer.wrap(insertCall).call();
     } catch (Exception e) {
       throw new RuntimeException("Failed to insert.", e);
     }
@@ -105,14 +102,14 @@ public class GenericJdbcBufferedInserter implements JdbcBufferedInserter {
   }
 
   private void resetBatch() throws SQLException {
-    pStmt.clearBatch();
-    pStmt.clearParameters();
-    currBatchSize = 0;
+    this.pStmt.clearBatch();
+    this.pStmt.clearParameters();
+    this.currBatchSize = 0;
   }
 
   @Override
   public void flush() throws SQLException {
-    if (currBatchSize > 0) {
+    if (this.currBatchSize > 0) {
       insertBatch();
     }
   }

@@ -604,14 +604,17 @@ public class JobState extends SourceState {
       return Integer.parseInt(super.getProp(ConfigurationKeys.JOB_FAILURES_KEY));
     }
 
+    @Override
     public String getProp(String key) {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public String getProp(String key, String def) {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public void setProp(String key, Object value) {
       throw new UnsupportedOperationException();
     }
@@ -626,6 +629,7 @@ public class JobState extends SourceState {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public void overrideWith(Properties properties) {
       throw new UnsupportedOperationException();
     }

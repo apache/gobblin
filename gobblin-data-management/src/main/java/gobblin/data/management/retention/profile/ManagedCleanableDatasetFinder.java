@@ -41,12 +41,11 @@ public class ManagedCleanableDatasetFinder
 
   private final ConfigClient client;
 
-  public ManagedCleanableDatasetFinder(FileSystem fs, Properties jobProps, Config config) throws IOException {
+  public ManagedCleanableDatasetFinder(FileSystem fs, Properties jobProps, Config config) {
     this(fs, jobProps, config, ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY));
   }
 
-  public ManagedCleanableDatasetFinder(FileSystem fs, Properties jobProps, Config config, ConfigClient client)
-      throws IOException {
+  public ManagedCleanableDatasetFinder(FileSystem fs, Properties jobProps, Config config, ConfigClient client) {
     super(fs, jobProps, config);
     this.client = client;
   }

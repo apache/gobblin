@@ -48,14 +48,13 @@ public class HdfsWriter extends HdfsIO {
     return this.fileSystem.delete(new Path(this.filePathInHdfs), true);
   }
 
-  @SuppressWarnings("deprecation")
   public static void moveSelectFiles(String extension, String source, String destination) throws IOException {
     FileSystem fs = getFileSystem();
     fs.mkdirs(new Path(destination));
     FileStatus[] fileStatuses = fs.listStatus(new Path(source));
     for (FileStatus fileStatus : fileStatuses) {
       Path path = fileStatus.getPath();
-      if (!fileStatus.isDir() && path.toString().toLowerCase().endsWith(extension.toLowerCase())) {
+      if (!fileStatus.isDirectory() && path.toString().toLowerCase().endsWith(extension.toLowerCase())) {
         HadoopUtils.deleteIfExists(fs, new Path(destination), true);
         HadoopUtils.copyPath(fs, path, fs, new Path(destination), getConfiguration());
       }

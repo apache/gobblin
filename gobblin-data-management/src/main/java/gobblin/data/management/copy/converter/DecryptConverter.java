@@ -22,7 +22,6 @@ import gobblin.util.GPGFileDecrypter;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.NoSuchProviderException;
 import java.util.List;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -50,19 +49,23 @@ public class DecryptConverter extends DistcpConverter {
     return super.init(workUnit);
   }
 
-  @Override public Function<FSDataInputStream, FSDataInputStream> inputStreamTransformation() {
+  @Override
+  public Function<FSDataInputStream, FSDataInputStream> inputStreamTransformation() {
     return new Function<FSDataInputStream, FSDataInputStream>() {
-      @Nullable @Override public FSDataInputStream apply(FSDataInputStream input) {
+      @Nullable
+      @Override
+      public FSDataInputStream apply(FSDataInputStream input) {
         try {
-          return GPGFileDecrypter.decryptFile(input, passphrase);
-        } catch (NoSuchProviderException | IOException exception) {
+          return GPGFileDecrypter.decryptFile(input, DecryptConverter.this.passphrase);
+        } catch (IOException exception) {
           throw new RuntimeException(exception);
         }
       }
     };
   }
 
-  @Override public List<String> extensionsToRemove() {
+  @Override
+  public List<String> extensionsToRemove() {
     return Lists.newArrayList(GPG_EXTENSION);
   }
 

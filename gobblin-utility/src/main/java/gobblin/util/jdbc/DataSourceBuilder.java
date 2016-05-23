@@ -15,7 +15,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
-@ToString(exclude="passWord")
+
+@ToString(exclude = "passWord")
 public class DataSourceBuilder {
   private static final Logger LOG = LoggerFactory.getLogger(DataSourceBuilder.class);
 
@@ -81,27 +82,27 @@ public class DataSourceBuilder {
   public DataSource build() {
     validate();
     Properties properties = new Properties();
-    if (state != null) {
-      properties = state.getProperties();
+    if (this.state != null) {
+      properties = this.state.getProperties();
     }
-    properties.setProperty(DataSourceProvider.CONN_URL, url);
-    properties.setProperty(DataSourceProvider.USERNAME, userName);
-    properties.setProperty(DataSourceProvider.PASSWORD, passWord);
-    properties.setProperty(DataSourceProvider.CONN_DRIVER, driver);
-    if (!StringUtils.isEmpty(cryptoKeyLocation)) {
-      properties.setProperty(ConfigurationKeys.ENCRYPT_KEY_LOC, cryptoKeyLocation);
-    }
-
-    if (maxIdleConnections != null) {
-      properties.setProperty(DataSourceProvider.MAX_IDLE_CONNS, maxIdleConnections.toString());
+    properties.setProperty(DataSourceProvider.CONN_URL, this.url);
+    properties.setProperty(DataSourceProvider.USERNAME, this.userName);
+    properties.setProperty(DataSourceProvider.PASSWORD, this.passWord);
+    properties.setProperty(DataSourceProvider.CONN_DRIVER, this.driver);
+    if (!StringUtils.isEmpty(this.cryptoKeyLocation)) {
+      properties.setProperty(ConfigurationKeys.ENCRYPT_KEY_LOC, this.cryptoKeyLocation);
     }
 
-    if (maxActiveConnections != null) {
-      properties.setProperty(DataSourceProvider.MAX_ACTIVE_CONNS, maxActiveConnections.toString());
+    if (this.maxIdleConnections != null) {
+      properties.setProperty(DataSourceProvider.MAX_IDLE_CONNS, this.maxIdleConnections.toString());
     }
 
-    if(useStrongEncryption != null) {
-      properties.setProperty(ConfigurationKeys.ENCRYPT_USE_STRONG_ENCRYPTOR, useStrongEncryption.toString());
+    if (this.maxActiveConnections != null) {
+      properties.setProperty(DataSourceProvider.MAX_ACTIVE_CONNS, this.maxActiveConnections.toString());
+    }
+
+    if (this.useStrongEncryption != null) {
+      properties.setProperty(ConfigurationKeys.ENCRYPT_USE_STRONG_ENCRYPTOR, this.useStrongEncryption.toString());
     }
 
     if (LOG.isDebugEnabled()) {
@@ -112,14 +113,16 @@ public class DataSourceBuilder {
   }
 
   private void validate() {
-    validateNotEmpty(url, "url");
-    validateNotEmpty(driver, "driver");
-    validateNotEmpty(passWord, "passWord");
-    Preconditions.checkArgument(maxIdleConnections == null || maxIdleConnections > 0, "maxIdleConnections should be a positive integer.");
-    Preconditions.checkArgument(maxActiveConnections == null || maxActiveConnections > 0, "maxActiveConnections should be a positive integer.");
+    validateNotEmpty(this.url, "url");
+    validateNotEmpty(this.driver, "driver");
+    validateNotEmpty(this.passWord, "passWord");
+    Preconditions.checkArgument(this.maxIdleConnections == null || this.maxIdleConnections > 0,
+        "maxIdleConnections should be a positive integer.");
+    Preconditions.checkArgument(this.maxActiveConnections == null || this.maxActiveConnections > 0,
+        "maxActiveConnections should be a positive integer.");
   }
 
-  private void validateNotEmpty(String s, String name) {
+  private static void validateNotEmpty(String s, String name) {
     Preconditions.checkArgument(!StringUtils.isEmpty(s), name + " should not be empty.");
   }
 }

@@ -234,12 +234,11 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     return null;
   }
 
-  @SuppressWarnings("deprecation")
   private Schema getNewestSchemaFromSource(Path sourceDir) throws IOException {
     FileStatus[] files = this.fs.listStatus(sourceDir);
     Arrays.sort(files, new LastModifiedDescComparator());
     for (FileStatus status : files) {
-      if (status.isDir()) {
+      if (status.isDirectory()) {
         Schema schema = getNewestSchemaFromSource(status.getPath());
         if (schema != null)
           return schema;

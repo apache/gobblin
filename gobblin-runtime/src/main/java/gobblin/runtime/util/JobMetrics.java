@@ -74,7 +74,8 @@ public class JobMetrics extends GobblinMetrics {
    */
   public static JobMetrics get(final JobState jobState, final MetricContext parentContext) {
     return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
-      @Override public GobblinMetrics call() throws Exception {
+      @Override
+      public GobblinMetrics call() throws Exception {
         return new JobMetrics(jobState, parentContext);
       }
     });
@@ -88,7 +89,8 @@ public class JobMetrics extends GobblinMetrics {
    */
   public static JobMetrics get(final JobState jobState) {
     return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
-      @Override public GobblinMetrics call() throws Exception {
+      @Override
+      public GobblinMetrics call() throws Exception {
         return new JobMetrics(jobState);
       }
     });
@@ -125,6 +127,7 @@ public class JobMetrics extends GobblinMetrics {
   /**
    * @deprecated use {@link ClustersNames#getInstance()#getClusterName()}
    */
+  @Deprecated
   public static String getClusterIdentifierTag() {
     return ClustersNames.getInstance().getClusterName();
   }

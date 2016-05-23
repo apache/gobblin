@@ -44,9 +44,8 @@ public class TaskLevelPolicyCheckerBuilder {
   }
 
   @SuppressWarnings("unchecked")
-  private List<TaskLevelPolicy> createPolicyList()
-      throws Exception {
-    List<TaskLevelPolicy> list = new ArrayList<TaskLevelPolicy>();
+  private List<TaskLevelPolicy> createPolicyList() throws Exception {
+    List<TaskLevelPolicy> list = new ArrayList<>();
     String taskLevelPoliciesKey =
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, this.index);
     String taskLevelPolicyTypesKey =
@@ -80,8 +79,7 @@ public class TaskLevelPolicyCheckerBuilder {
     return new TaskLevelPolicyCheckerBuilder(state, index);
   }
 
-  public TaskLevelPolicyChecker build()
-      throws Exception {
+  public TaskLevelPolicyChecker build() throws Exception {
     return new TaskLevelPolicyChecker(createPolicyList());
   }
 }

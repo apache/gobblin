@@ -34,8 +34,7 @@ import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFi
  */
 public class TrackingDatasetProfile extends ConfigurableGlobDatasetFinder {
 
-  public TrackingDatasetProfile(FileSystem fs, Properties props)
-      throws IOException {
+  public TrackingDatasetProfile(FileSystem fs, Properties props) {
     super(fs, props);
   }
 
@@ -47,8 +46,7 @@ public class TrackingDatasetProfile extends ConfigurableGlobDatasetFinder {
   }
 
   @Override
-  public Dataset datasetAtPath(Path path)
-      throws IOException {
+  public Dataset datasetAtPath(Path path) throws IOException {
     return new TrackingDataset(this.fs, this.props, path);
   }
 }

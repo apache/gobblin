@@ -43,7 +43,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
 
   @Override
   public MetricContext getMetricContext() {
-    return this.isEmbeddedInstrumented ? ((InstrumentedDataWriterBase) this.embeddedWriter).getMetricContext()
+    return this.isEmbeddedInstrumented ? ((InstrumentedDataWriterBase<D>) this.embeddedWriter).getMetricContext()
         : super.getMetricContext();
   }
 

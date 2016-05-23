@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 
+
 @ToString
 public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
   private final Map<String, JdbcEntryDatum> jdbcEntryData; //Pair of column name and Object
@@ -39,7 +40,7 @@ public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
    * @return Returns Object which is JDBC compatible -- can be used for PreparedStatement.setObject
    */
   public Object getVal(String columnName) {
-    JdbcEntryDatum datum = jdbcEntryData.get(columnName);
+    JdbcEntryDatum datum = this.jdbcEntryData.get(columnName);
     return datum == null ? null : datum.getVal();
   }
 
@@ -50,6 +51,6 @@ public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
    */
   @Override
   public Iterator<JdbcEntryDatum> iterator() {
-    return jdbcEntryData.values().iterator();
+    return this.jdbcEntryData.values().iterator();
   }
 }

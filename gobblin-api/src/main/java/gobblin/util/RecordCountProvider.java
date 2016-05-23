@@ -35,9 +35,8 @@ public abstract class RecordCountProvider {
   public Path convertPath(Path path, RecordCountProvider src) {
     if (this.getClass().equals(src.getClass())) {
       return path;
-    } else {
-      throw getNotImplementedException(src);
     }
+    throw getNotImplementedException(src);
   }
 
   protected NotImplementedException getNotImplementedException(RecordCountProvider src) {

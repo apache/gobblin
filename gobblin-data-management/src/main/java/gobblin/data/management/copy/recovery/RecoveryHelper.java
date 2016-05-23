@@ -62,11 +62,10 @@ public class RecoveryHelper {
    */
   public static Optional<Path> getPersistDir(State state) throws IOException {
     if (state.contains(PERSIST_DIR_KEY)) {
-      return Optional.of(new Path(state.getProp(PERSIST_DIR_KEY),
-          UserGroupInformation.getCurrentUser().getShortUserName()));
-    } else {
-      return Optional.absent();
+      return Optional
+          .of(new Path(state.getProp(PERSIST_DIR_KEY), UserGroupInformation.getCurrentUser().getShortUserName()));
     }
+    return Optional.absent();
   }
 
   /**
@@ -95,14 +94,13 @@ public class RecoveryHelper {
       this.fs.mkdirs(this.persistDir.get(), new FsPermission(FsAction.ALL, FsAction.READ, FsAction.NONE));
     }
 
-    Path targetPath = new Path(persistDir.get(), nameBuilder.toString());
+    Path targetPath = new Path(this.persistDir.get(), nameBuilder.toString());
     log.info(String.format("Persisting file %s with guid %s to location %s.", path, guid, targetPath));
     if (this.fs.rename(path, targetPath)) {
       this.fs.setTimes(targetPath, System.currentTimeMillis(), -1);
       return true;
-    } else {
-      return false;
     }
+    return false;
   }
 
   /**
@@ -179,8 +177,7 @@ public class RecoveryHelper {
     Optional<Guid> stateGuid = CopySource.getWorkUnitGuid(state);
     if (stateGuid.isPresent()) {
       return Guid.combine(file.guid(), stateGuid.get()).toString();
-    } else {
-      throw new IOException("State does not contain a guid.");
     }
+    throw new IOException("State does not contain a guid.");
   }
 }
