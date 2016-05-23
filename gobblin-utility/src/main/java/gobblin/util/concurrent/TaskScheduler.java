@@ -41,8 +41,7 @@ public abstract class TaskScheduler<K, T extends ScheduledTask<K>> implements Cl
   private final Cache<K, CancellableTask<K, T>> cancellableTaskMap = CacheBuilder.newBuilder().build();
   private volatile boolean isStarted = false;
 
-  protected TaskScheduler() {
-  }
+  protected TaskScheduler() {}
 
   /**
    * Start the {@link TaskScheduler}.
@@ -72,15 +71,15 @@ public abstract class TaskScheduler<K, T extends ScheduledTask<K>> implements Cl
    * @param unit the time unit of the initialDelay and period parameters
    */
   public final void schedule(final T task, final long period, final TimeUnit unit) throws IOException {
-    Preconditions.checkArgument(isStarted, "TaskScheduler is not started");
+    Preconditions.checkArgument(this.isStarted, "TaskScheduler is not started");
     try {
-      CancellableTask<K, T> cancellableTask = this.cancellableTaskMap.get(task.getKey(),
-              new Callable<CancellableTask<K, T>>() {
-                @Override
-                public CancellableTask<K, T> call() {
-                  return scheduleImpl(task, period, unit);
-                }
-              });
+      CancellableTask<K, T> cancellableTask =
+          this.cancellableTaskMap.get(task.getKey(), new Callable<CancellableTask<K, T>>() {
+            @Override
+            public CancellableTask<K, T> call() {
+              return scheduleImpl(task, period, unit);
+            }
+          });
       if (cancellableTask.getScheduledTask() != task) {
         throw new IOException("Failed to schedule task with duplicate key");
       }
@@ -104,13 +103,12 @@ public abstract class TaskScheduler<K, T extends ScheduledTask<K>> implements Cl
    * @return the {@link ScheduledTask}s
    */
   public final Iterable<T> getScheduledTasks() {
-    return Iterables.transform(this.cancellableTaskMap.asMap().values(),
-          new Function<CancellableTask<K, T>, T>() {
-            @Override
-            public T apply(CancellableTask<K, T> cancellableTask) {
-              return cancellableTask.getScheduledTask();
-            }
-          });
+    return Iterables.transform(this.cancellableTaskMap.asMap().values(), new Function<CancellableTask<K, T>, T>() {
+      @Override
+      public T apply(CancellableTask<K, T> cancellableTask) {
+        return cancellableTask.getScheduledTask();
+      }
+    });
   }
 
   /**
@@ -150,8 +148,8 @@ public abstract class TaskScheduler<K, T extends ScheduledTask<K>> implements Cl
   @Override
   @Synchronized
   public final void close() throws IOException {
-    if (isStarted) {
-      isStarted = false;
+    if (this.isStarted) {
+      this.isStarted = false;
       this.closeImpl();
     }
   }

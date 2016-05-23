@@ -216,8 +216,7 @@ public class TokenUtils {
     LOG.info("Tokens loaded in " + tokenFile.getAbsolutePath());
   }
 
-  private static Token<?> getDelegationTokenFromHS(HSClientProtocol hsProxy, Configuration conf)
-      throws IOException, InterruptedException {
+  private static Token<?> getDelegationTokenFromHS(HSClientProtocol hsProxy, Configuration conf) throws IOException {
     GetDelegationTokenRequest request =
         RecordFactoryProvider.getRecordFactory(null).newRecordInstance(GetDelegationTokenRequest.class);
     request.setRenewer(Master.getMasterPrincipal(conf));

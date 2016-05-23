@@ -233,8 +233,7 @@ public class AvroUtils {
    */
   public static Schema getDirectorySchema(Path directory, FileSystem fs, boolean latest) throws IOException {
     Schema schema = null;
-    Closer closer = Closer.create();
-    try {
+    try (Closer closer = Closer.create()) {
       List<FileStatus> files = getDirectorySchemaHelper(directory, fs);
       if (files == null || files.size() == 0) {
         LOG.warn("There is no previous avro file in the directory: " + directory);
@@ -247,10 +246,6 @@ public class AvroUtils {
       }
     } catch (IOException ioe) {
       throw new IOException("Cannot get the schema for directory " + directory, ioe);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
     return schema;
   }

@@ -22,7 +22,6 @@ import gobblin.util.GPGFileDecrypter;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.NoSuchProviderException;
 import java.util.List;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -58,7 +57,7 @@ public class DecryptConverter extends DistcpConverter {
       public FSDataInputStream apply(FSDataInputStream input) {
         try {
           return GPGFileDecrypter.decryptFile(input, DecryptConverter.this.passphrase);
-        } catch (NoSuchProviderException | IOException exception) {
+        } catch (IOException exception) {
           throw new RuntimeException(exception);
         }
       }

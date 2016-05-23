@@ -48,7 +48,7 @@ public class HdfsReader extends HdfsIO {
     FileStatus[] fileStatuses = getFileSystem().listStatus(new Path(dirInHdfs));
     for (FileStatus fileStatus : fileStatuses) {
       Path dataFilePath = fileStatus.getPath();
-      if (fileStatus.isFile() && !dataFilePath.getName().startsWith("_")) {
+      if (!fileStatus.isDirectory() && !dataFilePath.getName().startsWith("_")) {
         return dataFilePath.toString();
       }
     }

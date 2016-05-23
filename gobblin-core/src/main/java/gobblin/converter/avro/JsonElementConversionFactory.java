@@ -416,8 +416,7 @@ public class JsonElementConversionFactory {
   public static abstract class ComplexConverter extends JsonElementConverter {
     private JsonElementConverter elementConverter;
 
-    public ComplexConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
-        WorkUnitState state) {
+    public ComplexConverter(String fieldName, boolean nullable, String sourceType) {
       super(fieldName, nullable, sourceType);
     }
 
@@ -434,7 +433,7 @@ public class JsonElementConversionFactory {
 
     public ArrayConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
         WorkUnitState state) throws UnsupportedDateTypeException {
-      super(fieldName, nullable, sourceType, schemaNode, state);
+      super(fieldName, nullable, sourceType);
       super.setElementConverter(
           getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("items").getAsString(),
               schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
@@ -468,7 +467,7 @@ public class JsonElementConversionFactory {
 
     public MapConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
         WorkUnitState state) throws UnsupportedDateTypeException {
-      super(fieldName, nullable, sourceType, schemaNode, state);
+      super(fieldName, nullable, sourceType);
       super.setElementConverter(
           getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("values").getAsString(),
               schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));

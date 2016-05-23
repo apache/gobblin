@@ -20,15 +20,15 @@ import com.google.common.util.concurrent.ListenableFuture;
  */
 public abstract class HttpWriterDecorator<D> implements HttpWriterDecoration<D> {
 
-  private final HttpWriterDecoration<D> _fallback;
+  private final HttpWriterDecoration<D> fallback;
 
   public HttpWriterDecorator(HttpWriterDecoration<D> fallback) {
     Preconditions.checkNotNull(fallback);
-    this._fallback = fallback;
+    this.fallback = fallback;
   }
 
   protected HttpWriterDecoration<D> getFallback() {
-    return this._fallback;
+    return this.fallback;
   }
 
   @Override

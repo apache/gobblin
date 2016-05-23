@@ -38,14 +38,14 @@ import gobblin.instrumented.writer.InstrumentedDataWriter;
 public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> implements HttpWriterDecoration<D> {
 
   // Immutable state
-  protected final Logger _log;
-  protected final boolean _debugLogEnabled;
-  protected final CloseableHttpClient _client;
+  protected final Logger log;
+  protected final boolean debugLogEnabled;
+  protected final CloseableHttpClient client;
   // Mutable state
-  private HttpHost _curHttpHost = null;
-  private long _numRecordsWritten = 0;
-  private long _numBytesWritten = 0;
-  private Optional<HttpUriRequest> _curRequest = Optional.absent();
+  private HttpHost curHttpHost = null;
+  private long numRecordsWritten = 0;
+  private long numBytesWritten = 0;
+  private Optional<HttpUriRequest> curRequest = Optional.absent();
 
   class HttpClientConnectionManagerWithConnTracking extends DelegatingHttpClientConnectionManager {
 
@@ -68,16 +68,16 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
   public AbstractHttpWriter(State state, Optional<Logger> log, HttpClientBuilder httpClientInject,
       HttpClientConnectionManager connManager) {
     super(state);
-    this._log = log.isPresent() ? log.get() : LoggerFactory.getLogger(this.getClass());
-    this._debugLogEnabled = this._log.isDebugEnabled();
+    this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(this.getClass());
+    this.debugLogEnabled = this.log.isDebugEnabled();
     httpClientInject.setConnectionManager(new HttpClientConnectionManagerWithConnTracking(connManager));
-    this._client = httpClientInject.build();
+    this.client = httpClientInject.build();
   }
 
   /** {@inheritDoc} */
   @Override
   public void cleanup() throws IOException {
-    this._client.close();
+    this.client.close();
   }
 
   /**
@@ -85,7 +85,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
    */
   @Override
   public long recordsWritten() {
-    return this._numRecordsWritten;
+    return this.numRecordsWritten;
   }
 
   /**
@@ -93,7 +93,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
    */
   @Override
   public long bytesWritten() throws IOException {
-    return this._numBytesWritten;
+    return this.numBytesWritten;
   }
 
   /**
@@ -101,9 +101,9 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
    */
   @Override
   public void writeImpl(D record) throws IOException {
-    this._curRequest = onNewRecord(record, this._curRequest);
-    if (this._curRequest.isPresent()) {
-      ListenableFuture<HttpResponse> responseFuture = sendRequest(this._curRequest.get());
+    this.curRequest = onNewRecord(record, this.curRequest);
+    if (this.curRequest.isPresent()) {
+      ListenableFuture<HttpResponse> responseFuture = sendRequest(this.curRequest.get());
       waitForResponse(responseFuture);
       try {
         processResponse(responseFuture.get());
@@ -114,28 +114,28 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
   }
 
   public Logger getLog() {
-    return this._log;
+    return this.log;
   }
 
   public HttpHost getCurServerHost() {
-    if (null == this._curHttpHost) {
+    if (null == this.curHttpHost) {
       setCurServerHost(chooseServerHost());
     }
-    if (null == this._curHttpHost) {
+    if (null == this.curHttpHost) {
       throw new RuntimeException("No server host selected!");
     }
-    return this._curHttpHost;
+    return this.curHttpHost;
   }
 
   /** Clears the current http host so that next request will trigger a new selection using
    * {@link #chooseServerHost() */
   void clearCurServerHost() {
-    this._curHttpHost = null;
+    this.curHttpHost = null;
   }
 
   void setCurServerHost(HttpHost curHttpHost) {
-    this._log.info("Setting current HTTP server host to: " + curHttpHost);
-    this._curHttpHost = curHttpHost;
+    this.log.info("Setting current HTTP server host to: " + curHttpHost);
+    this.curHttpHost = curHttpHost;
   }
 
 }

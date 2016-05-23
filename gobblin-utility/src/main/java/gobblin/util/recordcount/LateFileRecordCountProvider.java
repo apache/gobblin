@@ -49,7 +49,7 @@ public class LateFileRecordCountProvider extends RecordCountProvider {
   /**
    * Remove the late components in the path added by {@link LateFileRecordCountProvider}.
    */
-  public Path restoreFilePath(Path path) {
+  public static Path restoreFilePath(Path path) {
     return new Path(path.getName().replaceAll(Pattern.quote(LATE_COMPONENT) + "[\\d]*", EMPTY_STRING));
   }
 

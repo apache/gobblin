@@ -25,51 +25,51 @@ import org.apache.http.protocol.HttpContext;
  * Helper class to decorate HttpClientConnectionManager instances.
  */
 public class DelegatingHttpClientConnectionManager implements HttpClientConnectionManager {
-  protected final HttpClientConnectionManager _fallbackConnManager;
+  protected final HttpClientConnectionManager fallbackConnManager;
 
   public DelegatingHttpClientConnectionManager(HttpClientConnectionManager fallback) {
-    this._fallbackConnManager = fallback;
+    this.fallbackConnManager = fallback;
   }
 
   @Override
   public void releaseConnection(HttpClientConnection conn, Object newState, long validDuration, TimeUnit timeUnit) {
-    this._fallbackConnManager.releaseConnection(conn, newState, validDuration, timeUnit);
+    this.fallbackConnManager.releaseConnection(conn, newState, validDuration, timeUnit);
   }
 
   @Override
   public void connect(HttpClientConnection conn, HttpRoute route, int connectTimeout, HttpContext context)
       throws IOException {
-    this._fallbackConnManager.connect(conn, route, connectTimeout, context);
+    this.fallbackConnManager.connect(conn, route, connectTimeout, context);
   }
 
   @Override
   public void upgrade(HttpClientConnection conn, HttpRoute route, HttpContext context) throws IOException {
-    this._fallbackConnManager.upgrade(conn, route, context);
+    this.fallbackConnManager.upgrade(conn, route, context);
   }
 
   @Override
   public void routeComplete(HttpClientConnection conn, HttpRoute route, HttpContext context) throws IOException {
-    this._fallbackConnManager.routeComplete(conn, route, context);
+    this.fallbackConnManager.routeComplete(conn, route, context);
   }
 
   @Override
   public void closeIdleConnections(long idletime, TimeUnit tunit) {
-    this._fallbackConnManager.closeIdleConnections(idletime, tunit);
+    this.fallbackConnManager.closeIdleConnections(idletime, tunit);
   }
 
   @Override
   public void closeExpiredConnections() {
-    this._fallbackConnManager.closeExpiredConnections();
+    this.fallbackConnManager.closeExpiredConnections();
   }
 
   @Override
   public void shutdown() {
-    this._fallbackConnManager.shutdown();
+    this.fallbackConnManager.shutdown();
   }
 
   @Override
   public ConnectionRequest requestConnection(HttpRoute route, Object state) {
-    return this._fallbackConnManager.requestConnection(route, state);
+    return this.fallbackConnManager.requestConnection(route, state);
   }
 
 }

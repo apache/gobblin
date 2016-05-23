@@ -66,8 +66,8 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
       public DataWriter<D> load(final GenericRecord key) throws Exception {
-        return closer
-            .register(new InstrumentedPartitionedDataWriterDecorator<D>(createPartitionWriter(key), state, key));
+        return PartitionedDataWriter.this.closer
+            .register(new InstrumentedPartitionedDataWriterDecorator<>(createPartitionWriter(key), state, key));
       }
     });
 
@@ -92,7 +92,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
     } else {
       this.shouldPartition = false;
       InstrumentedDataWriterDecorator<D> writer =
-          this.closer.register(new InstrumentedDataWriterDecorator<D>(builder.build(), state));
+          this.closer.register(new InstrumentedDataWriterDecorator<>(builder.build(), state));
       this.partitionWriters.put(NON_PARTITIONED_WRITER_KEY, writer);
       this.partitioner = Optional.absent();
       this.builder = Optional.absent();

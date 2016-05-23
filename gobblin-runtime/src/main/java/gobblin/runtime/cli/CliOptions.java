@@ -13,7 +13,6 @@
 package gobblin.runtime.cli;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.Properties;
 
 import org.apache.commons.cli.CommandLine;
@@ -32,22 +31,12 @@ import gobblin.util.JobConfigurationUtils;
  */
 public class CliOptions {
 
-  public final static Option SYS_CONFIG_OPTION = Option.builder()
-      .argName("system configuration file")
-      .desc("Gobblin system configuration file")
-      .hasArgs()
-      .longOpt("sysconfig")
-      .build();
-  public final static Option JOB_CONFIG_OPTION = Option.builder()
-      .argName("job configuration file")
-      .desc("Gobblin job configuration file")
-      .hasArgs()
-      .longOpt("jobconfig")
-      .build();
-  public final static Option HELP_OPTION = Option.builder("h").argName("help")
-      .desc("Display usage information")
-      .longOpt("help")
-      .build();
+  public final static Option SYS_CONFIG_OPTION = Option.builder().argName("system configuration file")
+      .desc("Gobblin system configuration file").hasArgs().longOpt("sysconfig").build();
+  public final static Option JOB_CONFIG_OPTION = Option.builder().argName("job configuration file")
+      .desc("Gobblin job configuration file").hasArgs().longOpt("jobconfig").build();
+  public final static Option HELP_OPTION =
+      Option.builder("h").argName("help").desc("Display usage information").longOpt("help").build();
 
   /**
    * Parse command line arguments and return a {@link java.util.Properties} object for the gobblin job found.
@@ -76,9 +65,9 @@ public class CliOptions {
       Properties jobConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(JOB_CONFIG_OPTION.getLongOpt()));
 
       return JobConfigurationUtils.combineSysAndJobProperties(sysConfig, jobConfig);
-    } catch (ParseException | ConfigurationException | URISyntaxException e) {
+    } catch (ParseException | ConfigurationException e) {
       throw new IOException(e);
-    } 
+    }
   }
 
   /**

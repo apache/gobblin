@@ -12,7 +12,6 @@
 
 package gobblin.util.concurrent;
 
-
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
@@ -41,13 +40,12 @@ import lombok.Synchronized;
 class HashedWheelTimerTaskScheduler<K, T extends ScheduledTask<K>> extends TaskScheduler<K, T> {
   private static final Logger LOGGER = LoggerFactory.getLogger(HashedWheelTimerTaskScheduler.class);
   private static HashedWheelTimer executor = new HashedWheelTimer(
-          ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), Optional.of("HashedWheelTimerTaskScheduler")));
+      ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), Optional.of("HashedWheelTimerTaskScheduler")));
 
   /**
    * Instantiates a new instance of {@link HashedWheelTimerTaskScheduler}.
    */
-  HashedWheelTimerTaskScheduler() {
-  }
+  HashedWheelTimerTaskScheduler() {}
 
   /**
    * Start the {@link TaskScheduler}.
@@ -55,8 +53,7 @@ class HashedWheelTimerTaskScheduler<K, T extends ScheduledTask<K>> extends TaskS
    * @param name the name of the {@link TaskScheduler}
    */
   @Override
-  final void startImpl(Optional<String> name) {
-  }
+  final void startImpl(Optional<String> name) {}
 
   /**
    * Schedules a subclass of {@link ScheduledTask} to run periodically.
@@ -87,13 +84,14 @@ class HashedWheelTimerTaskScheduler<K, T extends ScheduledTask<K>> extends TaskS
    * The concrete implementation of {@link TimerTask} which is used to schedule a {@link ScheduledTask}
    * on a {@link HashedWheelTimer}.
    *
-   * @param <K> the type of the key of the {@link ScheduledTask}
-   * @param <T> the type of the {@link ScheduledTask}
+   * @param <K2> the type of the key of the {@link ScheduledTask}
+   * @param <T2> the type of the {@link ScheduledTask}
    * @author joelbaranick
    */
-  private class HashedWheelTimerTask<K, T extends ScheduledTask<K>> extends CancellableTask<K, T> implements TimerTask {
+  private class HashedWheelTimerTask<K2, T2 extends ScheduledTask<K2>> extends CancellableTask<K2, T2>
+      implements TimerTask {
     private final HashedWheelTimer timer;
-    private final T task;
+    private final T2 task;
     private final long period;
     private final TimeUnit unit;
 
@@ -107,13 +105,13 @@ class HashedWheelTimerTaskScheduler<K, T extends ScheduledTask<K>> extends TaskS
      * @param period the period between successive executions of the task
      * @param unit the time unit of the period parameter
      */
-    HashedWheelTimerTask(HashedWheelTimer timer, T task, long period, TimeUnit unit) {
+    HashedWheelTimerTask(HashedWheelTimer timer, T2 task, long period, TimeUnit unit) {
       super(task);
       this.timer = timer;
       this.task = task;
       this.period = period;
       this.unit = unit;
-      future = this.timer.newTimeout(this, this.period, this.unit);
+      this.future = this.timer.newTimeout(this, this.period, this.unit);
     }
 
     /**
@@ -128,8 +126,8 @@ class HashedWheelTimerTaskScheduler<K, T extends ScheduledTask<K>> extends TaskS
       try {
         this.task.runOneIteration();
       } finally {
-        if (future != null) {
-          future = this.timer.newTimeout(this, this.period, this.unit);
+        if (this.future != null) {
+          this.future = this.timer.newTimeout(this, this.period, this.unit);
         }
       }
     }
@@ -144,9 +142,9 @@ class HashedWheelTimerTaskScheduler<K, T extends ScheduledTask<K>> extends TaskS
     @Override
     @Synchronized
     public boolean cancel() {
-      if (future != null) {
-        future.cancel();
-        future = null;
+      if (this.future != null) {
+        this.future.cancel();
+        this.future = null;
       }
       return true;
     }

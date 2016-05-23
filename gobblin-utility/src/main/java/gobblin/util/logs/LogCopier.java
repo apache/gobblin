@@ -508,11 +508,10 @@ public class LogCopier extends AbstractScheduledService {
         return;
       }
 
-      Closer closer = Closer.create();
       // We need to use fsDataInputStream in the finally clause so it has to be defined outside try-catch-finally
       FSDataInputStream fsDataInputStream = null;
 
-      try {
+      try (Closer closer = Closer.create()) {
         fsDataInputStream = closer.register(LogCopier.this.srcFs.open(srcFile));
         // Seek to the the most recent position if it is available
         LOGGER.debug(String.format("Reading log file %s from position %d", srcFile, this.currentPos));
@@ -539,15 +538,9 @@ public class LogCopier extends AbstractScheduledService {
             destLogFileWriter.flush();
           }
         }
-      } catch (Throwable t) {
-        throw closer.rethrow(t);
       } finally {
-        try {
-          closer.close();
-        } finally {
-          if (fsDataInputStream != null) {
-            this.currentPos = fsDataInputStream.getPos();
-          }
+        if (fsDataInputStream != null) {
+          this.currentPos = fsDataInputStream.getPos();
         }
       }
     }

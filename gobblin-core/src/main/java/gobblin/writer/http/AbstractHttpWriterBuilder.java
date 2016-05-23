@@ -15,10 +15,10 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
     extends FluentDataWriterBuilder<S, D, B> {
   public static final String CONF_PREFIX = "gobblin.writer.http.";
 
-  private HttpClientBuilder _httpClientBuilder =
+  private HttpClientBuilder httpClientBuilder =
       HttpClientBuilder.create().disableCookieManagement().useSystemProperties();
   // TODO Add an option for connection pooling
-  private HttpClientConnectionManager _httpConnManager = new BasicHttpClientConnectionManager();
+  private HttpClientConnectionManager httpConnManager = new BasicHttpClientConnectionManager();
 
   public B fromState(State state) {
     Config config = ConfigBuilder.create().loadProps(state.getProperties(), CONF_PREFIX).build();
@@ -31,21 +31,21 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
   }
 
   public B withHttpClientBuilder(HttpClientBuilder builder) {
-    this._httpClientBuilder = builder;
+    this.httpClientBuilder = builder;
     return typedSelf();
   }
 
   public HttpClientBuilder getHttpClientBuilder() {
-    return this._httpClientBuilder;
+    return this.httpClientBuilder;
   }
 
   public B withHttpClientConnectionManager(HttpClientConnectionManager connManager) {
-    this._httpConnManager = connManager;
+    this.httpConnManager = connManager;
     return typedSelf();
   }
 
   HttpClientConnectionManager getHttpConnManager() {
-    return this._httpConnManager;
+    return this.httpConnManager;
   }
 
 }

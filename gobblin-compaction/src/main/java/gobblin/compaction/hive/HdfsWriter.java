@@ -54,7 +54,7 @@ public class HdfsWriter extends HdfsIO {
     FileStatus[] fileStatuses = fs.listStatus(new Path(source));
     for (FileStatus fileStatus : fileStatuses) {
       Path path = fileStatus.getPath();
-      if (fileStatus.isDirectory() && path.toString().toLowerCase().endsWith(extension.toLowerCase())) {
+      if (!fileStatus.isDirectory() && path.toString().toLowerCase().endsWith(extension.toLowerCase())) {
         HadoopUtils.deleteIfExists(fs, new Path(destination), true);
         HadoopUtils.copyPath(fs, path, fs, new Path(destination), getConfiguration());
       }
