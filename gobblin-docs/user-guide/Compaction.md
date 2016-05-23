@@ -112,36 +112,15 @@ The Hive compactor can be used to merge a snapshot with one or multiple deltas. 
 2. Snapshot is pulled earlier than all deltas. Therefore if a key appears in both snapshot and deltas, the one in the snapshot should be discarded.
 3. The deltas are pulled one after another, and ordered in ascending order of pull time. If a key appears in both the ith delta and the jth delta (i < j), the one in the jth delta survives.
 
+The merged data will be written to the HDFS directory specified in `output.datalocation`, as one or more Avro files. The schema of the output data will be the same as the schema of the last delta (which is the last pulled data and thus has the latest schema).
+
 In the near future we also plan to support selecting records by timestamps (rather than which file they appear). This is useful if the snapshot and the deltas are pulled in parallel, where if a key has multiple occurrences we should keep the one with the latest timestamp.
 
 Note that since delta tables don't have information of deleted records, such information is only available the next time the full snapshot is pulled.
 
-## Usage
+## Basic Usage
 
-After building Gobblin (i.e., `./gradlew clean build`), a zipped file `build/gobblin-compaction/distributions/gobblin-compaction.tar.gz` should be created. It contains a jar file (`gobblin-compaction.jar`), a folder of dependencies (`gobblin-compaction_lib`), and a log4j config file (`log4j.xml`).
-
-To run compaction, extract it into a folder, go to that folder and run 
-
-`java -jar gobblin-compaction.jar <global-config-file>`
-
-If for whatever reason (e.g., your Hadoop cluster is in secure mode) you need to run the jar using Hadoop or Yarn, then you first need to make sure the correct log4j config file is used, since there is another log4j config file in the Hadoop classpath. To do so, run the following two commands:
-
-```
-export HADOOP_CLASSPATH=.
-export HADOOP_USER_CLASSPATH_FIRST=true
-```
-
-The first command adds the current directory to the Hadoop classpath, and the second command tells Hadoop/Yarn to prioritize user's classpath. Then you can run the compaction jar:
-
-`hadoop jar gobblin-compaction.jar <global-config-file>`
-
-or
-
-`yarn jar gobblin-compaction.jar <global-config-file>`
-
-The merged data will be written to the HDFS directory specified in `output.datalocation`, as one or more Avro files. The schema of the output data will be the same as the schema of the last delta (which is the last pulled data and thus has the latest schema).
-
-The provided log4j config file (`log4j.xml`) prints logs from Gobblin compaction classes to the console, and writes logs from other classes (e.g., Hive classes) to logs/gobblin-compaction.log. Note that for drop table queries (`DROP TABLE IF EXISTS <tablename>`), the Hive JDBC client will throw `NoSuchObjectException` if the table doesn't exist. This is normal and such exceptions should be ignored.
+A Hive Compactor job consists of one global configuration file which refers to one or more job configuration(s).  
 
 ### Global Config Properties (example: compaction.properties)
 
@@ -294,3 +273,26 @@ Number of reducers for the job.
 - _**timing.file**_ (default: time.txt)
 
 A file where the running time of each compaction job is printed.
+
+
+# Running a Compaction Job
+
+Both the MapReduce and Hive-based compaction configurations can be executed with `bin/gobblin-compaction.sh` .
+
+The usage is as follows:
+```
+gobblin-compaction.sh [OPTION] --type <compaction type: hive or mr> --conf <compaction configuration file>
+Where OPTION can be:
+  --projectversion <version>    Gobblin version to be used. If set, overrides the distribution build version
+  --logdir <log dir>            Gobblin's log directory: if not set, taken from ${GOBBLIN_LOG_DIR} if present. 
+  --help                        Display this help and exit
+```
+
+Example:
+```
+cd gobblin-dist
+bin/gobblin-compaction.sh --type hive --conf compaction.properties
+```
+
+The log4j configuration is read from `conf/log4j-compaction.xml`.
+Please note that in case of a Hive-compaction for drop table queries (`DROP TABLE IF EXISTS <tablename>`), the Hive JDBC client will throw `NoSuchObjectException` if the table doesn't exist. This is normal and such exceptions should be ignored.
