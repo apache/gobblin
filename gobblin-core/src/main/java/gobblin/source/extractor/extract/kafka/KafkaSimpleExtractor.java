@@ -12,22 +12,28 @@
 
 package gobblin.source.extractor.extract.kafka;
 
-import gobblin.configuration.WorkUnitState;
-
 import java.io.IOException;
 
 import kafka.message.MessageAndOffset;
 
+import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.kafka.KafkaSchemaRegistry;
+import gobblin.metrics.kafka.SchemaRegistryException;
 
 /**
  * An implementation of {@link KafkaExtractor} from which reads and returns records as an array of bytes.
  *
  * @author akshay@nerdwallet.com
+ *
+ * @deprecated use {@link KafkaDeserializerExtractor} and {@link KafkaDeserializerExtractor.Deserializers#BYTE_ARRAY} instead
  */
 public class KafkaSimpleExtractor extends KafkaExtractor<String, byte[]> {
 
+  private final KafkaSchemaRegistry<String, String> kafkaSchemaRegistry;
+
   public KafkaSimpleExtractor(WorkUnitState state) {
     super(state);
+    this.kafkaSchemaRegistry = new SimpleKafkaSchemaRegistry(state.getProperties());
   }
 
   @Override
@@ -43,6 +49,10 @@ public class KafkaSimpleExtractor extends KafkaExtractor<String, byte[]> {
    */
   @Override
   public String getSchema() throws IOException {
-    return this.topicName;
+    try {
+      return this.kafkaSchemaRegistry.getLatestSchemaByTopic(this.topicName);
+    } catch (SchemaRegistryException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
