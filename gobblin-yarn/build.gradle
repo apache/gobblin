@@ -85,6 +85,7 @@ artifacts {
 test {
   workingDir rootProject.rootDir
   maxParallelForks = 1
+  systemProperty 'log4j.configuration','gobblin-yarn-tests-log4j.properties'
 }
 
 clean {
