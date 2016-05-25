@@ -56,7 +56,7 @@ public class HiveAvroCopyEntityHelper {
           || (oldAvroSchemaPath.toUri().getScheme().equals(sourceFileSystemURI.getScheme())
           && oldAvroSchemaPath.toUri().getAuthority().equals(sourceFileSystemURI.getAuthority()))) {
 
-        String newAvroSchemaURL = hiveHelper.getTargetPath(oldAvroSchemaPath, hiveHelper.getTargetFileSystem(),
+        String newAvroSchemaURL = hiveHelper.getTargetPathHelper().getTargetPath(oldAvroSchemaPath, hiveHelper.getTargetFileSystem(),
             Optional.<Partition>absent(), true).toString();
 
         targetTable.getTTable().getSd().getSerdeInfo().getParameters().put(HIVE_TABLE_AVRO_SCHEMA_URL, newAvroSchemaURL);

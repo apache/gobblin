@@ -23,7 +23,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -45,9 +44,9 @@ import gobblin.metrics.event.MultiTimingEvent;
 public class HiveCopyEntityHelperTest {
 
   @Test public void testResolvePath() throws Exception {
-    Assert.assertEquals(HiveCopyEntityHelper.resolvePath("/data/$DB/$TABLE", "db", "table"), new Path("/data/db/table"));
-    Assert.assertEquals(HiveCopyEntityHelper.resolvePath("/data/$TABLE", "db", "table"), new Path("/data/table"));
-    Assert.assertEquals(HiveCopyEntityHelper.resolvePath("/data", "db", "table"), new Path("/data/table"));
+    Assert.assertEquals(HiveTargetPathHelper.resolvePath("/data/$DB/$TABLE", "db", "table"), new Path("/data/db/table"));
+    Assert.assertEquals(HiveTargetPathHelper.resolvePath("/data/$TABLE", "db", "table"), new Path("/data/table"));
+    Assert.assertEquals(HiveTargetPathHelper.resolvePath("/data", "db", "table"), new Path("/data/table"));
 
   }
 
@@ -107,10 +106,10 @@ public class HiveCopyEntityHelperTest {
 
     TestLocationDescriptor existingTargetLocation = new TestLocationDescriptor(Maps.newHashMap(targetDesiredMap));
 
-
     MultiTimingEvent timer = Mockito.mock(MultiTimingEvent.class);
     HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
-    Mockito.when(helper.getTargetPath(Mockito.any(Path.class), Mockito.any(FileSystem.class), Mockito.any(Optional.class), Mockito.anyBoolean())).then(
+    HiveTargetPathHelper targetPathHelper = Mockito.mock(HiveTargetPathHelper.class);
+    Mockito.when(targetPathHelper.getTargetPath(Mockito.any(Path.class), Mockito.any(FileSystem.class), Mockito.any(Optional.class), Mockito.anyBoolean())).then(
         new Answer<Path>() {
           @Override
           public Path answer(InvocationOnMock invocation)
@@ -119,6 +118,7 @@ public class HiveCopyEntityHelperTest {
             return new Path(path.toString().replace(sourceRoot.toString(), targetRoot.toString()));
           }
         });
+    Mockito.when(helper.getTargetPathHelper()).thenReturn(targetPathHelper);
 
     HiveCopyEntityHelper.DiffPathSet diff =
         HiveCopyEntityHelper.fullPathDiff(sourceLocation, targetDesiredLocation, Optional.<HiveLocationDescriptor>of(existingTargetLocation),
@@ -139,7 +139,7 @@ public class HiveCopyEntityHelperTest {
     Assert.assertTrue(diff.pathsToDelete.contains(targetPath5));
 
   }
-  
+
   @Test
   public void testAddTableDeregisterSteps() throws Exception {
     HiveDataset dataset = Mockito.mock(HiveDataset.class);
@@ -173,7 +173,7 @@ public class HiveCopyEntityHelperTest {
     Assert
         .assertTrue(p.getStep().toString().contains("Deregister table TestDB.TestTable on Hive metastore /targetURI"));
   }
-  
+
   @Test public void testReplacedPrefix() throws Exception {
     Path sourcePath = new Path("/data/databases/DB1/Table1/SS1/part1.avro");
     Path prefixTobeReplaced = new Path("/data/databases");
