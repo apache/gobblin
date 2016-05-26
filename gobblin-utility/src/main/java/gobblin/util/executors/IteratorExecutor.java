@@ -59,29 +59,30 @@ public class IteratorExecutor<T> {
    */
   public List<Future<T>> execute() throws InterruptedException {
 
-    if (this.executed) {
-      throw new RuntimeException(String.format("This %s has already been executed.", IteratorExecutor.class.getSimpleName()));
-    }
-
     List<Future<T>> futures = Lists.newArrayList();
-    int activeTasks = 0;
-    while (this.iterator.hasNext()) {
-      futures.add(this.completionService.submit(this.iterator.next()));
-      activeTasks++;
-      if (activeTasks == this.numThreads) {
+
+    try {
+      if (this.executed) {
+        throw new RuntimeException(String.format("This %s has already been executed.", IteratorExecutor.class.getSimpleName()));
+      }
+
+      int activeTasks = 0;
+      while (this.iterator.hasNext()) {
+        futures.add(this.completionService.submit(this.iterator.next()));
+        activeTasks++;
+        if (activeTasks == this.numThreads) {
+          this.completionService.take();
+          activeTasks--;
+        }
+      }
+      while (activeTasks > 0) {
         this.completionService.take();
         activeTasks--;
       }
+    } finally {
+      ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
+      this.executed = true;
     }
-    while (activeTasks > 0) {
-      this.completionService.take();
-      activeTasks--;
-    }
-
-    this.completionService.poll();
-
-    ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
-    this.executed = true;
 
     return futures;
   }

@@ -86,6 +86,15 @@ public class EventSubmitter {
   }
 
   /**
+   * Calls submit on submitter if present.
+   */
+  public static void submit(Optional<EventSubmitter> submitter, String name) {
+    if (submitter.isPresent()) {
+      submitter.get().submit(name);
+    }
+  }
+
+  /**
    * Submits the {@link gobblin.metrics.GobblinTrackingEvent} to the {@link gobblin.metrics.MetricContext}.
    * @param name Name of the event.
    * @param metadataEls List of keys and values for metadata of the form key1, value2, key2, value2, ...
@@ -103,6 +112,15 @@ public class EventSubmitter {
   }
 
   /**
+   * Calls submit on submitter if present.
+   */
+  public static void submit(Optional<EventSubmitter> submitter, String name, String... metadataEls) {
+    if (submitter.isPresent()) {
+      submitter.get().submit(name, metadataEls);
+    }
+  }
+
+  /**
    * Submits the {@link gobblin.metrics.GobblinTrackingEvent} to the {@link gobblin.metrics.MetricContext}.
    * @param name Name of the event.
    * @param additionalMetadata Additional metadata to be added to the event.
@@ -116,6 +134,15 @@ public class EventSubmitter {
 
       // Timestamp is set by metric context.
       this.metricContext.get().submitEvent(new GobblinTrackingEvent(0l, this.namespace, name, finalMetadata));
+    }
+  }
+
+  /**
+   * Calls submit on submitter if present.
+   */
+  public static void submit(Optional<EventSubmitter> submitter, String name, Map<String, String> additionalMetadata) {
+    if (submitter.isPresent()) {
+      submitter.get().submit(name, additionalMetadata);
     }
   }
 
