@@ -52,9 +52,12 @@ public class LocalJobLauncherTest {
   private Properties launcherProps;
   private JobLauncherTestHelper jobLauncherTestHelper;
   private ITestMetastoreDatabase testMetastoreDatabase;
+  private boolean debugModeEnabled;
 
   @BeforeClass
   public void startUp() throws Exception {
+    this.debugModeEnabled = Boolean.valueOf(System.getProperty(DEBUG_MODE_PROP_NAME, "false"));
+
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
     this.launcherProps = new Properties();
     this.launcherProps.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
@@ -213,32 +216,37 @@ public class LocalJobLauncherTest {
       testMetastoreDatabase.close();
     }
     Configuration hadoopConf = new Configuration();
-    removeStateDir(this.launcherProps,
-                   ConfigurationKeys.STATE_STORE_FS_URI_KEY,
-                   ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
-                   hadoopConf);
-    removeStateDir(this.launcherProps,
-                   ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
-                   ConfigurationKeys.WRITER_OUTPUT_DIR,
-                   hadoopConf);
-    removeStateDir(this.launcherProps,
-                   ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
-                   ConfigurationKeys.WRITER_STAGING_DIR,
-                   hadoopConf);
-    removeStateDir(this.launcherProps,
-                   ConfigurationKeys.DATA_PUBLISHER_FILE_SYSTEM_URI,
-                   ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR,
-                   hadoopConf);
-    removeStateDir(this.launcherProps,
-                   ConfigurationKeys.STATE_STORE_FS_URI_KEY,
-                   ConfigurationKeys.MR_JOB_ROOT_DIR_KEY,
-                   hadoopConf);
+//    removeStateDir(this.launcherProps,
+//                   ConfigurationKeys.STATE_STORE_FS_URI_KEY,
+//                   ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
+//                   hadoopConf,
+//                   this.debugModeEnabled);
+//    removeStateDir(this.launcherProps,
+//                   ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
+//                   ConfigurationKeys.WRITER_OUTPUT_DIR,
+//                   hadoopConf,
+//                   this.debugModeEnabled);
+//    removeStateDir(this.launcherProps,
+//                   ConfigurationKeys.WRITER_FILE_SYSTEM_URI,
+//                   ConfigurationKeys.WRITER_STAGING_DIR,
+//                   hadoopConf,
+//                   this.debugModeEnabled);
+//    removeStateDir(this.launcherProps,
+//                   ConfigurationKeys.DATA_PUBLISHER_FILE_SYSTEM_URI,
+//                   ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR,
+//                   hadoopConf,
+//                   this.debugModeEnabled);
+//    removeStateDir(this.launcherProps,
+//                   ConfigurationKeys.STATE_STORE_FS_URI_KEY,
+//                   ConfigurationKeys.MR_JOB_ROOT_DIR_KEY,
+//                   hadoopConf,
+//                   this.debugModeEnabled);
   }
 
   static void removeStateDir(Properties jobProps, String fsUriKey, String dirKey,
-                              Configuration hadoopConf)
+                             Configuration hadoopConf, boolean debugModeEnabled)
       throws IOException {
-    if (Boolean.valueOf(System.getProperty(DEBUG_MODE_PROP_NAME, "false"))) {
+    if (debugModeEnabled) {
       // Preserve directories for debugging purposes
       return;
     }
