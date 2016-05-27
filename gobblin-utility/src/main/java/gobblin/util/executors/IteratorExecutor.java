@@ -16,6 +16,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,11 +24,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -54,6 +60,13 @@ public class IteratorExecutor<T> {
 
   /**
    * Execute the tasks in the task {@link Iterator}. Blocks until all tasks are completed.
+   *
+   * <p>
+   *  Note: this method only guarantees tasks have finished, not that they have finished successfully. It is the caller's
+   *  responsibility to verify the returned futures are successful. Also see {@link #executeAndGetResults()} for different
+   *  semantics.
+   * </p>
+   *
    * @return a list of completed futures.
    * @throws InterruptedException
    */
@@ -85,6 +98,40 @@ public class IteratorExecutor<T> {
     }
 
     return futures;
+  }
+
+  /**
+   * Execute the tasks in the task {@link Iterator}. Blocks until all tasks are completed. Gets the results of each
+   * task, and for each task returns either its result or the thrown {@link ExecutionException}.
+   *
+   * @return a list containing for each task either its result or the {@link ExecutionException} thrown, in the same
+   *        order as the input {@link Iterator}.
+   * @throws InterruptedException
+   */
+  public List<Either<T, ExecutionException>> executeAndGetResults() throws InterruptedException {
+    List<Either<T, ExecutionException>> results = Lists.newArrayList();
+    List<Future<T>> futures = execute();
+    for (Future<T> future : futures) {
+      try {
+        results.add(Either.<T, ExecutionException>left(future.get()));
+      } catch (ExecutionException ee) {
+        results.add(Either.<T, ExecutionException>right(ee));
+      }
+    }
+    return results;
+  }
+
+  /**
+   * Utility method that checks whether all tasks succeeded from the output of {@link #executeAndGetResults()}.
+   * @return true if all tasks succeeded.
+   */
+  public static <T> boolean verifyAllSuccessful(List<Either<T, ExecutionException>> results) {
+    return Iterables.all(results, new Predicate<Either<T, ExecutionException>>() {
+      @Override
+      public boolean apply(@Nullable Either<T, ExecutionException> input) {
+        return input instanceof Either.Left;
+      }
+    });
   }
 
 }

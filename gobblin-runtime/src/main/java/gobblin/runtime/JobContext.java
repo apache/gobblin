@@ -15,9 +15,14 @@ package gobblin.runtime;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
+import javax.annotation.Nullable;
 import lombok.Getter;
 
 import org.apache.hadoop.conf.Configuration;
@@ -26,11 +31,13 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.io.Closer;
@@ -58,8 +65,11 @@ import gobblin.runtime.commit.FsCommitSequenceStore;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.source.Source;
 import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.util.Either;
+import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.JobLauncherUtils;
+import gobblin.util.executors.IteratorExecutor;
 
 
 /**
@@ -345,24 +355,46 @@ public class JobContext {
    */
   void commit() throws IOException {
     this.datasetStatesByUrns = Optional.of(this.jobState.createDatasetStatesByUrns());
-    boolean allDatasetsCommit = true;
-    boolean shouldCommitDataInJob = shouldCommitDataInJob(this.jobState);
-    DeliverySemantics deliverySemantics = DeliverySemantics.parse(this.jobState);
+    final boolean shouldCommitDataInJob = shouldCommitDataInJob(this.jobState);
+    final DeliverySemantics deliverySemantics = DeliverySemantics.parse(this.jobState);
+    int numCommitThreads = numCommitThreads(this.jobState);
 
     if (!shouldCommitDataInJob) {
       this.logger.info("Job will not commit data since data are committed by tasks.");
     }
 
-    for (Map.Entry<String, JobState.DatasetState> entry : this.datasetStatesByUrns.get().entrySet()) {
-      allDatasetsCommit &=
-          processDatasetCommit(shouldCommitDataInJob, deliverySemantics, entry.getKey(), entry.getValue());
+    try {
+      List<Either<Void, ExecutionException>> result =
+          new IteratorExecutor<>(Iterables.transform(this.datasetStatesByUrns.get().entrySet(),
+          new Function<Map.Entry<String, DatasetState>, Callable<Void>>() {
+            @Nullable
+            @Override
+            public Callable<Void> apply(@Nullable final Map.Entry<String, DatasetState> entry) {
+              return new Callable<Void>() {
+                @Override
+                public Void call()
+                    throws Exception {
+                  processDatasetCommit(shouldCommitDataInJob, deliverySemantics, entry.getKey(), entry.getValue());
+                  return null;
+                }
+              };
+            }
+          }).iterator(), numCommitThreads, ExecutorsUtils.newThreadFactory(Optional.of(this.logger), Optional.of("Commit-thread-%d")))
+          .executeAndGetResults();
+      if (!IteratorExecutor.verifyAllSuccessful(result)) {
+        this.jobState.setState(JobState.RunningState.FAILED);
+        throw new IOException("Failed to commit dataset state for some dataset(s) of job " + this.jobId);
+      }
+    } catch (InterruptedException exc) {
+      throw new IOException(exc);
     }
 
-    if (!allDatasetsCommit) {
-      this.jobState.setState(JobState.RunningState.FAILED);
-      throw new IOException("Failed to commit dataset state for some dataset(s) of job " + this.jobId);
-    }
     this.jobState.setState(JobState.RunningState.COMMITTED);
+  }
+
+  private int numCommitThreads(JobState jobState) {
+    return jobState.getPropAsBoolean(ConfigurationKeys.PARALLELIZE_DATASET_COMMIT,
+        ConfigurationKeys.DEFAULT_PARALLELIZE_DATASET_COMMIT) ? 20 : 1;
   }
 
   @SuppressWarnings("unchecked")
