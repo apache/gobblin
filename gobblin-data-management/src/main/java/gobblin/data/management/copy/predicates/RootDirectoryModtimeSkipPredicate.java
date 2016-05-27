@@ -56,7 +56,7 @@ public class RootDirectoryModtimeSkipPredicate implements Predicate<HiveCopyEnti
         return false;
       }
 
-      Path targetPath = this.helper.getTargetFileSystem().makeQualified(this.helper.getTargetPath(
+      Path targetPath = this.helper.getTargetFileSystem().makeQualified(this.helper.getTargetPathHelper().getTargetPath(
           input.getPartition().getDataLocation(), this.helper.getTargetFs(), Optional.of(input.getPartition()), false));
 
       Optional<FileStatus> targetFileStatus =
