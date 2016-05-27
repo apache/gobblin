@@ -51,6 +51,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
@@ -132,7 +133,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
       DatasetsFinder<CopyableDatasetBase> datasetFinder =
-          DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY);
+          DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
+              new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build());
 
       IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder = datasetFinder instanceof IterableDatasetFinder
           ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder : new IterableDatasetFinderImpl<>(datasetFinder);
@@ -170,7 +172,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       try {
         List<Future<Void>> futures = new IteratorExecutor<>(callableIterator,
             state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES),
-            ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("Dataset-cleaner-pool-%d"))).execute();
+            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Copy-file-listing-pool-%d"))).execute();
 
         for (Future<Void> future : futures) {
           try {

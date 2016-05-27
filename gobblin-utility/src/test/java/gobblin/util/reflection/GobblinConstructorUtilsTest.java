@@ -52,4 +52,26 @@ public class GobblinConstructorUtilsTest {
       this.str = str;
     }
   }
+
+  @Test
+  public void testLongestConstructor() throws Exception {
+
+    ConstructorTestClass obj =
+        GobblinConstructorUtils.invokeLongestConstructor(ConstructorTestClass.class, Integer.valueOf(1), "String1", "String2");
+    Assert.assertEquals(obj.id.intValue(), 1);
+    Assert.assertEquals(obj.str, "String1");
+
+    obj =
+        GobblinConstructorUtils.invokeLongestConstructor(ConstructorTestClass.class, Integer.valueOf(1), "String1");
+    Assert.assertEquals(obj.id.intValue(), 1);
+    Assert.assertEquals(obj.str, "String1");
+
+    try {
+      obj =
+          GobblinConstructorUtils.invokeLongestConstructor(ConstructorTestClass.class, Integer.valueOf(1));
+      Assert.fail();
+    } catch (NoSuchMethodException nsme) {
+      //expected to throw exception
+    }
+  }
 }

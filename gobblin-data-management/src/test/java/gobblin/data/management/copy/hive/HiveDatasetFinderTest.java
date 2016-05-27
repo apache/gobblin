@@ -54,6 +54,24 @@ public class HiveDatasetFinderTest {
   }
 
   @Test
+  public void testException() throws Exception {
+
+    List<HiveDatasetFinder.DbAndTable> dbAndTables = Lists.newArrayList();
+    dbAndTables.add(new HiveDatasetFinder.DbAndTable("db1", "table1"));
+    dbAndTables.add(new HiveDatasetFinder.DbAndTable("db1", TestHiveDatasetFinder.THROW_EXCEPTION));
+    dbAndTables.add(new HiveDatasetFinder.DbAndTable("db1", "table3"));
+    HiveMetastoreClientPool pool = getTestPool(dbAndTables);
+
+    Properties properties = new Properties();
+    properties.put(HiveDatasetFinder.HIVE_DATASET_PREFIX + "." + WhitelistBlacklist.WHITELIST, "");
+
+    HiveDatasetFinder finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    List<HiveDataset> datasets = Lists.newArrayList(finder.getDatasetsIterator());
+
+    Assert.assertEquals(datasets.size(), 2);
+  }
+
+  @Test
   public void testWhitelist() throws Exception {
 
     List<HiveDatasetFinder.DbAndTable> dbAndTables = Lists.newArrayList();
@@ -154,6 +172,8 @@ public class HiveDatasetFinderTest {
 
   private class TestHiveDatasetFinder extends HiveDatasetFinder {
 
+    public static final String THROW_EXCEPTION = "throw_exception";
+
     public TestHiveDatasetFinder(FileSystem fs, Properties properties, HiveMetastoreClientPool pool)
         throws IOException {
       super(fs, properties, pool);
@@ -162,6 +182,9 @@ public class HiveDatasetFinderTest {
     @Override
     protected HiveDataset createHiveDataset(Table table)
         throws IOException {
+      if (table.getTableName().equals(THROW_EXCEPTION)) {
+        throw new IOException("bad table");
+      }
       HiveDataset dataset = Mockito.mock(HiveDataset.class);
       Mockito.when(dataset.getTable()).thenReturn(new org.apache.hadoop.hive.ql.metadata.Table(table));
       return dataset;
