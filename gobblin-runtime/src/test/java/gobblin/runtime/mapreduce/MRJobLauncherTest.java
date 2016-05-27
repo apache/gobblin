@@ -44,7 +44,7 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * Unit test for {@link MRJobLauncher}.
  */
-@Test(groups = { "gobblin.runtime.mapreduce" })
+@Test(groups = { "gobblin.runtime.mapreduce" }, singleThreaded = true)
 public class MRJobLauncherTest extends BMNGRunner {
 
   private Properties launcherProps;
