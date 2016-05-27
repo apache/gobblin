@@ -97,6 +97,8 @@ public class ConfigurationKeys {
   public static final String DEFAULT_FORK_OPERATOR_CLASS = "gobblin.fork.IdentityForkOperator";
   public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
   public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
+  public static final String PARALLELIZE_DATASET_COMMIT = "job.commit.parallelize";
+  public static final boolean DEFAULT_PARALLELIZE_DATASET_COMMIT = true;
   public static final String WORK_UNIT_RETRY_POLICY_KEY = "workunit.retry.policy";
   public static final String WORK_UNIT_RETRY_ENABLED_KEY = "workunit.retry.enabled";
   public static final String JOB_RUN_ONCE_KEY = "job.runonce";
@@ -448,20 +450,20 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
   public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = Long.toString(TimeUnit.SECONDS.toMillis(30));
-  
-  // File-based reporting 
+
+  // File-based reporting
   public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
   public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
   public static final String METRICS_LOG_DIR_KEY = METRICS_CONFIGURATIONS_PREFIX + "log.dir";
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
   public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
-  
+
   // JMX-based reporting
   public static final String METRICS_REPORTING_JMX_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.jmx.enabled";
   public static final String DEFAULT_METRICS_REPORTING_JMX_ENABLED = Boolean.toString(false);
-  
+
   // Kafka-based reporting
   public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
@@ -481,49 +483,49 @@ public class ConfigurationKeys {
   // Topic used only for event reporting.
   public static final String METRICS_KAFKA_TOPIC_EVENTS =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
-  
+
   //Graphite-based reporting
-  public static final String METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY = 
+  public static final String METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.graphite.metrics.enabled";
   public static final String DEFAULT_METRICS_REPORTING_GRAPHITE_METRICS_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED_KEY = 
+  public static final String METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.graphite.events.enabled";
   public static final String DEFAULT_METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_GRAPHITE_HOSTNAME = 
+  public static final String METRICS_REPORTING_GRAPHITE_HOSTNAME =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.graphite.hostname";
-  public static final String METRICS_REPORTING_GRAPHITE_PORT = 
+  public static final String METRICS_REPORTING_GRAPHITE_PORT =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.graphite.port";
   public static final String DEFAULT_METRICS_REPORTING_GRAPHITE_PORT = "2003";
-  public static final String METRICS_REPORTING_GRAPHITE_EVENTS_PORT = 
+  public static final String METRICS_REPORTING_GRAPHITE_EVENTS_PORT =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.graphite.events.port";
-  public static final String METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY = 
+  public static final String METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.graphite.events.value.as.key";
   public static final String DEFAULT_METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY = Boolean.toString(false);
-  public static final String METRICS_REPORTING_GRAPHITE_SENDING_TYPE = 
+  public static final String METRICS_REPORTING_GRAPHITE_SENDING_TYPE =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.graphite.sending.type";
   public static final String DEFAULT_METRICS_REPORTING_GRAPHITE_SENDING_TYPE = "TCP";
-  
+
   //InfluxDB-based reporting
-  public static final String METRICS_REPORTING_INFLUXDB_METRICS_ENABLED_KEY = 
+  public static final String METRICS_REPORTING_INFLUXDB_METRICS_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.influxdb.metrics.enabled";
   public static final String DEFAULT_METRICS_REPORTING_INFLUXDB_METRICS_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED_KEY = 
+  public static final String METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.influxdb.events.enabled";
   public static final String DEFAULT_METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED = Boolean.toString(false);
-  public static final String METRICS_REPORTING_INFLUXDB_URL = 
+  public static final String METRICS_REPORTING_INFLUXDB_URL =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.influxdb.url";
-  public static final String METRICS_REPORTING_INFLUXDB_DATABASE = 
+  public static final String METRICS_REPORTING_INFLUXDB_DATABASE =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.influxdb.database";
-  public static final String METRICS_REPORTING_INFLUXDB_EVENTS_DATABASE = 
+  public static final String METRICS_REPORTING_INFLUXDB_EVENTS_DATABASE =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.influxdb.events.database";
-  public static final String METRICS_REPORTING_INFLUXDB_USER = 
+  public static final String METRICS_REPORTING_INFLUXDB_USER =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.influxdb.user";
-  public static final String METRICS_REPORTING_INFLUXDB_PASSWORD = 
+  public static final String METRICS_REPORTING_INFLUXDB_PASSWORD =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.influxdb.password";
-  public static final String METRICS_REPORTING_INFLUXDB_SENDING_TYPE = 
+  public static final String METRICS_REPORTING_INFLUXDB_SENDING_TYPE =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.influxdb.sending.type";
   public static final String DEFAULT_METRICS_REPORTING_INFLUXDB_SENDING_TYPE = "TCP";
-  
+
   //Custom-reporting
   public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
 
