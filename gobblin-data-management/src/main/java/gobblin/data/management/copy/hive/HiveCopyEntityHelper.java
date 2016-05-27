@@ -144,6 +144,12 @@ public class HiveCopyEntityHelper {
    * If the predicate returns true, the partition will be skipped. */
   public static final String FAST_PARTITION_SKIP_PREDICATE =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.fast.partition.skip.predicate";
+  
+  /** A predicate applied to non partition table before any file listing.
+   * If the predicate returns true, the table will be skipped. */
+  public static final String FAST_TABLE_SKIP_PREDICATE =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.fast.table.skip.predicate";
+  
   /** Method for deleting files on deregister. One of {@link DeregisterFileDeleteMethod}. */
   public static final String DELETE_FILES_ON_DEREGISTER =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.deregister.fileDeleteMethod";
@@ -194,7 +200,8 @@ public class HiveCopyEntityHelper {
   private final ExistingEntityPolicy existingEntityPolicy;
   private final Optional<String> partitionFilter;
   private final Optional<Predicate<PartitionCopy>> fastPartitionSkip;
-
+  private final Optional<Predicate<HiveCopyEntityHelper>> fastTableSkip;
+  
   private final DeregisterFileDeleteMethod deleteMethod;
 
   private final Optional<CommitStep> tableRegistrationStep;
@@ -314,6 +321,14 @@ public class HiveCopyEntityHelper {
                     .forName(this.dataset.getProperties().getProperty(FAST_PARTITION_SKIP_PREDICATE)),
                 Lists.<Object> newArrayList(this), Lists.newArrayList()))
             : Optional.<Predicate<PartitionCopy>> absent();
+
+        this.fastTableSkip = this.dataset.getProperties().containsKey(FAST_TABLE_SKIP_PREDICATE)
+            ? Optional.of(GobblinConstructorUtils.invokeFirstConstructor(
+                (Class<Predicate<HiveCopyEntityHelper>>) Class
+                    .forName(this.dataset.getProperties().getProperty(FAST_TABLE_SKIP_PREDICATE)),
+                Lists.newArrayList()))
+            : Optional.<Predicate<HiveCopyEntityHelper>> absent();
+
       } catch (ReflectiveOperationException roe) {
         closer.close();
         throw new IOException(roe);
@@ -707,8 +722,9 @@ public class HiveCopyEntityHelper {
       if (!this.targetTable.getDataLocation().equals(this.existingTargetTable.get().getDataLocation())) {
         if (this.existingEntityPolicy != ExistingEntityPolicy.REPLACE_TABLE) {
           log.error("Source and target table are not compatible. Aborting copy of table " + this.targetTable,
-              new HiveTableLocationNotMatchException(this.targetTable.getDataLocation(),
-                  this.existingTargetTable.get().getDataLocation()));
+              new HiveTableLocationNotMatchException(this.targetTable.getDataLocation(), this.existingTargetTable.get().getDataLocation()));
+          multiTimer.close();
+
           return Lists.newArrayList();
         }
 
@@ -720,18 +736,26 @@ public class HiveCopyEntityHelper {
     }
 
     stepPriority = addSharedSteps(copyEntities, fileSet, stepPriority);
-
     HiveLocationDescriptor sourceLocation =
         HiveLocationDescriptor.forTable(this.dataset.table, this.dataset.fs, this.dataset.getProperties());
     HiveLocationDescriptor desiredTargetLocation =
         HiveLocationDescriptor.forTable(this.targetTable, this.targetFs, this.dataset.getProperties());
+    
     Optional<HiveLocationDescriptor> existingTargetLocation = this.existingTargetTable.isPresent() ? Optional.of(
         HiveLocationDescriptor.forTable(this.existingTargetTable.get(), this.targetFs, this.dataset.getProperties()))
         : Optional.<HiveLocationDescriptor> absent();
 
+    if (this.fastTableSkip.isPresent() && fastTableSkip.get().apply(this)) {
+      log.info(String.format("Skipping copy of table %s due to fast table skip predicate.", this.dataset.table.getDbName()+"." + this.dataset.table.getTableName()));
+      multiTimer.close();
+      return Lists.newArrayList();
+    }
+    
     DiffPathSet diffPathSet = fullPathDiff(sourceLocation, desiredTargetLocation, existingTargetLocation,
         Optional.<Partition> absent(), multiTimer, this);
 
+    multiTimer.nextStage(Stages.FULL_PATH_DIFF);
+    
     // Could used to delete files for the existing snapshot
     DeleteFileCommitStep deleteStep =
         DeleteFileCommitStep.fromPaths(this.targetFs, diffPathSet.pathsToDelete, this.dataset.getProperties());
