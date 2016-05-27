@@ -77,7 +77,7 @@ public class WhitelistBlacklist {
    * @return Whether the input table is accepted by this {@link WhitelistBlacklist}.
    */
   public boolean acceptTable(String db, String table) {
-    return accept(db.toLowerCase(), table==null? Optional.fromNullable(table): Optional.fromNullable(table.toLowerCase()));
+    return accept(db.toLowerCase(), table==null? Optional.<String> absent(): Optional.fromNullable(table.toLowerCase()));
   }
 
   private boolean accept(String db, Optional<String> table) {
