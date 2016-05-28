@@ -68,12 +68,6 @@ configurations {
     tests
 }
 
-configurations {
-    compile {
-        transitive = false
-    }
-}
-
 artifacts {
     tests testJar
 }

@@ -438,7 +438,15 @@ subprojects {
       useTestNG () {
         excludeGroups 'ignore', 'performance'
         if (project.hasProperty('skipTestGroup')) {
+          print "Skipping test groups " + skipTestGroup
           excludeGroups skipTestGroup
+        }
+        if (! project.hasProperty('runTestGroups')) {
+           project.ext.runTestGroups = System.getenv("GOBBLIN_RUN_TEST_GROUPS")
+        }
+        if (null != runTestGroups && runTestGroups.length() > 0) {
+          print "Running only test groups " + runTestGroups
+          includeGroups runTestGroups
         }
       }
     }
