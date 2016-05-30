@@ -182,8 +182,10 @@ public class Guid {
     return Hex.encodeHexString(this.sha);
   }
 
+  // DigestUtils.sha is deprecated for sha1, but sha1 is not available in old versions of commons codec
+  @SuppressWarnings("deprecation")
   private static byte[] computeGuid(byte[] bytes) {
-    return DigestUtils.sha1(bytes);
+    return DigestUtils.sha(bytes);
   }
 
   static class SimpleHasGuid implements HasGuid {

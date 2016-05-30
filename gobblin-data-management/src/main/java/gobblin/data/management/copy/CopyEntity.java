@@ -137,8 +137,9 @@ public class CopyEntity implements HasGuid {
     /**
      * @return a unique string identifier for this {@link DatasetAndPartition}.
      */
+    @SuppressWarnings("deprecation")
     public String identifier() {
-      return Hex.encodeHexString(DigestUtils.sha1(this.dataset.toString() + this.partition));
+      return Hex.encodeHexString(DigestUtils.sha(this.dataset.toString() + this.partition));
     }
   }
 }
