@@ -107,12 +107,12 @@ public class HiveCopyEntityHelper {
    * If the predicate returns true, the partition will be skipped. */
   public static final String FAST_PARTITION_SKIP_PREDICATE =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.fast.partition.skip.predicate";
-  
+
   /** A predicate applied to non partition table before any file listing.
    * If the predicate returns true, the table will be skipped. */
   public static final String FAST_TABLE_SKIP_PREDICATE =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.fast.table.skip.predicate";
-  
+
   /** Method for deleting files on deregister. One of {@link DeregisterFileDeleteMethod}. */
   public static final String DELETE_FILES_ON_DEREGISTER =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.deregister.fileDeleteMethod";
@@ -157,7 +157,7 @@ public class HiveCopyEntityHelper {
   private final Optional<String> partitionFilter;
   private final Optional<Predicate<PartitionCopy>> fastPartitionSkip;
   private final Optional<Predicate<HiveCopyEntityHelper>> fastTableSkip;
-  
+
   private final DeregisterFileDeleteMethod deleteMethod;
 
   private final Optional<CommitStep> tableRegistrationStep;
@@ -226,6 +226,7 @@ public class HiveCopyEntityHelper {
       this.configuration = configuration;
       this.targetFs = targetFs;
 
+      this.targetPathHelper = new HiveTargetPathHelper(this.dataset);
       this.hiveRegProps = new HiveRegProps(new State(this.dataset.getProperties()));
       this.targetURI = Optional.fromNullable(this.dataset.getProperties().getProperty(TARGET_METASTORE_URI_KEY));
       this.targetClientPool = HiveMetastoreClientPool.get(this.dataset.getProperties(), this.targetURI);
@@ -305,15 +306,16 @@ public class HiveCopyEntityHelper {
         if (HiveUtils.isPartitioned(this.dataset.table)) {
           this.sourcePartitions = HiveUtils.getPartitionsMap(multiClient.getClient(source_client), this.dataset.table,
               this.partitionFilter);
+          // Note: this must be mutable, so we copy the map
           this.targetPartitions =
-              this.existingTargetTable.isPresent() ? HiveUtils.getPartitionsMap(multiClient.getClient(target_client),
-                  this.existingTargetTable.get(), this.partitionFilter) : Maps.<List<String>, Partition> newHashMap();
+              this.existingTargetTable.isPresent() ? Maps.newHashMap(
+                  HiveUtils.getPartitionsMap(multiClient.getClient(target_client),
+                      this.existingTargetTable.get(), this.partitionFilter)) : Maps.<List<String>, Partition> newHashMap();
         } else {
           this.sourcePartitions = Maps.newHashMap();
           this.targetPartitions = Maps.newHashMap();
         }
 
-        this.targetPathHelper = new HiveTargetPathHelper(this.dataset);
       } catch (TException te) {
         closer.close();
         throw new IOException("Failed to generate work units for table " + dataset.table.getCompleteName(), te);
@@ -653,7 +655,7 @@ public class HiveCopyEntityHelper {
         HiveLocationDescriptor.forTable(this.dataset.table, this.dataset.fs, this.dataset.getProperties());
     HiveLocationDescriptor desiredTargetLocation =
         HiveLocationDescriptor.forTable(this.targetTable, this.targetFs, this.dataset.getProperties());
-    
+
     Optional<HiveLocationDescriptor> existingTargetLocation = this.existingTargetTable.isPresent() ? Optional.of(
         HiveLocationDescriptor.forTable(this.existingTargetTable.get(), this.targetFs, this.dataset.getProperties()))
         : Optional.<HiveLocationDescriptor> absent();
@@ -663,12 +665,12 @@ public class HiveCopyEntityHelper {
       multiTimer.close();
       return Lists.newArrayList();
     }
-    
+
     DiffPathSet diffPathSet = fullPathDiff(sourceLocation, desiredTargetLocation, existingTargetLocation,
         Optional.<Partition> absent(), multiTimer, this);
 
     multiTimer.nextStage(Stages.FULL_PATH_DIFF);
-    
+
     // Could used to delete files for the existing snapshot
     DeleteFileCommitStep deleteStep =
         DeleteFileCommitStep.fromPaths(this.targetFs, diffPathSet.pathsToDelete, this.dataset.getProperties());
