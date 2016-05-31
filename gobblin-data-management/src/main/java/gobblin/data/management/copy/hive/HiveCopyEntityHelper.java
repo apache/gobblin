@@ -172,6 +172,8 @@ public class HiveCopyEntityHelper {
    * Defines what should be done for partitions that exist in the target but are not compatible with the source.
    */
   public enum ExistingEntityPolicy {
+    /** Deregister both tables and partitions. */
+    REPLACE_TABLES_AND_PARTITIONS,
     /** Deregister target partition, delete its files, and create a new partition with correct values. */
     REPLACE_PARTITIONS,
     /** Deregister target table, do NOT delete its files, and create a new table with correct values. */
@@ -487,7 +489,8 @@ public class HiveCopyEntityHelper {
           try {
             checkPartitionCompatibility(targetPartition, this.existingTargetPartition.get());
           } catch (IOException ioe) {
-            if (HiveCopyEntityHelper.this.existingEntityPolicy != ExistingEntityPolicy.REPLACE_PARTITIONS) {
+            if (HiveCopyEntityHelper.this.existingEntityPolicy != ExistingEntityPolicy.REPLACE_PARTITIONS &&
+                HiveCopyEntityHelper.this.existingEntityPolicy != ExistingEntityPolicy.REPLACE_TABLES_AND_PARTITIONS) {
               log.error("Source and target partitions are not compatible. Aborting copy of partition " + this.partition,
                   ioe);
               return Lists.newArrayList();
@@ -635,7 +638,8 @@ public class HiveCopyEntityHelper {
 
     if (this.existingTargetTable.isPresent()) {
       if (!this.targetTable.getDataLocation().equals(this.existingTargetTable.get().getDataLocation())) {
-        if (this.existingEntityPolicy != ExistingEntityPolicy.REPLACE_TABLE) {
+        if (this.existingEntityPolicy != ExistingEntityPolicy.REPLACE_TABLE &&
+            this.existingEntityPolicy != ExistingEntityPolicy.REPLACE_TABLES_AND_PARTITIONS) {
           log.error("Source and target table are not compatible. Aborting copy of table " + this.targetTable,
               new HiveTableLocationNotMatchException(this.targetTable.getDataLocation(), this.existingTargetTable.get().getDataLocation()));
           multiTimer.close();
