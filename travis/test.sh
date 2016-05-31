@@ -18,4 +18,4 @@
 #!/bin/bash
 set -e
 
-./gradlew test jacocoFullReport -PskipTestGroup=disabledOnTravis -Dorg.gradle.parallel=false
+./gradlew compileTest && ./gradlew test jacocoFullReport -PskipTestGroup=disabledOnTravis -Dorg.gradle.parallel=false
