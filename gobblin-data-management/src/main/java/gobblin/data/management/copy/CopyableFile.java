@@ -280,7 +280,7 @@ public class CopyableFile extends CopyEntity implements File {
    * @return A list of the computed {@link OwnerAndPermission}s starting from fromPath, up to but excluding toPath.
    * @throws IOException if toPath is not an ancestor of fromPath.
    */
-  public static List<OwnerAndPermission> resolveReplicatedOwnerAndPermissionsRecursively(FileSystem fs, Path fromPath,
+  public static List<OwnerAndPermission> resolveReplicatedOwnerAndPermissionsRecursively(FileSystem sourceFs, Path fromPath,
       Path toPath, CopyConfiguration copyConfiguration) throws IOException {
 
     if (!PathUtils.isAncestor(toPath, fromPath)) {
@@ -291,7 +291,7 @@ public class CopyableFile extends CopyEntity implements File {
     Path currentPath = fromPath;
 
     while (PathUtils.isAncestor(toPath, currentPath.getParent())) {
-      ownerAndPermissions.add(resolveReplicatedOwnerAndPermission(fs, currentPath, copyConfiguration));
+      ownerAndPermissions.add(resolveReplicatedOwnerAndPermission(sourceFs, currentPath, copyConfiguration));
       currentPath = currentPath.getParent();
     }
 

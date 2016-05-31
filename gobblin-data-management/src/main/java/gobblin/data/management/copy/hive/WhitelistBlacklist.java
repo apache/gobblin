@@ -54,16 +54,16 @@ public class WhitelistBlacklist {
   private final SetMultimap<Pattern, Pattern> blacklistMultimap;
 
   public WhitelistBlacklist(Config config) throws IOException {
-    this(config.hasPath(WHITELIST) ? config.getString(WHITELIST) : "",
-        config.hasPath(BLACKLIST) ? config.getString(BLACKLIST) : "");
+    this(config.hasPath(WHITELIST) ? config.getString(WHITELIST).toLowerCase() : "",
+        config.hasPath(BLACKLIST) ? config.getString(BLACKLIST).toLowerCase() : "");
   }
 
   public WhitelistBlacklist(String whitelist, String blacklist) throws IOException {
     this.whitelistMultimap = HashMultimap.create();
     this.blacklistMultimap = HashMultimap.create();
 
-    populateMultimap(this.whitelistMultimap, whitelist);
-    populateMultimap(this.blacklistMultimap, blacklist);
+    populateMultimap(this.whitelistMultimap, whitelist.toLowerCase());
+    populateMultimap(this.blacklistMultimap, blacklist.toLowerCase());
   }
 
   /**
@@ -77,7 +77,7 @@ public class WhitelistBlacklist {
    * @return Whether the input table is accepted by this {@link WhitelistBlacklist}.
    */
   public boolean acceptTable(String db, String table) {
-    return accept(db, Optional.fromNullable(table));
+    return accept(db.toLowerCase(), table==null? Optional.<String> absent(): Optional.fromNullable(table.toLowerCase()));
   }
 
   private boolean accept(String db, Optional<String> table) {
