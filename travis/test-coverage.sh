@@ -23,4 +23,4 @@ script_dir=$(dirname $0)
 source ${script_dir}/test-groups.inc
 
 echo "Starting $0 at " $(date)
-time ./gradlew test -PskipTestGroup=disabledOnTravis -PrunTestGroups=$TEST_GROUP1 -Dorg.gradle.parallel=false
+time ./gradlew jacocoFullReport -PskipTestGroup=disabledOnTravis -Dorg.gradle.parallel=false

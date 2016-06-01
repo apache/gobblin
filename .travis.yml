@@ -20,17 +20,22 @@ before_install:
   - "sh -e /etc/init.d/xvfb start"
   - sleep 3 # give xvfb some time to start
 
-install: ./travis/build.sh
-
 script: ./travis/test.sh
 
 after_success: ./gradlew coveralls
 after_failure: ./travis/junit-errors-to-stdout.sh
 
 env:
+  - RUN_TEST_GROUP=build
   - RUN_TEST_GROUP=default
   - RUN_TEST_GROUP=group1
+  - RUN_TEST_GROUP=coverage
 
 jdk:
   - oraclejdk8
   - oraclejdk7
+
+matrix:
+  exclude:
+    - jdk: oraclejdk7
+    - env: RUN_TEST_GROUP=coverage
