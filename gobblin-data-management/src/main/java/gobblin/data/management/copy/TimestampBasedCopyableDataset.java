@@ -35,7 +35,7 @@ import org.joda.time.DateTime;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.policy.TimeBasedSelectionPolicy;
+import gobblin.data.management.policy.SelectAfterTimeBasedPolicy;
 import gobblin.data.management.policy.VersionSelectionPolicy;
 import gobblin.data.management.version.TimestampedDatasetVersion;
 import gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
@@ -74,7 +74,7 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
   public static final String DEFAULT_DATASET_VERSION_FINDER = DateTimeDatasetVersionFinder.class.getName();
 
   public static final String COPY_POLICY = "timestamp.based.copyable.dataset.copy.policy";
-  public static final String DEFAULT_COPY_POLICY = TimeBasedSelectionPolicy.class.getName();
+  public static final String DEFAULT_COPY_POLICY = SelectAfterTimeBasedPolicy.class.getName();
 
   public static final String THREADPOOL_SIZE_TO_GET_COPYABLE_FILES = "threadpool.size.to.get.copyable.files";
   public static final String DEFAULT_THREADPOOL_SIZE_TO_GET_COPYABLE_FILES = "20";
