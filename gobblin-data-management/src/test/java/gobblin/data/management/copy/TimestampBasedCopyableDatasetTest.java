@@ -49,13 +49,14 @@ import gobblin.dataset.Dataset;
 /**
  * Test for {@link TimestampBasedCopyableDataset}.
  */
-@Test(groups = { "gobblin.data.management.copy" })
+@Test(groups = {"gobblin.data.management.copy"})
 public class TimestampBasedCopyableDatasetTest {
 
   private FileSystem localFs;
 
   @BeforeTest
-  public void before() throws IOException {
+  public void before()
+      throws IOException {
     this.localFs = FileSystem.getLocal(new Configuration());
   }
 
@@ -89,7 +90,8 @@ public class TimestampBasedCopyableDatasetTest {
    * Test {@link TimestampBasedCopyableDataset.CopyableFileGenerator}'s logic to determine copyable files.
    */
   @Test
-  public void testIsCopyableFile() throws IOException, InterruptedException {
+  public void testIsCopyableFile()
+      throws IOException, InterruptedException {
     Path testRoot = new Path("testCopyableFileGenerator");
     Path srcRoot = new Path(testRoot, "datasetRoot");
     String versionDir = "dummyversion";
@@ -116,19 +118,19 @@ public class TimestampBasedCopyableDatasetTest {
       public SimpleCopyableFileGenerator(TimestampBasedCopyableDataset copyableDataset, FileSystem srcFs,
           FileSystem targetFs, CopyConfiguration configuration, TimestampedDatasetVersion copyableVersion,
           ConcurrentLinkedQueue<CopyableFile> copyableFileList) {
-        copyableDataset.super(srcFs, targetFs, configuration, copyableDataset.datasetRoot(), configuration
-            .getPublishDir(), copyableVersion.getDateTime(), copyableVersion.getPaths(), copyableFileList,
+        super(srcFs, targetFs, configuration, copyableDataset.datasetRoot(), configuration.getPublishDir(),
+            copyableVersion.getDateTime(), copyableVersion.getPaths(), copyableFileList,
             copyableDataset.copyableFileFilter());
       }
 
       @Override
       protected CopyableFile generateCopyableFile(FileStatus singleFile, Path targetPath, long timestampFromPath,
-          Path locationToCopy) throws IOException {
+          Path locationToCopy)
+          throws IOException {
         CopyableFile mockCopyableFile = mock(CopyableFile.class);
         when(mockCopyableFile.getFileSet()).thenReturn(singleFile.getPath().toString());
         return mockCopyableFile;
       }
-
     }
 
     // When srcFile exists on src but not on target, srcFile should be included in the copyableFileList.
@@ -167,8 +169,8 @@ public class TimestampBasedCopyableDatasetTest {
 
   /**
    * Test {@link TimestampBasedCopyableDataset.CopyableFileGenerator} when src location is empty and also when it is null.
-  */
-  @Test(expectedExceptions = NullPointerException.class)
+   */
+  @Test(expectedExceptions = RuntimeException.class)
   public void testCopyableFileGenerator() {
     Properties props = new Properties();
     props.put(TimestampBasedCopyableDataset.COPY_POLICY, TimeBasedCopyPolicyForTest.class.getName());
@@ -197,7 +199,8 @@ public class TimestampBasedCopyableDatasetTest {
    * Test the parallel execution to get copyable files in {@link TimestampBasedCopyableDataset#getCopyableFiles(FileSystem, CopyConfiguration)}.
    */
   @Test
-  public void testGetCopyableFiles() throws IOException {
+  public void testGetCopyableFiles()
+      throws IOException {
     Properties props = new Properties();
     props.put(TimestampBasedCopyableDataset.COPY_POLICY, TimeBasedCopyPolicyForTest.class.getName());
     props.put(TimestampBasedCopyableDataset.DATASET_VERSION_FINDER,
@@ -222,7 +225,8 @@ public class TimestampBasedCopyableDatasetTest {
 
   public static class TimestampBasedCopyableDatasetForTest extends TimestampBasedCopyableDataset {
 
-    public TimestampBasedCopyableDatasetForTest(FileSystem fs, Properties props, Path datasetRoot) throws IOException {
+    public TimestampBasedCopyableDatasetForTest(FileSystem fs, Properties props, Path datasetRoot)
+        throws IOException {
       super(fs, props, datasetRoot);
     }
 
@@ -262,9 +266,7 @@ public class TimestampBasedCopyableDatasetTest {
         copyableFileList.add(mockCopyableFile1);
         copyableFileList.add(mockCopyableFile2);
       }
-
     }
-
   }
 
   public static class TimeBasedCopyPolicyForTest implements VersionSelectionPolicy<TimestampedDatasetVersion> {
@@ -281,7 +283,6 @@ public class TimestampBasedCopyableDatasetTest {
     public Collection<TimestampedDatasetVersion> listSelectedVersions(List<TimestampedDatasetVersion> allVersions) {
       return allVersions;
     }
-
   }
 
   public static class TimestampedDatasetVersionFinderForTest implements VersionFinder<TimestampedDatasetVersion> {
@@ -299,7 +300,8 @@ public class TimestampBasedCopyableDatasetTest {
     }
 
     @Override
-    public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset) throws IOException {
+    public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset)
+        throws IOException {
       Random ran = new Random();
       Path dummyPath = new Path("dummy");
       DateTime dt1 = start.plusDays(ran.nextInt(range));
@@ -329,7 +331,8 @@ public class TimestampBasedCopyableDatasetTest {
     }
 
     @Override
-    public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset) throws IOException {
+    public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset)
+        throws IOException {
       return Lists.newArrayList();
     }
   }
