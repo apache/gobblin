@@ -55,8 +55,7 @@ import lombok.extern.slf4j.Slf4j;
  * {@link #versionSelectionPolicy} to select the dataset versions for copying. {@link #datasetVersionFinder} is pluggable
  * and must implement the interface {@link VersionSelectionPolicy<TimestampedDatasetVersion>}.
  *
- * The default logic ({@link #isCopyableFile(Path, FileSystem, FileSystem)}) for determining if a file is
- * {@link CopyableFile} is based on the file existence and modified_timestamp at source and target {@link
+ * The default logic for determining if a file is {@link CopyableFile} is based on the file existence and modified_timestamp at source and target {@link
  * FileSystem}s.
  */
 @Slf4j
@@ -157,7 +156,7 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
   }
 
   @AllArgsConstructor
-  protected class CopyableFileGenerator implements Runnable {
+  protected static class CopyableFileGenerator implements Runnable {
     private final FileSystem srcFs;
     private final FileSystem targetFs;
     private final CopyConfiguration configuration;
