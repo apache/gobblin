@@ -34,6 +34,7 @@ public class TimeBasedSelectionPolicyTest {
     DateTime dt1 = new DateTime().minusDays(7);
     DateTime dt2 = new DateTime().minusDays(6);
 
+    props.put(SelectAfterTimeBasedPolicy.TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY, "7d");
     SelectAfterTimeBasedPolicy copyPolicyLookback7Days = new SelectAfterTimeBasedPolicy(props);
     TimestampedDatasetVersion version1 = new TimestampedDatasetVersion(dt1, dummyPath);
     TimestampedDatasetVersion version2 = new TimestampedDatasetVersion(dt2, dummyPath);
