@@ -51,6 +51,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.AbstractSource;
@@ -126,14 +127,14 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       // TODO: The comparator sets the priority of file sets. Currently, all file sets have the same priority, this needs to
       // be pluggable.
-      final ConcurrentBoundedWorkUnitList workUnitList = ConcurrentBoundedWorkUnitList.builder().
-          maxSize(state.getPropAsInt(MAX_FILES_COPIED_KEY, DEFAULT_MAX_FILES_COPIED)).
-          strictLimitMultiplier(2).build();
+      final ConcurrentBoundedWorkUnitList workUnitList = ConcurrentBoundedWorkUnitList.builder()
+          .maxSize(state.getPropAsInt(MAX_FILES_COPIED_KEY, DEFAULT_MAX_FILES_COPIED)).strictLimitMultiplier(2).build();
 
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
       DatasetsFinder<CopyableDatasetBase> datasetFinder =
-          DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY);
+          DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
+              new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build());
 
       IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder = datasetFinder instanceof IterableDatasetFinder
           ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder : new IterableDatasetFinderImpl<>(datasetFinder);
@@ -171,7 +172,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       try {
         List<Future<Void>> futures = new IteratorExecutor<>(callableIterator,
             state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES),
-            ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("Dataset-cleaner-pool-%d"))).execute();
+            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Copy-file-listing-pool-%d"))).execute();
 
         for (Future<Void> future : futures) {
           try {
@@ -206,8 +207,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       List<WorkUnit> flatWorkUnits = workUnitList.getWorkUnits();
       List<? extends WorkUnit> workUnits =
           new WorstFitDecreasingBinPacking(maxSizePerBin).pack(flatWorkUnits, this.weighter);
-      log.info(String.format("Bin packed work units. Initial work units: %d, packed work units: %d, max weight per bin: %d, "
-          + "max work units per bin: %d.", flatWorkUnits.size(), workUnits.size(), maxSizePerBin, maxWorkUnitsPerMultiWorkUnit));
+      log.info(String.format(
+          "Bin packed work units. Initial work units: %d, packed work units: %d, max weight per bin: %d, "
+              + "max work units per bin: %d.",
+          flatWorkUnits.size(), workUnits.size(), maxSizePerBin, maxWorkUnitsPerMultiWorkUnit));
       return Lists.newArrayList(workUnits);
 
     } catch (IOException e) {
@@ -318,7 +321,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
   }
 
-  private void setWorkUnitWeight(WorkUnit workUnit, CopyEntity copyEntity, long minWeight) {
+  private static void setWorkUnitWeight(WorkUnit workUnit, CopyEntity copyEntity, long minWeight) {
     long weight = 0;
     if (copyEntity instanceof CopyableFile) {
       weight = ((CopyableFile) copyEntity).getOrigin().getLen();
@@ -374,21 +377,21 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   /**
    * Deserialize a {@link List} of {@link CopyEntity}s from a {@link State} at {@link #SERIALIZED_COPYABLE_FILE}
    */
-  public static CopyEntity deserializeCopyEntity(State state) throws IOException {
+  public static CopyEntity deserializeCopyEntity(State state) {
     return CopyEntity.deserialize(state.getProp(SERIALIZED_COPYABLE_FILE));
   }
 
   /**
    * Serialize a {@link CopyableDataset} into a {@link State} at {@link #SERIALIZED_COPYABLE_DATASET}
    */
-  public static void serializeCopyableDataset(State state, CopyableDatasetMetadata copyableDataset) throws IOException {
+  public static void serializeCopyableDataset(State state, CopyableDatasetMetadata copyableDataset) {
     state.setProp(SERIALIZED_COPYABLE_DATASET, copyableDataset.serialize());
   }
 
   /**
    * Deserialize a {@link CopyableDataset} from a {@link State} at {@link #SERIALIZED_COPYABLE_DATASET}
    */
-  public static CopyableDatasetMetadata deserializeCopyableDataset(State state) throws IOException {
+  public static CopyableDatasetMetadata deserializeCopyableDataset(State state) {
     return CopyableDatasetMetadata.deserialize(state.getProp(SERIALIZED_COPYABLE_DATASET));
   }
 

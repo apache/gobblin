@@ -37,7 +37,7 @@ public class SelectBeforeTimeBasedPolicy extends AbstractTimeBasedSelectionPolic
     return new Predicate<TimestampedDatasetVersion>() {
       @Override
       public boolean apply(TimestampedDatasetVersion version) {
-        return version.getDateTime().plus(lookBackPeriod).isBeforeNow();
+        return version.getDateTime().plus(SelectBeforeTimeBasedPolicy.this.lookBackPeriod).isBeforeNow();
       }
     };
   }

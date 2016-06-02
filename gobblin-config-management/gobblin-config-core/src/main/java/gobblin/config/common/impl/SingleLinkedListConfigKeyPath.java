@@ -45,9 +45,9 @@ public class SingleLinkedListConfigKeyPath implements ConfigKeyPath {
   @Override
   public ConfigKeyPath createChild(String childPathName) {
     if (childPathName == null || childPathName.length() == 0 || childPathName.indexOf(PATH_DELIMETER) >= 0) {
-      throw new IllegalArgumentException(String
-          .format("Name \"%s\" can not be null/empty string and can not contains the delimiter \"%s\"", childPathName,
-              PATH_DELIMETER));
+      throw new IllegalArgumentException(
+          String.format("Name \"%s\" can not be null/empty string and can not contains the delimiter \"%s\"",
+              childPathName, PATH_DELIMETER));
     }
     return new SingleLinkedListConfigKeyPath(this, childPathName);
   }
@@ -79,8 +79,8 @@ public class SingleLinkedListConfigKeyPath implements ConfigKeyPath {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((ownName == null) ? 0 : ownName.hashCode());
-    result = prime * result + ((parent == null) ? 0 : parent.hashCode());
+    result = prime * result + ((this.ownName == null) ? 0 : this.ownName.hashCode());
+    result = prime * result + ((this.parent == null) ? 0 : this.parent.hashCode());
     return result;
   }
 
@@ -93,15 +93,15 @@ public class SingleLinkedListConfigKeyPath implements ConfigKeyPath {
     if (getClass() != obj.getClass())
       return false;
     SingleLinkedListConfigKeyPath other = (SingleLinkedListConfigKeyPath) obj;
-    if (ownName == null) {
+    if (this.ownName == null) {
       if (other.ownName != null)
         return false;
-    } else if (!ownName.equals(other.ownName))
+    } else if (!this.ownName.equals(other.ownName))
       return false;
-    if (parent == null) {
+    if (this.parent == null) {
       if (other.parent != null)
         return false;
-    } else if (!parent.equals(other.parent))
+    } else if (!this.parent.equals(other.parent))
       return false;
     return true;
   }

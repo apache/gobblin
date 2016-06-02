@@ -30,15 +30,13 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.WorkUnit;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -46,13 +44,12 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author nveeramr
  */
+@Slf4j
 public class MysqlExtractor extends JdbcExtractor {
   private static final String MYSQL_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss";
   private static final String MYSQL_DATE_FORMAT = "yyyy-MM-dd";
   private static final String MYSQL_HOUR_FORMAT = "HH";
   private static final long SAMPLERECORDCOUNT = -1;
-
-  private Logger log = LoggerFactory.getLogger(MysqlExtractor.class);
 
   public MysqlExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
@@ -60,28 +57,28 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.debug("Getting hour predicate for Mysql");
+    log.debug("Getting hour predicate for Mysql");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_HOUR_FORMAT);
     return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.debug("Getting date predicate for Mysql");
+    log.debug("Getting date predicate for Mysql");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_DATE_FORMAT);
     return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.debug("Getting timestamp predicate for Mysql");
+    log.debug("Getting timestamp predicate for Mysql");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_TIMESTAMP_FORMAT);
     return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
-    this.log.debug("Build query to get schema");
+    log.debug("Build query to get schema");
     List<Command> commands = new ArrayList<>();
     List<String> queryParams = Arrays.asList(entity, schema);
 
@@ -103,7 +100,7 @@ public class MysqlExtractor extends JdbcExtractor {
   @Override
   public List<Command> getHighWatermarkMetadata(String schema, String entity, String watermarkColumn,
       List<Predicate> predicateList) throws HighWatermarkException {
-    this.log.debug("Build query to get high watermark");
+    log.debug("Build query to get high watermark");
     List<Command> commands = new ArrayList<>();
 
     String columnProjection = "max(" + Utils.getCoalesceColumnNames(watermarkColumn) + ")";
@@ -123,7 +120,7 @@ public class MysqlExtractor extends JdbcExtractor {
   @Override
   public List<Command> getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws RecordCountException {
-    this.log.debug("Build query to get source record count");
+    log.debug("Build query to get source record count");
     List<Command> commands = new ArrayList<>();
 
     String columnProjection = "COUNT(1)";
@@ -148,7 +145,7 @@ public class MysqlExtractor extends JdbcExtractor {
   @Override
   public List<Command> getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws DataRecordException {
-    this.log.debug("Build query to extract data");
+    log.debug("Build query to extract data");
     List<Command> commands = new ArrayList<>();
     int fetchsize = Integer.MIN_VALUE;
 

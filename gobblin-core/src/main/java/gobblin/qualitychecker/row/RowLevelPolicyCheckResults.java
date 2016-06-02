@@ -28,24 +28,24 @@ public class RowLevelPolicyCheckResults {
   Map<RowLevelPolicyResultPair, Long> results;
 
   public RowLevelPolicyCheckResults() {
-    results = new HashMap<RowLevelPolicyResultPair, Long>();
+    this.results = new HashMap<>();
   }
 
   public void put(RowLevelPolicy policy, RowLevelPolicy.Result result) {
     RowLevelPolicyResultPair resultPolicyPair = new RowLevelPolicyResultPair(policy, result);
     long value;
-    if (results.containsKey(resultPolicyPair)) {
-      value = results.get(resultPolicyPair);
+    if (this.results.containsKey(resultPolicyPair)) {
+      value = this.results.get(resultPolicyPair);
     } else {
       value = 0;
     }
-    results.put(new RowLevelPolicyResultPair(policy, result), Long.valueOf(1 + value));
+    this.results.put(new RowLevelPolicyResultPair(policy, result), Long.valueOf(1 + value));
   }
 
   public String getResults() {
-    List<String> list = new ArrayList<String>();
+    List<String> list = new ArrayList<>();
     Joiner joiner = Joiner.on("\n").skipNulls();
-    for (Map.Entry<RowLevelPolicyResultPair, Long> entry : results.entrySet()) {
+    for (Map.Entry<RowLevelPolicyResultPair, Long> entry : this.results.entrySet()) {
       list.add("RowLevelPolicy " + entry.getKey().getPolicy().toString() + " processed " + entry.getValue()
           + " record(s) with result " + entry.getKey().getResult());
     }
@@ -62,11 +62,11 @@ public class RowLevelPolicyCheckResults {
     }
 
     public RowLevelPolicy getPolicy() {
-      return policy;
+      return this.policy;
     }
 
     public RowLevelPolicy.Result getResult() {
-      return result;
+      return this.result;
     }
 
     @Override

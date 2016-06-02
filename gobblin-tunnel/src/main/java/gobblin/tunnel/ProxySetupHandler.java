@@ -36,9 +36,10 @@ class ProxySetupHandler implements Callable<HandlerState> {
   private static final Logger LOG = LoggerFactory.getLogger(Tunnel.class);
 
   public static final String HTTP_1_1_OK = "HTTP/1.1 200";
-  private static final ByteBuffer OK_REPLY = ByteBuffer.wrap(HTTP_1_1_OK.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+  private static final ByteBuffer OK_REPLY =
+      ByteBuffer.wrap(HTTP_1_1_OK.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
   public static final String HTTP_1_0_OK = "HTTP/1.0 200";
-  private static final Set<ByteBuffer> OK_REPLIES = new HashSet<ByteBuffer>(
+  private static final Set<ByteBuffer> OK_REPLIES = new HashSet<>(
       Arrays.asList(OK_REPLY, ByteBuffer.wrap(HTTP_1_0_OK.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING))));
 
   private final SocketChannel client;
@@ -51,39 +52,40 @@ class ProxySetupHandler implements Callable<HandlerState> {
   private int totalBytesRead = 0;
   private final Config config;
 
-  ProxySetupHandler(SocketChannel client, Selector selector, Config config)
-      throws IOException {
+  ProxySetupHandler(SocketChannel client, Selector selector, Config config) throws IOException {
     this.config = config;
     this.client = client;
     this.selector = selector;
-    buffer = ByteBuffer.wrap(
-        String.format("CONNECT %s:%d HTTP/1.1\r%nUser-Agent: GobblinTunnel\r%nservice-name: gobblin\r%n" +
-                "Connection: keep-alive\r%nHost: %s:%d\r%n\r%n",
-            config.getRemoteHost(), config.getRemotePort(),
-            config.getRemoteHost(), config.getRemotePort())
-            .getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+    this.buffer =
+        ByteBuffer
+            .wrap(String
+                .format(
+                    "CONNECT %s:%d HTTP/1.1\r%nUser-Agent: GobblinTunnel\r%nservice-name: gobblin\r%n"
+                        + "Connection: keep-alive\r%nHost: %s:%d\r%n\r%n",
+                    config.getRemoteHost(), config.getRemotePort(), config.getRemoteHost(), config.getRemotePort())
+                .getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
 
     //Blocking call
-    proxy = SocketChannel.open();
-    proxy.configureBlocking(false);
-    connectStartTime = System.currentTimeMillis();
-    boolean connected = proxy.connect(new InetSocketAddress(this.config.getProxyHost(), this.config.getProxyPort()));
+    this.proxy = SocketChannel.open();
+    this.proxy.configureBlocking(false);
+    this.connectStartTime = System.currentTimeMillis();
+    boolean connected =
+        this.proxy.connect(new InetSocketAddress(this.config.getProxyHost(), this.config.getProxyPort()));
 
     if (!connected) {
       this.client.configureBlocking(false);
       this.client.register(this.selector, SelectionKey.OP_READ, this);
-      proxy.register(this.selector, SelectionKey.OP_CONNECT, this);
+      this.proxy.register(this.selector, SelectionKey.OP_CONNECT, this);
     } else {
-      state = HandlerState.WRITING;
-      proxy.register(this.selector, SelectionKey.OP_WRITE, this);
+      this.state = HandlerState.WRITING;
+      this.proxy.register(this.selector, SelectionKey.OP_WRITE, this);
     }
   }
 
   @Override
-  public HandlerState call()
-      throws Exception {
+  public HandlerState call() throws Exception {
     try {
-      switch (state) {
+      switch (this.state) {
         case CONNECTING:
           connect();
           break;
@@ -94,70 +96,68 @@ class ProxySetupHandler implements Callable<HandlerState> {
           read();
           break;
         default:
-          throw new IllegalStateException("ProxySetupHandler should not be in state " + state);
+          throw new IllegalStateException("ProxySetupHandler should not be in state " + this.state);
       }
     } catch (IOException ioe) {
-      LOG.warn("Failed to establish a proxy connection for {}", client.getRemoteAddress(), ioe);
+      LOG.warn("Failed to establish a proxy connection for {}", this.client.getRemoteAddress(), ioe);
       closeChannels();
     }
-    return state;
+    return this.state;
   }
 
   private void connect() throws IOException {
-    if (proxy.isOpen()) {
-      if (proxy.finishConnect()) {
-        proxy.register(selector, SelectionKey.OP_WRITE, this);
-        SelectionKey clientKey = client.keyFor(selector);
+    if (this.proxy.isOpen()) {
+      if (this.proxy.finishConnect()) {
+        this.proxy.register(this.selector, SelectionKey.OP_WRITE, this);
+        SelectionKey clientKey = this.client.keyFor(this.selector);
         if (clientKey != null) {
           clientKey.cancel();
         }
-        state = HandlerState.WRITING;
-      } else if (connectStartTime + Config.PROXY_CONNECT_TIMEOUT_MS < System.currentTimeMillis()) {
-        LOG.warn("Proxy connect timed out for client {}", client);
+        this.state = HandlerState.WRITING;
+      } else if (this.connectStartTime + Config.PROXY_CONNECT_TIMEOUT_MS < System.currentTimeMillis()) {
+        LOG.warn("Proxy connect timed out for client {}", this.client);
         closeChannels();
       }
     }
   }
 
   private void write() throws IOException {
-    while (proxy.write(buffer) > 0) {
-    }
+    while (this.proxy.write(this.buffer) > 0) {}
 
-    if (buffer.remaining() == 0) {
-      proxy.register(selector, SelectionKey.OP_READ, this);
-      state = HandlerState.READING;
-      buffer = ByteBuffer.allocate(1024);
+    if (this.buffer.remaining() == 0) {
+      this.proxy.register(this.selector, SelectionKey.OP_READ, this);
+      this.state = HandlerState.READING;
+      this.buffer = ByteBuffer.allocate(1024);
     }
   }
 
-  private void read()
-      throws IOException {
+  private void read() throws IOException {
     int lastBytes = 0;
 
-    while ((lastBytes = proxy.read(buffer)) > 0) {
+    while ((lastBytes = this.proxy.read(this.buffer)) > 0) {
       // totalBytesRead has to be stateful because read() might return at arbitrary points
-      totalBytesRead += lastBytes;
+      this.totalBytesRead += lastBytes;
     }
 
-    if (totalBytesRead >= OK_REPLY.limit()) {
-      byte[] temp = buffer.array();
-      buffer.flip();
+    if (this.totalBytesRead >= OK_REPLY.limit()) {
+      byte[] temp = this.buffer.array();
+      this.buffer.flip();
       if (OK_REPLIES.contains(ByteBuffer.wrap(temp, 0, OK_REPLY.limit()))) {
         // drain the rest of the HTTP response. 2 consecutive CRLFs signify the end of an HTTP
         // message (some proxies return newlines instead of CRLFs)
-        for (int i = OK_REPLY.limit(); i <= (buffer.limit() - 4); i++) {
-          if (((temp[i] == '\n') && (temp[i + 1] == '\n'))
-              || ((temp[i + 1] == '\n') && (temp[i + 2] == '\n'))
+        for (int i = OK_REPLY.limit(); i <= (this.buffer.limit() - 4); i++) {
+          if (((temp[i] == '\n') && (temp[i + 1] == '\n')) || ((temp[i + 1] == '\n') && (temp[i + 2] == '\n'))
               || ((temp[i + 2] == '\n') && (temp[i + 3] == '\n'))
               || ((temp[i] == '\r') && (temp[i + 1] == '\n') && (temp[i + 2] == '\r') && (temp[i + 3] == '\n'))) {
-            state = null;
-            buffer.position(i + 4);
-            new ReadWriteHandler(proxy, buffer, client, selector);
+            this.state = null;
+            this.buffer.position(i + 4);
+            new ReadWriteHandler(this.proxy, this.buffer, this.client, this.selector);
             return;
           }
         }
       } else {
-        LOG.error("Got non-200 response from proxy: [" + new String(temp, 0, OK_REPLY.limit(), ConfigurationKeys.DEFAULT_CHARSET_ENCODING)
+        LOG.error("Got non-200 response from proxy: ["
+            + new String(temp, 0, OK_REPLY.limit(), ConfigurationKeys.DEFAULT_CHARSET_ENCODING)
             + "], closing connection.");
         closeChannels();
       }
@@ -165,19 +165,19 @@ class ProxySetupHandler implements Callable<HandlerState> {
   }
 
   private void closeChannels() {
-    if (proxy.isOpen()) {
+    if (this.proxy.isOpen()) {
       try {
-        proxy.close();
+        this.proxy.close();
       } catch (IOException log) {
-        LOG.warn("Failed to close proxy channel {}", proxy, log);
+        LOG.warn("Failed to close proxy channel {}", this.proxy, log);
       }
     }
 
-    if (client.isOpen()) {
+    if (this.client.isOpen()) {
       try {
-        client.close();
+        this.client.close();
       } catch (IOException log) {
-        LOG.warn("Failed to close client channel {}", client, log);
+        LOG.warn("Failed to close client channel {}", this.client, log);
       }
     }
   }

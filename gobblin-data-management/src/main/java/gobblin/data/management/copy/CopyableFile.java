@@ -118,15 +118,14 @@ public class CopyableFile extends CopyEntity implements File {
     Path targetRoot = new Path(copyConfiguration.getPublishDir(), datasetRoot.getName());
     Path targetPath = new Path(targetRoot, relativePath);
 
-    return _hiddenBuilder().originFS(originFs).
-        origin(origin).destination(targetPath).
-        preserve(copyConfiguration.getPreserve()).configuration(copyConfiguration);
+    return _hiddenBuilder().originFS(originFs).origin(origin).destination(targetPath)
+        .preserve(copyConfiguration.getPreserve()).configuration(copyConfiguration);
   }
 
   public static Builder fromOriginAndDestination(FileSystem originFs, FileStatus origin, Path destination,
       CopyConfiguration copyConfiguration) {
-    return _hiddenBuilder().originFS(originFs).origin(origin).destination(destination).
-        configuration(copyConfiguration).preserve(copyConfiguration.getPreserve());
+    return _hiddenBuilder().originFS(originFs).origin(origin).destination(destination).configuration(copyConfiguration)
+        .preserve(copyConfiguration.getPreserve());
   }
 
   /**
@@ -192,15 +191,14 @@ public class CopyableFile extends CopyEntity implements File {
 
         FsPermission permission = this.preserve.preserve(Option.PERMISSION) ? this.origin.getPermission() : null;
 
-        this.destinationOwnerAndPermission =
-            new OwnerAndPermission(owner, group, permission);
+        this.destinationOwnerAndPermission = new OwnerAndPermission(owner, group, permission);
       }
       if (this.ancestorsOwnerAndPermission == null) {
         this.ancestorsOwnerAndPermission = replicateAncestorsOwnerAndPermission(this.originFs, this.origin.getPath(),
             this.configuration.getTargetFs(), this.destination);
       }
       if (this.checksum == null) {
-        FileChecksum checksumTmp = this.originFs.getFileChecksum(origin.getPath());
+        FileChecksum checksumTmp = this.originFs.getFileChecksum(this.origin.getPath());
         this.checksum = checksumTmp == null ? new byte[0] : checksumTmp.getBytes();
       }
       if (this.fileSet == null) {
@@ -208,15 +206,15 @@ public class CopyableFile extends CopyEntity implements File {
         this.fileSet = "";
       }
       if (this.originTimestamp == 0) {
-        this.originTimestamp = origin.getModificationTime();
+        this.originTimestamp = this.origin.getModificationTime();
       }
       if (this.upstreamTimestamp == 0) {
-        this.upstreamTimestamp = origin.getModificationTime();
+        this.upstreamTimestamp = this.origin.getModificationTime();
       }
 
-      return new CopyableFile(this.origin, this.destination,
-          this.destinationOwnerAndPermission, this.ancestorsOwnerAndPermission, this.checksum, this.preserve, this.fileSet,
-          this.originTimestamp, this.upstreamTimestamp, this.additionalMetadata);
+      return new CopyableFile(this.origin, this.destination, this.destinationOwnerAndPermission,
+          this.ancestorsOwnerAndPermission, this.checksum, this.preserve, this.fileSet, this.originTimestamp,
+          this.upstreamTimestamp, this.additionalMetadata);
     }
 
     private List<OwnerAndPermission> replicateAncestorsOwnerAndPermission(FileSystem originFs, Path originPath,
@@ -227,17 +225,18 @@ public class CopyableFile extends CopyEntity implements File {
       Path currentOriginPath = originPath.getParent();
       Path currentTargetPath = destinationPath.getParent();
 
-      while (currentOriginPath != null && currentTargetPath != null &&
-          currentOriginPath.getName().equals(currentTargetPath.getName())) {
+      while (currentOriginPath != null && currentTargetPath != null
+          && currentOriginPath.getName().equals(currentTargetPath.getName())) {
 
-        Optional<FileStatus> targetFileStatus = this.configuration.getCopyContext().getFileStatus(targetFs, currentTargetPath);
+        Optional<FileStatus> targetFileStatus =
+            this.configuration.getCopyContext().getFileStatus(targetFs, currentTargetPath);
 
         if (targetFileStatus.isPresent()) {
           return ancestorOwnerAndPermissions;
         }
 
-        ancestorOwnerAndPermissions.add(resolveReplicatedOwnerAndPermission(originFs, currentOriginPath,
-            this.configuration));
+        ancestorOwnerAndPermissions
+            .add(resolveReplicatedOwnerAndPermission(originFs, currentOriginPath, this.configuration));
 
         currentOriginPath = currentOriginPath.getParent();
         currentTargetPath = currentTargetPath.getParent();
@@ -270,8 +269,7 @@ public class CopyableFile extends CopyEntity implements File {
       group = originFileStatus.get().getGroup();
     }
 
-    return new OwnerAndPermission(
-        preserve.preserve(Option.OWNER) ? originFileStatus.get().getOwner() : null, group,
+    return new OwnerAndPermission(preserve.preserve(Option.OWNER) ? originFileStatus.get().getOwner() : null, group,
         preserve.preserve(Option.PERMISSION) ? originFileStatus.get().getPermission() : null);
   }
 
@@ -282,7 +280,7 @@ public class CopyableFile extends CopyEntity implements File {
    * @return A list of the computed {@link OwnerAndPermission}s starting from fromPath, up to but excluding toPath.
    * @throws IOException if toPath is not an ancestor of fromPath.
    */
-  public static List<OwnerAndPermission> resolveReplicatedOwnerAndPermissionsRecursively(FileSystem fs, Path fromPath,
+  public static List<OwnerAndPermission> resolveReplicatedOwnerAndPermissionsRecursively(FileSystem sourceFs, Path fromPath,
       Path toPath, CopyConfiguration copyConfiguration) throws IOException {
 
     if (!PathUtils.isAncestor(toPath, fromPath)) {
@@ -293,7 +291,7 @@ public class CopyableFile extends CopyEntity implements File {
     Path currentPath = fromPath;
 
     while (PathUtils.isAncestor(toPath, currentPath.getParent())) {
-      ownerAndPermissions.add(resolveReplicatedOwnerAndPermission(fs, currentPath, copyConfiguration));
+      ownerAndPermissions.add(resolveReplicatedOwnerAndPermission(sourceFs, currentPath, copyConfiguration));
       currentPath = currentPath.getParent();
     }
 
@@ -309,6 +307,7 @@ public class CopyableFile extends CopyEntity implements File {
    * Generates a replicable guid to uniquely identify the origin of this {@link CopyableFile}.
    * @return a guid uniquely identifying the origin file.
    */
+  @Override
   public Guid guid() throws IOException {
     StringBuilder uniqueString = new StringBuilder();
     uniqueString.append(getFileStatus().getModificationTime());
@@ -323,9 +322,10 @@ public class CopyableFile extends CopyEntity implements File {
         ? this.destinationOwnerAndPermission.getOwner() : "preserve";
     String group = this.destinationOwnerAndPermission != null && this.destinationOwnerAndPermission.getGroup() != null
         ? this.destinationOwnerAndPermission.getGroup() : "preserve";
-    String permissions = this.destinationOwnerAndPermission != null && this.destinationOwnerAndPermission.getFsPermission() != null
-        ? this.destinationOwnerAndPermission.getFsPermission().toString() : "preserve";
-    return String.format("Copy file %s to %s with owner %s, group %s, permission %s.",
-        this.origin.getPath(), this.destination, owner, group, permissions);
+    String permissions =
+        this.destinationOwnerAndPermission != null && this.destinationOwnerAndPermission.getFsPermission() != null
+            ? this.destinationOwnerAndPermission.getFsPermission().toString() : "preserve";
+    return String.format("Copy file %s to %s with owner %s, group %s, permission %s.", this.origin.getPath(),
+        this.destination, owner, group, permissions);
   }
 }

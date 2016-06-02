@@ -65,7 +65,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
     this.useTmpFileForPut = false;
   }
 
-  public FsDatasetStateStore(FileSystem fs, String storeRootDir) throws IOException {
+  public FsDatasetStateStore(FileSystem fs, String storeRootDir) {
     super(fs, storeRootDir, JobState.DatasetState.class);
     this.useTmpFileForPut = false;
   }

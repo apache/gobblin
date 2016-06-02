@@ -138,9 +138,8 @@ public class KafkaWrapper implements Closeable {
   private KafkaAPI getKafkaAPI() {
     if (this.useNewKafkaAPI) {
       return new KafkaNewAPI();
-    } else {
-      return new KafkaOldAPI();
     }
+    return new KafkaOldAPI();
   }
 
   @Override
@@ -194,8 +193,8 @@ public class KafkaWrapper implements Closeable {
           return Collections.emptyList();
         }
         if (null == partitionMetadata.leader()) {
-          LOG.error("Ignoring topic with null partition leader " + topicMetadata.topic() +
-                    " metatada=" + partitionMetadata);
+          LOG.error(
+              "Ignoring topic with null partition leader " + topicMetadata.topic() + " metatada=" + partitionMetadata);
           return Collections.emptyList();
         }
         partitions.add(new KafkaPartition.Builder().withId(partitionMetadata.partitionId())
@@ -265,11 +264,10 @@ public class KafkaWrapper implements Closeable {
     private SimpleConsumer getSimpleConsumer(String broker) {
       if (this.activeConsumers.containsKey(broker)) {
         return this.activeConsumers.get(broker);
-      } else {
-        SimpleConsumer consumer = this.createSimpleConsumer(broker);
-        this.activeConsumers.putIfAbsent(broker, consumer);
-        return consumer;
       }
+      SimpleConsumer consumer = this.createSimpleConsumer(broker);
+      this.activeConsumers.putIfAbsent(broker, consumer);
+      return consumer;
     }
 
     private SimpleConsumer getSimpleConsumer(HostAndPort hostAndPort) {
@@ -304,7 +302,7 @@ public class KafkaWrapper implements Closeable {
 
     private long getOffset(KafkaPartition partition,
         Map<TopicAndPartition, PartitionOffsetRequestInfo> offsetRequestInfo)
-            throws KafkaOffsetRetrievalFailureException {
+        throws KafkaOffsetRetrievalFailureException {
       SimpleConsumer consumer = this.getSimpleConsumer(partition.getLeader().getHostAndPort());
       for (int i = 0; i < NUM_TRIES_FETCH_OFFSET; i++) {
         try {

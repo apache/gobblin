@@ -11,12 +11,10 @@
  */
 package gobblin.util;
 
-import gobblin.util.io.SeekableFSInputStream;
 import gobblin.util.io.StreamUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.NoSuchProviderException;
 import java.security.Security;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -39,8 +37,7 @@ import org.bouncycastle.openpgp.operator.jcajce.JcePBEDataDecryptorFactoryBuilde
  */
 public class GPGFileDecrypter {
 
-  public static FSDataInputStream decryptFile(InputStream inputStream, String passPhrase) throws IOException,
-      NoSuchProviderException {
+  public static FSDataInputStream decryptFile(InputStream inputStream, String passPhrase) throws IOException {
 
     if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
       Security.addProvider(new BouncyCastleProvider());
@@ -61,10 +58,9 @@ public class GPGFileDecrypter {
 
     InputStream clear;
     try {
-      clear =
-          pbe.getDataStream(new JcePBEDataDecryptorFactoryBuilder(new JcaPGPDigestCalculatorProviderBuilder()
-              .setProvider(BouncyCastleProvider.PROVIDER_NAME).build()).setProvider(BouncyCastleProvider.PROVIDER_NAME)
-              .build(passPhrase.toCharArray()));
+      clear = pbe.getDataStream(new JcePBEDataDecryptorFactoryBuilder(
+          new JcaPGPDigestCalculatorProviderBuilder().setProvider(BouncyCastleProvider.PROVIDER_NAME).build())
+              .setProvider(BouncyCastleProvider.PROVIDER_NAME).build(passPhrase.toCharArray()));
 
       JcaPGPObjectFactory pgpFact = new JcaPGPObjectFactory(clear);
       pgpfObject = pgpFact.nextObject();

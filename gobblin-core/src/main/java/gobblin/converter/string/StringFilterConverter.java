@@ -39,9 +39,8 @@ public class StringFilterConverter extends Converter<Class<String>, Class<String
 
   @Override
   public Converter<Class<String>, Class<String>, String, String> init(WorkUnitState workUnit) {
-    this.pattern =
-        Pattern.compile(Strings.nullToEmpty(workUnit.getProp(ForkOperatorUtils.getPropertyNameForBranch(
-            workUnit, ConfigurationKeys.CONVERTER_STRING_FILTER_PATTERN))));
+    this.pattern = Pattern.compile(Strings.nullToEmpty(workUnit.getProp(
+        ForkOperatorUtils.getPropertyNameForBranch(workUnit, ConfigurationKeys.CONVERTER_STRING_FILTER_PATTERN))));
 
     this.matcher = Optional.absent();
     return this;
@@ -63,6 +62,6 @@ public class StringFilterConverter extends Converter<Class<String>, Class<String
       this.matcher.get().reset(inputRecord);
     }
 
-    return this.matcher.get().matches() ? new SingleRecordIterable<String>(inputRecord) : new EmptyIterable<String>();
+    return this.matcher.get().matches() ? new SingleRecordIterable<>(inputRecord) : new EmptyIterable<String>();
   }
 }

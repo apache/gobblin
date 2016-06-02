@@ -300,13 +300,14 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
               ? new Path(publisherOutputDir,
                   workUnitState.getProp(ForkOperatorUtils.getPropertyNameForBranch(
                       ConfigurationKeys.DATA_PUBLISHER_FINAL_NAME, this.numBranches, branchId)))
-          : new Path(publisherOutputDir, status.getPath().getName());
+              : new Path(publisherOutputDir, status.getPath().getName());
 
       movePath(parallelRunner, workUnitState, status.getPath(), finalOutputPath, branchId);
     }
   }
 
-  protected void movePath(ParallelRunner parallelRunner, State state, Path src, Path dst, int branchId) throws IOException {
+  protected void movePath(ParallelRunner parallelRunner, State state, Path src, Path dst, int branchId)
+      throws IOException {
     LOG.info(String.format("Moving %s to %s", src, dst));
     boolean overwrite = state.getPropAsBoolean(ConfigurationKeys.DATA_PUBLISHER_OVERWRITE_ENABLED, false);
     this.publisherOutputDirs.addAll(recordPublisherOutputDirs(src, dst, branchId));
@@ -314,12 +315,11 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         this.publisherFinalDirOwnerGroupsByBranches.get(branchId));
   }
 
-  @SuppressWarnings("deprecation")
   protected Collection<Path> recordPublisherOutputDirs(Path src, Path dst, int branchId) throws IOException {
 
     // Getting file status from src rather than dst, because at this time dst doesn't yet exist.
     // If src is a dir, add dst to the set of paths. Otherwise, add dst's parent.
-    if (this.writerFileSystemByBranches.get(branchId).getFileStatus(src).isDir()) {
+    if (this.writerFileSystemByBranches.get(branchId).getFileStatus(src).isDirectory()) {
       return ImmutableList.<Path> of(dst);
     }
     return ImmutableList.<Path> of(dst.getParent());
@@ -328,7 +328,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   private ParallelRunner getParallelRunner(FileSystem fs) {
     String uri = fs.getUri().toString();
     if (!this.parallelRunners.containsKey(uri)) {
-      this.parallelRunners.put(uri, this.parallelRunnerCloser.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
+      this.parallelRunners.put(uri,
+          this.parallelRunnerCloser.register(new ParallelRunner(this.parallelRunnerThreads, fs)));
     }
     return this.parallelRunners.get(uri);
   }

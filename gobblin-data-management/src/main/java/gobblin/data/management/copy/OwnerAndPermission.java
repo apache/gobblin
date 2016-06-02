@@ -38,13 +38,15 @@ public class OwnerAndPermission implements Writable {
   private String group;
   private FsPermission fsPermission;
 
-  @Override public void write(DataOutput dataOutput) throws IOException {
+  @Override
+  public void write(DataOutput dataOutput) throws IOException {
     Text.writeString(dataOutput, this.owner);
     Text.writeString(dataOutput, this.group);
-    fsPermission.write(dataOutput);
+    this.fsPermission.write(dataOutput);
   }
 
-  @Override public void readFields(DataInput dataInput) throws IOException {
+  @Override
+  public void readFields(DataInput dataInput) throws IOException {
     this.owner = Text.readString(dataInput);
     this.group = Text.readString(dataInput);
     this.fsPermission = FsPermission.read(dataInput);

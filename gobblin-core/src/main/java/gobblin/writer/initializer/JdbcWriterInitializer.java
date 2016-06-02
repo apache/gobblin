@@ -45,6 +45,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+
 /**
  * Initialize for JDBC writer and also performs clean up.
  */
@@ -68,7 +69,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
   }
 
   public JdbcWriterInitializer(State state, Collection<WorkUnit> workUnits,
-                               JdbcWriterCommandsFactory jdbcWriterCommandsFactory, int branches, int branchId) {
+      JdbcWriterCommandsFactory jdbcWriterCommandsFactory, int branches, int branchId) {
     validateInput(state);
     this.state = state;
     this.workUnits = Lists.newArrayList(workUnits);
@@ -93,16 +94,16 @@ public class JdbcWriterInitializer implements WriterInitializer {
     LOG.info("Closing " + this.getClass().getSimpleName());
     try (Connection conn = createConnection()) {
       JdbcWriterCommands commands = createJdbcWriterCommands(conn);
-      if(!createdStagingTables.isEmpty()) {
-        for (String stagingTable : createdStagingTables) {
-          LOG.info("Dropping staging table " + createdStagingTables);
+      if (!this.createdStagingTables.isEmpty()) {
+        for (String stagingTable : this.createdStagingTables) {
+          LOG.info("Dropping staging table " + this.createdStagingTables);
           commands.drop(stagingTable);
         }
       }
 
-      if(userCreatedStagingTable != null) {
-        LOG.info("Truncating staging table " + userCreatedStagingTable);
-        commands.truncate(userCreatedStagingTable);
+      if (this.userCreatedStagingTable != null) {
+        LOG.info("Truncating staging table " + this.userCreatedStagingTable);
+        commands.truncate(this.userCreatedStagingTable);
       }
     } catch (SQLException e) {
       throw new RuntimeException("Failed to close", e);
@@ -118,32 +119,30 @@ public class JdbcWriterInitializer implements WriterInitializer {
    */
   @VisibleForTesting
   public Connection createConnection() throws SQLException {
-    DataSource dataSource = DataSourceBuilder.builder()
-                                             .url(state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
-                                             .driver(state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
-                                             .userName(state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
-                                             .passWord(state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
-                                             .cryptoKeyLocation(state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
-                                             .maxActiveConnections(1)
-                                             .maxIdleConnections(1)
-                                             .state(state)
-                                             .build();
+    DataSource dataSource = DataSourceBuilder.builder().url(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_URL))
+        .driver(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_DRIVER))
+        .userName(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
+        .passWord(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
+        .cryptoKeyLocation(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC)).maxActiveConnections(1)
+        .maxIdleConnections(1).state(this.state).build();
 
     return dataSource.getConnection();
   }
 
   private String createStagingTable(Connection conn, JdbcWriterCommands commands) throws SQLException {
-    String destTableKey = ForkOperatorUtils.getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId);
-    String destinationTable = state.getProp(destTableKey);
-    if(StringUtils.isEmpty(destinationTable)) {
-      throw new IllegalArgumentException(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME + " is required for " + this.getClass().getSimpleName() + " for branch " + branchId);
+    String destTableKey = ForkOperatorUtils.getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME,
+        this.branches, this.branchId);
+    String destinationTable = this.state.getProp(destTableKey);
+    if (StringUtils.isEmpty(destinationTable)) {
+      throw new IllegalArgumentException(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME + " is required for "
+          + this.getClass().getSimpleName() + " for branch " + this.branchId);
     }
 
     String stagingTable = null;
     for (int i = 0; i < NAMING_STAGING_TABLE_TRIAL; i++) {
       String tmp = String.format(STAGING_TABLE_FORMAT, System.nanoTime());
       LOG.info("Check if staging table " + tmp + " exists.");
-      ResultSet res = conn.getMetaData().getTables(null, null, tmp, new String[] {"TABLE"});
+      ResultSet res = conn.getMetaData().getTables(null, null, tmp, new String[] { "TABLE" });
       if (!res.next()) {
         LOG.info("Staging table " + tmp + " does not exist. Creating.");
         try {
@@ -167,17 +166,17 @@ public class JdbcWriterInitializer implements WriterInitializer {
     }
 
     if (!StringUtils.isEmpty(stagingTable)) {
-     return stagingTable;
+      return stagingTable;
     }
     throw new RuntimeException("Failed to create staging table");
   }
 
-  private String getProp(State state, String key, int branches, int branchId) {
+  private static String getProp(State state, String key, int branches, int branchId) {
     String forkedKey = ForkOperatorUtils.getPropertyNameForBranch(key, branches, branchId);
     return state.getProp(forkedKey);
   }
 
-  private boolean getPropAsBoolean(State state, String key, int branches, int branchId) {
+  private static boolean getPropAsBoolean(State state, String key, int branches, int branchId) {
     return Boolean.parseBoolean(getProp(state, key, branches, branchId));
   }
 
@@ -201,28 +200,32 @@ public class JdbcWriterInitializer implements WriterInitializer {
       JdbcWriterCommands commands = createJdbcWriterCommands(conn);
 
       //1. Check if user chose to skip the staging table
-      JobCommitPolicy jobCommitPolicy = JobCommitPolicy.getCommitPolicy(state);
+      JobCommitPolicy jobCommitPolicy = JobCommitPolicy.getCommitPolicy(this.state);
       boolean isSkipStaging = !JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.equals(jobCommitPolicy);
-      if(isSkipStaging) {
+      if (isSkipStaging) {
         LOG.info("Writer will write directly to destination table as JobCommitPolicy is " + jobCommitPolicy);
       }
 
-      final String publishTable = getProp(state, JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId);
-      final String stagingTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE, branches, branchId);
-      String stagingTable = state.getProp(stagingTableKey);
+      final String publishTable =
+          getProp(this.state, JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, this.branches, this.branchId);
+      final String stagingTableKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE,
+          this.branches, this.branchId);
+      String stagingTable = this.state.getProp(stagingTableKey);
 
       int i = -1;
-      for (WorkUnit wu : workUnits) {
+      for (WorkUnit wu : this.workUnits) {
         i++;
 
         if (isSkipStaging) {
-          LOG.info("User chose to skip staing table on branch " + branchId + " workunit " + i);
+          LOG.info("User chose to skip staing table on branch " + this.branchId + " workunit " + i);
           wu.setProp(stagingTableKey, publishTable);
 
           if (i == 0) {
             //1.1. If user chose to skip the staging table, and user decided to replace final table, truncate final table.
-            if (getPropAsBoolean(state, JdbcPublisher.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, branchId)) {
-              LOG.info("User chose to replace final table " + publishTable + " on branch " + branchId + " workunit " + i);
+            if (getPropAsBoolean(this.state, JdbcPublisher.JDBC_PUBLISHER_REPLACE_FINAL_TABLE, this.branches,
+                this.branchId)) {
+              LOG.info("User chose to replace final table " + publishTable + " on branch " + this.branchId
+                  + " workunit " + i);
               commands.truncate(publishTable);
             }
           }
@@ -231,36 +234,35 @@ public class JdbcWriterInitializer implements WriterInitializer {
 
         //2. (User didn't choose to skip the staging table.) Check if user passed the staging table.
         if (!StringUtils.isEmpty(stagingTable)) {
-          LOG.info("Staging table for branch " + branchId + " from user: " + stagingTable);
+          LOG.info("Staging table for branch " + this.branchId + " from user: " + stagingTable);
           wu.setProp(stagingTableKey, stagingTable);
 
           if (i == 0) {
             //2.1. Truncate staging table, if requested.
-            if (state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
-                                           ConfigurationKeys.WRITER_TRUNCATE_STAGING_TABLE,
-                                           branches,
-                                           branchId),
-                                       false)) {
+            if (this.state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
+                ConfigurationKeys.WRITER_TRUNCATE_STAGING_TABLE, this.branches, this.branchId), false)) {
               LOG.info("Truncating staging table " + stagingTable + " as requested.");
               commands.truncate(stagingTable);
-             }
+            }
 
             //2.2. Confirm if staging table is empty.
             if (!commands.isEmpty(stagingTable)) {
               LOG.error("Staging table " + stagingTable + " is not empty. Failing.");
               throw new IllegalArgumentException("Staging table " + stagingTable + " should be empty.");
             }
-            userCreatedStagingTable = stagingTable;
+            this.userCreatedStagingTable = stagingTable;
           }
           continue;
         }
 
         //3. Create staging table (At this point user hasn't passed the staging table, and not skipping staging table).
-        LOG.info("Staging table has not been passed from user for branch " + branchId + " workunit " + i + " . Creating.");
+        LOG.info("Staging table has not been passed from user for branch " + this.branchId + " workunit " + i
+            + " . Creating.");
         String createdStagingTable = createStagingTable(conn, commands);
         wu.setProp(stagingTableKey, createdStagingTable);
-        createdStagingTables.add(createdStagingTable);
-        LOG.info("Staging table " + createdStagingTable + " has been created for branchId " + branchId + " workunit " + i);
+        this.createdStagingTables.add(createdStagingTable);
+        LOG.info("Staging table " + createdStagingTable + " has been created for branchId " + this.branchId
+            + " workunit " + i);
       }
     } catch (SQLException e) {
       throw new RuntimeException("Failed with SQL", e);
@@ -268,10 +270,12 @@ public class JdbcWriterInitializer implements WriterInitializer {
   }
 
   private JdbcWriterCommands createJdbcWriterCommands(Connection conn) {
-    String destKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY, branches, branchId);
-    String destType = Preconditions.checkNotNull(state.getProp(destKey), destKey + " is required for underlying JDBC product name");
-    Destination dest = Destination.of(DestinationType.valueOf(destType.toUpperCase()), state);
-    return jdbcWriterCommandsFactory.newInstance(dest, conn);
+    String destKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY,
+        this.branches, this.branchId);
+    String destType = Preconditions.checkNotNull(this.state.getProp(destKey),
+        destKey + " is required for underlying JDBC product name");
+    Destination dest = Destination.of(DestinationType.valueOf(destType.toUpperCase()), this.state);
+    return this.jdbcWriterCommandsFactory.newInstance(dest, conn);
   }
 
   /**
@@ -281,15 +285,17 @@ public class JdbcWriterInitializer implements WriterInitializer {
    *    However, publish data at job level is true, it contradicts with the behavior of Gobblin writing in task level. Thus, validate publish data at job level is false if commit policy is not full.
    * @param state
    */
-  private void validateInput(State state) {
+  private static void validateInput(State state) {
     int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
     Set<String> publishTables = Sets.newHashSet();
 
     for (int branchId = 0; branchId < branches; branchId++) {
-      String publishTable = Preconditions.checkNotNull(getProp(state, JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId),
-          JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME + " should not be null.");
-      if(publishTables.contains(publishTable)) {
-        throw new IllegalArgumentException("Duplicate " + JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME + " is not allowed across branches");
+      String publishTable =
+          Preconditions.checkNotNull(getProp(state, JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, branchId),
+              JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME + " should not be null.");
+      if (publishTables.contains(publishTable)) {
+        throw new IllegalArgumentException(
+            "Duplicate " + JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME + " is not allowed across branches");
       }
       publishTables.add(publishTable);
     }
@@ -297,17 +303,21 @@ public class JdbcWriterInitializer implements WriterInitializer {
     Set<String> stagingTables = Sets.newHashSet();
     for (int branchId = 0; branchId < branches; branchId++) {
       String stagingTable = getProp(state, ConfigurationKeys.WRITER_STAGING_TABLE, branches, branchId);
-      if(!StringUtils.isEmpty(stagingTable) && stagingTables.contains(stagingTable)) {
-        throw new IllegalArgumentException("Duplicate " + ConfigurationKeys.WRITER_STAGING_TABLE + " is not allowed across branches");
+      if (!StringUtils.isEmpty(stagingTable) && stagingTables.contains(stagingTable)) {
+        throw new IllegalArgumentException(
+            "Duplicate " + ConfigurationKeys.WRITER_STAGING_TABLE + " is not allowed across branches");
       }
       stagingTables.add(stagingTable);
     }
 
     JobCommitPolicy policy = JobCommitPolicy.getCommitPolicy(state);
-    boolean isPublishJobLevel = state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
-    if(JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.equals(policy) ^ isPublishJobLevel) {
-      throw new IllegalArgumentException("Job commit policy should be only " + JobCommitPolicy.COMMIT_ON_FULL_SUCCESS + " when " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is true."
-                                         + " Or Job commit policy should not be " + JobCommitPolicy.COMMIT_ON_FULL_SUCCESS + " and " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is false.");
+    boolean isPublishJobLevel = state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
+        ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
+    if (JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.equals(policy) ^ isPublishJobLevel) {
+      throw new IllegalArgumentException("Job commit policy should be only " + JobCommitPolicy.COMMIT_ON_FULL_SUCCESS
+          + " when " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is true."
+          + " Or Job commit policy should not be " + JobCommitPolicy.COMMIT_ON_FULL_SUCCESS + " and "
+          + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is false.");
     }
   }
 }

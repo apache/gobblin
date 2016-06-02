@@ -249,7 +249,7 @@ public class TaskContext {
    * @return a {@link RowLevelPolicyChecker}
    */
   public RowLevelPolicyChecker getRowLevelPolicyChecker(int index) throws Exception {
-    return new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(this.taskState, index).build();
+    return RowLevelPolicyCheckerBuilderFactory.newPolicyCheckerBuilder(this.taskState, index).build();
   }
 
   /**
@@ -262,7 +262,7 @@ public class TaskContext {
    * @throws Exception
    */
   public TaskLevelPolicyChecker getTaskLevelPolicyChecker(TaskState taskState, int index) throws Exception {
-    return new TaskLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(taskState, index).build();
+    return TaskLevelPolicyCheckerBuilderFactory.newPolicyCheckerBuilder(taskState, index).build();
   }
 
   /**
@@ -273,9 +273,8 @@ public class TaskContext {
    * @param index branch index
    * @return a {@link TaskPublisher}
    */
-  public TaskPublisher getTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results, int index)
-      throws Exception {
-    return new TaskPublisherBuilderFactory().newTaskPublisherBuilder(taskState, results, index).build();
+  public TaskPublisher getTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results) throws Exception {
+    return TaskPublisherBuilderFactory.newTaskPublisherBuilder(taskState, results).build();
   }
 
   /**

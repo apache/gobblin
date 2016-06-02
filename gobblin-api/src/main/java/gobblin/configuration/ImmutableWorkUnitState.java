@@ -62,6 +62,7 @@ public class ImmutableWorkUnitState extends WorkUnitState {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public void overrideWith(Properties properties) {
     throw new UnsupportedOperationException();
   }

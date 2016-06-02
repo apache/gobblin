@@ -23,14 +23,12 @@ import gobblin.source.extractor.filebased.FileBasedSource;
 
 public class SftpSource<S, D> extends FileBasedSource<S, D> {
   @Override
-  public Extractor<S, D> getExtractor(WorkUnitState state)
-      throws IOException {
-    return new SftpExtractor<S, D>(state);
+  public Extractor<S, D> getExtractor(WorkUnitState state) throws IOException {
+    return new SftpExtractor<>(state);
   }
 
   @Override
-  public void initFileSystemHelper(State state)
-      throws FileBasedHelperException {
+  public void initFileSystemHelper(State state) throws FileBasedHelperException {
     this.fsHelper = new SftpFsHelper(state);
     this.fsHelper.connect();
   }

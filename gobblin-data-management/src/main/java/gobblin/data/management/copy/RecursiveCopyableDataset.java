@@ -53,8 +53,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     this.glob = glob;
   }
 
-  @Override public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs,
-      CopyConfiguration configuration)
+  @Override
+  public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
 
     Path nonGlobSearchPath = PathUtils.deepestNonGlobPath(this.glob);
@@ -67,12 +67,13 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), nonGlobSearchPath);
       Path targetPath = new Path(configuration.getPublishDir(), filePathRelativeToSearchPath);
 
-      copyableFiles.add(CopyableFile.fromOriginAndDestination(this.fs, file, targetPath, configuration).
-          fileSet(file.getPath().getParent().toString()).
-          ancestorsOwnerAndPermission(CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(this.fs,
-              file.getPath(), nonGlobSearchPath, configuration)).build());
+      copyableFiles.add(CopyableFile.fromOriginAndDestination(this.fs, file, targetPath, configuration)
+          .fileSet(file.getPath().getParent().toString())
+          .ancestorsOwnerAndPermission(CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(this.fs,
+              file.getPath(), nonGlobSearchPath, configuration))
+          .build());
     }
-    return copyableFileFilter.filter(this.fs, targetFs, copyableFiles);
+    return this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles);
   }
 
   @Override
@@ -80,7 +81,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     return this.rootPath;
   }
 
-  @Override public String datasetURN() {
+  @Override
+  public String datasetURN() {
     return datasetRoot().toString();
   }
 }

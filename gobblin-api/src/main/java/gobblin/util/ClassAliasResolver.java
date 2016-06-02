@@ -43,7 +43,8 @@ public class ClassAliasResolver {
     Map<String, Class<?>> cache = Maps.newHashMap();
     // Scan all packages
     Reflections reflections = new Reflections("");
-    for (Class<?> clazz : Sets.intersection(reflections.getTypesAnnotatedWith(Alias.class), reflections.getSubTypesOf(subTypeOf))) {
+    for (Class<?> clazz : Sets.intersection(reflections.getTypesAnnotatedWith(Alias.class),
+        reflections.getSubTypesOf(subTypeOf))) {
       String alias = clazz.getAnnotation(Alias.class).value();
       if (cache.containsKey(alias)) {
         log.warn(String.format("Alias %s already mapped to class %s. Mapping for %s will be ignored", alias,
@@ -65,8 +66,8 @@ public class ClassAliasResolver {
    * Return the input <code>possibleAlias</code> if no mapping is found.
    */
   public String resolve(final String possibleAlias) {
-    if (aliasToClassCache.containsKey(possibleAlias)) {
-      return aliasToClassCache.get(possibleAlias).getCanonicalName();
+    if (this.aliasToClassCache.containsKey(possibleAlias)) {
+      return this.aliasToClassCache.get(possibleAlias).getCanonicalName();
     }
     return possibleAlias;
   }

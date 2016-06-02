@@ -16,7 +16,7 @@ import gobblin.configuration.State;
 
 
 public class RowLevelPolicyCheckerBuilderFactory {
-  public RowLevelPolicyCheckerBuilder newPolicyCheckerBuilder(State state, int index) {
+  public static RowLevelPolicyCheckerBuilder newPolicyCheckerBuilder(State state, int index) {
     return RowLevelPolicyCheckerBuilder.newBuilder(state, index);
   }
 }

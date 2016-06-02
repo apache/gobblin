@@ -48,7 +48,8 @@ public class InstrumentedForkOperatorDecorator<S, D> extends InstrumentedForkOpe
 
   @Override
   public MetricContext getMetricContext() {
-    return this.isEmbeddedInstrumented ? ((InstrumentedForkOperatorBase) this.embeddedForkOperator).getMetricContext()
+    return this.isEmbeddedInstrumented
+        ? ((InstrumentedForkOperatorBase<S, D>) this.embeddedForkOperator).getMetricContext()
         : super.getMetricContext();
   }
 

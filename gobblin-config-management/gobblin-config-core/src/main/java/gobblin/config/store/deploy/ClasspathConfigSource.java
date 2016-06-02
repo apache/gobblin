@@ -24,10 +24,8 @@ import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.FilterBuilder;
 
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.Sets;
 
 
@@ -45,7 +43,8 @@ public class ClasspathConfigSource implements DeployableConfigSource {
 
   private final String classpathRootName;
   private static final String DEFAULT_CONFIG_STORE_CLASSPATH_RESOURCE_NAME = "_CONFIG_STORE";
-  public static final String CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY = "gobblin.config.management.store.deploy.classpathresource";
+  public static final String CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY =
+      "gobblin.config.management.store.deploy.classpathresource";
 
   /**
    * A {@link DeployableConfigSource} that reads configs to be deployed from classpath.
@@ -58,7 +57,8 @@ public class ClasspathConfigSource implements DeployableConfigSource {
    * </p>
    */
   public ClasspathConfigSource(Properties props) {
-    this.classpathRootName = props.getProperty(CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY, DEFAULT_CONFIG_STORE_CLASSPATH_RESOURCE_NAME);
+    this.classpathRootName =
+        props.getProperty(CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY, DEFAULT_CONFIG_STORE_CLASSPATH_RESOURCE_NAME);
   }
 
   /**
@@ -83,7 +83,7 @@ public class ClasspathConfigSource implements DeployableConfigSource {
    * {@inheritDoc}
    * @see gobblin.config.store.deploy.DeployableConfigSource#getConfigStream(java.lang.String)
    */
-  private InputStream getConfigStream(String configPath) throws IOException {
+  private static InputStream getConfigStream(String configPath) {
     return ClasspathConfigSource.class.getClassLoader().getResourceAsStream(configPath);
   }
 
@@ -96,8 +96,8 @@ public class ClasspathConfigSource implements DeployableConfigSource {
   public Set<ConfigStream> getConfigStreams() throws IOException {
     Set<ConfigStream> configStreams = Sets.newHashSet();
     for (String configPath : getDeployableConfigPaths()) {
-      configStreams.add(new ConfigStream(Optional.of(getConfigStream(configPath)), StringUtils.substringAfter(
-          Strings.nullToEmpty(configPath), classpathRootName + "/")));
+      configStreams.add(new ConfigStream(Optional.of(getConfigStream(configPath)),
+          StringUtils.substringAfter(Strings.nullToEmpty(configPath), this.classpathRootName + "/")));
     }
     return configStreams;
   }

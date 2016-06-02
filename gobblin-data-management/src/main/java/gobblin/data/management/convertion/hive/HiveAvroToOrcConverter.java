@@ -27,8 +27,8 @@ import gobblin.converter.SingleRecordIterable;
  * can be a hive table or a hive partition.
  */
 @Slf4j
-public class HiveAvroToOrcConverter extends
-    Converter<Schema, Schema, QueryBasedHiveConversionEntity, QueryBasedHiveConversionEntity> {
+public class HiveAvroToOrcConverter
+    extends Converter<Schema, Schema, QueryBasedHiveConversionEntity, QueryBasedHiveConversionEntity> {
 
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
@@ -49,7 +49,7 @@ public class HiveAvroToOrcConverter extends
         .appendQuery(conversionEntity.getHiveUnit().getTableName());
 
     log.info("Conversion Query " + conversionEntity.getConversionQuery());
-    return new SingleRecordIterable<QueryBasedHiveConversionEntity>(conversionEntity);
+    return new SingleRecordIterable<>(conversionEntity);
   }
 
 }

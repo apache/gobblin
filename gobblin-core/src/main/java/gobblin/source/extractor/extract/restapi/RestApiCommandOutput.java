@@ -20,7 +20,7 @@ import gobblin.source.extractor.extract.CommandOutput;
 
 public class RestApiCommandOutput implements CommandOutput<RestApiCommand, String> {
 
-  private Map<RestApiCommand, String> results = new HashMap<RestApiCommand, String>();
+  private Map<RestApiCommand, String> results = new HashMap<>();
 
   @Override
   public void storeResults(Map<RestApiCommand, String> results) {
@@ -29,11 +29,11 @@ public class RestApiCommandOutput implements CommandOutput<RestApiCommand, Strin
 
   @Override
   public Map<RestApiCommand, String> getResults() {
-    return results;
+    return this.results;
   }
 
   @Override
   public void put(RestApiCommand key, String value) {
-    results.put(key, value);
+    this.results.put(key, value);
   }
 }

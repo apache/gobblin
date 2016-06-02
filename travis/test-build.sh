@@ -18,4 +18,5 @@
 #!/bin/bash
 set -e
 
-./gradlew clean build -x test -Dorg.gradle.parallel=false
+echo "Starting $0 at " $(date)
+time ./gradlew clean build -x test -Dorg.gradle.parallel=false

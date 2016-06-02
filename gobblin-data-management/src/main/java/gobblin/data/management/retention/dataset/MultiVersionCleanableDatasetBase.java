@@ -95,7 +95,8 @@ import gobblin.util.PathUtils;
  *
  * @param <T> type of {@link FileSystemDatasetVersion} supported by this {@link CleanableDataset}.
  */
-public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatasetVersion> implements CleanableDataset, FileSystemDataset {
+public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatasetVersion>
+    implements CleanableDataset, FileSystemDataset {
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
   public static final String SIMULATE_KEY = CONFIGURATION_KEY_PREFIX + "simulate";
@@ -127,15 +128,16 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
 
   public MultiVersionCleanableDatasetBase(final FileSystem fs, final Properties props, Config config, Logger log)
       throws IOException {
-    this(fs, props, Boolean.valueOf(props.getProperty(SIMULATE_KEY, SIMULATE_DEFAULT)), Boolean.valueOf(props
-        .getProperty(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT)), Boolean.valueOf(props.getProperty(
-        DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT)), Boolean.valueOf(props.getProperty(
-        DELETE_AS_OWNER_KEY, DELETE_AS_OWNER_DEFAULT)), config.getBoolean(IS_DATASET_BLACKLISTED_KEY), log);
+    this(fs, props, Boolean.valueOf(props.getProperty(SIMULATE_KEY, SIMULATE_DEFAULT)),
+        Boolean.valueOf(props.getProperty(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT)),
+        Boolean.valueOf(props.getProperty(DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT)),
+        Boolean.valueOf(props.getProperty(DELETE_AS_OWNER_KEY, DELETE_AS_OWNER_DEFAULT)),
+        config.getBoolean(IS_DATASET_BLACKLISTED_KEY), log);
   }
 
   public MultiVersionCleanableDatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
-    this(fs, props, ConfigFactory.parseMap(ImmutableMap.<String, String> of(IS_DATASET_BLACKLISTED_KEY,
-        IS_DATASET_BLACKLISTED_DEFAULT)), log);
+    this(fs, props, ConfigFactory
+        .parseMap(ImmutableMap.<String, String> of(IS_DATASET_BLACKLISTED_KEY, IS_DATASET_BLACKLISTED_DEFAULT)), log);
   }
 
   /**
@@ -152,7 +154,8 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
    * @throws IOException
    */
   public MultiVersionCleanableDatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
-      boolean deleteEmptyDirectories, boolean deleteAsOwner, boolean isDatasetBlacklisted, Logger log) throws IOException {
+      boolean deleteEmptyDirectories, boolean deleteAsOwner, boolean isDatasetBlacklisted, Logger log)
+      throws IOException {
     this.log = log;
     this.fs = fs;
     this.simulate = simulate;
@@ -173,8 +176,8 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
 
   public MultiVersionCleanableDatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
       boolean deleteEmptyDirectories, boolean deleteAsOwner, Logger log) throws IOException {
-    this(fs, properties, simulate, skipTrash, deleteEmptyDirectories, deleteAsOwner, Boolean
-        .parseBoolean(IS_DATASET_BLACKLISTED_DEFAULT), log);
+    this(fs, properties, simulate, skipTrash, deleteEmptyDirectories, deleteAsOwner,
+        Boolean.parseBoolean(IS_DATASET_BLACKLISTED_DEFAULT), log);
   }
 
   /**
@@ -186,7 +189,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   public void clean() throws IOException {
 
     if (this.isDatasetBlacklisted) {
-      log.info("Dataset blacklisted. Cleanup skipped for " + datasetRoot());
+      this.log.info("Dataset blacklisted. Cleanup skipped for " + datasetRoot());
       return;
     }
 
@@ -199,8 +202,8 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
         throw new IOException("Incompatible dataset version classes.");
       }
 
-      this.log.info(String.format("Cleaning dataset %s. Using version finder %s and policy %s", this, versionFinder
-          .getClass().getName(), selectionPolicy.getClass().getName()));
+      this.log.info(String.format("Cleaning dataset %s. Using version finder %s and policy %s", this,
+          versionFinder.getClass().getName(), selectionPolicy.getClass().getName()));
 
       List<T> versions = Lists.newArrayList(versionFinder.findDatasetVersions(this));
 
@@ -216,7 +219,6 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
       cleanImpl(deletableVersions);
     }
 
-
   }
 
   protected void cleanImpl(Collection<T> deletableVersions) throws IOException {
@@ -225,7 +227,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
       return;
     }
 
-    Set<Path> possiblyEmptyDirectories = new HashSet<Path>();
+    Set<Path> possiblyEmptyDirectories = new HashSet<>();
 
     for (FileSystemDatasetVersion versionToDelete : deletableVersions) {
       this.log.info("Deleting dataset version " + versionToDelete);
@@ -270,7 +272,8 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
     return datasetRoot().toString();
   }
 
-  @Override public String datasetURN() {
+  @Override
+  public String datasetURN() {
     return this.datasetRoot().toString();
   }
 

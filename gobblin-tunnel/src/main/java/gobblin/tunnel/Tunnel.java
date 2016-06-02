@@ -12,7 +12,6 @@
 
 package gobblin.tunnel;
 
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -69,17 +68,16 @@ public class Tunnel {
   private final Config config;
 
   private Tunnel(String remoteHost, int remotePort, String proxyHost, int proxyPort) {
-    config = new Config(remoteHost, remotePort, proxyHost, proxyPort);
+    this.config = new Config(remoteHost, remotePort, proxyHost, proxyPort);
   }
 
   private Tunnel open() throws IOException {
     try {
-      server = ServerSocketChannel.open().bind(null);
-      server.configureBlocking(false);
+      this.server = ServerSocketChannel.open().bind(null);
+      this.server.configureBlocking(false);
 
       Selector selector = Selector.open();
       startTunnelThread(selector);
-
       return this;
     } catch (IOException ioe) {
       LOG.error("Failed to open the tunnel", ioe);
@@ -91,8 +89,8 @@ public class Tunnel {
     SocketAddress localAddress = null;
 
     try {
-      if (server != null && server.isOpen()) {
-        localAddress = server.getLocalAddress();
+      if (this.server != null && this.server.isOpen()) {
+        localAddress = this.server.getLocalAddress();
       }
       if (localAddress instanceof InetSocketAddress) {
         return ((InetSocketAddress) localAddress).getPort();
@@ -105,20 +103,20 @@ public class Tunnel {
   }
 
   private void startTunnelThread(Selector selector) {
-    thread = new Thread(new Dispatcher(selector), "Tunnel Listener");
-    thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+    this.thread = new Thread(new Dispatcher(selector), "Tunnel Listener");
+    this.thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
       @Override
       public void uncaughtException(Thread t, Throwable e) {
         LOG.error("Uncaught exception in thread " + t.getName(), e);
       }
     });
     //so we don't prevent the JVM from shutting down, just in case
-    thread.setDaemon(true);
-    thread.start();
+    this.thread.setDaemon(true);
+    this.thread.start();
   }
 
   public boolean isTunnelThreadAlive() {
-    return (thread != null && thread.isAlive());
+    return (this.thread != null && this.thread.isAlive());
   }
 
   private class Dispatcher implements Runnable {
@@ -132,12 +130,13 @@ public class Tunnel {
     @Override
     public void run() {
       try {
-        server.register(selector, SelectionKey.OP_ACCEPT, new AcceptHandler(server, selector, config));
+        Tunnel.this.server.register(this.selector, SelectionKey.OP_ACCEPT,
+            new AcceptHandler(Tunnel.this.server, this.selector, Tunnel.this.config));
 
         while (!Thread.interrupted()) {
 
-          selector.select();
-          Set<SelectionKey> selectionKeys = selector.selectedKeys();
+          this.selector.select();
+          Set<SelectionKey> selectionKeys = this.selector.selectedKeys();
 
           for (SelectionKey selectionKey : selectionKeys) {
             dispatch(selectionKey);
@@ -151,37 +150,34 @@ public class Tunnel {
       LOG.info("Closing tunnel");
     }
 
-    private void dispatch(SelectionKey selectionKey)
-        throws IOException {
+    private void dispatch(SelectionKey selectionKey) {
       Callable<?> attachment = (Callable<?>) selectionKey.attachment();
 
       try {
         attachment.call();
       } catch (Exception e) {
-        LOG.error("exception handling event on {}",selectionKey.channel(), e);
+        LOG.error("exception handling event on {}", selectionKey.channel(), e);
       }
     }
   }
 
   public void close() {
     try {
-      server.close();
+      this.server.close();
       LOG.info("Closed tunnel.");
     } catch (IOException ioe) {
       LOG.warn("Exception during shutdown of tunnel", ioe);
     } finally {
       try {
-        thread.interrupt();
-        thread.join();
+        this.thread.interrupt();
+        this.thread.join();
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
     }
   }
 
-  public static Tunnel build(String remoteHost, int remotePort, String proxyHost, int proxyPort)
-      throws IOException {
+  public static Tunnel build(String remoteHost, int remotePort, String proxyHost, int proxyPort) throws IOException {
     return new Tunnel(remoteHost, remotePort, proxyHost, proxyPort).open();
   }
 }
-

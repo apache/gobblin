@@ -32,8 +32,6 @@ public class TimestampWatermark implements Watermark {
   private static final Logger LOG = LoggerFactory.getLogger(TimestampWatermark.class);
   // default water mark format(input format) example: 20140301050505
   private static final String INPUTFORMAT = "yyyyMMddHHmmss";
-  // output format of timestamp water mark example: 20140301050505
-  private static final String OUTPUTFORMAT = "yyyyMMddHHmmss";
   private static final SimpleDateFormat INPUTFORMATPARSER = new SimpleDateFormat(INPUTFORMAT);
 
   private static final int deltaForNextWatermark = 1;
@@ -46,9 +44,9 @@ public class TimestampWatermark implements Watermark {
   }
 
   @Override
-  public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator) {
-    return extractor
-        .getTimestampPredicateCondition(this.watermarkColumn, watermarkValue, this.watermarkFormat, operator);
+  public String getWatermarkCondition(QueryBasedExtractor<?, ?> extractor, long watermarkValue, String operator) {
+    return extractor.getTimestampPredicateCondition(this.watermarkColumn, watermarkValue, this.watermarkFormat,
+        operator);
   }
 
   @Override
@@ -63,20 +61,20 @@ public class TimestampWatermark implements Watermark {
         "Invalid value for partitionInterval, value should be at least 1.");
     Preconditions.checkArgument(maxIntervals > 0, "Invalid value for maxIntervals, positive value expected.");
 
-    HashMap<Long, Long> intervalMap = new HashMap<Long, Long>();
+    HashMap<Long, Long> intervalMap = new HashMap<>();
 
     if (lowWatermarkValue > highWatermarkValue) {
-      LOG.warn("lowWatermarkValue: " + lowWatermarkValue + " is greater than highWatermarkValue: "
-          + highWatermarkValue);
+      LOG.warn(
+          "lowWatermarkValue: " + lowWatermarkValue + " is greater than highWatermarkValue: " + highWatermarkValue);
       return intervalMap;
     }
 
     final Calendar calendar = Calendar.getInstance();
     Date nextTime;
-    final long lowWatermark = this.toEpoch(Long.toString(lowWatermarkValue));
-    final long highWatermark = this.toEpoch(Long.toString(highWatermarkValue));
+    final long lowWatermark = toEpoch(Long.toString(lowWatermarkValue));
+    final long highWatermark = toEpoch(Long.toString(highWatermarkValue));
 
-    long interval = this.getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals);
+    long interval = getInterval(highWatermark - lowWatermark, partitionInterval, maxIntervals);
     LOG.info("Recalculated partition interval:" + interval + " hours");
     if (interval == 0) {
       return intervalMap;
@@ -110,10 +108,9 @@ public class TimestampWatermark implements Watermark {
    * @return calculated interval in hours
    */
 
-  private int getInterval(long diffInMilliSecs, long hourInterval, int maxIntervals) {
+  private static int getInterval(long diffInMilliSecs, long hourInterval, int maxIntervals) {
 
-    long totalHours = DoubleMath.roundToInt((double) diffInMilliSecs / (60 * 60 * 1000),
-            RoundingMode.CEILING);
+    long totalHours = DoubleMath.roundToInt((double) diffInMilliSecs / (60 * 60 * 1000), RoundingMode.CEILING);
     long totalIntervals = DoubleMath.roundToInt((double) totalHours / hourInterval, RoundingMode.CEILING);
     if (totalIntervals > maxIntervals) {
       hourInterval = DoubleMath.roundToInt((double) totalHours / maxIntervals, RoundingMode.CEILING);
@@ -121,7 +118,7 @@ public class TimestampWatermark implements Watermark {
     return Ints.checkedCast(hourInterval);
   }
 
-  synchronized private long toEpoch(String dateTime) {
+  synchronized private static long toEpoch(String dateTime) {
     Date date = null;
     final SimpleDateFormat inputFormat = new SimpleDateFormat(INPUTFORMAT);
     try {

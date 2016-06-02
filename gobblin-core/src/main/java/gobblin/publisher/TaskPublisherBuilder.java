@@ -19,22 +19,17 @@ import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 public class TaskPublisherBuilder {
   private final TaskLevelPolicyCheckResults results;
   private final WorkUnitState workUnitState;
-  private final int index;
 
-  public TaskPublisherBuilder(WorkUnitState workUnitState, TaskLevelPolicyCheckResults results, int index) {
+  public TaskPublisherBuilder(WorkUnitState workUnitState, TaskLevelPolicyCheckResults results) {
     this.results = results;
     this.workUnitState = workUnitState;
-    this.index = index;
   }
 
-  public static TaskPublisherBuilder newBuilder(WorkUnitState taskState, TaskLevelPolicyCheckResults results,
-      int index) {
-
-    return new TaskPublisherBuilder(taskState, results, index);
+  public static TaskPublisherBuilder newBuilder(WorkUnitState taskState, TaskLevelPolicyCheckResults results) {
+    return new TaskPublisherBuilder(taskState, results);
   }
 
-  public TaskPublisher build()
-      throws Exception {
+  public TaskPublisher build() throws Exception {
     return new TaskPublisher(this.workUnitState, this.results);
   }
 }

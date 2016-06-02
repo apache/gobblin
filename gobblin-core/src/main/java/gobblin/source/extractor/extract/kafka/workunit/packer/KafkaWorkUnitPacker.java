@@ -120,12 +120,10 @@ public abstract class KafkaWorkUnitPacker {
           Enums.getIfPresent(SizeEstimatorType.class, sizeEstimatorTypeString);
       if (sizeEstimatorType.isPresent()) {
         return getWorkUnitSizeEstimator(sizeEstimatorType.get());
-      } else {
-        throw new IllegalArgumentException("WorkUnit size estimator type " + sizeEstimatorType + " not found");
       }
-    } else {
-      return getWorkUnitSizeEstimator(DEFAULT_SIZE_ESTIMATOR_TYPE);
+      throw new IllegalArgumentException("WorkUnit size estimator type " + sizeEstimatorType + " not found");
     }
+    return getWorkUnitSizeEstimator(DEFAULT_SIZE_ESTIMATOR_TYPE);
   }
 
   private KafkaWorkUnitSizeEstimator getWorkUnitSizeEstimator(SizeEstimatorType sizeEstimatorType) {
@@ -151,10 +149,9 @@ public abstract class KafkaWorkUnitPacker {
   protected static double getWorkUnitEstLoad(WorkUnit workUnit) {
     if (workUnit instanceof MultiWorkUnit) {
       MultiWorkUnit mwu = (MultiWorkUnit) workUnit;
-      return Math.max(getWorkUnitEstSize(workUnit), EPS) * Math.log10((double) Math.max(mwu.getWorkUnits().size(), 2));
-    } else {
-      return Math.max(getWorkUnitEstSize(workUnit), EPS) * Math.log10(2.0);
+      return Math.max(getWorkUnitEstSize(workUnit), EPS) * Math.log10(Math.max(mwu.getWorkUnits().size(), 2));
     }
+    return Math.max(getWorkUnitEstSize(workUnit), EPS) * Math.log10(2.0);
   }
 
   protected static void addWorkUnitToMultiWorkUnit(WorkUnit workUnit, MultiWorkUnit multiWorkUnit) {
@@ -173,12 +170,11 @@ public abstract class KafkaWorkUnitPacker {
   protected static WatermarkInterval getWatermarkIntervalFromWorkUnit(WorkUnit workUnit) {
     if (workUnit instanceof MultiWorkUnit) {
       return getWatermarkIntervalFromMultiWorkUnit((MultiWorkUnit) workUnit);
-    } else {
-      List<Long> lowWatermarkValues = Lists.newArrayList(workUnit.getLowWaterMark());
-      List<Long> expectedHighWatermarkValues = Lists.newArrayList(workUnit.getHighWaterMark());
-      return new WatermarkInterval(new MultiLongWatermark(lowWatermarkValues),
-          new MultiLongWatermark(expectedHighWatermarkValues));
     }
+    List<Long> lowWatermarkValues = Lists.newArrayList(workUnit.getLowWaterMark());
+    List<Long> expectedHighWatermarkValues = Lists.newArrayList(workUnit.getHighWaterMark());
+    return new WatermarkInterval(new MultiLongWatermark(lowWatermarkValues),
+        new MultiLongWatermark(expectedHighWatermarkValues));
   }
 
   @SuppressWarnings("deprecation")
@@ -196,10 +192,10 @@ public abstract class KafkaWorkUnitPacker {
   /**
    * For each input {@link MultiWorkUnit}, combine all {@link WorkUnit}s in it into a single {@link WorkUnit}.
    */
-  protected List<WorkUnit> squeezeMultiWorkUnits(List<MultiWorkUnit> multiWorkUnits, SourceState state) {
+  protected List<WorkUnit> squeezeMultiWorkUnits(List<MultiWorkUnit> multiWorkUnits) {
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (MultiWorkUnit multiWorkUnit : multiWorkUnits) {
-      workUnits.add(squeezeMultiWorkUnit(multiWorkUnit, state));
+      workUnits.add(squeezeMultiWorkUnit(multiWorkUnit));
     }
     return workUnits;
   }
@@ -207,7 +203,7 @@ public abstract class KafkaWorkUnitPacker {
   /**
    * Combine all {@link WorkUnit}s in the {@link MultiWorkUnit} into a single {@link WorkUnit}.
    */
-  protected WorkUnit squeezeMultiWorkUnit(MultiWorkUnit multiWorkUnit, SourceState state) {
+  protected WorkUnit squeezeMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
     WatermarkInterval interval = getWatermarkIntervalFromMultiWorkUnit(multiWorkUnit);
     List<KafkaPartition> partitions = getPartitionsFromMultiWorkUnit(multiWorkUnit);
     Preconditions.checkArgument(!partitions.isEmpty(), "There must be at least one partition in the multiWorkUnit");
@@ -226,7 +222,7 @@ public abstract class KafkaWorkUnitPacker {
   private static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
     Preconditions.checkArgument(!partitions.isEmpty(), "There should be at least one partition");
     workUnit.setProp(KafkaSource.TOPIC_NAME, partitions.get(0).getTopicName());
-    GobblinMetrics.addCustomTagToState(workUnit, new Tag<String>("kafkaTopic", partitions.get(0).getTopicName()));
+    GobblinMetrics.addCustomTagToState(workUnit, new Tag<>("kafkaTopic", partitions.get(0).getTopicName()));
     workUnit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, partitions.get(0).getTopicName());
     for (int i = 0; i < partitions.size(); i++) {
       workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i), partitions.get(i).getId());
@@ -309,12 +305,10 @@ public abstract class KafkaWorkUnitPacker {
       Optional<PackerType> packerType = Enums.getIfPresent(PackerType.class, packerTypeStr);
       if (packerType.isPresent()) {
         return getInstance(packerType.get(), source, state);
-      } else {
-        throw new IllegalArgumentException("WorkUnit packer type " + packerTypeStr + " not found");
       }
-    } else {
-      return getInstance(DEFAULT_PACKER_TYPE, source, state);
+      throw new IllegalArgumentException("WorkUnit packer type " + packerTypeStr + " not found");
     }
+    return getInstance(DEFAULT_PACKER_TYPE, source, state);
   }
 
   public static KafkaWorkUnitPacker getInstance(PackerType packerType, AbstractSource<?, ?> source, SourceState state) {

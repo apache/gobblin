@@ -153,7 +153,7 @@ public class LogCopier extends AbstractScheduledService {
 
     this.linesWrittenBeforeFlush = builder.linesWrittenBeforeFlush;
 
-    this.scheduler = TaskSchedulerFactory.get(builder.schedulerName, Optional.<String>absent());
+    this.scheduler = TaskSchedulerFactory.get(builder.schedulerName, Optional.<String> absent());
   }
 
   @Override
@@ -176,10 +176,10 @@ public class LogCopier extends AbstractScheduledService {
    */
   private void checkSrcLogFiles() throws IOException {
     List<FileStatus> srcLogFiles = FileListUtils.listFilesRecursively(this.srcFs, this.srcLogDir, new PathFilter() {
-        @Override
-        public boolean accept(Path path) {
-            return logFileExtensions.contains(Files.getFileExtension(path.getName()));
-        }
+      @Override
+      public boolean accept(Path path) {
+        return LogCopier.this.logFileExtensions.contains(Files.getFileExtension(path.getName()));
+      }
     });
 
     if (srcLogFiles.isEmpty()) {
@@ -193,7 +193,7 @@ public class LogCopier extends AbstractScheduledService {
     }
 
     HashSet<Path> deletedLogFiles = Sets.newHashSet(getSourceFiles());
-      // Compute the set of deleted log files since the last check
+    // Compute the set of deleted log files since the last check
     deletedLogFiles.removeAll(newLogFiles);
     // Compute the set of new log files since the last check
     newLogFiles.removeAll(getSourceFiles());
@@ -201,7 +201,7 @@ public class LogCopier extends AbstractScheduledService {
     // Schedule a copy task for each new log file
     for (final Path srcLogFile : newLogFiles) {
       String destLogFileName = this.logFileNamePrefix.isPresent()
-              ? this.logFileNamePrefix.get() + "." + srcLogFile.getName() : srcLogFile.getName();
+          ? this.logFileNamePrefix.get() + "." + srcLogFile.getName() : srcLogFile.getName();
       final Path destLogFile = new Path(this.destLogDir, destLogFileName);
 
       this.scheduler.schedule(new LogCopyTask(srcLogFile, destLogFile), this.copyInterval, this.timeUnit);
@@ -254,12 +254,12 @@ public class LogCopier extends AbstractScheduledService {
 
     private String schedulerName = null;
 
-      /**
-     * Set the interval between two checks for the source log file monitor.
-     *
-     * @param sourceLogFileMonitorInterval the interval between two checks for the source log file monitor
-     * @return this {@link LogCopier.Builder} instance
-     */
+    /**
+    * Set the interval between two checks for the source log file monitor.
+    *
+    * @param sourceLogFileMonitorInterval the interval between two checks for the source log file monitor
+    * @return this {@link LogCopier.Builder} instance
+    */
     public Builder useSourceLogFileMonitorInterval(long sourceLogFileMonitorInterval) {
       Preconditions.checkArgument(sourceLogFileMonitorInterval > 0,
           "Source log file monitor interval must be positive");
@@ -432,8 +432,7 @@ public class LogCopier extends AbstractScheduledService {
      * @return this {@link LogCopier.Builder} instance
      */
     public Builder useScheduler(String schedulerName) {
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(schedulerName),
-         "Invalid scheduler name: " + schedulerName);
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(schedulerName), "Invalid scheduler name: " + schedulerName);
       this.schedulerName = schedulerName;
       return this;
     }
@@ -449,13 +448,13 @@ public class LogCopier extends AbstractScheduledService {
   }
 
   private ImmutableList<Path> getSourceFiles() {
-    return ImmutableList.copyOf(Iterables.transform(this.scheduler.getScheduledTasks(),
-            new Function<LogCopyTask, Path>() {
-              @Override
-              public Path apply(LogCopyTask input) {
-                return input.getKey();
-              }
-            }));
+    return ImmutableList
+        .copyOf(Iterables.transform(this.scheduler.getScheduledTasks(), new Function<LogCopyTask, Path>() {
+          @Override
+          public Path apply(LogCopyTask input) {
+            return input.getKey();
+          }
+        }));
   }
 
   private class LogCopyTask implements ScheduledTask<Path> {
@@ -482,7 +481,8 @@ public class LogCopier extends AbstractScheduledService {
       try {
         createNewLogFileIfNeeded();
         LOGGER.debug(String.format("Copying changes from %s to %s", this.srcLogFile, this.destLogFile));
-        copyChangesOfLogFile(srcFs.makeQualified(this.srcLogFile), destFs.makeQualified(this.destLogFile));
+        copyChangesOfLogFile(LogCopier.this.srcFs.makeQualified(this.srcLogFile),
+            LogCopier.this.destFs.makeQualified(this.destLogFile));
       } catch (IOException ioe) {
         LOGGER.error(String.format("Failed while copying logs from %s to %s", this.srcLogFile, this.destLogFile), ioe);
       }
@@ -490,10 +490,10 @@ public class LogCopier extends AbstractScheduledService {
 
     private void createNewLogFileIfNeeded() throws IOException {
       if (LogCopier.this.destFs.exists(this.destLogFile)
-              && (this.watch.elapsed(TimeUnit.MINUTES) > LogCopier.this.maxMinutesPerLogFile
+          && (this.watch.elapsed(TimeUnit.MINUTES) > LogCopier.this.maxMinutesPerLogFile
               || LogCopier.this.destFs.getFileStatus(this.destLogFile).getLen() > LogCopier.this.maxBytesPerLogFile)) {
         HadoopUtils.renamePath(LogCopier.this.destFs, this.destLogFile,
-                new Path(this.destLogFile.toString() + "." + System.currentTimeMillis()));
+            new Path(this.destLogFile.toString() + "." + System.currentTimeMillis()));
         this.watch.reset();
         this.watch.start();
       }
@@ -503,26 +503,26 @@ public class LogCopier extends AbstractScheduledService {
      * Copy changes for a single log file.
      */
     private void copyChangesOfLogFile(Path srcFile, Path destFile) throws IOException {
-      if (!srcFs.exists(srcFile)) {
+      if (!LogCopier.this.srcFs.exists(srcFile)) {
         LOGGER.warn("Source log file not found: " + srcFile);
         return;
       }
 
-      Closer closer = Closer.create();
       // We need to use fsDataInputStream in the finally clause so it has to be defined outside try-catch-finally
       FSDataInputStream fsDataInputStream = null;
 
-      try {
-        fsDataInputStream = closer.register(srcFs.open(srcFile));
+      try (Closer closer = Closer.create()) {
+        fsDataInputStream = closer.register(LogCopier.this.srcFs.open(srcFile));
         // Seek to the the most recent position if it is available
         LOGGER.debug(String.format("Reading log file %s from position %d", srcFile, this.currentPos));
         fsDataInputStream.seek(this.currentPos);
         BufferedReader srcLogFileReader = closer.register(
-                new BufferedReader(new InputStreamReader(fsDataInputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+            new BufferedReader(new InputStreamReader(fsDataInputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
-        FSDataOutputStream outputStream = destFs.exists(destFile) ? destFs.append(destFile) : destFs.create(destFile);
+        FSDataOutputStream outputStream = LogCopier.this.destFs.exists(destFile)
+            ? LogCopier.this.destFs.append(destFile) : LogCopier.this.destFs.create(destFile);
         BufferedWriter destLogFileWriter = closer.register(
-                new BufferedWriter(new OutputStreamWriter(outputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
+            new BufferedWriter(new OutputStreamWriter(outputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
         String line;
         int linesProcessed = 0;
@@ -534,19 +534,13 @@ public class LogCopier extends AbstractScheduledService {
           destLogFileWriter.write(line);
           destLogFileWriter.newLine();
           linesProcessed++;
-          if (linesProcessed % linesWrittenBeforeFlush == 0) {
+          if (linesProcessed % LogCopier.this.linesWrittenBeforeFlush == 0) {
             destLogFileWriter.flush();
           }
         }
-      } catch (Throwable t) {
-          throw closer.rethrow(t);
       } finally {
-        try {
-          closer.close();
-        } finally {
-          if (fsDataInputStream != null) {
-            this.currentPos = fsDataInputStream.getPos();
-          }
+        if (fsDataInputStream != null) {
+          this.currentPos = fsDataInputStream.getPos();
         }
       }
     }
@@ -570,10 +564,10 @@ public class LogCopier extends AbstractScheduledService {
      * </p>
      */
     private boolean shouldCopyLine(String line) {
-      boolean including = !includingRegexPatterns.isPresent()
-              || DatasetFilterUtils.stringInPatterns(line, includingRegexPatterns.get());
-      boolean excluding =
-              excludingRegexPatterns.isPresent() && DatasetFilterUtils.stringInPatterns(line, excludingRegexPatterns.get());
+      boolean including = !LogCopier.this.includingRegexPatterns.isPresent()
+          || DatasetFilterUtils.stringInPatterns(line, LogCopier.this.includingRegexPatterns.get());
+      boolean excluding = LogCopier.this.excludingRegexPatterns.isPresent()
+          && DatasetFilterUtils.stringInPatterns(line, LogCopier.this.excludingRegexPatterns.get());
 
       return !excluding && including;
     }

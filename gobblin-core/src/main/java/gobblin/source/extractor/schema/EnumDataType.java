@@ -26,7 +26,7 @@ public class EnumDataType extends DataType {
   }
 
   public String getName() {
-    return name;
+    return this.name;
   }
 
   public void setName(String name) {
@@ -34,7 +34,7 @@ public class EnumDataType extends DataType {
   }
 
   public List<String> getSymbols() {
-    return symbols;
+    return this.symbols;
   }
 
   public void setSymbols(List<String> symbols) {

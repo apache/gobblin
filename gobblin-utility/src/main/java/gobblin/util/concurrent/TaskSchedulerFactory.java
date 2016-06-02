@@ -22,8 +22,7 @@ import com.google.common.base.Optional;
  */
 public class TaskSchedulerFactory {
 
-  private TaskSchedulerFactory() {
-  }
+  private TaskSchedulerFactory() {}
 
   /**
    * Gets an instance of the {@link TaskScheduler} with the specified type and ensures that it is started. If
@@ -50,10 +49,9 @@ public class TaskSchedulerFactory {
    * @param <T> the type of the {@link ScheduledTask}
    * @return an instance of {@link TaskScheduler}
    */
-  @SuppressWarnings("unchecked")
   public static <K, T extends ScheduledTask<K>> TaskScheduler<K, T> get(TaskSchedulerType type, Optional<String> name) {
     try {
-      TaskScheduler<K, T> taskScheduler = (TaskScheduler<K, T>) type.getTaskSchedulerClass().newInstance();
+      TaskScheduler<K, T> taskScheduler = type.getTaskSchedulerClass().newInstance();
       taskScheduler.start(name);
       return taskScheduler;
     } catch (InstantiationException | IllegalAccessException e) {

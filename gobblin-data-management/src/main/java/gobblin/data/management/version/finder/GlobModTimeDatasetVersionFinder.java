@@ -34,7 +34,8 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
   private static final String VERSION_FINDER_GLOB_PATTERN_KEY = "version.globPattern";
 
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Config config) {
-    this(fs, config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY) ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY)) : new Path("*"));
+    this(fs, config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY)
+        ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY)) : new Path("*"));
   }
 
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern) {
@@ -55,7 +56,8 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
   @Override
   public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
     try {
-      return new TimestampedDatasetVersion(new DateTime(fs.getFileStatus(fullPath).getModificationTime()), fullPath);
+      return new TimestampedDatasetVersion(new DateTime(this.fs.getFileStatus(fullPath).getModificationTime()),
+          fullPath);
     } catch (IOException e) {
       return null;
     }

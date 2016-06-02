@@ -41,7 +41,8 @@ import gobblin.util.FinalState;
  * package-private implementation of instrumentation for {@link gobblin.source.extractor.Extractor}.
  * See {@link gobblin.instrumented.extractor.InstrumentedExtractor} for extensible class.
  */
-public abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>, Instrumentable, Closeable, FinalState {
+public abstract class InstrumentedExtractorBase<S, D>
+    implements Extractor<S, D>, Instrumentable, Closeable, FinalState {
 
   private final boolean instrumentationEnabled;
   private MetricContext metricContext;
@@ -50,9 +51,8 @@ public abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>
   private Optional<Timer> extractorTimer;
   protected final Closer closer;
 
-  @SuppressWarnings("unchecked")
   public InstrumentedExtractorBase(WorkUnitState workUnitState) {
-    this(workUnitState, Optional.<Class<?>>absent());
+    this(workUnitState, Optional.<Class<?>> absent());
   }
 
   protected InstrumentedExtractorBase(WorkUnitState workUnitState, Optional<Class<?>> classTag) {
@@ -61,16 +61,16 @@ public abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>
 
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnitState);
 
-    this.metricContext = this.closer.register(Instrumented.getMetricContext(workUnitState, classTag.or(this.getClass()),
-        generateTags(workUnitState)));
+    this.metricContext = this.closer.register(
+        Instrumented.getMetricContext(workUnitState, classTag.or(this.getClass()), generateTags(workUnitState)));
 
     regenerateMetrics();
   }
 
   @Override
   public void switchMetricContext(List<Tag<?>> tags) {
-    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
-        Optional.<String>absent()));
+    this.metricContext = this.closer
+        .register(Instrumented.newContextFromReferenceContext(this.metricContext, tags, Optional.<String> absent()));
 
     regenerateMetrics();
   }
@@ -85,10 +85,10 @@ public abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>
    * Generates metrics for the instrumentation of this class.
    */
   protected void regenerateMetrics() {
-    if(isInstrumentationEnabled()) {
+    if (isInstrumentationEnabled()) {
       this.readRecordsMeter = Optional.of(this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_READ_METER));
-      this.dataRecordExceptionsMeter = Optional.of(
-          this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_FAILED_METER));
+      this.dataRecordExceptionsMeter =
+          Optional.of(this.metricContext.meter(MetricNames.ExtractorMetrics.RECORDS_FAILED_METER));
       this.extractorTimer = Optional.of(this.metricContext.timer(MetricNames.ExtractorMetrics.EXTRACT_TIMER));
     } else {
       this.readRecordsMeter = Optional.absent();
@@ -109,8 +109,7 @@ public abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>
   }
 
   @Override
-  public D readRecord(D reuse)
-      throws DataRecordException, IOException {
+  public D readRecord(D reuse) throws DataRecordException, IOException {
     if (!isInstrumentationEnabled()) {
       return readRecordImpl(reuse);
     }
@@ -121,10 +120,10 @@ public abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>
       D record = readRecordImpl(reuse);
       afterRead(record, startTimeNanos);
       return record;
-    } catch(DataRecordException exception) {
+    } catch (DataRecordException exception) {
       onException(exception);
       throw exception;
-    } catch(IOException exception) {
+    } catch (IOException exception) {
       onException(exception);
       throw exception;
     }
@@ -143,8 +142,8 @@ public abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>
    */
   public void afterRead(D record, long startTime) {
     Instrumented.updateTimer(this.extractorTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-    if(record != null){
-      Instrumented.markMeter(readRecordsMeter);
+    if (record != null) {
+      Instrumented.markMeter(this.readRecordsMeter);
     }
   }
 
@@ -154,7 +153,7 @@ public abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>
    */
   public void onException(Exception exception) {
     if (DataRecordException.class.isInstance(exception)) {
-      Instrumented.markMeter(dataRecordExceptionsMeter);
+      Instrumented.markMeter(this.dataRecordExceptionsMeter);
     }
   }
 
@@ -174,8 +173,7 @@ public abstract class InstrumentedExtractorBase<S, D> implements Extractor<S, D>
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     this.closer.close();
   }
 

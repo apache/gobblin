@@ -28,7 +28,7 @@ import gobblin.data.management.retention.dataset.ModificationTimeDataset;
  * 'gobblin.retention.dataset.pattern'.
  */
 public class ModificationTimeDatasetProfile extends ConfigurableGlobDatasetFinder<Dataset> {
-  public ModificationTimeDatasetProfile(FileSystem fs, Properties props) throws IOException {
+  public ModificationTimeDatasetProfile(FileSystem fs, Properties props) {
     super(fs, props);
   }
 

@@ -28,74 +28,55 @@ import com.google.common.collect.Maps;
  */
 public class NoopDatasetStateStore extends FsDatasetStateStore {
 
-  public NoopDatasetStateStore(FileSystem fs, String storeRootDir)
-      throws IOException {
+  public NoopDatasetStateStore(FileSystem fs, String storeRootDir) {
     super(fs, storeRootDir);
   }
 
   @Override
-  public List<JobState.DatasetState> getAll(String storeName, String tableName)
-      throws IOException {
+  public List<JobState.DatasetState> getAll(String storeName, String tableName) throws IOException {
     return Lists.newArrayList();
   }
 
   @Override
-  public List<JobState.DatasetState> getAll(String storeName)
-      throws IOException {
+  public List<JobState.DatasetState> getAll(String storeName) throws IOException {
     return Lists.newArrayList();
   }
 
   @Override
-  public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName)
-      throws IOException {
+  public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName) throws IOException {
     return Maps.newHashMap();
   }
 
   @Override
-  public void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState)
-      throws IOException {
-  }
+  public void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState) throws IOException {}
 
   @Override
-  public boolean create(String storeName)
-      throws IOException {
+  public boolean create(String storeName) throws IOException {
     return true;
   }
 
   @Override
-  public boolean create(String storeName, String tableName)
-      throws IOException {
+  public boolean create(String storeName, String tableName) throws IOException {
     return true;
   }
 
   @Override
-  public boolean exists(String storeName, String tableName)
-      throws IOException {
+  public boolean exists(String storeName, String tableName) throws IOException {
     return false;
   }
 
   @Override
-  public void put(String storeName, String tableName, JobState.DatasetState state)
-      throws IOException {
-  }
+  public void put(String storeName, String tableName, JobState.DatasetState state) throws IOException {}
 
   @Override
-  public void putAll(String storeName, String tableName, Collection<JobState.DatasetState> states)
-      throws IOException {
-  }
+  public void putAll(String storeName, String tableName, Collection<JobState.DatasetState> states) throws IOException {}
 
   @Override
-  public void createAlias(String storeName, String original, String alias)
-      throws IOException {
-  }
+  public void createAlias(String storeName, String original, String alias) throws IOException {}
 
   @Override
-  public void delete(String storeName, String tableName)
-      throws IOException {
-  }
+  public void delete(String storeName, String tableName) throws IOException {}
 
   @Override
-  public void delete(String storeName)
-      throws IOException {
-  }
+  public void delete(String storeName) throws IOException {}
 }

@@ -22,6 +22,7 @@ import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.Destination;
 import gobblin.writer.Destination.DestinationType;
 
+
 /**
  * Factory method pattern class. It's not a static class mainly for TDD -- so that it can be mocked for testing purpose.
  */
@@ -46,8 +47,8 @@ public class JdbcWriterCommandsFactory {
    */
   public JdbcWriterCommands newInstance(State state, Connection conn) {
     String destKey = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_DESTINATION_TYPE_KEY,
-                         state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1),
-                         state.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY, 0));
+        state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1),
+        state.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY, 0));
     String destType = state.getProp(destKey);
     Preconditions.checkNotNull(destType, destKey + " is required for underlying JDBC product name");
     return newInstance(Destination.of(DestinationType.valueOf(destType.toUpperCase()), state), conn);

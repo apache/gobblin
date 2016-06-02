@@ -40,6 +40,7 @@ import gobblin.util.jdbc.DataSourceBuilder;
 import gobblin.writer.commands.JdbcWriterCommands;
 import gobblin.writer.commands.JdbcWriterCommandsFactory;
 
+
 /**
  * Publishes data into JDBC RDBMS. Expects all the data has been already in staging table.
  */
@@ -83,26 +84,24 @@ public class JdbcPublisher extends DataPublisher {
   private void validate(State state) {
     JobCommitPolicy jobCommitPolicy = JobCommitPolicy.getCommitPolicy(this.getState().getProperties());
     if (JobCommitPolicy.COMMIT_ON_FULL_SUCCESS != jobCommitPolicy) {
-      throw new IllegalArgumentException(this.getClass().getSimpleName() + " won't publish as already commited by task. Job commit policy " + jobCommitPolicy);
+      throw new IllegalArgumentException(this.getClass().getSimpleName()
+          + " won't publish as already commited by task. Job commit policy " + jobCommitPolicy);
     }
 
-    if (!state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL)) {
-      throw new IllegalArgumentException(this.getClass().getSimpleName() + " won't publish as " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is set as false");
+    if (!state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
+        ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL)) {
+      throw new IllegalArgumentException(this.getClass().getSimpleName() + " won't publish as "
+          + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is set as false");
     }
   }
 
   @VisibleForTesting
   public Connection createConnection() {
-    DataSource dataSource = DataSourceBuilder.builder()
-                                             .url(state.getProp(JDBC_PUBLISHER_URL))
-                                             .driver(state.getProp(JDBC_PUBLISHER_DRIVER))
-                                             .userName(state.getProp(JDBC_PUBLISHER_USERNAME))
-                                             .passWord(state.getProp(JDBC_PUBLISHER_PASSWORD))
-                                             .cryptoKeyLocation(state.getProp(JDBC_PUBLISHER_ENCRYPTION_KEY_LOC))
-                                             .maxActiveConnections(1)
-                                             .maxIdleConnections(1)
-                                             .state(state)
-                                             .build();
+    DataSource dataSource = DataSourceBuilder.builder().url(this.state.getProp(JDBC_PUBLISHER_URL))
+        .driver(this.state.getProp(JDBC_PUBLISHER_DRIVER)).userName(this.state.getProp(JDBC_PUBLISHER_USERNAME))
+        .passWord(this.state.getProp(JDBC_PUBLISHER_PASSWORD))
+        .cryptoKeyLocation(this.state.getProp(JDBC_PUBLISHER_ENCRYPTION_KEY_LOC)).maxActiveConnections(1)
+        .maxIdleConnections(1).state(this.state).build();
     try {
       return dataSource.getConnection();
     } catch (SQLException e) {
@@ -130,34 +129,37 @@ public class JdbcPublisher extends DataPublisher {
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
     LOG.info("Start publishing data");
-    int branches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+    int branches = this.state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
     Set<String> emptiedDestTables = Sets.newHashSet();
 
     final Connection conn = createConnection();
-    final JdbcWriterCommands commands = jdbcWriterCommandsFactory.newInstance(state, conn);
+    final JdbcWriterCommands commands = this.jdbcWriterCommandsFactory.newInstance(this.state, conn);
     try {
       conn.setAutoCommit(false);
 
       for (int i = 0; i < branches; i++) {
-        final String destinationTable = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, i));
-        final String databaseName = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_DATABASE_NAME, branches, i));
+        final String destinationTable = this.state
+            .getProp(ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_FINAL_TABLE_NAME, branches, i));
+        final String databaseName =
+            this.state.getProp(ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_DATABASE_NAME, branches, i));
         Preconditions.checkNotNull(destinationTable);
 
-        if(state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
-           && !emptiedDestTables.contains(destinationTable)) {
+        if (this.state.getPropAsBoolean(
+            ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
+            && !emptiedDestTables.contains(destinationTable)) {
           LOG.info("Deleting table " + destinationTable);
-            commands.deleteAll(destinationTable);
-            emptiedDestTables.add(destinationTable);
+          commands.deleteAll(destinationTable);
+          emptiedDestTables.add(destinationTable);
         }
 
         Map<String, List<WorkUnitState>> stagingTables = getStagingTables(states, branches, i);
         for (Map.Entry<String, List<WorkUnitState>> entry : stagingTables.entrySet()) {
           String stagingTable = entry.getKey();
           LOG.info("Copying data from staging table " + stagingTable + " into destination table " + destinationTable);
-            commands.copyTable(databaseName, stagingTable, destinationTable);
-            for (WorkUnitState workUnitState : entry.getValue()) {
-              workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-            }
+          commands.copyTable(databaseName, stagingTable, destinationTable);
+          for (WorkUnitState workUnitState : entry.getValue()) {
+            workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+          }
         }
       }
       LOG.info("Commit publish data");
@@ -179,14 +181,15 @@ public class JdbcPublisher extends DataPublisher {
     }
   }
 
-  private Map<String, List<WorkUnitState>> getStagingTables(Collection<? extends WorkUnitState> states, int branches, int i) {
+  private static Map<String, List<WorkUnitState>> getStagingTables(Collection<? extends WorkUnitState> states,
+      int branches, int i) {
     Map<String, List<WorkUnitState>> stagingTables = Maps.newHashMap();
     for (WorkUnitState workUnitState : states) {
       String stagingTableKey =
           ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_STAGING_TABLE, branches, i);
       String stagingTable = Preconditions.checkNotNull(workUnitState.getProp(stagingTableKey));
       List<WorkUnitState> existing = stagingTables.get(stagingTable);
-      if(existing == null) {
+      if (existing == null) {
         existing = Lists.newArrayList();
         stagingTables.put(stagingTable, existing);
       }

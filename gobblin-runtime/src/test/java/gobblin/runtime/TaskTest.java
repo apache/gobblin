@@ -68,7 +68,7 @@ public class TaskTest {
     // Create a mock TaskPublisher
     TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
     when(mockTaskPublisher.canPublish()).thenReturn(TaskPublisher.PublisherState.SUCCESS);
-    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any(TaskLevelPolicyCheckResults.class), anyInt()))
+    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any(TaskLevelPolicyCheckResults.class)))
         .thenReturn(mockTaskPublisher);
 
     // Create a mock TaskStateTracker

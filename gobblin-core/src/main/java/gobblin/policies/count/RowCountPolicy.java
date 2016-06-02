@@ -35,14 +35,13 @@ public class RowCountPolicy extends TaskLevelPolicy {
   public Result executePolicy() {
     if (this.rowsRead == this.rowsWritten) {
       return Result.PASSED;
-    } else {
-      LOG.warn(this.getClass().getSimpleName() + " fails as read count and write count mismatch: " + this);
-      return Result.FAILED;
     }
+    LOG.warn(this.getClass().getSimpleName() + " fails as read count and write count mismatch: " + this);
+    return Result.FAILED;
   }
 
   @Override
   public String toString() {
-    return String.format("RowCountPolicy [rowsRead=%s, rowsWritten=%s]", rowsRead, rowsWritten);
+    return String.format("RowCountPolicy [rowsRead=%s, rowsWritten=%s]", this.rowsRead, this.rowsWritten);
   }
 }
