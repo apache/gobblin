@@ -30,6 +30,7 @@ import com.google.common.base.Optional;
  */
 public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaStoreClient> {
 
+  public static final String HIVE_METASTORE_TOKEN_SIGNATURE = "hive.metastore.token.signature";
   @Getter
   private HiveConf hiveConf;
 
@@ -41,6 +42,7 @@ public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaSto
     HiveConf hiveConf = new HiveConf();
     if (hcatURI.isPresent()) {
       hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, hcatURI.get());
+      hiveConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, hcatURI.get());
     }
     return hiveConf;
   }
