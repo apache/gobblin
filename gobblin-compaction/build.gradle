@@ -47,6 +47,7 @@ dependencies {
 
 configurations { 
     compile { transitive = true } 
+//    testCompile { transitive = true } 
 }
 
 ext.classification="library"

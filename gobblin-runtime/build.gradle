@@ -102,6 +102,7 @@ artifacts {
 test {
     workingDir rootProject.rootDir
     maxParallelForks = 1
+    systemProperty 'log4j.configuration','gobblin-runtime-log4j.properties'
 }
 
 clean {

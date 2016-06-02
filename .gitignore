@@ -32,6 +32,7 @@ tmp
 out
 **/out
 output
+gobblin-runtime-tests.log
 gobblin-test/basicTest
 gobblin-test/jobOutput
 gobblin-test/state-store

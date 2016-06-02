@@ -313,6 +313,26 @@ subprojects {
     if ( rootProject.ext.javadocPackages.contains(project.name)) {
       rootProject.tasks.javadocTarball.into(project.name){from(fileTree(dir: "${project.buildDir}/docs/javadoc/"))}
     }
+
+    test {
+       testLogging {
+          displayGranularity = 2
+          events 'passed', 'skipped', 'failed'
+          showExceptions = true
+          showCauses = true
+          showStackTraces = true
+       }
+       afterSuite {descriptor, result ->
+          logger.lifecycle(String.format("Completed: %s --> %s (SUCCESS:%d FAIL:%d SKIP:%d TIME:%6.2f s)",
+                             descriptor
+                             , result.resultType
+                             , result.successfulTestCount
+                             , result.failedTestCount
+                             , result.skippedTestCount
+                             , (result.endTime - result.startTime)/1000.0
+                             ));
+       }
+    }
   }
 }
 
@@ -418,6 +438,7 @@ subprojects {
       useTestNG () {
         excludeGroups 'ignore', 'performance'
         if (project.hasProperty('skipTestGroup')) {
+          print "Skipping test groups " + skipTestGroup
           excludeGroups skipTestGroup
         }
         if (project.hasProperty('runTestGroups')) {

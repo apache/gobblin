@@ -20,6 +20,8 @@ import java.util.Properties;
 import org.apache.commons.io.FileUtils;
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -42,7 +44,7 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * Unit test for {@link MRJobLauncher}.
  */
-@Test(groups = { "gobblin.runtime.mapreduce" })
+@Test(groups = { "gobblin.runtime.mapreduce" }, singleThreaded = true)
 public class MRJobLauncherTest extends BMNGRunner {
 
   private Properties launcherProps;
@@ -103,6 +105,7 @@ public class MRJobLauncherTest extends BMNGRunner {
 
   @Test
   public void testLaunchJobWithPullLimit() throws Exception {
+    Logger log = LoggerFactory.getLogger(MRJobLauncherTest.class.getName() + ".testLaunchJobWithPullLimit");
     int limit = 10;
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
@@ -112,6 +115,9 @@ public class MRJobLauncherTest extends BMNGRunner {
     jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY, Integer.toString(10));
     try {
       this.jobLauncherTestHelper.runTestWithPullLimit(jobProps, limit);
+    } catch (Exception e) {
+      log.error("failure: " + e, e);
+      throw e;
     } finally {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
@@ -210,11 +216,15 @@ public class MRJobLauncherTest extends BMNGRunner {
 
   @Test
   public void testLaunchJobWithMultipleDatasets() throws Exception {
+    Logger log = LoggerFactory.getLogger(MRJobLauncherTest.class.getName() + ".testLaunchJobWithMultipleDatasets");
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultipleDatasets");
     try {
       this.jobLauncherTestHelper.runTestWithMultipleDatasets(jobProps);
+    } catch (Exception e) {
+      log.error("failure: " + e, e);
+      throw e;
     } finally {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
