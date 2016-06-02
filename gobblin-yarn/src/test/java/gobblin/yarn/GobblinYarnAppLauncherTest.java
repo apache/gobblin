@@ -52,7 +52,7 @@ import gobblin.testing.AssertWithBackoff;
  *
  * @author Yinan Li
  */
-@Test(groups = { "gobblin.yarn" })
+@Test(groups = { "gobblin.yarn" }, singleThreaded=true)
 public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
   private static final int TEST_ZK_PORT = 3081;
