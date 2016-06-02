@@ -420,6 +420,9 @@ subprojects {
         if (project.hasProperty('skipTestGroup')) {
           excludeGroups skipTestGroup
         }
+        if (project.hasProperty('runTestGroups')) {
+          includeGroups project.runTestGroups
+        }
       }
     }
 
