@@ -837,7 +837,7 @@ public class HiveCopyEntityHelper {
       }
       List<OwnerAndPermission> ancestorOwnerAndPermission =
           CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(actualSourceFs,
-          sourceAndDestination.getSource().getPath(), this.dataset.getTableRootPath().get().getParent(), configuration);
+          sourceAndDestination.getSource().getPath().getParent(), this.dataset.getTableRootPath().get().getParent(), configuration);
 
       builders.add(CopyableFile.fromOriginAndDestination(actualSourceFs, sourceAndDestination.getSource(),
           sourceAndDestination.getDestination(), configuration).
