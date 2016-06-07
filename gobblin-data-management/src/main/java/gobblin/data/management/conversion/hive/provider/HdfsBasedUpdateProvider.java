@@ -9,7 +9,7 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.data.management.convertion.hive;
+package gobblin.data.management.conversion.hive.provider;
 
 import java.io.IOException;
 
@@ -40,7 +40,7 @@ public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
    * @return the update time if available, 0 otherwise
    *
    * {@inheritDoc}
-   * @see gobblin.data.management.convertion.hive.HiveUnitUpdateProvider#getUpdateTime(org.apache.hadoop.hive.ql.metadata.Partition)
+   * @see HiveUnitUpdateProvider#getUpdateTime(org.apache.hadoop.hive.ql.metadata.Partition)
    */
   @Override
   public long getUpdateTime(Partition partition) {
@@ -60,7 +60,7 @@ public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
    * @return the update time if available, 0 otherwise
    *
    * {@inheritDoc}
-   * @see gobblin.data.management.convertion.hive.HiveUnitUpdateProvider#getUpdateTime(org.apache.hadoop.hive.ql.metadata.Table)
+   * @see HiveUnitUpdateProvider#getUpdateTime(org.apache.hadoop.hive.ql.metadata.Table)
    */
   @Override
   public long getUpdateTime(Table table) {

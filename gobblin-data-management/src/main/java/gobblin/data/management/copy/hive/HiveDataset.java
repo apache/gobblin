@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Properties;
 
+import lombok.ToString;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -47,6 +48,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Alpha
 @Getter
+@ToString
 public class HiveDataset implements IterableCopyableDataset {
 
   public static final String REGISTERER = "registerer";

@@ -23,7 +23,7 @@ import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
 import lombok.Getter;
 import lombok.Setter;
-
+import lombok.ToString;
 
 /**
  * A class that represents a Hive table.
@@ -40,6 +40,7 @@ import lombok.Setter;
  */
 @Getter
 @Alpha
+@ToString
 public class HiveTable extends HiveRegistrationUnit {
 
   @Setter

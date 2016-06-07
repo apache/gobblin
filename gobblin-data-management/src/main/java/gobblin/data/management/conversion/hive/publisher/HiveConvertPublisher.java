@@ -9,8 +9,9 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.data.management.convertion.hive;
+package gobblin.data.management.conversion.hive.publisher;
 
+import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
 import java.io.IOException;
 import java.util.Collection;
 
@@ -39,6 +40,7 @@ public class HiveConvertPublisher extends DataPublisher {
       wus.setActualHighWatermark(
           TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(), LongWatermark.class));
     }
+    // TODO: Add published events when we add staging table
   }
 
   @Override
