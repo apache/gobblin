@@ -12,8 +12,8 @@
 package gobblin.data.management.conversion.hive.mock;
 
 import gobblin.configuration.State;
-import gobblin.data.management.convertion.hive.HiveUnitUpdateProvider;
-import gobblin.data.management.convertion.hive.HiveUnitUpdateProviderFactory;
+import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
+import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProviderFactory;
 
 public class MockUpdateProviderFactory implements HiveUnitUpdateProviderFactory {
 

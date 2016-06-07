@@ -9,7 +9,7 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.data.management.convertion.hive;
+package gobblin.data.management.conversion.hive.provider;
 
 import java.io.IOException;
 
@@ -39,7 +39,7 @@ public class HdfsBasedSchemaProvider implements HiveAvroSchemaProvider {
    * @throws IOException if no {@link Schema} was found
    *
    * {@inheritDoc}
-   * @see gobblin.data.management.convertion.hive.HiveAvroSchemaProvider#getSchema(gobblin.hive.HiveRegistrationUnit)
+   * @see HiveAvroSchemaProvider#getSchema(gobblin.hive.HiveRegistrationUnit)
    */
   @Override
   public Schema getSchema(HiveRegistrationUnit hiveUnit) throws IOException {

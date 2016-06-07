@@ -18,7 +18,7 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 
 import com.google.common.collect.Maps;
 
-import gobblin.data.management.convertion.hive.HiveUnitUpdateProvider;
+import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 
 public class MockUpdateProvider implements HiveUnitUpdateProvider {
 

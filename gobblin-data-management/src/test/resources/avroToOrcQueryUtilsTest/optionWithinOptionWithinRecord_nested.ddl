@@ -1,0 +1,14 @@
+CREATE EXTERNAL TABLE IF NOT EXISTS `default.testOptionWithinOptionWithinRecordDDL` (
+  `parentFieldUnion` struct<unionRecordMemberFieldUnion:struct<superNestedFieldString1:string,superNestedFieldString2:string>,unionRecordMemberFieldString:string>,
+  `parentFieldInt` int)
+ROW FORMAT SERDE
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde'
+STORED AS INPUTFORMAT
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat'
+OUTPUTFORMAT
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  'file:/user/hive/warehouse/testOptionWithinOptionWithinRecordDDL'
+TBLPROPERTIES (
+  'orc.compress'='SNAPPY',
+  'orc.row.index.stride'='20000')

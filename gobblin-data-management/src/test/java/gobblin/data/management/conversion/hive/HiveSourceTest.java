@@ -38,7 +38,6 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.mock.MockUpdateProvider;
 import gobblin.data.management.conversion.hive.mock.MockUpdateProviderFactory;
-import gobblin.data.management.convertion.hive.HiveSource;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.HivePartition;
 import gobblin.hive.HiveRegistrationUnit;

@@ -9,10 +9,12 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.data.management.convertion.hive;
+package gobblin.data.management.conversion.hive.writer;
 
+import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.List;
 
 import lombok.AllArgsConstructor;
 
@@ -32,7 +34,8 @@ public class HiveQueryExecutionWriter implements DataWriter<QueryBasedHiveConver
   public void write(QueryBasedHiveConversionEntity hiveConversionEntity) throws IOException {
 
     try {
-      this.hiveJdbcConnector.executeStatements(hiveConversionEntity.getConversionQuery());
+      List<String> conversionQueries = hiveConversionEntity.getConversionQueries();
+      this.hiveJdbcConnector.executeStatements(conversionQueries.toArray(new String[conversionQueries.size()]));
     } catch (SQLException e) {
       throw new IOException(e);
     }

@@ -26,7 +26,7 @@ public class AvroFlattenerTest {
     Schema originalSchema = readSchemaFromJsonFile("recordWithinRecord_original.json");
     Schema expectedSchema = readSchemaFromJsonFile("recordWithinRecord_flattened.json");
 
-    Assert.assertEquals(new AvroFlattener().flatten(originalSchema), expectedSchema);
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
   }
 
   /**
@@ -47,7 +47,7 @@ public class AvroFlattenerTest {
     Schema originalSchema = readSchemaFromJsonFile("recordWithinRecordWithinRecord_original.json");
     Schema expectedSchema = readSchemaFromJsonFile("recordWithinRecordWithinRecord_flattened.json");
 
-    Assert.assertEquals(new AvroFlattener().flatten(originalSchema), expectedSchema);
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
   }
 
   /**
@@ -62,7 +62,7 @@ public class AvroFlattenerTest {
     Schema originalSchema = readSchemaFromJsonFile("recordWithinOptionWithinRecord_original.json");
     Schema expectedSchema = readSchemaFromJsonFile("recordWithinOptionWithinRecord_flattened.json");
 
-    Assert.assertEquals(new AvroFlattener().flatten(originalSchema), expectedSchema);
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
   }
 
   /**
@@ -77,7 +77,7 @@ public class AvroFlattenerTest {
     Schema originalSchema = readSchemaFromJsonFile("recordWithinUnionWithinRecord_original.json");
     Schema expectedSchema = readSchemaFromJsonFile("recordWithinUnionWithinRecord_flattened.json");
 
-    Assert.assertEquals(new AvroFlattener().flatten(originalSchema), expectedSchema);
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
   }
 
   /**
@@ -98,7 +98,7 @@ public class AvroFlattenerTest {
     Schema originalSchema = readSchemaFromJsonFile("optionWithinOptionWithinRecord_original.json");
     Schema expectedSchema = readSchemaFromJsonFile("optionWithinOptionWithinRecord_flattened.json");
 
-    Assert.assertEquals(new AvroFlattener().flatten(originalSchema), expectedSchema);
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
   }
 
   /**
@@ -120,7 +120,7 @@ public class AvroFlattenerTest {
     Schema originalSchema = readSchemaFromJsonFile("recordWithinArrayWithinArray_original.json");
     Schema expectedSchema = readSchemaFromJsonFile("recordWithinArrayWithinArray_flattened.json");
 
-    Assert.assertEquals(new AvroFlattener().flatten(originalSchema), expectedSchema);
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
   }
 
   /**
@@ -146,7 +146,7 @@ public class AvroFlattenerTest {
     Schema originalSchema = readSchemaFromJsonFile("arrayWithinRecordWithinArrayWithinRecord_original.json");
     Schema expectedSchema = readSchemaFromJsonFile("arrayWithinRecordWithinArrayWithinRecord_flattened.json");
 
-    Assert.assertEquals(new AvroFlattener().flatten(originalSchema), expectedSchema);
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
   }
 
   /**
@@ -168,7 +168,7 @@ public class AvroFlattenerTest {
     Schema originalSchema = readSchemaFromJsonFile("recordWithinMapWithinMap_original.json");
     Schema expectedSchema = readSchemaFromJsonFile("recordWithinMapWithinMap_flattened.json");
 
-    Assert.assertEquals(new AvroFlattener().flatten(originalSchema), expectedSchema);
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
   }
 
 

@@ -1,0 +1,31 @@
+{
+  "type" : "record",
+  "name" : "parentRecordName",
+  "fields" : [ {
+    "name" : "parentFieldUnion",
+    "type" : [ "null", {
+      "type" : "record",
+      "name" : "unionRecordMember",
+      "fields" : [ {
+        "name" : "unionRecordMemberFieldUnion",
+        "type" : [ "null", {
+          "type" : "record",
+          "name" : "superNestedRecord",
+          "fields" : [ {
+            "name" : "superNestedFieldString1",
+            "type" : "string"
+          }, {
+            "name" : "superNestedFieldString2",
+            "type" : "string"
+          } ]
+        } ]
+      }, {
+        "name" : "unionRecordMemberFieldString",
+        "type" : "string"
+      } ]
+    } ]
+  }, {
+    "name" : "parentFieldInt",
+    "type" : "int"
+  } ]
+}
