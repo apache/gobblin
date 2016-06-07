@@ -14,6 +14,7 @@ package gobblin.hive;
 
 import lombok.Getter;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
@@ -40,7 +41,7 @@ public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaSto
 
   private static HiveConf getHiveConf(Optional<String> hcatURI) {
     HiveConf hiveConf = new HiveConf();
-    if (hcatURI.isPresent()) {
+    if (hcatURI.isPresent() && StringUtils.isNotBlank(hcatURI.get())) {
       hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, hcatURI.get());
       hiveConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, hcatURI.get());
     }
