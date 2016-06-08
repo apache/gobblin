@@ -16,11 +16,17 @@ import java.util.Collection;
 
 import org.apache.hadoop.fs.FileSystem;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.conversion.hive.AvroSchemaManager;
+import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventSubmitter;
+import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.publisher.DataPublisher;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.util.HadoopUtils;
@@ -32,26 +38,35 @@ import gobblin.util.HadoopUtils;
 public class HiveConvertPublisher extends DataPublisher {
 
   private final AvroSchemaManager avroSchemaManager;
+  private MetricContext metricContext;
+  private EventSubmitter eventSubmitter;
+
   public HiveConvertPublisher(State state) throws IOException {
     super(state);
     this.avroSchemaManager = new AvroSchemaManager(FileSystem.get(HadoopUtils.newConfiguration()), state);
+    this.metricContext = Instrumented.getMetricContext(state, HiveConvertPublisher.class);
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, EventConstants.CONVERSION_NAMESPACE).build();
   }
 
   @Override
-  public void initialize() throws IOException {}
+  public void initialize() throws IOException {
+  }
 
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
     for (WorkUnitState wus : states) {
       wus.setWorkingState(WorkingState.COMMITTED);
-      wus.setActualHighWatermark(
-          TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(), LongWatermark.class));
+      wus.setActualHighWatermark(TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(),
+          LongWatermark.class));
+
+      new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SLA_EVENT, wus.getProperties()).submit();
+
     }
-    // TODO: Add published events when we add staging table
   }
 
   @Override
-  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {}
+  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
+  }
 
   @Override
   public void close() throws IOException {

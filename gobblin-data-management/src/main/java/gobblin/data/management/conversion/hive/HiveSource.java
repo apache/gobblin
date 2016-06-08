@@ -33,6 +33,7 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
 import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
+import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
 import gobblin.data.management.conversion.hive.provider.HdfsBasedUpdateProviderFactory;
 import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
@@ -87,25 +88,20 @@ public class HiveSource implements Source {
 
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
-  // Event names
-  public static final String CONVERSION_PREFIX = "gobblin.hive.conversion";
-  private static final String SETUP_EVENT = "Setup";
-  private static final String FIND_HIVE_TABLES_EVENT = "FindHiveTables";
-
   public MetricContext metricContext;
   public EventSubmitter eventSubmitter;
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     this.metricContext = Instrumented.getMetricContext(state, HiveSource.class);
-    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, CONVERSION_PREFIX).build();
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, EventConstants.CONVERSION_NAMESPACE).build();
 
     List<WorkUnit> workunits = Lists.newArrayList();
 
     try {
 
       // Initialize
-      EventSubmitter.submit(Optional.of(this.eventSubmitter), SETUP_EVENT);
+      EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.SETUP_EVENT);
       HiveSourceWatermarker watermaker = new TableLevelWatermarker(state);
       HiveUnitUpdateProviderFactory updateProviderFactory =
           GobblinConstructorUtils.invokeConstructor(HiveUnitUpdateProviderFactory.class, state.getProp(
@@ -118,7 +114,7 @@ public class HiveSource implements Source {
       AvroSchemaManager avroSchemaManager = new AvroSchemaManager(getSourceFs(), state);
 
       // Find hive tables
-      EventSubmitter.submit(Optional.of(this.eventSubmitter), FIND_HIVE_TABLES_EVENT);
+      EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.FIND_HIVE_TABLES_EVENT);
       Iterator<HiveDataset> iterator = datasetFinder.getDatasetsIterator();
 
       while (iterator.hasNext()) {
@@ -147,6 +143,7 @@ public class HiveSource implements Source {
               HiveSourceUtils.serializePartition(workUnit, sourcePartition, avroSchemaManager);
               workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
 
+              HiveSourceUtils.setPartitionSlaEventMetadata(workUnit, hiveDataset.getTable(), sourcePartition, updateTime, lowWatermark.getValue());
               workunits.add(workUnit);
               log.debug(String.format("Workunit added for partition: %s", workUnit));
             } else {
@@ -172,6 +169,7 @@ public class HiveSource implements Source {
             HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), avroSchemaManager);
             workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
 
+            HiveSourceUtils.setTableSlaEventMetadata(workUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue());
             workunits.add(workUnit);
             log.debug(String.format("Workunit added for table: %s", workUnit));
           } else {
