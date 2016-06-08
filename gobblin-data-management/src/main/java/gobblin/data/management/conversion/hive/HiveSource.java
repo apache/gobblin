@@ -56,6 +56,7 @@ import gobblin.util.HadoopUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
 import gobblin.util.reflection.GobblinConstructorUtils;
 
+
 /**
  * <p>
  * A {@link Source} that creates generic workunits for a hive table or a hive partition.
@@ -84,6 +85,11 @@ public class HiveSource implements Source {
   private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS = HdfsBasedUpdateProviderFactory.class
       .getName();
 
+  /**
+   * Set this if you want to force the low watermark for all datasets.
+   */
+  private static final String HIVE_SOURCE_FORCE_LOW_WATERMARK_KEY = "hive.source.force.lowwatermark";
+
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   // Event names
@@ -94,13 +100,19 @@ public class HiveSource implements Source {
   public MetricContext metricContext;
   public EventSubmitter eventSubmitter;
 
-
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     this.metricContext = Instrumented.getMetricContext(state, HiveSource.class);
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, CONVERSION_PREFIX).build();
 
     List<WorkUnit> workunits = Lists.newArrayList();
+
+    Optional<LongWatermark> globalLowWatermark = Optional.absent();
+
+    if (state.contains(HIVE_SOURCE_FORCE_LOW_WATERMARK_KEY)) {
+      globalLowWatermark = Optional.of(new LongWatermark(state.getPropAsLong(HIVE_SOURCE_FORCE_LOW_WATERMARK_KEY)));
+    }
+
     try {
 
       // Initialize
@@ -111,9 +123,8 @@ public class HiveSource implements Source {
               OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS));
       HiveUnitUpdateProvider updateProvider = updateProviderFactory.create(state);
 
-      IterableDatasetFinder<HiveDataset> datasetFinder = new HiveDatasetFinder(getSourceFs(), state.getProperties(),
-          this.eventSubmitter);
-
+      IterableDatasetFinder<HiveDataset> datasetFinder =
+          new HiveDatasetFinder(getSourceFs(), state.getProperties(), this.eventSubmitter);
 
       AvroSchemaManager avroSchemaManager = new AvroSchemaManager(getSourceFs(), state);
 
@@ -134,6 +145,9 @@ public class HiveSource implements Source {
 
           for (Partition sourcePartition : sourcePartitions) {
             LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);
+            if (globalLowWatermark.isPresent()) {
+              lowWatermark = globalLowWatermark.get();
+            }
             long updateTime = updateProvider.getUpdateTime(sourcePartition);
 
             if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
@@ -161,6 +175,11 @@ public class HiveSource implements Source {
           long updateTime = updateProvider.getUpdateTime(hiveDataset.getTable());
 
           LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(hiveDataset.getTable());
+
+          if (globalLowWatermark.isPresent()) {
+            lowWatermark = globalLowWatermark.get();
+          }
+
           if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
 
             log.debug(String.format("Processing table: %s", hiveDataset.getTable()));

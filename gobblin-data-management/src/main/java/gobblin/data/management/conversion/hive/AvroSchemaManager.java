@@ -33,7 +33,9 @@ import gobblin.util.HadoopUtils;
 
 
 /**
- * Avro schema for a {@link Partition} or {@link Table} is available at multiple locations.
+ * Avro schema for a {@link Partition} or {@link Table} is available at multiple locations. This class is used to decide
+ * the schema to use. It also creates a temporary schema file on the {@link FileSystem}.
+ *
  * <ul>
  * 1. The {@link Schema} can be set as a literal in the serde info<br>
  * 2. The {@link Schema} url can set as a property in the serde info<br>
