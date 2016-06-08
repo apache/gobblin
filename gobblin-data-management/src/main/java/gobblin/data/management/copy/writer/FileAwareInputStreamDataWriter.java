@@ -240,7 +240,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
       return ownerAndPermission;
     }
 
-    if (!file.isDirectory()) {
+    if (!file.isDir()) {
       return ownerAndPermission;
     }
 

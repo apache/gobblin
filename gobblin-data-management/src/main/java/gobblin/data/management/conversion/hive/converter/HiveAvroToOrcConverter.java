@@ -29,10 +29,9 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
-import gobblin.data.management.conversion.hive.HiveSource;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
-import gobblin.util.AvroFlattener;
 import gobblin.data.management.conversion.hive.util.HiveAvroORCQueryUtils;
+import gobblin.util.AvroFlattener;
 
 /**
  * Builds the Hive avro to Orc conversion query. The record type for this converter is {@link QueryBasedHiveConversionEntity}. A {@link QueryBasedHiveConversionEntity}
@@ -53,9 +52,7 @@ public class HiveAvroToOrcConverter
   }
 
   /**
-   * Populate the avro to orc conversion query which will be available at
-   * {@link QueryBasedHiveConversionEntity#getConversionQuery()}
-   *
+   * Populate the avro to orc conversion queries. The Queries will be added to {@link QueryBasedHiveConversionEntity#getQueries()}
    */
   @Override
   public Iterable<QueryBasedHiveConversionEntity> convertRecord(Schema outputSchema,
@@ -63,8 +60,7 @@ public class HiveAvroToOrcConverter
     Preconditions.checkNotNull(outputSchema);
     Preconditions.checkNotNull(conversionEntity);
     Preconditions.checkNotNull(workUnit);
-    Preconditions.checkArgument(conversionEntity.getHiveUnit().getLocation().isPresent());
-    Preconditions.checkArgument(StringUtils.isNotBlank(conversionEntity.getHiveUnit().getTableName()));
+    Preconditions.checkNotNull(conversionEntity.getHiveTable());
 
     Schema flattenedSchema = avroFlattener.flatten(outputSchema, true);
 
@@ -76,8 +72,8 @@ public class HiveAvroToOrcConverter
     // TODO: Add num of buckets (from config)
 
     // Avro table name and location
-    String avroTableName = conversionEntity.getHiveUnit().getTableName();
-    String avroTableLocation = conversionEntity.getHiveUnit().getLocation().get();
+    String avroTableName = conversionEntity.getHiveTable().getTableName();
+    String avroTableLocation = conversionEntity.getHiveTable().getSd().getLocation();
 
     // ORC table name and location
     String orcTableName = avroTableName + "_orc";
@@ -101,8 +97,14 @@ public class HiveAvroToOrcConverter
     // Populate optional partition info
     Optional<Map<String, String>> optionalPartitionsDDLInfo = Optional.<Map<String, String>>absent();
     Optional<Map<String, String>> optionalPartitionsDMLInfo = Optional.<Map<String, String>>absent();
-    String partitionsInfoString = workUnit.getProp(HiveSource.PARTITIONS_NAME_KEY);
-    String partitionsTypeString = workUnit.getProp(HiveSource.PARTITIONS_TYPE_KEY);
+
+    String partitionsInfoString = null;
+    String partitionsTypeString = null;
+
+    if (conversionEntity.getHivePartition().isPresent()) {
+      partitionsInfoString = conversionEntity.getHivePartition().get().getName();
+      partitionsTypeString = conversionEntity.getHivePartition().get().getSchema().getProperty("partition_columns.types");
+    }
 
     if (StringUtils.isNotBlank(partitionsInfoString) || StringUtils.isNotBlank(partitionsTypeString)) {
       if (StringUtils.isBlank(partitionsInfoString) || StringUtils.isBlank(partitionsTypeString)) {
@@ -139,7 +141,7 @@ public class HiveAvroToOrcConverter
         .generateCreateTableDDL(flattenedSchema,
             orcTableName,
             orcTableLocation,
-            Optional.of(conversionEntity.getHiveUnit().getDbName()),
+            Optional.of(conversionEntity.getHiveTable().getDbName()),
             optionalPartitionsDDLInfo,
             Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
@@ -148,20 +150,20 @@ public class HiveAvroToOrcConverter
             Optional.<String>absent(),
             Optional.<String>absent(),
             Optional.<Map<String, String>>absent());
-    conversionEntity.appendQuery(createFlattenedTableDDL);
+    conversionEntity.getQueries().add(createFlattenedTableDDL);
     log.info("Create DDL: " + createFlattenedTableDDL);
 
     // Create DML statement
     String insertInORCTableDML = HiveAvroORCQueryUtils
         .generateTableMappingDML(outputSchema, flattenedSchema, avroTableName, orcTableName,
-            Optional.of(conversionEntity.getHiveUnit().getDbName()),
-            Optional.of(conversionEntity.getHiveUnit().getDbName()),
+            Optional.of(conversionEntity.getHiveTable().getDbName()),
+            Optional.of(conversionEntity.getHiveTable().getDbName()),
             optionalPartitionsDMLInfo,
             Optional.<Boolean>absent(), Optional.<Boolean>absent());
-    conversionEntity.appendQuery(insertInORCTableDML);
+    conversionEntity.getQueries().add(insertInORCTableDML);
     log.info("Conversion DML: " + insertInORCTableDML);
 
-    log.info("Conversion Query " + conversionEntity.getConversionQuery());
+    log.info("Conversion Query " + conversionEntity.getQueries());
     return new SingleRecordIterable<>(conversionEntity);
   }
 

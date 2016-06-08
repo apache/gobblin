@@ -17,6 +17,7 @@ import java.util.Properties;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
@@ -31,17 +32,21 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
+import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
 import gobblin.data.management.conversion.hive.mock.MockUpdateProvider;
 import gobblin.data.management.conversion.hive.mock.MockUpdateProviderFactory;
+
+import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
+
 import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveRegistrationUnit;
-import gobblin.hive.HiveTable;
+import gobblin.hive.avro.HiveAvroSerDeManager;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.WorkUnit;
 
@@ -81,12 +86,12 @@ public class HiveSourceTest {
 
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
-    HiveRegistrationUnit hiveUnit = HiveSource.GENERICS_AWARE_GSON
-        .fromJson(wu.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY), HiveRegistrationUnit.class);
-    Assert.assertTrue(hiveUnit instanceof HiveTable, "Serialized hive unit is not a table");
-    Assert.assertEquals(hiveUnit.getDbName(), dbName);
-    Assert.assertEquals(hiveUnit.getTableName(), tableName);
-    Assert.assertEquals(hiveUnit.getLocation().get(), "file:" + tableSdLoc);
+
+    SerializableHiveTable serializedHiveTable = HiveSourceUtils.deserializeTable(wu);
+
+    Assert.assertEquals(serializedHiveTable.getDbName(), dbName);
+    Assert.assertEquals(serializedHiveTable.getTableName(), tableName);
+    Assert.assertEquals(serializedHiveTable.getSchemaUrl(), new Path("/tmp/dummy"));
 
   }
 
@@ -103,7 +108,7 @@ public class HiveSourceTest {
 
     Table tbl = createTestTable(dbName, tableName, tableSdLoc, Optional.of("field"));
 
-    Partition partition = addTestPartition(tbl, ImmutableList.of("f1"));
+    addTestPartition(tbl, ImmutableList.of("f1"));
 
     this.updateProvider.addMockUpdateTime("testdb3@testtable3@field=f1", 2);
 
@@ -111,16 +116,14 @@ public class HiveSourceTest {
 
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
-    HiveRegistrationUnit hiveUnit = HiveSource.GENERICS_AWARE_GSON
-        .fromJson(wu.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY), HiveRegistrationUnit.class);
 
-    Assert.assertEquals(hiveUnit.getDbName(), dbName);
-    Assert.assertEquals(hiveUnit.getTableName(), tableName);
-    Assert.assertEquals(hiveUnit.getLocation().get(), partition.getSd().getLocation());
+    SerializableHiveTable serializedHiveTable = HiveSourceUtils.deserializeTable(wu);
+    SerializableHivePartition serializedHivePartition = HiveSourceUtils.deserializePartition(wu);
 
-    Assert.assertTrue(hiveUnit instanceof HivePartition, "Serialized hive unit is not a partition");
-    HivePartition hivePartition = (HivePartition) hiveUnit;
-    Assert.assertEquals(hivePartition.getValues().get(0), "f1");
+    Assert.assertEquals(serializedHiveTable.getDbName(), dbName);
+    Assert.assertEquals(serializedHiveTable.getTableName(), tableName);
+
+    Assert.assertEquals(serializedHivePartition.getPartitionName(), "field=f1");
 
   }
 
@@ -151,11 +154,11 @@ public class HiveSourceTest {
 
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
-    HiveRegistrationUnit hiveUnit = HiveSource.GENERICS_AWARE_GSON
-        .fromJson(wu.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY), HiveRegistrationUnit.class);
-    Assert.assertTrue(hiveUnit instanceof HiveTable, "Serialized hive unit is not a table");
-    Assert.assertEquals(hiveUnit.getDbName(), dbName);
-    Assert.assertEquals(hiveUnit.getTableName(), tableName2);
+
+    SerializableHiveTable serializedHiveTable = HiveSourceUtils.deserializeTable(wu);
+
+    Assert.assertEquals(serializedHiveTable.getDbName(), dbName);
+    Assert.assertEquals(serializedHiveTable.getTableName(), tableName2);
 
   }
 
@@ -180,6 +183,7 @@ public class HiveSourceTest {
     }
     Table tbl = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(dbName, tableName);
     tbl.getSd().setLocation(tableSdLoc);
+    tbl.getSd().getSerdeInfo().setParameters(ImmutableMap.of(HiveAvroSerDeManager.SCHEMA_URL, "/tmp/dummy"));
     if (partitionFieldName.isPresent()) {
       tbl.addToPartitionKeys(new FieldSchema(partitionFieldName.get(), "string", "some comment"));
     }
@@ -204,15 +208,15 @@ public class HiveSourceTest {
     testState.setProp("hive.dataset.database", dbName);
     testState.setProp("hive.dataset.table.pattern", "*");
     testState.setProp("hive.unit.updateProviderFactory.class", MockUpdateProviderFactory.class.getCanonicalName());
+    testState.setProp(ConfigurationKeys.JOB_ID_KEY, "testJobId");
     return testState;
   }
 
   private Partition addTestPartition(Table tbl, List<String> values) throws Exception {
     StorageDescriptor partitionSd = new StorageDescriptor();
     partitionSd.setLocation("/tmp/" + tbl.getTableName() + "/part1");
-    partitionSd.setSerdeInfo(new SerDeInfo("name", "serializationLib", new HashMap<String, String>()));
+    partitionSd.setSerdeInfo(new SerDeInfo("name", "serializationLib", ImmutableMap.of(HiveAvroSerDeManager.SCHEMA_URL, "/tmp/dummy")));
     partitionSd.setCols(tbl.getPartitionKeys());
-
     Partition partition =
         new Partition(values, tbl.getDbName(), tbl.getTableName(), 1, 1, partitionSd, new HashMap<String, String>());
 
