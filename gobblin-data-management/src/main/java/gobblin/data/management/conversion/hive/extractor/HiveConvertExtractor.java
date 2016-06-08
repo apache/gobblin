@@ -11,25 +11,31 @@
  */
 package gobblin.data.management.conversion.hive.extractor;
 
-import gobblin.data.management.conversion.hive.HiveSource;
-import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
-import gobblin.data.management.conversion.hive.provider.HdfsBasedSchemaProvider;
-import gobblin.data.management.conversion.hive.provider.HiveAvroSchemaProvider;
 import java.io.IOException;
 import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.thrift.TException;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.hive.HivePartition;
-import gobblin.hive.HiveRegistrationUnit;
-import gobblin.hive.HiveTable;
+import gobblin.data.management.conversion.hive.AvroSchemaManager;
+import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
+import gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
+import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
+import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
+import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
+import gobblin.data.management.copy.hive.HiveDatasetFinder;
+import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
-import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -39,54 +45,71 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  * table or partition is considered as a record.
  * </p>
  * <p>
- * This extractor deserializes the {@link HiveTable} or {@link HivePartition} serialized by the {@link HiveSource}
- * at {@link HiveSource#HIVE_UNIT_SERIALIZED_KEY} to build a {@link QueryBasedHiveConversionEntity}. Uses a {@link HiveAvroSchemaProvider}
- * to get the avro {@link Schema} of the {@link HiveTable} or {@link HivePartition} being extracted.
+ * From the {@link WorkUnitState} this extractor deserializes the {@link SerializableHiveTable} and optionally a {@link SerializableHivePartition}.
+ * For these {@link SerializableHiveTable} and {@link SerializableHivePartition}'s the extractor makes a call to the Hive metastore
+ * to get the corresponding hive {@link org.apache.hadoop.hive.ql.metadata.Table} and hive {@link org.apache.hadoop.hive.ql.metadata.Partition}
  * </p>
  */
 public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveConversionEntity> {
 
-  private static final String OPTIONAL_HIVE_AVRO_SCHEMA_PROVIDER_CLASS_KEY = "hive.unit.avroSchemaProvider.class";
-  private static final String DEFAULT_HIVE_AVRO_SCHEMA_PROVIDER_CLASS = HdfsBasedSchemaProvider.class.getName();
+  private List<QueryBasedHiveConversionEntity> conversionEntities = Lists.newArrayList();
 
-  /**
-   * Even though each extractor only processes one {@link HiveRegistrationUnit}, We use a list with one {@link HiveRegistrationUnit}
-   * so that {@link #readRecord(QueryBasedHiveConversionEntity)} knows when to stop.
-   */
-  private final List<HiveRegistrationUnit> hiveUnits;
-  private final HiveAvroSchemaProvider hiveAvroSchemaProvider;
+  public HiveConvertExtractor(WorkUnitState state, FileSystem fs) throws IOException, TException, HiveException {
 
-  public HiveConvertExtractor(WorkUnitState state, FileSystem fs) {
-    HiveRegistrationUnit hiveUnit =
-        HiveSource.GENERICS_AWARE_GSON.fromJson(state.getProp(HiveSource.HIVE_UNIT_SERIALIZED_KEY),
-            HiveRegistrationUnit.class);
+    HiveMetastoreClientPool pool =
+        HiveMetastoreClientPool.get(state.getJobState().getProperties(),
+            Optional.of(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
 
-    this.hiveUnits = Lists.newArrayList(hiveUnit);
-    this.hiveAvroSchemaProvider =
-        GobblinConstructorUtils.invokeConstructor(HiveAvroSchemaProvider.class,
-            state.getProp(OPTIONAL_HIVE_AVRO_SCHEMA_PROVIDER_CLASS_KEY, DEFAULT_HIVE_AVRO_SCHEMA_PROVIDER_CLASS), fs);
+    SerializableHiveTable hiveTable = HiveSourceUtils.deserializeTable(state);
+
+    Table table = pool.getClient().get().getTable(hiveTable.getDbName(), hiveTable.getTableName());
+
+    SchemaAwareHiveTable schemaAwareHiveTable =
+        new SchemaAwareHiveTable(table, AvroSchemaManager.getSchemaFromUrl(hiveTable.getSchemaUrl(), fs));
+
+    SchemaAwareHivePartition schemaAwareHivePartition = null;
+
+    if (HiveSourceUtils.hasPartition(state)) {
+
+      SerializableHivePartition hivePartition = HiveSourceUtils.deserializePartition(state);
+
+      Partition partition =
+          pool.getClient().get()
+              .getPartition(hiveTable.getTableName(), hiveTable.getDbName(), hivePartition.getPartitionName());
+      schemaAwareHivePartition =
+          new SchemaAwareHivePartition(table, partition, AvroSchemaManager.getSchemaFromUrl(
+              hivePartition.getSchemaUrl(), fs));
+    }
+
+    this.conversionEntities.add(new QueryBasedHiveConversionEntity(schemaAwareHiveTable, Optional
+        .fromNullable(schemaAwareHivePartition)));
 
   }
 
   @Override
   public Schema getSchema() throws IOException {
-    return this.hiveAvroSchemaProvider.getSchema(this.hiveUnits.get(0));
-  }
+    if (this.conversionEntities.isEmpty()) {
+      return null;
+    }
 
+    QueryBasedHiveConversionEntity conversionEntity = this.conversionEntities.get(0);
+    return conversionEntity.getHiveTable().getAvroSchema();
+  }
 
   /**
    * There is only one record ({@link QueryBasedHiveConversionEntity}) to be read. This {@link QueryBasedHiveConversionEntity} is
-   * removed from {@link #hiveUnits} list after it is read. So when gobblin runtime calls this method the second time, it return a null
+   * removed from {@link #conversionEntities} list after it is read. So when gobblin runtime calls this method the second time, it returns a null
    */
   @Override
   public QueryBasedHiveConversionEntity readRecord(QueryBasedHiveConversionEntity reuse) throws DataRecordException,
       IOException {
 
-    if (this.hiveUnits.isEmpty()) {
+    if (this.conversionEntities.isEmpty()) {
       return null;
     }
-    HiveRegistrationUnit hiveUnit = this.hiveUnits.remove(0);
-    return new QueryBasedHiveConversionEntity(hiveUnit, this.hiveAvroSchemaProvider.getSchema(hiveUnit));
+
+    return this.conversionEntities.remove(0);
+
   }
 
   @Override

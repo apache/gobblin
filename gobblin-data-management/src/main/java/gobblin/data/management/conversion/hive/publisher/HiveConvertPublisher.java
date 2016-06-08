@@ -11,23 +11,30 @@
  */
 package gobblin.data.management.conversion.hive.publisher;
 
-import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
 import java.io.IOException;
 import java.util.Collection;
+
+import org.apache.hadoop.fs.FileSystem;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
+import gobblin.data.management.conversion.hive.AvroSchemaManager;
+import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
 import gobblin.publisher.DataPublisher;
 import gobblin.source.extractor.extract.LongWatermark;
+import gobblin.util.HadoopUtils;
 
 
 /**
  * A simple {@link DataPublisher} updates the watermark and working state
  */
 public class HiveConvertPublisher extends DataPublisher {
-  public HiveConvertPublisher(State state) {
+
+  private final AvroSchemaManager avroSchemaManager;
+  public HiveConvertPublisher(State state) throws IOException {
     super(state);
+    this.avroSchemaManager = new AvroSchemaManager(FileSystem.get(HadoopUtils.newConfiguration()), state);
   }
 
   @Override
@@ -47,5 +54,7 @@ public class HiveConvertPublisher extends DataPublisher {
   public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {}
 
   @Override
-  public void close() throws IOException {}
+  public void close() throws IOException {
+    this.avroSchemaManager.cleanupTempSchemas();
+  }
 }

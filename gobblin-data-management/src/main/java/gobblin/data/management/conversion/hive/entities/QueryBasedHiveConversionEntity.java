@@ -11,23 +11,23 @@
  */
 package gobblin.data.management.conversion.hive.entities;
 
-import gobblin.data.management.conversion.hive.converter.HiveAvroToOrcConverter;
-import gobblin.data.management.conversion.hive.writer.HiveQueryExecutionWriter;
-import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
-import java.util.ArrayList;
 import java.util.List;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+
 import gobblin.converter.Converter;
+import gobblin.data.management.conversion.hive.converter.HiveAvroToOrcConverter;
+import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
+import gobblin.data.management.conversion.hive.writer.HiveQueryExecutionWriter;
 import gobblin.hive.HivePartition;
 import gobblin.hive.HiveRegistrationUnit;
 import gobblin.hive.HiveTable;
 import gobblin.source.extractor.Extractor;
-
-import lombok.Getter;
-
-import org.apache.avro.Schema;
-import org.apache.commons.lang3.StringUtils;
-
 
 /**
  * Represents a gobblin Record in the Hive avro to orc conversion flow.
@@ -44,48 +44,26 @@ import org.apache.commons.lang3.StringUtils;
  *  <li> The {@link HiveQueryExecutionWriter} executes the hive query at {@link QueryBasedHiveConversionEntity#getConversionQuery()}
  * </ul>
  */
+@ToString
+@EqualsAndHashCode
+@Getter
 public class QueryBasedHiveConversionEntity {
 
-  public QueryBasedHiveConversionEntity(HiveRegistrationUnit hiveUnit, Schema hiveUnitSchema) {
-    this.hiveUnit = hiveUnit;
-    this.hiveUnitSchema = hiveUnitSchema;
-    this.queries = new ArrayList<>();
-  }
+  private final SchemaAwareHiveTable hiveTable;
+  private final Optional<SchemaAwareHivePartition> hivePartition;
 
   /**
    * A {@link StringBuilder} for the hive conversion query
    */
-  private List<String> queries;
+  private final List<String> queries;
 
-  /**
-   * A {@link HiveTable} or a {@link HivePartition} to be converted
-   */
-  @Getter
-  private HiveRegistrationUnit hiveUnit;
-
-  /**
-   * Avro {@link Schema} of the {@link HiveTable} or {@link HivePartition}
-   */
-  @Getter
-  private Schema hiveUnitSchema;
-
-  /**
-   * Append <code>query</code> to the end of existing query
-   * @return the instance with query appended
-   */
-  public QueryBasedHiveConversionEntity appendQuery(String query) {
-    this.queries.add(query);
-    return this;
+  public QueryBasedHiveConversionEntity(SchemaAwareHiveTable hiveTable) {
+    this(hiveTable, Optional.<SchemaAwareHivePartition>absent());
   }
 
-  /**
-   * Get the final constructed hive query for conversion
-   */
-  public String getConversionQuery() {
-    return StringUtils.join(this.queries.toString(), ";");
-  }
-
-  public List<String> getConversionQueries() {
-    return this.queries;
+  public QueryBasedHiveConversionEntity(SchemaAwareHiveTable hiveTable , Optional<SchemaAwareHivePartition> hivePartition) {
+    this.hiveTable = hiveTable;
+    this.hivePartition = hivePartition;
+    this.queries = Lists.newArrayList();
   }
 }

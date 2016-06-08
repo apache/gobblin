@@ -11,13 +11,13 @@
  */
 package gobblin.data.management.conversion.hive.writer;
 
-import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
 
+import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.writer.DataWriter;
 
@@ -34,7 +34,7 @@ public class HiveQueryExecutionWriter implements DataWriter<QueryBasedHiveConver
   public void write(QueryBasedHiveConversionEntity hiveConversionEntity) throws IOException {
 
     try {
-      List<String> conversionQueries = hiveConversionEntity.getConversionQueries();
+      List<String> conversionQueries = hiveConversionEntity.getQueries();
       this.hiveJdbcConnector.executeStatements(conversionQueries.toArray(new String[conversionQueries.size()]));
     } catch (SQLException e) {
       throw new IOException(e);
