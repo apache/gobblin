@@ -73,7 +73,9 @@ public class HiveAvroToOrcConverter
 
     // Avro table name and location
     String avroTableName = conversionEntity.getHiveTable().getTableName();
-    String avroTableLocation = conversionEntity.getHiveTable().getSd().getLocation();
+    String avroDataLocation =
+        conversionEntity.getHivePartition().isPresent() ? conversionEntity.getHivePartition().get().getLocation()
+            : conversionEntity.getHiveTable().getSd().getLocation();
 
     // ORC table name and location
     String orcTableName = avroTableName + "_orc";
@@ -86,8 +88,8 @@ public class HiveAvroToOrcConverter
       orcTableLocation = orcTableAlternateLocation.endsWith("/") ?
            orcTableAlternateLocation + orcTableName : orcTableAlternateLocation + "/" + orcTableName;
     } else {
-      orcTableLocation = (avroTableLocation.endsWith("/") ?
-          avroTableLocation.substring(0, avroTableLocation.length() - 1) : avroTableLocation) + "_orc";
+      orcTableLocation = (avroDataLocation.endsWith("/") ?
+          avroDataLocation.substring(0, avroDataLocation.length() - 1) : avroDataLocation) + "_orc";
     }
 
     // Each job execution further writes to a sub-directory within ORC data directory to support stagin use-case

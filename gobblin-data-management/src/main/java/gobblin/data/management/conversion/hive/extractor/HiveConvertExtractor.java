@@ -93,9 +93,6 @@ public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveCon
     }
 
     QueryBasedHiveConversionEntity conversionEntity = this.conversionEntities.get(0);
-    if (conversionEntity.getHivePartition().isPresent()) {
-      return conversionEntity.getHivePartition().get().getAvroSchema();
-    }
     return conversionEntity.getHiveTable().getAvroSchema();
   }
 

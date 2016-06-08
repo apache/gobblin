@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.hive.avro.HiveAvroSerDeManager;
 import gobblin.util.AvroUtils;
@@ -76,7 +77,8 @@ public class AvroSchemaManager {
     this.fs = fs;
     this.schemaPaths = Maps.newHashMap();
     this.schemaParser = new Schema.Parser();
-    this.schemaDir = new Path(state.getProp(HIVE_SCHEMA_TEMP_DIR_PATH_KEY, DEFAULT_HIVE_SCHEMA_TEMP_DIR_PATH_KEY), state.getId());
+    this.schemaDir = new Path(state.getProp(HIVE_SCHEMA_TEMP_DIR_PATH_KEY, DEFAULT_HIVE_SCHEMA_TEMP_DIR_PATH_KEY),
+            state.getProp(ConfigurationKeys.JOB_ID_KEY));
   }
 
   /**

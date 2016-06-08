@@ -85,11 +85,6 @@ public class HiveSource implements Source {
   private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS = HdfsBasedUpdateProviderFactory.class
       .getName();
 
-  /**
-   * Set this if you want to force the low watermark for all datasets.
-   */
-  private static final String HIVE_SOURCE_FORCE_LOW_WATERMARK_KEY = "hive.source.force.lowwatermark";
-
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   // Event names
@@ -106,12 +101,6 @@ public class HiveSource implements Source {
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, CONVERSION_PREFIX).build();
 
     List<WorkUnit> workunits = Lists.newArrayList();
-
-    Optional<LongWatermark> globalLowWatermark = Optional.absent();
-
-    if (state.contains(HIVE_SOURCE_FORCE_LOW_WATERMARK_KEY)) {
-      globalLowWatermark = Optional.of(new LongWatermark(state.getPropAsLong(HIVE_SOURCE_FORCE_LOW_WATERMARK_KEY)));
-    }
 
     try {
 
@@ -145,9 +134,7 @@ public class HiveSource implements Source {
 
           for (Partition sourcePartition : sourcePartitions) {
             LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);
-            if (globalLowWatermark.isPresent()) {
-              lowWatermark = globalLowWatermark.get();
-            }
+
             long updateTime = updateProvider.getUpdateTime(sourcePartition);
 
             if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
@@ -175,10 +162,6 @@ public class HiveSource implements Source {
           long updateTime = updateProvider.getUpdateTime(hiveDataset.getTable());
 
           LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(hiveDataset.getTable());
-
-          if (globalLowWatermark.isPresent()) {
-            lowWatermark = globalLowWatermark.get();
-          }
 
           if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
 
