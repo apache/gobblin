@@ -12,6 +12,7 @@
 
 package gobblin.data.management.conversion.hive.util;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+
 
 /***
  * Generate Hive queries
@@ -108,8 +110,7 @@ public class HiveAvroORCQueryUtils {
                                               Optional<Integer> optionalNumOfBuckets,
                                               Optional<String> optionalRowFormatSerde,
                                               Optional<String> optionalInputFormat,
-                                              Optional<String> optionalOutputFormat,
-                                              Optional<Map<String, String>> optionalTblProperties) {
+                                              Optional<String> optionalOutputFormat, Optional<Map<String, String>> optionalTblProperties) {
 
     Preconditions.checkNotNull(schema);
     Preconditions.checkArgument(StringUtils.isNotBlank(tblName));
@@ -387,7 +388,7 @@ public class HiveAvroORCQueryUtils {
     Preconditions.checkArgument(StringUtils.isNotBlank(originalTblName));
     Preconditions.checkArgument(StringUtils.isNotBlank(flattenedTblName));
 
-    String originalDbName = optionalOriginalDbName.isPresent() ? optionalFlattenedDbName.get() : DEFAULT_DB_NAME;
+    String originalDbName = optionalOriginalDbName.isPresent() ? optionalOriginalDbName.get() : DEFAULT_DB_NAME;
     String flattenedDbName = optionalFlattenedDbName.isPresent() ? optionalFlattenedDbName.get() : DEFAULT_DB_NAME;
     boolean shouldOverwriteTable = optionalOverwriteTable.isPresent() ? optionalOverwriteTable.get() : true;
     boolean shouldCreateIfNotExists = optionalCreateIfNotExists.isPresent() ? optionalCreateIfNotExists.get() : false;
@@ -458,5 +459,10 @@ public class HiveAvroORCQueryUtils {
     }
 
     return dmlQuery.toString();
+  }
+
+  public static Schema readSchemaFromString(String schemaStr)
+      throws IOException {
+    return new Schema.Parser().parse(schemaStr);
   }
 }

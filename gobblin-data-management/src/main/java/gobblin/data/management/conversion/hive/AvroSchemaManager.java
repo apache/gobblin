@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,6 +29,7 @@ import com.google.common.hash.Hashing;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.data.management.conversion.hive.util.HiveAvroORCQueryUtils;
 import gobblin.hive.avro.HiveAvroSerDeManager;
 import gobblin.util.AvroUtils;
 import gobblin.util.HadoopUtils;
@@ -55,6 +57,7 @@ import gobblin.util.HadoopUtils;
  * If multiple {@link Partition}s have the same {@link Schema} a duplicate schema file in not created. Already existing
  * {@link Schema} url for this {@link Schema} is used.
  */
+@Slf4j
 public class AvroSchemaManager {
 
   private static final String HIVE_SCHEMA_TEMP_DIR_PATH_KEY = "hive.schema.dir";
@@ -65,7 +68,6 @@ public class AvroSchemaManager {
    * A mapping of {@link Schema} hash to its {@link Path} on {@link FileSystem}
    */
   private final Map<String, Path> schemaPaths;
-  private final Schema.Parser schemaParser;
 
   /**
    * A temporary directory to hold all Schema files. The path is job id specific.
@@ -76,7 +78,6 @@ public class AvroSchemaManager {
   public AvroSchemaManager(FileSystem fs, State state) {
     this.fs = fs;
     this.schemaPaths = Maps.newHashMap();
-    this.schemaParser = new Schema.Parser();
     this.schemaDir = new Path(state.getProp(HIVE_SCHEMA_TEMP_DIR_PATH_KEY, DEFAULT_HIVE_SCHEMA_TEMP_DIR_PATH_KEY),
             state.getProp(ConfigurationKeys.JOB_ID_KEY));
   }
@@ -88,13 +89,13 @@ public class AvroSchemaManager {
    * @return a {@link Path} to table's avro {@link Schema} file.
    */
   public Path getSchemaUrl(Table table) throws IOException {
-    return getSchemaUrl(table.getSd());
+    return getSchemaUrl(table.getTTable().getSd());
   }
 
   /**
    * Get the url to <code>partition</code>'s avro {@link Schema} file.
    *
-   * @param table whose avro schema is to be returned
+   * @param partition whose avro schema is to be returned
    * @return a {@link Path} to table's avro {@link Schema} file.
    */
   public Path getSchemaUrl(Partition partition) throws IOException {
@@ -115,16 +116,24 @@ public class AvroSchemaManager {
   private Path getSchemaUrl(StorageDescriptor sd) throws IOException {
     if (sd.getSerdeInfo().getParameters().containsKey(HiveAvroSerDeManager.SCHEMA_URL)) {
       return new Path(sd.getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_URL));
-    } else if (sd.getSerdeInfo().getParameters().containsKey(HiveAvroSerDeManager.SCHEMA_LITERAL)) {
-
-      Schema schema =
-          this.schemaParser.parse(sd.getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_LITERAL));
-      return getOrGenerateSchemaFile(schema);
-
-    } else {
-      Schema schema = AvroUtils.getDirectorySchema(new Path(sd.getLocation()), this.fs, true);
-      return getOrGenerateSchemaFile(schema);
     }
+    String schemaLiteral = null;
+    try {
+      if (sd.getSerdeInfo().getParameters().containsKey(HiveAvroSerDeManager.SCHEMA_LITERAL)) {
+
+        schemaLiteral = sd.getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_LITERAL);
+        log.debug("Schema literal is: " + schemaLiteral);
+        Schema schema = HiveAvroORCQueryUtils.readSchemaFromString(schemaLiteral);
+
+        return getOrGenerateSchemaFile(schema);
+      }
+    } catch (Exception e) {
+      log.error(String.format("Failed to parse schema from schema literal. Falling back to HDFS schema: %s",
+          schemaLiteral), e);
+    }
+
+    Schema schema = AvroUtils.getDirectorySchema(new Path(sd.getLocation()), this.fs, true);
+    return getOrGenerateSchemaFile(schema);
   }
 
   /**

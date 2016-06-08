@@ -14,8 +14,11 @@ package gobblin.data.management.conversion.hive.extractor;
 import java.io.IOException;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.avro.Schema;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -36,6 +39,7 @@ import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.util.AutoReturnableObject;
 
 
 /**
@@ -50,6 +54,7 @@ import gobblin.source.extractor.Extractor;
  * to get the corresponding hive {@link org.apache.hadoop.hive.ql.metadata.Table} and hive {@link org.apache.hadoop.hive.ql.metadata.Partition}
  * </p>
  */
+@Slf4j
 public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveConversionEntity> {
 
   private List<QueryBasedHiveConversionEntity> conversionEntities = Lists.newArrayList();
@@ -58,31 +63,36 @@ public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveCon
 
     HiveMetastoreClientPool pool =
         HiveMetastoreClientPool.get(state.getJobState().getProperties(),
-            Optional.of(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
+            Optional.fromNullable(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
 
     SerializableHiveTable hiveTable = HiveSourceUtils.deserializeTable(state);
 
-    Table table = pool.getClient().get().getTable(hiveTable.getDbName(), hiveTable.getTableName());
+    try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+      Table table = client.get().getTable(hiveTable.getDbName(), hiveTable.getTableName());
 
-    SchemaAwareHiveTable schemaAwareHiveTable =
-        new SchemaAwareHiveTable(table, AvroSchemaManager.getSchemaFromUrl(hiveTable.getSchemaUrl(), fs));
+      SchemaAwareHiveTable schemaAwareHiveTable =
+          new SchemaAwareHiveTable(table, AvroSchemaManager.getSchemaFromUrl(hiveTable.getSchemaUrl(), fs));
 
-    SchemaAwareHivePartition schemaAwareHivePartition = null;
+      SchemaAwareHivePartition schemaAwareHivePartition = null;
 
-    if (HiveSourceUtils.hasPartition(state)) {
+      if (HiveSourceUtils.hasPartition(state)) {
 
-      SerializableHivePartition hivePartition = HiveSourceUtils.deserializePartition(state);
+        SerializableHivePartition hivePartition = HiveSourceUtils.deserializePartition(state);
 
-      Partition partition =
-          pool.getClient().get()
-              .getPartition(hiveTable.getTableName(), hiveTable.getDbName(), hivePartition.getPartitionName());
-      schemaAwareHivePartition =
-          new SchemaAwareHivePartition(table, partition, AvroSchemaManager.getSchemaFromUrl(
-              hivePartition.getSchemaUrl(), fs));
+        Partition partition =
+            client.get()
+                .getPartition(hiveTable.getDbName(), hiveTable.getTableName(), hivePartition.getPartitionName());
+        schemaAwareHivePartition =
+            new SchemaAwareHivePartition(table, partition, AvroSchemaManager.getSchemaFromUrl(
+                hivePartition.getSchemaUrl(), fs));
+      }
+
+      QueryBasedHiveConversionEntity entity = new QueryBasedHiveConversionEntity(schemaAwareHiveTable, Optional
+          .fromNullable(schemaAwareHivePartition));
+      this.conversionEntities.add(entity);
     }
 
-    this.conversionEntities.add(new QueryBasedHiveConversionEntity(schemaAwareHiveTable, Optional
-        .fromNullable(schemaAwareHivePartition)));
+
 
   }
 
@@ -109,7 +119,6 @@ public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveCon
     }
 
     return this.conversionEntities.remove(0);
-
   }
 
   @Override
