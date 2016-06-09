@@ -78,7 +78,7 @@ public class HiveAvroToOrcConverter
     String avroTableName = conversionEntity.getHiveTable().getTableName();
     String avroDataLocation =
         conversionEntity.getHivePartition().isPresent() ? conversionEntity.getHivePartition().get().getLocation()
-            : conversionEntity.getHiveTable().getSd().getLocation();
+            : conversionEntity.getHiveTable().getTTable().getSd().getLocation();
 
     // ORC table name and location
     // TODO: Define naming convention and pull it from config / topology
