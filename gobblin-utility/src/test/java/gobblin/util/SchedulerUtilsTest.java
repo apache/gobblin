@@ -12,6 +12,7 @@
 
 package gobblin.util;
 
+import com.google.common.io.Files;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -20,6 +21,7 @@ import java.util.Properties;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -28,8 +30,11 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 
 
+
 /**
  * Unit tests for {@link SchedulerUtils}.
+ * Note that the entities involved in unit tests
+ * are only from local file system (Compatible with java.io.File Class)
  */
 @Test(groups = {"gobblin.util"})
 public class SchedulerUtilsTest {
@@ -99,10 +104,10 @@ public class SchedulerUtilsTest {
   }
 
   @Test
-  public void testLoadJobConfigs()
+  public void testloadGenericJobConfigs()
       throws ConfigurationException, IOException {
     Properties properties = new Properties();
-    System.err.println(" LEI :  " + this.jobConfigDir.getAbsolutePath() );
+    System.err.println(" LEI :  " + this.jobConfigDir.getAbsolutePath());
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
     List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
     Assert.assertEquals(jobConfigs.size(), 4);
@@ -152,6 +157,107 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobProps4.getProperty("k5"), "b5");
   }
 
+  @Test(dependsOnMethods = {"testLoadGenericJobConfigs"})
+  public void testLoadGenericJobConfigsWithDoneFile()
+      throws ConfigurationException, IOException {
+
+    // Create a .done file for test21.pull so it should not be loaded
+    Files.copy(new File(this.subDir2, "test21.PULL"), new File(this.subDir2, "test21.PULL.done"));
+
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
+    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
+    Assert.assertEquals(jobConfigs.size(), 3);
+
+    // test-job-conf-dir/test1/test11/test111.pull
+    Properties jobProps1 = getJobConfigForFile(jobConfigs, "test111.pull");
+    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 7);
+    Assert.assertEquals(jobProps1.getProperty("k1"), "d1");
+    Assert.assertEquals(jobProps1.getProperty("k2"), "a2");
+    Assert.assertEquals(jobProps1.getProperty("k3"), "a3");
+    Assert.assertEquals(jobProps1.getProperty("k8"), "a8");
+    Assert.assertEquals(jobProps1.getProperty("k9"), "a8");
+
+    // test-job-conf-dir/test1/test11.pull
+    Properties jobProps2 = getJobConfigForFile(jobConfigs, "test11.pull");
+    Assert.assertEquals(jobProps2.stringPropertyNames().size(), 6);
+    Assert.assertEquals(jobProps2.getProperty("k1"), "c1");
+    Assert.assertEquals(jobProps2.getProperty("k2"), "a2");
+    Assert.assertEquals(jobProps2.getProperty("k3"), "b3");
+    Assert.assertEquals(jobProps2.getProperty("k6"), "a6");
+
+    // test-job-conf-dir/test1/test12.PULL
+    Properties jobProps3 = getJobConfigForFile(jobConfigs, "test12.PULL");
+    Assert.assertEquals(jobProps3.stringPropertyNames().size(), 6);
+    Assert.assertEquals(jobProps3.getProperty("k1"), "b1");
+    Assert.assertEquals(jobProps3.getProperty("k2"), "a2");
+    Assert.assertEquals(jobProps3.getProperty("k3"), "a3");
+    Assert.assertEquals(jobProps3.getProperty("k7"), "a7");
+
+    Assert.assertNull(getJobConfigForFile(jobConfigs, "test21.PULL"));
+  }
+
+  @Test
+  public void testLoadJobConfigsForCommonPropsFile()
+      throws ConfigurationException, IOException {
+    Path commonPropsPath = new Path(this.subDir1.getAbsolutePath() + "/test.properties");
+
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
+    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties, commonPropsPath,
+        new Path(this.jobConfigDir.getAbsolutePath()));
+    Assert.assertEquals(jobConfigs.size(), 3);
+
+    // test-job-conf-dir/test1/test11/test111.pull
+    Properties jobProps1 = getJobConfigForFile(jobConfigs, "test111.pull");
+    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 7);
+    Assert.assertEquals(jobProps1.getProperty("k1"), "d1");
+    Assert.assertEquals(jobProps1.getProperty("k2"), "a2");
+    Assert.assertEquals(jobProps1.getProperty("k3"), "a3");
+    Assert.assertEquals(jobProps1.getProperty("k8"), "a8");
+    Assert.assertEquals(jobProps1.getProperty("k9"), "a8");
+
+    // test-job-conf-dir/test1/test11.pull
+    Properties jobProps2 = getJobConfigForFile(jobConfigs, "test11.pull");
+    Assert.assertEquals(jobProps2.stringPropertyNames().size(), 6);
+    Assert.assertEquals(jobProps2.getProperty("k1"), "c1");
+    Assert.assertEquals(jobProps2.getProperty("k2"), "a2");
+    Assert.assertEquals(jobProps2.getProperty("k3"), "b3");
+    Assert.assertEquals(jobProps2.getProperty("k6"), "a6");
+
+    // test-job-conf-dir/test1/test12.PULL
+    Properties jobProps3 = getJobConfigForFile(jobConfigs, "test12.PULL");
+    Assert.assertEquals(jobProps3.stringPropertyNames().size(), 6);
+    Assert.assertEquals(jobProps3.getProperty("k1"), "b1");
+    Assert.assertEquals(jobProps3.getProperty("k2"), "a2");
+    Assert.assertEquals(jobProps3.getProperty("k3"), "a3");
+    Assert.assertEquals(jobProps3.getProperty("k7"), "a7");
+  }
+
+  @Test
+  public void testloadGenericJobConfig()
+      throws ConfigurationException, IOException {
+    Path jobConfigPath = new Path(this.subDir11.getAbsolutePath(), "test111.pull");
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
+    Properties jobProps =
+        SchedulerUtils.loadGenericJobConfig(properties, jobConfigPath, new Path(this.jobConfigDir.getAbsolutePath()));
+
+    Assert.assertEquals(jobProps.stringPropertyNames().size(), 7);
+    Assert.assertTrue(jobProps.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || jobProps.containsKey(
+        ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+    Assert.assertTrue(jobProps.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
+    Assert.assertEquals(jobProps.getProperty("k1"), "d1");
+    Assert.assertEquals(jobProps.getProperty("k2"), "a2");
+    Assert.assertEquals(jobProps.getProperty("k3"), "a3");
+    Assert.assertEquals(jobProps.getProperty("k8"), "a8");
+    Assert.assertEquals(jobProps.getProperty("k9"), "a8");
+  }
+
+
+  // TODO: Monitor related tester
+
+
   @AfterClass
   public void tearDown()
       throws IOException {
@@ -169,3 +275,4 @@ public class SchedulerUtilsTest {
     return null;
   }
 }
+
