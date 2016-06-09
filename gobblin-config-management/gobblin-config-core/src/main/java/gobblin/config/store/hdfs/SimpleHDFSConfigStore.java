@@ -256,7 +256,8 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
       if (!includesFileStatus.isDirectory()) {
         try (InputStream includesConfInStream = this.fs.open(includesFileStatus.getPath())) {
           /*
-           * With the natural order of includes, a key found in the first include can not be overriden by the next include.
+           * The includes returned are used to build a fallback chain.
+           * With the natural order, if a key found in the first include it is not be overriden by the next include.
            * By reversing the list, the Typesafe fallbacks are constructed bottom up.
            */
           configKeyPaths.addAll(Lists.newArrayList(
