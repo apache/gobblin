@@ -16,11 +16,13 @@ package gobblin.data.management.conversion.hive.events;
  */
 public class EventConstants {
 
-  //Event names
   public static final String CONVERSION_NAMESPACE = "gobblin.hive.conversion";
   public static final String CONVERSION_PREFIX = CONVERSION_NAMESPACE + ".";
+
+  //Event names
   public static final String SETUP_EVENT = CONVERSION_PREFIX + "Setup";
   public static final String FIND_HIVE_TABLES_EVENT = CONVERSION_PREFIX + "FindHiveTables";
-  public static final String CONVERSION_SLA_EVENT = CONVERSION_PREFIX + "ConversionCompleted";
+  public static final String CONVERSION_SUCCESSFUL_SLA_EVENT = CONVERSION_PREFIX + "ConversionSuccessful";
+  public static final String CONVERSION_FAILED_EVENT = CONVERSION_PREFIX + "ConversionFailed";
 
 }
