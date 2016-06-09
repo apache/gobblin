@@ -23,7 +23,7 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
-import gobblin.metastore.testing.ITestMetastoreDatabase;
+import gobblin.metastored.testing.ITestMetastoreDatabase;
 import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
