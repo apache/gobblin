@@ -127,8 +127,8 @@ public class SimpleHdfsConfigStoreTest {
       List<ConfigKeyPath> imports = this.simpleHDFSConfigStore.getOwnImports(datasetConfigKey, VERSION);
 
       Assert.assertEquals(imports.size(), 2);
-      Assert.assertEquals(imports.get(0).getAbsolutePathString(), tagKey1);
-      Assert.assertEquals(imports.get(1).getAbsolutePathString(), tagKey2);
+      Assert.assertEquals(imports.get(0).getAbsolutePathString(), tagKey2);
+      Assert.assertEquals(imports.get(1).getAbsolutePathString(), tagKey1);
     } finally {
       if (this.fs.exists(datasetPath)) {
         this.fs.delete(datasetPath, true);
@@ -139,7 +139,6 @@ public class SimpleHdfsConfigStoreTest {
   @Test
   public void testGetOwnImportsWithResolution() throws IOException, URISyntaxException, ConfigStoreCreationException {
 
-    System.out.println("testGetOwnImportsWithResolution called");
     String datasetName = "dataset-test-get-own-imports-resolution";
 
     Path datasetPath = new Path(CONFIG_DIR_PATH, datasetName);
