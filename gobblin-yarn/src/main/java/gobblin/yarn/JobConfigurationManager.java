@@ -60,6 +60,7 @@ public class JobConfigurationManager extends AbstractIdleService {
   }
 
   @Override
+  // TODO : Modify this 'File-approach'
   protected void startUp() throws Exception {
     if (this.jobConfDirPath.isPresent()) {
       File path = new File(this.jobConfDirPath.get());
@@ -70,7 +71,7 @@ public class JobConfigurationManager extends AbstractIdleService {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
         Properties properties = new Properties();
         properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfigDir.getAbsolutePath());
-        List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
+        List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
           postNewJobConfigArrival(config.getProperty(ConfigurationKeys.JOB_NAME_KEY), config);
