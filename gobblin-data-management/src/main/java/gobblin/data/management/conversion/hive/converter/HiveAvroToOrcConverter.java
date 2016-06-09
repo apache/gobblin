@@ -11,7 +11,6 @@
  */
 package gobblin.data.management.conversion.hive.converter;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,10 +18,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.collect.Maps;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
@@ -32,6 +33,7 @@ import gobblin.converter.SingleRecordIterable;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.data.management.conversion.hive.util.HiveAvroORCQueryUtils;
 import gobblin.util.AvroFlattener;
+
 
 /**
  * Builds the Hive avro to Orc conversion query. The record type for this converter is {@link QueryBasedHiveConversionEntity}. A {@link QueryBasedHiveConversionEntity}
@@ -43,8 +45,9 @@ public class HiveAvroToOrcConverter
 
   // TODO: Remove when topology is enabled
   private static final String ORC_TABLE_ALTERNATE_LOCATION = "orc.table.alternate.location";
+  private static final String ORC_TABLE_ALTERNATE_DATABASE = "orc.table.alternate.database";
 
-  private static AvroFlattener avroFlattener = new AvroFlattener();
+  private static AvroFlattener AVRO_FLATTENER = new AvroFlattener();
 
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
@@ -57,12 +60,12 @@ public class HiveAvroToOrcConverter
   @Override
   public Iterable<QueryBasedHiveConversionEntity> convertRecord(Schema outputSchema,
       QueryBasedHiveConversionEntity conversionEntity, WorkUnitState workUnit) throws DataConversionException {
-    Preconditions.checkNotNull(outputSchema);
-    Preconditions.checkNotNull(conversionEntity);
-    Preconditions.checkNotNull(workUnit);
-    Preconditions.checkNotNull(conversionEntity.getHiveTable());
+    Preconditions.checkNotNull(outputSchema, "Output schema must not be null");
+    Preconditions.checkNotNull(conversionEntity, "Conversion entity must not be null");
+    Preconditions.checkNotNull(workUnit, "Workunit state must not be null");
+    Preconditions.checkNotNull(conversionEntity.getHiveTable(), "Hive table within conversion entity must not be null");
 
-    Schema flattenedSchema = avroFlattener.flatten(outputSchema, true);
+    Schema flattenedSchema = AVRO_FLATTENER.flatten(outputSchema, true);
 
     // Create flattened table if not exists
     // ORC Hive tables are named as   : {avro_table_name}_orc
@@ -75,76 +78,26 @@ public class HiveAvroToOrcConverter
     String avroTableName = conversionEntity.getHiveTable().getTableName();
     String avroDataLocation =
         conversionEntity.getHivePartition().isPresent() ? conversionEntity.getHivePartition().get().getLocation()
-            : conversionEntity.getHiveTable().getSd().getLocation();
+            : conversionEntity.getHiveTable().getTTable().getSd().getLocation();
 
     // ORC table name and location
+    // TODO: Define naming convention and pull it from config / topology
     String orcTableName = avroTableName + "_orc";
-    String orcTableLocation;
-
-    // By default ORC table creates a new directory where Avro data resides with _orc postfix, but this can be
-    // .. overridden by specifying this property
-    String orcTableAlternateLocation = workUnit.getJobState().getProp(ORC_TABLE_ALTERNATE_LOCATION);
-    if (StringUtils.isNotBlank(orcTableAlternateLocation)) {
-      orcTableLocation = orcTableAlternateLocation.endsWith("/") ?
-           orcTableAlternateLocation + orcTableName : orcTableAlternateLocation + "/" + orcTableName;
-    } else {
-      orcTableLocation = (avroDataLocation.endsWith("/") ?
-          avroDataLocation.substring(0, avroDataLocation.length() - 1) : avroDataLocation) + "_orc";
-    }
-
-    // Each job execution further writes to a sub-directory within ORC data directory to support stagin use-case
-    // .. ie for atomic swap
-    orcTableLocation += "/" + workUnit.getJobState().getId();
+    String orcTableDatabase = getOrcTableDatabase(workUnit, conversionEntity);
+    String orcDataLocation = getOrcDataLocation(workUnit, avroDataLocation, orcTableName);
 
     // Populate optional partition info
-    Optional<Map<String, String>> optionalPartitionsDDLInfo = Optional.<Map<String, String>>absent();
-    Optional<Map<String, String>> optionalPartitionsDMLInfo = Optional.<Map<String, String>>absent();
-
-    String partitionsInfoString = null;
-    String partitionsTypeString = null;
-
-    if (conversionEntity.getHivePartition().isPresent()) {
-      partitionsInfoString = conversionEntity.getHivePartition().get().getName();
-      partitionsTypeString = conversionEntity.getHivePartition().get().getSchema().getProperty("partition_columns.types");
-    }
-
-    if (StringUtils.isNotBlank(partitionsInfoString) || StringUtils.isNotBlank(partitionsTypeString)) {
-      if (StringUtils.isBlank(partitionsInfoString) || StringUtils.isBlank(partitionsTypeString)) {
-        throw new IllegalArgumentException("Both partitions info and partions must be present, if one is specified");
-      }
-      Map<String, String> partitionDDLInfo = new HashMap<>();
-      Map<String, String> partitionDMLInfo = new HashMap<>();
-      List<String> pInfo = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsInfoString);
-      List<String> pType = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsTypeString);
-      if (pInfo.size() != pType.size()) {
-        throw new IllegalArgumentException("partitions info and partitions type list should of same size");
-      }
-      for (int i=0; i<pInfo.size(); i++) {
-        List<String> partitionInfoParts = Splitter.on("=").omitEmptyStrings().trimResults().splitToList(pInfo.get(i));
-        String partitionType = pType.get(i);
-        if (partitionInfoParts.size() != 2) {
-          throw new IllegalArgumentException(
-              String.format("Partition details should be of the format partitionName=partitionValue. Recieved: %s",
-                  pInfo.get(i)));
-        }
-        partitionDDLInfo.put(partitionInfoParts.get(0), partitionType);
-        partitionDMLInfo.put(partitionInfoParts.get(0), partitionInfoParts.get(1));
-      }
-      if (partitionDDLInfo.size() > 0) {
-        optionalPartitionsDDLInfo = Optional.of(partitionDDLInfo);
-      }
-      if (partitionDMLInfo.size() > 0) {
-        optionalPartitionsDMLInfo = Optional.of(partitionDMLInfo);
-      }
-    }
+    Map<String, String> partitionsDDLInfo = Maps.newHashMap();
+    Map<String, String> partitionsDMLInfo = Maps.newHashMap();
+    populatePartitionInfo(conversionEntity, partitionsDDLInfo, partitionsDMLInfo);
 
     // Create DDL statement
     String createFlattenedTableDDL = HiveAvroORCQueryUtils
         .generateCreateTableDDL(flattenedSchema,
             orcTableName,
-            orcTableLocation,
-            Optional.of(conversionEntity.getHiveTable().getDbName()),
-            optionalPartitionsDDLInfo,
+            orcDataLocation,
+            Optional.of(orcTableDatabase),
+            Optional.of(partitionsDDLInfo),
             Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
             Optional.<Integer>absent(),
@@ -159,8 +112,8 @@ public class HiveAvroToOrcConverter
     String insertInORCTableDML = HiveAvroORCQueryUtils
         .generateTableMappingDML(outputSchema, flattenedSchema, avroTableName, orcTableName,
             Optional.of(conversionEntity.getHiveTable().getDbName()),
-            Optional.of(conversionEntity.getHiveTable().getDbName()),
-            optionalPartitionsDMLInfo,
+            Optional.of(orcTableDatabase),
+            Optional.of(partitionsDMLInfo),
             Optional.<Boolean>absent(), Optional.<Boolean>absent());
     conversionEntity.getQueries().add(insertInORCTableDML);
     log.info("Conversion DML: " + insertInORCTableDML);
@@ -169,4 +122,62 @@ public class HiveAvroToOrcConverter
     return new SingleRecordIterable<>(conversionEntity);
   }
 
+  private String getOrcTableDatabase(WorkUnitState workUnit, QueryBasedHiveConversionEntity conversionEntity) {
+    String orcTableAlternateDB = workUnit.getJobState().getProp(ORC_TABLE_ALTERNATE_DATABASE);
+    return StringUtils.isNotBlank(orcTableAlternateDB) ? orcTableAlternateDB :
+        conversionEntity.getHiveTable().getDbName();
+  }
+
+  private String getOrcDataLocation(WorkUnitState workUnit, String avroDataLocation, String orcTableName) {
+    String orcDataLocation;
+
+    // By default ORC table creates a new directory where Avro data resides with _orc postfix, but this can be
+    // .. overridden by specifying this property
+    String orcTableAlternateLocation = workUnit.getJobState().getProp(ORC_TABLE_ALTERNATE_LOCATION);
+    if (StringUtils.isNotBlank(orcTableAlternateLocation)) {
+      orcDataLocation = StringUtils.removeEnd(orcTableAlternateLocation, Path.SEPARATOR) + "/" + orcTableName;
+    } else {
+      orcDataLocation = StringUtils.removeEnd(avroDataLocation, Path.SEPARATOR) + "_orc";
+    }
+
+    // Each job execution further writes to a sub-directory within ORC data directory to support stagin use-case
+    // .. ie for atomic swap
+    orcDataLocation += "/" + workUnit.getJobState().getId();
+
+    return orcDataLocation;
+  }
+
+  private void populatePartitionInfo(QueryBasedHiveConversionEntity conversionEntity,
+      Map<String, String> partitionsDDLInfo,
+      Map<String, String> partitionsDMLInfo) {
+    String partitionsInfoString = null;
+    String partitionsTypeString = null;
+
+    if (conversionEntity.getHivePartition().isPresent()) {
+      partitionsInfoString = conversionEntity.getHivePartition().get().getName();
+      partitionsTypeString = conversionEntity.getHivePartition().get().getSchema().getProperty("partition_columns.types");
+    }
+
+    if (StringUtils.isNotBlank(partitionsInfoString) || StringUtils.isNotBlank(partitionsTypeString)) {
+      if (StringUtils.isBlank(partitionsInfoString) || StringUtils.isBlank(partitionsTypeString)) {
+        throw new IllegalArgumentException("Both partitions info and partions must be present, if one is specified");
+      }
+      List<String> pInfo = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsInfoString);
+      List<String> pType = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsTypeString);
+      if (pInfo.size() != pType.size()) {
+        throw new IllegalArgumentException("partitions info and partitions type list should of same size");
+      }
+      for (int i=0; i<pInfo.size(); i++) {
+        List<String> partitionInfoParts = Splitter.on("=").omitEmptyStrings().trimResults().splitToList(pInfo.get(i));
+        String partitionType = pType.get(i);
+        if (partitionInfoParts.size() != 2) {
+          throw new IllegalArgumentException(
+              String.format("Partition details should be of the format partitionName=partitionValue. Recieved: %s",
+                  pInfo.get(i)));
+        }
+        partitionsDDLInfo.put(partitionInfoParts.get(0), partitionType);
+        partitionsDMLInfo.put(partitionInfoParts.get(0), partitionInfoParts.get(1));
+      }
+    }
+  }
 }

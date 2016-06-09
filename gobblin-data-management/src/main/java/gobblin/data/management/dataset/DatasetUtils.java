@@ -66,8 +66,9 @@ public class DatasetUtils {
    * @throws IOException
    */
   @SuppressWarnings("unchecked")
-  public static <T extends gobblin.dataset.Dataset> DatasetsFinder<T> instantiateDatasetFinder(Properties props, FileSystem fs,
-      String default_class, Object... additionalArgs) throws IOException {
+  public static <T extends gobblin.dataset.Dataset> DatasetsFinder<T> instantiateDatasetFinder(Properties props,
+      FileSystem fs, String default_class, Object... additionalArgs)
+      throws IOException {
     String className = default_class;
     if (props.containsKey(DATASET_PROFILE_CLASS_KEY)) {
       className = props.getProperty(DATASET_PROFILE_CLASS_KEY);
@@ -82,7 +83,6 @@ public class DatasetUtils {
     } catch (ReflectiveOperationException exception) {
       throw new IOException(exception);
     }
-
   }
 
   /**
@@ -119,7 +119,7 @@ public class DatasetUtils {
    * @return a new instance of {@link PathFilter}. If not key is found, returns an
    *         {@link #ACCEPT_ALL_COPYABLE_FILE_FILTER}
    */
-  public static CopyableFileFilter instantiateCopyableFileFilter(Properties props) {
+  public static CopyableFileFilter instantiateCopyableFileFilter(Properties props, Object... additionalArgs) {
 
     if (!props.containsKey(COPYABLE_FILE_FILTER_KEY)) {
       return ACCEPT_ALL_COPYABLE_FILE_FILTER;
@@ -127,8 +127,9 @@ public class DatasetUtils {
 
     try {
       Class<?> copyableFileFilterClass = Class.forName(props.getProperty(COPYABLE_FILE_FILTER_KEY));
-      return (CopyableFileFilter) copyableFileFilterClass.newInstance();
-    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException exception) {
+      return (CopyableFileFilter) GobblinConstructorUtils
+          .invokeLongestConstructor(copyableFileFilterClass, additionalArgs);
+    } catch (ReflectiveOperationException exception) {
       throw new RuntimeException(exception);
     }
   }
