@@ -17,6 +17,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -254,8 +255,12 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
       FileStatus includesFileStatus = this.fs.getFileStatus(includesFile);
       if (!includesFileStatus.isDirectory()) {
         try (InputStream includesConfInStream = this.fs.open(includesFileStatus.getPath())) {
+          /*
+           * With the natural order of includes, a key found in the first include can not be overriden by the next include.
+           * By reversing the list, the Typesafe fallbacks are constructed bottom up.
+           */
           configKeyPaths.addAll(Lists.newArrayList(
-              Iterables.transform(resolveIncludesList(IOUtils.readLines(includesConfInStream, Charsets.UTF_8)),
+              Iterables.transform(Lists.reverse(resolveIncludesList(IOUtils.readLines(includesConfInStream, Charsets.UTF_8))),
                   new IncludesToConfigKey())));
         }
       }
@@ -277,12 +282,7 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
   @VisibleForTesting
   public static List<String> resolveIncludesList(List<String> includes) {
 
-    if (includes.isEmpty()) {
-      return includes;
-    }
-
-    // Build a string representation of the config as parsing the includes as Map quotes the includes.
-    // Type safe resolves substitutions only for unquoted strings
+    // Create a TypeSafe Config object with Key INCLUDES_KEY_NAME and value an array of includes
     StringBuilder includesBuilder = new StringBuilder();
     for (String include : includes) {
       // Skip comments
@@ -291,12 +291,13 @@ public class SimpleHDFSConfigStore implements ConfigStore, Deployable<FsDeployme
       }
     }
 
+    // Resolve defaultOverrides and environment variables.
     if (includesBuilder.length() > 0) {
       return ConfigFactory.parseString(includesBuilder.toString()).withFallback(ConfigFactory.defaultOverrides())
           .withFallback(ConfigFactory.systemEnvironment()).resolve().getStringList(INCLUDES_KEY_NAME);
     }
 
-    return includes;
+    return Collections.emptyList();
   }
 
   /**
