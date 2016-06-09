@@ -18,6 +18,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -53,6 +54,7 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.AutoReturnableObject;
 import gobblin.util.HadoopUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
 import gobblin.util.reflection.GobblinConstructorUtils;
@@ -119,63 +121,68 @@ public class HiveSource implements Source {
 
       while (iterator.hasNext()) {
         HiveDataset hiveDataset = iterator.next();
-        LongWatermark expectedDatasetHighWatermark = new LongWatermark(new DateTime().getMillis());
-        log.debug(String.format("Processing dataset: %s", hiveDataset));
+        try (AutoReturnableObject<IMetaStoreClient> client = hiveDataset.getClientPool().getClient()) {
 
-        // Create workunits for partitions
-        if (HiveUtils.isPartitioned(hiveDataset.getTable())) {
-          List<Partition> sourcePartitions =
-              HiveUtils.getPartitions(hiveDataset.getClientPool().getClient().get(), hiveDataset.getTable(),
-                  Optional.<String> absent());
+          LongWatermark expectedDatasetHighWatermark = new LongWatermark(new DateTime().getMillis());
+          log.debug(String.format("Processing dataset: %s", hiveDataset));
 
-          for (Partition sourcePartition : sourcePartitions) {
-            LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);
+          // Create workunits for partitions
+          if (HiveUtils.isPartitioned(hiveDataset.getTable())) {
+            List<Partition> sourcePartitions =
+                HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String>absent());
 
-            long updateTime = updateProvider.getUpdateTime(sourcePartition);
+            for (Partition sourcePartition : sourcePartitions) {
+              LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);
+
+              long updateTime = updateProvider.getUpdateTime(sourcePartition);
+
+              if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
+
+                log.debug(String.format("Processing partition: %s", sourcePartition));
+
+                WorkUnit workUnit = WorkUnit.createEmpty();
+                workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
+                HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), avroSchemaManager);
+                HiveSourceUtils.serializePartition(workUnit, sourcePartition, avroSchemaManager);
+                workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
+
+                HiveSourceUtils
+                    .setPartitionSlaEventMetadata(workUnit, hiveDataset.getTable(), sourcePartition, updateTime,
+                        lowWatermark.getValue());
+                workunits.add(workUnit);
+                log.debug(String.format("Workunit added for partition: %s", workUnit));
+              } else {
+                // If watermark tracking at a partition level is necessary, create a dummy workunit for this partition here.
+                log.info(String
+                    .format("Not creating workunit for partition %s as updateTime %s is lesser than low watermark %s",
+                        sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
+              }
+            }
+          } else {
+
+            // Create workunits for tables
+            long updateTime = updateProvider.getUpdateTime(hiveDataset.getTable());
+
+            LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(hiveDataset.getTable());
 
             if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
 
-              log.debug(String.format("Processing partition: %s", sourcePartition));
+              log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
 
               WorkUnit workUnit = WorkUnit.createEmpty();
               workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
               HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), avroSchemaManager);
-              HiveSourceUtils.serializePartition(workUnit, sourcePartition, avroSchemaManager);
               workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
 
-              HiveSourceUtils.setPartitionSlaEventMetadata(workUnit, hiveDataset.getTable(), sourcePartition, updateTime, lowWatermark.getValue());
+              HiveSourceUtils
+                  .setTableSlaEventMetadata(workUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue());
               workunits.add(workUnit);
-              log.debug(String.format("Workunit added for partition: %s", workUnit));
+              log.debug(String.format("Workunit added for table: %s", workUnit));
             } else {
-              // If watermark tracking at a partition level is necessary, create a dummy workunit for this partition here.
-              log.info(String.format(
-                  "Not creating workunit for partition %s as updateTime %s is lesser than low watermark %s",
-                  sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
+              log.info(String
+                  .format("Not creating workunit for table %s as updateTime %s is lesser than low watermark %s",
+                      hiveDataset.getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
             }
-          }
-        } else {
-
-          // Create workunits for tables
-          long updateTime = updateProvider.getUpdateTime(hiveDataset.getTable());
-
-          LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(hiveDataset.getTable());
-
-          if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
-
-            log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
-
-            WorkUnit workUnit = WorkUnit.createEmpty();
-            workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
-            HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), avroSchemaManager);
-            workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
-
-            HiveSourceUtils.setTableSlaEventMetadata(workUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue());
-            workunits.add(workUnit);
-            log.debug(String.format("Workunit added for table: %s", workUnit));
-          } else {
-            log.info(String.format(
-                "Not creating workunit for table %s as updateTime %s is lesser than low watermark %s", hiveDataset
-                    .getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
           }
         }
       }
