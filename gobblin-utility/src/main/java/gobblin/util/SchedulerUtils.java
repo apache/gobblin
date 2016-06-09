@@ -76,7 +76,6 @@ public class SchedulerUtils {
     }
   };
 
-  // todo : Any better methods to extract file extension
   private static final PathFilter PROPERTIES_PATH_FILTER =        new PathFilter() {
     @Override
     public boolean accept(Path path) {
