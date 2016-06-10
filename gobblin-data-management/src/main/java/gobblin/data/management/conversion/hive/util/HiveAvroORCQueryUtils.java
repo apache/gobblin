@@ -191,7 +191,7 @@ public class HiveAvroORCQueryUtils {
         }
         ddl.append(" ) ");
       }
-      ddl.append(String.format(" INTO %s BUCKETS \n", optionalNumOfBuckets.get()));
+      ddl.append(String.format(" INTO %s BUCKETS %n", optionalNumOfBuckets.get()));
     } else {
       if (optionalSortOrderInfo.isPresent()) {
         throw new IllegalArgumentException("SORTED BY requested, but no CLUSTERED BY specified");
@@ -200,17 +200,17 @@ public class HiveAvroORCQueryUtils {
 
     // Field Terminal
     ddl.append("ROW FORMAT SERDE \n");
-    ddl.append(String.format("  '%s' \n", rowFormatSerde));
+    ddl.append(String.format("  '%s' %n", rowFormatSerde));
 
     // Stored as ORC
     ddl.append("STORED AS INPUTFORMAT \n");
-    ddl.append(String.format("  '%s' \n", inputFormat));
+    ddl.append(String.format("  '%s' %n", inputFormat));
     ddl.append("OUTPUTFORMAT \n");
-    ddl.append(String.format("  '%s' \n", outputFormat));
+    ddl.append(String.format("  '%s' %n", outputFormat));
 
     // Location
     ddl.append("LOCATION \n");
-    ddl.append(String.format("  '%s' \n", tblLocation));
+    ddl.append(String.format("  '%s' %n", tblLocation));
 
     // Table properties
     if (null != tblProperties && tblProperties.size() > 0) {
@@ -403,9 +403,9 @@ public class HiveAvroORCQueryUtils {
 
     // Insert query
     if (shouldOverwriteTable) {
-      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s.%s` \n", flattenedDbName, flattenedTblName));
+      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s.%s` %n", flattenedDbName, flattenedTblName));
     } else {
-      dmlQuery.append(String.format("INSERT INTO TABLE `%s.%s` \n", flattenedDbName, flattenedTblName));
+      dmlQuery.append(String.format("INSERT INTO TABLE `%s.%s` %n", flattenedDbName, flattenedTblName));
     }
 
     // Partition details
@@ -444,7 +444,7 @@ public class HiveAvroORCQueryUtils {
       }
       dmlQuery.append(String.format("  %s", colName));
     }
-    dmlQuery.append(String.format(" \nFROM `%s.%s` ", originalDbName, originalTblName));
+    dmlQuery.append(String.format(" %n FROM `%s.%s` ", originalDbName, originalTblName));
 
     // Partition details
     if (optionalPartitionDMLInfo.isPresent()) {

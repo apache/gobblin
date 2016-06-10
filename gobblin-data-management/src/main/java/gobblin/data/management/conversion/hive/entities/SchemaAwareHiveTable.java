@@ -11,6 +11,7 @@
  */
 package gobblin.data.management.conversion.hive.entities;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import org.apache.avro.Schema;
@@ -19,6 +20,7 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 /**
  * An extension to the {@link Table} that also knows the {@link Schema} of this {@link Table}
  */
+@EqualsAndHashCode
 public class SchemaAwareHiveTable extends Table {
 
   @Getter
