@@ -87,7 +87,7 @@ public class HiveConvertPublisher extends DataPublisher {
 
     @Override
     public boolean apply(WorkUnitState input) {
-      return !input.getWorkingState().equals(WorkingState.SUCCESSFUL);
+      return null == input || !WorkingState.SUCCESSFUL.equals(input.getWorkingState());
     }
   };
 }
