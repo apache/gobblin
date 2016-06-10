@@ -119,6 +119,22 @@ public class ConfigUtils {
     }
     return def;
   }
+
+
+  /**
+   * Return boolean value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return boolean value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   */
+  public static boolean getBoolean(Config config, String path, boolean def) {
+    if (config.hasPath(path)) {
+      return config.getBoolean(path);
+    }
+    return def;
+  }
+
   /**
    * Check if the given <code>key</code> exists in <code>config</code> and it is not null or empty
    * Uses {@link StringUtils#isNotBlank(CharSequence)}
