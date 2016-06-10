@@ -41,6 +41,7 @@ import gobblin.data.management.trash.TrashFactory;
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.data.management.version.finder.VersionFinder;
 import gobblin.dataset.FileSystemDataset;
+import gobblin.util.ConfigUtils;
 import gobblin.util.PathUtils;
 
 
@@ -132,7 +133,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
         Boolean.valueOf(props.getProperty(SKIP_TRASH_KEY, SKIP_TRASH_DEFAULT)),
         Boolean.valueOf(props.getProperty(DELETE_EMPTY_DIRECTORIES_KEY, DELETE_EMPTY_DIRECTORIES_DEFAULT)),
         Boolean.valueOf(props.getProperty(DELETE_AS_OWNER_KEY, DELETE_AS_OWNER_DEFAULT)),
-        config.getBoolean(IS_DATASET_BLACKLISTED_KEY), log);
+        ConfigUtils.getBoolean(config, IS_DATASET_BLACKLISTED_KEY, Boolean.valueOf(IS_DATASET_BLACKLISTED_DEFAULT)), log);
   }
 
   public MultiVersionCleanableDatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
