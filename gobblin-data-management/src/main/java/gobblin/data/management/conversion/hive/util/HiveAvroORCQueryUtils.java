@@ -45,7 +45,7 @@ public class HiveAvroORCQueryUtils {
   private static final String DEFAULT_ORC_INPUT_FORMAT            = "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat";
   private static final String DEFAULT_ORC_OUTPUT_FORMAT           = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat";
   private static final String DEFAULT_ORC_COMPRESSION             = "SNAPPY";
-  private static final String DEFAULT_ORC_ROW_INDEX_STRIDE        = "20000";
+  private static final String DEFAULT_ORC_ROW_INDEX_STRIDE        = "268435456";
   private static final Map<String, String> DEFAULT_TBL_PROPERTIES = ImmutableMap
       .<String, String>builder().
       put(ORC_COMPRESSION_KEY, DEFAULT_ORC_COMPRESSION).
