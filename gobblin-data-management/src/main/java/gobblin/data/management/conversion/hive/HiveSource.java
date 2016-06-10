@@ -88,6 +88,11 @@ public class HiveSource implements Source {
   private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS = HdfsBasedUpdateProviderFactory.class
       .getName();
 
+  /**
+   * Set this if you want to force bootstrap the low watermark for all datasets.
+   */
+  private static final String HIVE_SOURCE_BOOTSTRAP_LOW_WATERMARK_KEY = "hive.source.bootstrap.lowwatermark";
+
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   public MetricContext metricContext;
@@ -99,6 +104,12 @@ public class HiveSource implements Source {
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, EventConstants.CONVERSION_NAMESPACE).build();
 
     List<WorkUnit> workunits = Lists.newArrayList();
+
+    Optional<LongWatermark> bootstrapLowWatermark = Optional.absent();
+
+    if (state.contains(HIVE_SOURCE_BOOTSTRAP_LOW_WATERMARK_KEY)) {
+      bootstrapLowWatermark = Optional.of(new LongWatermark(state.getPropAsLong(HIVE_SOURCE_BOOTSTRAP_LOW_WATERMARK_KEY)));
+    }
 
     try {
 
@@ -133,6 +144,10 @@ public class HiveSource implements Source {
 
             for (Partition sourcePartition : sourcePartitions) {
               LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);
+              if (bootstrapLowWatermark.isPresent() &&
+                  Long.compare(bootstrapLowWatermark.get().getValue(), lowWatermark.getValue()) > 0) {
+                lowWatermark = bootstrapLowWatermark.get();
+              }
 
               long updateTime = updateProvider.getUpdateTime(sourcePartition);
 
@@ -164,6 +179,10 @@ public class HiveSource implements Source {
             long updateTime = updateProvider.getUpdateTime(hiveDataset.getTable());
 
             LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(hiveDataset.getTable());
+            if (bootstrapLowWatermark.isPresent() &&
+                Long.compare(bootstrapLowWatermark.get().getValue(), lowWatermark.getValue()) > 0) {
+              lowWatermark = bootstrapLowWatermark.get();
+            }
 
             if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
 

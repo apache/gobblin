@@ -16,7 +16,9 @@ import java.util.Collection;
 
 import org.apache.hadoop.fs.FileSystem;
 
-import gobblin.configuration.ConfigurationKeys;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
+
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
@@ -54,13 +56,21 @@ public class HiveConvertPublisher extends DataPublisher {
 
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
-    for (WorkUnitState wus : states) {
-      wus.setWorkingState(WorkingState.COMMITTED);
-      wus.setActualHighWatermark(TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(),
-          LongWatermark.class));
 
-      new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SLA_EVENT, wus.getProperties()).submit();
+    if (Iterables.tryFind(states, UNSUCCESSFUL_WORKUNIT).isPresent()) {
+      for (WorkUnitState wus : states) {
+        wus.setWorkingState(WorkingState.FAILED);
+        new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
+      }
+    } else {
+      for (WorkUnitState wus : states) {
+        wus.setWorkingState(WorkingState.COMMITTED);
+        wus.setActualHighWatermark(TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(),
+            LongWatermark.class));
 
+        new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
+            .submit();
+      }
     }
   }
 
@@ -72,4 +82,12 @@ public class HiveConvertPublisher extends DataPublisher {
   public void close() throws IOException {
     this.avroSchemaManager.cleanupTempSchemas();
   }
+
+  private static final Predicate<WorkUnitState> UNSUCCESSFUL_WORKUNIT = new Predicate<WorkUnitState>() {
+
+    @Override
+    public boolean apply(WorkUnitState input) {
+      return !input.getWorkingState().equals(WorkingState.SUCCESSFUL);
+    }
+  };
 }
