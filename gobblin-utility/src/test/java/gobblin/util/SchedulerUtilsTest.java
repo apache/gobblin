@@ -73,6 +73,7 @@ public class SchedulerUtilsTest {
 
     // The setting up required for loadGenerailConfigFile, expressed in Path.
     // TODO: URI should be specified as a Base for FileSystem constructor to recognize.
+    // TODO: Before the unit test, you may not don't want to keep this change.
     this.uri = new URI("some uri that makes sense.");
     this.filesystem = FileSystem.get(uri, new Configuration());
     this.jobConfigDirPath = new Path(uri);
