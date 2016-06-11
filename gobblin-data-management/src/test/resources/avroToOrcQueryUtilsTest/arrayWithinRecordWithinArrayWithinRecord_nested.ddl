@@ -10,4 +10,4 @@ LOCATION
   'file:/user/hive/warehouse/testArrayWithinRecordWithinArrayWithinRecordDDL'
 TBLPROPERTIES (
   'orc.compress'='SNAPPY',
-  'orc.row.index.stride'='20000')
+  'orc.row.index.stride'='268435456')
