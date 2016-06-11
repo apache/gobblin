@@ -26,6 +26,8 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -42,13 +44,13 @@ import gobblin.data.management.conversion.hive.entities.SerializableHivePartitio
 import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
 import gobblin.data.management.conversion.hive.mock.MockUpdateProvider;
 import gobblin.data.management.conversion.hive.mock.MockUpdateProviderFactory;
-
+import gobblin.data.management.conversion.hive.provider.DatePatternUpdateProviderTest;
 import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
-
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.avro.HiveAvroSerDeManager;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.test.RetentionTestDataGenerator.FixedThreadLocalMillisProvider;
 
 
 @Slf4j
@@ -66,6 +68,7 @@ public class HiveSourceTest {
     this.hiveSource = new HiveSource();
     this.updateProvider = MockUpdateProvider.getInstance();
   }
+
 
   @Test
   public void testGetWorkUnitsForTable() throws Exception {
@@ -162,6 +165,63 @@ public class HiveSourceTest {
 
   }
 
+  @Test
+  public void testShouldCreateWorkunitsWithLookback() throws Exception {
+
+    DateTimeUtils.setCurrentMillisProvider(new FixedThreadLocalMillisProvider(new DateTime(2016, 6, 20, 0, 0, 0, 0).getMillis()));
+
+    long currentTime = System.currentTimeMillis();
+    long watermarkTime = new DateTime(currentTime).minusDays(2).getMillis();
+
+    SourceState testState = getTestState("testdb5");
+    testState.setProp(HiveSource.HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, 10);
+    HiveSource source = new HiveSource();
+    source.initialize(testState);
+
+    LongWatermark mockLongWatermark = new LongWatermark(watermarkTime);
+    boolean shouldCreate = source.shouldCreateWorkunitForPartition(
+        DatePatternUpdateProviderTest.createMockPartitionWithLocation("/daily/2016/06/15"), currentTime,
+        mockLongWatermark);
+
+    Assert.assertEquals(shouldCreate, true);
+
+    shouldCreate = source.shouldCreateWorkunitForPartition(
+        DatePatternUpdateProviderTest.createMockPartitionWithLocation("/daily/2016/06/09"), currentTime,
+        mockLongWatermark);
+
+    Assert.assertEquals(shouldCreate, false, "Should not create workunit for partition older than 10 days");
+
+    DateTimeUtils.setCurrentMillisSystem();
+  }
+
+  @Test
+  public void testShouldCreateWorkunitsWithoutLookback() throws Exception {
+
+    DateTimeUtils.setCurrentMillisProvider(new FixedThreadLocalMillisProvider(new DateTime(2016, 6, 20, 0, 0, 0, 0).getMillis()));
+
+    long currentTime = System.currentTimeMillis();
+    long watermarkTime = new DateTime(currentTime).minusDays(2).getMillis();
+
+    HiveSource source = new HiveSource();
+    source.initialize(getTestState("testdb6"));
+
+    LongWatermark mockLongWatermark = new LongWatermark(watermarkTime);
+    boolean shouldCreate = source.shouldCreateWorkunitForPartition(
+        DatePatternUpdateProviderTest.createMockPartitionWithLocation("/daily/2016/05/01"), currentTime,
+        mockLongWatermark);
+
+    Assert.assertEquals(shouldCreate, true);
+
+    watermarkTime = new DateTime(currentTime).plusDays(2).getMillis();
+    mockLongWatermark = new LongWatermark(watermarkTime);
+    shouldCreate = source.shouldCreateWorkunitForPartition(
+        DatePatternUpdateProviderTest.createMockPartitionWithLocation("/daily/2016/05/01"), currentTime,
+        mockLongWatermark);
+
+    Assert.assertEquals(shouldCreate, false, "Should not create workunit for partition with no new updates");
+
+    DateTimeUtils.setCurrentMillisSystem();
+  }
   private static WorkUnitState createPreviousWus(String dbName, String tableName, long watermark) {
 
     WorkUnitState wus = new WorkUnitState();

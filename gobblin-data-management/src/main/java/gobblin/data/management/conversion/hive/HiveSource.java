@@ -25,10 +25,12 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
@@ -36,9 +38,11 @@ import gobblin.data.management.conversion.hive.entities.SerializableHivePartitio
 import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
+import gobblin.data.management.conversion.hive.provider.DatePatternUpdateProvider;
 import gobblin.data.management.conversion.hive.provider.HdfsBasedUpdateProviderFactory;
 import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProviderFactory;
+import gobblin.data.management.conversion.hive.provider.UpdateNotFoundExecption;
 import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
 import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
@@ -81,6 +85,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 @SuppressWarnings("rawtypes")
+@Alpha
 public class HiveSource implements Source {
 
   private static final String OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS_KEY =
@@ -88,47 +93,28 @@ public class HiveSource implements Source {
   private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS = HdfsBasedUpdateProviderFactory.class
       .getName();
 
-  /**
-   * Set this if you want to force bootstrap the low watermark for all datasets.
-   */
-  private static final String HIVE_SOURCE_BOOTSTRAP_LOW_WATERMARK_KEY = "hive.source.bootstrap.lowwatermark";
+  public static final String HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY = "hive.source.maximum.lookbackDays";
 
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
-  public MetricContext metricContext;
-  public EventSubmitter eventSubmitter;
+  private MetricContext metricContext;
+  private EventSubmitter eventSubmitter;
+  private AvroSchemaManager avroSchemaManager;
+  private HiveUnitUpdateProvider updateProvider;
+  private Optional<? extends HiveUnitUpdateProvider> lookBackUpdateProvider;
+  private HiveSourceWatermarker watermaker;
+  private IterableDatasetFinder<HiveDataset> datasetFinder;
+  private List<WorkUnit> workunits;
+  private int maxLookBackDays;
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
-    this.metricContext = Instrumented.getMetricContext(state, HiveSource.class);
-    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, EventConstants.CONVERSION_NAMESPACE).build();
-
-    List<WorkUnit> workunits = Lists.newArrayList();
-
-    Optional<LongWatermark> bootstrapLowWatermark = Optional.absent();
-
-    if (state.contains(HIVE_SOURCE_BOOTSTRAP_LOW_WATERMARK_KEY)) {
-      bootstrapLowWatermark = Optional.of(new LongWatermark(state.getPropAsLong(HIVE_SOURCE_BOOTSTRAP_LOW_WATERMARK_KEY)));
-    }
-
     try {
 
-      // Initialize
-      EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.SETUP_EVENT);
-      HiveSourceWatermarker watermaker = new TableLevelWatermarker(state);
-      HiveUnitUpdateProviderFactory updateProviderFactory =
-          GobblinConstructorUtils.invokeConstructor(HiveUnitUpdateProviderFactory.class, state.getProp(
-              OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS));
-      HiveUnitUpdateProvider updateProvider = updateProviderFactory.create(state);
+      initialize(state);
 
-      IterableDatasetFinder<HiveDataset> datasetFinder =
-          new HiveDatasetFinder(getSourceFs(), state.getProperties(), this.eventSubmitter);
-
-      AvroSchemaManager avroSchemaManager = new AvroSchemaManager(getSourceFs(), state);
-
-      // Find hive tables
       EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.FIND_HIVE_TABLES_EVENT);
-      Iterator<HiveDataset> iterator = datasetFinder.getDatasetsIterator();
+      Iterator<HiveDataset> iterator = this.datasetFinder.getDatasetsIterator();
 
       while (iterator.hasNext()) {
         HiveDataset hiveDataset = iterator.next();
@@ -139,69 +125,9 @@ public class HiveSource implements Source {
 
           // Create workunits for partitions
           if (HiveUtils.isPartitioned(hiveDataset.getTable())) {
-            List<Partition> sourcePartitions =
-                HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String>absent());
-
-            for (Partition sourcePartition : sourcePartitions) {
-              LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);
-              if (bootstrapLowWatermark.isPresent() &&
-                  Long.compare(bootstrapLowWatermark.get().getValue(), lowWatermark.getValue()) > 0) {
-                lowWatermark = bootstrapLowWatermark.get();
-              }
-
-              long updateTime = updateProvider.getUpdateTime(sourcePartition);
-
-              if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
-
-                log.debug(String.format("Processing partition: %s", sourcePartition));
-
-                WorkUnit workUnit = WorkUnit.createEmpty();
-                workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
-                HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), avroSchemaManager);
-                HiveSourceUtils.serializePartition(workUnit, sourcePartition, avroSchemaManager);
-                workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
-
-                HiveSourceUtils
-                    .setPartitionSlaEventMetadata(workUnit, hiveDataset.getTable(), sourcePartition, updateTime,
-                        lowWatermark.getValue());
-                workunits.add(workUnit);
-                log.debug(String.format("Workunit added for partition: %s", workUnit));
-              } else {
-                // If watermark tracking at a partition level is necessary, create a dummy workunit for this partition here.
-                log.info(String
-                    .format("Not creating workunit for partition %s as updateTime %s is lesser than low watermark %s",
-                        sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
-              }
-            }
+            createWorkunitsForPartitionedTable(hiveDataset, client, expectedDatasetHighWatermark);
           } else {
-
-            // Create workunits for tables
-            long updateTime = updateProvider.getUpdateTime(hiveDataset.getTable());
-
-            LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(hiveDataset.getTable());
-            if (bootstrapLowWatermark.isPresent() &&
-                Long.compare(bootstrapLowWatermark.get().getValue(), lowWatermark.getValue()) > 0) {
-              lowWatermark = bootstrapLowWatermark.get();
-            }
-
-            if (Long.compare(updateTime, lowWatermark.getValue()) > 0) {
-
-              log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
-
-              WorkUnit workUnit = WorkUnit.createEmpty();
-              workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
-              HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), avroSchemaManager);
-              workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
-
-              HiveSourceUtils
-                  .setTableSlaEventMetadata(workUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue());
-              workunits.add(workUnit);
-              log.debug(String.format("Workunit added for table: %s", workUnit));
-            } else {
-              log.info(String
-                  .format("Not creating workunit for table %s as updateTime %s is lesser than low watermark %s",
-                      hiveDataset.getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
-            }
+            createPartitionForNonPartitionedTable(hiveDataset, expectedDatasetHighWatermark);
           }
         }
       }
@@ -209,7 +135,120 @@ public class HiveSource implements Source {
       throw new RuntimeException(e);
     }
 
-    return workunits;
+    return this.workunits;
+  }
+
+  @VisibleForTesting
+  public void initialize(SourceState state) throws IOException {
+    this.metricContext = Instrumented.getMetricContext(state, HiveSource.class);
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, EventConstants.CONVERSION_NAMESPACE).build();
+    this.avroSchemaManager = new AvroSchemaManager(getSourceFs(), state);
+    this.workunits = Lists.newArrayList();
+
+    this.watermaker = new TableLevelWatermarker(state);
+    HiveUnitUpdateProviderFactory updateProviderFactory =
+        GobblinConstructorUtils.invokeConstructor(HiveUnitUpdateProviderFactory.class, state.getProp(
+            OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS));
+    this.updateProvider = updateProviderFactory.create(state);
+
+    this.lookBackUpdateProvider =
+        state.contains(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY) ? Optional.of(new DatePatternUpdateProvider()) : Optional
+            .<HiveUnitUpdateProvider> absent();
+
+    EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.SETUP_EVENT);
+    this.datasetFinder = new HiveDatasetFinder(getSourceFs(), state.getProperties(), this.eventSubmitter);
+    this.maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, Integer.MAX_VALUE);
+  }
+
+  @VisibleForTesting
+  public boolean shouldCreateWorkunitForPartition(Partition partition, long updateTime, LongWatermark lowWatermark) {
+
+    try {
+
+      if (this.lookBackUpdateProvider.isPresent()) {
+        DateTime maxLookbackTime = new DateTime().minusDays(this.maxLookBackDays);
+        return Long.compare(this.lookBackUpdateProvider.get().getUpdateTime(partition), maxLookbackTime.getMillis()) > 0
+            && Long.compare(updateTime, lowWatermark.getValue()) > 0;
+      } else {
+        return Long.compare(updateTime, lowWatermark.getValue()) > 0;
+      }
+
+    } catch (UpdateNotFoundExecption e) {
+      log.warn(String.format("Not creating workunit for partition %s as it failed to get update time. %s",
+          partition.getCompleteName(), e.getMessage()));
+      return false;
+    }
+  }
+
+  @VisibleForTesting
+  public boolean shouldCreateWorkunitForTable(long updateTime, LongWatermark lowWatermark) {
+    return Long.compare(updateTime, lowWatermark.getValue()) > 0;
+  }
+
+  private void createPartitionForNonPartitionedTable(HiveDataset hiveDataset, LongWatermark expectedDatasetHighWatermark)
+      throws IOException {
+    // Create workunits for tables
+    try {
+      long updateTime = this.updateProvider.getUpdateTime(hiveDataset.getTable());
+
+      LongWatermark lowWatermark = this.watermaker.getPreviousHighWatermark(hiveDataset.getTable());
+
+      if (shouldCreateWorkunitForTable(updateTime, lowWatermark)) {
+
+        log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
+
+        WorkUnit workUnit = WorkUnit.createEmpty();
+        workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
+        HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), this.avroSchemaManager);
+        workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
+
+        HiveSourceUtils.setTableSlaEventMetadata(workUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue());
+        this.workunits.add(workUnit);
+        log.debug(String.format("Workunit added for table: %s", workUnit));
+      } else {
+        log.info(String.format("Not creating workunit for table %s as updateTime %s is lesser than low watermark %s",
+            hiveDataset.getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
+      }
+    } catch (UpdateNotFoundExecption e) {
+      log.info(String.format("Not Creating workunit for %s as update time was not found. %s", hiveDataset.getTable()
+          .getCompleteName(), e.getMessage()));
+    }
+  }
+
+  private void createWorkunitsForPartitionedTable(HiveDataset hiveDataset,
+      AutoReturnableObject<IMetaStoreClient> client, LongWatermark expectedDatasetHighWatermark) throws IOException {
+    List<Partition> sourcePartitions =
+        HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
+
+    for (Partition sourcePartition : sourcePartitions) {
+      LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);
+
+      try {
+        long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
+        if (shouldCreateWorkunitForPartition(sourcePartition, updateTime, lowWatermark)) {
+          log.debug(String.format("Processing partition: %s", sourcePartition));
+
+          WorkUnit workUnit = WorkUnit.createEmpty();
+          workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
+          HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), this.avroSchemaManager);
+          HiveSourceUtils.serializePartition(workUnit, sourcePartition, this.avroSchemaManager);
+          workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
+
+          HiveSourceUtils.setPartitionSlaEventMetadata(workUnit, hiveDataset.getTable(), sourcePartition, updateTime,
+              lowWatermark.getValue());
+          workunits.add(workUnit);
+          log.debug(String.format("Workunit added for partition: %s", workUnit));
+        } else {
+          // If watermark tracking at a partition level is necessary, create a dummy workunit for this partition here.
+          log.info(String.format(
+              "Not creating workunit for partition %s as updateTime %s is lesser than low watermark %s",
+              sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
+        }
+      } catch (UpdateNotFoundExecption e) {
+        log.info(String.format("Not Creating workunit for %s as update time was not found. %s",
+            sourcePartition.getCompleteName(), e.getMessage()));
+      }
+    }
   }
 
   @Override

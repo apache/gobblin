@@ -11,22 +11,27 @@
  */
 package gobblin.data.management.conversion.hive.provider;
 
-import org.apache.hadoop.hive.ql.metadata.Partition;
-import org.apache.hadoop.hive.ql.metadata.Table;
-
 /**
- * An interface that finds when new data was added into a {@link Partition} or a {@link Table}
+ * An exception when {@link HiveUnitUpdateProvider} can not find updates
  */
-public interface HiveUnitUpdateProvider {
+public class UpdateNotFoundExecption extends Exception {
 
-  /**
-   * Get the data update time of a {@link Partition}
-   */
-  public long getUpdateTime(Partition partition) throws UpdateNotFoundExecption;
+  private static final long serialVersionUID = -3750962295968867238L;
 
-  /**
-   * Get the data update time of a {@link Table}
-   */
-  public long getUpdateTime(Table table) throws UpdateNotFoundExecption;
+  public UpdateNotFoundExecption() {
+    super();
+  }
+
+  public UpdateNotFoundExecption(String message) {
+    super(message);
+  }
+
+  public UpdateNotFoundExecption(String message, Throwable cause) {
+    super(message, cause);
+  }
+
+  public UpdateNotFoundExecption(Throwable cause) {
+    super(cause);
+  }
 
 }
