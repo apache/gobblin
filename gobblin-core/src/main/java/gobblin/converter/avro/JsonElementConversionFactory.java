@@ -364,6 +364,7 @@ public class JsonElementConversionFactory {
       List<String> patterns = Arrays.asList(this.inputPatterns.split(","));
       int patternFailCount = 0;
       Object formattedDate = null;
+      Exception lastException = null;
       for (String pattern : patterns) {
         DateTimeFormatter dtf = DateTimeFormat.forPattern(pattern).withZone(this.timeZone);
         try {
@@ -373,12 +374,13 @@ public class JsonElementConversionFactory {
           }
           break;
         } catch (Exception e) {
+          lastException = e;
           patternFailCount++;
         }
       }
 
       if (patternFailCount == patterns.size()) {
-        throw new RuntimeException("Failed to parse the date");
+        throw new RuntimeException("Failed to parse the date", lastException);
       }
 
       return formattedDate;

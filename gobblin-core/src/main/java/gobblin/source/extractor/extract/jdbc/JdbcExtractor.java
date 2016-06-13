@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
@@ -37,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -349,7 +351,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     String query = inputQuery;
     if (query == null) {
       // if input query is null, build the query from metadata
-      query = "SELECT " + outputColProjection + " FROM " + schema + "." + entity;
+      query = getDefaultExtractQuery(schema, entity);
     } else {
       // replace input column projection with output column projection
       if (StringUtils.isNotBlank(inputColProjection)) {
@@ -364,6 +366,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     return query;
   }
 
+  String getDefaultExtractQuery(String schema, String entity) {
+    return "SELECT " + getOutputColumnProjection() + " FROM " + schema + "." + entity;
+  }
   /**
    * Update schema of source column Update column name with target column
    * name/alias Update watermark, nullable and primary key flags
@@ -688,10 +693,14 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       if (fetchSize != 0) {
         statement.setFetchSize(fetchSize);
       }
+      Stopwatch stopwatch = Stopwatch.createStarted();
       final boolean status = statement.execute();
       if (status == false) {
         this.log.error("Failed to execute sql:" + query);
       }
+      log.info("Retrieved the result with fetch size: " + statement.getFetchSize()
+             + " Elapsed " + stopwatch.elapsed(TimeUnit.MILLISECONDS) + " ms");
+
       resultSet = statement.getResultSet();
 
     } catch (Exception e) {
@@ -907,7 +916,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (itr.hasNext()) {
       resultset = itr.next();
     } else {
-      throw new DataRecordException("Failed to get source record count from Mysql - Resultset has no records");
+      throw new DataRecordException("Failed to get source record count - Resultset has no records");
     }
 
     try {
