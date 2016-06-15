@@ -20,7 +20,7 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 /**
  * An extension to the {@link Table} that also knows the {@link Schema} of this {@link Table}
  */
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper=true)
 public class SchemaAwareHiveTable extends Table {
 
   @Getter

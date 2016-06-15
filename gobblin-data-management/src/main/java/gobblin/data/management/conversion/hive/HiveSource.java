@@ -14,7 +14,9 @@ package gobblin.data.management.conversion.hive;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -38,11 +40,9 @@ import gobblin.data.management.conversion.hive.entities.SerializableHivePartitio
 import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
-import gobblin.data.management.conversion.hive.provider.DatePatternUpdateProvider;
-import gobblin.data.management.conversion.hive.provider.HdfsBasedUpdateProviderFactory;
 import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
-import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProviderFactory;
 import gobblin.data.management.conversion.hive.provider.UpdateNotFoundExecption;
+import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
 import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
 import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
@@ -61,7 +61,6 @@ import gobblin.source.workunit.WorkUnit;
 import gobblin.util.AutoReturnableObject;
 import gobblin.util.HadoopUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
-import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -88,24 +87,22 @@ import gobblin.util.reflection.GobblinConstructorUtils;
 @Alpha
 public class HiveSource implements Source {
 
-  private static final String OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS_KEY =
-      "hive.unit.updateProviderFactory.class";
-  private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS = HdfsBasedUpdateProviderFactory.class
-      .getName();
-
   public static final String HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY = "hive.source.maximum.lookbackDays";
+  public static final int DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS = 30;
 
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   private MetricContext metricContext;
   private EventSubmitter eventSubmitter;
   private AvroSchemaManager avroSchemaManager;
+
+  @VisibleForTesting
+  @Setter
   private HiveUnitUpdateProvider updateProvider;
-  private Optional<? extends HiveUnitUpdateProvider> lookBackUpdateProvider;
   private HiveSourceWatermarker watermaker;
   private IterableDatasetFinder<HiveDataset> datasetFinder;
   private List<WorkUnit> workunits;
-  private int maxLookBackDays;
+  private long maxLookBackTime;
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -140,49 +137,34 @@ public class HiveSource implements Source {
 
   @VisibleForTesting
   public void initialize(SourceState state) throws IOException {
+
+    this.updateProvider = UpdateProviderFactory.create(state);
     this.metricContext = Instrumented.getMetricContext(state, HiveSource.class);
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, EventConstants.CONVERSION_NAMESPACE).build();
     this.avroSchemaManager = new AvroSchemaManager(getSourceFs(), state);
     this.workunits = Lists.newArrayList();
 
     this.watermaker = new TableLevelWatermarker(state);
-    HiveUnitUpdateProviderFactory updateProviderFactory =
-        GobblinConstructorUtils.invokeConstructor(HiveUnitUpdateProviderFactory.class, state.getProp(
-            OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_FACTORY_CLASS));
-    this.updateProvider = updateProviderFactory.create(state);
-
-    this.lookBackUpdateProvider =
-        state.contains(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY) ? Optional.of(new DatePatternUpdateProvider()) : Optional
-            .<HiveUnitUpdateProvider> absent();
-
     EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.SETUP_EVENT);
     this.datasetFinder = new HiveDatasetFinder(getSourceFs(), state.getProperties(), this.eventSubmitter);
-    this.maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, Integer.MAX_VALUE);
+    int maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS);
+    this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
   }
 
   @VisibleForTesting
   public boolean shouldCreateWorkunitForPartition(Partition partition, long updateTime, LongWatermark lowWatermark) {
-
-    try {
-
-      if (this.lookBackUpdateProvider.isPresent()) {
-        DateTime maxLookbackTime = new DateTime().minusDays(this.maxLookBackDays);
-        return Long.compare(this.lookBackUpdateProvider.get().getUpdateTime(partition), maxLookbackTime.getMillis()) > 0
-            && Long.compare(updateTime, lowWatermark.getValue()) > 0;
-      } else {
-        return Long.compare(updateTime, lowWatermark.getValue()) > 0;
-      }
-
-    } catch (UpdateNotFoundExecption e) {
-      log.warn(String.format("Not creating workunit for partition %s as it failed to get update time. %s",
-          partition.getCompleteName(), e.getMessage()));
+    // Do not create workunit if a partition was created before the lookbackTime
+    DateTime createTime = new DateTime(TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS));
+    if (createTime.isBefore(this.maxLookBackTime)) {
       return false;
     }
+
+    return new DateTime(updateTime).isAfter(lowWatermark.getValue());
   }
 
   @VisibleForTesting
   public boolean shouldCreateWorkunitForTable(long updateTime, LongWatermark lowWatermark) {
-    return Long.compare(updateTime, lowWatermark.getValue()) > 0;
+    return new DateTime(updateTime).isAfter(lowWatermark.getValue());
   }
 
   private void createPartitionForNonPartitionedTable(HiveDataset hiveDataset, LongWatermark expectedDatasetHighWatermark)
@@ -217,8 +199,8 @@ public class HiveSource implements Source {
 
   private void createWorkunitsForPartitionedTable(HiveDataset hiveDataset,
       AutoReturnableObject<IMetaStoreClient> client, LongWatermark expectedDatasetHighWatermark) throws IOException {
-    List<Partition> sourcePartitions =
-        HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
+
+    List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
 
     for (Partition sourcePartition : sourcePartitions) {
       LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);

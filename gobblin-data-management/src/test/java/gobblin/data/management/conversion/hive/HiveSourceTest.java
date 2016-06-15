@@ -14,6 +14,7 @@ package gobblin.data.management.conversion.hive;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,7 +28,6 @@ import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -42,15 +42,13 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
 import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
-import gobblin.data.management.conversion.hive.mock.MockUpdateProvider;
-import gobblin.data.management.conversion.hive.mock.MockUpdateProviderFactory;
-import gobblin.data.management.conversion.hive.provider.DatePatternUpdateProviderTest;
+import gobblin.data.management.conversion.hive.provider.HiveMetastoreBasedUpdateProvider;
+import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.avro.HiveAvroSerDeManager;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.test.RetentionTestDataGenerator.FixedThreadLocalMillisProvider;
 
 
 @Slf4j
@@ -59,16 +57,15 @@ public class HiveSourceTest {
 
   private IMetaStoreClient localMetastoreClient;
   private HiveSource hiveSource;
-  private MockUpdateProvider updateProvider;
+  private HiveUnitUpdateProvider updateProvider;
 
   @BeforeClass
   public void setup() throws Exception {
     this.localMetastoreClient =
         HiveMetastoreClientPool.get(new Properties(), Optional.<String> absent()).getClient().get();
     this.hiveSource = new HiveSource();
-    this.updateProvider = MockUpdateProvider.getInstance();
+    this.updateProvider = new HiveMetastoreBasedUpdateProvider();
   }
-
 
   @Test
   public void testGetWorkUnitsForTable() throws Exception {
@@ -83,9 +80,7 @@ public class HiveSourceTest {
 
     createTestTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
 
-    this.updateProvider.addMockUpdateTime(dbName + "@" + tableName, 10);
-
-    List<WorkUnit> workUnits = this.hiveSource.getWorkunits(testState);
+    List<WorkUnit> workUnits = hiveSource.getWorkunits(testState);
 
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
@@ -111,9 +106,7 @@ public class HiveSourceTest {
 
     Table tbl = createTestTable(dbName, tableName, tableSdLoc, Optional.of("field"));
 
-    addTestPartition(tbl, ImmutableList.of("f1"));
-
-    this.updateProvider.addMockUpdateTime("testdb3@testtable3@field=f1", 2);
+    addTestPartition(tbl, ImmutableList.of("f1"), (int) System.currentTimeMillis());
 
     List<WorkUnit> workUnits = this.hiveSource.getWorkunits(testState);
 
@@ -141,17 +134,17 @@ public class HiveSourceTest {
 
     this.localMetastoreClient.dropDatabase(dbName, false, true, true);
 
-    List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
-    previousWorkUnitStates.add(createPreviousWus(dbName, tableName1, 10));
-    previousWorkUnitStates.add(createPreviousWus(dbName, tableName2, 10));
-
-    SourceState testState = new SourceState(getTestState(dbName), previousWorkUnitStates);
-
     createTestTable(dbName, tableName1, tableSdLoc1, Optional.<String> absent());
     createTestTable(dbName, tableName2, tableSdLoc2, Optional.<String> absent(), true);
 
-    this.updateProvider.addMockUpdateTime(dbName + "@" + tableName1, 10);
-    this.updateProvider.addMockUpdateTime(dbName + "@" + tableName2, 15);
+    List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
+
+    Table table1 = this.localMetastoreClient.getTable(dbName, tableName1);
+
+    previousWorkUnitStates.add(createPreviousWus(dbName, tableName1,
+        TimeUnit.MILLISECONDS.convert(table1.getCreateTime(), TimeUnit.SECONDS)));
+
+    SourceState testState = new SourceState(getTestState(dbName), previousWorkUnitStates);
 
     List<WorkUnit> workUnits = this.hiveSource.getWorkunits(testState);
 
@@ -166,62 +159,49 @@ public class HiveSourceTest {
   }
 
   @Test
-  public void testShouldCreateWorkunitsWithLookback() throws Exception {
-
-    DateTimeUtils.setCurrentMillisProvider(new FixedThreadLocalMillisProvider(new DateTime(2016, 6, 20, 0, 0, 0, 0).getMillis()));
+  public void testShouldCreateWorkunitsOlderThanLookback() throws Exception {
 
     long currentTime = System.currentTimeMillis();
-    long watermarkTime = new DateTime(currentTime).minusDays(2).getMillis();
+    long watermarkTime = new DateTime(currentTime).minusDays(50).getMillis();
+    long partitionCreateTime = new DateTime(currentTime).minusDays(35).getMillis();
 
-    SourceState testState = getTestState("testdb5");
-    testState.setProp(HiveSource.HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, 10);
+    LongWatermark watermark = new LongWatermark(watermarkTime);
+
+    org.apache.hadoop.hive.ql.metadata.Partition partition = createDummyPartition(partitionCreateTime);
+
+    SourceState testState = getTestState("testDb6");
     HiveSource source = new HiveSource();
     source.initialize(testState);
 
-    LongWatermark mockLongWatermark = new LongWatermark(watermarkTime);
-    boolean shouldCreate = source.shouldCreateWorkunitForPartition(
-        DatePatternUpdateProviderTest.createMockPartitionWithLocation("/daily/2016/06/15"), currentTime,
-        mockLongWatermark);
+    boolean shouldCreate =
+        source.shouldCreateWorkunitForPartition(partition, updateProvider.getUpdateTime(partition), watermark);
 
-    Assert.assertEquals(shouldCreate, true);
+    Assert.assertEquals(shouldCreate, false, "Should not create workunits older than lookback");
 
-    shouldCreate = source.shouldCreateWorkunitForPartition(
-        DatePatternUpdateProviderTest.createMockPartitionWithLocation("/daily/2016/06/09"), currentTime,
-        mockLongWatermark);
-
-    Assert.assertEquals(shouldCreate, false, "Should not create workunit for partition older than 10 days");
-
-    DateTimeUtils.setCurrentMillisSystem();
   }
 
   @Test
-  public void testShouldCreateWorkunitsWithoutLookback() throws Exception {
-
-    DateTimeUtils.setCurrentMillisProvider(new FixedThreadLocalMillisProvider(new DateTime(2016, 6, 20, 0, 0, 0, 0).getMillis()));
+  public void testShouldCreateWorkunitsNewerThanLookback() throws Exception {
 
     long currentTime = System.currentTimeMillis();
-    long watermarkTime = new DateTime(currentTime).minusDays(2).getMillis();
+    long watermarkTime = new DateTime(currentTime).minusDays(50).getMillis();
+    long partitionCreateTime = new DateTime(currentTime).minusDays(25).getMillis();
 
+    LongWatermark watermark = new LongWatermark(watermarkTime);
+
+    org.apache.hadoop.hive.ql.metadata.Partition partition = createDummyPartition(partitionCreateTime);
+
+    SourceState testState = getTestState("testDb7");
     HiveSource source = new HiveSource();
-    source.initialize(getTestState("testdb6"));
+    source.initialize(testState);
 
-    LongWatermark mockLongWatermark = new LongWatermark(watermarkTime);
-    boolean shouldCreate = source.shouldCreateWorkunitForPartition(
-        DatePatternUpdateProviderTest.createMockPartitionWithLocation("/daily/2016/05/01"), currentTime,
-        mockLongWatermark);
+    boolean shouldCreate =
+        source.shouldCreateWorkunitForPartition(partition, updateProvider.getUpdateTime(partition), watermark);
 
-    Assert.assertEquals(shouldCreate, true);
+    Assert.assertEquals(shouldCreate, true, "Should create workunits newer than lookback");
 
-    watermarkTime = new DateTime(currentTime).plusDays(2).getMillis();
-    mockLongWatermark = new LongWatermark(watermarkTime);
-    shouldCreate = source.shouldCreateWorkunitForPartition(
-        DatePatternUpdateProviderTest.createMockPartitionWithLocation("/daily/2016/05/01"), currentTime,
-        mockLongWatermark);
-
-    Assert.assertEquals(shouldCreate, false, "Should not create workunit for partition with no new updates");
-
-    DateTimeUtils.setCurrentMillisSystem();
   }
+
   private static WorkUnitState createPreviousWus(String dbName, String tableName, long watermark) {
 
     WorkUnitState wus = new WorkUnitState();
@@ -236,17 +216,20 @@ public class HiveSourceTest {
     return createTestTable(dbName, tableName, tableSdLoc, partitionFieldName, false);
   }
 
-  private Table createTestTable(String dbName, String tableName, String tableSdLoc, Optional<String> partitionFieldName,
-      boolean ignoreDbCreation) throws Exception {
+  private Table createTestTable(String dbName, String tableName, String tableSdLoc,
+      Optional<String> partitionFieldName, boolean ignoreDbCreation) throws Exception {
     if (!ignoreDbCreation) {
       createTestDb(dbName);
     }
+
     Table tbl = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(dbName, tableName);
     tbl.getSd().setLocation(tableSdLoc);
     tbl.getSd().getSerdeInfo().setParameters(ImmutableMap.of(HiveAvroSerDeManager.SCHEMA_URL, "/tmp/dummy"));
+
     if (partitionFieldName.isPresent()) {
       tbl.addToPartitionKeys(new FieldSchema(partitionFieldName.get(), "string", "some comment"));
     }
+
     this.localMetastoreClient.createTable(tbl);
 
     return tbl;
@@ -267,21 +250,28 @@ public class HiveSourceTest {
     SourceState testState = new SourceState();
     testState.setProp("hive.dataset.database", dbName);
     testState.setProp("hive.dataset.table.pattern", "*");
-    testState.setProp("hive.unit.updateProviderFactory.class", MockUpdateProviderFactory.class.getCanonicalName());
     testState.setProp(ConfigurationKeys.JOB_ID_KEY, "testJobId");
     return testState;
   }
 
-  private Partition addTestPartition(Table tbl, List<String> values) throws Exception {
+  private Partition addTestPartition(Table tbl, List<String> values, int createTime) throws Exception {
     StorageDescriptor partitionSd = new StorageDescriptor();
     partitionSd.setLocation("/tmp/" + tbl.getTableName() + "/part1");
-    partitionSd.setSerdeInfo(new SerDeInfo("name", "serializationLib", ImmutableMap.of(HiveAvroSerDeManager.SCHEMA_URL, "/tmp/dummy")));
+    partitionSd.setSerdeInfo(new SerDeInfo("name", "serializationLib", ImmutableMap.of(HiveAvroSerDeManager.SCHEMA_URL,
+        "/tmp/dummy")));
     partitionSd.setCols(tbl.getPartitionKeys());
     Partition partition =
         new Partition(values, tbl.getDbName(), tbl.getTableName(), 1, 1, partitionSd, new HashMap<String, String>());
+    partition.setCreateTime(createTime);
+    return this.localMetastoreClient.add_partition(partition);
 
-    this.localMetastoreClient.add_partition(partition);
+  }
 
+  private org.apache.hadoop.hive.ql.metadata.Partition createDummyPartition(long createTime) {
+    org.apache.hadoop.hive.ql.metadata.Partition partition = new org.apache.hadoop.hive.ql.metadata.Partition();
+    Partition tPartition = new Partition();
+    tPartition.setCreateTime((int) TimeUnit.SECONDS.convert(createTime, TimeUnit.MILLISECONDS));
+    partition.setTPartition(tPartition);
     return partition;
   }
 
