@@ -35,6 +35,7 @@ import com.google.common.collect.Maps;
 
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyEntity;
+import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.data.management.copy.hive.HiveCopyEntityHelper.DeregisterFileDeleteMethod;
 import gobblin.hive.HiveRegProps;
@@ -168,8 +169,8 @@ public class HiveCopyEntityHelperTest {
     Assert.assertTrue(priority == 1);
     Assert.assertTrue(copyEntities.size() == 1);
 
-    Assert.assertTrue(copyEntities.get(0) instanceof PrePublishStep);
-    PrePublishStep p = (PrePublishStep) (copyEntities.get(0));
+    Assert.assertTrue(copyEntities.get(0) instanceof PostPublishStep);
+    PostPublishStep p = (PostPublishStep) (copyEntities.get(0));
     Assert
         .assertTrue(p.getStep().toString().contains("Deregister table TestDB.TestTable on Hive metastore /targetURI"));
   }
