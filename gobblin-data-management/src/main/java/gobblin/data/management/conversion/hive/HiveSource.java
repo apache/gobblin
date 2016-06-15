@@ -16,7 +16,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -41,7 +40,7 @@ import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
 import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
-import gobblin.data.management.conversion.hive.provider.UpdateNotFoundExecption;
+import gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
 import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
 import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
@@ -96,10 +95,8 @@ public class HiveSource implements Source {
   private EventSubmitter eventSubmitter;
   private AvroSchemaManager avroSchemaManager;
 
-  @VisibleForTesting
-  @Setter
   private HiveUnitUpdateProvider updateProvider;
-  private HiveSourceWatermarker watermaker;
+  private HiveSourceWatermarker watermarker;
   private IterableDatasetFinder<HiveDataset> datasetFinder;
   private List<WorkUnit> workunits;
   private long maxLookBackTime;
@@ -144,7 +141,7 @@ public class HiveSource implements Source {
     this.avroSchemaManager = new AvroSchemaManager(getSourceFs(), state);
     this.workunits = Lists.newArrayList();
 
-    this.watermaker = new TableLevelWatermarker(state);
+    this.watermarker = new TableLevelWatermarker(state);
     EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.SETUP_EVENT);
     this.datasetFinder = new HiveDatasetFinder(getSourceFs(), state.getProperties(), this.eventSubmitter);
     int maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS);
@@ -173,7 +170,7 @@ public class HiveSource implements Source {
     try {
       long updateTime = this.updateProvider.getUpdateTime(hiveDataset.getTable());
 
-      LongWatermark lowWatermark = this.watermaker.getPreviousHighWatermark(hiveDataset.getTable());
+      LongWatermark lowWatermark = this.watermarker.getPreviousHighWatermark(hiveDataset.getTable());
 
       if (shouldCreateWorkunitForTable(updateTime, lowWatermark)) {
 
@@ -191,7 +188,7 @@ public class HiveSource implements Source {
         log.info(String.format("Not creating workunit for table %s as updateTime %s is lesser than low watermark %s",
             hiveDataset.getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
       }
-    } catch (UpdateNotFoundExecption e) {
+    } catch (UpdateNotFoundException e) {
       log.info(String.format("Not Creating workunit for %s as update time was not found. %s", hiveDataset.getTable()
           .getCompleteName(), e.getMessage()));
     }
@@ -203,7 +200,7 @@ public class HiveSource implements Source {
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
 
     for (Partition sourcePartition : sourcePartitions) {
-      LongWatermark lowWatermark = watermaker.getPreviousHighWatermark(sourcePartition);
+      LongWatermark lowWatermark = watermarker.getPreviousHighWatermark(sourcePartition);
 
       try {
         long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
@@ -226,7 +223,7 @@ public class HiveSource implements Source {
               "Not creating workunit for partition %s as updateTime %s is lesser than low watermark %s",
               sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
         }
-      } catch (UpdateNotFoundExecption e) {
+      } catch (UpdateNotFoundException e) {
         log.info(String.format("Not Creating workunit for %s as update time was not found. %s",
             sourcePartition.getCompleteName(), e.getMessage()));
       }

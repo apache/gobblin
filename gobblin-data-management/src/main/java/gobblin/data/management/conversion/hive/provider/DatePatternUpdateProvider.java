@@ -32,28 +32,28 @@ import gobblin.configuration.ConfigurationKeys;
 public class DatePatternUpdateProvider implements HiveUnitUpdateProvider {
 
   @Override
-  public long getUpdateTime(Partition partition) throws UpdateNotFoundExecption {
+  public long getUpdateTime(Partition partition) throws UpdateNotFoundException {
     return parseDateForLocation(partition.getTPartition().getSd().getLocation());
   }
 
   @Override
-  public long getUpdateTime(Table table) throws UpdateNotFoundExecption {
+  public long getUpdateTime(Table table) throws UpdateNotFoundException {
     return parseDateForLocation(table.getTTable().getSd().getLocation());
   }
 
-  private long parseDateForLocation(String location) throws UpdateNotFoundExecption {
+  private long parseDateForLocation(String location) throws UpdateNotFoundException {
     for (Patterns pattern : Patterns.values()) {
       String dateString = StringUtils.substringAfterLast(location, pattern.prefix);
       if (StringUtils.isNotBlank(dateString)) {
         try {
           return pattern.dateFormat.parseMillis(dateString);
         } catch (IllegalArgumentException | UnsupportedOperationException e) {
-          throw new UpdateNotFoundExecption(String.format("Failed parsing date string %s", dateString));
+          throw new UpdateNotFoundException(String.format("Failed parsing date string %s", dateString));
         }
 
       }
     }
-    throw new UpdateNotFoundExecption(String.format("Path %s does not match any date pattern %s", location,
+    throw new UpdateNotFoundException(String.format("Path %s does not match any date pattern %s", location,
         Arrays.toString(Patterns.values())));
   }
 

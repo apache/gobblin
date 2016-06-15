@@ -20,6 +20,7 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 
 import gobblin.annotation.Alpha;
 
+
 /**
  * An update provider that uses update metadata from Hive metastore
  */
@@ -28,12 +29,16 @@ import gobblin.annotation.Alpha;
 public class HiveMetastoreBasedUpdateProvider implements HiveUnitUpdateProvider {
 
   @Override
-  public long getUpdateTime(Partition partition) throws UpdateNotFoundExecption {
+  public long getUpdateTime(Partition partition) throws UpdateNotFoundException {
+    // TODO if a table/partition is registered by gobblin an update time will be made available in table properties
+    // Use the update time instead of create time
     return TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS);
   }
 
   @Override
-  public long getUpdateTime(Table table) throws UpdateNotFoundExecption {
+  public long getUpdateTime(Table table) throws UpdateNotFoundException {
+    // TODO if a table/partition is registered by gobblin an update time will be made available in table properties
+    // Use the update time instead of create time
     return TimeUnit.MILLISECONDS.convert(table.getTTable().getCreateTime(), TimeUnit.SECONDS);
   }
 

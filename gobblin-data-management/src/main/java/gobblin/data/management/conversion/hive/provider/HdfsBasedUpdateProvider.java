@@ -41,12 +41,12 @@ public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
    * @see HiveUnitUpdateProvider#getUpdateTime(org.apache.hadoop.hive.ql.metadata.Partition)
    */
   @Override
-  public long getUpdateTime(Partition partition) throws UpdateNotFoundExecption {
+  public long getUpdateTime(Partition partition) throws UpdateNotFoundException {
 
     try {
       return getUpdateTime(partition.getDataLocation());
     } catch (IOException e) {
-      throw new UpdateNotFoundExecption(String.format("Failed to get update time for %s", partition.getCompleteName()),
+      throw new UpdateNotFoundException(String.format("Failed to get update time for %s", partition.getCompleteName()),
           e);
     }
   }
@@ -59,19 +59,19 @@ public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
    * @see HiveUnitUpdateProvider#getUpdateTime(org.apache.hadoop.hive.ql.metadata.Table)
    */
   @Override
-  public long getUpdateTime(Table table) throws UpdateNotFoundExecption {
+  public long getUpdateTime(Table table) throws UpdateNotFoundException {
     try {
       return getUpdateTime(table.getDataLocation());
     } catch (IOException e) {
-      throw new UpdateNotFoundExecption(String.format("Failed to get update time for %s.", table.getCompleteName()), e);
+      throw new UpdateNotFoundException(String.format("Failed to get update time for %s.", table.getCompleteName()), e);
     }
   }
 
-  private long getUpdateTime(Path path) throws IOException, UpdateNotFoundExecption {
+  private long getUpdateTime(Path path) throws IOException, UpdateNotFoundException {
 
     if (this.fs.exists(path)) {
       return this.fs.getFileStatus(path).getModificationTime();
     }
-    throw new UpdateNotFoundExecption(String.format("Data file does not exist at path %s", path));
+    throw new UpdateNotFoundException(String.format("Data file does not exist at path %s", path));
   }
 }

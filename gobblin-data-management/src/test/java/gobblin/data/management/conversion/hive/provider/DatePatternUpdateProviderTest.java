@@ -58,14 +58,14 @@ public class DatePatternUpdateProviderTest {
     Assert.assertEquals(updateProvider.getUpdateTime(mockPartition), EPOCH_2016_02_02_10);
   }
 
-  @Test(expectedExceptions = UpdateNotFoundExecption.class)
+  @Test(expectedExceptions = UpdateNotFoundException.class)
   public void testHourlyInvalid() throws Exception {
     HiveUnitUpdateProvider updateProvider = new DatePatternUpdateProvider();
     Partition mockPartition = createMockPartitionWithLocation("/data/TestEvent/hourly/2016/02/abc/10");
     updateProvider.getUpdateTime(mockPartition);
   }
 
-  @Test(expectedExceptions = UpdateNotFoundExecption.class)
+  @Test(expectedExceptions = UpdateNotFoundException.class)
   public void testNoMatchingPattern() throws Exception {
     HiveUnitUpdateProvider updateProvider = new DatePatternUpdateProvider();
     Partition mockPartition = createMockPartitionWithLocation("/data/TestEvent/2016/02/02/10");

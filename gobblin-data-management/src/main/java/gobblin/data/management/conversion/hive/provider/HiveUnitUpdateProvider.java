@@ -22,11 +22,11 @@ public interface HiveUnitUpdateProvider {
   /**
    * Get the data update time of a {@link Partition}
    */
-  public long getUpdateTime(Partition partition) throws UpdateNotFoundExecption;
+  public long getUpdateTime(Partition partition) throws UpdateNotFoundException;
 
   /**
    * Get the data update time of a {@link Table}
    */
-  public long getUpdateTime(Table table) throws UpdateNotFoundExecption;
+  public long getUpdateTime(Table table) throws UpdateNotFoundException;
 
 }

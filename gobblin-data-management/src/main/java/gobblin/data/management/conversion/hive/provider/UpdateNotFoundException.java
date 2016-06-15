@@ -14,23 +14,23 @@ package gobblin.data.management.conversion.hive.provider;
 /**
  * An exception when {@link HiveUnitUpdateProvider} can not find updates
  */
-public class UpdateNotFoundExecption extends Exception {
+public class UpdateNotFoundException extends Exception {
 
   private static final long serialVersionUID = -3750962295968867238L;
 
-  public UpdateNotFoundExecption() {
+  public UpdateNotFoundException() {
     super();
   }
 
-  public UpdateNotFoundExecption(String message) {
+  public UpdateNotFoundException(String message) {
     super(message);
   }
 
-  public UpdateNotFoundExecption(String message, Throwable cause) {
+  public UpdateNotFoundException(String message, Throwable cause) {
     super(message, cause);
   }
 
-  public UpdateNotFoundExecption(Throwable cause) {
+  public UpdateNotFoundException(Throwable cause) {
     super(cause);
   }
 
