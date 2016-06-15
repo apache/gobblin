@@ -16,7 +16,6 @@ import java.util.List;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
@@ -49,7 +48,6 @@ import gobblin.source.extractor.Extractor;
 @ToString
 @EqualsAndHashCode
 @Getter
-@Slf4j
 public class QueryBasedHiveConversionEntity {
 
   private final SchemaAwareHiveTable hiveTable;

@@ -11,11 +11,27 @@
  */
 package gobblin.data.management.conversion.hive.provider;
 
-import gobblin.configuration.State;
-
 /**
- * A factory to create {@link HiveUnitUpdateProvider}
+ * An exception when {@link HiveUnitUpdateProvider} can not find updates
  */
-public interface HiveUnitUpdateProviderFactory {
-  public HiveUnitUpdateProvider create(State state);
+public class UpdateNotFoundException extends Exception {
+
+  private static final long serialVersionUID = -3750962295968867238L;
+
+  public UpdateNotFoundException() {
+    super();
+  }
+
+  public UpdateNotFoundException(String message) {
+    super(message);
+  }
+
+  public UpdateNotFoundException(String message, Throwable cause) {
+    super(message, cause);
+  }
+
+  public UpdateNotFoundException(Throwable cause) {
+    super(cause);
+  }
+
 }

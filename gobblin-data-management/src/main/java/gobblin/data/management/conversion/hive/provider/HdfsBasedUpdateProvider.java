@@ -14,7 +14,6 @@ package gobblin.data.management.conversion.hive.provider;
 import java.io.IOException;
 
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -28,7 +27,6 @@ import gobblin.hive.HiveTable;
 /**
  * Uses the file modification time of the data location of a {@link HiveTable} or {@link HivePartition} on HDFS
  */
-@Slf4j
 @AllArgsConstructor
 public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
 
@@ -43,16 +41,14 @@ public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
    * @see HiveUnitUpdateProvider#getUpdateTime(org.apache.hadoop.hive.ql.metadata.Partition)
    */
   @Override
-  public long getUpdateTime(Partition partition) {
+  public long getUpdateTime(Partition partition) throws UpdateNotFoundException {
 
     try {
       return getUpdateTime(partition.getDataLocation());
     } catch (IOException e) {
-      log.warn(
-          String.format("Failed to get update time for %s. Will return update time as 0", partition.getCompleteName()),
+      throw new UpdateNotFoundException(String.format("Failed to get update time for %s", partition.getCompleteName()),
           e);
     }
-    return 0;
   }
 
   /**
@@ -63,21 +59,19 @@ public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
    * @see HiveUnitUpdateProvider#getUpdateTime(org.apache.hadoop.hive.ql.metadata.Table)
    */
   @Override
-  public long getUpdateTime(Table table) {
+  public long getUpdateTime(Table table) throws UpdateNotFoundException {
     try {
       return getUpdateTime(table.getDataLocation());
     } catch (IOException e) {
-      log.warn(
-          String.format("Failed to get update time for %s. Will return update time as 0", table.getCompleteName()), e);
+      throw new UpdateNotFoundException(String.format("Failed to get update time for %s.", table.getCompleteName()), e);
     }
-    return 0;
   }
 
-  private long getUpdateTime(Path path) throws IOException {
+  private long getUpdateTime(Path path) throws IOException, UpdateNotFoundException {
 
     if (this.fs.exists(path)) {
       return this.fs.getFileStatus(path).getModificationTime();
     }
-    return 0;
+    throw new UpdateNotFoundException(String.format("Data file does not exist at path %s", path));
   }
 }
