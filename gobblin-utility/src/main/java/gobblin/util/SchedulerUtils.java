@@ -76,7 +76,8 @@ public class SchedulerUtils {
     }
   };
 
-  private static final PathFilter PROPERTIES_PATH_FILTER =        new PathFilter() {
+
+  private static final PathFilter PROPERTIES_PATH_FILTER = new PathFilter() {
     @Override
     public boolean accept(Path path) {
       String fileExtension = path.getName().substring(path.getName().lastIndexOf('.') + 1);
