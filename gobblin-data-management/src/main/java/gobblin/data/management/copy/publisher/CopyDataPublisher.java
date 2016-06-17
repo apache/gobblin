@@ -62,6 +62,12 @@ import gobblin.util.HadoopUtils;
 public class CopyDataPublisher extends DataPublisher implements UnpublishedHandling {
 
   private final Path writerOutputDir;
+
+  @Override
+  public boolean isThreadSafe() {
+    return this.getClass() == CopyDataPublisher.class;
+  }
+
   private final FileSystem fs;
   protected final EventSubmitter eventSubmitter;
   protected final RecoveryHelper recoveryHelper;

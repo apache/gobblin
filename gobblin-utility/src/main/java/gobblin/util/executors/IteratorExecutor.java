@@ -24,11 +24,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
 
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
@@ -81,8 +81,13 @@ public class IteratorExecutor<T> {
 
       int activeTasks = 0;
       while (this.iterator.hasNext()) {
-        futures.add(this.completionService.submit(this.iterator.next()));
-        activeTasks++;
+        try {
+          futures.add(this.completionService.submit(this.iterator.next()));
+          activeTasks++;
+        } catch (Exception exception) {
+          // if this.iterator.next fails, add an immediate fail future
+          futures.add(Futures.<T>immediateFailedFuture(exception));
+        }
         if (activeTasks == this.numThreads) {
           this.completionService.take();
           activeTasks--;

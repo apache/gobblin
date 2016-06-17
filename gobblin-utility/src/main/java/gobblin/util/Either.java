@@ -51,7 +51,7 @@ public abstract class Either<S, T> {
      * @return value of type {@link S}.
      */
     public S getLeft() {
-      return this.s.get();
+      return this.s.orNull();
     }
   }
 
@@ -67,7 +67,7 @@ public abstract class Either<S, T> {
      * @return value of type {@link T}.
      */
     public T getRight() {
-      return this.t.get();
+      return this.t.orNull();
     }
   }
 

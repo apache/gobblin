@@ -77,4 +77,16 @@ public abstract class DataPublisher implements Closeable {
     Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
     return dataPublisherConstructor.newInstance(state);
   }
+
+  /**
+   * Returns true if the implementation of {@link DataPublisher} is thread-safe.
+   *
+   * <p>
+   *   For a thread-safe {@link DataPublisher}, this method should return this.getClass() == <class>.class
+   *   to ensure that any extensions must explicitly be marked as thread safe.
+   * </p>
+   */
+  public boolean isThreadSafe() {
+    return this.getClass() == DataPublisher.class;
+  }
 }
