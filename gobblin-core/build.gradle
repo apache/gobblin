@@ -54,6 +54,8 @@ dependencies {
     compile externalDependency.avroMapredH1
   }
 
+  runtime files('./src/main/resources/lib/ojdbc7.jar')
+
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde

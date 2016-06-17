@@ -39,11 +39,16 @@ import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.WorkUnit;
 
 /**
- * Extractor for Oracle database
+ * OracleExtractor extracts data from Oracle database.
+ * It inherits reuses many codes from JdbcExtractor. JdbcExtractor retrieves data via getRecordSet,
+ * where watermark is put into where clause in SELECT statement. As SQL statements and metadata store is differ among RDMSs,
+ * Oracle extractor provides specific query statement for extracting metadata (in getSchemaMetadata),
+ * extracting data (in getDataMetadata), count (in getCountMetadata), and provides data type mapping for JdbcExtractor.
  */
 public class OracleExtractor extends JdbcExtractor {
   private static final Logger LOG = LoggerFactory.getLogger(OracleExtractor.class);
 
+  public static final String ORCL_SID = "source.oracle.sid";
   private static final String ORCL_HOUR_FORMAT = "HH";
   private static final String ORCL_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
@@ -61,10 +66,10 @@ public class OracleExtractor extends JdbcExtractor {
         "NVL(comments, ' ') as \"COMMENT\", " +
         "column_id " +
         "FROM " +
-        "user_tab_columns@%s " +
-        "JOIN user_col_comments USING (table_name, column_name) " +
-        "WHERE " +
-        "UPPER(table_name) = ? " +
+        "all_tab_columns " +
+        "JOIN all_col_comments USING (owner, table_name, column_name) " +
+        "WHERE UPPER(owner) = ? " +
+        "AND UPPER(table_name) = ? " +
         "ORDER BY " +
         "column_id, column_name";
 
@@ -103,9 +108,11 @@ public class OracleExtractor extends JdbcExtractor {
     LOG.debug("Build query to get schema");
 
     List<Command> commands = Lists.newArrayList();
-    String pstmt = String.format(METADATA_SCHEMA_PSTMT_FORMAT, Preconditions.checkNotNull(schema));
+    String pstmt = String.format(METADATA_SCHEMA_PSTMT_FORMAT,
+                                 Preconditions.checkNotNull(schema),
+                                 Preconditions.checkNotNull(entity));
     commands.add(JdbcExtractor.getCommand(pstmt, JdbcCommand.JdbcCommandType.QUERY));
-    commands.add(JdbcExtractor.getCommand(Arrays.asList(entity), JdbcCommand.JdbcCommandType.QUERYPARAMS));
+    commands.add(JdbcExtractor.getCommand(Arrays.asList(schema, entity), JdbcCommand.JdbcCommandType.QUERYPARAMS));
     return commands;
   }
 
@@ -128,11 +135,6 @@ public class OracleExtractor extends JdbcExtractor {
 
     commands.add(JdbcExtractor.getCommand(query, JdbcCommand.JdbcCommandType.QUERY));
     return commands;
-  }
-
-  @Override
-  String getDefaultExtractQuery(String schema, String entity) {
-    return "SELECT " + getOutputColumnProjection() + " FROM " + entity + "@" + schema;
   }
 
   @Override
@@ -181,14 +183,15 @@ public class OracleExtractor extends JdbcExtractor {
   @Override
   public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit,
       List<Predicate> predicateList) throws IOException {
-    return null;
+    //No need specific retrieval as getRecordSet in JdbcExtractor is sufficient.
+    throw new UnsupportedOperationException("getRecordSetFromSourceApi is not supported.");
   }
 
   @Override
   public String getConnectionUrl() {
     return String.format(URL_FORMAT, this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME).trim(),
                                      this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_PORT),
-                                     this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA).trim());
+                                     this.workUnit.getProp(ORCL_SID).trim());
   }
 
   @Override
@@ -252,6 +255,8 @@ public class OracleExtractor extends JdbcExtractor {
     String columnFormat = null;
     switch (watermarkType) {
       case TIMESTAMP:
+        columnFormat = "yyyy-MM-dd HH:mm:ss.SSSSSS"; //Duplicate as DATE to make Findbugs happy
+        break;
       case DATE:
         columnFormat = "yyyy-MM-dd HH:mm:ss.SSSSSS";
         break;
