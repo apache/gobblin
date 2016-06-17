@@ -12,9 +12,6 @@
 
 package gobblin.util;
 
-import com.google.common.collect.Sets;
-import com.google.common.io.Files;
-import gobblin.configuration.ConfigurationKeys;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -36,6 +33,10 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import com.google.common.collect.Sets;
+import com.google.common.io.Files;
+import gobblin.configuration.ConfigurationKeys;
+
 
 
 /**

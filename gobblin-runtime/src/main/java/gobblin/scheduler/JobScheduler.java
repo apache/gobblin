@@ -140,15 +140,12 @@ public class JobScheduler extends AbstractIdleService {
   }
 
   @Override
-  // TODO: Testing the general configured Jobs routine.
   protected void startUp() throws Exception {
     LOG.info("Starting the job scheduler");
 
     this.scheduler.start();
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
-//      scheduleLocallyConfiguredJobs();
       scheduleGeneralConfiguredJobs() ;
-
       startJobConfigFileMonitor();
     }
   }
@@ -385,17 +382,15 @@ public class JobScheduler extends AbstractIdleService {
    */
   private List<Properties> loadGeneralJobConfigs() throws ConfigurationException, IOException {
     List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(this.properties);
-    LOG.info(String.format(jobConfigs.size() <= 1 ? "Loaded %d job configuration" : "Loaded %d job configurations",
-        jobConfigs.size()));
+    LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
     return jobConfigs ;
   }
 
   /**
-   * TODO: Support general file system API for configure file monitor.
+   * TODO: Support general file system API for configure file monitor, Not implemented yet.
    * Job configuration file monitor using generic file system API.
    */
-  private void startGeneralJobConfigFIleMonitor() throws Exception {
-    return ;
+  private void startGeneralJobConfigFIleMonitor() throws UnsupportedOperationException {
   }
 
   /**
