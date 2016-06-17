@@ -24,11 +24,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
 
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
@@ -79,8 +79,13 @@ public class IteratorExecutor<T> {
     List<Future<T>> futures = Lists.newArrayList();
     int activeTasks = 0;
     while (this.iterator.hasNext()) {
-      futures.add(this.completionService.submit(this.iterator.next()));
-      activeTasks++;
+      try {
+        futures.add(this.completionService.submit(this.iterator.next()));
+        activeTasks++;
+      } catch (Exception exception) {
+        // if this.iterator.next fails, add an immediate fail future
+        futures.add(Futures.<T>immediateFailedFuture(exception));
+      }
       if (activeTasks == this.numThreads) {
         this.completionService.take();
         activeTasks--;
@@ -131,6 +136,24 @@ public class IteratorExecutor<T> {
         return input instanceof Either.Left;
       }
     });
+  }
+
+  /**
+   * Utility method unpacks the {@link Either} results from {@link IteratorExecutor} to the raw results of the generic
+   * type.
+   * @return List of {@link Callable} results.
+   * @throws ExecutionException if any {@link Callable} failed.
+   */
+  public static <T> List<T> unpackResults(List<Either<T, ExecutionException>> results) throws ExecutionException {
+    List<T> unpacked = Lists.newArrayListWithCapacity(results.size());
+    for (Either<T, ExecutionException> result : results) {
+      if (result instanceof Either.Left) {
+        unpacked.add(((Either.Left<T, ExecutionException>) result).getLeft());
+      } else {
+        throw ((Either.Right<T, ExecutionException>) result).getRight();
+      }
+    }
+    return unpacked;
   }
 
 }

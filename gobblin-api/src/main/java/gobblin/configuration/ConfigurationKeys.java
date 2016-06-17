@@ -97,8 +97,10 @@ public class ConfigurationKeys {
   public static final String DEFAULT_FORK_OPERATOR_CLASS = "gobblin.fork.IdentityForkOperator";
   public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
   public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
+  // If true, commit of different datasets will be performed in parallel
+  // only turn on if publisher is thread-safe
   public static final String PARALLELIZE_DATASET_COMMIT = "job.commit.parallelize";
-  public static final boolean DEFAULT_PARALLELIZE_DATASET_COMMIT = true;
+  public static final boolean DEFAULT_PARALLELIZE_DATASET_COMMIT = false;
   public static final String WORK_UNIT_RETRY_POLICY_KEY = "workunit.retry.policy";
   public static final String WORK_UNIT_RETRY_ENABLED_KEY = "workunit.retry.enabled";
   public static final String JOB_RUN_ONCE_KEY = "job.runonce";
