@@ -1,9 +1,9 @@
 package gobblin.azkaban;
 
-import azkaban.jobExecutor.AbstractJob;
-import gobblin.scheduler.SchedulerDaemon;
 import java.util.Properties;
 import org.apache.log4j.Logger;
+import gobblin.scheduler.SchedulerDaemon;
+import azkaban.jobExecutor.AbstractJob;
 
 
 public class AzkabanGobblinDaemon extends AbstractJob {
