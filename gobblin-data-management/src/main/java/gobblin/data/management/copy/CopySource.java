@@ -279,7 +279,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             computeAndSetWorkUnitGuid(workUnit);
             workUnitsForPartition.add(workUnit);
           }
-          this.workUnitList.addFileSet(fileSet, workUnitsForPartition);
+          if (workUnitsForPartition.size() > 0) {
+            this.workUnitList.addFileSet(fileSet, workUnitsForPartition);
+          }
         }
       } catch (IOException ioe) {
         throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetURN(),
