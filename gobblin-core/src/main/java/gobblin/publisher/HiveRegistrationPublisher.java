@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
 
@@ -37,6 +38,7 @@ import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
 import gobblin.hive.spec.HiveSpec;
 import gobblin.util.ExecutorsUtils;
+
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -55,15 +57,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class HiveRegistrationPublisher extends DataPublisher {
 
+  private static final String DATA_PUBLISH_TIME = "lastDataPublishTime";
   private final Closer closer = Closer.create();
   private final HiveRegister hiveRegister;
-  private final HiveRegistrationPolicy policy;
   private final ExecutorService hivePolicyExecutor;
 
   public HiveRegistrationPublisher(State state) {
     super(state);
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
-    this.policy = HiveRegistrationPolicyBase.getPolicy(state);
     this.hivePolicyExecutor = Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d")));
   }
@@ -86,6 +87,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
     CompletionService<Collection<HiveSpec>> completionService =
         new ExecutorCompletionService<>(this.hivePolicyExecutor);
 
+    addRuntimeHiveRegistrationProperties(super.state);
+    final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(super.state);
+
     Set<String> pathsToRegister = getUniquePathsToRegister(states);
     log.info("Number of paths to be registered in Hive: " + pathsToRegister.size());
     for (final String path : pathsToRegister) {
@@ -93,7 +97,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
         @Override
         public Collection<HiveSpec> call() throws Exception {
-          return HiveRegistrationPublisher.this.policy.getHiveSpecs(new Path(path));
+          return policy.getHiveSpecs(new Path(path));
         }
       });
 
@@ -127,4 +131,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
     // Nothing to do
   }
 
+  private static void addRuntimeHiveRegistrationProperties(State state) {
+    // Use seconds instead of milliseconds to be consistent with other times stored in hive
+    state.appendToListProp(HiveRegProps.HIVE_TABLE_PARTITION_PROPS,
+        String.format("%s:%d", DATA_PUBLISH_TIME, TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS)));
+  }
 }
