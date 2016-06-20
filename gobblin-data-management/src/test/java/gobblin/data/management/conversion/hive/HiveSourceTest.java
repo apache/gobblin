@@ -42,8 +42,6 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
 import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
-import gobblin.data.management.conversion.hive.provider.HiveMetastoreBasedUpdateProvider;
-import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.avro.HiveAvroSerDeManager;
@@ -57,14 +55,12 @@ public class HiveSourceTest {
 
   private IMetaStoreClient localMetastoreClient;
   private HiveSource hiveSource;
-  private HiveUnitUpdateProvider updateProvider;
 
   @BeforeClass
   public void setup() throws Exception {
     this.localMetastoreClient =
         HiveMetastoreClientPool.get(new Properties(), Optional.<String> absent()).getClient().get();
     this.hiveSource = new HiveSource();
-    this.updateProvider = new HiveMetastoreBasedUpdateProvider();
   }
 
   @Test
@@ -162,10 +158,7 @@ public class HiveSourceTest {
   public void testShouldCreateWorkunitsOlderThanLookback() throws Exception {
 
     long currentTime = System.currentTimeMillis();
-    long watermarkTime = new DateTime(currentTime).minusDays(50).getMillis();
     long partitionCreateTime = new DateTime(currentTime).minusDays(35).getMillis();
-
-    LongWatermark watermark = new LongWatermark(watermarkTime);
 
     org.apache.hadoop.hive.ql.metadata.Partition partition = createDummyPartition(partitionCreateTime);
 
@@ -173,10 +166,9 @@ public class HiveSourceTest {
     HiveSource source = new HiveSource();
     source.initialize(testState);
 
-    boolean shouldCreate =
-        source.shouldCreateWorkunitForPartition(partition, updateProvider.getUpdateTime(partition), watermark);
+    boolean isOlderThanLookback = source.isOlderThanLookback(partition);
 
-    Assert.assertEquals(shouldCreate, false, "Should not create workunits older than lookback");
+    Assert.assertEquals(isOlderThanLookback, true, "Should not create workunits older than lookback");
 
   }
 
@@ -184,10 +176,7 @@ public class HiveSourceTest {
   public void testShouldCreateWorkunitsNewerThanLookback() throws Exception {
 
     long currentTime = System.currentTimeMillis();
-    long watermarkTime = new DateTime(currentTime).minusDays(50).getMillis();
     long partitionCreateTime = new DateTime(currentTime).minusDays(25).getMillis();
-
-    LongWatermark watermark = new LongWatermark(watermarkTime);
 
     org.apache.hadoop.hive.ql.metadata.Partition partition = createDummyPartition(partitionCreateTime);
 
@@ -195,10 +184,9 @@ public class HiveSourceTest {
     HiveSource source = new HiveSource();
     source.initialize(testState);
 
-    boolean shouldCreate =
-        source.shouldCreateWorkunitForPartition(partition, updateProvider.getUpdateTime(partition), watermark);
+    boolean isOlderThanLookback = source.isOlderThanLookback(partition);
 
-    Assert.assertEquals(shouldCreate, true, "Should create workunits newer than lookback");
+    Assert.assertEquals(isOlderThanLookback, false, "Should create workunits newer than lookback");
 
   }
 
