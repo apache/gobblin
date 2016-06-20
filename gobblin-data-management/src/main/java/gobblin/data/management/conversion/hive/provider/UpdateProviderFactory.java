@@ -30,7 +30,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
 public class UpdateProviderFactory {
 
   private static final String OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_CLASS_KEY = "hive.unit.updateProvider.class";
-  private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_CLASS = HiveMetastoreBasedUpdateProvider.class
+  private static final String DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_CLASS = HdfsBasedUpdateProvider.class
       .getName();
 
   public static HiveUnitUpdateProvider create(State state) {
