@@ -57,7 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class HiveRegistrationPublisher extends DataPublisher {
 
-  private static final String DATA_PUBLISH_TIME = "lastDataPublishTime";
+  private static final String DATA_PUBLISH_TIME = HiveRegistrationPublisher.class.getName() + ".lastDataPublishTime";
   private final Closer closer = Closer.create();
   private final HiveRegister hiveRegister;
   private final ExecutorService hivePolicyExecutor;
@@ -87,7 +87,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
     CompletionService<Collection<HiveSpec>> completionService =
         new ExecutorCompletionService<>(this.hivePolicyExecutor);
 
-    addRuntimeHiveRegistrationProperties(super.state);
+    //addRuntimeHiveRegistrationProperties(super.state);
     final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(super.state);
 
     Set<String> pathsToRegister = getUniquePathsToRegister(states);
