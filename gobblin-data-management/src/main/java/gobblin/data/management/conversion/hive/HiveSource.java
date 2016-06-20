@@ -121,7 +121,7 @@ public class HiveSource implements Source {
           if (HiveUtils.isPartitioned(hiveDataset.getTable())) {
             createWorkunitsForPartitionedTable(hiveDataset, client, expectedDatasetHighWatermark);
           } else {
-            createPartitionForNonPartitionedTable(hiveDataset, expectedDatasetHighWatermark);
+            createWorkunitForNonPartitionedTable(hiveDataset, expectedDatasetHighWatermark);
           }
         }
       }
@@ -148,23 +148,8 @@ public class HiveSource implements Source {
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
   }
 
-  @VisibleForTesting
-  public boolean shouldCreateWorkunitForPartition(Partition partition, long updateTime, LongWatermark lowWatermark) {
-    // Do not create workunit if a partition was created before the lookbackTime
-    DateTime createTime = new DateTime(TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS));
-    if (createTime.isBefore(this.maxLookBackTime)) {
-      return false;
-    }
 
-    return new DateTime(updateTime).isAfter(lowWatermark.getValue());
-  }
-
-  @VisibleForTesting
-  public boolean shouldCreateWorkunitForTable(long updateTime, LongWatermark lowWatermark) {
-    return new DateTime(updateTime).isAfter(lowWatermark.getValue());
-  }
-
-  private void createPartitionForNonPartitionedTable(HiveDataset hiveDataset, LongWatermark expectedDatasetHighWatermark)
+  private void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset, LongWatermark expectedDatasetHighWatermark)
       throws IOException {
     // Create workunits for tables
     try {
@@ -172,7 +157,7 @@ public class HiveSource implements Source {
 
       LongWatermark lowWatermark = this.watermarker.getPreviousHighWatermark(hiveDataset.getTable());
 
-      if (shouldCreateWorkunitForTable(updateTime, lowWatermark)) {
+      if (shouldCreateWorkunit(updateTime, lowWatermark)) {
 
         log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
 
@@ -200,11 +185,16 @@ public class HiveSource implements Source {
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
 
     for (Partition sourcePartition : sourcePartitions) {
+
+      if (isOlderThanLookback(sourcePartition)) {
+        continue;
+      }
+
       LongWatermark lowWatermark = watermarker.getPreviousHighWatermark(sourcePartition);
 
       try {
         long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
-        if (shouldCreateWorkunitForPartition(sourcePartition, updateTime, lowWatermark)) {
+        if (shouldCreateWorkunit(updateTime, lowWatermark)) {
           log.debug(String.format("Processing partition: %s", sourcePartition));
 
           WorkUnit workUnit = WorkUnit.createEmpty();
@@ -228,6 +218,20 @@ public class HiveSource implements Source {
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
+  }
+
+  @VisibleForTesting
+  public boolean shouldCreateWorkunit(long updateTime, LongWatermark lowWatermark) {
+    return new DateTime(updateTime).isAfter(lowWatermark.getValue());
+  }
+
+  /**
+   * Do not create workunit if a partition was created before the lookbackTime
+   */
+  @VisibleForTesting
+  public boolean isOlderThanLookback(Partition partition) {
+    DateTime createTime = new DateTime(TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS));
+    return createTime.isBefore(this.maxLookBackTime);
   }
 
   @Override
