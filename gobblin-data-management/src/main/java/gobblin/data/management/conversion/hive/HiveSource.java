@@ -157,7 +157,7 @@ public class HiveSource implements Source {
 
       LongWatermark lowWatermark = this.watermarker.getPreviousHighWatermark(hiveDataset.getTable());
 
-      if (shouldCreateWorkunitForTable(updateTime, lowWatermark)) {
+      if (shouldCreateWorkunit(updateTime, lowWatermark)) {
 
         log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
 
@@ -194,7 +194,7 @@ public class HiveSource implements Source {
 
       try {
         long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
-        if (shouldCreateWorkunitForPartition(sourcePartition, updateTime, lowWatermark)) {
+        if (shouldCreateWorkunit(updateTime, lowWatermark)) {
           log.debug(String.format("Processing partition: %s", sourcePartition));
 
           WorkUnit workUnit = WorkUnit.createEmpty();
@@ -221,12 +221,7 @@ public class HiveSource implements Source {
   }
 
   @VisibleForTesting
-  public boolean shouldCreateWorkunitForPartition(Partition partition, long updateTime, LongWatermark lowWatermark) {
-    return new DateTime(updateTime).isAfter(lowWatermark.getValue());
-  }
-
-  @VisibleForTesting
-  public boolean shouldCreateWorkunitForTable(long updateTime, LongWatermark lowWatermark) {
+  public boolean shouldCreateWorkunit(long updateTime, LongWatermark lowWatermark) {
     return new DateTime(updateTime).isAfter(lowWatermark.getValue());
   }
 
