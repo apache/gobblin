@@ -12,19 +12,20 @@
 
 package gobblin.util;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
 import org.codehaus.jackson.JsonNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 /***
  * This class provides methods to flatten an Avro Schema to make it more optimal for ORC
@@ -110,7 +111,7 @@ import org.slf4j.LoggerFactory;
  */
 public class AvroFlattener {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AvroFlattener.class);
+  private static final Logger LOG = Logger.getLogger(AvroFlattener.class);
 
   private static final String FLATTENED_NAME_JOINER = "__";
   private static final String FLATTENED_SOURCE_JOINER = ".";
@@ -122,16 +123,17 @@ public class AvroFlattener {
   /***
    * Flatten the Schema to un-nest recursive Records (to make it optimal for ORC)
    * @param schema Avro Schema to flatten
+   * @param flattenComplexTypes Flatten complex types recursively other than Record and Option
    * @return Flattened Avro Schema
    */
-  public Schema flatten(Schema schema) {
+  public Schema flatten(Schema schema, boolean flattenComplexTypes) {
     Preconditions.checkNotNull(schema);
 
     // To help make it configurable later
     this.flattenedNameJoiner = FLATTENED_NAME_JOINER;
     this.flattenedSourceJoiner = FLATTENED_SOURCE_JOINER;
 
-    Schema flattenedSchema = flatten(schema, false);
+    Schema flattenedSchema = flatten(schema, false, flattenComplexTypes);
 
     LOG.debug("Original Schema : " + schema);
     LOG.debug("Flattened Schema: " + flattenedSchema);
@@ -146,9 +148,10 @@ public class AvroFlattener {
    *                              so that lineage information can be tagged to it; which happens when there is a
    *                              Record within a Record OR Record within Option within Record and so on,
    *                              however not when there is a Record within Map or Array
+   * @param flattenComplexTypes Flatten complex types recursively other than Record and Option
    * @return Flattened Avro Schema
    */
-  private Schema flatten(Schema schema, boolean shouldPopulateLineage) {
+  private Schema flatten(Schema schema, boolean shouldPopulateLineage, boolean flattenComplexTypes) {
     Schema flattenedSchema;
 
     // Process all Schema Types
@@ -156,7 +159,11 @@ public class AvroFlattener {
     switch (schema.getType()) {
       case ARRAY:
         // Array might be an array of recursive Records, flatten them
-        flattenedSchema = Schema.createArray(flatten(schema.getElementType(), false));
+        if (flattenComplexTypes) {
+          flattenedSchema = Schema.createArray(flatten(schema.getElementType(), false));
+        } else {
+          flattenedSchema = Schema.createArray(schema.getElementType());
+        }
         break;
       case BOOLEAN:
         flattenedSchema = Schema.create(schema.getType());
@@ -185,19 +192,23 @@ public class AvroFlattener {
         flattenedSchema = Schema.create(schema.getType());
         break;
       case MAP:
-        flattenedSchema = Schema.createMap(flatten(schema.getValueType(), false));
+        if (flattenComplexTypes) {
+          flattenedSchema = Schema.createMap(flatten(schema.getValueType(), false));
+        } else {
+          flattenedSchema = Schema.createMap(schema.getValueType());
+        }
         break;
       case NULL:
         flattenedSchema = Schema.create(schema.getType());
         break;
       case RECORD:
-        flattenedSchema = flattenRecord(schema, shouldPopulateLineage);
+        flattenedSchema = flattenRecord(schema, shouldPopulateLineage, flattenComplexTypes);
         break;
       case STRING:
         flattenedSchema = Schema.create(schema.getType());
         break;
       case UNION:
-        flattenedSchema = flattenUnion(schema, shouldPopulateLineage);
+        flattenedSchema = flattenUnion(schema, shouldPopulateLineage, flattenComplexTypes);
         break;
       default:
         String exceptionMessage = String.format("Schema flattening failed for \"%s\" ", schema);
@@ -217,9 +228,10 @@ public class AvroFlattener {
    * @param schema Record Schema to flatten
    * @param shouldPopulateLineage If lineage information should be tagged in the field, this is true when we are
    *                              un-nesting fields
+   * @param flattenComplexTypes Flatten complex types recursively other than Record and Option
    * @return Flattened Record Schema
    */
-  private Schema flattenRecord(Schema schema, boolean shouldPopulateLineage) {
+  private Schema flattenRecord(Schema schema, boolean shouldPopulateLineage, boolean flattenComplexTypes) {
     Preconditions.checkNotNull(schema);
     Preconditions.checkArgument(Schema.Type.RECORD.equals(schema.getType()));
 
@@ -229,7 +241,7 @@ public class AvroFlattener {
     if (schema.getFields().size() > 0) {
       for (Schema.Field oldField : schema.getFields()) {
         List<Schema.Field> newFields = flattenField(oldField, ImmutableList.<String>of(),
-            shouldPopulateLineage, Optional.<Schema>absent());
+            shouldPopulateLineage, flattenComplexTypes, Optional.<Schema>absent());
         if (null != newFields && newFields.size() > 0) {
           flattenedFields.addAll(newFields);
         }
@@ -248,9 +260,10 @@ public class AvroFlattener {
    * @param schema Union Schema to flatten
    * @param shouldPopulateLineage If lineage information should be tagged in the field, this is true when we are
    *                              un-nesting fields
+   * @param flattenComplexTypes Flatten complex types recursively other than Record and Option
    * @return Flattened Union Schema
    */
-  private Schema flattenUnion(Schema schema, boolean shouldPopulateLineage) {
+  private Schema flattenUnion(Schema schema, boolean shouldPopulateLineage, boolean flattenComplexTypes) {
     Preconditions.checkNotNull(schema);
     Preconditions.checkArgument(Schema.Type.UNION.equals(schema.getType()));
 
@@ -258,9 +271,13 @@ public class AvroFlattener {
 
     List<Schema> flattenedUnionMembers = new ArrayList<>();
     if (null != schema.getTypes() && schema.getTypes().size() > 0) {
-      // It's member might still recursively contain records
       for (Schema oldUnionMember : schema.getTypes()) {
-        flattenedUnionMembers.add(flatten(oldUnionMember, shouldPopulateLineage));
+        if (flattenComplexTypes) {
+          // It's member might still recursively contain records
+          flattenedUnionMembers.add(flatten(oldUnionMember, shouldPopulateLineage, flattenComplexTypes));
+        } else {
+          flattenedUnionMembers.add(oldUnionMember);
+        }
       }
     }
     flattenedSchema = Schema.createUnion(flattenedUnionMembers);
@@ -314,12 +331,13 @@ public class AvroFlattener {
    * @param parentLineage Parent's lineage represented as a List of Strings
    * @param shouldPopulateLineage If lineage information should be tagged in the field, this is true when we are
    *                              un-nesting fields
+   * @param flattenComplexTypes Flatten complex types recursively other than Record and Option
    * @param shouldWrapInOption If the field should be wrapped as an OPTION, if we un-nest fields within an OPTION
    *                           we make all the unnested fields as OPTIONs
    * @return List of flattened Record fields
    */
   private List<Schema.Field> flattenField(Schema.Field f, ImmutableList<String> parentLineage,
-      boolean shouldPopulateLineage, Optional<Schema> shouldWrapInOption) {
+      boolean shouldPopulateLineage, boolean flattenComplexTypes, Optional<Schema> shouldWrapInOption) {
     Preconditions.checkNotNull(f);
     Preconditions.checkNotNull(f.schema());
     Preconditions.checkNotNull(f.name());
@@ -332,7 +350,7 @@ public class AvroFlattener {
     if (Schema.Type.RECORD.equals(f.schema().getType())) {
       if (null != f.schema().getFields() && f.schema().getFields().size() > 0) {
         for (Schema.Field field : f.schema().getFields()) {
-          flattenedFields.addAll(flattenField(field, lineage, true, Optional.<Schema>absent()));
+          flattenedFields.addAll(flattenField(field, lineage, true, flattenComplexTypes, Optional.<Schema>absent()));
         }
       }
     }
@@ -343,7 +361,7 @@ public class AvroFlattener {
         Schema record = optionalRecord.get();
         if (record.getFields().size() > 0) {
           for (Schema.Field field : record.getFields()) {
-            flattenedFields.addAll(flattenField(field, lineage, true, Optional.of(f.schema())));
+            flattenedFields.addAll(flattenField(field, lineage, true, flattenComplexTypes, Optional.of(f.schema())));
           }
         }
       }
@@ -353,11 +371,11 @@ public class AvroFlattener {
         String flattenName = f.name();
         String flattenSource = StringUtils.EMPTY;
         if (shouldPopulateLineage) {
-          flattenName = StringUtils.join(lineage, this.flattenedNameJoiner);
-          flattenSource = StringUtils.join(lineage, this.flattenedSourceJoiner);
+          flattenName = StringUtils.join(lineage, flattenedNameJoiner);
+          flattenSource = StringUtils.join(lineage, flattenedSourceJoiner);
         }
         // Copy field
-        Schema flattenedFieldSchema = flatten(f.schema(), shouldPopulateLineage);
+        Schema flattenedFieldSchema = flatten(f.schema(), shouldPopulateLineage, flattenComplexTypes);
         if (shouldWrapInOption.isPresent()) {
           boolean isNullFirstMember = Schema.Type.NULL.equals(shouldWrapInOption.get().getTypes().get(0).getType());
           // If already Union, just copy it instead of wrapping (Union within Union is not supported)

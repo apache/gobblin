@@ -27,6 +27,7 @@ import com.google.gson.JsonParser;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkInterval;
+import lombok.ToString;
 
 
 /**
@@ -39,6 +40,7 @@ import gobblin.source.extractor.WatermarkInterval;
  *
  * @author kgoodhop
  */
+@ToString
 public class WorkUnit extends State {
 
   private Extract extract;

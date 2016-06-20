@@ -18,4 +18,15 @@
 #!/bin/bash
 set -e
 
-./gradlew test jacocoFullReport -PskipTestGroup=disabledOnTravis -Dorg.gradle.parallel=false
+RUN_TEST_GROUP=${RUN_TEST_GROUP:-default}
+
+script_dir=$(dirname $0)
+
+TEST_SCRIPT=${script_dir}/test-${RUN_TEST_GROUP}.sh
+if [ -x $TEST_SCRIPT ] ; then
+  echo "Running test group $RUN_TEST_GROUP"
+  $TEST_SCRIPT "$@"
+else
+  echo "Test file $TEST_SCRIPT does not exist or is not executable!"
+  exit 1
+fi

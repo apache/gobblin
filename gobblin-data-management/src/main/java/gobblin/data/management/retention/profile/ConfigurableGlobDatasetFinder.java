@@ -120,7 +120,7 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
     List<T> datasets = Lists.newArrayList();
     LOG.info("Finding datasets for pattern " + this.datasetPattern);
 
-    FileStatus[] fileStatuss = this.fs.globStatus(this.datasetPattern);
+    FileStatus[] fileStatuss = this.getDatasetDirs();
     if (fileStatuss != null) {
       for (FileStatus fileStatus : fileStatuss) {
         Path pathToMatch = PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath());
@@ -134,6 +134,13 @@ public abstract class ConfigurableGlobDatasetFinder<T extends Dataset> implement
     return datasets;
   }
 
+  /**
+   * @return all the directories that satisfy the input glob pattern.
+   * @throws IOException
+   */
+  protected FileStatus[] getDatasetDirs() throws IOException {
+    return this.fs.globStatus(this.datasetPattern);
+  }
   /**
    * Returns the deepest non-glob ancestor of the dataset pattern.
    */

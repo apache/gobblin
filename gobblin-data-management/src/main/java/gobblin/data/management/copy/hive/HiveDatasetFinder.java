@@ -169,11 +169,11 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
             Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
             EventSubmitter.submit(HiveDatasetFinder.this.eventSubmitter, DATASET_FOUND, SlaEventKeys.DATASET_URN_KEY, dbAndTable.toString());
             return createHiveDataset(table);
-          } catch (IOException | TException ioe) {
-            log.error(String.format("Failed to create HiveDataset for table %s.%s", dbAndTable.getDb(), dbAndTable.getTable()), ioe);
+          } catch (Throwable t) {
+            log.error(String.format("Failed to create HiveDataset for table %s.%s", dbAndTable.getDb(), dbAndTable.getTable()), t);
             EventSubmitter.submit(HiveDatasetFinder.this.eventSubmitter, DATASET_ERROR,
                 SlaEventKeys.DATASET_URN_KEY, dbAndTable.toString(),
-                FAILURE_CONTEXT, ioe.toString());
+                FAILURE_CONTEXT, t.toString());
           }
         }
         return endOfData();

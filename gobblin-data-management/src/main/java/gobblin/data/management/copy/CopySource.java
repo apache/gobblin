@@ -23,9 +23,6 @@ import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -34,6 +31,9 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
@@ -41,6 +41,8 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.extractor.EmptyExtractor;
 import gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
 import gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
+import gobblin.data.management.copy.watermark.CopyableFileWatermarkGenerator;
+import gobblin.data.management.copy.watermark.CopyableFileWatermarkHelper;
 import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.data.management.partition.FileSet;
 import gobblin.dataset.Dataset;
@@ -54,14 +56,15 @@ import gobblin.metrics.Tag;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.source.workunit.WorkUnitWeighter;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
 import gobblin.util.binpacking.FieldWeighter;
-import gobblin.source.workunit.WorkUnitWeighter;
 import gobblin.util.binpacking.WorstFitDecreasingBinPacking;
 import gobblin.util.executors.IteratorExecutor;
 import gobblin.util.guid.Guid;
@@ -115,6 +118,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    */
   @Override
   public List<WorkUnit> getWorkunits(final SourceState state) {
+
     this.metricContext = Instrumented.getMetricContext(state, CopySource.class);
 
     try {
@@ -124,6 +128,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       long maxSizePerBin = state.getPropAsLong(MAX_SIZE_MULTI_WORKUNITS, 0);
       long maxWorkUnitsPerMultiWorkUnit = state.getPropAsLong(MAX_WORK_UNITS_PER_BIN, 50);
       final long minWorkUnitWeight = Math.max(1, maxSizePerBin / maxWorkUnitsPerMultiWorkUnit);
+      final Optional<CopyableFileWatermarkGenerator> watermarkGenerator =
+          CopyableFileWatermarkHelper.getCopyableFileWatermarkGenerator(state);
 
       // TODO: The comparator sets the priority of file sets. Currently, all file sets have the same priority, this needs to
       // be pluggable.
@@ -132,17 +138,19 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
-      DatasetsFinder<CopyableDatasetBase> datasetFinder =
-          DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
-              new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build());
+      DatasetsFinder<CopyableDatasetBase> datasetFinder = DatasetUtils
+          .instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
+              new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build(), state);
 
-      IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder = datasetFinder instanceof IterableDatasetFinder
-          ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder : new IterableDatasetFinderImpl<>(datasetFinder);
+      IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder =
+          datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
+              : new IterableDatasetFinderImpl<>(datasetFinder);
 
       Iterator<CopyableDatasetBase> copyableDatasets =
           new InterruptibleIterator<>(iterableDatasetFinder.getDatasetsIterator(), new Callable<Boolean>() {
             @Override
-            public Boolean call() throws Exception {
+            public Boolean call()
+                throws Exception {
               return shouldStopGeneratingWorkUnits(workUnitList);
             }
           });
@@ -165,14 +173,15 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
               }
 
               return new DatasetWorkUnitGenerator(iterableCopyableDataset, sourceFs, targetFs, state, workUnitList,
-                  copyConfiguration, minWorkUnitWeight);
+                  copyConfiguration, minWorkUnitWeight, watermarkGenerator);
             }
           });
 
       try {
         List<Future<Void>> futures = new IteratorExecutor<>(callableIterator,
             state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES),
-            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Copy-file-listing-pool-%d"))).execute();
+            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Copy-file-listing-pool-%d")))
+            .execute();
 
         for (Future<Void> future : futures) {
           try {
@@ -205,18 +214,17 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       }
 
       List<WorkUnit> flatWorkUnits = workUnitList.getWorkUnits();
+
       List<? extends WorkUnit> workUnits =
           new WorstFitDecreasingBinPacking(maxSizePerBin).pack(flatWorkUnits, this.weighter);
       log.info(String.format(
           "Bin packed work units. Initial work units: %d, packed work units: %d, max weight per bin: %d, "
-              + "max work units per bin: %d.",
-          flatWorkUnits.size(), workUnits.size(), maxSizePerBin, maxWorkUnitsPerMultiWorkUnit));
+              + "max work units per bin: %d.", flatWorkUnits.size(), workUnits.size(), maxSizePerBin,
+          maxWorkUnitsPerMultiWorkUnit));
       return Lists.newArrayList(workUnits);
-
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-
   }
 
   /**
@@ -232,6 +240,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     private final ConcurrentBoundedWorkUnitList workUnitList;
     private final CopyConfiguration copyConfiguration;
     private final long minWorkUnitWeight;
+    private final Optional<CopyableFileWatermarkGenerator> watermarkGenerator;
 
     @Override
     public Void call() {
@@ -248,6 +257,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
         while (fileSets.hasNext() && !shouldStopGeneratingWorkUnits(this.workUnitList)) {
           FileSet<CopyEntity> fileSet = fileSets.next();
           String extractId = fileSet.getName().replace(':', '_');
+
           Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, extractId);
           List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
           for (CopyEntity copyEntity : fileSet.getFiles()) {
@@ -265,10 +275,13 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             workUnit.setProp(SlaEventKeys.DATASET_URN_KEY, this.copyableDataset.datasetURN());
             workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyEntity.getFileSet());
             setWorkUnitWeight(workUnit, copyEntity, minWorkUnitWeight);
+            setWorkUnitWatermark(workUnit, watermarkGenerator, copyEntity);
             computeAndSetWorkUnitGuid(workUnit);
             workUnitsForPartition.add(workUnit);
           }
-          this.workUnitList.addFileSet(fileSet, workUnitsForPartition);
+          if (workUnitsForPartition.size() > 0) {
+            this.workUnitList.addFileSet(fileSet, workUnitsForPartition);
+          }
         }
       } catch (IOException ioe) {
         throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetURN(),
@@ -291,7 +304,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * @throws IOException
    */
   @Override
-  public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
+  public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state)
+      throws IOException {
 
     Class<?> copyEntityClass = getCopyEntityClass(state);
 
@@ -308,16 +322,18 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   }
 
   @Override
-  public void shutdown(SourceState state) {}
+  public void shutdown(SourceState state) {
+  }
 
-  protected FileSystem getSourceFileSystem(State state) throws IOException {
-
+  protected FileSystem getSourceFileSystem(State state)
+      throws IOException {
     Configuration conf = HadoopUtils.getConfFromState(state);
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
     return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
-  private static FileSystem getTargetFileSystem(State state) throws IOException {
+  private static FileSystem getTargetFileSystem(State state)
+      throws IOException {
     return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
   }
 
@@ -330,9 +346,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     workUnit.setProp(WORK_UNIT_WEIGHT, Long.toString(weight));
   }
 
-  private static void computeAndSetWorkUnitGuid(WorkUnit workUnit) throws IOException {
-    Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY)
-        ? workUnit.getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) : "");
+  private static void computeAndSetWorkUnitGuid(WorkUnit workUnit)
+      throws IOException {
+    Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ? workUnit
+        .getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) : "");
     setWorkUnitGuid(workUnit, guid.append(deserializeCopyEntity(workUnit)));
   }
 
@@ -351,7 +368,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    * @return A byte array guid.
    * @throws IOException
    */
-  public static Optional<Guid> getWorkUnitGuid(State state) throws IOException {
+  public static Optional<Guid> getWorkUnitGuid(State state)
+      throws IOException {
     if (state.contains(WORK_UNIT_GUID)) {
       return Optional.of(Guid.deserialize(state.getProp(WORK_UNIT_GUID)));
     }
@@ -366,7 +384,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     state.setProp(COPY_ENTITY_CLASS, copyEntity.getClass().getName());
   }
 
-  public static Class<?> getCopyEntityClass(State state) throws IOException {
+  public static Class<?> getCopyEntityClass(State state)
+      throws IOException {
     try {
       return Class.forName(state.getProp(COPY_ENTITY_CLASS));
     } catch (ClassNotFoundException cnfe) {
@@ -395,4 +414,14 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return CopyableDatasetMetadata.deserialize(state.getProp(SERIALIZED_COPYABLE_DATASET));
   }
 
+  private void setWorkUnitWatermark(WorkUnit workUnit, Optional<CopyableFileWatermarkGenerator> watermarkGenerator, CopyEntity copyEntity)
+      throws IOException {
+    if (copyEntity instanceof  CopyableFile) {
+      Optional<WatermarkInterval> watermarkIntervalOptional =
+          CopyableFileWatermarkHelper.getCopyableFileWatermark((CopyableFile)copyEntity, watermarkGenerator);
+      if (watermarkIntervalOptional.isPresent()) {
+        workUnit.setWatermarkInterval(watermarkIntervalOptional.get());
+      }
+    }
+  }
 }
