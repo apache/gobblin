@@ -373,6 +373,10 @@ public class JobState extends SourceState {
 
   @Override
   public void write(DataOutput out) throws IOException {
+    write(out, true);
+  }
+
+  public void write(DataOutput out, boolean writeTasks) throws IOException {
     Text text = new Text();
     text.set(this.jobName);
     text.write(out);
@@ -384,9 +388,13 @@ public class JobState extends SourceState {
     text.set(this.state.name());
     text.write(out);
     out.writeInt(this.taskCount);
-    out.writeInt(this.taskStates.size());
-    for (TaskState taskState : this.taskStates.values()) {
-      taskState.write(out);
+    if (writeTasks) {
+      out.writeInt(this.taskStates.size());
+      for (TaskState taskState : this.taskStates.values()) {
+        taskState.write(out);
+      }
+    } else {
+      out.writeInt(0);
     }
     super.write(out);
   }
