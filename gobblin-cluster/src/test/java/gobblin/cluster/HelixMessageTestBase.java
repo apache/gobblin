@@ -10,15 +10,22 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.yarn;
+package gobblin.cluster;
+
+import org.apache.helix.model.Message;
+
 
 /**
- * A central place for constants of {@link gobblin.metrics.MetricContext} tag names for Gobblin on Yarn.
+ * An interface for test classes that involve sending and receiving Helix messages.
  *
  * @author Yinan Li
  */
-public class GobblinYarnMetricTagNames {
+public interface HelixMessageTestBase {
 
-  public static final String YARN_APPLICATION_ATTEMPT_ID = "yarn.application.attempt.id";
-  public static final String CONTAINER_ID = "yarn.container.id";
+  /**
+   * Assert the reception of a message.
+   *
+   * @param message the message to assert reception for
+   */
+  public void assertMessageReception(Message message);
 }

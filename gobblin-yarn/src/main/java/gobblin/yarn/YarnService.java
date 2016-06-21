@@ -53,6 +53,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.Records;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,12 +75,17 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
+
+import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.cluster.GobblinClusterMetricTagNames;
+import gobblin.cluster.GobblinClusterUtils;
+import gobblin.cluster.HelixUtils;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.Tag;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
-import gobblin.yarn.event.ApplicationMasterShutdownRequest;
+import gobblin.cluster.event.ClusterManagerShutdownRequest;
 import gobblin.yarn.event.ContainerShutdownRequest;
 import gobblin.yarn.event.NewContainerRequest;
 
@@ -229,7 +235,7 @@ public class YarnService extends AbstractIdleService {
 
     // The ApplicationMaster registration response is used to determine the maximum resource capacity of the cluster
     RegisterApplicationMasterResponse response = this.amrmClientAsync.registerApplicationMaster(
-        YarnHelixUtils.getHostname(), -1, "");
+        GobblinClusterUtils.getHostname(), -1, "");
     LOGGER.info("ApplicationMaster registration response: " + response);
     this.maxResourceCapacity = Optional.of(response.getMaximumResourceCapability());
 
@@ -282,8 +288,8 @@ public class YarnService extends AbstractIdleService {
   private GobblinMetrics buildGobblinMetrics() {
     // Create tags list
     ImmutableList.Builder<Tag<?>> tags = new ImmutableList.Builder<>();
-    tags.add(new Tag<>(GobblinYarnMetricTagNames.YARN_APPLICATION_ID, this.applicationId));
-    tags.add(new Tag<>(GobblinYarnMetricTagNames.YARN_APPLICATION_NAME, this.applicationName));
+    tags.add(new Tag<>(GobblinClusterMetricTagNames.APPLICATION_ID, this.applicationId));
+    tags.add(new Tag<>(GobblinClusterMetricTagNames.APPLICATION_NAME, this.applicationName));
 
     // Intialize Gobblin metrics and start reporters
     GobblinMetrics gobblinMetrics = GobblinMetrics.get(this.applicationId, null, tags.build());
@@ -323,7 +329,7 @@ public class YarnService extends AbstractIdleService {
 
   private ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
       throws IOException {
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId);
+    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId);
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
 
     Map<String, LocalResource> resourceMap = Maps.newHashMap();
@@ -396,15 +402,15 @@ public class YarnService extends AbstractIdleService {
   }
 
   private String buildContainerCommand(Container container, String helixInstanceName) {
-    String containerProcessName = GobblinWorkUnitRunner.class.getSimpleName();
+    String containerProcessName = GobblinYarnTaskRunner.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
         .append(" -Xmx").append(container.getResource().getMemory()).append("M")
         .append(" ").append(this.containerJvmArgs.or(""))
-        .append(" ").append(GobblinWorkUnitRunner.class.getName())
-        .append(" --").append(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
+        .append(" ").append(GobblinYarnTaskRunner.class.getName())
+        .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
-        .append(" --").append(GobblinYarnConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)
+        .append(" --").append(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)
         .append(" ").append(helixInstanceName)
         .append(" 1>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
           containerProcessName).append(".").append(ApplicationConstants.STDOUT)
@@ -541,7 +547,7 @@ public class YarnService extends AbstractIdleService {
         String instanceName = unusedHelixInstanceNames.poll();
         if (Strings.isNullOrEmpty(instanceName)) {
           // No unused instance name, so generating a new one.
-          instanceName = YarnHelixUtils.getHelixInstanceName(GobblinWorkUnitRunner.class.getSimpleName(),
+          instanceName = HelixUtils.getHelixInstanceName(GobblinYarnTaskRunner.class.getSimpleName(),
               helixInstanceIdGenerator.incrementAndGet());
         }
 
@@ -571,7 +577,7 @@ public class YarnService extends AbstractIdleService {
 
       LOGGER.info("Received shutdown request from the ResourceManager");
       this.done = true;
-      eventBus.post(new ApplicationMasterShutdownRequest());
+      eventBus.post(new ClusterManagerShutdownRequest());
     }
 
     @Override
@@ -595,7 +601,7 @@ public class YarnService extends AbstractIdleService {
 
       LOGGER.error("Received error: " + t, t);
       this.done = true;
-      eventBus.post(new ApplicationMasterShutdownRequest());
+      eventBus.post(new ClusterManagerShutdownRequest());
     }
   }
 

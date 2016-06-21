@@ -10,15 +10,18 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.yarn;
+
+package gobblin.cluster.event;
+
+import gobblin.annotation.Alpha;
+
 
 /**
- * A central place for constants of {@link gobblin.metrics.MetricContext} tag names for Gobblin on Yarn.
+ * A dummy class representing an ApplicationMaster shutdown request to be used with a
+ * {@link com.google.common.eventbus.EventBus}.
  *
  * @author Yinan Li
  */
-public class GobblinYarnMetricTagNames {
-
-  public static final String YARN_APPLICATION_ATTEMPT_ID = "yarn.application.attempt.id";
-  public static final String CONTAINER_ID = "yarn.container.id";
+@Alpha
+public class ClusterManagerShutdownRequest {
 }
