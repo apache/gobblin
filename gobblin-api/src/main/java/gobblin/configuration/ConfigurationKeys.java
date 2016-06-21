@@ -371,6 +371,12 @@ public class ConfigurationKeys {
   public static final String ERROR_MESSAGE_UNDECODABLE_COUNT = "error.message.undecodable.count";
 
   /**
+   * Configuration properties used by both KakfaSource and KafkaExtractor
+   */
+  public static final String KAFKA_BUFFER_SIZE = "kafka.buffer.size";
+  public static final int DEFAULT_KAFKA_BUFFER_SIZE = 1024 * 1024;
+
+  /**
    * Configuration properties for source connection.
    */
   public static final String SOURCE_CONN_USE_AUTHENTICATION = "source.conn.use.authentication";

@@ -163,7 +163,6 @@ public class KafkaWrapper implements Closeable {
    */
   private class KafkaOldAPI extends KafkaAPI {
     private static final int DEFAULT_KAFKA_TIMEOUT_VALUE = 30000;
-    private static final int DEFAULT_KAFKA_BUFFER_SIZE = 1024 * 1024;
     private static final String DEFAULT_KAFKA_CLIENT_NAME = "kafka-old-api";
     private static final int DEFAULT_KAFKA_FETCH_REQUEST_CORRELATION_ID = -1;
     private static final int DEFAULT_KAFKA_FETCH_REQUEST_MIN_BYTES = 1024;
@@ -240,7 +239,7 @@ public class KafkaWrapper implements Closeable {
       LOG.info(String.format("Fetching topic metadata from broker %s", broker));
       SimpleConsumer consumer = null;
       try {
-        consumer = getSimpleConsumer(broker);
+        consumer = getSimpleConsumer(broker,ConfigurationKeys.DEFAULT_KAFKA_BUFFER_SIZE);
         for (int i = 0; i < NUM_TRIES_FETCH_TOPIC; i++) {
           try {
             return consumer.send(new TopicMetadataRequest(Arrays.asList(selectedTopics))).topicsMetadata();
@@ -261,26 +260,26 @@ public class KafkaWrapper implements Closeable {
       return null;
     }
 
-    private SimpleConsumer getSimpleConsumer(String broker) {
+    private SimpleConsumer getSimpleConsumer(String broker, int bufferSize) {
       if (this.activeConsumers.containsKey(broker)) {
         return this.activeConsumers.get(broker);
       }
-      SimpleConsumer consumer = this.createSimpleConsumer(broker);
+      SimpleConsumer consumer = this.createSimpleConsumer(broker, bufferSize);
       this.activeConsumers.putIfAbsent(broker, consumer);
       return consumer;
     }
 
-    private SimpleConsumer getSimpleConsumer(HostAndPort hostAndPort) {
-      return this.getSimpleConsumer(hostAndPort.toString());
+    private SimpleConsumer getSimpleConsumer(HostAndPort hostAndPort, int bufferSize) {
+      return this.getSimpleConsumer(hostAndPort.toString(), bufferSize);
     }
 
-    private SimpleConsumer createSimpleConsumer(String broker) {
+    private SimpleConsumer createSimpleConsumer(String broker, int bufferSize) {
       List<String> hostPort = Splitter.on(':').trimResults().omitEmptyStrings().splitToList(broker);
-      return createSimpleConsumer(hostPort.get(0), Integer.parseInt(hostPort.get(1)));
+      return createSimpleConsumer(hostPort.get(0), Integer.parseInt(hostPort.get(1)), bufferSize);
     }
 
-    private SimpleConsumer createSimpleConsumer(String host, int port) {
-      return new SimpleConsumer(host, port, DEFAULT_KAFKA_TIMEOUT_VALUE, DEFAULT_KAFKA_BUFFER_SIZE,
+    private SimpleConsumer createSimpleConsumer(String host, int port, int bufferSize) {
+      return new SimpleConsumer(host, port, DEFAULT_KAFKA_TIMEOUT_VALUE, bufferSize,
           DEFAULT_KAFKA_CLIENT_NAME);
     }
 
@@ -303,7 +302,7 @@ public class KafkaWrapper implements Closeable {
     private long getOffset(KafkaPartition partition,
         Map<TopicAndPartition, PartitionOffsetRequestInfo> offsetRequestInfo)
         throws KafkaOffsetRetrievalFailureException {
-      SimpleConsumer consumer = this.getSimpleConsumer(partition.getLeader().getHostAndPort());
+      SimpleConsumer consumer = this.getSimpleConsumer(partition.getLeader().getHostAndPort(),partition.getBufferSize());
       for (int i = 0; i < NUM_TRIES_FETCH_OFFSET; i++) {
         try {
           OffsetResponse offsetResponse = consumer.getOffsetsBefore(new OffsetRequest(offsetRequestInfo,
@@ -351,7 +350,7 @@ public class KafkaWrapper implements Closeable {
 
     private synchronized FetchResponse getFetchResponseForFetchRequest(FetchRequest fetchRequest,
         KafkaPartition partition) {
-      SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHostAndPort());
+      SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHostAndPort(), partition.getBufferSize());
 
       FetchResponse fetchResponse = consumer.fetch(fetchRequest);
       if (fetchResponse.hasError()) {
@@ -405,7 +404,7 @@ public class KafkaWrapper implements Closeable {
 
     private FetchRequest createFetchRequest(KafkaPartition partition, long nextOffset) {
       TopicAndPartition topicAndPartition = new TopicAndPartition(partition.getTopicName(), partition.getId());
-      PartitionFetchInfo partitionFetchInfo = new PartitionFetchInfo(nextOffset, DEFAULT_KAFKA_BUFFER_SIZE);
+      PartitionFetchInfo partitionFetchInfo = new PartitionFetchInfo(nextOffset, partition.getBufferSize());
       Map<TopicAndPartition, PartitionFetchInfo> fetchInfo =
           Collections.singletonMap(topicAndPartition, partitionFetchInfo);
       return new FetchRequest(DEFAULT_KAFKA_FETCH_REQUEST_CORRELATION_ID, DEFAULT_KAFKA_CLIENT_NAME,

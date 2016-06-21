@@ -13,6 +13,7 @@
 package gobblin.source.extractor.extract.kafka;
 
 import com.google.common.net.HostAndPort;
+import gobblin.configuration.ConfigurationKeys;
 
 
 /**
@@ -25,6 +26,7 @@ import com.google.common.net.HostAndPort;
 public final class KafkaPartition {
   private final int id;
   private final String topicName;
+  private final int bufferSize;
   private KafkaLeader leader;
 
   public static class Builder {
@@ -32,7 +34,7 @@ public final class KafkaPartition {
     private String topicName = "";
     private int leaderId = 0;
     private HostAndPort leaderHostAndPort;
-
+    private int bufferSize = ConfigurationKeys.DEFAULT_KAFKA_BUFFER_SIZE;
     public Builder withId(int id) {
       this.id = id;
       return this;
@@ -45,6 +47,11 @@ public final class KafkaPartition {
 
     public Builder withLeaderId(int leaderId) {
       this.leaderId = leaderId;
+      return this;
+    }
+
+    public Builder withBufferSize(int bufferSize){
+      this.bufferSize = bufferSize;
       return this;
     }
 
@@ -67,12 +74,14 @@ public final class KafkaPartition {
     this.topicName = other.topicName;
     this.id = other.id;
     this.leader = new KafkaLeader(other.leader.id, other.leader.hostAndPort);
+    this.bufferSize = other.bufferSize;
   }
 
   private KafkaPartition(Builder builder) {
     this.id = builder.id;
     this.topicName = builder.topicName;
     this.leader = new KafkaLeader(builder.leaderId, builder.leaderHostAndPort);
+    this.bufferSize = builder.bufferSize;
   }
 
   public KafkaLeader getLeader() {
@@ -85,6 +94,10 @@ public final class KafkaPartition {
 
   public int getId() {
     return this.id;
+  }
+
+  public int getBufferSize() {
+    return this.bufferSize;
   }
 
   public void setLeader(int leaderId, String leaderHost, int leaderPort) {

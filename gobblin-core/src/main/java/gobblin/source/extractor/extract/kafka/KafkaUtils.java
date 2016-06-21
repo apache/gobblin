@@ -12,6 +12,7 @@
 
 package gobblin.source.extractor.extract.kafka;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
 import java.util.List;
@@ -48,7 +49,9 @@ public class KafkaUtils {
         "Missing configuration property " + KafkaSource.PARTITION_ID);
 
     KafkaPartition.Builder builder = new KafkaPartition.Builder().withTopicName(state.getProp(KafkaSource.TOPIC_NAME))
-        .withId(state.getPropAsInt(KafkaSource.PARTITION_ID));
+        .withId(state.getPropAsInt(KafkaSource.PARTITION_ID))
+        .withBufferSize(state.getPropAsInt(ConfigurationKeys.KAFKA_BUFFER_SIZE,
+                ConfigurationKeys.DEFAULT_KAFKA_BUFFER_SIZE));
     if (state.contains(KafkaSource.LEADER_ID)) {
       builder = builder.withLeaderId(state.getPropAsInt(KafkaSource.LEADER_ID));
     }
