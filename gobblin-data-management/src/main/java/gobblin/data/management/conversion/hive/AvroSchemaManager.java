@@ -13,13 +13,14 @@ package gobblin.data.management.conversion.hive;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
 import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.conf.Configuration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -113,43 +114,42 @@ public class AvroSchemaManager {
   }
 
   public static Schema getSchemaFromUrl(Path schemaUrl, FileSystem fs) throws IOException {
-    // Determine scheme, default to hdfs
-    URI uri = schemaUrl.toUri();
-    String scheme = (null != uri && null != uri.getScheme()) ?
-        uri.getScheme().toLowerCase() :
-        "hdfs";
-
-    // Fetch schema via HTTP GET if scheme is http(s)
-    // .. else fetch from HDFS or local filesystem
-    switch (scheme) {
-      case "http":
-      case "https":
-        String schemaString = IOUtils.toString(schemaUrl.toUri(), StandardCharsets.UTF_8);
-        return HiveAvroORCQueryUtils.readSchemaFromString(schemaString);
-      default:
-        return AvroUtils.parseSchemaFromFile(schemaUrl, fs);
-    }
+    return AvroUtils.parseSchemaFromFile(schemaUrl, fs);
   }
 
   private Path getSchemaUrl(StorageDescriptor sd) throws IOException {
-    if (sd.getSerdeInfo().getParameters().containsKey(HiveAvroSerDeManager.SCHEMA_URL)) {
-      return new Path(sd.getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_URL));
-    }
-    String schemaLiteral = null;
-    try {
-      if (sd.getSerdeInfo().getParameters().containsKey(HiveAvroSerDeManager.SCHEMA_LITERAL)) {
 
-        schemaLiteral = sd.getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_LITERAL);
-        log.debug("Schema literal is: " + schemaLiteral);
-        Schema schema = HiveAvroORCQueryUtils.readSchemaFromString(schemaLiteral);
+    String schemaString = StringUtils.EMPTY;
+    try {
+      // Try to fetch from SCHEMA URL
+      if (sd.getSerdeInfo().getParameters().containsKey(HiveAvroSerDeManager.SCHEMA_URL)) {
+        String schemaUrl = sd.getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_URL);
+        if (schemaUrl.startsWith("http")) {
+          // Fetch schema literal via HTTP GET if scheme is http(s)
+          schemaString = IOUtils.toString(new URI(schemaUrl), StandardCharsets.UTF_8);
+          log.debug("Schema string is: " + schemaString);
+          Schema schema = HiveAvroORCQueryUtils.readSchemaFromString(schemaString);
+
+          return getOrGenerateSchemaFile(schema);
+        } else {
+          // .. else fetch from HDFS or local filesystem
+          return new Path(sd.getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_URL));
+        }
+      }
+      // Try to fetch from SCHEMA LITERAL
+      else if (sd.getSerdeInfo().getParameters().containsKey(HiveAvroSerDeManager.SCHEMA_LITERAL)) {
+        schemaString = sd.getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_LITERAL);
+        log.debug("Schema string is: " + schemaString);
+        Schema schema = HiveAvroORCQueryUtils.readSchemaFromString(schemaString);
 
         return getOrGenerateSchemaFile(schema);
       }
-    } catch (Exception e) {
-      log.error(String.format("Failed to parse schema from schema literal. Falling back to HDFS schema: %s",
-          schemaLiteral), e);
+    } catch (URISyntaxException e) {
+      log.error(String.format("Failed to parse schema from schema string. Falling back to HDFS schema: %s",
+          schemaString), e);
     }
 
+    // Try to fetch from HDFS
     Schema schema = AvroUtils.getDirectorySchema(new Path(sd.getLocation()), this.fs, true);
     return getOrGenerateSchemaFile(schema);
   }
