@@ -271,7 +271,7 @@ public class HiveAvroORCQueryUtils {
               columns.append(",");
             }
             String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false);
-            columns.append(field.name()).append(":").append(type);
+            columns.append("`").append(field.name()).append("`").append(":").append(type);
           }
           columns.append(">");
         }
@@ -442,7 +442,10 @@ public class HiveAvroORCQueryUtils {
       } else {
         dmlQuery.append(", \n");
       }
-      dmlQuery.append(String.format("  %s", colName));
+      // Escape the column name
+      colName = colName.replaceAll("\\.", "`.`");
+
+      dmlQuery.append(String.format("  `%s`", colName));
     }
     dmlQuery.append(String.format(" %n FROM `%s.%s` ", originalDbName, originalTblName));
 
@@ -451,7 +454,7 @@ public class HiveAvroORCQueryUtils {
       if (optionalPartitionDMLInfo.get().size()  > 0) {
         dmlQuery.append("WHERE ");
         for (Map.Entry<String, String> partition : optionalPartitionDMLInfo.get().entrySet()) {
-          dmlQuery.append(String.format("%s='%s'",
+          dmlQuery.append(String.format("`%s`='%s'",
               partition.getKey(), partition.getValue()));
         }
         dmlQuery.append(" \n");

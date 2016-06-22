@@ -1,5 +1,5 @@
 CREATE EXTERNAL TABLE IF NOT EXISTS `default.testRecordWithinRecordWithinRecordDDL` (
-  `parentFieldRecord` struct<nestedFieldRecord:struct<superNestedFieldString:string,superNestedFieldInt:int>,nestedFieldString:string,nestedFieldInt:int>,
+  `parentFieldRecord` struct<`nestedFieldRecord`:struct<`superNestedFieldString`:string,`superNestedFieldInt`:int>,`nestedFieldString`:string,`nestedFieldInt`:int>,
   `parentFieldInt` int)
 ROW FORMAT SERDE
   'org.apache.hadoop.hive.ql.io.orc.OrcSerde'
