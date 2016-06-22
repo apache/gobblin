@@ -12,11 +12,14 @@
 package gobblin.data.management.conversion.hive;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.avro.Schema;
+import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -110,7 +113,22 @@ public class AvroSchemaManager {
   }
 
   public static Schema getSchemaFromUrl(Path schemaUrl, FileSystem fs) throws IOException {
-    return AvroUtils.parseSchemaFromFile(schemaUrl, fs);
+    // Determine scheme, default to hdfs
+    URI uri = schemaUrl.toUri();
+    String scheme = (null != uri && null != uri.getScheme()) ?
+        uri.getScheme().toLowerCase() :
+        "hdfs";
+
+    // Fetch schema via HTTP GET if scheme is http(s)
+    // .. else fetch from HDFS or local filesystem
+    switch (scheme) {
+      case "http":
+      case "https":
+        String schemaString = IOUtils.toString(schemaUrl.toUri(), StandardCharsets.UTF_8);
+        return HiveAvroORCQueryUtils.readSchemaFromString(schemaString);
+      default:
+        return AvroUtils.parseSchemaFromFile(schemaUrl, fs);
+    }
   }
 
   private Path getSchemaUrl(StorageDescriptor sd) throws IOException {
@@ -155,5 +173,4 @@ public class AvroSchemaManager {
 
     return this.schemaPaths.get(hashedSchema);
   }
-
 }
