@@ -30,9 +30,15 @@ import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
+
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.avro.HiveAvroSerDeManager;
 
+
+/**
+ * Provides a singleton instance of local Hive metastore client and helper methods
+ * to run test cases
+ */
 @Slf4j
 public class LocalHiveMetastoreTestUtils {
   private static LocalHiveMetastoreTestUtils instance;

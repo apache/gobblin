@@ -154,8 +154,7 @@ public class HiveAvroToOrcConverter
     // .. overridden by specifying this property
     String orcTableAlternateLocation = workUnit.getJobState().getProp(ORC_TABLE_ALTERNATE_LOCATION);
     if (StringUtils.isNotBlank(orcTableAlternateLocation)) {
-      orcDataLocation = StringUtils.removeEnd(orcTableAlternateLocation, Path.SEPARATOR) +
-          Path.SEPARATOR + orcTableName;
+      orcDataLocation = new Path(orcTableAlternateLocation, orcTableName).toString();
     } else {
       orcDataLocation = StringUtils.removeEnd(avroDataLocation, Path.SEPARATOR) + "_orc";
     }
