@@ -13,24 +13,26 @@
 package gobblin.data.management.conversion.hive.util;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
-import org.apache.commons.io.IOUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 
+import gobblin.data.management.ConversionHiveTestUtils;
 import gobblin.util.AvroFlattener;
+
 
 @Slf4j
 @Test(groups = { "gobblin.data.management.conversion" })
 public class HiveAvroORCQueryUtilsTest {
+
+  private static String resourceDir = "avroToOrcQueryUtilsTest";
 
   /***
    * Test DDL generation for schema structured as: Array within record within array within record
@@ -39,7 +41,8 @@ public class HiveAvroORCQueryUtilsTest {
   @Test
   public void testArrayWithinRecordWithinArrayWithinRecordDDL() throws IOException {
     String schemaName = "testArrayWithinRecordWithinArrayWithinRecordDDL";
-    Schema schema = readSchemaFromJsonFile("arrayWithinRecordWithinArrayWithinRecord_nested.json");
+    Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
+        "arrayWithinRecordWithinArrayWithinRecord_nested.json");
 
     String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
@@ -48,7 +51,8 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<Map<String, String>>absent());
 
     Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        readQueryFromFile("arrayWithinRecordWithinArrayWithinRecord_nested.ddl").replaceAll(" ", ""));
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "arrayWithinRecordWithinArrayWithinRecord_nested.ddl")
+            .replaceAll(" ", ""));
   }
 
   /***
@@ -58,7 +62,8 @@ public class HiveAvroORCQueryUtilsTest {
   @Test
   public void testOptionWithinOptionWithinRecordDDL() throws IOException {
     String schemaName = "testOptionWithinOptionWithinRecordDDL";
-    Schema schema = readSchemaFromJsonFile("optionWithinOptionWithinRecord_nested.json");
+    Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
+        "optionWithinOptionWithinRecord_nested.json");
 
     String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
@@ -67,7 +72,8 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<Map<String, String>>absent());
 
     Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        readQueryFromFile("optionWithinOptionWithinRecord_nested.ddl").replaceAll(" ", ""));
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "optionWithinOptionWithinRecord_nested.ddl")
+            .replaceAll(" ", ""));
   }
 
   /***
@@ -77,7 +83,8 @@ public class HiveAvroORCQueryUtilsTest {
   @Test
   public void testRecordWithinOptionWithinRecordDDL() throws IOException {
     String schemaName = "testRecordWithinOptionWithinRecordDDL";
-    Schema schema = readSchemaFromJsonFile("recordWithinOptionWithinRecord_nested.json");
+    Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
+        "recordWithinOptionWithinRecord_nested.json");
 
     String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
@@ -86,7 +93,8 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<Map<String, String>>absent());
 
     Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        readQueryFromFile("recordWithinOptionWithinRecord_nested.ddl").replaceAll(" ", ""));
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinOptionWithinRecord_nested.ddl")
+            .replaceAll(" ", ""));
   }
 
   /***
@@ -96,16 +104,18 @@ public class HiveAvroORCQueryUtilsTest {
   @Test
   public void testRecordWithinRecordWithinRecordDDL() throws IOException {
     String schemaName = "testRecordWithinRecordWithinRecordDDL";
-    Schema schema = readSchemaFromJsonFile("recordWithinRecordWithinRecord_nested.json");
+    Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
+        "recordWithinRecordWithinRecord_nested.json");
 
-    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
-        Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
-        Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
-        Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName,
+        "file:/user/hive/warehouse/" + schemaName, Optional.<String>absent(), Optional.<Map<String, String>>absent(),
+        Optional.<List<String>>absent(), Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
+        Optional.<Integer>absent(), Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
         Optional.<Map<String, String>>absent());
 
     Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        readQueryFromFile("recordWithinRecordWithinRecord_nested.ddl").replaceAll(" ", ""));
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_nested.ddl")
+            .replaceAll(" ", ""));
   }
 
   /***
@@ -115,7 +125,7 @@ public class HiveAvroORCQueryUtilsTest {
   @Test
   public void testRecordWithinRecordWithinRecordFlattenedDDL() throws IOException {
     String schemaName = "testRecordWithinRecordWithinRecordDDL";
-    Schema schema = readSchemaFromJsonFile("recordWithinRecordWithinRecord_nested.json");
+    Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir, "recordWithinRecordWithinRecord_nested.json");
 
     AvroFlattener avroFlattener = new AvroFlattener();
     Schema flattenedSchema = avroFlattener.flatten(schema, true);
@@ -127,7 +137,8 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<Map<String, String>>absent());
 
     Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        readQueryFromFile("recordWithinRecordWithinRecord_flattened.ddl").replaceAll(" ", ""));
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_flattened.ddl")
+            .replaceAll(" ", ""));
   }
 
   /***
@@ -137,7 +148,8 @@ public class HiveAvroORCQueryUtilsTest {
   @Test
   public void testRecordWithinRecordWithinRecordFlattenedDML() throws IOException {
     String schemaName = "testRecordWithinRecordWithinRecordDDL";
-    Schema schema = readSchemaFromJsonFile("recordWithinRecordWithinRecord_nested.json");
+    Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
+        "recordWithinRecordWithinRecord_nested.json");
 
     AvroFlattener avroFlattener = new AvroFlattener();
     Schema flattenedSchema = avroFlattener.flatten(schema, true);
@@ -147,7 +159,8 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(), Optional.<Boolean>absent());
 
     Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        readQueryFromFile("recordWithinRecordWithinRecord.dml").replaceAll(" ", ""));
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord.dml")
+            .replaceAll(" ", ""));
   }
 
   /***
@@ -159,24 +172,10 @@ public class HiveAvroORCQueryUtilsTest {
     String schemaName = "nonRecordRootSchema";
     Schema schema = Schema.create(Schema.Type.STRING);
 
-    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
-        Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
-        Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
-        Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName,
+        "file:/user/hive/warehouse/" + schemaName, Optional.<String>absent(), Optional.<Map<String, String>>absent(),
+        Optional.<List<String>>absent(), Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
+        Optional.<Integer>absent(), Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
         Optional.<Map<String, String>>absent());
-  }
-
-  private static Schema readSchemaFromJsonFile(String filename)
-      throws IOException {
-    return new Schema.Parser()
-        .parse(HiveAvroORCQueryUtilsTest.class.getClassLoader()
-            .getResourceAsStream("avroToOrcQueryUtilsTest/" + filename));
-  }
-
-  private static String readQueryFromFile(String filename)
-      throws IOException {
-    InputStream is = HiveAvroORCQueryUtilsTest.class.getClassLoader()
-        .getResourceAsStream("avroToOrcQueryUtilsTest/" + filename);
-    return IOUtils.toString(is, "UTF-8");
   }
 }

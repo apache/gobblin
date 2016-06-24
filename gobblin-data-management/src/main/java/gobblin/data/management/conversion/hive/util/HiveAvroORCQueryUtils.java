@@ -362,39 +362,40 @@ public class HiveAvroORCQueryUtils {
   }
 
   /***
-   * Generate DML mapping query to populate flattened schema table by selecting from nested schema table
-   * This method assumes that each flattened field has a corresponding source nested table's field reference
+   * Generate DML mapping query to populate output schema table by selecting from input schema table
+   * This method assumes that each output schema field has a corresponding source input table's field reference
    * .. in form of 'flatten_source' property
-   * @param originalSchema Original schema that was flattened to obtain flattened schema (next argument)
-   * @param flattenedSchema Flattened schema that was generated using original schema
-   * @param originalTblName Original table name
-   * @param flattenedTblName Flattened table name
-   * @param optionalOriginalDbName Optional original DB name, if not specified it will default to 'default'
-   * @param optionalFlattenedDbName Optional flattened DB name, if not specified it will default to 'default'
+   * @param inputAvroSchema Input schema that was used to obtain output schema (next argument)
+   * @param outputOrcSchema Output schema (flattened or nested) that was generated using input schema
+   *                        .. and has lineage information compatible with input schema
+   * @param inputTblName Input table name
+   * @param outputTblName Output table name
+   * @param optionalInputDbName Optional input DB name, if not specified it will default to 'default'
+   * @param optionalOutputDbName Optional output DB name, if not specified it will default to 'default'
    * @param optionalPartitionDMLInfo Optional partition info in form of map of partition key, partition value pairs
    * @param optionalOverwriteTable Optional overwrite table, if not specified it is set to true
    * @param optionalCreateIfNotExists Optional create if not exists, if not specified it is set to false
    * @return DML query
    */
-  public static String generateTableMappingDML(Schema originalSchema, Schema flattenedSchema,
-      String originalTblName, String flattenedTblName,
-      Optional<String> optionalOriginalDbName,
-      Optional<String> optionalFlattenedDbName,
+  public static String generateTableMappingDML(Schema inputAvroSchema, Schema outputOrcSchema,
+      String inputTblName, String outputTblName,
+      Optional<String> optionalInputDbName,
+      Optional<String> optionalOutputDbName,
       Optional<Map<String, String>> optionalPartitionDMLInfo,
       Optional<Boolean> optionalOverwriteTable,
       Optional<Boolean> optionalCreateIfNotExists) {
-    Preconditions.checkNotNull(originalSchema);
-    Preconditions.checkNotNull(flattenedSchema);
-    Preconditions.checkArgument(StringUtils.isNotBlank(originalTblName));
-    Preconditions.checkArgument(StringUtils.isNotBlank(flattenedTblName));
+    Preconditions.checkNotNull(inputAvroSchema);
+    Preconditions.checkNotNull(outputOrcSchema);
+    Preconditions.checkArgument(StringUtils.isNotBlank(inputTblName));
+    Preconditions.checkArgument(StringUtils.isNotBlank(outputTblName));
 
-    String originalDbName = optionalOriginalDbName.isPresent() ? optionalOriginalDbName.get() : DEFAULT_DB_NAME;
-    String flattenedDbName = optionalFlattenedDbName.isPresent() ? optionalFlattenedDbName.get() : DEFAULT_DB_NAME;
+    String inputDbName = optionalInputDbName.isPresent() ? optionalInputDbName.get() : DEFAULT_DB_NAME;
+    String outputDbName = optionalOutputDbName.isPresent() ? optionalOutputDbName.get() : DEFAULT_DB_NAME;
     boolean shouldOverwriteTable = optionalOverwriteTable.isPresent() ? optionalOverwriteTable.get() : true;
     boolean shouldCreateIfNotExists = optionalCreateIfNotExists.isPresent() ? optionalCreateIfNotExists.get() : false;
 
-    log.debug("Original Schema: " + originalSchema.toString());
-    log.debug("Flattened Schema: " + flattenedSchema.toString());
+    log.debug("Input Schema: " + inputAvroSchema.toString());
+    log.debug("Output Schema: " + outputOrcSchema.toString());
 
     // Start building Hive DML
     // Refer to Hive DDL manual for explanation of clauses:
@@ -403,9 +404,9 @@ public class HiveAvroORCQueryUtils {
 
     // Insert query
     if (shouldOverwriteTable) {
-      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s.%s` %n", flattenedDbName, flattenedTblName));
+      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s.%s` %n", outputDbName, outputTblName));
     } else {
-      dmlQuery.append(String.format("INSERT INTO TABLE `%s.%s` %n", flattenedDbName, flattenedTblName));
+      dmlQuery.append(String.format("INSERT INTO TABLE `%s.%s` %n", outputDbName, outputTblName));
     }
 
     // Partition details
@@ -428,7 +429,7 @@ public class HiveAvroORCQueryUtils {
     dmlQuery.append("SELECT \n");
 
     boolean isFirst = true;
-    List<Schema.Field> fieldList = flattenedSchema.getFields();
+    List<Schema.Field> fieldList = outputOrcSchema.getFields();
     for (Schema.Field field : fieldList) {
       String flattenSource = field.getProp("flatten_source");
       String colName;
@@ -447,7 +448,7 @@ public class HiveAvroORCQueryUtils {
 
       dmlQuery.append(String.format("  `%s`", colName));
     }
-    dmlQuery.append(String.format(" %n FROM `%s.%s` ", originalDbName, originalTblName));
+    dmlQuery.append(String.format(" %n FROM `%s.%s` ", inputDbName, inputTblName));
 
     // Partition details
     if (optionalPartitionDMLInfo.isPresent()) {
