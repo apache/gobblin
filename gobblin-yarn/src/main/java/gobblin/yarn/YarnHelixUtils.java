@@ -18,7 +18,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -36,85 +35,15 @@ import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 
-import org.apache.helix.manager.zk.ZKHelixManager;
-import org.apache.helix.model.HelixConfigScope;
-import org.apache.helix.tools.ClusterSetup;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValue;
-
 import com.google.common.collect.Maps;
-
-import gobblin.configuration.State;
 
 
 /**
- * A utility class for Gobblin on Yarn/Helix.
+ * A utility class for Gobblin on Yarn.
  *
  * @author Yinan Li
  */
 public class YarnHelixUtils {
-
-  /**
-   * Create a Helix cluster for the Gobblin Yarn application.
-   *
-   * @param zkConnectionString the ZooKeeper connection string
-   * @param clusterName the Helix cluster name
-   */
-  public static void createGobblinYarnHelixCluster(String zkConnectionString, String clusterName) {
-    ClusterSetup clusterSetup = new ClusterSetup(zkConnectionString);
-    // Create the cluster and overwrite if it already exists
-    clusterSetup.addCluster(clusterName, true);
-    // Helix 0.6.x requires a configuration property to have the form key=value.
-    String autoJoinConfig = ZKHelixManager.ALLOW_PARTICIPANT_AUTO_JOIN + "=true";
-    clusterSetup.setConfig(HelixConfigScope.ConfigScopeProperty.CLUSTER, clusterName, autoJoinConfig);
-  }
-
-  /**
-   * Get the name of the current host.
-   *
-   * @return the name of the current host
-   * @throws UnknownHostException if the host name is unknown
-   */
-  public static String getHostname() throws UnknownHostException {
-    return InetAddress.getLocalHost().getHostName();
-  }
-
-  /**
-   * Get a Helix instance name.
-   *
-   * @param namePrefix a prefix of Helix instance names
-   * @param instanceId an integer instance ID
-   * @return a Helix instance name that is a concatenation of the given prefix and instance ID
-   */
-  public static String getHelixInstanceName(String namePrefix, int instanceId) {
-    return namePrefix + "_" + instanceId;
-  }
-
-  /**
-   * Get the Yarn application root directory {@link Path}.
-   *
-   * @param fs a {@link FileSystem} instance on which {@link FileSystem#getHomeDirectory()} is called
-   *           to get the home directory of the {@link FileSystem} of the application working directory
-   * @param applicationName the Yarn application name
-   * @return the Yarn application root directory {@link Path}
-   */
-  public static Path getAppRootDirPath(FileSystem fs, String applicationName) {
-    return new Path(fs.getHomeDirectory(), applicationName);
-  }
-
-  /**
-   * Get the Yarn application working directory {@link Path}.
-   *
-   * @param fs a {@link FileSystem} instance on which {@link FileSystem#getHomeDirectory()} is called
-   *           to get the home directory of the {@link FileSystem} of the application working directory
-   * @param applicationName the Yarn application name
-   * @param applicationId the Yarn application ID in string form
-   * @return the Yarn application working directory {@link Path}
-   */
-  public static Path getAppWorkDirPath(FileSystem fs, String applicationName, String applicationId) {
-    return new Path(fs.getHomeDirectory(), applicationName + Path.SEPARATOR + applicationId);
-  }
 
   /**
    * Write a {@link Token} to a given file.

@@ -13,6 +13,7 @@
 package gobblin.runtime.mapreduce;
 
 import java.io.BufferedWriter;
+import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -329,8 +330,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
   static void serializeJobState(FileSystem fs, Path mrJobDir, Configuration conf, JobState jobState, Job job)
       throws IOException {
     Path jobStateFilePath = new Path(mrJobDir, JOB_STATE_FILE_NAME);
-    short jobStateRF = (short) conf.getInt("dfs.replication.max", 20);
-    SerializationUtils.serializeState(fs, jobStateFilePath, jobState, jobStateRF);
+    // Write the job state with an empty task set (work units are read by the mapper from a different file)
+    try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(jobStateFilePath))) {
+      jobState.write(dataOutputStream, false);
+    }
+
     job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());
 
     DistributedCache.addCacheFile(jobStateFilePath.toUri(), job.getConfiguration());

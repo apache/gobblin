@@ -19,10 +19,6 @@ package gobblin.yarn;
  */
 public class GobblinYarnMetricTagNames {
 
-  public static final String YARN_APPLICATION_NAME = "yarn.application.name";
-  public static final String YARN_APPLICATION_ID = "yarn.application.id";
   public static final String YARN_APPLICATION_ATTEMPT_ID = "yarn.application.attempt.id";
   public static final String CONTAINER_ID = "yarn.container.id";
-  public static final String HELIX_INSTANCE_NAME = "helix.instance.name";
-
 }

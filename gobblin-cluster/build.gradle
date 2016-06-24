@@ -1,0 +1,85 @@
+// (c) 2014 LinkedIn Corp. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at  http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied.
+//
+
+apply plugin: 'java'
+
+dependencies {
+  compile project(":gobblin-admin")
+  compile project(":gobblin-api")
+  compile project(":gobblin-core")
+  compile project(":gobblin-metrics")
+  compile project(":gobblin-metastore")
+  compile project(":gobblin-runtime")
+  compile project(":gobblin-utility")
+  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
+  compile project(":gobblin-rest-service:gobblin-rest-server")
+
+  compile externalDependency.avro
+  compile externalDependency.commonsConfiguration
+  compile externalDependency.quartz
+  compile externalDependency.guava
+  compile externalDependency.commonsLang
+  compile externalDependency.slf4j
+  compile externalDependency.log4j
+  compile externalDependency.commonsCli
+  compile externalDependency.gson
+  compile externalDependency.hiveCommon
+  compile externalDependency.metricsCore
+  compile externalDependency.metricsJvm
+  compile externalDependency.commonsIo
+  compile externalDependency.commonsEmail
+  compile externalDependency.pegasus.data
+  compile externalDependency.typesafeConfig
+  compile externalDependency.hadoopClientCommon
+  compile externalDependency.hadoopCommon
+  compile externalDependency.avroMapredH2
+  compile externalDependency.findBugsAnnotations
+
+  testCompile project(":gobblin-example")
+
+  testCompile externalDependency.testng
+  testCompile externalDependency.curatorFramework
+  testCompile externalDependency.curatorTest
+
+  compile files('./src/main/resources/helix-core-0.6.6-SNAPSHOT.jar')
+}
+
+task testJar(type: Jar, dependsOn: testClasses) {
+  baseName = "test-${project.archivesBaseName}"
+  from sourceSets.test.output
+}
+
+configurations {
+  tests
+}
+
+artifacts {
+  tests testJar
+}
+
+configurations {
+  compile {
+    transitive = false
+  }
+
+  testRuntime {
+    resolutionStrategy {
+      force 'com.google.inject:guice:3.0'
+    }
+  }
+}
+
+test {
+  workingDir rootProject.rootDir
+  maxParallelForks = 1
+}
+
+ext.classification="library"

@@ -65,7 +65,7 @@ public class HiveAvroToOrcConverter
     Preconditions.checkNotNull(workUnit, "Workunit state must not be null");
     Preconditions.checkNotNull(conversionEntity.getHiveTable(), "Hive table within conversion entity must not be null");
 
-    Schema flattenedSchema = AVRO_FLATTENER.flatten(outputSchema, true);
+    Schema flattenedSchema = AVRO_FLATTENER.flatten(outputSchema, false);
 
     // Create flattened table if not exists
     // ORC Hive tables are named as   : {avro_table_name}_orc

@@ -10,11 +10,28 @@
 
 apply from: 'gradle/scripts/hadoop-version.gradle'
 
-def modules = ['gobblin-admin','gobblin-api','gobblin-azkaban','gobblin-compaction',
-               'gobblin-config-management','gobblin-core','gobblin-distribution',
-               'gobblin-example','gobblin-hive-registration','gobblin-metrics','gobblin-metastore','gobblin-rest-service',
-               'gobblin-runtime','gobblin-utility','gobblin-salesforce','gobblin-test-harness',
-               'gobblin-tunnel', 'gobblin-data-management','gobblin-config-management', 'gobblin-audit', 'gobblin-yarn']
+def modules = ['gobblin-admin',
+               'gobblin-api',
+               'gobblin-azkaban',
+               'gobblin-compaction',
+               'gobblin-config-management',
+               'gobblin-core',
+               'gobblin-distribution',
+               'gobblin-example',
+               'gobblin-hive-registration',
+               'gobblin-metrics',
+               'gobblin-metastore',
+               'gobblin-rest-service',
+               'gobblin-runtime',
+               'gobblin-utility',
+               'gobblin-salesforce',
+               'gobblin-test-harness',
+               'gobblin-tunnel',
+               'gobblin-data-management',
+               'gobblin-config-management',
+               'gobblin-audit',
+               'gobblin-yarn',
+               'gobblin-cluster']
 
 modules.each { module ->
   include "${module}"
