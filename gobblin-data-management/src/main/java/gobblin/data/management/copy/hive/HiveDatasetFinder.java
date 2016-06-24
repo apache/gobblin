@@ -61,9 +61,9 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   private static final String DATASET_ERROR = "DatasetError";
   private static final String FAILURE_CONTEXT = "FailureContext";
 
-  private final Properties properties;
-  private final HiveMetastoreClientPool clientPool;
-  private final FileSystem fs;
+  protected final Properties properties;
+  protected final HiveMetastoreClientPool clientPool;
+  protected final FileSystem fs;
   private final WhitelistBlacklist whitelistBlacklist;
   private final Optional<EventSubmitter> eventSubmitter;
 

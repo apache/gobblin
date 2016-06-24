@@ -103,7 +103,7 @@ public class TimeBasedRetentionPolicy implements RetentionPolicy<TimestampedData
    * @param periodString
    * @return duration for this period.
    */
-  private static Duration parseDuration(String periodString) {
+  protected static Duration parseDuration(String periodString) {
     DateTime zeroEpoc = new DateTime(0);
     return new Duration(zeroEpoc, zeroEpoc.plus(ISOPeriodFormat.standard().parsePeriod(periodString)));
   }
