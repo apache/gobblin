@@ -42,6 +42,7 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
 import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
+import gobblin.data.management.conversion.hive.source.HiveSource;
 import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.avro.HiveAvroSerDeManager;
