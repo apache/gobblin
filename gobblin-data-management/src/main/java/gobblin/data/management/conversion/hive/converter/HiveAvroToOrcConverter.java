@@ -46,6 +46,7 @@ public class HiveAvroToOrcConverter
   // TODO: Remove when topology is enabled
   private static final String ORC_TABLE_ALTERNATE_LOCATION = "orc.table.alternate.location";
   private static final String ORC_TABLE_ALTERNATE_DATABASE = "orc.table.alternate.database";
+  private static final String ORC_TABLE_FLATTEN_SCHEMA = "orc.table.flatten.schema";
 
   private static AvroFlattener AVRO_FLATTENER = new AvroFlattener();
 
@@ -58,16 +59,23 @@ public class HiveAvroToOrcConverter
    * Populate the avro to orc conversion queries. The Queries will be added to {@link QueryBasedHiveConversionEntity#getQueries()}
    */
   @Override
-  public Iterable<QueryBasedHiveConversionEntity> convertRecord(Schema outputSchema,
+  public Iterable<QueryBasedHiveConversionEntity> convertRecord(Schema inputAvroSchema,
       QueryBasedHiveConversionEntity conversionEntity, WorkUnitState workUnit) throws DataConversionException {
-    Preconditions.checkNotNull(outputSchema, "Output schema must not be null");
+    Preconditions.checkNotNull(inputAvroSchema, "Avro schema must not be null");
     Preconditions.checkNotNull(conversionEntity, "Conversion entity must not be null");
     Preconditions.checkNotNull(workUnit, "Workunit state must not be null");
     Preconditions.checkNotNull(conversionEntity.getHiveTable(), "Hive table within conversion entity must not be null");
 
-    Schema flattenedSchema = AVRO_FLATTENER.flatten(outputSchema, false);
+    // Convert schema if required
+    Schema convertedOrcSchema;
+    boolean isOrcTableFlattened = shouldFlattenSchema(workUnit);
+    if (isOrcTableFlattened) {
+      convertedOrcSchema = AVRO_FLATTENER.flatten(inputAvroSchema, false);
+    } else {
+      convertedOrcSchema = inputAvroSchema;
+    }
 
-    // Create flattened table if not exists
+    // Create output table if not exists
     // ORC Hive tables are named as   : {avro_table_name}_orc
     // ORC Hive tables use location as: {avro_table_location}_orc
     // TODO: Add cluster by info (from config)
@@ -83,8 +91,14 @@ public class HiveAvroToOrcConverter
     // ORC table name and location
     // TODO: Define naming convention and pull it from config / topology
     String orcTableName = avroTableName + "_orc";
+    // TODO: Define naming convention and pull it from config / topology
+    Optional<String> orcDataLocationPostfix = Optional.absent();
+    if (!isOrcTableFlattened) {
+      orcTableName = orcTableName + "_nested";
+      orcDataLocationPostfix = Optional.of("_nested");
+    }
     String orcTableDatabase = getOrcTableDatabase(workUnit, conversionEntity);
-    String orcDataLocation = getOrcDataLocation(workUnit, avroDataLocation, orcTableName);
+    String orcDataLocation = getOrcDataLocation(workUnit, avroDataLocation, orcTableName, orcDataLocationPostfix);
 
     // Populate optional partition info
     Map<String, String> partitionsDDLInfo = Maps.newHashMap();
@@ -92,8 +106,8 @@ public class HiveAvroToOrcConverter
     populatePartitionInfo(conversionEntity, partitionsDDLInfo, partitionsDMLInfo);
 
     // Create DDL statement
-    String createFlattenedTableDDL = HiveAvroORCQueryUtils
-        .generateCreateTableDDL(flattenedSchema,
+    String createTargetTableDDL = HiveAvroORCQueryUtils
+        .generateCreateTableDDL(convertedOrcSchema,
             orcTableName,
             orcDataLocation,
             Optional.of(orcTableDatabase),
@@ -105,12 +119,12 @@ public class HiveAvroToOrcConverter
             Optional.<String>absent(),
             Optional.<String>absent(),
             Optional.<Map<String, String>>absent());
-    conversionEntity.getQueries().add(createFlattenedTableDDL);
-    log.info("Create DDL: " + createFlattenedTableDDL);
+    conversionEntity.getQueries().add(createTargetTableDDL);
+    log.info("Create DDL: " + createTargetTableDDL);
 
     // Create DML statement
     String insertInORCTableDML = HiveAvroORCQueryUtils
-        .generateTableMappingDML(outputSchema, flattenedSchema, avroTableName, orcTableName,
+        .generateTableMappingDML(inputAvroSchema, convertedOrcSchema, avroTableName, orcTableName,
             Optional.of(conversionEntity.getHiveTable().getDbName()),
             Optional.of(orcTableDatabase),
             Optional.of(partitionsDMLInfo),
@@ -122,27 +136,37 @@ public class HiveAvroToOrcConverter
     return new SingleRecordIterable<>(conversionEntity);
   }
 
+  private boolean shouldFlattenSchema(WorkUnitState workUnit) {
+    return workUnit.getJobState().getPropAsBoolean(ORC_TABLE_FLATTEN_SCHEMA, true);
+  }
+
   private String getOrcTableDatabase(WorkUnitState workUnit, QueryBasedHiveConversionEntity conversionEntity) {
     String orcTableAlternateDB = workUnit.getJobState().getProp(ORC_TABLE_ALTERNATE_DATABASE);
     return StringUtils.isNotBlank(orcTableAlternateDB) ? orcTableAlternateDB :
         conversionEntity.getHiveTable().getDbName();
   }
 
-  private String getOrcDataLocation(WorkUnitState workUnit, String avroDataLocation, String orcTableName) {
+  private String getOrcDataLocation(WorkUnitState workUnit, String avroDataLocation, String orcTableName,
+      Optional<String> postfix) {
     String orcDataLocation;
 
     // By default ORC table creates a new directory where Avro data resides with _orc postfix, but this can be
     // .. overridden by specifying this property
     String orcTableAlternateLocation = workUnit.getJobState().getProp(ORC_TABLE_ALTERNATE_LOCATION);
     if (StringUtils.isNotBlank(orcTableAlternateLocation)) {
-      orcDataLocation = StringUtils.removeEnd(orcTableAlternateLocation, Path.SEPARATOR) + "/" + orcTableName;
+      orcDataLocation = StringUtils.removeEnd(orcTableAlternateLocation, Path.SEPARATOR) +
+          Path.SEPARATOR + orcTableName;
     } else {
       orcDataLocation = StringUtils.removeEnd(avroDataLocation, Path.SEPARATOR) + "_orc";
     }
 
+    if (postfix.isPresent()) {
+      orcDataLocation += postfix.get();
+    }
+
     // Each job execution further writes to a sub-directory within ORC data directory to support stagin use-case
     // .. ie for atomic swap
-    orcDataLocation += "/" + workUnit.getJobState().getId();
+    orcDataLocation += Path.SEPARATOR + workUnit.getJobState().getId();
 
     return orcDataLocation;
   }
