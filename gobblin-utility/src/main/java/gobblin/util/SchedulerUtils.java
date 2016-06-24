@@ -12,25 +12,28 @@
 
 package gobblin.util;
 
-import gobblin.configuration.ConfigurationKeys;
-
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.commons.io.monitor.FileAlterationMonitor;
 import org.apache.commons.io.monitor.FileAlterationObserver;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -38,6 +41,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
+import gobblin.configuration.ConfigurationKeys;
+
 
 
 /**
@@ -67,6 +72,33 @@ public class SchedulerUtils {
       return !Files.getFileExtension(name).equalsIgnoreCase(JOB_PROPS_FILE_EXTENSION);
     }
   };
+
+  private static final PathFilter PROPERTIES_PATH_FILTER = new PathFilter() {
+    @Override
+    public boolean accept(Path path) {
+      String fileExtension = path.getName().substring(path.getName().lastIndexOf('.') + 1);
+      return fileExtension.equalsIgnoreCase(JOB_PROPS_FILE_EXTENSION);
+    }
+  };
+
+  private static final PathFilter NON_PROPERTIES_PATH_FILTER = new PathFilter() {
+    @Override
+    public boolean accept(Path path) {
+      return !PROPERTIES_PATH_FILTER.accept(path);
+    }
+  };
+
+  /**
+   * Load job configuration from job configuration files stored in general file system,
+   * located by Path
+   */
+  public static List<Properties> loadGenericJobConfigs(Properties properties)
+      throws ConfigurationException, IOException {
+    List<Properties> jobConfigs = Lists.newArrayList();
+    loadGenericJobConfigsRecursive(jobConfigs, properties, getJobConfigurationFileExtensions(properties),
+        new Path(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)));
+    return jobConfigs;
+  }
 
   /**
    * Load job configurations from job configuration files stored under the
@@ -178,6 +210,81 @@ public class SchedulerUtils {
   }
 
   /**
+   * Recursively load job configuration files under given URI of **directory of config files folder**
+   */
+  private static void loadGenericJobConfigsRecursive(List<Properties> jobConfigs, Properties rootProps,
+      Set<String> jobConfigFileExtensions, Path configDirPath)
+      throws ConfigurationException, IOException {
+
+    /* create the generic file system */
+    Configuration conf = new Configuration();
+    try (FileSystem filesystem = configDirPath.getFileSystem(conf)) {
+      if (!filesystem.exists(configDirPath)) {
+        throw new RuntimeException("No specified .properties directory found :" + configDirPath.toString());
+      }
+
+      FileStatus[] propertiesFilesStatus = filesystem.listStatus(configDirPath, PROPERTIES_PATH_FILTER);
+
+      if (propertiesFilesStatus.length > 0) {
+        // There should be a single properties file in each directory (or sub directory)
+        if (propertiesFilesStatus.length != 1) {
+          throw new RuntimeException("Found more than one .properties file in directory: " + configDirPath);
+        }
+
+        // Load the properties, which may overwrite the same properties defined in the parent or ancestor directories.
+        // Open the inputStream, construct a reader and send to the loader for constructing propertiesConfiguration.
+        PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
+        Path uniqueConfigFilePath = propertiesFilesStatus[0].getPath();
+        try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(uniqueConfigFilePath),
+            Charsets.UTF_8)) {
+          propertiesConfiguration.load(inputStreamReader);
+          rootProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
+        }
+      }
+
+      // Get all non-properties files
+      FileStatus[] nonPropFiles = filesystem.listStatus(configDirPath, NON_PROPERTIES_PATH_FILTER);
+      if (nonPropFiles.length == 0) {
+        return;
+      }
+
+      for (FileStatus nonPropFile : nonPropFiles) {
+        Path configFilePath = nonPropFile.getPath();
+        if (nonPropFile.isDirectory()) {
+          Properties rootPropsCopy = new Properties();
+          rootPropsCopy.putAll(rootProps);
+          loadGenericJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, configFilePath);
+        } else {
+          if (!jobConfigFileExtensions.contains(
+              configFilePath.getName().substring(configFilePath.getName().lastIndexOf('.') + 1).toLowerCase())) {
+            LOGGER.warn("Skipped file " + configFilePath + " that has an unsupported extension");
+            continue;
+          }
+
+          Path doneFilePath = configFilePath.suffix(".done");
+          if (filesystem.exists(doneFilePath)) {
+            LOGGER.info("Skipped job configuration file " + doneFilePath + " for which a .done file exists");
+            continue;
+          }
+
+          Properties jobProps = new Properties();
+          // Put all parent/ancestor properties first
+          jobProps.putAll(rootProps);
+          // Then load the job configuration properties defined in the job configuration file
+          PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
+          try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(configFilePath),
+              Charsets.UTF_8)) {
+            propertiesConfiguration.load(inputStreamReader);
+            jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
+            jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, configFilePath.toString());
+            jobConfigs.add(jobProps);
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * Recursively load job configuration files under the given directory.
    */
   private static void loadJobConfigsRecursive(List<Properties> jobConfigs, Properties rootProps,
@@ -193,8 +300,8 @@ public class SchedulerUtils {
       }
 
       // Load the properties, which may overwrite the same properties defined in the parent or ancestor directories.
-      rootProps.putAll(ConfigurationConverter
-          .getProperties(new PropertiesConfiguration(new File(jobConfigDir, propertiesFiles[0]))));
+      rootProps.putAll(ConfigurationConverter.getProperties(
+          new PropertiesConfiguration(new File(jobConfigDir, propertiesFiles[0]))));
     }
 
     // Get all non-properties files
@@ -236,7 +343,9 @@ public class SchedulerUtils {
   }
 
   private static Set<String> getJobConfigurationFileExtensions(Properties properties) {
-    Iterable<String> jobConfigFileExtensionsIterable = Splitter.on(",").omitEmptyStrings().trimResults()
+    Iterable<String> jobConfigFileExtensionsIterable = Splitter.on(",")
+        .omitEmptyStrings()
+        .trimResults()
         .split(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
             ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS));
     return ImmutableSet.copyOf(Iterables.transform(jobConfigFileExtensionsIterable, new Function<String, String>() {

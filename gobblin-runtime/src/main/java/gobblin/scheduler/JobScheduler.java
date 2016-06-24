@@ -145,7 +145,7 @@ public class JobScheduler extends AbstractIdleService {
 
     this.scheduler.start();
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
-      scheduleLocallyConfiguredJobs();
+      scheduleGeneralConfiguredJobs() ;
       startJobConfigFileMonitor();
     }
   }
@@ -356,6 +356,17 @@ public class JobScheduler extends AbstractIdleService {
   }
 
   /**
+   * Schedule Gobblin jobs in general position
+   */
+  private void scheduleGeneralConfiguredJobs() throws ConfigurationException, JobException, IOException {
+    LOG.info("Scheduling locally configured jobs");
+    for (Properties jobProps : loadGeneralJobConfigs()) {
+      boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+      scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
+    }
+  }
+
+  /**
    * Load local job configurations.
    */
   private List<Properties> loadLocalJobConfigs() throws ConfigurationException {
@@ -364,6 +375,22 @@ public class JobScheduler extends AbstractIdleService {
         jobConfigs.size()));
 
     return jobConfigs;
+  }
+
+  /**
+   * Load job configuration file(s) from general source
+   */
+  private List<Properties> loadGeneralJobConfigs() throws ConfigurationException, IOException {
+    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(this.properties);
+    LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
+    return jobConfigs ;
+  }
+
+  /**
+   * TODO: Support general file system API for configure file monitor, Not implemented yet.
+   * Job configuration file monitor using generic file system API.
+   */
+  private void startGeneralJobConfigFIleMonitor() throws UnsupportedOperationException {
   }
 
   /**
