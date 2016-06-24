@@ -19,9 +19,9 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.data.management.conversion.hive.AvroSchemaManager;
-import gobblin.data.management.conversion.hive.HiveSource;
 import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
 import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
+import gobblin.data.management.conversion.hive.source.HiveSource;
 import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.source.workunit.WorkUnit;
 
