@@ -35,8 +35,8 @@ import com.google.common.collect.Maps;
 
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyEntity;
+import gobblin.data.management.copy.entities.CommitStepDB;
 import gobblin.data.management.copy.entities.PostPublishStep;
-import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.data.management.copy.hive.HiveCopyEntityHelper.DeregisterFileDeleteMethod;
 import gobblin.hive.HiveRegProps;
 import gobblin.metrics.event.MultiTimingEvent;
@@ -172,7 +172,8 @@ public class HiveCopyEntityHelperTest {
     Assert.assertTrue(copyEntities.get(0) instanceof PostPublishStep);
     PostPublishStep p = (PostPublishStep) (copyEntities.get(0));
     Assert
-        .assertTrue(p.getStep().toString().contains("Deregister table TestDB.TestTable on Hive metastore /targetURI"));
+        .assertTrue(p.getStep(new CommitStepDB()).toString().
+            contains("Deregister table TestDB.TestTable on Hive metastore /targetURI"));
   }
 
   @Test public void testReplacedPrefix() throws Exception {
