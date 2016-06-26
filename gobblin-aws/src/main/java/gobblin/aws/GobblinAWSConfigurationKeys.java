@@ -53,11 +53,13 @@ public class GobblinAWSConfigurationKeys {
   public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_AWS_PREFIX + "helix.instance.max.retries";
 
   // Security and authentication configuration properties.
-  public static final String KEYTAB_FILE_PATH = GOBBLIN_AWS_PREFIX + "keytab.file.path";
-  public static final String KEYTAB_PRINCIPAL_NAME = GOBBLIN_AWS_PREFIX + "keytab.principal.name";
-  public static final String TOKEN_FILE_NAME = ".token";
-  public static final String LOGIN_INTERVAL_IN_MINUTES = GOBBLIN_AWS_PREFIX + "login.interval.minutes";
-  public static final String TOKEN_RENEW_INTERVAL_IN_MINUTES = GOBBLIN_AWS_PREFIX + "token.renew.interval.minutes";
+  public static final String CREDENTIALS_REFRESH_INTERVAL_IN_MINUTES = GOBBLIN_AWS_PREFIX + "credentials.refresh.interval.minutes";
+  public static final String SERVICE_ACCESS_KEY = GOBBLIN_AWS_PREFIX + "service.access";
+  public static final String SERVICE_CLIENT_KEY = GOBBLIN_AWS_PREFIX + "service.client";
+  public static final String CLIENT_ASSUME_ROLE_KEY = GOBBLIN_AWS_PREFIX + "client.assume.role";
+  public static final String CLIENT_ROLE_ARN_KEY = GOBBLIN_AWS_PREFIX + "client.role.arn";
+  public static final String CLIENT_EXTERNAL_ID_KEY = GOBBLIN_AWS_PREFIX + "client.external.id";
+  public static final String CLIENT_SESSION_ID_KEY = GOBBLIN_AWS_PREFIX + "client.session.id";
 
   // Resource/dependencies configuration properties.
   public static final String LIB_JARS_DIR_KEY = GOBBLIN_AWS_PREFIX + "lib.jars.dir";
@@ -72,4 +74,5 @@ public class GobblinAWSConfigurationKeys {
   public static final String LOG_COPIER_SCHEDULER = GOBBLIN_AWS_PREFIX + "log.copier.scheduler";
   public static final String LOG_COPIER_MAX_FILE_SIZE = GOBBLIN_AWS_PREFIX + "log.copier.max.file.size";
   public static final String GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE = "log4j-aws.properties";
+
 }
