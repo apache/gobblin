@@ -11,6 +11,9 @@
  */
 package gobblin.aws;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,9 +32,15 @@ import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.CreateKeyPairResult;
 import com.amazonaws.services.ec2.model.CreateSecurityGroupRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.IpPermission;
 import com.amazonaws.services.ec2.model.KeyPair;
+import com.amazonaws.services.ec2.model.Reservation;
 import com.google.common.base.Splitter;
+
 
 /**
  * This class is responsible for all AWS API calls
@@ -173,6 +182,34 @@ public class AWSSdkClient {
 
     LOGGER.info("Created AutoScalingGroup: " + groupName);
   }
+
+  public static List<Instance> getInstancesForGroup(AWSClusterSecurityManager awsClusterSecurityManager,
+      Regions region,
+      String groupName,
+      String status) {
+
+    AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
+
+    final DescribeInstancesResult instancesResult = amazonEC2
+        .describeInstances(new DescribeInstancesRequest()
+            .withFilters(new Filter().withName("tag:aws:autoscaling:groupName").withValues(groupName)));
+
+    List<Instance> instances = new ArrayList<>();
+    for (Reservation reservation : instancesResult.getReservations()) {
+      for (Instance instance : reservation.getInstances()) {
+        if (null == status|| null == instance.getState()
+            || status.equals(instance.getState().getName())) {
+          instances.add(instance);
+          LOGGER.info("Found instance: " + instance + " which qualified filter: " + status);
+        } else {
+          LOGGER.info("Found instance: " + instance + " but did not qualify for filter: " + status);
+        }
+      }
+    }
+
+    return instances;
+  }
+
 
   public static AmazonEC2 getEc2Client(AWSClusterSecurityManager awsClusterSecurityManager,
       Regions region) {

@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.autoscaling.model.Tag;
+import com.amazonaws.services.ec2.model.Instance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -119,6 +120,8 @@ public class GobblinAWSClusterLauncher {
   private final Optional<String> masterJvmArgs;
   private final Optional<String> workerJvmArgs;
 
+  private String masterPublicIp;
+
   private final String sinkLogRootDir;
 
   // A generator for an integer ID of a Helix instance (participant)
@@ -133,7 +136,8 @@ public class GobblinAWSClusterLauncher {
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     this.helixManager = HelixManagerFactory
-        .getZKHelixManager(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), GobblinClusterUtils.getHostname(), InstanceType.SPECTATOR, zkConnectionString);
+        .getZKHelixManager(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
+            GobblinClusterUtils.getHostname(), InstanceType.SPECTATOR, zkConnectionString);
 
     this.awsRegion = config.getString(GobblinAWSConfigurationKeys.AWS_REGION);
     this.masterAmiId = config.getString(GobblinAWSConfigurationKeys.MASTER_AMI_ID);
@@ -287,8 +291,7 @@ public class GobblinAWSClusterLauncher {
 
     // Create key value pair
     String keyName = "GobblinKey_" + uuid;
-    String material = AWSSdkClient.createKeyValuePair(this.awsClusterSecurityManager,
-        Regions.fromName(this.awsRegion),
+    String material = AWSSdkClient.createKeyValuePair(this.awsClusterSecurityManager, Regions.fromName(this.awsRegion),
         keyName);
     // TODO: save material for later
     LOGGER.info("Material is: " + material);
@@ -326,10 +329,11 @@ public class GobblinAWSClusterLauncher {
     int minNumMasters = 1;
     int maxNumMasters = 1;
     int desiredNumMasters = 1;
+    String autoscalingGroupName = "GobblinMasterASG_" + uuid;
     Tag tag = new Tag().withKey("GobblinMaster").withValue(uuid);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Regions.fromName(this.awsRegion),
-        securityGroups,
+        autoscalingGroupName,
         launchConfigName,
         minNumMasters,
         maxNumMasters,
@@ -341,6 +345,32 @@ public class GobblinAWSClusterLauncher {
         null,
         tag,
         null);
+
+    LOGGER.info("Waiting for cluster master to launch");
+    long startTime = System.currentTimeMillis();
+    long launchTimeout = TimeUnit.MINUTES.toMillis(10);
+    boolean isMasterLaunched = false;
+    List<Instance> instanceIds = null;
+    while (!isMasterLaunched && (System.currentTimeMillis() - startTime) < launchTimeout) {
+      try {
+        Thread.sleep(5000);
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Interrupted while waiting for cluster master to boot up", e);
+      }
+      instanceIds = AWSSdkClient.getInstancesForGroup(this.awsClusterSecurityManager,
+          Regions.fromName(this.awsRegion),
+          autoscalingGroupName,
+          "running");
+      isMasterLaunched = instanceIds.size() > 0;
+    }
+
+    if (!isMasterLaunched) {
+      throw new RuntimeException("Timed out while waiting for cluster master. "
+          + "Check for issue manually for ASG: " + autoscalingGroupName);
+    }
+
+    // This will change if cluster master restarts, but that will be handled by Helix events
+    this.masterPublicIp = instanceIds.get(0).getPublicIpAddress();
 
     return "GobblinClusterMaster_" + uuid;
   }
@@ -366,10 +396,11 @@ public class GobblinAWSClusterLauncher {
         userData);
 
     // Create ASG for Cluster workers
+    String autoscalingGroupName = "GobblinWorkerASG_" + uuid;
     Tag tag = new Tag().withKey("GobblinWorker").withValue(uuid);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Regions.fromName(this.awsRegion),
-        securityGroups,
+        autoscalingGroupName,
         launchConfigName,
         this.minWorkers,
         this.maxWorkers,
@@ -392,11 +423,22 @@ public class GobblinAWSClusterLauncher {
     // TODO: Replace with EFS when available in GA
     // Note: Until EFS availability, ClusterMaster is SPOF because we loose NFS when it's relaunched / replaced
     //       .. this can be worked around, but would be an un-necessary work
-    // String nfsRoot = "/var/gobblin";
+    String appRootDir = "/home/ec2-user/" + this.clusterName;
+    String nfsShareIps = "*";
+    String nfsShareOpts = "rw,sync,no_subtree_check,fsid=1,no_root_squash";
+    String nfsShareDirCmd = String.format("echo '%s %s(%s)' | sudo tee --append /etc/exports",
+        appRootDir, nfsShareIps, nfsShareOpts);
+    userDataCmds.append("sudo yum install nfs-utils nfs-utils-lib").append("\n");
+    userDataCmds.append("mkdir -p ").append(appRootDir).append("\n");
+    userDataCmds.append(nfsShareDirCmd).append("\n");
+    userDataCmds.append("sudo /etc/init.d/nfs start").append("\n");
+    userDataCmds.append("sudo exportfs -a").append("\n");
 
     // Create various directories
     StringBuilder logDir = new StringBuilder().append(this.sinkLogRootDir).append(File.separator).append("logs");
+    String appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.clusterName, "1");
     userDataCmds.append("mkdir -p ").append(logDir).append("\n");
+    userDataCmds.append("mkdir -p ").append(appWorkDir).append("\n");
 
     // Launch Gobblin Cluster Master
     StringBuilder launchGobblinClusterMasterCmd = new StringBuilder()
@@ -422,9 +464,14 @@ public class GobblinAWSClusterLauncher {
 
     // Connect to NFS server
     // TODO: Replace with EFS when available in GA
-    // String nfsRoot = "/var/gobblin";
+    String appRootDir = "/home/ec2-user/" + this.clusterName;
+    String nfsType = "nfs4";
+    String nfsMountCmd = String.format("sudo mount -t %s %s:%s %s",
+        nfsType, this.masterPublicIp, appRootDir, appRootDir);
+    userDataCmds.append("mkdir -p ").append(appRootDir).append("\n");
+    userDataCmds.append(nfsMountCmd).append("\n");
 
-    // Create various directories
+    // Create various other directories
     StringBuilder logDir = new StringBuilder().append(this.sinkLogRootDir).append(File.separator).append("logs");
     userDataCmds.append("mkdir -p ").append(logDir).append("\n");
 
