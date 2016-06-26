@@ -13,8 +13,8 @@ package gobblin.aws;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -22,9 +22,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.mail.EmailException;
+import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
+import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +38,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
@@ -46,7 +49,10 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinClusterUtils;
+import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.cluster.HelixUtils;
+import gobblin.util.ConfigUtils;
+import gobblin.util.EmailUtils;
 import gobblin.util.ExecutorsUtils;
 
 /**
@@ -61,7 +67,7 @@ import gobblin.util.ExecutorsUtils;
  *
  * <p>
  *   On the other hand, if there's no such a reconnectable AWS cluster, This class will launch a new AWS
- *   cluster and start the {@link GobblinAWSClusterMaster}. It also persists the new cluster ID so it
+ *   cluster and start the {@link GobblinAWSClusterMaster}. It also persists the new cluster details so it
  *   is able to reconnect to the AWS cluster if it is restarted for some reason. Once the cluster is
  *   launched, this class starts to monitor the cluster by periodically polling the status of the cluster
  *   through a {@link ListeningExecutorService}.
@@ -80,26 +86,8 @@ public class GobblinAWSClusterLauncher {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterLauncher.class);
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
-
-  private static final String GOBBLIN_AWS_CLUSTER_TYPE = "GOBBLIN_AWS";
-
-  // The set of AWS cluster types this class is interested in. This is used to
-  // lookup the cluster this class has launched previously upon restarting.
-  private static final Set<String> CLUSTER_TYPES = ImmutableSet.of(GOBBLIN_AWS_CLUSTER_TYPE);
-
   private static final String STDOUT = "stdout";
   private static final String STDERR = "stderr";
-
-  // The set of AWS cluster states under which the driver can reconnect to the AWS cluster after restart
-  private enum RECONNECTABLE_CLUSTER_STATES {
-      NEW,
-      NEW_SAVING,
-      SUBMITTED,
-      ACCEPTED,
-      RUNNING
-  };
-
-  private final String clusterName;
 
   private final Config config;
 
@@ -118,7 +106,8 @@ public class GobblinAWSClusterLauncher {
 
   private final Closer closer = Closer.create();
 
-  // AWS cluster ID
+  // AWS cluster meta
+  private final String clusterName;
   private volatile Optional<String> clusterId = Optional.absent();
 
   private volatile Optional<ServiceManager> serviceManager = Optional.absent();
@@ -199,28 +188,28 @@ public class GobblinAWSClusterLauncher {
   }
 
   /**
-   * Launch a new Gobblin instance on AWS.
+   * Launch a new Gobblin cluster on AWS.
    *
    * @throws IOException if there's something wrong launching the cluster
    */
   public void launch() throws IOException {
     this.eventBus.register(this);
 
-    String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    // Create Helix cluster and connect to it
+    String helixClusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
     HelixUtils
         .createGobblinHelixCluster(this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
-            clusterName);
-    LOGGER.info("Created Helix cluster " + clusterName);
+            helixClusterName);
+    LOGGER.info("Created Helix cluster " + helixClusterName);
 
     connectHelixManager();
 
+    // Start all the services running
+    // TODO: Add log copier service
     List<Service> services = Lists.newArrayList();
     this.awsClusterSecurityManager = new AWSClusterSecurityManager(this.config);
     services.add(this.awsClusterSecurityManager);
-    // TODO: Add log copier service
-
     this.serviceManager = Optional.of(new ServiceManager(services));
-    // Start all the services running in the ClusterMaster
     this.serviceManager.get().startAsync();
 
     // Core logic to launch cluster
@@ -242,10 +231,8 @@ public class GobblinAWSClusterLauncher {
     LOGGER.info("Stopping the " + GobblinAWSClusterLauncher.class.getSimpleName());
 
     try {
-      if (this.clusterId.isPresent() && !this.clusterCompleted) {
-        // Only send the shutdown message if the cluster has been successfully submitted and is still running
-        // TODO: Handle shutdown
-        // sendShutdownRequest();
+      if (this.clusterId.isPresent()) {
+        sendShutdownRequest();
       }
 
       if (this.serviceManager.isPresent()) {
@@ -258,8 +245,7 @@ public class GobblinAWSClusterLauncher {
     } finally {
       try {
         if (this.clusterId.isPresent()) {
-          // TODO: Add cleanup for cluster work dir
-          // cleanUpClusterWorkDirectory(this.clusterId.get());
+           cleanUpClusterWorkDirectory(this.clusterId.get());
         }
       } finally {
         this.closer.close();
@@ -369,7 +355,7 @@ public class GobblinAWSClusterLauncher {
     int minNumMasters = 1;
     int maxNumMasters = 1;
     int desiredNumMasters = 1;
-    Tag tag = new Tag().withKey("GobblinAWSClusterMaster").withValue(uuid);
+    Tag tag = new Tag().withKey("GobblinMaster").withValue(uuid);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Regions.fromName(this.awsRegion),
         securityGroups,
@@ -409,7 +395,7 @@ public class GobblinAWSClusterLauncher {
         userData);
 
     // Create ASG for Cluster workers
-    Tag tag = new Tag().withKey("GobblinClusterWorker").withValue(uuid);
+    Tag tag = new Tag().withKey("GobblinWorker").withValue(uuid);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Regions.fromName(this.awsRegion),
         securityGroups,
@@ -489,6 +475,52 @@ public class GobblinAWSClusterLauncher {
     return userDataCmds.toString();
   }
 
+  @VisibleForTesting
+  void sendShutdownRequest() {
+    Criteria criteria = new Criteria();
+    criteria.setInstanceName("%");
+    criteria.setResource("%");
+    criteria.setPartition("%");
+    criteria.setPartitionState("%");
+    criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
+    criteria.setSessionSpecific(true);
+
+    Message shutdownRequest = new Message(Message.MessageType.SHUTDOWN,
+        HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString().toLowerCase() + UUID.randomUUID().toString());
+    shutdownRequest.setMsgSubType(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
+    shutdownRequest.setMsgState(Message.MessageState.NEW);
+    shutdownRequest.setTgtSessionId("*");
+
+    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest);
+    if (messagesSent == 0) {
+      LOGGER.error(String.format("Failed to send the %s message to the controller", shutdownRequest.getMsgSubType()));
+    }
+  }
+
+  private void cleanUpClusterWorkDirectory(String clusterId) throws IOException {
+    File appWorkDir = new File(GobblinClusterUtils.getAppWorkDirPath(this.clusterName, clusterId));
+
+    if (appWorkDir.exists() && appWorkDir.isDirectory()) {
+      LOGGER.info("Deleting application working directory " + appWorkDir);
+      FileUtils.deleteDirectory(appWorkDir);
+    }
+  }
+
+  private void sendEmailOnShutdown(Optional<String> report) {
+    String subject = String.format("Gobblin AWS cluster %s completed", this.clusterName);
+
+    StringBuilder messageBuilder = new StringBuilder("Gobblin AWS cluster was shutdown at: " + new Date());
+    if (report.isPresent()) {
+      messageBuilder.append(' ').append(report.get());
+    }
+
+    try {
+      EmailUtils.sendEmail(ConfigUtils.configToState(this.config), subject, messageBuilder.toString());
+    } catch (EmailException ee) {
+      LOGGER.error("Failed to send email notification on shutdown", ee);
+    }
+  }
+
   public static void main(String[] args) throws Exception {
     final GobblinAWSClusterLauncher gobblinAWSClusterLauncher =
         new GobblinAWSClusterLauncher(ConfigFactory.load());
@@ -504,8 +536,7 @@ public class GobblinAWSClusterLauncher {
           LOGGER.error("Timeout in stopping the service manager", te);
         } finally {
           if (gobblinAWSClusterLauncher.emailNotificationOnShutdown) {
-            // TODO: Add send email code
-            // gobblinAWSClusterLauncher.sendEmailOnShutdown(Optional.<ClusterReport>absent());
+            gobblinAWSClusterLauncher.sendEmailOnShutdown(Optional.<String>absent());
           }
         }
       }
