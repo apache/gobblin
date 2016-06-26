@@ -16,8 +16,6 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,7 +34,6 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.autoscaling.model.Tag;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
@@ -53,7 +50,6 @@ import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.cluster.HelixUtils;
 import gobblin.util.ConfigUtils;
 import gobblin.util.EmailUtils;
-import gobblin.util.ExecutorsUtils;
 
 /**
  * A client driver to launch Gobblin as an AWS Cluster.
@@ -85,24 +81,15 @@ import gobblin.util.ExecutorsUtils;
 public class GobblinAWSClusterLauncher {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterLauncher.class);
 
-  private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
   private static final String STDOUT = "stdout";
   private static final String STDERR = "stderr";
 
   private final Config config;
 
   private final HelixManager helixManager;
-
   private final EventBus eventBus = new EventBus(GobblinAWSClusterLauncher.class.getSimpleName());
-
+  private volatile Optional<ServiceManager> serviceManager = Optional.absent();
   private AWSClusterSecurityManager awsClusterSecurityManager;
-  private final ScheduledExecutorService clusterStatusMonitor;
-  private final long clusterReportIntervalMinutes;
-
-  private final Optional<String> masterJvmArgs;
-  private final Optional<String> workerJvmArgs;
-
-  private final String sinkLogRootDir;
 
   private final Closer closer = Closer.create();
 
@@ -110,20 +97,7 @@ public class GobblinAWSClusterLauncher {
   private final String clusterName;
   private volatile Optional<String> clusterId = Optional.absent();
 
-  private volatile Optional<ServiceManager> serviceManager = Optional.absent();
-
-  // Maximum number of consecutive failures allowed to get the ClusterReport
-  private final int maxGetClusterReportFailures;
-
-  // A count on the number of consecutive failures on getting the ClusterReport
-  private final AtomicInteger getClusterReportFailureCount = new AtomicInteger();
-
-  // This flag tells if the AWS cluster has already completed. This is used to
-  // tell if it is necessary to send a shutdown message to the ClusterMaster.
-  private volatile boolean clusterCompleted = false;
-
   private volatile boolean stopped = false;
-
   private final boolean emailNotificationOnShutdown;
 
   // AWS Gobblin cluster common config
@@ -142,6 +116,11 @@ public class GobblinAWSClusterLauncher {
   private final Integer maxWorkers;
   private final Integer desiredWorkers;
 
+  private final Optional<String> masterJvmArgs;
+  private final Optional<String> workerJvmArgs;
+
+  private final String sinkLogRootDir;
+
   // A generator for an integer ID of a Helix instance (participant)
   private final AtomicInteger helixInstanceIdGenerator = new AtomicInteger(0);
 
@@ -154,8 +133,7 @@ public class GobblinAWSClusterLauncher {
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     this.helixManager = HelixManagerFactory
-        .getZKHelixManager(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
-            GobblinClusterUtils.getHostname(), InstanceType.SPECTATOR, zkConnectionString);
+        .getZKHelixManager(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), GobblinClusterUtils.getHostname(), InstanceType.SPECTATOR, zkConnectionString);
 
     this.awsRegion = config.getString(GobblinAWSConfigurationKeys.AWS_REGION);
     this.masterAmiId = config.getString(GobblinAWSConfigurationKeys.MASTER_AMI_ID);
@@ -168,10 +146,6 @@ public class GobblinAWSClusterLauncher {
     this.maxWorkers = config.getInt(GobblinAWSConfigurationKeys.MAX_WORKERS);
     this.desiredWorkers = config.getInt(GobblinAWSConfigurationKeys.DESIRED_WORKERS);
 
-    this.clusterStatusMonitor = Executors.newSingleThreadScheduledExecutor(
-        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinAWSClusterStatusMonitor")));
-    this.clusterReportIntervalMinutes = config.getLong(GobblinAWSConfigurationKeys.CLUSTER_REPORT_INTERVAL_MINUTES_KEY);
-
     this.masterJvmArgs = config.hasPath(GobblinAWSConfigurationKeys.MASTER_JVM_ARGS_KEY) ?
         Optional.of(config.getString(GobblinAWSConfigurationKeys.MASTER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
@@ -180,8 +154,6 @@ public class GobblinAWSClusterLauncher {
         Optional.<String>absent();
 
     this.sinkLogRootDir = config.getString(GobblinAWSConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
-
-    this.maxGetClusterReportFailures = config.getInt(GobblinAWSConfigurationKeys.MAX_GET_CLUSTER_REPORT_FAILURES_KEY);
 
     this.emailNotificationOnShutdown =
         config.getBoolean(GobblinAWSConfigurationKeys.EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY);
@@ -238,8 +210,6 @@ public class GobblinAWSClusterLauncher {
       if (this.serviceManager.isPresent()) {
         this.serviceManager.get().stopAsync().awaitStopped(5, TimeUnit.MINUTES);
       }
-
-      ExecutorsUtils.shutdownExecutorService(this.clusterStatusMonitor, Optional.of(LOGGER), 5, TimeUnit.MINUTES);
 
       disconnectHelixManager();
     } finally {
@@ -321,6 +291,7 @@ public class GobblinAWSClusterLauncher {
         Regions.fromName(this.awsRegion),
         keyName);
     // TODO: save material for later
+    LOGGER.info("Material is: " + material);
 
     // Launch Cluster Master
     String clusterId = launchClusterMaster(uuid, keyName, securityGroupName);
@@ -421,7 +392,7 @@ public class GobblinAWSClusterLauncher {
     // TODO: Replace with EFS when available in GA
     // Note: Until EFS availability, ClusterMaster is SPOF because we loose NFS when it's relaunched / replaced
     //       .. this can be worked around, but would be an un-necessary work
-    String nfsRoot = "/var/gobblin";
+    // String nfsRoot = "/var/gobblin";
 
     // Create various directories
     StringBuilder logDir = new StringBuilder().append(this.sinkLogRootDir).append(File.separator).append("logs");
@@ -451,7 +422,7 @@ public class GobblinAWSClusterLauncher {
 
     // Connect to NFS server
     // TODO: Replace with EFS when available in GA
-    String nfsRoot = "/var/gobblin";
+    // String nfsRoot = "/var/gobblin";
 
     // Create various directories
     StringBuilder logDir = new StringBuilder().append(this.sinkLogRootDir).append(File.separator).append("logs");
