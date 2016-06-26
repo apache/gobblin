@@ -19,28 +19,24 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinClusterManager;
-import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.util.logs.Log4jConfigurationHelper;
 
 /**
- * The AWS ApplicationMaster class for Gobblin.
- *
- * <p>
- *   This class runs the {@link AWSService} for all AWS-related stuffs like ApplicationMaster launch
- *   and AWS container provisioning.
- * </p>
+ * The AWS Cluster Master class for Gobblin.
  *
  * @author Abhishek Tiwari
  */
 @Alpha
-public class GobblinApplicationMaster extends GobblinClusterManager {
+public class GobblinAWSClusterMaster extends GobblinClusterManager {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinApplicationMaster.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterMaster.class);
 
-  public GobblinApplicationMaster(String clusterName, String applicationId, Config config)
+  public GobblinAWSClusterMaster(String clusterName, String applicationId, Config config)
       throws Exception {
     super(clusterName, applicationId, config);
 
+    // Note: JobConfigurationManager and HelixJobScheduler are initializedin GobblinClusterManager
+    // TODO: Add log handler
   }
 
   /**
@@ -68,11 +64,8 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
      * A custom {@link MessageHandler} for handling user-defined messages to the controller.
      *
      * <p>
-     *   Currently it handles the following sub types of messages:
-     *
-     *   <ul>
-     *     <li>{@link HelixMessageSubTypes#TOKEN_FILE_UPDATED}</li>
-     *   </ul>
+     *   Currently does not handle any user-defined messages. If this class is passed a custom message, it will simply
+     *   print out a warning and return successfully.
      * </p>
      */
     private class ControllerUserDefinedMessageHandler extends MessageHandler {
@@ -83,12 +76,13 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
 
       @Override
       public HelixTaskResult handleMessage() throws InterruptedException {
-        String messageSubType = this._message.getMsgSubType();
+        LOGGER.warn(String
+            .format("No handling setup for %s message of subtype: %s", Message.MessageType.USER_DEFINE_MSG.toString(),
+                this._message.getMsgSubType()));
 
-        // TODO: Add handler for different message types
-
-        throw new IllegalArgumentException(String.format("Unknown %s message subtype: %s",
-            Message.MessageType.USER_DEFINE_MSG.toString(), messageSubType));
+        HelixTaskResult helixTaskResult = new HelixTaskResult();
+        helixTaskResult.setSuccess(true);
+        return helixTaskResult;
       }
 
       @Override
@@ -107,7 +101,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
 
   private static void printUsage(Options options) {
     HelpFormatter formatter = new HelpFormatter();
-    formatter.printHelp(GobblinApplicationMaster.class.getSimpleName(), options);
+    formatter.printHelp(GobblinAWSClusterMaster.class.getSimpleName(), options);
   }
 
   public static void main(String[] args) throws Exception {
@@ -119,18 +113,18 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
         System.exit(1);
       }
 
-      Log4jConfigurationHelper.updateLog4jConfiguration(GobblinApplicationMaster.class,
+      Log4jConfigurationHelper.updateLog4jConfiguration(GobblinAWSClusterMaster.class,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE);
 
       // TODO: If required, change logic to fetch application id
       String applicationId = "1";
 
-      try (GobblinApplicationMaster applicationMaster = new GobblinApplicationMaster(
+      try (GobblinAWSClusterMaster clusterMaster = new GobblinAWSClusterMaster(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), applicationId,
           ConfigFactory.load())) {
 
-        applicationMaster.start();
+        clusterMaster.start();
       }
     } catch (ParseException pe) {
       printUsage(options);

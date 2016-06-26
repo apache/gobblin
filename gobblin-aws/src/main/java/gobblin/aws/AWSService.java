@@ -67,11 +67,6 @@ public class AWSService extends AbstractIdleService {
 
   private final ExecutorService containerLaunchExecutor;
 
-  private final int initialContainers;
-  private final int requestedContainerMemoryMbs;
-  private final int requestedContainerCores;
-  private final boolean containerHostAffinityEnabled;
-
   private final int helixInstanceMaxRetries;
 
   private final Optional<String> containerJvmArgs;
@@ -108,15 +103,10 @@ public class AWSService extends AbstractIdleService {
 
     this.fs = fs;
 
-    this.initialContainers = config.getInt(GobblinAWSConfigurationKeys.INITIAL_CONTAINERS_KEY);
-    this.requestedContainerMemoryMbs = config.getInt(GobblinAWSConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
-    this.requestedContainerCores = config.getInt(GobblinAWSConfigurationKeys.CONTAINER_CORES_KEY);
-    this.containerHostAffinityEnabled = config.getBoolean(GobblinAWSConfigurationKeys.CONTAINER_HOST_AFFINITY_ENABLED);
-
     this.helixInstanceMaxRetries = config.getInt(GobblinAWSConfigurationKeys.HELIX_INSTANCE_MAX_RETRIES);
 
-    this.containerJvmArgs = config.hasPath(GobblinAWSConfigurationKeys.CONTAINER_JVM_ARGS_KEY) ?
-        Optional.of(config.getString(GobblinAWSConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
+    this.containerJvmArgs = config.hasPath(GobblinAWSConfigurationKeys.WORKER_JVM_ARGS_KEY) ?
+        Optional.of(config.getString(GobblinAWSConfigurationKeys.WORKER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
     this.containerLaunchExecutor = Executors.newFixedThreadPool(10,
@@ -134,7 +124,6 @@ public class AWSService extends AbstractIdleService {
     // TODO: Start framework callbacks
 
     LOGGER.info("Requesting initial containers");
-    requestInitialContainers(this.initialContainers);
   }
 
   @Override

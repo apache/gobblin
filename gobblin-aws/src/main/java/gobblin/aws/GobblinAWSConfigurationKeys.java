@@ -22,40 +22,48 @@ public class GobblinAWSConfigurationKeys {
   public static final String GOBBLIN_AWS_PREFIX = "gobblin.aws.";
 
   // General Gobblin AWS application configuration properties.
-  public static final String APPLICATION_NAME_KEY = GOBBLIN_AWS_PREFIX + "app.name";
-  public static final String APP_QUEUE_KEY = GOBBLIN_AWS_PREFIX + "app.queue";
-  public static final String APP_REPORT_INTERVAL_MINUTES_KEY = GOBBLIN_AWS_PREFIX + "app.report.interval.minutes";
-  public static final String MAX_GET_APP_REPORT_FAILURES_KEY = GOBBLIN_AWS_PREFIX + "max.get.app.report.failures";
+  public static final String CLUSTER_NAME_KEY = GOBBLIN_AWS_PREFIX + "cluster.name";
+  public static final String CLUSTER_REPORT_INTERVAL_MINUTES_KEY = GOBBLIN_AWS_PREFIX + "cluster.report.interval.minutes";
+  public static final String MAX_GET_CLUSTER_REPORT_FAILURES_KEY = GOBBLIN_AWS_PREFIX + "max.get.cluster.report.failures";
   public static final String EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY =
       GOBBLIN_AWS_PREFIX + "email.notification.on.shutdown";
 
-  // Gobblin AWS ApplicationMaster configuration properties.
-  public static final String APP_MASTER_MEMORY_MBS_KEY = GOBBLIN_AWS_PREFIX + "app.master.memory.mbs";
-  public static final String APP_MASTER_CORES_KEY = GOBBLIN_AWS_PREFIX + "app.master.cores";
-  public static final String APP_MASTER_JARS_KEY = GOBBLIN_AWS_PREFIX + "app.master.jars";
-  public static final String APP_MASTER_FILES_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "app.master.files.local";
-  public static final String APP_MASTER_FILES_REMOTE_KEY = GOBBLIN_AWS_PREFIX + "app.master.files.remote";
-  public static final String APP_MASTER_WORK_DIR_NAME = "appmaster";
-  public static final String APP_MASTER_JVM_ARGS_KEY = GOBBLIN_AWS_PREFIX + "app.master.jvm.args";
+  // Gobblin AWS Gobblin cluster configuration properties.
+  public static final String AWS_REGION = GOBBLIN_AWS_PREFIX + "region";
 
-  // Gobblin AWS container configuration properties.
-  public static final String INITIAL_CONTAINERS_KEY = GOBBLIN_AWS_PREFIX + "initial.containers";
-  public static final String CONTAINER_MEMORY_MBS_KEY = GOBBLIN_AWS_PREFIX + "container.memory.mbs";
-  public static final String CONTAINER_CORES_KEY = GOBBLIN_AWS_PREFIX + "container.cores";
-  public static final String CONTAINER_JARS_KEY = GOBBLIN_AWS_PREFIX + "container.jars";
-  public static final String CONTAINER_FILES_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "container.files.local";
-  public static final String CONTAINER_FILES_REMOTE_KEY = GOBBLIN_AWS_PREFIX + "container.files.remote";
-  public static final String CONTAINER_WORK_DIR_NAME = "container";
-  public static final String CONTAINER_JVM_ARGS_KEY = GOBBLIN_AWS_PREFIX + "container.jvm.args";
-  public static final String CONTAINER_HOST_AFFINITY_ENABLED = GOBBLIN_AWS_PREFIX + "container.affinity.enabled";
+  // Gobblin AWS Gobblin master configuration properties.
+  public static final String MASTER_AMI_ID = GOBBLIN_AWS_PREFIX + "master.ami.id";
+  public static final String MASTER_INSTANCE_TYPE = GOBBLIN_AWS_PREFIX + "master.instance.type";
+  public static final String MASTER_JVM_MEMORY = GOBBLIN_AWS_PREFIX + "master.jvm.memory";
+  public static final String MASTER_JVM_ARGS_KEY = GOBBLIN_AWS_PREFIX + "master.jvm.args";
+
+  public static final String APP_MASTER_JARS_KEY = GOBBLIN_AWS_PREFIX + "master.jars";
+  public static final String APP_MASTER_FILES_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "master.files.local";
+  public static final String APP_MASTER_FILES_REMOTE_KEY = GOBBLIN_AWS_PREFIX + "master.files.remote";
+  public static final String APP_MASTER_WORK_DIR_NAME = "master";
+
+  // Gobblin AWS Gobblin worker configuration properties.
+  public static final String WORKER_AMI_ID = GOBBLIN_AWS_PREFIX + "worker.ami.id";
+  public static final String WORKER_INSTANCE_TYPE = GOBBLIN_AWS_PREFIX + "worker.instance.type";
+  public static final String WORKER_JVM_MEMORY = GOBBLIN_AWS_PREFIX + "worker.jvm.memory";
+  public static final String WORKER_JVM_ARGS_KEY = GOBBLIN_AWS_PREFIX + "worker.jvm.args";
+  public static final String MIN_WORKERS = GOBBLIN_AWS_PREFIX + "min.workers";
+  public static final String MAX_WORKERS = GOBBLIN_AWS_PREFIX + "max.workers";
+  public static final String DESIRED_WORKERS = GOBBLIN_AWS_PREFIX + "desired.workers";
+
+  public static final String WORKER_JARS_KEY = GOBBLIN_AWS_PREFIX + "worker.jars";
+  public static final String WORKER_FILES_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "worker.files.local";
+  public static final String WORKER_FILES_REMOTE_KEY = GOBBLIN_AWS_PREFIX + "worker.files.remote";
+  public static final String WORKER_WORK_DIR_NAME = "worker";
 
   // Helix configuration properties.
   public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_AWS_PREFIX + "helix.instance.max.retries";
 
   // Security and authentication configuration properties.
-  public static final String CREDENTIALS_REFRESH_INTERVAL_IN_MINUTES = GOBBLIN_AWS_PREFIX + "credentials.refresh.interval.minutes";
+  public static final String CREDENTIALS_REFRESH_INTERVAL_IN_MINUTES =
+      GOBBLIN_AWS_PREFIX + "credentials.refresh.interval.minutes";
   public static final String SERVICE_ACCESS_KEY = GOBBLIN_AWS_PREFIX + "service.access";
-  public static final String SERVICE_CLIENT_KEY = GOBBLIN_AWS_PREFIX + "service.client";
+  public static final String SERVICE_SECRET_KEY = GOBBLIN_AWS_PREFIX + "service.secret";
   public static final String CLIENT_ASSUME_ROLE_KEY = GOBBLIN_AWS_PREFIX + "client.assume.role";
   public static final String CLIENT_ROLE_ARN_KEY = GOBBLIN_AWS_PREFIX + "client.role.arn";
   public static final String CLIENT_EXTERNAL_ID_KEY = GOBBLIN_AWS_PREFIX + "client.external.id";
@@ -63,7 +71,6 @@ public class GobblinAWSConfigurationKeys {
 
   // Resource/dependencies configuration properties.
   public static final String LIB_JARS_DIR_KEY = GOBBLIN_AWS_PREFIX + "lib.jars.dir";
-
   public static final String LOGS_SINK_ROOT_DIR_KEY = GOBBLIN_AWS_PREFIX + "logs.sink.root.dir";
   public static final String LIB_JARS_DIR_NAME = "_libjars";
   public static final String APP_JARS_DIR_NAME = "_appjars";
@@ -74,5 +81,4 @@ public class GobblinAWSConfigurationKeys {
   public static final String LOG_COPIER_SCHEDULER = GOBBLIN_AWS_PREFIX + "log.copier.scheduler";
   public static final String LOG_COPIER_MAX_FILE_SIZE = GOBBLIN_AWS_PREFIX + "log.copier.max.file.size";
   public static final String GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE = "log4j-aws.properties";
-
 }

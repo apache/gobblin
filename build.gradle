@@ -148,6 +148,8 @@ ext.externalDependency = [
   "avro": "org.apache.avro:avro:" + avroVersion,
   "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion + ":hadoop2",
   "awsCore": "com.amazonaws:aws-java-sdk-core:1.11.8",
+  "awsAsg": "com.amazonaws:aws-java-sdk-autoscaling:1.11.8",
+  "awsAppAsg": "com.amazonaws:aws-java-sdk-applicationautoscaling:1.11.8",
   "awsEc2": "com.amazonaws:aws-java-sdk-ec2:1.11.8",
   "awsIam": "com.amazonaws:aws-java-sdk-iam:1.11.8",
   "awsS3": "com.amazonaws:aws-java-sdk-s3:1.11.8",

@@ -25,6 +25,8 @@ dependencies {
 
   compile externalDependency.avro
   compile externalDependency.awsCore
+  compile externalDependency.awsAsg
+  compile externalDependency.awsAppAsg
   compile externalDependency.awsEc2
   compile externalDependency.awsIam
   compile externalDependency.awsS3

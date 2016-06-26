@@ -25,9 +25,9 @@ import gobblin.util.ExecutorsUtils;
  *
  * @author Abhishek Tiwari
  */
-public class AWSAppSecurityManager extends AbstractIdleService {
+public class AWSClusterSecurityManager extends AbstractIdleService {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(AWSAppSecurityManager.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AWSClusterSecurityManager.class);
 
   private final Config config;
 
@@ -45,7 +45,7 @@ public class AWSAppSecurityManager extends AbstractIdleService {
 
   private final ScheduledExecutorService loginExecutor;
 
-  public AWSAppSecurityManager(Config config) {
+  public AWSClusterSecurityManager(Config config) {
     this.config = config;
 
     this.refreshIntervalInMinutes = config.getLong(GobblinAWSConfigurationKeys.CREDENTIALS_REFRESH_INTERVAL_IN_MINUTES);
@@ -56,7 +56,7 @@ public class AWSAppSecurityManager extends AbstractIdleService {
 
   private void fetchLoginConfiguration() {
     this.serviceAccessKey = config.getString(GobblinAWSConfigurationKeys.SERVICE_ACCESS_KEY);
-    this.serviceSecretKey = config.getString(GobblinAWSConfigurationKeys.SERVICE_CLIENT_KEY);
+    this.serviceSecretKey = config.getString(GobblinAWSConfigurationKeys.SERVICE_SECRET_KEY);
     this.clientAssumeRole = config.getBoolean(GobblinAWSConfigurationKeys.CLIENT_ASSUME_ROLE_KEY);
 
     // If we are running on behalf of another AWS user, we need to fetch temporary credentials for a
@@ -71,7 +71,7 @@ public class AWSAppSecurityManager extends AbstractIdleService {
   @Override
   protected void startUp()
       throws Exception {
-    LOGGER.info("Starting the " + AWSAppSecurityManager.class.getSimpleName());
+    LOGGER.info("Starting the " + AWSClusterSecurityManager.class.getSimpleName());
 
     LOGGER.info(
         String.format("Scheduling the credentials refresh task with an interval of %d minute(s)",
@@ -122,6 +122,10 @@ public class AWSAppSecurityManager extends AbstractIdleService {
           assumeRoleResult.getCredentials().getSessionToken()
       );
     }
+  }
+
+  public boolean isAssumeRoleEnabled() {
+    return this.clientAssumeRole;
   }
 
   public BasicAWSCredentials getBasicAWSCredentials() {
