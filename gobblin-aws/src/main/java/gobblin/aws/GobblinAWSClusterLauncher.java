@@ -122,6 +122,11 @@ public class GobblinAWSClusterLauncher {
 
   private String masterPublicIp;
 
+  private final String nfsParentDir;
+  private final String masterJarsDir;
+  private final String masterClusterConfS3Uri;
+  private final String workerJarsDir;
+  private final String workerClusterConfS3Uri;
   private final String sinkLogRootDir;
 
   // A generator for an integer ID of a Helix instance (participant)
@@ -157,6 +162,11 @@ public class GobblinAWSClusterLauncher {
         Optional.of(config.getString(GobblinAWSConfigurationKeys.WORKER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
+    this.nfsParentDir = config.getString(GobblinAWSConfigurationKeys.NFS_PARENT_DIR);
+    this.masterJarsDir = config.getString(GobblinAWSConfigurationKeys.MASTER_JARS_KEY);
+    this.masterClusterConfS3Uri = config.getString(GobblinAWSConfigurationKeys.MASTER_FILES_S3_KEY);
+    this.workerJarsDir = config.getString(GobblinAWSConfigurationKeys.WORKER_JARS_KEY);
+    this.workerClusterConfS3Uri = config.getString(GobblinAWSConfigurationKeys.WORKER_FILES_S3_KEY);
     this.sinkLogRootDir = config.getString(GobblinAWSConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
 
     this.emailNotificationOnShutdown =
