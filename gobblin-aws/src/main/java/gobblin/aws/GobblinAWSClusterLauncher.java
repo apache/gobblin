@@ -38,6 +38,7 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
@@ -85,6 +86,8 @@ import gobblin.util.EmailUtils;
 public class GobblinAWSClusterLauncher {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterLauncher.class);
 
+  private static final Splitter SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
+
   private static final String STDOUT = "stdout";
   private static final String STDERR = "stderr";
   private static final String NFS_SHARE_ALL_IPS = "*";
@@ -113,6 +116,7 @@ public class GobblinAWSClusterLauncher {
 
   // AWS Gobblin cluster common config
   private final String awsRegion;
+  private final String awsConfDir;
 
   // AWS Gobblin Master Instance config
   private final String masterAmiId;
@@ -135,10 +139,12 @@ public class GobblinAWSClusterLauncher {
   private final String nfsParentDir;
   private final String masterJarsDir;
   private final String masterConfLocalDir;
-  private final String masterClusterConfS3Uri;
+  private final String masterClusterConfS3Uris;
+  private final String masterClusterJarsS3Uris;
   private final String workerJarsDir;
   private final String workerConfLocalDir;
-  private final String workerClusterConfS3Uri;
+  private final String workerClusterConfS3Uris;
+  private final String workerClusterJarsS3Uris;
   private final String libJarsDir;
   private final String sinkLogRootDir;
 
@@ -158,6 +164,8 @@ public class GobblinAWSClusterLauncher {
             GobblinClusterUtils.getHostname(), InstanceType.SPECTATOR, zkConnectionString);
 
     this.awsRegion = config.getString(GobblinAWSConfigurationKeys.AWS_REGION_KEY);
+    this.awsConfDir = config.getString(GobblinAWSConfigurationKeys.AWS_CONF_DIR);
+
     this.masterAmiId = config.getString(GobblinAWSConfigurationKeys.MASTER_AMI_ID_KEY);
     this.masterInstanceType = config.getString(GobblinAWSConfigurationKeys.MASTER_INSTANCE_TYPE_KEY);
     this.masterJvmMemory = config.getString(GobblinAWSConfigurationKeys.MASTER_JVM_MEMORY_KEY);
@@ -178,10 +186,12 @@ public class GobblinAWSClusterLauncher {
     this.nfsParentDir = config.getString(GobblinAWSConfigurationKeys.NFS_PARENT_DIR_KEY);
     this.masterJarsDir = config.getString(GobblinAWSConfigurationKeys.MASTER_JARS_KEY);
     this.masterConfLocalDir = config.getString(GobblinAWSConfigurationKeys.MASTER_CONF_LOCAL_KEY);
-    this.masterClusterConfS3Uri = config.getString(GobblinAWSConfigurationKeys.MASTER_FILES_S3_KEY);
+    this.masterClusterConfS3Uris = config.getString(GobblinAWSConfigurationKeys.MASTER_CONF_S3_KEY);
+    this.masterClusterJarsS3Uris = config.getString(GobblinAWSConfigurationKeys.MASTER_JARS_S3_KEY);
     this.workerJarsDir = config.getString(GobblinAWSConfigurationKeys.WORKER_JARS_KEY);
     this.workerConfLocalDir = config.getString(GobblinAWSConfigurationKeys.WORKER_CONF_LOCAL_KEY);
-    this.workerClusterConfS3Uri = config.getString(GobblinAWSConfigurationKeys.WORKER_FILES_S3_KEY);
+    this.workerClusterConfS3Uris = config.getString(GobblinAWSConfigurationKeys.WORKER_CONF_S3_KEY);
+    this.workerClusterJarsS3Uris = config.getString(GobblinAWSConfigurationKeys.WORKER_JARS_S3_KEY);
     this.libJarsDir = config.getString(GobblinAWSConfigurationKeys.LIB_JARS_DIR_KEY);
     this.sinkLogRootDir = config.getString(GobblinAWSConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
 
@@ -465,9 +475,36 @@ public class GobblinAWSClusterLauncher {
     userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
     userDataCmds.append("mkdir -p ").append(appWorkDir).append("\n");
 
-    String classpath = getClasspathFromPaths(new File(this.masterConfLocalDir),
-        new File(this.masterJarsDir),
-        new File(this.libJarsDir));
+    // Download configurations from S3
+    StringBuilder classpath = new StringBuilder();
+    boolean isFirstClassPathComponent = true;
+    List<String> awsConfS3Uris = SPLITTER.splitToList(this.masterClusterConfS3Uris);
+    for (String s3Uri : awsConfS3Uris) {
+      userDataCmds.append(String.format("wget --directory-prefix=%s %s", this.awsConfDir, s3Uri));
+      if (isFirstClassPathComponent) {
+        isFirstClassPathComponent = false;
+      } else {
+        classpath.append(":");
+      }
+      classpath.append(this.awsConfDir)
+          .append(File.separator)
+          .append(StringUtils.substringAfterLast(s3Uri, File.separator));
+    }
+
+    // Download jars from S3
+    // TODO: Limit only custom user jars to pulled from S3, load rest from AMI
+    List<String> awsJarsS3Uris = SPLITTER.splitToList(this.masterClusterJarsS3Uris);
+    for (String s3Uri : awsJarsS3Uris) {
+      userDataCmds.append(String.format("wget --directory-prefix=%s %s", this.masterJarsDir, s3Uri));
+      if (isFirstClassPathComponent) {
+        isFirstClassPathComponent = false;
+      } else {
+        classpath.append(":");
+      }
+      classpath.append(this.masterJarsDir)
+          .append(File.separator)
+          .append(StringUtils.substringAfterLast(s3Uri, File.separator));
+    }
 
     // Launch Gobblin Cluster Master
     StringBuilder launchGobblinClusterMasterCmd = new StringBuilder()
@@ -507,9 +544,37 @@ public class GobblinAWSClusterLauncher {
     // Create various other directories
     userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
 
-    String classpath = getClasspathFromPaths(new File(this.workerConfLocalDir),
-        new File(this.workerJarsDir),
-        new File(this.libJarsDir));
+    // Download configurations from S3
+    StringBuilder classpath = new StringBuilder();
+    boolean isFirstClassPathComponent = true;
+    List<String> awsConfS3Uris = SPLITTER.splitToList(this.workerClusterConfS3Uris);
+    for (String s3Uri : awsConfS3Uris) {
+      userDataCmds.append(String.format("wget --directory-prefix=%s %s", this.awsConfDir, s3Uri));
+      if (isFirstClassPathComponent) {
+        isFirstClassPathComponent = false;
+      } else {
+        classpath.append(":");
+      }
+      classpath.append(this.awsConfDir)
+          .append(File.separator)
+          .append(StringUtils.substringAfterLast(s3Uri, File.separator));
+    }
+
+    // Download jars from S3
+    // TODO: Limit only custom user jars to pulled from S3, load rest from AMI
+    List<String> awsJarsS3Uris = SPLITTER.splitToList(this.workerClusterJarsS3Uris);
+    for (String s3Uri : awsJarsS3Uris) {
+      userDataCmds.append(String.format("wget --directory-prefix=%s %s", this.workerJarsDir, s3Uri));
+      if (isFirstClassPathComponent) {
+        isFirstClassPathComponent = false;
+      } else {
+        classpath.append(":");
+      }
+      classpath.append(this.workerJarsDir)
+          .append(File.separator)
+          .append(StringUtils.substringAfterLast(s3Uri, File.separator));
+    }
+
     String helixInstanceName = HelixUtils.getHelixInstanceName(GobblinAWSTaskRunner.class.getSimpleName(),
         helixInstanceIdGenerator.incrementAndGet());
 
@@ -537,6 +602,14 @@ public class GobblinAWSClusterLauncher {
     return userDataCmds.toString();
   }
 
+  /***
+   * List and generate classpath string from paths
+   *
+   * Note: This is currently unused, and will be brought in use with custom Gobblin AMI
+   *
+   * @param paths Paths to list
+   * @return Classpath string
+   */
   private String getClasspathFromPaths(File... paths) {
     StringBuilder classpath = new StringBuilder();
     boolean isFirst = true;

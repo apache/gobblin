@@ -28,6 +28,7 @@ public class GobblinAWSConfigurationKeys {
 
   // Gobblin AWS cluster configuration properties.
   public static final String AWS_REGION_KEY = GOBBLIN_AWS_PREFIX + "region";
+  public static final String AWS_CONF_DIR = GOBBLIN_AWS_PREFIX + "conf.dir";
 
   // Gobblin AWS NFS configuration properties.
   public static final String NFS_PARENT_DIR_KEY = GOBBLIN_AWS_PREFIX + "nfs.parent.dir";
@@ -40,7 +41,8 @@ public class GobblinAWSConfigurationKeys {
 
   public static final String MASTER_JARS_KEY = GOBBLIN_AWS_PREFIX + "master.jars";
   public static final String MASTER_CONF_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "master.conf.local";
-  public static final String MASTER_FILES_S3_KEY = GOBBLIN_AWS_PREFIX + "master.conf.s3.uri";
+  public static final String MASTER_CONF_S3_KEY = GOBBLIN_AWS_PREFIX + "master.conf.s3.uri";
+  public static final String MASTER_JARS_S3_KEY = GOBBLIN_AWS_PREFIX + "master.jars.s3.uri";
 
   // Gobblin AWS worker configuration properties.
   public static final String WORKER_AMI_ID_KEY = GOBBLIN_AWS_PREFIX + "worker.ami.id";
@@ -53,7 +55,8 @@ public class GobblinAWSConfigurationKeys {
 
   public static final String WORKER_JARS_KEY = GOBBLIN_AWS_PREFIX + "worker.jars";
   public static final String WORKER_CONF_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "worker.conf.local";
-  public static final String WORKER_FILES_S3_KEY = GOBBLIN_AWS_PREFIX + "worker.conf.s3.uri";
+  public static final String WORKER_CONF_S3_KEY = GOBBLIN_AWS_PREFIX + "worker.conf.s3.uri";
+  public static final String WORKER_JARS_S3_KEY = GOBBLIN_AWS_PREFIX + "worker.jars.s3.uri";
 
   // Security and authentication configuration properties.
   public static final String CREDENTIALS_REFRESH_INTERVAL_IN_MINUTES =
