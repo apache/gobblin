@@ -1,0 +1,17 @@
+gobblin.data.management.copy
+gobblin.data.management.copy.converter
+gobblin.data.management.copy.extractor
+gobblin.data.management.copy.publisher
+gobblin.data.management.copy.recovery
+gobblin.data.management.copy.writer
+gobblin.data.management.dataset
+gobblin.data.management.partition
+gobblin.data.management.retention
+gobblin.data.management.retention.dataset
+gobblin.data.management.retention.dataset.finder
+gobblin.data.management.retention.policy
+gobblin.data.management.retention.policy.predicates
+gobblin.data.management.retention.profile
+gobblin.data.management.retention.version
+gobblin.data.management.retention.version.finder
+gobblin.data.management.trash

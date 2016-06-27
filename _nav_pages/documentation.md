@@ -7,7 +7,7 @@ order: 3
 
 # Wiki
 
-Please refer to our [Wiki](https://github.com/linkedin/gobblin/wiki) for the full documentation
+Please refer to our [ReadTheDocs page](http://gobblin.readthedocs.org/en/latest/) for the full documentation
 
 # Papers and presentations
 
