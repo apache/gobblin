@@ -36,7 +36,6 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinTaskRunner;
-import gobblin.util.logs.Log4jConfigurationHelper;
 
 /**
  * This class is responsible for running Gobblin task on Worker nodes
@@ -67,7 +66,7 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
    * A custom {@link MessageHandlerFactory} for {@link ParticipantUserDefinedMessageHandler}s that
    * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
    */
-  private class ParticipantUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+  private static class ParticipantUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -92,7 +91,7 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
      *   print out a warning and return successfully.
      * </p>
      */
-    private class ParticipantUserDefinedMessageHandler extends MessageHandler {
+    private static class ParticipantUserDefinedMessageHandler extends MessageHandler {
 
       public ParticipantUserDefinedMessageHandler(Message message, NotificationContext context) {
         super(message, context);
@@ -135,8 +134,7 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
         System.exit(1);
       }
 
-      Log4jConfigurationHelper.updateLog4jConfiguration(GobblinTaskRunner.class,
-          GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE,
+      Log4jConfigHelper.updateLog4jConfiguration(GobblinTaskRunner.class,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE);
 
       String applicationName = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME);

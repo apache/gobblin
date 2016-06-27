@@ -396,7 +396,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
    * A custom {@link MessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
    * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
    */
-  private class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+  private static class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -422,7 +422,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
      *   {@link #getUserDefinedMessageHandlerFactory}.
      * </p>
      */
-    private class ControllerUserDefinedMessageHandler extends MessageHandler {
+    private static class ControllerUserDefinedMessageHandler extends MessageHandler {
 
       public ControllerUserDefinedMessageHandler(Message message, NotificationContext context) {
         super(message, context);

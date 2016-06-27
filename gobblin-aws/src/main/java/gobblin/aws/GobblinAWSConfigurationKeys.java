@@ -39,10 +39,12 @@ public class GobblinAWSConfigurationKeys {
   public static final String MASTER_JVM_MEMORY_KEY = GOBBLIN_AWS_PREFIX + "master.jvm.memory";
   public static final String MASTER_JVM_ARGS_KEY = GOBBLIN_AWS_PREFIX + "master.jvm.args";
 
-  public static final String MASTER_JARS_KEY = GOBBLIN_AWS_PREFIX + "master.jars";
+  public static final String MASTER_JARS_KEY = GOBBLIN_AWS_PREFIX + "master.jars.dir";
   public static final String MASTER_CONF_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "master.conf.local";
-  public static final String MASTER_CONF_S3_KEY = GOBBLIN_AWS_PREFIX + "master.conf.s3.uri";
-  public static final String MASTER_JARS_S3_KEY = GOBBLIN_AWS_PREFIX + "master.jars.s3.uri";
+  public static final String MASTER_S3_CONF_URI_KEY = GOBBLIN_AWS_PREFIX + "master.s3.conf.uri";
+  public static final String MASTER_S3_CONF_FILES_KEY = GOBBLIN_AWS_PREFIX + "master.s3.conf.files";
+  public static final String MASTER_S3_JARS_URI_KEY = GOBBLIN_AWS_PREFIX + "master.s3.jars.uri";
+  public static final String MASTER_S3_JARS_FILES_KEY = GOBBLIN_AWS_PREFIX + "master.s3.jars.files";
 
   // Gobblin AWS worker configuration properties.
   public static final String WORKER_AMI_ID_KEY = GOBBLIN_AWS_PREFIX + "worker.ami.id";
@@ -53,10 +55,12 @@ public class GobblinAWSConfigurationKeys {
   public static final String MAX_WORKERS_KEY = GOBBLIN_AWS_PREFIX + "max.workers";
   public static final String DESIRED_WORKERS_KEY = GOBBLIN_AWS_PREFIX + "desired.workers";
 
-  public static final String WORKER_JARS_KEY = GOBBLIN_AWS_PREFIX + "worker.jars";
+  public static final String WORKER_JARS_KEY = GOBBLIN_AWS_PREFIX + "worker.jars.dir";
   public static final String WORKER_CONF_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "worker.conf.local";
-  public static final String WORKER_CONF_S3_KEY = GOBBLIN_AWS_PREFIX + "worker.conf.s3.uri";
-  public static final String WORKER_JARS_S3_KEY = GOBBLIN_AWS_PREFIX + "worker.jars.s3.uri";
+  public static final String WORKER_S3_CONF_URI_KEY = GOBBLIN_AWS_PREFIX + "worker.s3.conf.uri";
+  public static final String WORKER_S3_CONF_FILES_KEY = GOBBLIN_AWS_PREFIX + "worker.s3.conf.files";
+  public static final String WORKER_S3_JARS_URI_KEY = GOBBLIN_AWS_PREFIX + "worker.s3.jars.uri";
+  public static final String WORKER_S3_JARS_FILES_KEY = GOBBLIN_AWS_PREFIX + "worker.s3.jars.files";
 
   // Security and authentication configuration properties.
   public static final String CREDENTIALS_REFRESH_INTERVAL_IN_MINUTES =

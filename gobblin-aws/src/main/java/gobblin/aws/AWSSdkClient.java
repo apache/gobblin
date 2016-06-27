@@ -22,7 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.amazonaws.AmazonServiceException;
-import com.amazonaws.regions.Regions;
+import com.amazonaws.regions.Region;
 import com.amazonaws.services.autoscaling.AmazonAutoScaling;
 import com.amazonaws.services.autoscaling.AmazonAutoScalingClient;
 import com.amazonaws.services.autoscaling.model.BlockDeviceMapping;
@@ -50,6 +50,7 @@ import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 
 
@@ -68,7 +69,7 @@ public class AWSSdkClient {
   private static String AWS_S3_SERVICE = "s3";
 
   public static void createSecurityGroup(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region,
+      Region region,
       String groupName,
       String description) {
 
@@ -87,7 +88,7 @@ public class AWSSdkClient {
   }
 
   public static void addPermissionsToSecurityGroup(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region,
+      Region region,
       String groupName,
       String ipRanges,
       String ipProtocol,
@@ -111,7 +112,7 @@ public class AWSSdkClient {
   }
 
   public static String createKeyValuePair(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region,
+      Region region,
       String keyName) {
 
     AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
@@ -127,17 +128,17 @@ public class AWSSdkClient {
   }
 
   public static void createLaunchConfig(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region,
+      Region region,
       String launchConfigName,
       String imageId,
       String instanceType,
       String keyName,
       String securityGroups,
-      String kernelId,
-      String ramdiskId,
-      BlockDeviceMapping blockDeviceMapping,
-      String iamInstanceProfile,
-      InstanceMonitoring instanceMonitoring,
+      Optional<String> kernelId,
+      Optional<String> ramdiskId,
+      Optional<BlockDeviceMapping> blockDeviceMapping,
+      Optional<String> iamInstanceProfile,
+      Optional<InstanceMonitoring> instanceMonitoring,
       String userData) {
 
     AmazonAutoScaling autoScaling = getAmazonAutoScalingClient(awsClusterSecurityManager, region);
@@ -148,31 +149,47 @@ public class AWSSdkClient {
         .withInstanceType(instanceType)
         .withSecurityGroups(SPLITTER.splitToList(securityGroups))
         .withKeyName(keyName)
-        .withKernelId(kernelId)
-        .withRamdiskId(ramdiskId)
-        .withBlockDeviceMappings(blockDeviceMapping)
-        .withIamInstanceProfile(iamInstanceProfile)
-        .withInstanceMonitoring(instanceMonitoring)
         .withUserData(userData);
+    if (kernelId.isPresent()) {
+      createLaunchConfigurationRequest = createLaunchConfigurationRequest
+          .withKernelId(kernelId.get());
+    }
+    if (ramdiskId.isPresent()) {
+      createLaunchConfigurationRequest = createLaunchConfigurationRequest
+          .withRamdiskId(ramdiskId.get());
+    }
+    if (blockDeviceMapping.isPresent()) {
+      createLaunchConfigurationRequest = createLaunchConfigurationRequest
+          .withBlockDeviceMappings(blockDeviceMapping.get());
+    }
+    if (iamInstanceProfile.isPresent()) {
+      createLaunchConfigurationRequest = createLaunchConfigurationRequest
+          .withIamInstanceProfile(iamInstanceProfile.get());
+    }
+    if (instanceMonitoring.isPresent()) {
+      createLaunchConfigurationRequest = createLaunchConfigurationRequest
+          .withInstanceMonitoring(instanceMonitoring.get());
+    }
+
     autoScaling.createLaunchConfiguration(createLaunchConfigurationRequest);
 
     LOGGER.info("Created Launch Configuration: " + launchConfigName);
   }
 
   public static void createAutoScalingGroup(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region,
+      Region region,
       String groupName,
       String launchConfig,
       Integer minSize,
       Integer maxSize,
       Integer desiredCapacity,
-      String availabilityZones,
-      Integer cooldown,
-      Integer healthCheckGracePeriod,
-      String healthCheckType,
-      String loadBalancer,
+      Optional<String> availabilityZones,
+      Optional<Integer> cooldown,
+      Optional<Integer> healthCheckGracePeriod,
+      Optional<String> healthCheckType,
+      Optional<String> loadBalancer,
       Tag tag,
-      String terminationPolicy) {
+      Optional<String> terminationPolicy) {
 
     AmazonAutoScaling autoScaling = getAmazonAutoScalingClient(awsClusterSecurityManager, region);
 
@@ -182,28 +199,45 @@ public class AWSSdkClient {
         .withMinSize(minSize)
         .withMaxSize(maxSize)
         .withDesiredCapacity(desiredCapacity)
-        .withAvailabilityZones(SPLITTER.splitToList(availabilityZones))
-        .withDefaultCooldown(cooldown)
-        .withHealthCheckGracePeriod(healthCheckGracePeriod)
-        .withHealthCheckType(healthCheckType)
-        .withLoadBalancerNames(SPLITTER.splitToList(loadBalancer))
-        .withTags(tag)
-        .withTerminationPolicies(SPLITTER.splitToList(terminationPolicy));
+        .withTags(tag);
+    if (availabilityZones.isPresent()) {
+      createAutoScalingGroupRequest = createAutoScalingGroupRequest
+          .withAvailabilityZones(SPLITTER.splitToList(availabilityZones.get()));
+    }
+    if (cooldown.isPresent()) {
+      createAutoScalingGroupRequest = createAutoScalingGroupRequest
+          .withDefaultCooldown(cooldown.get());
+    }
+    if (healthCheckGracePeriod.isPresent()) {
+      createAutoScalingGroupRequest = createAutoScalingGroupRequest
+          .withHealthCheckGracePeriod(healthCheckGracePeriod.get());
+    }
+    if (healthCheckType.isPresent()) {
+      createAutoScalingGroupRequest = createAutoScalingGroupRequest
+          .withHealthCheckType(healthCheckType.get());
+    }
+    if (loadBalancer.isPresent()) {
+      createAutoScalingGroupRequest = createAutoScalingGroupRequest
+          .withLoadBalancerNames(SPLITTER.splitToList(loadBalancer.get()));
+    }
+    if (terminationPolicy.isPresent()) {
+      createAutoScalingGroupRequest = createAutoScalingGroupRequest
+          .withTerminationPolicies(SPLITTER.splitToList(terminationPolicy.get()));
+    }
+
     autoScaling.createAutoScalingGroup(createAutoScalingGroupRequest);
 
     LOGGER.info("Created AutoScalingGroup: " + groupName);
   }
 
   public static List<Instance> getInstancesForGroup(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region,
-      String groupName,
-      String status) {
+      Region region,
+      String groupName, String status) {
 
     AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
 
-    final DescribeInstancesResult instancesResult = amazonEC2
-        .describeInstances(new DescribeInstancesRequest()
-            .withFilters(new Filter().withName("tag:aws:autoscaling:groupName").withValues(groupName)));
+    final DescribeInstancesResult instancesResult = amazonEC2.describeInstances(new DescribeInstancesRequest()
+        .withFilters(new Filter().withName("tag:aws:autoscaling:groupName").withValues(groupName)));
 
     List<Instance> instances = new ArrayList<>();
     for (Reservation reservation : instancesResult.getReservations()) {
@@ -222,7 +256,7 @@ public class AWSSdkClient {
   }
 
   public static void downloadS3Object(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region,
+      Region region,
       S3ObjectSummary s3ObjectSummary,
       String targetDirectory)
       throws IOException {
@@ -243,7 +277,7 @@ public class AWSSdkClient {
   }
 
   public static List<S3ObjectSummary> listS3Bucket(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region,
+      Region region,
       String bucketName,
       String prefix) {
 
@@ -261,55 +295,46 @@ public class AWSSdkClient {
 
 
   public static AmazonEC2 getEc2Client(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region) {
+      Region region) {
 
     // TODO: Add client caching
-    String ec2Endpoint = String.format("%s.%s.amazonaws.com", AWS_EC2_SERVICE, region);
     final AmazonEC2 ec2;
     if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
       ec2 = new AmazonEC2Client(awsClusterSecurityManager.getBasicSessionCredentials());
     } else {
       ec2 = new AmazonEC2Client(awsClusterSecurityManager.getBasicAWSCredentials());
     }
-    ec2.setEndpoint(ec2Endpoint);
+    ec2.setRegion(region);
 
     return ec2;
   }
 
   public static AmazonAutoScaling getAmazonAutoScalingClient(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region) {
+      Region region) {
 
     // TODO: Add client caching
-    String autoscalingEndpoint = String.format("%s.%s.amazonaws.com", AWS_ASG_SERVICE, region);
     final AmazonAutoScaling autoScaling;
     if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
       autoScaling = new AmazonAutoScalingClient(awsClusterSecurityManager.getBasicSessionCredentials());
     } else {
       autoScaling = new AmazonAutoScalingClient(awsClusterSecurityManager.getBasicAWSCredentials());
     }
-    autoScaling.setEndpoint(autoscalingEndpoint);
+    autoScaling.setRegion(region);
 
     return autoScaling;
   }
 
   public static AmazonS3 getS3Client(AWSClusterSecurityManager awsClusterSecurityManager,
-      Regions region) {
+      Region region) {
 
     // TODO: Add client caching
-    String s3Endpoint;
-    if (Regions.US_EAST_1.equals(region)) {
-      s3Endpoint = String.format("%s.amazonaws.com", AWS_S3_SERVICE);
-    } else {
-      s3Endpoint = String.format("%s-%s.amazonaws.com", AWS_S3_SERVICE, region);
-    }
-
     final AmazonS3 s3;
     if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
       s3 = new AmazonS3Client(awsClusterSecurityManager.getBasicSessionCredentials());
     } else {
       s3 = new AmazonS3Client(awsClusterSecurityManager.getBasicAWSCredentials());
     }
-    s3.setEndpoint(s3Endpoint);
+    s3.setRegion(region);
 
     return s3;
   }

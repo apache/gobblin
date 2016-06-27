@@ -19,7 +19,6 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinClusterManager;
-import gobblin.util.logs.Log4jConfigurationHelper;
 
 /**
  * The AWS Cluster Master class for Gobblin.
@@ -43,7 +42,7 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
    * A custom {@link MessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
    * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
    */
-  private class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+  private static class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -68,7 +67,7 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
      *   print out a warning and return successfully.
      * </p>
      */
-    private class ControllerUserDefinedMessageHandler extends MessageHandler {
+    private static class ControllerUserDefinedMessageHandler extends MessageHandler {
 
       public ControllerUserDefinedMessageHandler(Message message, NotificationContext context) {
         super(message, context);
@@ -113,8 +112,7 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
         System.exit(1);
       }
 
-      Log4jConfigurationHelper.updateLog4jConfiguration(GobblinAWSClusterMaster.class,
-          GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE,
+      Log4jConfigHelper.updateLog4jConfiguration(GobblinAWSClusterMaster.class,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE);
 
       // TODO: If required, change logic to fetch application id
