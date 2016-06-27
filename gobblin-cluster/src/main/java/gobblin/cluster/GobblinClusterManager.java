@@ -13,6 +13,7 @@
 package gobblin.cluster;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
@@ -52,6 +53,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -69,6 +71,7 @@ import gobblin.runtime.app.ApplicationLauncher;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.util.ConfigUtils;
 import gobblin.util.logs.Log4jConfigurationHelper;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -217,10 +220,26 @@ public class GobblinClusterManager implements ApplicationLauncher {
    * Build the {@link JobConfigurationManager} for the Application Master.
    */
   private JobConfigurationManager buildJobConfigurationManager(Config config) {
-    Optional<String> jobConfPackagePath =
-        config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
-            .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
-    return new JobConfigurationManager(this.eventBus, jobConfPackagePath);
+    return create(config);
+  }
+
+  private JobConfigurationManager create(Config config) {
+    try {
+      Optional<String> jobConfPackagePath =
+          config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
+              .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
+
+      if (config.hasPath(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)) {
+        return (JobConfigurationManager) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
+                config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)),
+            ImmutableList.<Object>of(this.eventBus, jobConfPackagePath));
+      } else {
+        return new JobConfigurationManager(this.eventBus, jobConfPackagePath);
+      }
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @SuppressWarnings("unused")
