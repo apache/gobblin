@@ -21,6 +21,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.FileFileFilter;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.mail.EmailException;
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
@@ -34,6 +36,7 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.autoscaling.model.Tag;
 import com.amazonaws.services.ec2.model.Instance;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -84,6 +87,13 @@ public class GobblinAWSClusterLauncher {
 
   private static final String STDOUT = "stdout";
   private static final String STDERR = "stderr";
+  private static final String NFS_SHARE_ALL_IPS = "*";
+  private static final String NFS_SHARE_DEFAULT_OPTS = "rw,sync,no_subtree_check,fsid=1,no_root_squash";
+  private static final String NFS_CONF_FILE = "/etc/exports";
+  private static final String NFS_SERVER_INSTALL_CMD = "sudo yum install nfs-utils nfs-utils-lib";
+  private static final String NFS_SERVER_START_CMD = "sudo /etc/init.d/nfs start";
+  private static final String NFS_EXPORT_FS_CMD = "sudo exportfs -a";
+  private static final String NFS_TYPE_4 = "nfs4";
 
   private final Config config;
 
@@ -124,9 +134,12 @@ public class GobblinAWSClusterLauncher {
 
   private final String nfsParentDir;
   private final String masterJarsDir;
+  private final String masterConfLocalDir;
   private final String masterClusterConfS3Uri;
   private final String workerJarsDir;
+  private final String workerConfLocalDir;
   private final String workerClusterConfS3Uri;
+  private final String libJarsDir;
   private final String sinkLogRootDir;
 
   // A generator for an integer ID of a Helix instance (participant)
@@ -144,16 +157,16 @@ public class GobblinAWSClusterLauncher {
         .getZKHelixManager(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
             GobblinClusterUtils.getHostname(), InstanceType.SPECTATOR, zkConnectionString);
 
-    this.awsRegion = config.getString(GobblinAWSConfigurationKeys.AWS_REGION);
-    this.masterAmiId = config.getString(GobblinAWSConfigurationKeys.MASTER_AMI_ID);
-    this.masterInstanceType = config.getString(GobblinAWSConfigurationKeys.MASTER_INSTANCE_TYPE);
-    this.masterJvmMemory = config.getString(GobblinAWSConfigurationKeys.MASTER_JVM_MEMORY);
-    this.workerAmiId = config.getString(GobblinAWSConfigurationKeys.WORKER_AMI_ID);
-    this.workerInstanceType = config.getString(GobblinAWSConfigurationKeys.WORKER_INSTANCE_TYPE);
-    this.workerJvmMemory = config.getString(GobblinAWSConfigurationKeys.WORKER_JVM_MEMORY);
-    this.minWorkers = config.getInt(GobblinAWSConfigurationKeys.MIN_WORKERS);
-    this.maxWorkers = config.getInt(GobblinAWSConfigurationKeys.MAX_WORKERS);
-    this.desiredWorkers = config.getInt(GobblinAWSConfigurationKeys.DESIRED_WORKERS);
+    this.awsRegion = config.getString(GobblinAWSConfigurationKeys.AWS_REGION_KEY);
+    this.masterAmiId = config.getString(GobblinAWSConfigurationKeys.MASTER_AMI_ID_KEY);
+    this.masterInstanceType = config.getString(GobblinAWSConfigurationKeys.MASTER_INSTANCE_TYPE_KEY);
+    this.masterJvmMemory = config.getString(GobblinAWSConfigurationKeys.MASTER_JVM_MEMORY_KEY);
+    this.workerAmiId = config.getString(GobblinAWSConfigurationKeys.WORKER_AMI_ID_KEY);
+    this.workerInstanceType = config.getString(GobblinAWSConfigurationKeys.WORKER_INSTANCE_TYPE_KEY);
+    this.workerJvmMemory = config.getString(GobblinAWSConfigurationKeys.WORKER_JVM_MEMORY_KEY);
+    this.minWorkers = config.getInt(GobblinAWSConfigurationKeys.MIN_WORKERS_KEY);
+    this.maxWorkers = config.getInt(GobblinAWSConfigurationKeys.MAX_WORKERS_KEY);
+    this.desiredWorkers = config.getInt(GobblinAWSConfigurationKeys.DESIRED_WORKERS_KEY);
 
     this.masterJvmArgs = config.hasPath(GobblinAWSConfigurationKeys.MASTER_JVM_ARGS_KEY) ?
         Optional.of(config.getString(GobblinAWSConfigurationKeys.MASTER_JVM_ARGS_KEY)) :
@@ -162,11 +175,14 @@ public class GobblinAWSClusterLauncher {
         Optional.of(config.getString(GobblinAWSConfigurationKeys.WORKER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    this.nfsParentDir = config.getString(GobblinAWSConfigurationKeys.NFS_PARENT_DIR);
+    this.nfsParentDir = config.getString(GobblinAWSConfigurationKeys.NFS_PARENT_DIR_KEY);
     this.masterJarsDir = config.getString(GobblinAWSConfigurationKeys.MASTER_JARS_KEY);
+    this.masterConfLocalDir = config.getString(GobblinAWSConfigurationKeys.MASTER_CONF_LOCAL_KEY);
     this.masterClusterConfS3Uri = config.getString(GobblinAWSConfigurationKeys.MASTER_FILES_S3_KEY);
     this.workerJarsDir = config.getString(GobblinAWSConfigurationKeys.WORKER_JARS_KEY);
+    this.workerConfLocalDir = config.getString(GobblinAWSConfigurationKeys.WORKER_CONF_LOCAL_KEY);
     this.workerClusterConfS3Uri = config.getString(GobblinAWSConfigurationKeys.WORKER_FILES_S3_KEY);
+    this.libJarsDir = config.getString(GobblinAWSConfigurationKeys.LIB_JARS_DIR_KEY);
     this.sinkLogRootDir = config.getString(GobblinAWSConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
 
     this.emailNotificationOnShutdown =
@@ -433,36 +449,44 @@ public class GobblinAWSClusterLauncher {
     // TODO: Replace with EFS when available in GA
     // Note: Until EFS availability, ClusterMaster is SPOF because we loose NFS when it's relaunched / replaced
     //       .. this can be worked around, but would be an un-necessary work
-    String appRootDir = "/home/ec2-user/" + this.clusterName;
-    String nfsShareIps = "*";
-    String nfsShareOpts = "rw,sync,no_subtree_check,fsid=1,no_root_squash";
-    String nfsShareDirCmd = String.format("echo '%s %s(%s)' | sudo tee --append /etc/exports",
-        appRootDir, nfsShareIps, nfsShareOpts);
-    userDataCmds.append("sudo yum install nfs-utils nfs-utils-lib").append("\n");
-    userDataCmds.append("mkdir -p ").append(appRootDir).append("\n");
+    String nfsDir = this.nfsParentDir + File.separator + this.clusterName;
+
+    String nfsShareDirCmd = String.format("echo '%s %s(%s)' | sudo tee --append %s",
+        nfsDir, NFS_SHARE_ALL_IPS, NFS_SHARE_DEFAULT_OPTS, NFS_CONF_FILE);
+    userDataCmds.append("mkdir -p ").append(nfsDir).append("\n");
+    userDataCmds.append(NFS_SERVER_INSTALL_CMD).append("\n");
     userDataCmds.append(nfsShareDirCmd).append("\n");
-    userDataCmds.append("sudo /etc/init.d/nfs start").append("\n");
-    userDataCmds.append("sudo exportfs -a").append("\n");
+    userDataCmds.append(NFS_SERVER_START_CMD).append("\n");
+    userDataCmds.append(NFS_EXPORT_FS_CMD).append("\n");
 
     // Create various directories
-    StringBuilder logDir = new StringBuilder().append(this.sinkLogRootDir).append(File.separator).append("logs");
-    String appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.clusterName, "1");
-    userDataCmds.append("mkdir -p ").append(logDir).append("\n");
+    String appWorkDir = this.nfsParentDir + File.separator + GobblinClusterUtils
+        .getAppWorkDirPath(this.clusterName, "1");
+    userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
     userDataCmds.append("mkdir -p ").append(appWorkDir).append("\n");
+
+    String classpath = getClasspathFromPaths(new File(this.masterConfLocalDir),
+        new File(this.masterJarsDir),
+        new File(this.libJarsDir));
 
     // Launch Gobblin Cluster Master
     StringBuilder launchGobblinClusterMasterCmd = new StringBuilder()
         .append("java")
-        .append(" -Xmx").append(memory)
+        .append(" -cp ").append(classpath)
+        .append(" -Xmx ").append(memory)
         .append(" ").append(this.masterJvmArgs.or(""))
         .append(" ").append(GobblinAWSClusterMaster.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.clusterName)
-        .append(" 1>").append(logDir).append(File.separator).append(clusterMasterClassName).append(".").append(
-            GobblinAWSClusterLauncher.STDOUT)
-        .append(" 2>").append(logDir).append(File.separator).append(clusterMasterClassName).append(".").append(
-            GobblinAWSClusterLauncher.STDERR);
-    userDataCmds.append(launchGobblinClusterMasterCmd);
+        .append(" 1>").append(this.sinkLogRootDir).append(File.separator)
+            .append(clusterMasterClassName).append(".")
+            .append(this.masterPublicIp).append(".")
+            .append(GobblinAWSClusterLauncher.STDOUT)
+        .append(" 2>").append(this.sinkLogRootDir).append(File.separator)
+            .append(clusterMasterClassName).append(".")
+            .append(this.masterPublicIp).append(".")
+            .append(GobblinAWSClusterLauncher.STDERR);
+    userDataCmds.append(launchGobblinClusterMasterCmd).append("\n");
 
     return userDataCmds.toString();
   }
@@ -474,33 +498,71 @@ public class GobblinAWSClusterLauncher {
 
     // Connect to NFS server
     // TODO: Replace with EFS when available in GA
-    String appRootDir = "/home/ec2-user/" + this.clusterName;
-    String nfsType = "nfs4";
-    String nfsMountCmd = String.format("sudo mount -t %s %s:%s %s",
-        nfsType, this.masterPublicIp, appRootDir, appRootDir);
-    userDataCmds.append("mkdir -p ").append(appRootDir).append("\n");
+    String nfsDir = this.nfsParentDir + File.separator + this.clusterName;
+    String nfsMountCmd = String.format("sudo mount -t %s %s:%s %s", NFS_TYPE_4, this.masterPublicIp, nfsDir,
+        nfsDir);
+    userDataCmds.append("mkdir -p ").append(nfsDir).append("\n");
     userDataCmds.append(nfsMountCmd).append("\n");
 
     // Create various other directories
-    StringBuilder logDir = new StringBuilder().append(this.sinkLogRootDir).append(File.separator).append("logs");
-    userDataCmds.append("mkdir -p ").append(logDir).append("\n");
+    userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
+
+    String classpath = getClasspathFromPaths(new File(this.workerConfLocalDir),
+        new File(this.workerJarsDir),
+        new File(this.libJarsDir));
+    String helixInstanceName = HelixUtils.getHelixInstanceName(GobblinAWSTaskRunner.class.getSimpleName(),
+        helixInstanceIdGenerator.incrementAndGet());
 
     // Launch Gobblin Worker
-    StringBuilder launchGobblinClusterWorkerCmd = new StringBuilder().append("java").append(" -Xmx").append(memory)
+    StringBuilder launchGobblinClusterWorkerCmd = new StringBuilder()
+        .append("java")
+        .append(" -cp ").append(classpath)
+        .append(" -Xmx ").append(memory)
         .append(" ").append(this.workerJvmArgs.or(""))
         .append(" ").append(GobblinAWSTaskRunner.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.clusterName)
         .append(" --").append(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)
-        .append(" ").append(HelixUtils.getHelixInstanceName(GobblinAWSTaskRunner.class.getSimpleName(),
-            helixInstanceIdGenerator.incrementAndGet()))
-        .append(" 1>").append(logDir).append(File.separator).append(
-        clusterWorkerClassName).append(".").append(GobblinAWSClusterLauncher.STDOUT)
-        .append(" 2>").append(logDir).append(File.separator).append(
-        clusterWorkerClassName).append(".").append(GobblinAWSClusterLauncher.STDERR);
+        .append(" ").append(helixInstanceName)
+        .append(" 1>").append(this.sinkLogRootDir).append(File.separator)
+            .append(clusterWorkerClassName).append(".")
+            .append(helixInstanceName).append(".")
+            .append(GobblinAWSClusterLauncher.STDOUT)
+        .append(" 2>").append(this.sinkLogRootDir).append(File.separator)
+            .append(clusterWorkerClassName).append(".")
+            .append(helixInstanceName).append(".")
+            .append(GobblinAWSClusterLauncher.STDERR);
     userDataCmds.append(launchGobblinClusterWorkerCmd);
 
     return userDataCmds.toString();
+  }
+
+  private String getClasspathFromPaths(File... paths) {
+    StringBuilder classpath = new StringBuilder();
+    boolean isFirst = true;
+    for (File path : paths) {
+      if (!isFirst) {
+        classpath.append(":");
+      }
+      String subClasspath = getClasspathFromPath(path);
+      if (subClasspath.length() > 0) {
+        classpath.append(subClasspath);
+        isFirst = false;
+      }
+    }
+
+    return classpath.toString();
+  }
+
+  private String getClasspathFromPath(File path) {
+    if (null == path) {
+      return StringUtils.EMPTY;
+    }
+    if (!path.isDirectory()) {
+      return path.getAbsolutePath();
+    }
+
+    return Joiner.on(":").skipNulls().join(path.list(FileFileFilter.FILE));
   }
 
   @VisibleForTesting

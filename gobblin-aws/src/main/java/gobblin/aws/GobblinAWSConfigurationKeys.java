@@ -27,30 +27,32 @@ public class GobblinAWSConfigurationKeys {
       GOBBLIN_AWS_PREFIX + "email.notification.on.shutdown";
 
   // Gobblin AWS cluster configuration properties.
-  public static final String AWS_REGION = GOBBLIN_AWS_PREFIX + "region";
+  public static final String AWS_REGION_KEY = GOBBLIN_AWS_PREFIX + "region";
 
   // Gobblin AWS NFS configuration properties.
-  public static final String NFS_PARENT_DIR = GOBBLIN_AWS_PREFIX + "nfs.parent.dir";
+  public static final String NFS_PARENT_DIR_KEY = GOBBLIN_AWS_PREFIX + "nfs.parent.dir";
 
   // Gobblin AWS master configuration properties.
-  public static final String MASTER_AMI_ID = GOBBLIN_AWS_PREFIX + "master.ami.id";
-  public static final String MASTER_INSTANCE_TYPE = GOBBLIN_AWS_PREFIX + "master.instance.type";
-  public static final String MASTER_JVM_MEMORY = GOBBLIN_AWS_PREFIX + "master.jvm.memory";
+  public static final String MASTER_AMI_ID_KEY = GOBBLIN_AWS_PREFIX + "master.ami.id";
+  public static final String MASTER_INSTANCE_TYPE_KEY = GOBBLIN_AWS_PREFIX + "master.instance.type";
+  public static final String MASTER_JVM_MEMORY_KEY = GOBBLIN_AWS_PREFIX + "master.jvm.memory";
   public static final String MASTER_JVM_ARGS_KEY = GOBBLIN_AWS_PREFIX + "master.jvm.args";
 
   public static final String MASTER_JARS_KEY = GOBBLIN_AWS_PREFIX + "master.jars";
+  public static final String MASTER_CONF_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "master.conf.local";
   public static final String MASTER_FILES_S3_KEY = GOBBLIN_AWS_PREFIX + "master.conf.s3.uri";
 
   // Gobblin AWS worker configuration properties.
-  public static final String WORKER_AMI_ID = GOBBLIN_AWS_PREFIX + "worker.ami.id";
-  public static final String WORKER_INSTANCE_TYPE = GOBBLIN_AWS_PREFIX + "worker.instance.type";
-  public static final String WORKER_JVM_MEMORY = GOBBLIN_AWS_PREFIX + "worker.jvm.memory";
+  public static final String WORKER_AMI_ID_KEY = GOBBLIN_AWS_PREFIX + "worker.ami.id";
+  public static final String WORKER_INSTANCE_TYPE_KEY = GOBBLIN_AWS_PREFIX + "worker.instance.type";
+  public static final String WORKER_JVM_MEMORY_KEY = GOBBLIN_AWS_PREFIX + "worker.jvm.memory";
   public static final String WORKER_JVM_ARGS_KEY = GOBBLIN_AWS_PREFIX + "worker.jvm.args";
-  public static final String MIN_WORKERS = GOBBLIN_AWS_PREFIX + "min.workers";
-  public static final String MAX_WORKERS = GOBBLIN_AWS_PREFIX + "max.workers";
-  public static final String DESIRED_WORKERS = GOBBLIN_AWS_PREFIX + "desired.workers";
+  public static final String MIN_WORKERS_KEY = GOBBLIN_AWS_PREFIX + "min.workers";
+  public static final String MAX_WORKERS_KEY = GOBBLIN_AWS_PREFIX + "max.workers";
+  public static final String DESIRED_WORKERS_KEY = GOBBLIN_AWS_PREFIX + "desired.workers";
 
   public static final String WORKER_JARS_KEY = GOBBLIN_AWS_PREFIX + "worker.jars";
+  public static final String WORKER_CONF_LOCAL_KEY = GOBBLIN_AWS_PREFIX + "worker.conf.local";
   public static final String WORKER_FILES_S3_KEY = GOBBLIN_AWS_PREFIX + "worker.conf.s3.uri";
 
   // Security and authentication configuration properties.
