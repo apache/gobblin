@@ -39,6 +39,11 @@ import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.IpPermission;
 import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.ListObjectsRequest;
+import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.base.Splitter;
 
 
@@ -210,6 +215,23 @@ public class AWSSdkClient {
     return instances;
   }
 
+  public static List<S3ObjectSummary> listS3Bucket(AWSClusterSecurityManager awsClusterSecurityManager,
+      Regions region,
+      String bucketName,
+      String prefix) {
+
+    final AmazonS3 amazonS3 = getS3Client(awsClusterSecurityManager, region);
+
+    final ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
+        .withBucketName(bucketName)
+        .withPrefix(prefix);
+
+    final ObjectListing objectListing = amazonS3.listObjects(listObjectsRequest);
+    LOGGER.info("S3 bucket listing for bucket: " + bucketName + " with prefix: " + prefix + " is: " + objectListing);
+
+    return objectListing.getObjectSummaries();
+  }
+
 
   public static AmazonEC2 getEc2Client(AWSClusterSecurityManager awsClusterSecurityManager,
       Regions region) {
@@ -241,5 +263,27 @@ public class AWSSdkClient {
     autoScaling.setEndpoint(autoscalingEndpoint);
 
     return autoScaling;
+  }
+
+  public static AmazonS3 getS3Client(AWSClusterSecurityManager awsClusterSecurityManager,
+      Regions region) {
+
+    // TODO: Add client caching
+    String s3Endpoint;
+    if (Regions.US_EAST_1.equals(region)) {
+      s3Endpoint = String.format("%s.amazonaws.com", AWS_S3_SERVICE);
+    } else {
+      s3Endpoint = String.format("%s-%s.amazonaws.com", AWS_S3_SERVICE, region);
+    }
+
+    final AmazonS3 s3;
+    if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
+      s3 = new AmazonS3Client(awsClusterSecurityManager.getBasicSessionCredentials());
+    } else {
+      s3 = new AmazonS3Client(awsClusterSecurityManager.getBasicAWSCredentials());
+    }
+    s3.setEndpoint(s3Endpoint);
+
+    return s3;
   }
 }
