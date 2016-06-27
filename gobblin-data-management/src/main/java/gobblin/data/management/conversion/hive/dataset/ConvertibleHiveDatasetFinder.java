@@ -23,6 +23,9 @@ import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.metrics.event.EventSubmitter;
 
 
+/**
+ * A {@link HiveDatasetFinder} to create {@link ConvertibleHiveDataset}s
+ */
 public class ConvertibleHiveDatasetFinder extends HiveDatasetFinder {
 
   public ConvertibleHiveDatasetFinder(FileSystem fs, Properties properties, EventSubmitter eventSubmitter) throws IOException {

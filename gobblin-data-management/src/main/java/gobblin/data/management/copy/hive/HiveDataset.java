@@ -88,8 +88,6 @@ public class HiveDataset implements IterableCopyableDataset {
     this.properties = properties;
     this.datasetConfig = datasetConfig;
 
-    System.out.println(this.table.getDataLocation());
-    System.out.println(PathUtils.isGlob(this.table.getDataLocation()));
     this.tableRootPath = PathUtils.isGlob(this.table.getDataLocation()) ? Optional.<Path> absent() : Optional.of(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();

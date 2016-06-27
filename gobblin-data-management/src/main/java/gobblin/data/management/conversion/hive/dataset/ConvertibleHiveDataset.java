@@ -32,7 +32,9 @@ import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.util.ConfigUtils;
 
-
+/**
+ * A {@link HiveDataset} that can be converted to another {@link HiveDataset}
+ */
 @Getter
 @ToString
 public class ConvertibleHiveDataset extends HiveDataset {
