@@ -11,9 +11,13 @@
  */
 package gobblin.aws;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,8 +45,10 @@ import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.base.Splitter;
 
@@ -213,6 +219,27 @@ public class AWSSdkClient {
     }
 
     return instances;
+  }
+
+  public static void downloadS3Object(AWSClusterSecurityManager awsClusterSecurityManager,
+      Regions region,
+      S3ObjectSummary s3ObjectSummary,
+      String targetDirectory)
+      throws IOException {
+
+    final AmazonS3 amazonS3 = getS3Client(awsClusterSecurityManager, region);
+
+    final GetObjectRequest getObjectRequest = new GetObjectRequest(
+        s3ObjectSummary.getBucketName(),
+        s3ObjectSummary.getKey());
+
+    final S3Object s3Object = amazonS3.getObject(getObjectRequest);
+
+    final String targetFile = StringUtils.removeEnd(targetDirectory, File.separator) + File.separator + s3Object.getKey();
+    FileUtils.copyInputStreamToFile(s3Object.getObjectContent(),
+        new File(targetFile));
+
+    LOGGER.info("S3 object downloaded to file: " + targetFile);
   }
 
   public static List<S3ObjectSummary> listS3Bucket(AWSClusterSecurityManager awsClusterSecurityManager,
