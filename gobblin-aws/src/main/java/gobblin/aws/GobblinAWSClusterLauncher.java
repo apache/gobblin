@@ -531,11 +531,11 @@ public class GobblinAWSClusterLauncher {
         .append(" ").append(this.clusterName)
         .append(" 1>").append(this.sinkLogRootDir)
             .append(clusterMasterClassName).append(".")
-            .append(this.masterPublicIp).append(".")
+            .append("master").append(".")
             .append(GobblinAWSClusterLauncher.STDOUT)
         .append(" 2>").append(this.sinkLogRootDir)
             .append(clusterMasterClassName).append(".")
-            .append(this.masterPublicIp).append(".")
+            .append("master").append(".")
             .append(GobblinAWSClusterLauncher.STDERR);
     userDataCmds.append(launchGobblinClusterMasterCmd).append("\n");
 
@@ -563,16 +563,16 @@ public class GobblinAWSClusterLauncher {
     userDataCmds.append("chown -R ec2-user:ec2-user /home/ec2-user/*").append("\n");
 
     // Setup variables to save userdata space
-    userDataCmds.append("cgS3=").append(this.workerS3ConfUri).append("\n");
+    userDataCmds.append("cg0=").append(this.workerS3ConfUri).append("\n");
     userDataCmds.append("cg=").append(this.awsConfDir).append("\n");
-    userDataCmds.append("jrS3=").append(this.workerS3JarsUri).append("\n");
+    userDataCmds.append("jr0=").append(this.workerS3JarsUri).append("\n");
     userDataCmds.append("jr=").append(this.workerJarsDir).append("\n");
 
     // Download configurations from S3
     StringBuilder classpath = new StringBuilder();
     List<String> awsConfs = SPLITTER.splitToList(this.workerS3ConfFiles);
     for (String awsConf : awsConfs) {
-      userDataCmds.append(String.format("wget -P \"${cg}\" \"${cgS3}\"%s", awsConf)).append("\n");
+      userDataCmds.append(String.format("wget -P \"${cg}\" \"${cg0}\"%s", awsConf)).append("\n");
     }
     classpath.append(this.awsConfDir);
 
@@ -580,12 +580,12 @@ public class GobblinAWSClusterLauncher {
     // TODO: Limit only custom user jars to pulled from S3, load rest from AMI
     List<String> awsJars = SPLITTER.splitToList(this.workerS3JarsFiles);
     for (String awsJar : awsJars) {
-      userDataCmds.append(String.format("wget -P \"${jr}\" \"${jrS3}\"%s", awsJar)).append("\n");
+      userDataCmds.append(String.format("wget -P \"${jr}\" \"${jr0}\"%s", awsJar)).append("\n");
     }
     classpath.append(":").append(this.workerJarsDir).append("*");
 
     // Get a random Helix instance name
-    String helixInstanceName = GobblinAWSTaskRunner.class.getSimpleName() + UUID.randomUUID().toString();
+    userDataCmds.append("pi=`curl http://169.254.169.254/latest/meta-data/local-ipv4`").append("\n");
 
     // Launch Gobblin Worker
     StringBuilder launchGobblinClusterWorkerCmd = new StringBuilder()
@@ -597,14 +597,14 @@ public class GobblinAWSClusterLauncher {
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.clusterName)
         .append(" --").append(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)
-        .append(" ").append(helixInstanceName)
+        .append(" ").append("$pi")
         .append(" 1>").append(this.sinkLogRootDir)
             .append(clusterWorkerClassName).append(".")
-            .append(helixInstanceName).append(".")
+            .append("$pi").append(".")
             .append(GobblinAWSClusterLauncher.STDOUT)
         .append(" 2>").append(this.sinkLogRootDir)
             .append(clusterWorkerClassName).append(".")
-            .append(helixInstanceName).append(".")
+            .append("$pi").append(".")
             .append(GobblinAWSClusterLauncher.STDERR);
     userDataCmds.append(launchGobblinClusterWorkerCmd);
 

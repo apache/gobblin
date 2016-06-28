@@ -180,13 +180,13 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
         if (entry.isDirectory()) {
           // If entry is directory, create directory
-          if (!entryDestination.mkdirs()) {
+          if (!entryDestination.mkdirs() && !entryDestination.exists()) {
             throw new IOException("Could not create directory: " + entryDestination
                 + " while un-archiving zip: " + file);
           }
         } else {
           // Create parent dirs if required
-          if (!entryDestination.getParentFile().mkdirs()) {
+          if (!entryDestination.getParentFile().mkdirs() && !entryDestination.getParentFile().exists()) {
             throw new IOException("Could not create parent directory for: " + entryDestination
                 + " while un-archiving zip: " + file);
           }
