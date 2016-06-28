@@ -101,9 +101,9 @@ public class GobblinAWSClusterLauncher {
   private static final String NFS_SHARE_ALL_IPS = "*";
   private static final String NFS_SHARE_DEFAULT_OPTS = "rw,sync,no_subtree_check,fsid=1,no_root_squash";
   private static final String NFS_CONF_FILE = "/etc/exports";
-  private static final String NFS_SERVER_INSTALL_CMD = "sudo yum install nfs-utils nfs-utils-lib";
-  private static final String NFS_SERVER_START_CMD = "sudo /etc/init.d/nfs start";
-  private static final String NFS_EXPORT_FS_CMD = "sudo exportfs -a";
+  private static final String NFS_SERVER_INSTALL_CMD = "yum install nfs-utils nfs-utils-lib";
+  private static final String NFS_SERVER_START_CMD = "/etc/init.d/nfs start";
+  private static final String NFS_EXPORT_FS_CMD = "exportfs -a";
   private static final String NFS_TYPE_4 = "nfs4";
 
   private final Config config;
@@ -476,7 +476,7 @@ public class GobblinAWSClusterLauncher {
   }
 
   private String buildClusterMasterCommand(String memory) {
-    StringBuilder userDataCmds = new StringBuilder();
+    StringBuilder userDataCmds = new StringBuilder().append("#!/bin/bash").append("\n");
 
     String clusterMasterClassName = GobblinAWSClusterMaster.class.getSimpleName();
 
@@ -486,7 +486,7 @@ public class GobblinAWSClusterLauncher {
     //       .. this can be worked around, but would be an un-necessary work
     String nfsDir = this.nfsParentDir + this.clusterName;
 
-    String nfsShareDirCmd = String.format("echo '%s %s(%s)' | sudo tee --append %s",
+    String nfsShareDirCmd = String.format("echo '%s %s(%s)' | tee --append %s",
         nfsDir, NFS_SHARE_ALL_IPS, NFS_SHARE_DEFAULT_OPTS, NFS_CONF_FILE);
     userDataCmds.append("mkdir -p ").append(nfsDir).append(File.separator).append("1").append("\n");
     userDataCmds.append(NFS_SERVER_INSTALL_CMD).append("\n");
@@ -496,6 +496,7 @@ public class GobblinAWSClusterLauncher {
 
     // Create various directories
     userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
+    userDataCmds.append("chown -R ec2-user:ec2-user /home/ec2-user/*").append("\n");
 
     // Setup variables to save userdata space
     userDataCmds.append("cgS3=").append(this.masterS3ConfUri).append("\n");
@@ -545,20 +546,21 @@ public class GobblinAWSClusterLauncher {
   }
 
   private String buildClusterWorkerCommand(String memory) {
-    StringBuilder userDataCmds = new StringBuilder();
+    StringBuilder userDataCmds = new StringBuilder().append("#!/bin/bash").append("\n");
 
     String clusterWorkerClassName = GobblinAWSClusterMaster.class.getSimpleName();
 
     // Connect to NFS server
     // TODO: Replace with EFS when available in GA
     String nfsDir = this.nfsParentDir + this.clusterName;
-    String nfsMountCmd = String.format("sudo mount -t %s %s:%s %s", NFS_TYPE_4, this.masterPublicIp, nfsDir,
+    String nfsMountCmd = String.format("mount -t %s %s:%s %s", NFS_TYPE_4, this.masterPublicIp, nfsDir,
         nfsDir);
     userDataCmds.append("mkdir -p ").append(nfsDir).append("\n");
     userDataCmds.append(nfsMountCmd).append("\n");
 
     // Create various other directories
     userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
+    userDataCmds.append("chown -R ec2-user:ec2-user /home/ec2-user/*").append("\n");
 
     // Setup variables to save userdata space
     userDataCmds.append("cgS3=").append(this.workerS3ConfUri).append("\n");
