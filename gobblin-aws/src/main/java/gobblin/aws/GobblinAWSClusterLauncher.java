@@ -158,8 +158,10 @@ public class GobblinAWSClusterLauncher {
   private final String workerS3ConfFiles;
   private final String workerS3JarsUri;
   private final String workerS3JarsFiles;
+
   private final String libJarsDir;
   private final String sinkLogRootDir;
+  private final String appWorkDir;
 
   // A generator for an integer ID of a Helix instance (participant)
   private final AtomicInteger helixInstanceIdGenerator = new AtomicInteger(0);
@@ -182,6 +184,7 @@ public class GobblinAWSClusterLauncher {
     this.masterAmiId = config.getString(GobblinAWSConfigurationKeys.MASTER_AMI_ID_KEY);
     this.masterInstanceType = config.getString(GobblinAWSConfigurationKeys.MASTER_INSTANCE_TYPE_KEY);
     this.masterJvmMemory = config.getString(GobblinAWSConfigurationKeys.MASTER_JVM_MEMORY_KEY);
+
     this.workerAmiId = config.getString(GobblinAWSConfigurationKeys.WORKER_AMI_ID_KEY);
     this.workerInstanceType = config.getString(GobblinAWSConfigurationKeys.WORKER_INSTANCE_TYPE_KEY);
     this.workerJvmMemory = config.getString(GobblinAWSConfigurationKeys.WORKER_JVM_MEMORY_KEY);
@@ -204,14 +207,17 @@ public class GobblinAWSClusterLauncher {
     this.masterS3ConfFiles = config.getString(GobblinAWSConfigurationKeys.MASTER_S3_CONF_FILES_KEY);
     this.masterS3JarsUri = config.getString(GobblinAWSConfigurationKeys.MASTER_S3_JARS_URI_KEY);
     this.masterS3JarsFiles = config.getString(GobblinAWSConfigurationKeys.MASTER_S3_JARS_FILES_KEY);
+
     this.workerJarsDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.WORKER_JARS_KEY));
     this.workerConfLocalDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.WORKER_CONF_LOCAL_KEY));
     this.workerS3ConfUri = appendSlash(config.getString(GobblinAWSConfigurationKeys.WORKER_S3_CONF_URI_KEY));
     this.workerS3ConfFiles = config.getString(GobblinAWSConfigurationKeys.WORKER_S3_CONF_FILES_KEY);
     this.workerS3JarsUri = config.getString(GobblinAWSConfigurationKeys.WORKER_S3_JARS_URI_KEY);
     this.workerS3JarsFiles = config.getString(GobblinAWSConfigurationKeys.WORKER_S3_JARS_FILES_KEY);
+
     this.libJarsDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.LIB_JARS_DIR_KEY));
     this.sinkLogRootDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY));
+    this.appWorkDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.APP_WORK_DIR));
 
     this.emailNotificationOnShutdown =
         config.getBoolean(GobblinAWSConfigurationKeys.EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY);
@@ -529,6 +535,8 @@ public class GobblinAWSClusterLauncher {
         .append(" ").append(GobblinAWSClusterMaster.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.clusterName)
+        .append(" --").append(GobblinAWSConfigurationKeys.APP_WORK_DIR)
+        .append(" ").append(this.appWorkDir)
         .append(" 1>").append(this.sinkLogRootDir)
             .append(clusterMasterClassName).append(".")
             .append("master").append(".")
@@ -598,6 +606,8 @@ public class GobblinAWSClusterLauncher {
         .append(" ").append(this.clusterName)
         .append(" --").append(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)
         .append(" ").append("$pi")
+        .append(" --").append(GobblinAWSConfigurationKeys.APP_WORK_DIR)
+        .append(" ").append(this.appWorkDir)
         .append(" 1>").append(this.sinkLogRootDir)
             .append(clusterWorkerClassName).append(".")
             .append("$pi").append(".")

@@ -76,9 +76,14 @@ public class GobblinAWSConfigurationKeys {
   public static final String LIB_JARS_DIR_KEY = GOBBLIN_AWS_PREFIX + "lib.jars.dir";
   public static final String LOGS_SINK_ROOT_DIR_KEY = GOBBLIN_AWS_PREFIX + "logs.sink.root.dir";
 
-  // Other misc configuration properties.
+  // Log4j properties.
   public static final String GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE = "log4j-aws.properties";
+
+  // Job conf properties.
   public static final String JOB_CONF_S3_URI_KEY = GOBBLIN_AWS_PREFIX + "job.conf.s3.uri";
   public static final String JOB_CONF_REFRESH_INTERVAL_IN_MINUTES =
       GOBBLIN_AWS_PREFIX + "job.conf.refresh.interval.minutes";
+
+  // Work environment properties.
+  public static final String APP_WORK_DIR = GOBBLIN_AWS_PREFIX + "work.dir";
 }

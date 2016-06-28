@@ -124,12 +124,22 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
     return EC2MetadataUtils.getNetworkInterfaces().get(0).getPublicIPv4s().get(0);
   }
 
+  public static Options buildOptions() {
+    Options options = new Options();
+    options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Application name");
+    options.addOption("i", GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME, true, "Helix instance name");
+    options.addOption("d", GobblinAWSConfigurationKeys.APP_WORK_DIR, true, "Application work directory");
+    return options;
+  }
+
   public static void main(String[] args) throws Exception {
     Options options = buildOptions();
+
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) || !cmd
-          .hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) ||
+          !cmd.hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME) ||
+          !cmd.hasOption(GobblinAWSConfigurationKeys.APP_WORK_DIR)) {
         printUsage(options);
         System.exit(1);
       }
@@ -139,10 +149,11 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
 
       String applicationName = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME);
       String helixInstanceName = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);
+      String appWorkDir = cmd.getOptionValue(GobblinAWSConfigurationKeys.APP_WORK_DIR);
 
       GobblinTaskRunner gobblinTaskRunner =
           new GobblinAWSTaskRunner(applicationName, helixInstanceName, ConfigFactory.load(),
-              Optional.<Path>absent());
+              Optional.of(new Path(appWorkDir)));
       gobblinTaskRunner.start();
     } catch (ParseException pe) {
       printUsage(options);

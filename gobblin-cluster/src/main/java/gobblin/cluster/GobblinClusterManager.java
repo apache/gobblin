@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -111,7 +112,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   protected final String applicationId;
 
-  public GobblinClusterManager(String clusterName, String applicationId, Config config) throws Exception {
+  public GobblinClusterManager(String clusterName, String applicationId, Config config,
+      Optional<Path> appWorkDirOptional) throws Exception {
 
     // Done to preserve backwards compatibility with the previously hard-coded timeout of 5 minutes
     Properties properties = ConfigUtils.configToProperties(config);
@@ -129,7 +131,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
     this.helixManager = buildHelixManager(config, zkConnectionString);
 
     this.fs = buildFileSystem(config);
-    this.appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
+    this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
+        GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
 
     this.applicationLauncher
         .addService(buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId)));
@@ -493,7 +496,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
       try (GobblinClusterManager gobblinClusterManager = new GobblinClusterManager(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), getApplicationId(),
-          ConfigFactory.load())) {
+          ConfigFactory.load(), Optional.<Path>absent())) {
 
         gobblinClusterManager.start();
       }

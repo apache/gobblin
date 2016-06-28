@@ -5,6 +5,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.hadoop.fs.Path;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
@@ -13,6 +14,7 @@ import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -30,9 +32,10 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterMaster.class);
 
-  public GobblinAWSClusterMaster(String clusterName, String applicationId, Config config)
+  public GobblinAWSClusterMaster(String clusterName, String applicationId, Config config,
+      Optional<Path> appWorkDirOptional)
       throws Exception {
-    super(clusterName, applicationId, config);
+    super(clusterName, applicationId, config, appWorkDirOptional);
 
     // Note: JobConfigurationManager and HelixJobScheduler are initializedin GobblinClusterManager
     // TODO: Add log handler
@@ -95,6 +98,7 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
   private static Options buildOptions() {
     Options options = new Options();
     options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "AWS application name");
+    options.addOption("d", GobblinAWSConfigurationKeys.APP_WORK_DIR, true, "Application work directory");
     return options;
   }
 
@@ -107,7 +111,8 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) ||
+          !cmd.hasOption(GobblinAWSConfigurationKeys.APP_WORK_DIR)) {
         printUsage(options);
         System.exit(1);
       }
@@ -117,10 +122,11 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
 
       // TODO: If required, change logic to fetch application id
       String applicationId = "1";
+      String appWorkDir = cmd.getOptionValue(GobblinAWSConfigurationKeys.APP_WORK_DIR);
 
       try (GobblinAWSClusterMaster clusterMaster = new GobblinAWSClusterMaster(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), applicationId,
-          ConfigFactory.load())) {
+          ConfigFactory.load(), Optional.of(new Path(appWorkDir)))) {
 
         clusterMaster.start();
       }
