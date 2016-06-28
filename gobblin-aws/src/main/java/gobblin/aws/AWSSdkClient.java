@@ -33,9 +33,11 @@ import com.amazonaws.services.autoscaling.model.Tag;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
+import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.CreateKeyPairResult;
 import com.amazonaws.services.ec2.model.CreateSecurityGroupRequest;
+import com.amazonaws.services.ec2.model.DescribeAvailabilityZonesResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Filter;
@@ -232,7 +234,8 @@ public class AWSSdkClient {
 
   public static List<Instance> getInstancesForGroup(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region,
-      String groupName, String status) {
+      String groupName,
+      String status) {
 
     AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
 
@@ -253,6 +256,18 @@ public class AWSSdkClient {
     }
 
     return instances;
+  }
+
+  public static List<AvailabilityZone> getAvailabilityZones(AWSClusterSecurityManager awsClusterSecurityManager,
+      Region region) {
+
+    AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
+
+    final DescribeAvailabilityZonesResult describeAvailabilityZonesResult = amazonEC2.describeAvailabilityZones();
+    final List<AvailabilityZone> availabilityZones = describeAvailabilityZonesResult.getAvailabilityZones();
+    LOGGER.info("Found: " + availabilityZones.size() + " availability zone");
+
+    return availabilityZones;
   }
 
   public static void downloadS3Object(AWSClusterSecurityManager awsClusterSecurityManager,

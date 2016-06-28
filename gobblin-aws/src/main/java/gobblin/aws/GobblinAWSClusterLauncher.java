@@ -40,6 +40,7 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.autoscaling.model.BlockDeviceMapping;
 import com.amazonaws.services.autoscaling.model.InstanceMonitoring;
 import com.amazonaws.services.autoscaling.model.Tag;
+import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.Instance;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
@@ -350,16 +351,21 @@ public class GobblinAWSClusterLauncher {
     LOGGER.info("Material is: " + material);
     FileUtils.writeStringToFile(new File(keyName + ".pem"), material);
 
+    // Get all availability zones in the region. Currently, we will only use first
+    List<AvailabilityZone> availabilityZones = AWSSdkClient.getAvailabilityZones(this.awsClusterSecurityManager,
+        Region.getRegion(Regions.fromName(this.awsRegion)));
+
     // Launch Cluster Master
-    String clusterId = launchClusterMaster(uuid, keyName, securityGroupName);
+    String clusterId = launchClusterMaster(uuid, keyName, securityGroupName, availabilityZones.get(0));
 
     // Launch WorkUnit runners
-    launchWorkUnitRunners(uuid, keyName, securityGroupName);
+    launchWorkUnitRunners(uuid, keyName, securityGroupName, availabilityZones.get(0));
 
     return clusterId;
   }
 
-  private String launchClusterMaster(String uuid, String keyName, String securityGroups) {
+  private String launchClusterMaster(String uuid, String keyName, String securityGroups,
+      AvailabilityZone availabilityZone) {
     String userData = buildClusterMasterCommand(this.masterJvmMemory);
 
     // Create launch config for Cluster master
@@ -392,7 +398,7 @@ public class GobblinAWSClusterLauncher {
         minNumMasters,
         maxNumMasters,
         desiredNumMasters,
-        Optional.<String>absent(),
+        Optional.of(availabilityZone.getZoneName()),
         Optional.<Integer>absent(),
         Optional.<Integer>absent(),
         Optional.<String>absent(),
@@ -430,7 +436,8 @@ public class GobblinAWSClusterLauncher {
   }
 
   private void launchWorkUnitRunners(String uuid, String keyName,
-      String securityGroups) {
+      String securityGroups,
+      AvailabilityZone availabilityZone) {
     String userData = buildClusterWorkerCommand(this.workerJvmMemory);
 
     // Create launch config for Cluster master
@@ -459,7 +466,7 @@ public class GobblinAWSClusterLauncher {
         this.minWorkers,
         this.maxWorkers,
         this.desiredWorkers,
-        Optional.<String>absent(),
+        Optional.of(availabilityZone.getZoneName()),
         Optional.<Integer>absent(),
         Optional.<Integer>absent(),
         Optional.<String>absent(),
