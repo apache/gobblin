@@ -347,8 +347,8 @@ public class GobblinAWSClusterLauncher {
     String material = AWSSdkClient.createKeyValuePair(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         keyName);
-    // TODO: save material for later
     LOGGER.info("Material is: " + material);
+    FileUtils.writeStringToFile(new File(keyName + ".pem"), material);
 
     // Launch Cluster Master
     String clusterId = launchClusterMaster(uuid, keyName, securityGroupName);

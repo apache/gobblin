@@ -135,6 +135,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
       unzipArchive(zipFile, new File(extractedPullFilesPath));
 
       // Load all new job configurations
+      // TODO: Current new and updated jobs are handled, we should un-schedule deleted jobs as well
       File jobConfigDir = new File(extractedPullFilesPath);
       if (jobConfigDir.exists()) {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
