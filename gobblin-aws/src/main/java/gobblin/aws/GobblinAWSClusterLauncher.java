@@ -548,7 +548,7 @@ public class GobblinAWSClusterLauncher {
   private String buildClusterWorkerCommand(String memory) {
     StringBuilder userDataCmds = new StringBuilder().append("#!/bin/bash").append("\n");
 
-    String clusterWorkerClassName = GobblinAWSClusterMaster.class.getSimpleName();
+    String clusterWorkerClassName = GobblinAWSTaskRunner.class.getSimpleName();
 
     // Connect to NFS server
     // TODO: Replace with EFS when available in GA
