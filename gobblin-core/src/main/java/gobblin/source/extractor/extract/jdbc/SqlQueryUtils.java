@@ -67,6 +67,7 @@ public class SqlQueryUtils {
    */
   public static boolean castToBoolean(String fieldValue) {
     String lowerField = fieldValue.toLowerCase();
+    
     switch(lowerField) {
       case "y": return true;
       case "n": return false;
