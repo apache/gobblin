@@ -403,8 +403,8 @@ public class GobblinAWSClusterLauncher {
         Optional.<Integer>absent(),
         Optional.<String>absent(),
         Optional.<String>absent(),
-        tag,
-        Optional.<String>absent());
+        Optional.<String>absent(),
+        Lists.newArrayList(tag));
 
     LOGGER.info("Waiting for cluster master to launch");
     long startTime = System.currentTimeMillis();
@@ -471,8 +471,8 @@ public class GobblinAWSClusterLauncher {
         Optional.<Integer>absent(),
         Optional.<String>absent(),
         Optional.<String>absent(),
-        tag,
-        Optional.<String>absent());
+        Optional.<String>absent(),
+        Lists.newArrayList(tag));
   }
 
   private String buildClusterMasterCommand(String memory) {
