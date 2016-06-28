@@ -57,4 +57,29 @@ public class SqlQueryUtils {
     return query;
   }
 
+  /** 
+   * Cast a string representation of a boolean value to a boolean primitive.
+   * Used especially for Oracle representation of booleans as varchar2(1)
+   * Returns true for values such as [t|true|yes|1] and false for [f|false|no].
+   * If a boolean value cannot be trivially parsed, false is returned. 
+   * 
+   * @param fieldValue           the value of the boolean string field    
+   */
+  public static boolean castToBoolean(String fieldValue) {
+    String lowerField = fieldValue.toLowerCase();
+    switch(lowerField) {
+      case "y": return true;
+      case "n": return false;
+      case "true": return true;
+      case "false": return false;
+      case "t": return true;
+      case "f": return false;
+      case "yes": return true;
+      case "no": return false;
+      case "0": return false;
+      case "1": return true;
+    }
+    return false;
+  } 
+
 }
