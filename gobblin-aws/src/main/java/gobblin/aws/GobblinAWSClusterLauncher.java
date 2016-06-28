@@ -584,8 +584,8 @@ public class GobblinAWSClusterLauncher {
     }
     classpath.append(":").append(this.workerJarsDir).append("*");
 
-    String helixInstanceName = HelixUtils.getHelixInstanceName(GobblinAWSTaskRunner.class.getSimpleName(),
-        helixInstanceIdGenerator.incrementAndGet());
+    // Get a random Helix instance name
+    String helixInstanceName = GobblinAWSTaskRunner.class.getSimpleName() + UUID.randomUUID().toString();
 
     // Launch Gobblin Worker
     StringBuilder launchGobblinClusterWorkerCmd = new StringBuilder()
