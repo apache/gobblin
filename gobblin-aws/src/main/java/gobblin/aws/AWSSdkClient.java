@@ -195,13 +195,17 @@ public class AWSSdkClient {
 
     AmazonAutoScaling autoScaling = getAmazonAutoScalingClient(awsClusterSecurityManager, region);
 
+    // Propagate ASG tags to EC2 instances launched under the ASG by default
+    // (we want to ensure this, hence not configurable)
+    Tag propagateAtLaunch = new Tag().withPropagateAtLaunch(true);
+
     CreateAutoScalingGroupRequest createAutoScalingGroupRequest = new CreateAutoScalingGroupRequest()
         .withAutoScalingGroupName(groupName)
         .withLaunchConfigurationName(launchConfig)
         .withMinSize(minSize)
         .withMaxSize(maxSize)
         .withDesiredCapacity(desiredCapacity)
-        .withTags(tag);
+        .withTags(tag, propagateAtLaunch);
     if (availabilityZones.isPresent()) {
       createAutoScalingGroupRequest = createAutoScalingGroupRequest
           .withAvailabilityZones(SPLITTER.splitToList(availabilityZones.get()));
