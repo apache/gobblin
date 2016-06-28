@@ -225,16 +225,12 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   private JobConfigurationManager create(Config config) {
     try {
-      Optional<String> jobConfPackagePath =
-          config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
-              .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
-
       if (config.hasPath(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)) {
         return (JobConfigurationManager) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
                 config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)),
-            ImmutableList.<Object>of(this.eventBus, jobConfPackagePath));
+            ImmutableList.<Object>of(this.eventBus, config));
       } else {
-        return new JobConfigurationManager(this.eventBus, jobConfPackagePath);
+        return new JobConfigurationManager(this.eventBus, config);
       }
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {

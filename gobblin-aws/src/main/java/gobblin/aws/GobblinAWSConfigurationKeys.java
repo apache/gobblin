@@ -78,4 +78,5 @@ public class GobblinAWSConfigurationKeys {
 
   // Other misc configuration properties.
   public static final String GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE = "log4j-aws.properties";
+  public static final String JOB_CONF_S3_URI_KEY = GOBBLIN_AWS_PREFIX + "job.conf.s3.uri";
 }
