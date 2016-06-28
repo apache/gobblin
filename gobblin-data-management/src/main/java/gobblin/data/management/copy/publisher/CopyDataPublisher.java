@@ -40,7 +40,6 @@ import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.entities.CommitStepCopyEntity;
-import gobblin.data.management.copy.entities.CommitStepDB;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.data.management.copy.recovery.RecoveryHelper;
@@ -72,7 +71,6 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   private final FileSystem fs;
   protected final EventSubmitter eventSubmitter;
   protected final RecoveryHelper recoveryHelper;
-  protected final CommitStepDB commitStepDB;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -101,7 +99,6 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.recoveryHelper.purgeOldPersistedFile();
-    this.commitStepDB = new CommitStepDB();
   }
 
   @Override
@@ -171,8 +168,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     log.info(String.format("[%s] Publishing fileSet from %s for dataset %s", datasetAndPartition.identifier(),
         datasetWriterOutputPath, metadata.getDatasetURN()));
 
-    List<CommitStep> prePublish = getCommitSequence(datasetWorkUnitStates, PrePublishStep.class, this.commitStepDB);
-    List<CommitStep> postPublish = getCommitSequence(datasetWorkUnitStates, PostPublishStep.class, this.commitStepDB);
+    List<CommitStep> prePublish = getCommitSequence(datasetWorkUnitStates, PrePublishStep.class);
+    List<CommitStep> postPublish = getCommitSequence(datasetWorkUnitStates, PostPublishStep.class);
     log.info(String.format("[%s] Found %d prePublish steps and %d postPublish steps.", datasetAndPartition.identifier(),
         prePublish.size(), postPublish.size()));
 
@@ -209,8 +206,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp));
   }
 
-  private static List<CommitStep> getCommitSequence(Collection<WorkUnitState> workUnits, Class<?> baseClass,
-      CommitStepDB commitStepDB)
+  private static List<CommitStep> getCommitSequence(Collection<WorkUnitState> workUnits, Class<?> baseClass)
       throws IOException {
     List<CommitStepCopyEntity> steps = Lists.newArrayList();
     for (WorkUnitState wus : workUnits) {
@@ -230,7 +226,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     Collections.sort(steps, commitStepSorter);
     List<CommitStep> sequence = Lists.newArrayList();
     for (CommitStepCopyEntity entity : steps) {
-      sequence.add(entity.getStep(commitStepDB));
+      sequence.add(entity.getStep());
     }
 
     return sequence;

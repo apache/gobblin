@@ -24,15 +24,14 @@ import gobblin.commit.CommitStep;
  */
 public class PostPublishStep extends CommitStepCopyEntity {
 
-  public PostPublishStep(String fileSet, Map<String, Object> additionalMetadata, CommitStep step, int priority,
-      CommitStepDB commitStepDB, String stepKey)
+  public PostPublishStep(String fileSet, Map<String, Object> additionalMetadata, CommitStep step, int priority, String stepKey)
       throws IOException {
-    super(fileSet, additionalMetadata, step, priority, commitStepDB, stepKey);
+    super(fileSet, additionalMetadata, step, priority, stepKey);
   }
 
   @Override
   public String explain() throws IOException {
     return String.format("Post publish step with priority %s: %s", this.getPriority(),
-        getStep(new CommitStepDB()).toString());
+        getStep().toString());
   }
 }

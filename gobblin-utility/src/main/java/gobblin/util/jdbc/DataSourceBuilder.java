@@ -98,7 +98,7 @@ public class DataSourceBuilder {
     }
 
     if (this.maxActiveConnections != null) {
-      properties.setProperty(DataSourceProvider.MAX_ACTIVE_CONNS, this.maxActiveConnections.toString());
+      properties.setProperty(DataSourceProvider.MAX_TOTAL_CONNS, this.maxActiveConnections.toString());
     }
 
     if (this.useStrongEncryption != null) {

@@ -14,9 +14,9 @@ package gobblin.util.jdbc;
 
 import java.util.Properties;
 
-import javax.sql.DataSource;
+import org.apache.commons.dbcp2.BasicDataSource;
 
-import org.apache.commons.dbcp.BasicDataSource;
+import javax.sql.DataSource;
 
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -37,7 +37,7 @@ public class DataSourceProvider implements Provider<DataSource> {
   public static final String USERNAME = GOBBLIN_UTIL_JDBC_PREFIX + "username";
   public static final String PASSWORD = GOBBLIN_UTIL_JDBC_PREFIX + "password";
   public static final String MAX_IDLE_CONNS = GOBBLIN_UTIL_JDBC_PREFIX + "max.idle.connections";
-  public static final String MAX_ACTIVE_CONNS = GOBBLIN_UTIL_JDBC_PREFIX + "max.active.connections";
+  public static final String MAX_TOTAL_CONNS = GOBBLIN_UTIL_JDBC_PREFIX + "max.total.connections";
   public static final String DEFAULT_CONN_DRIVER = "com.mysql.jdbc.Driver";
 
   protected final BasicDataSource basicDataSource;
@@ -55,8 +55,8 @@ public class DataSourceProvider implements Provider<DataSource> {
     if (properties.containsKey(MAX_IDLE_CONNS)) {
       this.basicDataSource.setMaxIdle(Integer.parseInt(properties.getProperty(MAX_IDLE_CONNS)));
     }
-    if (properties.containsKey(MAX_ACTIVE_CONNS)) {
-      this.basicDataSource.setMaxActive(Integer.parseInt(properties.getProperty(MAX_ACTIVE_CONNS)));
+    if (properties.containsKey(MAX_TOTAL_CONNS)) {
+      this.basicDataSource.setMaxTotal(Integer.parseInt(properties.getProperty(MAX_TOTAL_CONNS)));
     }
   }
 

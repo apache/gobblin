@@ -22,6 +22,7 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -35,7 +36,6 @@ import com.google.common.collect.Maps;
 
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.entities.CommitStepDB;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.hive.HiveCopyEntityHelper.DeregisterFileDeleteMethod;
 import gobblin.hive.HiveRegProps;
@@ -156,10 +156,9 @@ public class HiveCopyEntityHelperTest {
         Mockito.any(org.apache.hadoop.hive.ql.metadata.Table.class))).thenCallRealMethod();
 
     org.apache.hadoop.hive.ql.metadata.Table meta_table = Mockito.mock(org.apache.hadoop.hive.ql.metadata.Table.class);
-    org.apache.hadoop.hive.metastore.api.Table api_table =
-        Mockito.mock(org.apache.hadoop.hive.metastore.api.Table.class);
-    Mockito.when(api_table.getDbName()).thenReturn("TestDB");
-    Mockito.when(api_table.getTableName()).thenReturn("TestTable");
+    org.apache.hadoop.hive.metastore.api.Table api_table = new Table();
+    api_table.setDbName("TestDB");
+    api_table.setTableName("TestTable");
     Mockito.when(meta_table.getTTable()).thenReturn(api_table);
 
     List<CopyEntity> copyEntities = new ArrayList<CopyEntity>();
@@ -172,7 +171,7 @@ public class HiveCopyEntityHelperTest {
     Assert.assertTrue(copyEntities.get(0) instanceof PostPublishStep);
     PostPublishStep p = (PostPublishStep) (copyEntities.get(0));
     Assert
-        .assertTrue(p.getStep(new CommitStepDB()).toString().
+        .assertTrue(p.getStep().toString().
             contains("Deregister table TestDB.TestTable on Hive metastore /targetURI"));
   }
 

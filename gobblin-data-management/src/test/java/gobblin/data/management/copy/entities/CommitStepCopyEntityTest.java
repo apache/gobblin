@@ -31,9 +31,9 @@ public class CommitStepCopyEntityTest {
   public void test() throws Exception {
     TestStep step = new TestStep("myStep");
     CommitStepCopyEntity ce =
-        new CommitStepCopyEntity("fileset", Maps.<String, Object>newHashMap(), step, 1, new CommitStepDB(), "step");
+        new CommitStepCopyEntity("fileset", Maps.<String, Object>newHashMap(), step, 1, "step");
 
-    Assert.assertEquals(step, ce.getStep(new CommitStepDB()));
+    Assert.assertEquals(step, ce.getStep());
   }
 
   @AllArgsConstructor

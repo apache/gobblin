@@ -30,14 +30,10 @@ public class CommitStepDBTest {
 
     String key = "testBasic";
 
-    CommitStepDB stepDB = new CommitStepDB();
-
     CommitStep commitStep = new TestStep("myData");
-    stepDB.put(key, commitStep);
-    CommitStep recoveredStep = stepDB.get(key);
+    CommitStepDB.put(key, commitStep);
+    CommitStep recoveredStep = CommitStepDB.get(key);
     Assert.assertEquals(commitStep, recoveredStep);
-
-    stepDB.close();
 
   }
 
@@ -53,12 +49,9 @@ public class CommitStepDBTest {
 
     CommitStep commitStep = new TestStep(reallyLongString);
 
-    CommitStepDB stepDB = new CommitStepDB();
-    stepDB.put(key, commitStep);
-    CommitStep recoveredStep = stepDB.get(key);
+    CommitStepDB.put(key, commitStep);
+    CommitStep recoveredStep = CommitStepDB.get(key);
     Assert.assertEquals(commitStep, recoveredStep);
-
-    stepDB.close();
 
   }
 
@@ -67,42 +60,20 @@ public class CommitStepDBTest {
 
     String key = "testRepeatedKeys";
 
-    CommitStepDB stepDB = new CommitStepDB();
-
     CommitStep commitStepa = new TestStep("aaa");
-    stepDB.put(key, commitStepa);
+    CommitStepDB.put(key, commitStepa);
 
     // putting the same step will not throw exception
-    stepDB.put(key, commitStepa);
+    CommitStepDB.put(key, commitStepa);
 
     // trying to store a different step under the same key will throw exception
     try {
       CommitStep commitStepb = new TestStep("bbb");
-      stepDB.put(key, commitStepb);
+      CommitStepDB.put(key, commitStepb);
       Assert.fail();
     } catch (IllegalStateException exc) {
       // expected
     }
-
-    stepDB.close();
-  }
-
-  @Test
-  public void testReadInDifferentInstance() throws Exception {
-
-    String key = "testReadInDifferentInstance";
-
-    CommitStepDB writeStepDB = new CommitStepDB();
-
-    CommitStep commitStep = new TestStep("myData");
-    writeStepDB.put(key, commitStep);
-
-    CommitStepDB readStepDB = new CommitStepDB();
-    CommitStep recoveredStep = readStepDB.get(key);
-    Assert.assertEquals(commitStep, recoveredStep);
-
-    writeStepDB.close();
-    readStepDB.close();
 
   }
 

@@ -13,7 +13,6 @@
 package gobblin.data.management.copy.entities;
 
 import java.io.ByteArrayInputStream;
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
@@ -26,6 +25,7 @@ import java.sql.Statement;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.io.IOUtils;
 
 import com.google.common.base.Charsets;
@@ -33,6 +33,8 @@ import com.google.common.base.Charsets;
 import gobblin.commit.CommitStep;
 import gobblin.data.management.copy.CopyEntity;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -40,23 +42,42 @@ import lombok.extern.slf4j.Slf4j;
  * A DB that stores {@link CommitStep}s. Implementation is transparent to the user, but currently uses Derby.
  */
 @Slf4j
-public class CommitStepDB implements Closeable {
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public class CommitStepDB {
 
   public static final String COMMIT_STEP_DB_NAME = "gobblinCommitStepDB";
-  private static final String protocol = "jdbc:derby:";
+  private static final String PROTOCOL = "jdbc:derby:";
   private static final String ALREADY_EXISTS_STATE = "X0Y32";
 
   private static final String INSERT_STEP_STATEMENT = "INSERT INTO steps VALUES (?, ?)";
   private static final String GET_STEP_STATEMENT = "SELECT step FROM steps WHERE step_key = ?";
 
+  private static final BasicDataSource BDS = new BasicDataSource();
   static {
+    initialize();
+  }
+
+  private static void initialize() {
+    try {
+      BDS.setDriverClassName("org.apache.derby.jdbc.EmbeddedDriver");
+      BDS.setUrl(PROTOCOL + COMMIT_STEP_DB_NAME + ";create=true");
+      ensureTableExists();
+      setShutdownHook();
+    } catch (SQLException se) {
+      log.error("Failed to initialize CommitStepDB " + se);
+      throw new RuntimeException(se);
+    }
+  }
+
+  private static void setShutdownHook() {
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
       public void run() {
         try {
+          BDS.close();
           dropTable();
           try {
-            DriverManager.getConnection(protocol + COMMIT_STEP_DB_NAME + ";shutdown=true", new Properties());
+            DriverManager.getConnection(PROTOCOL + COMMIT_STEP_DB_NAME + ";shutdown=true", new Properties());
           } catch (SQLException se) {
             if (((se.getErrorCode() == 45000)
                 && ("08006".equals(se.getSQLState())))) {
@@ -66,7 +87,7 @@ public class CommitStepDB implements Closeable {
               throw se;
             }
           }
-          DriverManager.getConnection(protocol + COMMIT_STEP_DB_NAME + ";drop=true", new Properties());
+          DriverManager.getConnection(PROTOCOL + COMMIT_STEP_DB_NAME + ";drop=true", new Properties());
         } catch (SQLException sqle) {
           System.out.println("Error dropping commit steps DB");
           printSQLException(sqle);
@@ -75,27 +96,11 @@ public class CommitStepDB implements Closeable {
     });
   }
 
-  private final Connection conn;
-
-  public CommitStepDB() throws IOException {
-    try {
-      String driver = "org.apache.derby.jdbc.EmbeddedDriver";
-      Class.forName(driver);
-    } catch (ReflectiveOperationException roe) {
-      throw new RuntimeException("Derby is not in the classpath", roe);
-    }
-
-    try {
-      this.conn = DriverManager.getConnection(protocol + COMMIT_STEP_DB_NAME + ";create=true", new Properties());
-      ensureTableExists();
-    } catch (SQLException se) {
-      throw new IOException(se);
-    }
-  }
-
-  private void ensureTableExists() throws SQLException {
-    try (Statement statement = this.conn.createStatement()) {
+  private static void ensureTableExists() throws SQLException {
+    try (Connection conn = BDS.getConnection();
+        Statement statement = conn.createStatement()) {
       statement.execute("CREATE TABLE steps(step_key VARCHAR(200) NOT NULL, step CLOB(500K), PRIMARY KEY (step_key))");
+      conn.commit();
     } catch (SQLException sqle) {
       if (!sqle.getSQLState().equals(ALREADY_EXISTS_STATE)) {
         throw sqle;
@@ -104,7 +109,7 @@ public class CommitStepDB implements Closeable {
   }
 
   private static void dropTable() throws SQLException {
-    try (Connection conn = DriverManager.getConnection(protocol + COMMIT_STEP_DB_NAME + ";create=true", new Properties());
+    try (Connection conn = DriverManager.getConnection(PROTOCOL + COMMIT_STEP_DB_NAME + ";create=true", new Properties());
         Statement statement = conn.createStatement()) {
       statement.execute("DROP TABLE steps");
       conn.commit();
@@ -122,13 +127,14 @@ public class CommitStepDB implements Closeable {
    * @throws IOException for SQL errors.
    * @throws IllegalStateException if a {@link CommitStep} with that key already exists.
    */
-  public void put(String key, CommitStep step) throws IOException {
+  public static void put(String key, CommitStep step) throws IOException {
     String serializedStep = CopyEntity.GSON.toJson(step);
-    try (PreparedStatement statement = this.conn.prepareStatement(INSERT_STEP_STATEMENT)) {
+    try (Connection conn = BDS.getConnection();
+        PreparedStatement statement = conn.prepareStatement(INSERT_STEP_STATEMENT)) {
       statement.setString(1, key);
       statement.setAsciiStream(2, new ByteArrayInputStream(serializedStep.getBytes(Charsets.UTF_8)));
       statement.execute();
-      this.conn.commit();
+      conn.commit();
     } catch (SQLIntegrityConstraintViolationException se) {
       String existingStep = getRaw(key);
       if (!serializedStep.equals(existingStep)) {
@@ -147,15 +153,16 @@ public class CommitStepDB implements Closeable {
    * @throws NoSuchElementException if no {@link CommitStep} with that key exists.
    * @throws IOException for SQL errors.
    */
-  public CommitStep get(String key) throws IOException {
+  public static CommitStep get(String key) throws IOException {
     return CopyEntity.GSON.fromJson(getRaw(key), CommitStep.class);
   }
 
-  private String getRaw(String key) throws IOException {
-    try (PreparedStatement statement = this.conn.prepareStatement(GET_STEP_STATEMENT)) {
+  private static String getRaw(String key) throws IOException {
+    try (Connection conn = DriverManager.getConnection(PROTOCOL + COMMIT_STEP_DB_NAME + ";create=true", new Properties());
+        PreparedStatement statement = conn.prepareStatement(GET_STEP_STATEMENT)) {
       statement.setString(1, key);
       ResultSet rs = statement.executeQuery();
-      this.conn.commit();
+      conn.commit();
 
       if (!rs.next()) {
         throw new NoSuchElementException("No step with key " + key);
@@ -165,21 +172,6 @@ public class CommitStepDB implements Closeable {
       return IOUtils.toString(is, Charsets.UTF_8);
     } catch (SQLException se) {
       throw new IOException(se);
-    }
-  }
-
-  /**
-   * Closes the connection to the DB.
-   * @throws IOException
-   */
-  @Override
-  public void close()
-      throws IOException {
-    try {
-      this.conn.close();
-    } catch (SQLException sqle) {
-      log.error("Failed to close SQL connection.");
-      printSQLException(sqle);
     }
   }
 

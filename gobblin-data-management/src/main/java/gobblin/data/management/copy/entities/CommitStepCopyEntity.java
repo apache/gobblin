@@ -34,19 +34,19 @@ public class CommitStepCopyEntity extends CopyEntity {
   private final String key;
 
   public CommitStepCopyEntity(String fileSet, Map<String, Object> additionalMetadata, CommitStep step, int priority,
-      CommitStepDB commitStepDB, String stepKey) throws IOException {
+      String stepKey) throws IOException {
     super(fileSet, additionalMetadata);
-    commitStepDB.put(stepKey, step);
+    CommitStepDB.put(stepKey, step);
     this.key = stepKey;
     this.priority = priority;
   }
 
-  public CommitStep getStep(CommitStepDB commitStepDB) throws IOException {
-    return commitStepDB.get(this.key);
+  public CommitStep getStep() throws IOException {
+    return CommitStepDB.get(this.key);
   }
 
   @Override
   public String explain() throws IOException {
-    return this.getStep(new CommitStepDB()).toString();
+    return this.getStep().toString();
   }
 }
