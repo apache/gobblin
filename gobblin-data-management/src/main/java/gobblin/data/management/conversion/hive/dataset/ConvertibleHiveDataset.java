@@ -44,8 +44,8 @@ public class ConvertibleHiveDataset extends HiveDataset {
   public static final String DESTINATION_DATA_PATH_KEY = "destination.dataPath";
   public static final String DESTINATION_CONVERSION_FORMATS_KEY = "destination.formats";
 
-  private static final String DB_NAME_TEMPLATE = "{dbName}";
-  private static final String TABLE_NAME_TEMPLATE = "{tableName}";
+  private static final String DB_NAME_TEMPLATE = "{DB}";
+  private static final String TABLE_NAME_TEMPLATE = "{TABLE}";
 
   private static final String HIVE_RUNTIME_PROPERTIES_KEY_PREFIX = "hiveRuntime";
   private final Optional<String> destinationTableName;

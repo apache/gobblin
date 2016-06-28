@@ -13,13 +13,21 @@ package gobblin.data.management.hive;
 
 import org.apache.hadoop.fs.Path;
 
+import gobblin.config.client.ConfigClient;
+import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder.DbAndTable;
 
-
+/**
+ * Utility methods to for a {@link HiveDataset} to communicate with {@link ConfigClient}
+ */
 public class HiveConfigClientUtils {
 
   private static final String HIVE_DATASETS_CONFIG_PREFIX = "hive/";
 
+  /**
+   * Get the dataset uri for a hive db and table. The uri is relative to the store uri .
+   * @param dbAndTable
+   */
   public static String getDatasetUri(DbAndTable dbAndTable) {
     return HIVE_DATASETS_CONFIG_PREFIX + dbAndTable.getDb() + Path.SEPARATOR + dbAndTable.getTable();
   }

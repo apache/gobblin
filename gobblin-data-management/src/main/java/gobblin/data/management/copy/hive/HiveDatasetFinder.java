@@ -223,7 +223,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
 
   /**
-   * Deprecated. Use {@link #createHiveDataset(Table, Config)} instead
+   * @deprecated Use {@link #createHiveDataset(Table, Config)} instead
    */
   @Deprecated
   protected HiveDataset createHiveDataset(Table table) throws IOException {
