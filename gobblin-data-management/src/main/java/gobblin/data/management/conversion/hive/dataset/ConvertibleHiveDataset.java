@@ -17,7 +17,6 @@ import java.util.Properties;
 import lombok.Getter;
 import lombok.ToString;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
@@ -43,9 +42,6 @@ public class ConvertibleHiveDataset extends HiveDataset {
   public static final String DESTINATION_DB_KEY = "destination.dbName";
   public static final String DESTINATION_DATA_PATH_KEY = "destination.dataPath";
   public static final String DESTINATION_CONVERSION_FORMATS_KEY = "destination.formats";
-
-  private static final String DB_NAME_TEMPLATE = "{DB}";
-  private static final String TABLE_NAME_TEMPLATE = "{TABLE}";
 
   private static final String HIVE_RUNTIME_PROPERTIES_KEY_PREFIX = "hiveRuntime";
   private final Optional<String> destinationTableName;
@@ -74,13 +70,5 @@ public class ConvertibleHiveDataset extends HiveDataset {
 
     this.hiveProperties = ConfigUtils.configToProperties(ConfigUtils.getConfig(config, HIVE_RUNTIME_PROPERTIES_KEY_PREFIX, ConfigFactory.empty()));
 
-  }
-
-  /**
-   * Resolve {@value #DB_NAME_TEMPLATE} and {@value #TABLE_NAME_TEMPLATE} in <code>rawString</code> to {@link Table#getDbName()}
-   * and {@link Table#getTableName()}
-   */
-  private static String resolveTemplate(String rawString, Table table) {
-    return StringUtils.replaceEach(rawString, new String[] { DB_NAME_TEMPLATE, TABLE_NAME_TEMPLATE }, new String[] { table.getDbName(), table.getTableName() });
   }
 }

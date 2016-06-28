@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -58,6 +59,9 @@ public class HiveDataset implements IterableCopyableDataset {
   public static final String REGISTRATION_GENERATION_TIME_MILLIS = "registrationGenerationTimeMillis";
   public static final String DATABASE = "Database";
   public static final String TABLE = "Table";
+
+  public static final String DATABASE_TOKEN = "$DB";
+  public static final String TABLE_TOKEN = "$TABLE";
 
   // Will not be serialized/de-serialized
   protected transient final Properties properties;
@@ -119,4 +123,11 @@ public class HiveDataset implements IterableCopyableDataset {
     return this.table.getCompleteName();
   }
 
+  /**
+   * Resolve {@value #DATABASE_TOKEN} and {@value #TABLE_TOKEN} in <code>rawString</code> to {@link Table#getDbName()}
+   * and {@link Table#getTableName()}
+   */
+  public static String resolveTemplate(String rawString, Table table) {
+    return StringUtils.replaceEach(rawString, new String[] { DATABASE_TOKEN, TABLE_TOKEN }, new String[] { table.getDbName(), table.getTableName() });
+  }
 }

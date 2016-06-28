@@ -53,9 +53,9 @@ public class ConvertibleHiveDatasetTest {
   @Test
   public void testSubstitution() throws Exception {
     Config config =
-        ConfigFactory.parseMap(ImmutableMap.of(ConvertibleHiveDataset.DESTINATION_DB_KEY, "dest_{DB}",
-            ConvertibleHiveDataset.DESTINATION_TABLE_KEY, "dest_{TABLE}",
-            ConvertibleHiveDataset.DESTINATION_DATA_PATH_KEY,"dest_data/{DB}/{TABLE}"));
+        ConfigFactory.parseMap(ImmutableMap.of(ConvertibleHiveDataset.DESTINATION_DB_KEY, "dest_$DB",
+            ConvertibleHiveDataset.DESTINATION_TABLE_KEY, "dest_$TABLE",
+            ConvertibleHiveDataset.DESTINATION_DATA_PATH_KEY,"dest_data/$DB/$TABLE"));
 
     Table table = getTestTable("db1", "tb1");
     ConvertibleHiveDataset cd =
