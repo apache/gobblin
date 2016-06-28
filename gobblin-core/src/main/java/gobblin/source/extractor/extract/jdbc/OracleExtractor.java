@@ -83,7 +83,7 @@ public class OracleExtractor extends JdbcExtractor {
     if (itr.hasNext()) {
       resultset = itr.next();
     } else {
-      throw new SchemaException("Failed to get schema from Mysql - Resultset has no records");
+      throw new SchemaException("Failed to get schema from Oracle - Resultset has no records");
     }
 
     JsonArray fieldJsonArray = new JsonArray();
@@ -113,7 +113,7 @@ public class OracleExtractor extends JdbcExtractor {
         fieldJsonArray.add(obj);
       }
     } catch (Exception e) {
-      throw new SchemaException("Failed to get schema from Mysql; error - " + e.getMessage(), e);
+      throw new SchemaException("Failed to get schema from Oracle; error - " + e.getMessage(), e);
     }
 
     return fieldJsonArray;
