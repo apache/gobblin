@@ -22,9 +22,13 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
@@ -32,15 +36,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
+import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinHelixJobScheduler;
 import gobblin.cluster.JobConfigurationManager;
 import gobblin.cluster.event.NewJobConfigArrivalEvent;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ExecutorsUtils;
 import gobblin.util.SchedulerUtils;
 
 /**
@@ -59,13 +66,26 @@ import gobblin.util.SchedulerUtils;
 public class AWSJobConfigurationManager extends JobConfigurationManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(AWSJobConfigurationManager.class);
 
-  private final Optional<String> jobConfS3Uri;
-  private final Map<String, Properties> jobConfFiles;
+  private Optional<String> jobConfS3Uri;
+  private Map<String, Properties> jobConfFiles;
+
+  private final long refreshIntervalInMinutes;
+
+  private final ScheduledExecutorService fetchJobConfExecutor;
 
   public AWSJobConfigurationManager(EventBus eventBus, Config config) {
     super(eventBus, config);
-
     this.jobConfFiles = Maps.newHashMap();
+    this.refreshIntervalInMinutes = config.getLong(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL_IN_MINUTES);
+
+    this.fetchJobConfExecutor = Executors.newSingleThreadScheduledExecutor(
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("FetchJobConfExecutor")));
+  }
+
+  private void fetchJobConfSettings() {
+    this.jobConfDirPath =
+        config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
+            .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
     this.jobConfS3Uri =
         config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_S3_URI_KEY) ? Optional
             .of(config.getString(GobblinAWSConfigurationKeys.JOB_CONF_S3_URI_KEY)) : Optional.<String>absent();
@@ -73,17 +93,45 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
   @Override
   protected void startUp() throws Exception {
+    LOGGER.info("Starting the " + AWSJobConfigurationManager.class.getSimpleName());
+
+    LOGGER.info(
+        String.format("Scheduling the job configuration refresh task with an interval of %d minute(s)",
+            this.refreshIntervalInMinutes));
+
+    // Schedule the login task
+    this.fetchJobConfExecutor.scheduleAtFixedRate(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          fetchJobConf();
+        } catch (IOException | ConfigurationException e) {
+          LOGGER.error("Failed to fetch job configurations", e);
+          throw Throwables.propagate(e);
+        }
+      }
+    }, 0, this.refreshIntervalInMinutes, TimeUnit.MINUTES);
+  }
+
+  private void fetchJobConf()
+      throws IOException, ConfigurationException {
+    // Refresh job config pull details from config
+    fetchJobConfSettings();
+
     // TODO: Eventually when config store supports job files as well
     // .. we can replace this logic with config store
     if (this.jobConfS3Uri.isPresent() && this.jobConfDirPath.isPresent()) {
 
       // Download the zip file
-      FileUtils.copyURLToFile(new URL(this.jobConfS3Uri.get()), new File(this.jobConfDirPath.get()));
       String zipFile = appendSlash(this.jobConfDirPath.get()) +
           StringUtils.substringAfterLast(this.jobConfS3Uri.get(), File.separator);
+      LOGGER.debug("Downloading to zip: " + zipFile + " from uri: " + this.jobConfS3Uri.get());
+
+      FileUtils.copyURLToFile(new URL(this.jobConfS3Uri.get()), new File(zipFile));
       String extractedPullFilesPath = appendSlash(this.jobConfDirPath.get()) + "files";
 
       // Extract the zip file
+      LOGGER.debug("Extracting to directory: " + extractedPullFilesPath + " from zip: " + zipFile);
       unzipArchive(zipFile, new File(extractedPullFilesPath));
 
       // Load all new job configurations
@@ -95,6 +143,8 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
         List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
+          LOGGER.debug("Config value: " + config);
+
           // If new config or existing config got updated, then post new job config arrival event
           String jobConfigPathIdentifier = config.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY);
           if (!jobConfFiles.containsKey(jobConfigPathIdentifier)) {

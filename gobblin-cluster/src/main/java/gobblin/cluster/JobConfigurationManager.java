@@ -54,7 +54,7 @@ public class JobConfigurationManager extends AbstractIdleService {
 
   protected final EventBus eventBus;
   protected final Config config;
-  protected final Optional<String> jobConfDirPath;
+  protected Optional<String> jobConfDirPath;
 
   public JobConfigurationManager(EventBus eventBus, Config config) {
     this.eventBus = eventBus;
