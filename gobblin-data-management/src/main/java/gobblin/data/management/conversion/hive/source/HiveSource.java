@@ -9,7 +9,7 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.data.management.conversion.hive;
+package gobblin.data.management.conversion.hive.source;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -35,6 +35,7 @@ import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.conversion.hive.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
 import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
 import gobblin.data.management.conversion.hive.events.EventConstants;
@@ -220,8 +221,7 @@ public class HiveSource implements Source {
     }
   }
 
-  @VisibleForTesting
-  public boolean shouldCreateWorkunit(long updateTime, LongWatermark lowWatermark) {
+  protected boolean shouldCreateWorkunit(long updateTime, LongWatermark lowWatermark) {
     return new DateTime(updateTime).isAfter(lowWatermark.getValue());
   }
 
