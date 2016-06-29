@@ -24,17 +24,22 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.sql.ResultSet;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.exception.RecordCountException;
+import gobblin.source.extractor.schema.Schema;
 import gobblin.source.extractor.exception.SchemaException;
 import gobblin.source.extractor.extract.Command;
+import gobblin.source.extractor.extract.CommandOutput;
 import gobblin.source.workunit.WorkUnit;
 import lombok.extern.slf4j.Slf4j;
 
@@ -102,14 +107,14 @@ public class OracleExtractor extends JdbcExtractor {
         schema.setLength(resultset.getLong(3));
         schema.setPrecision(resultset.getInt(4));
         schema.setScale(resultset.getInt(5));
-        schema.setNullable(SQLQueryUtils.castToBoolean(resultset.getString(6)));
+        schema.setNullable(SqlQueryUtils.castToBoolean(resultset.getString(6)));
         schema.setFormat(resultset.getString(7));
         schema.setComment(resultset.getString(8));
         schema.setDefaultValue(null);
         schema.setUnique(false);
 
-        String jsonStr = gson.toJson(schema);
-        JsonObject obj = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
+        String jsonStr = this.getGson().toJson(schema);
+        JsonObject obj = this.getGson().fromJson(jsonStr, JsonObject.class).getAsJsonObject();
         fieldJsonArray.add(obj);
       }
     } catch (Exception e) {
