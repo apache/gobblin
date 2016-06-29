@@ -55,7 +55,7 @@ import gobblin.util.AvroUtils;
  * To dedup using entire records set compaction.use.all.attributes=true. Otherwise, a schema needs
  * to be provided by compaction.avro.key.schema.loc, based on which the dedup is performed.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
@@ -67,7 +67,8 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
    * If true, the latest schema, determined from the input files, will be used as single schema for all input files,
    * otherwise, the avro each input file will be determined and splits will be created with respect to the input file's schema
    */
-  private static final String COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA = COMPACTION_JOB_PREFIX + "avro.single.input.schema";
+  private static final String COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA =
+      COMPACTION_JOB_PREFIX + "avro.single.input.schema";
 
   /**
    * Properties related to the avro dedup compaction job of a dataset.
@@ -89,15 +90,15 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
     // Provide a custom dedup schema through property "avro.key.schema.loc"
     CUSTOM
-  };
+  }
 
   private static final DedupKeyOption DEFAULT_DEDUP_KEY_OPTION = DedupKeyOption.KEY;
 
   private final boolean useSingleInputSchema;
 
-  public MRCompactorAvroKeyDedupJobRunner(Dataset dataset, FileSystem fs, Double priority) {
-    super(dataset, fs, priority);
-    this.useSingleInputSchema = this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, false);
+  public MRCompactorAvroKeyDedupJobRunner(Dataset dataset, FileSystem fs) {
+    super(dataset, fs);
+    this.useSingleInputSchema = this.dataset.jobProps().getPropAsBoolean(COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, true);
   }
 
   @Override
@@ -108,14 +109,14 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
 
   private void configureSchema(Job job) throws IOException {
     Schema newestSchema = getNewestSchemaFromSource(job);
-    if (useSingleInputSchema) {
+    if (this.useSingleInputSchema) {
       AvroJob.setInputKeySchema(job, newestSchema);
     }
     AvroJob.setMapOutputKeySchema(job, this.shouldDeduplicate ? getKeySchema(job, newestSchema) : newestSchema);
     AvroJob.setMapOutputValueSchema(job, newestSchema);
     AvroJob.setOutputKeySchema(job, newestSchema);
   }
-  
+
   /**
    * Obtain the schema used for compaction. If compaction.dedup.key=all, it returns topicSchema.
    * If compaction.dedup.key=key, it returns a schema composed of all fields in topicSchema
@@ -208,7 +209,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
   /**
    * keySchema is valid if a record with newestSchema can be converted to a record with keySchema.
    */
-  private boolean isKeySchemaValid(Schema keySchema, Schema topicSchema) {
+  private static boolean isKeySchemaValid(Schema keySchema, Schema topicSchema) {
     return SchemaCompatibility.checkReaderWriterCompatibility(keySchema, topicSchema).getType()
         .equals(SchemaCompatibilityType.COMPATIBLE);
   }
@@ -233,12 +234,11 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     return null;
   }
 
-  @SuppressWarnings("deprecation")
   private Schema getNewestSchemaFromSource(Path sourceDir) throws IOException {
-    FileStatus[] files = fs.listStatus(sourceDir);
+    FileStatus[] files = this.fs.listStatus(sourceDir);
     Arrays.sort(files, new LastModifiedDescComparator());
     for (FileStatus status : files) {
-      if (status.isDir()) {
+      if (status.isDirectory()) {
         Schema schema = getNewestSchemaFromSource(status.getPath());
         if (schema != null)
           return schema;
@@ -315,6 +315,8 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
    * A Comparator for reverse order comparison of modification time of two FileStatus.
    */
   private static class LastModifiedDescComparator implements Comparator<FileStatus>, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Override
     public int compare(FileStatus fs1, FileStatus fs2) {

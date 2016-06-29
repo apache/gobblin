@@ -30,11 +30,11 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.compaction.CliOptions;
+import gobblin.compaction.mapreduce.MRCompactionRunner;
 
 /**
  * Run Hive compaction based on config files.
- *
- * @author ziliu
  */
 public class CompactionRunner {
 
@@ -59,15 +59,7 @@ public class CompactionRunner {
 
   public static void main(String[] args) throws IOException, ConfigurationException {
 
-    if (args.length != 1) {
-      LOG.info("Proper usage: java -jar compaction.jar <global-config-file>\n" + "or\n"
-          + "hadoop jar compaction.jar <global-config-file>\n" + "or\n"
-          + "yarn jar compaction.jar <global-config-file>\n");
-      System.exit(1);
-    }
-
-    Configuration globalConfig = new PropertiesConfiguration(args[0]);
-    properties = ConfigurationConverter.getProperties(globalConfig);
+    properties = CliOptions.parseArgs(MRCompactionRunner.class, args);
 
     File compactionConfigDir = new File(properties.getProperty(COMPACTION_CONFIG_DIR));
     File[] listOfFiles = compactionConfigDir.listFiles();
@@ -83,23 +75,22 @@ public class CompactionRunner {
       }
     }
     LOG.info("Found " + numOfJobs + " compaction tasks.");
-    PrintWriter pw = new PrintWriter(new OutputStreamWriter(
-        new FileOutputStream(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT)), Charset.forName("UTF-8")));
+    try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(
+        new FileOutputStream(properties.getProperty(TIMING_FILE, TIMING_FILE_DEFAULT)), Charset.forName("UTF-8")))) {
 
-    for (File file : listOfFiles) {
-      if (file.isFile() && !file.getName().startsWith(".")) {
-        Configuration jobConfig = new PropertiesConfiguration(file.getAbsolutePath());
-        jobProperties = ConfigurationConverter.getProperties(jobConfig);
-        long startTime = System.nanoTime();
-        compact();
-        long endTime = System.nanoTime();
-        long elapsedTime = endTime - startTime;
-        double seconds = TimeUnit.NANOSECONDS.toSeconds(elapsedTime);
-        pw.printf("%s: %f%n", file.getAbsolutePath(), seconds);
+      for (File file : listOfFiles) {
+        if (file.isFile() && !file.getName().startsWith(".")) {
+          Configuration jobConfig = new PropertiesConfiguration(file.getAbsolutePath());
+          jobProperties = ConfigurationConverter.getProperties(jobConfig);
+          long startTime = System.nanoTime();
+          compact();
+          long endTime = System.nanoTime();
+          long elapsedTime = endTime - startTime;
+          double seconds = TimeUnit.NANOSECONDS.toSeconds(elapsedTime);
+          pw.printf("%s: %f%n", file.getAbsolutePath(), seconds);
+        }
       }
     }
-
-    pw.close();
   }
 
   private static void compact() throws IOException {
@@ -115,7 +106,7 @@ public class CompactionRunner {
   }
 
   private static List<AvroExternalTable> buildDeltaTables() throws IOException {
-    List<AvroExternalTable> deltas = new ArrayList<AvroExternalTable>();
+    List<AvroExternalTable> deltas = new ArrayList<>();
 
     for (int i = 1;; i++) {
       String deltai = DELTA + "." + i;

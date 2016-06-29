@@ -42,7 +42,7 @@ import gobblin.util.executors.ScalingThreadPoolExecutor;
  * which returns a {@link Results} object. The (fully qualified) name of the class that extends {@link AbstractRunner}
  * should be associated with property {@link ConfigurationKeys#COMPACTION_DATA_COMPLETENESS_VERIFICATION_CLASS}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class DataCompletenessVerifier implements Closeable {
 
@@ -124,7 +124,7 @@ public class DataCompletenessVerifier implements Closeable {
     ExecutorsUtils.shutdownExecutorService(this.exeSvc, Optional.of(LOG));
   }
 
-  public void closeNow() throws IOException {
+  public void closeNow() {
     ExecutorsUtils.shutdownExecutorService(this.exeSvc, Optional.of(LOG), 0, TimeUnit.NANOSECONDS);
   }
 

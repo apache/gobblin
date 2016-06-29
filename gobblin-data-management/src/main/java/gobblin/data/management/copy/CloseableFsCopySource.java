@@ -13,7 +13,6 @@ package gobblin.data.management.copy;
 
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.extractor.CloseableFsFileAwareInputStreamExtractor;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
@@ -42,8 +41,8 @@ import com.google.common.io.Closer;
  * {@link FileSystem#get(org.apache.hadoop.conf.Configuration)} call. Closing is necessary as the file system maintains
  * a session with the remote server.
  *
- * @see {@link HadoopUtils#newConfiguration()}
- * @See {@link SftpLightWeightFileSystem}
+ * @see HadoopUtils#newConfiguration()
+ * @See SftpLightWeightFileSystem
  *      </p>
  */
 @Slf4j
@@ -51,25 +50,23 @@ public class CloseableFsCopySource extends CopySource {
 
   private final Closer closer = Closer.create();
 
+  @Override
   protected FileSystem getSourceFileSystem(State state) throws IOException {
-    return closer.register(super.getSourceFileSystem(state));
+    return this.closer.register(super.getSourceFileSystem(state));
   }
 
   @Override
   public void shutdown(SourceState state) {
     try {
-      closer.close();
+      this.closer.close();
     } catch (IOException e) {
       log.warn("Failed to close all closeables", e);
     }
   }
 
   @Override
-  public Extractor<String, FileAwareInputStream> getExtractor(WorkUnitState state) throws IOException {
-
-    CopyableFile copyableFile = deserializeCopyableFile(state);
-
-    return new CloseableFsFileAwareInputStreamExtractor(getSourceFileSystem(state), copyableFile);
+  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf)
+      throws IOException {
+    return new CloseableFsFileAwareInputStreamExtractor(fs, cf);
   }
-
 }

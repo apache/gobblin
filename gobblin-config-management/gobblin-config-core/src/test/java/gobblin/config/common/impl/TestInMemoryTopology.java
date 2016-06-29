@@ -214,12 +214,12 @@ public class TestInMemoryTopology {
     testValuesForIdentity(rawValueInspector);
     testValuesForIdentity(inMemoryStrongRef);
     testValuesForIdentity(inMemoryWeakRef);
-    
+
     // test values for Espresso Tag
     testValuesForEspressoTag(rawValueInspector);
     testValuesForEspressoTag(inMemoryStrongRef);
     testValuesForEspressoTag(inMemoryWeakRef);
-    
+
     // test for batch
     Collection<ConfigKeyPath> inputs = new ArrayList<ConfigKeyPath>();
     inputs.add(espressoTag);
@@ -228,7 +228,7 @@ public class TestInMemoryTopology {
     Assert.assertEquals(resultMap.size(), 2);
     testValuesForEspressoTagOwnConfig(resultMap.get(espressoTag));
     checkValuesForIdentityOwnConfig(resultMap.get(identity));
-    
+
     resultMap = rawValueInspector.getResolvedConfigs(inputs);
     Assert.assertEquals(resultMap.size(), 2);
     testValuesForEspressoTagResolvedConfig(resultMap.get(espressoTag));
@@ -238,19 +238,17 @@ public class TestInMemoryTopology {
   private void testValuesForEspressoTag(ConfigStoreValueInspector valueInspector){
     Config config = valueInspector.getOwnConfig(this.espressoTag);
     testValuesForEspressoTagOwnConfig(config);
-    
+
     config = valueInspector.getResolvedConfig(this.espressoTag);
     testValuesForEspressoTagResolvedConfig(config);
   }
-  
+
   private void testValuesForEspressoTagOwnConfig(Config config){
-    Assert.assertTrue(config.entrySet().size() == 2 );
     Assert.assertTrue(config.getString("keyOf_espressoTag").equals("valueOf_espressoTag"));
     Assert.assertTrue(config.getString("generalKey").equals("valueOf_generalKey_espressoTag"));
   }
-  
+
   private void testValuesForEspressoTagResolvedConfig(Config config){
-    Assert.assertTrue(config.entrySet().size() == 6 );
     Assert.assertTrue(config.getString("keyOf_espressoTag").equals("valueOf_espressoTag"));
     Assert.assertTrue(config.getString("generalKey").equals("valueOf_generalKey_espressoTag"));
     Assert.assertTrue(config.getString("keyInRoot").equals("valueInRoot"));
@@ -258,7 +256,7 @@ public class TestInMemoryTopology {
     Assert.assertTrue(config.getString("keyOf_tag2").equals("valueOf_tag2"));
     Assert.assertTrue(config.getString("keyOf_tag").equals("valueOf_tag"));
   }
-  
+
   private void testValuesForIdentity(ConfigStoreValueInspector valueInspector){
     Config ownConfig = valueInspector.getOwnConfig(identity);
     checkValuesForIdentityOwnConfig(ownConfig);
@@ -266,15 +264,14 @@ public class TestInMemoryTopology {
     Config resolvedConfig = valueInspector.getResolvedConfig(identity);
     checkValuesForIdentityResolvedConfig(resolvedConfig);
   }
-  
+
   private void checkValuesForIdentityOwnConfig(Config ownConfig){
     Assert.assertTrue(ownConfig.entrySet().size() == 2 );
     Assert.assertTrue(ownConfig.getString("keyOf_identity").equals("valueOf_identity"));
     Assert.assertTrue(ownConfig.getString("generalKey").equals("valueOf_generalKey_identity"));
   }
-  
+
   private void checkValuesForIdentityResolvedConfig(Config resolvedConfig){
-    Assert.assertTrue(resolvedConfig.entrySet().size() == 10 );
     Assert.assertTrue(resolvedConfig.getString("keyOf_data").equals("valueOf_data"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_identity").equals("valueOf_identity"));
     Assert.assertTrue(resolvedConfig.getString("keyOf_espressoTag").equals("valueOf_espressoTag"));

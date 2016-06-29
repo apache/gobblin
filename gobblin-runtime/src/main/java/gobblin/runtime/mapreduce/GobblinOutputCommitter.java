@@ -34,6 +34,7 @@ import com.google.common.io.Closer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.listeners.JobListener;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
@@ -43,7 +44,7 @@ import gobblin.util.JobLauncherUtils;
  * Hadoop {@link OutputCommitter} implementation that overrides the default
  * {@link #abortJob(JobContext, org.apache.hadoop.mapreduce.JobStatus.State)} behavior.
  * This is necessary to add functionality for cleaning up staging data when the
- * {@link gobblin.runtime.JobLauncher#cancelJob(gobblin.runtime.JobListener)} method is
+ * {@link gobblin.runtime.JobLauncher#cancelJob(JobListener)} method is
  * called via Azkaban. Azkaban only allows the cancel method run to for 5 ms until it
  * does a hard kill on the process. In order to make sure the staging data still gets
  * cleaned-up, the cleanup will take place in the AM.
@@ -109,12 +110,10 @@ public class GobblinOutputCommitter extends OutputCommitter {
   }
 
   @Override
-  public void abortTask(TaskAttemptContext arg0) throws IOException {
-  }
+  public void abortTask(TaskAttemptContext arg0) throws IOException {}
 
   @Override
-  public void commitTask(TaskAttemptContext arg0) throws IOException {
-  }
+  public void commitTask(TaskAttemptContext arg0) throws IOException {}
 
   @Override
   public boolean needsTaskCommit(TaskAttemptContext arg0) throws IOException {
@@ -122,18 +121,17 @@ public class GobblinOutputCommitter extends OutputCommitter {
   }
 
   @Override
-  public void setupJob(JobContext arg0) throws IOException {
-  }
+  public void setupJob(JobContext arg0) throws IOException {}
 
   @Override
-  public void setupTask(TaskAttemptContext arg0) throws IOException {
-  }
+  public void setupTask(TaskAttemptContext arg0) throws IOException {}
 
   /**
    * Replicates the default behavior of the {@link OutputCommitter} used by
    * {@link org.apache.hadoop.mapreduce.lib.output.NullOutputFormat}.
    * @return true
    */
+  @Override
   public boolean isRecoverySupported() {
     return true;
   }
@@ -142,13 +140,13 @@ public class GobblinOutputCommitter extends OutputCommitter {
    * Replicates the default behavior of the {@link OutputCommitter} used by
    * {@link org.apache.hadoop.mapreduce.lib.output.NullOutputFormat}.
    */
-  public void recoverTask(TaskAttemptContext taskContext) throws IOException {
-  }
+  @Override
+  public void recoverTask(TaskAttemptContext taskContext) throws IOException {}
 
   /**
    * Cleanup the Hadoop MR working directory.
    */
-  private void cleanUpWorkingDirectory(Path mrJobDir, FileSystem fs) throws IOException {
+  private static void cleanUpWorkingDirectory(Path mrJobDir, FileSystem fs) throws IOException {
     if (fs.exists(mrJobDir)) {
       fs.delete(mrJobDir, true);
       LOG.info("Deleted working directory " + mrJobDir);
@@ -158,8 +156,8 @@ public class GobblinOutputCommitter extends OutputCommitter {
   private static class WorkUnitFilter implements PathFilter {
     @Override
     public boolean accept(Path path) {
-      return path.getName().endsWith(AbstractJobLauncher.WORK_UNIT_FILE_EXTENSION) ||
-          path.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION);
+      return path.getName().endsWith(AbstractJobLauncher.WORK_UNIT_FILE_EXTENSION)
+          || path.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION);
     }
   }
 }

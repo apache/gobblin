@@ -16,15 +16,19 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.reporter.util.HttpClientFactory;
 import gobblin.util.AvroUtils;
+
 import org.apache.avro.Schema;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.HttpStatus;
-import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +38,7 @@ import com.google.common.base.Preconditions;
 /**
  * An implementation of {@link KafkaSchemaRegistry}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema> {
 
@@ -48,7 +52,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
   public static final int SCHEMA_ID_LENGTH_BYTE = 16;
   public static final byte MAGIC_BYTE = 0x0;
 
-  private final HttpClient httpClient;
+  private final GenericObjectPool<HttpClient> httpClientPool;
   private final String url;
 
   /**
@@ -62,7 +66,16 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
         String.format("Property %s not provided.", KAFKA_SCHEMA_REGISTRY_URL));
 
     this.url = props.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
-    this.httpClient = new HttpClient(new MultiThreadedHttpConnectionManager());
+
+    int objPoolSize =
+        Integer.parseInt(props.getProperty(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS, 
+            "" + ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT));
+    LOG.info("Create HttpClient pool with size " + objPoolSize);
+
+    GenericObjectPoolConfig config = new GenericObjectPoolConfig();
+    config.setMaxTotal(objPoolSize);
+    config.setMaxIdle(objPoolSize);
+    this.httpClientPool = new GenericObjectPool<>(new HttpClientFactory(), config);
   }
 
   /**
@@ -89,7 +102,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
    * @throws SchemaRegistryException if failed to retrieve schema.
    */
   @Override
-  public synchronized Schema getLatestSchemaByTopic(String topic) throws SchemaRegistryException {
+  public Schema getLatestSchemaByTopic(String topic) throws SchemaRegistryException {
     String schemaUrl = KafkaAvroSchemaRegistry.this.url + GET_RESOURCE_BY_TYPE + topic;
 
     LOG.debug("Fetching from URL : " + schemaUrl);
@@ -98,8 +111,9 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
 
     int statusCode;
     String schemaString;
+    HttpClient httpClient = this.borrowClient();
     try {
-      statusCode = KafkaAvroSchemaRegistry.this.httpClient.executeMethod(get);
+      statusCode = httpClient.executeMethod(get);
       schemaString = get.getResponseBodyAsString();
     } catch (HttpException e) {
       throw new RuntimeException(e);
@@ -107,6 +121,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
       throw new RuntimeException(e);
     } finally {
       get.releaseConnection();
+      this.httpClientPool.returnObject(httpClient);
     }
 
     if (statusCode != HttpStatus.SC_OK) {
@@ -122,6 +137,14 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
     }
 
     return schema;
+  }
+  
+  private HttpClient borrowClient() throws SchemaRegistryException {
+    try {
+      return this.httpClientPool.borrowObject();
+    } catch (Exception e) {
+      throw new SchemaRegistryException("Unable to borrow " + HttpClient.class.getSimpleName());
+    }
   }
 
   /**
@@ -156,6 +179,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
     PostMethod post = new PostMethod(url);
     post.addParameter("schema", schema.toString());
 
+    HttpClient httpClient = this.borrowClient();
     try {
       LOG.debug("Loading: " + post.getURI());
       int statusCode = httpClient.executeMethod(post);
@@ -187,6 +211,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
       throw new SchemaRegistryException(t);
     } finally {
       post.releaseConnection();
+      this.httpClientPool.returnObject(httpClient);
     }
   }
 
@@ -201,13 +226,15 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
 
     int statusCode;
     String schemaString;
+    HttpClient httpClient = this.borrowClient();
     try {
-      statusCode = this.httpClient.executeMethod(get);
+      statusCode = httpClient.executeMethod(get);
       schemaString = get.getResponseBodyAsString();
     } catch (IOException e) {
       throw new SchemaRegistryException(e);
     } finally {
       get.releaseConnection();
+      this.httpClientPool.returnObject(httpClient);
     }
 
     if (statusCode != HttpStatus.SC_OK) {

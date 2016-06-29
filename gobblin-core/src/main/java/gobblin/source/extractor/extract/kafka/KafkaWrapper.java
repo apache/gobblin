@@ -12,10 +12,6 @@
 
 package gobblin.source.extractor.extract.kafka;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.util.DatasetFilterUtils;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
@@ -26,6 +22,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.NotImplementedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.net.HostAndPort;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.util.DatasetFilterUtils;
 import kafka.api.PartitionFetchInfo;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.common.TopicAndPartition;
@@ -40,22 +49,12 @@ import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
 
-import org.apache.commons.lang3.NotImplementedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.net.HostAndPort;
-
 
 /**
  * Wrapper class that contains two alternative Kakfa APIs: an old low-level Scala-based API, and a new API.
  * The new API has not been implemented since it's not ready to be open sourced.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaWrapper implements Closeable {
 
@@ -88,7 +87,7 @@ public class KafkaWrapper implements Closeable {
     }
 
     private KafkaWrapper build() {
-      Preconditions.checkArgument(!brokers.isEmpty(), "Need to specify at least one Kafka broker.");
+      Preconditions.checkArgument(!this.brokers.isEmpty(), "Need to specify at least one Kafka broker.");
       return new KafkaWrapper(this);
     }
   }
@@ -139,9 +138,8 @@ public class KafkaWrapper implements Closeable {
   private KafkaAPI getKafkaAPI() {
     if (this.useNewKafkaAPI) {
       return new KafkaNewAPI();
-    } else {
-      return new KafkaOldAPI();
     }
+    return new KafkaOldAPI();
   }
 
   @Override
@@ -190,6 +188,15 @@ public class KafkaWrapper implements Closeable {
       List<KafkaPartition> partitions = Lists.newArrayList();
 
       for (PartitionMetadata partitionMetadata : topicMetadata.partitionsMetadata()) {
+        if (null == partitionMetadata) {
+          LOG.error("Ignoring topic with null partition metadata " + topicMetadata.topic());
+          return Collections.emptyList();
+        }
+        if (null == partitionMetadata.leader()) {
+          LOG.error(
+              "Ignoring topic with null partition leader " + topicMetadata.topic() + " metatada=" + partitionMetadata);
+          return Collections.emptyList();
+        }
         partitions.add(new KafkaPartition.Builder().withId(partitionMetadata.partitionId())
             .withTopicName(topicMetadata.topic()).withLeaderId(partitionMetadata.leader().id())
             .withLeaderHostAndPort(partitionMetadata.leader().host(), partitionMetadata.leader().port()).build());
@@ -257,11 +264,10 @@ public class KafkaWrapper implements Closeable {
     private SimpleConsumer getSimpleConsumer(String broker) {
       if (this.activeConsumers.containsKey(broker)) {
         return this.activeConsumers.get(broker);
-      } else {
-        SimpleConsumer consumer = this.createSimpleConsumer(broker);
-        this.activeConsumers.putIfAbsent(broker, consumer);
-        return consumer;
       }
+      SimpleConsumer consumer = this.createSimpleConsumer(broker);
+      this.activeConsumers.putIfAbsent(broker, consumer);
+      return consumer;
     }
 
     private SimpleConsumer getSimpleConsumer(HostAndPort hostAndPort) {
@@ -296,7 +302,7 @@ public class KafkaWrapper implements Closeable {
 
     private long getOffset(KafkaPartition partition,
         Map<TopicAndPartition, PartitionOffsetRequestInfo> offsetRequestInfo)
-            throws KafkaOffsetRetrievalFailureException {
+        throws KafkaOffsetRetrievalFailureException {
       SimpleConsumer consumer = this.getSimpleConsumer(partition.getLeader().getHostAndPort());
       for (int i = 0; i < NUM_TRIES_FETCH_OFFSET; i++) {
         try {

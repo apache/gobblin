@@ -12,7 +12,7 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -21,26 +21,27 @@ import org.apache.hadoop.fs.FileSystem;
 
 
 /**
- * {@link Dataset} that supports finding {@link CopyableFile}s.
+ * {@link Dataset} that supports finding {@link CopyEntity}s.
  */
-public interface CopyableDataset extends Dataset {
+public interface CopyableDataset extends CopyableDatasetBase {
 
   /**
-   * Find all {@link CopyableFile}s in this dataset.
+   * Find all {@link CopyEntity}s in this dataset.
    *
    * <p>
-   *   This method should return a collection of {@link CopyableFile}, each describing one file that should be copied
-   *   to the target. The returned collection should contain exactly one {@link CopyableFile} per file that should
-   *   be copied. Directories are created automatically, the returned collection should not include any directories.
+   *   This method should return a collection of {@link CopyEntity}, each describing one work unit for distcp.
+   *   The most common {@link CopyEntity} is the {@link gobblin.data.management.copy.CopyableDataset}, describing a file
+   *   that should be copied
+   *   to the target.
    *   See {@link CopyableFile} for explanation of the information contained in the {@link CopyableFile}s.
    * </p>
    *
-   * @param targetFs target {@link FileSystem} where copied files will be placed.
-   * @param configuration {@link CopyConfiguration} for this job. See {@link CopyConfiguration}.
-   * @return List of {@link CopyableFile}s in this dataset.
+   * @param targetFs target {@link org.apache.hadoop.fs.FileSystem} where copied files will be placed.
+   * @param configuration {@link gobblin.data.management.copy.CopyConfiguration} for this job. See {@link gobblin.data.management.copy.CopyConfiguration}.
+   * @return List of {@link CopyEntity}s in this dataset.
    * @throws IOException
    */
-  public Collection<CopyableFile> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration) throws
+  public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration) throws
       IOException;
 
 }

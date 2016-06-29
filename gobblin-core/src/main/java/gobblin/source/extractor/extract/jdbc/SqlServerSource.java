@@ -33,8 +33,8 @@ import gobblin.source.extractor.extract.QueryBasedSource;
 public class SqlServerSource extends QueryBasedSource<JsonArray, JsonElement> {
   private static final Logger LOG = LoggerFactory.getLogger(SqlServerSource.class);
 
-  public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state)
-      throws IOException {
+  @Override
+  public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
     Extractor<JsonArray, JsonElement> extractor = null;
     try {
       extractor = new SqlServerExtractor(state).build();

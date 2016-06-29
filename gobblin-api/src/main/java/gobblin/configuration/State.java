@@ -15,7 +15,6 @@ package gobblin.configuration;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -23,12 +22,15 @@ import java.util.Set;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
-
 import com.google.common.collect.Sets;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+
+import lombok.EqualsAndHashCode;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -39,7 +41,11 @@ import org.apache.hadoop.io.Writable;
  *
  * @author kgoodhop
  */
+@EqualsAndHashCode(exclude = { "jsonParser" })
 public class State implements Writable {
+
+  private static final Joiner LIST_JOINER = Joiner.on(",");
+  private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
 
   private String id;
 
@@ -75,7 +81,7 @@ public class State implements Writable {
    * @param otherState the other {@link State} instance
    */
   public void addAll(State otherState) {
-    this.properties.putAll(otherState.properties);
+    addAll(otherState.properties);
   }
 
   /**
@@ -177,7 +183,7 @@ public class State implements Writable {
    */
   public synchronized void appendToListProp(String key, String value) {
     if (contains(key)) {
-      setProp(key, Joiner.on(",").join(getProp(key), value));
+      setProp(key, LIST_JOINER.join(getProp(key), value));
     } else {
       setProp(key, value);
     }
@@ -196,13 +202,11 @@ public class State implements Writable {
    * @param value property value (if it includes commas, it will be split by the commas).
    */
   public synchronized void appendToSetProp(String key, String value) {
-      Set<String> set = value == null ?
-              Sets.<String>newHashSet() :
-              Sets.newHashSet(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(value));
-      if (contains(key)) {
-          set.addAll(getPropAsSet(key));
-      }
-      setProp(key, Joiner.on(",").join(set));
+    Set<String> set = value == null ? Sets.<String> newHashSet() : Sets.newHashSet(LIST_SPLITTER.splitToList(value));
+    if (contains(key)) {
+      set.addAll(getPropAsSet(key));
+    }
+    setProp(key, LIST_JOINER.join(set));
   }
 
   /**
@@ -212,7 +216,7 @@ public class State implements Writable {
    * @return value associated with the key as a string or <code>null</code> if the property is not set
    */
   public String getProp(String key) {
-    return getProperty(key);
+    return this.properties.getProperty(key);
   }
 
   /**
@@ -223,7 +227,7 @@ public class State implements Writable {
    * @return value associated with the key or the default value if the property is not set
    */
   public String getProp(String key, String def) {
-    return getProperty(key, def);
+    return this.properties.getProperty(key, def);
   }
 
   /**
@@ -233,7 +237,7 @@ public class State implements Writable {
    * @return value associated with the key as a {@link List} of strings
    */
   public List<String> getPropAsList(String key) {
-    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key));
+    return LIST_SPLITTER.splitToList(getProp(key));
   }
 
   /**
@@ -244,7 +248,7 @@ public class State implements Writable {
    * @return value (the default value if the property is not set) associated with the key as a list of strings
    */
   public List<String> getPropAsList(String key, String def) {
-    return Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key, def));
+    return LIST_SPLITTER.splitToList(getProp(key, def));
   }
 
   /**
@@ -254,7 +258,18 @@ public class State implements Writable {
    * @return value associated with the key as a {@link Set} of strings
    */
   public Set<String> getPropAsSet(String key) {
-      return Sets.newHashSet(Splitter.on(",").trimResults().omitEmptyStrings().splitToList(getProperty(key)));
+    return ImmutableSet.copyOf(LIST_SPLITTER.splitToList(getProp(key)));
+  }
+
+  /**
+   * Get the value of a comma separated property as a {@link Set} of strings.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value (the default value if the property is not set) associated with the key as a {@link Set} of strings
+   */
+  public Set<String> getPropAsSet(String key, String def) {
+    return ImmutableSet.copyOf(LIST_SPLITTER.splitToList(getProp(key, def)));
   }
 
   /**
@@ -264,8 +279,7 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
-        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, LIST_SPLITTER.split(getProp(key)));
   }
 
   /**
@@ -276,8 +290,7 @@ public class State implements Writable {
    * @return value associated with the key as a case insensitive {@link Set} of strings
    */
   public Set<String> getPropAsCaseInsensitiveSet(String key, String def) {
-    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER,
-        Splitter.on(",").trimResults().omitEmptyStrings().split(getProperty(key, def)));
+    return ImmutableSortedSet.copyOf(String.CASE_INSENSITIVE_ORDER, LIST_SPLITTER.split(getProp(key, def)));
   }
 
   /**
@@ -287,7 +300,7 @@ public class State implements Writable {
    * @return long integer value associated with the key
    */
   public long getPropAsLong(String key) {
-    return Long.parseLong(getProperty(key));
+    return Long.parseLong(getProp(key));
   }
 
   /**
@@ -298,7 +311,7 @@ public class State implements Writable {
    * @return long integer value associated with the key or the default value if the property is not set
    */
   public long getPropAsLong(String key, long def) {
-    return Long.parseLong(getProperty(key, String.valueOf(def)));
+    return Long.parseLong(getProp(key, String.valueOf(def)));
   }
 
   /**
@@ -308,7 +321,7 @@ public class State implements Writable {
    * @return integer value associated with the key
    */
   public int getPropAsInt(String key) {
-    return Integer.parseInt(getProperty(key));
+    return Integer.parseInt(getProp(key));
   }
 
   /**
@@ -319,7 +332,7 @@ public class State implements Writable {
    * @return integer value associated with the key or the default value if the property is not set
    */
   public int getPropAsInt(String key, int def) {
-    return Integer.parseInt(getProperty(key, String.valueOf(def)));
+    return Integer.parseInt(getProp(key, String.valueOf(def)));
   }
 
   /**
@@ -329,7 +342,7 @@ public class State implements Writable {
    * @return short value associated with the key
    */
   public short getPropAsShort(String key) {
-    return Short.parseShort(getProperty(key));
+    return Short.parseShort(getProp(key));
   }
 
   /**
@@ -340,7 +353,7 @@ public class State implements Writable {
    * @return short value associated with the key
    */
   public short getPropAsShortWithRadix(String key, int radix) {
-    return Short.parseShort(getProperty(key), radix);
+    return Short.parseShort(getProp(key), radix);
   }
 
   /**
@@ -351,7 +364,7 @@ public class State implements Writable {
    * @return short value associated with the key or the default value if the property is not set
    */
   public short getPropAsShort(String key, short def) {
-    return Short.parseShort(getProperty(key, String.valueOf(def)));
+    return Short.parseShort(getProp(key, String.valueOf(def)));
   }
 
   /**
@@ -363,7 +376,7 @@ public class State implements Writable {
    * @return short value associated with the key or the default value if the property is not set
    */
   public short getPropAsShortWithRadix(String key, short def, int radix) {
-    return contains(key) ? Short.parseShort(getProperty(key), radix) : def;
+    return contains(key) ? Short.parseShort(getProp(key), radix) : def;
   }
 
   /**
@@ -373,7 +386,7 @@ public class State implements Writable {
    * @return double value associated with the key
    */
   public double getPropAsDouble(String key) {
-    return Double.parseDouble(getProperty(key));
+    return Double.parseDouble(getProp(key));
   }
 
   /**
@@ -384,7 +397,7 @@ public class State implements Writable {
    * @return double value associated with the key or the default value if the property is not set
    */
   public double getPropAsDouble(String key, double def) {
-    return Double.parseDouble(getProperty(key, String.valueOf(def)));
+    return Double.parseDouble(getProp(key, String.valueOf(def)));
   }
 
   /**
@@ -394,7 +407,7 @@ public class State implements Writable {
    * @return boolean value associated with the key
    */
   public boolean getPropAsBoolean(String key) {
-    return Boolean.parseBoolean(getProperty(key));
+    return Boolean.parseBoolean(getProp(key));
   }
 
   /**
@@ -405,7 +418,7 @@ public class State implements Writable {
    * @return boolean value associated with the key or the default value if the property is not set
    */
   public boolean getPropAsBoolean(String key, boolean def) {
-    return Boolean.parseBoolean(getProperty(key, String.valueOf(def)));
+    return Boolean.parseBoolean(getProp(key, String.valueOf(def)));
   }
 
   /**
@@ -435,7 +448,7 @@ public class State implements Writable {
    */
   @Deprecated
   protected String getProperty(String key) {
-    return this.properties.getProperty(key);
+    return getProp(key);
   }
 
   /**
@@ -443,7 +456,7 @@ public class State implements Writable {
    */
   @Deprecated
   protected String getProperty(String key, String def) {
-    return this.properties.getProperty(key, def);
+    return getProp(key, def);
   }
 
   /**
@@ -477,46 +490,26 @@ public class State implements Writable {
       txt.readFields(in);
       String value = txt.toString();
 
-      properties.put(key, value);
+      this.properties.put(key, value);
     }
   }
 
   @Override
   public void write(DataOutput out) throws IOException {
     Text txt = new Text();
-    out.writeInt(properties.size());
+    out.writeInt(this.properties.size());
 
-    for (Object key : properties.keySet()) {
+    for (Object key : this.properties.keySet()) {
       txt.set((String) key);
       txt.write(out);
 
-      txt.set(properties.getProperty((String) key));
+      txt.set(this.properties.getProperty((String) key));
       txt.write(out);
     }
-  }
-
-  @Override
-  public boolean equals(Object object) {
-    if (!(object instanceof State)) {
-      return false;
-    }
-
-    State other = (State) object;
-    return ((this.id == null && other.id == null) || (this.id != null && this.id.equals(other.id)))
-        && this.properties.equals(other.properties);
-  }
-
-  @Override
-  public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + ((this.id == null) ? 0 : this.id.hashCode());
-    result = prime * result + ((this.properties == null) ? 0 : this.properties.hashCode());
-    return result;
   }
 
   @Override
   public String toString() {
-    return properties.toString();
+    return this.properties.toString();
   }
 }

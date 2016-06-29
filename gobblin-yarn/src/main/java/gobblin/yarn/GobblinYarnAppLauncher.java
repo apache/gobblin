@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -82,6 +83,10 @@ import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.admin.AdminWebServer;
+import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.cluster.GobblinClusterUtils;
+import gobblin.cluster.HelixUtils;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.rest.JobExecutionInfoServer;
 import gobblin.util.ConfigUtils;
@@ -195,11 +200,11 @@ public class GobblinYarnAppLauncher {
     this.applicationName = config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY);
     this.appQueueName = config.getString(GobblinYarnConfigurationKeys.APP_QUEUE_KEY);
 
-    String zkConnectionString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     this.helixManager = HelixManagerFactory.getZKHelixManager(
-        config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY), YarnHelixUtils.getHostname(),
+        config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), GobblinClusterUtils.getHostname(),
         InstanceType.SPECTATOR, zkConnectionString);
 
     this.yarnConfiguration = yarnConfiguration;
@@ -237,9 +242,9 @@ public class GobblinYarnAppLauncher {
   public void launch() throws IOException, YarnException {
     this.eventBus.register(this);
 
-    String clusterName = this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-    YarnHelixUtils.createGobblinYarnHelixCluster(
-        this.config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY), clusterName);
+    String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    HelixUtils.createGobblinHelixCluster(
+        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY), clusterName);
     LOGGER.info("Created Helix cluster " + clusterName);
 
     connectHelixManager();
@@ -265,12 +270,20 @@ public class GobblinYarnAppLauncher {
       LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
       services.add(buildYarnAppSecurityManager());
     }
-    services.add(buildLogCopier(
+    services.add(buildLogCopier(this.config,
         new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
-        YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
+        GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
     if (config.getBoolean(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY)) {
       LOGGER.info("Starting the job execution info server since it is enabled");
-      services.add(new JobExecutionInfoServer(ConfigUtils.configToProperties(config)));
+      Properties properties = ConfigUtils.configToProperties(config);
+      JobExecutionInfoServer executionInfoServer = new JobExecutionInfoServer(properties);
+      services.add(executionInfoServer);
+      if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
+        LOGGER.info("Starting the admin UI server since it is enabled");
+        services.add(new AdminWebServer(properties, executionInfoServer.getAdvertisedServerUri()));
+      }
+    } else if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
+      LOGGER.warn("NOT starting the admin UI because the job execution info server is NOT enabled");
     }
 
     this.serviceManager = Optional.of(new ServiceManager(services));
@@ -319,7 +332,6 @@ public class GobblinYarnAppLauncher {
   }
 
   @Subscribe
-  @SuppressWarnings("unused")
   public void handleApplicationReportArrivalEvent(ApplicationReportArrivalEvent applicationReportArrivalEvent) {
     ApplicationReport applicationReport = applicationReportArrivalEvent.getApplicationReport();
 
@@ -507,7 +519,7 @@ public class GobblinYarnAppLauncher {
   }
 
   private Map<String, LocalResource> addAppMasterLocalResources(ApplicationId applicationId) throws IOException {
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
+    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
     Path appMasterWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
 
     Map<String, LocalResource> appMasterResources = Maps.newHashMap();
@@ -531,9 +543,9 @@ public class GobblinYarnAppLauncher {
       addAppRemoteFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
           appMasterResources);
     }
-    if (this.config.hasPath(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY)) {
+    if (this.config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) {
       Path appFilesDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
-      addJobConfPackage(this.config.getString(GobblinYarnConfigurationKeys.JOB_CONF_PATH_KEY), appFilesDestDir,
+      addJobConfPackage(this.config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY), appFilesDestDir,
           appMasterResources);
     }
 
@@ -541,7 +553,7 @@ public class GobblinYarnAppLauncher {
   }
 
   private void addContainerLocalResources(ApplicationId applicationId) throws IOException {
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
+    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
 
     if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY)) {
@@ -607,7 +619,7 @@ public class GobblinYarnAppLauncher {
   private void addJobConfPackage(String jobConfPackagePath, Path destDir, Map<String, LocalResource> resourceMap)
       throws IOException {
     Path srcFilePath = new Path(jobConfPackagePath);
-    Path destFilePath = new Path(destDir, srcFilePath.getName() + GobblinYarnConfigurationKeys.TAR_GZ_FILE_SUFFIX);
+    Path destFilePath = new Path(destDir, srcFilePath.getName() + GobblinClusterConfigurationKeys.TAR_GZ_FILE_SUFFIX);
     StreamUtils.tar(FileSystem.getLocal(this.yarnConfiguration), this.fs, srcFilePath, destFilePath);
     YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.ARCHIVE, resourceMap);
   }
@@ -619,7 +631,7 @@ public class GobblinYarnAppLauncher {
         .append(" -Xmx").append(memoryMbs).append("M")
         .append(" ").append(this.appMasterJvmArgs.or(""))
         .append(" ").append(GobblinApplicationMaster.class.getName())
-        .append(" --").append(GobblinYarnConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
+        .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
         .append(" 1>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
             appMasterClassName).append(".").append(ApplicationConstants.STDOUT)
@@ -656,17 +668,23 @@ public class GobblinYarnAppLauncher {
     }
   }
 
-  private LogCopier buildLogCopier(Path sinkLogDir, Path appWorkDir) throws IOException {
+  private LogCopier buildLogCopier(Config config, Path sinkLogDir, Path appWorkDir) throws IOException {
     FileSystem rawLocalFs = this.closer.register(new RawLocalFileSystem());
     rawLocalFs.initialize(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration());
 
-    return LogCopier.newBuilder()
-        .useSrcFileSystem(this.fs)
-        .useDestFileSystem(rawLocalFs)
-        .readFrom(getHdfsLogDir(appWorkDir))
-        .writeTo(sinkLogDir)
-        .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR))
-        .build();
+    LogCopier.Builder builder = LogCopier.newBuilder()
+            .useSrcFileSystem(this.fs)
+            .useDestFileSystem(rawLocalFs)
+            .readFrom(getHdfsLogDir(appWorkDir))
+            .writeTo(sinkLogDir)
+            .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR));
+    if (config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_MAX_FILE_SIZE)) {
+      builder.useMaxBytesPerLogFile(config.getBytes(GobblinYarnConfigurationKeys.LOG_COPIER_MAX_FILE_SIZE));
+    }
+    if (config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_SCHEDULER)) {
+      builder.useScheduler(config.getString(GobblinYarnConfigurationKeys.LOG_COPIER_SCHEDULER));
+    }
+    return builder.build();
   }
 
   private Path getHdfsLogDir(Path appWorkDir) throws IOException {
@@ -707,7 +725,7 @@ public class GobblinYarnAppLauncher {
   }
 
   private void cleanUpAppWorkDirectory(ApplicationId applicationId) throws IOException {
-    Path appWorkDir = YarnHelixUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
+    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
     if (this.fs.exists(appWorkDir)) {
       LOGGER.info("Deleting application working directory " + appWorkDir);
       this.fs.delete(appWorkDir, true);
@@ -766,7 +784,9 @@ public class GobblinYarnAppLauncher {
         } catch (TimeoutException te) {
           LOGGER.error("Timeout in stopping the service manager", te);
         } finally {
-          gobblinYarnAppLauncher.sendEmailOnShutdown(Optional.<ApplicationReport>absent());
+          if (gobblinYarnAppLauncher.emailNotificationOnShutdown) {
+            gobblinYarnAppLauncher.sendEmailOnShutdown(Optional.<ApplicationReport>absent());
+          }
         }
       }
     });

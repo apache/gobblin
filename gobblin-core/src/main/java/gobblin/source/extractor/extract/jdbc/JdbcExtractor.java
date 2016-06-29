@@ -69,20 +69,20 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author nveeramr
  */
-public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement> implements
-    SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
+public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonElement>
+    implements SourceSpecificLayer<JsonArray, JsonElement>, JdbcSpecificLayer {
   private static final Gson gson = new Gson();
   private List<String> headerRecord;
   private boolean firstPull = true;
-  private CommandOutput<?, ?> dataResponse = null;;
+  private CommandOutput<?, ?> dataResponse = null;
   protected String extractSql;
   protected long sampleRecordCount;
   protected JdbcProvider jdbcSource;
   protected Connection dataConnection;
   protected int timeOut;
-  private List<ColumnAttributes> columnAliasMap = new ArrayList<ColumnAttributes>();
-  private Map<String, Schema> metadataColumnMap = new HashMap<String, Schema>();
-  private List<String> metadataColumnList = new ArrayList<String>();
+  private List<ColumnAttributes> columnAliasMap = new ArrayList<>();
+  private Map<String, Schema> metadataColumnMap = new HashMap<>();
+  private List<String> metadataColumnList = new ArrayList<>();
   private String inputColumnProjection;
   private String outputColumnProjection;
   private long totalRecordCount = 0;
@@ -97,7 +97,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return metadata(schema) column mapping
    */
   public Map<String, Schema> getMetadataColumnMap() {
-    return metadataColumnMap;
+    return this.metadataColumnMap;
   }
 
   /**
@@ -113,7 +113,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return metadata(schema) column list
    */
   public List<String> getMetadataColumnList() {
-    return metadataColumnList;
+    return this.metadataColumnList;
   }
 
   /**
@@ -129,7 +129,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return sample record count
    */
   public long getSampleRecordCount() {
-    return sampleRecordCount;
+    return this.sampleRecordCount;
   }
 
   /**
@@ -145,7 +145,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return query
    */
   public String getExtractSql() {
-    return extractSql;
+    return this.extractSql;
   }
 
   /**
@@ -161,7 +161,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return column projection
    */
   public String getOutputColumnProjection() {
-    return outputColumnProjection;
+    return this.outputColumnProjection;
   }
 
   /**
@@ -177,7 +177,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return column projection
    */
   public String getInputColumnProjection() {
-    return inputColumnProjection;
+    return this.inputColumnProjection;
   }
 
   /**
@@ -193,7 +193,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return map of column name and alias name
    */
   public List<ColumnAttributes> getColumnAliasMap() {
-    return columnAliasMap;
+    return this.columnAliasMap;
   }
 
   /**
@@ -212,7 +212,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *         first run
    */
   public boolean isFirstPull() {
-    return firstPull;
+    return this.firstPull;
   }
 
   /**
@@ -228,7 +228,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return header record with list of columns
    */
   protected List<String> getHeaderRecord() {
-    return headerRecord;
+    return this.headerRecord;
   }
 
   /**
@@ -242,14 +242,14 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return connection timeout
    */
   public int getTimeOut() {
-    return timeOut;
+    return this.timeOut;
   }
 
   /**
    * @return true, if records available. Otherwise, false
    */
   public boolean hasNextRecord() {
-    return nextRecord;
+    return this.nextRecord;
   }
 
   /**
@@ -281,7 +281,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     this.setSampleRecordCount(this.exractSampleRecordCountFromQuery(inputQuery));
     inputQuery = this.removeSampleClauseFromQuery(inputQuery);
     JsonArray targetSchema = new JsonArray();
-    List<String> headerColumns = new ArrayList<String>();
+    List<String> headerColumns = new ArrayList<>();
 
     try {
       List<Command> cmds = this.getSchemaMetadata(schema, entity);
@@ -317,9 +317,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
 
       String outputColProjection = Joiner.on(",").useForNull("null").join(this.columnList);
-      outputColProjection =
-          outputColProjection.replace(derivedWatermarkColumnName, Utils.getCoalesceColumnNames(watermarkColumn)
-              + " AS " + derivedWatermarkColumnName);
+      outputColProjection = outputColProjection.replace(derivedWatermarkColumnName,
+          Utils.getCoalesceColumnNames(watermarkColumn) + " AS " + derivedWatermarkColumnName);
       this.setOutputColumnProjection(outputColProjection);
       String extractQuery = this.getExtractQuery(schema, entity, inputQuery);
 
@@ -331,7 +330,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       // ConfigurationKeys.ESCAPE_CHARS_IN_COLUMN_NAME, "_"));
       this.log.info("Schema:" + targetSchema);
       this.log.info("Extract query: " + this.getExtractSql());
-    } catch (Exception e) {
+    } catch (RuntimeException | IOException | SchemaException e) {
       throw new SchemaException("Failed to get metadata using JDBC; error - " + e.getMessage(), e);
     }
   }
@@ -383,8 +382,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (obj == null) {
       obj = getCustomColumnSchema(targetColumnName);
     } else {
-      String watermarkColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
-      String primarykeyColumn = workUnit.getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
+      String watermarkColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
+      String primarykeyColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
       boolean isMultiColumnWatermark = this.hasMultipleWatermarkColumns(watermarkColumn);
 
       obj.setColumnName(targetColumnName);
@@ -511,7 +510,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @param input query
    */
   private void parseInputQuery(String query) {
-    List<String> projectedColumns = new ArrayList<String>();
+    List<String> projectedColumns = new ArrayList<>();
     if (StringUtils.isNotBlank(query)) {
       String queryLowerCase = query.toLowerCase();
       int startIndex = queryLowerCase.indexOf("select ") + 7;
@@ -590,7 +589,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *
    * @param commands - query, fetch size
    * @return JDBC ResultSet
-   * @throws Exception 
+   * @throws Exception
    */
   private CommandOutput<?, ?> executeSql(List<Command> cmds) {
     String query = null;
@@ -607,7 +606,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
             fetchSize = Integer.parseInt(cmd.getParams().get(0));
             break;
           default:
-            log.error("Command " + type.toString() + " not recognized");
+            this.log.error("Command " + type.toString() + " not recognized");
             break;
         }
       }
@@ -625,11 +624,11 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
       final boolean status = statement.execute(query);
       if (status == false) {
-        log.error("Failed to execute sql:" + query);
+        this.log.error("Failed to execute sql:" + query);
       }
       resultSet = statement.getResultSet();
     } catch (Exception e) {
-      log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
+      this.log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
     }
 
     CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
@@ -643,7 +642,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *
    * @param commands - query, fetch size, query parameters
    * @return JDBC ResultSet
-   * @throws Exception 
+   * @throws Exception
    */
   private CommandOutput<?, ?> executePreparedSql(List<Command> cmds) {
     String query = null;
@@ -664,7 +663,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
             fetchSize = Integer.parseInt(cmd.getParams().get(0));
             break;
           default:
-            log.error("Command " + type.toString() + " not recognized");
+            this.log.error("Command " + type.toString() + " not recognized");
             break;
         }
       }
@@ -691,11 +690,12 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
       final boolean status = statement.execute();
       if (status == false) {
-        log.error("Failed to execute sql:" + query);
+        this.log.error("Failed to execute sql:" + query);
       }
       resultSet = statement.getResultSet();
+
     } catch (Exception e) {
-      log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
+      this.log.error("Failed to execute sql:" + query + " ;error-" + e.getMessage(), e);
     }
 
     CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
@@ -711,13 +711,17 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   protected JdbcProvider createJdbcSource() {
     String driver = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_DRIVER);
     String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
-    String password =
-        PasswordManager.getInstance(this.workUnit).readPassword(
-            this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+    String password = PasswordManager.getInstance(this.workUnit)
+        .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String connectionUrl = this.getConnectionUrl();
 
+    String proxyHost = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL);
+    int proxyPort = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) != null
+        ? this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) : -1;
+
     if (this.jdbcSource == null || this.jdbcSource.isClosed()) {
-      this.jdbcSource = new JdbcProvider(driver, connectionUrl, userName, password, 1, this.getTimeOut());
+      this.jdbcSource = new JdbcProvider(driver, connectionUrl, userName, password, 1, this.getTimeOut(), "DEFAULT",
+          proxyHost, proxyPort);
       return this.jdbcSource;
     } else {
       return this.jdbcSource;
@@ -851,7 +855,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         try {
           date = inFormat.parse(watermark);
         } catch (ParseException e) {
-          log.error("ParseException: " + e.getMessage(), e);
+          this.log.error("ParseException: " + e.getMessage(), e);
         }
         SimpleDateFormat outFormat = new SimpleDateFormat("yyyyMMddHHmmss");
         HighWatermark = Long.parseLong(outFormat.format(date));
@@ -869,20 +873,20 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   public long getCount(CommandOutput<?, ?> response) throws RecordCountException {
     this.log.debug("Extract source record count from resultset");
     ResultSet resultset = null;
+    long count = 0;
     Iterator<ResultSet> itr = (Iterator<ResultSet>) response.getResults().values().iterator();
     if (itr.hasNext()) {
       resultset = itr.next();
-    } else {
-      log.error("Failed to get source record count from Mysql - Resultset has no records");
-    }
 
-    long count = 0;
-    try {
-      if (resultset.next()) {
-        count = resultset.getLong(1);
+      try {
+        if (resultset.next()) {
+          count = resultset.getLong(1);
+        }
+      } catch (Exception e) {
+        throw new RecordCountException("Failed to get source record count from MySql; error - " + e.getMessage(), e);
       }
-    } catch (Exception e) {
-      throw new RecordCountException("Failed to get source record count from MySql; error - " + e.getMessage(), e);
+    } else {
+      throw new RuntimeException("Failed to get source record count from Mysql - Resultset has no records");
     }
 
     return count;
@@ -964,9 +968,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     if (isBlob(resultsetMetadata.getColumnType(i))) {
       return readBlobAsString(resultset.getBlob(i));
-    } else {
-      return resultset.getString(i);
     }
+    return resultset.getString(i);
   }
 
   private static boolean isBlob(int columnType) {
@@ -992,7 +995,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return predicate
    */
   protected String concatPredicates(List<Predicate> predicateList) {
-    List<String> conditions = new ArrayList<String>();
+    List<String> conditions = new ArrayList<>();
     for (Predicate predicate : predicateList) {
       conditions.add(predicate.getCondition());
     }
@@ -1011,9 +1014,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     schema.setColumnName(columnName);
 
-    WatermarkType wmType =
-        WatermarkType.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE,
-            "TIMESTAMP").toUpperCase());
+    WatermarkType wmType = WatermarkType.valueOf(
+        this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "TIMESTAMP").toUpperCase());
     switch (wmType) {
       case TIMESTAMP:
         dataType = "timestamp";
@@ -1077,8 +1079,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    *
    * @return RecordSetList
    */
-  private RecordSetList<JsonElement> getNewRecordSetList() {
-    return new RecordSetList<JsonElement>();
+  private static RecordSetList<JsonElement> getNewRecordSetList() {
+    return new RecordSetList<>();
   }
 
   /**
@@ -1088,9 +1090,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    */
   private String toCase(String targetColumnName) {
     String columnName = targetColumnName;
-    ColumnNameCase caseType =
-        ColumnNameCase.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE,
-            ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
+    ColumnNameCase caseType = ColumnNameCase.valueOf(this.workUnitState
+        .getProp(ConfigurationKeys.SOURCE_COLUMN_NAME_CASE, ConfigurationKeys.DEFAULT_COLUMN_NAME_CASE).toUpperCase());
     switch (caseType) {
       case TOUPPER:
         columnName = targetColumnName.toUpperCase();
@@ -1112,7 +1113,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       try {
         this.dataConnection.close();
       } catch (SQLException e) {
-        log.error("Failed to close connection ;error-" + e.getMessage(), e);
+        this.log.error("Failed to close connection ;error-" + e.getMessage(), e);
       }
     }
   }

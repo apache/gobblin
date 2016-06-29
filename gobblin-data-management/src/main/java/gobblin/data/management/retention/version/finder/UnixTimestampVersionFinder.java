@@ -13,64 +13,50 @@
 package gobblin.data.management.retention.version.finder;
 
 import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.StringDatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.joda.time.DateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
- * Implementation of {@link VersionFinder} that generates {@link TimestampedDatasetVersion} from a unix timestamp
- * in the name of each version path.
- *
- * <p>
- *   The timestamp will be determined using a regex specified in the configuration key
- *   gobblin.retention.watermakr.regex . This class will attempt to interpret the 1st capture group in the regex as
- *   a unix timestamp. If no regex is provided, then the class will attempt to interpret the entire name of the
- *   version path as a unix timestamp.
- * </p>
+ * @deprecated
+ * See javadoc for {@link gobblin.data.management.version.finder.UnixTimestampVersionFinder}.
  */
+@Deprecated
 public class UnixTimestampVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(UnixTimestampVersionFinder.class);
-
-  private final WatermarkDatasetVersionFinder embeddedFinder;
+  private final gobblin.data.management.version.finder.UnixTimestampVersionFinder realVersionFinder;
 
   public UnixTimestampVersionFinder(FileSystem fs, Properties props) {
     super(fs, props);
-    this.embeddedFinder = new WatermarkDatasetVersionFinder(fs, props);
+    this.realVersionFinder =
+        new gobblin.data.management.version.finder.UnixTimestampVersionFinder(fs, convertDeprecatedProperties(props));
   }
 
-  @Override public Class<? extends DatasetVersion> versionClass() {
+  @Override
+  public Path globVersionPattern() {
+    return this.realVersionFinder.globVersionPattern();
+  }
+
+  @Override
+  public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
+    gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion =
+        this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath);
+    if (timestampedDatasetVersion != null) {
+      return new TimestampedDatasetVersion(timestampedDatasetVersion);
+    }
+    return null;
+  }
+
+  @Override
+  public Class<? extends DatasetVersion> versionClass() {
     return TimestampedDatasetVersion.class;
   }
 
-  @Override public Path globVersionPattern() {
-    return this.embeddedFinder.globVersionPattern();
-  }
-
-  @Override public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    StringDatasetVersion version = this.embeddedFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath);
-    if(version == null) {
-      // This means that the embedded finder could not parse a version.
-      return null;
-    }
-    try {
-      Long timestamp = Long.parseLong(version.getVersion());
-      return new TimestampedDatasetVersion(new DateTime(timestamp), fullPath);
-    } catch (NumberFormatException nfe) {
-      LOGGER.warn(String.format("Could not parse long from dataset version %s. Skipping.", pathRelativeToDatasetRoot));
-      return null;
-    } catch (IllegalArgumentException iae) {
-      LOGGER.warn(String.format("Could not parse unix datetime for dataset version %s. Skipping.",
-          pathRelativeToDatasetRoot));
-      return null;
-    }
+  private static Properties convertDeprecatedProperties(Properties props) {
+    return WatermarkDatasetVersionFinder.convertDeprecatedProperties(props);
   }
 }

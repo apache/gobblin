@@ -1,0 +1,69 @@
+site_name: Gobblin Documentation
+site_description: Documentation for Gobblin, a universal data ingestion framework for Hadoop
+site_author: Abhishek Tiwari, Chavdar Botev, Issac Buenrostro, Min Tu, Narasimha Veeramreedy, Pradhan Cadabam, Sahil Takiar, Shirshanka Das, Yinan Li, Ying Dai, Ziyang Liu
+
+repo_url: https://github.com/linkedin/gobblin
+repo_name: Gobblin
+
+docs_dir: gobblin-docs
+
+theme: readthedocs
+
+extra_css: [css/extra.css]
+
+pages:
+    - Home: index.md
+    - Getting Started: Getting-Started.md
+    - Architecture: Gobblin-Architecture.md
+    - User Guide:
+        - Job Configuration Files: user-guide/Working-with-Job-Configuration-Files.md
+        - Deployment: user-guide/Gobblin-Deployment.md
+        - Gobblin on Yarn: user-guide/Gobblin-on-Yarn.md
+        - Compaction: user-guide/Compaction.md
+        - State Management and Watermarks: user-guide/State-Management-and-Watermarks.md
+        - Fork Operator: user-guide/Working-with-the-ForkOperator.md
+        - Configuration Glossary: user-guide/Configuration-Properties-Glossary.md
+        - Partitioned Writers: user-guide/Partitioned-Writers.md
+        - Monitoring: user-guide/Monitoring.md
+        - Schedulers: user-guide/Gobblin-Schedulers.md
+        - Job Execution History Store: user-guide/Job-Execution-History-Store.md
+        - Gobblin Build Options: user-guide/Gobblin-Build-Options.md
+        - JDBC Writer: user-guide/Gobblin-JDBC-Writer.md
+        - Hive Registration: user-guide/Hive-Registration.md
+        - Config Management : user-guide/Config-Management.md
+        - Troubleshooting: user-guide/Troubleshooting.md
+        - FAQs: user-guide/FAQs.md
+    - Gobblin Adaptors:
+        - Gobblin Distcp: adaptors/Gobblin-Distcp.md
+    - Case Studies:
+        - Kafka-HDFS Ingestion: case-studies/Kafka-HDFS-Ingestion.md
+        - Publishing Data to S3: case-studies/Publishing-Data-to-S3.md
+        - Writing ORC Data: case-studies/Writing-ORC-Data.md
+    - Gobblin Data Management:
+        - Retention: data-management/Gobblin-Retention.md
+    - Gobblin Metrics:
+        - Quick Start: metrics/Gobblin-Metrics.md
+        - Existing Reporters: metrics/Existing-Reporters.md
+        - Metrics for Gobblin ETL: metrics/Metrics-for-Gobblin-ETL.md
+        - Gobblin Metrics Architecture: metrics/Gobblin-Metrics-Architecture.md
+        - Implementing New Reporters: metrics/Implementing-New-Reporters.md
+        - Gobblin Metrics Performance: metrics/Gobblin-Metrics-Performance.md
+    - Developer Guide:
+        - Customization for New Source: developer-guide/Customization-for-New-Source.md
+        - Customization for Converter and Operator: developer-guide/Customization-for-Converter-and-Operator.md
+        - Code Style Guide: developer-guide/CodingStyle.md
+        - IDE setup: developer-guide/IDE-setup.md
+        - Monitoring Design: developer-guide/Monitoring-Design.md
+        - Documentation Architecture: developer-guide/Documentation-Architecture.md
+        - Contributing: developer-guide/Contributing.md
+    - Project:
+        - Feature List: project/Feature-List.md
+        - Contributors and Team: project/Team.md
+        - Talks and Tech Blog Posts: project/Talks-and-Tech-Blogs.md
+        - News and Roadmap: project/News.md
+        - Posts: project/Posts.md
+    - Miscellaneous:
+        - Camus to Gobblin Migration: miscellaneous/Camus-to-Gobblin-Migration.md
+        - Exactly Once Support: miscellaneous/Exactly-Once-Support.md
+
+google_analytics: ['UA-74333035-1', 'gobblin.readthedocs.org']

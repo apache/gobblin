@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * A {@link CommitStep} for renaming files within a {@link FileSystem} or between {@link FileSystem}s.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 @Slf4j
@@ -41,6 +41,7 @@ public class FsRenameCommitStep extends CommitStepBase {
   private final Path dstPath;
   private final String srcFsUri;
   private final String dstFsUri;
+  private final boolean overwrite;
   private transient FileSystem srcFs;
   private transient FileSystem dstFs;
 
@@ -55,6 +56,7 @@ public class FsRenameCommitStep extends CommitStepBase {
     this.dstFs = builder.dstFs != null ? builder.dstFs
         : getFileSystem(this.props.getProp(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.dstFsUri = this.dstFs.getUri().toString();
+    this.overwrite = builder.overwrite;
   }
 
   public static class Builder<T extends Builder<?>> extends CommitStepBase.Builder<T> {
@@ -71,10 +73,11 @@ public class FsRenameCommitStep extends CommitStepBase {
     private Path dstPath;
     private FileSystem srcFs;
     private FileSystem dstFs;
+    private boolean overwrite;
 
     @Override
     public T withProps(State props) {
-      return (T) super.withProps(props);
+      return super.withProps(props);
     }
 
     @SuppressWarnings("unchecked")
@@ -98,6 +101,12 @@ public class FsRenameCommitStep extends CommitStepBase {
     @SuppressWarnings("unchecked")
     public T withDstFs(FileSystem dstFs) {
       this.dstFs = dstFs;
+      return (T) this;
+    }
+
+    @SuppressWarnings("unchecked")
+    public T overwrite() {
+      this.overwrite = true;
       return (T) this;
     }
 
@@ -131,6 +140,6 @@ public class FsRenameCommitStep extends CommitStepBase {
       this.dstFs = getFileSystem(this.dstFsUri);
     }
     log.info(String.format("Moving %s to %s", this.srcPath, this.dstPath));
-    HadoopUtils.movePath(this.srcFs, this.srcPath, this.dstFs, this.dstPath);
+    HadoopUtils.movePath(this.srcFs, this.srcPath, this.dstFs, this.dstPath, this.overwrite, this.dstFs.getConf());
   }
 }

@@ -77,8 +77,7 @@ public class JsonElementConversionFactory {
    * @throws UnsupportedDateTypeException
    */
   public static JsonElementConverter getConvertor(String fieldName, String fieldType, JsonObject schemaNode,
-      WorkUnitState state, boolean nullable)
-      throws UnsupportedDateTypeException {
+      WorkUnitState state, boolean nullable) throws UnsupportedDateTypeException {
 
     Type type;
     try {
@@ -190,7 +189,7 @@ public class JsonElementConversionFactory {
      * @return
      */
     public boolean isNullable() {
-      return nullable;
+      return this.nullable;
     }
 
     /**
@@ -198,19 +197,18 @@ public class JsonElementConversionFactory {
      * @return
      */
     public Schema getSchema() {
-      if (nullable) {
-        List<Schema> list = new ArrayList<Schema>();
+      if (this.nullable) {
+        List<Schema> list = new ArrayList<>();
         list.add(Schema.create(Schema.Type.NULL));
         list.add(schema());
         return Schema.createUnion(list);
-      } else {
-        return schema();
       }
+      return schema();
     }
 
     protected Schema schema() {
       Schema schema = Schema.create(getTargetType());
-      schema.addProp("source.type", sourceType.toLowerCase());
+      schema.addProp("source.type", this.sourceType.toLowerCase());
       return schema;
     }
 
@@ -221,11 +219,10 @@ public class JsonElementConversionFactory {
      */
     public Object convert(JsonElement value) {
       if (value.isJsonNull()) {
-        if (nullable) {
+        if (this.nullable) {
           return null;
-        } else {
-          throw new RuntimeException("Field: " + getName() + " is not nullable and contains a null value");
         }
+        throw new RuntimeException("Field: " + getName() + " is not nullable and contains a null value");
       }
       return convertField(value);
     }
@@ -404,7 +401,7 @@ public class JsonElementConversionFactory {
     @Override
     Object convertField(JsonElement value) {
       try {
-        return ByteBuffer.wrap(value.getAsString().getBytes(charSet));
+        return ByteBuffer.wrap(value.getAsString().getBytes(this.charSet));
       } catch (UnsupportedEncodingException e) {
         throw new RuntimeException(e);
       }
@@ -419,9 +416,7 @@ public class JsonElementConversionFactory {
   public static abstract class ComplexConverter extends JsonElementConverter {
     private JsonElementConverter elementConverter;
 
-    public ComplexConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
-        WorkUnitState state)
-        throws UnsupportedDateTypeException {
+    public ComplexConverter(String fieldName, boolean nullable, String sourceType) {
       super(fieldName, nullable, sourceType);
     }
 
@@ -430,16 +425,15 @@ public class JsonElementConversionFactory {
     }
 
     public JsonElementConverter getElementConverter() {
-      return elementConverter;
+      return this.elementConverter;
     }
   }
 
   public static class ArrayConverter extends ComplexConverter {
 
     public ArrayConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
-        WorkUnitState state)
-        throws UnsupportedDateTypeException {
-      super(fieldName, nullable, sourceType, schemaNode, state);
+        WorkUnitState state) throws UnsupportedDateTypeException {
+      super(fieldName, nullable, sourceType);
       super.setElementConverter(
           getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("items").getAsString(),
               schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
@@ -447,13 +441,13 @@ public class JsonElementConversionFactory {
 
     @Override
     Object convertField(JsonElement value) {
-      List<Object> list = new ArrayList<Object>();
+      List<Object> list = new ArrayList<>();
 
       for (JsonElement elem : (JsonArray) value) {
         list.add(getElementConverter().convertField(elem));
       }
 
-      return new GenericData.Array<Object>(schema(), list);
+      return new GenericData.Array<>(schema(), list);
     }
 
     @Override
@@ -472,9 +466,8 @@ public class JsonElementConversionFactory {
   public static class MapConverter extends ComplexConverter {
 
     public MapConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode,
-        WorkUnitState state)
-        throws UnsupportedDateTypeException {
-      super(fieldName, nullable, sourceType, schemaNode, state);
+        WorkUnitState state) throws UnsupportedDateTypeException {
+      super(fieldName, nullable, sourceType);
       super.setElementConverter(
           getConvertor(fieldName, schemaNode.get("dataType").getAsJsonObject().get("values").getAsString(),
               schemaNode.get("dataType").getAsJsonObject(), state, isNullable()));
@@ -482,7 +475,7 @@ public class JsonElementConversionFactory {
 
     @Override
     Object convertField(JsonElement value) {
-      Map<String, Object> map = new HashMap<String, Object>();
+      Map<String, Object> map = new HashMap<>();
 
       for (Map.Entry<String, JsonElement> entry : ((JsonObject) value).entrySet()) {
         map.put(entry.getKey(), getElementConverter().convertField(entry.getValue()));
@@ -506,21 +499,21 @@ public class JsonElementConversionFactory {
 
   public static class EnumConverter extends JsonElementConverter {
     String enumName;
-    List<String> enumSet = new ArrayList<String>();
+    List<String> enumSet = new ArrayList<>();
     Schema schema;
 
     public EnumConverter(String fieldName, boolean nullable, String sourceType, JsonObject schemaNode) {
       super(fieldName, nullable, sourceType);
 
       for (JsonElement elem : schemaNode.get("dataType").getAsJsonObject().get("symbols").getAsJsonArray()) {
-        enumSet.add(elem.getAsString());
+        this.enumSet.add(elem.getAsString());
       }
-      enumName = schemaNode.get("dataType").getAsJsonObject().get("name").getAsString();
+      this.enumName = schemaNode.get("dataType").getAsJsonObject().get("name").getAsString();
     }
 
     @Override
     Object convertField(JsonElement value) {
-      return new GenericData.EnumSymbol(schema, value.getAsString());
+      return new GenericData.EnumSymbol(this.schema, value.getAsString());
     }
 
     @Override
@@ -530,9 +523,9 @@ public class JsonElementConversionFactory {
 
     @Override
     public Schema schema() {
-      schema = Schema.createEnum(enumName, "", "", enumSet);
-      schema.addProp("source.type", "enum");
-      return schema;
+      this.schema = Schema.createEnum(this.enumName, "", "", this.enumSet);
+      this.schema.addProp("source.type", "enum");
+      return this.schema;
     }
   }
 }

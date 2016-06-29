@@ -1,0 +1,14 @@
+{
+  "type":"map",
+  "values": {
+    "type":"map",
+    "values": {
+      "type":"record",
+      "name":"nestedRecord",
+      "fields": [ {
+        "name":"nestedRecordFieldInt",
+        "type":"int"
+      } ]
+    }
+  }
+}

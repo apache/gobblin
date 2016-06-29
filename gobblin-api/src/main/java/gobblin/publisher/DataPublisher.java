@@ -15,7 +15,6 @@ package gobblin.publisher;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 
 import gobblin.configuration.State;
@@ -74,9 +73,20 @@ public abstract class DataPublisher implements Closeable {
    * @return A {@link DataPublisher} instance.
    */
   public static DataPublisher getInstance(Class<? extends DataPublisher> dataPublisherClass, State state)
-      throws NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException,
-      IllegalArgumentException, InvocationTargetException {
+      throws ReflectiveOperationException {
     Constructor<? extends DataPublisher> dataPublisherConstructor = dataPublisherClass.getConstructor(State.class);
     return dataPublisherConstructor.newInstance(state);
+  }
+
+  /**
+   * Returns true if the implementation of {@link DataPublisher} is thread-safe.
+   *
+   * <p>
+   *   For a thread-safe {@link DataPublisher}, this method should return this.getClass() == <class>.class
+   *   to ensure that any extensions must explicitly be marked as thread safe.
+   * </p>
+   */
+  public boolean isThreadSafe() {
+    return this.getClass() == DataPublisher.class;
   }
 }

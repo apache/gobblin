@@ -15,9 +15,7 @@ package gobblin.hive.util;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.sql.PreparedStatement;
@@ -39,7 +37,7 @@ import gobblin.password.PasswordManager;
 /**
  * A class for managing a Hive JDBC connection.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class HiveJdbcConnector implements Closeable {
 
@@ -68,8 +66,7 @@ public class HiveJdbcConnector implements Closeable {
 
   private int hiveServerVersion;
 
-  private HiveJdbcConnector() {
-  }
+  private HiveJdbcConnector() {}
 
   /**
    * Create a new {@link HiveJdbcConnector} using the specified Hive server version.
@@ -97,7 +94,7 @@ public class HiveJdbcConnector implements Closeable {
 
     // Add the Hive Site Dir to the classpath
     if (compactRunProps.containsKey(HIVESITE_DIR)) {
-      hiveJdbcConnector.addHiveSiteDirToClasspath(compactRunProps.getProperty(HIVESITE_DIR));
+      HiveJdbcConnector.addHiveSiteDirToClasspath(compactRunProps.getProperty(HIVESITE_DIR));
     }
 
     // Set and create the Hive JDBC connection
@@ -184,7 +181,7 @@ public class HiveJdbcConnector implements Closeable {
    * Helper method to add the directory containing the hive-site.xml file to the classpath
    * @param hiveSiteDir is the path to to the folder containing the hive-site.xml file
    */
-  private void addHiveSiteDirToClasspath(String hiveSiteDir) {
+  private static void addHiveSiteDirToClasspath(String hiveSiteDir) {
     LOG.info("Adding " + hiveSiteDir + " to CLASSPATH");
     File f = new File(hiveSiteDir);
     try {
@@ -194,15 +191,7 @@ public class HiveJdbcConnector implements Closeable {
       Method method = urlClass.getDeclaredMethod("addURL", new Class[] { URL.class });
       method.setAccessible(true);
       method.invoke(urlClassLoader, new Object[] { u });
-    } catch (NoSuchMethodException e) {
-      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
-    } catch (IllegalArgumentException e) {
-      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
-    } catch (IllegalAccessException e) {
-      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
-    } catch (InvocationTargetException e) {
-      throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
-    } catch (MalformedURLException e) {
+    } catch (ReflectiveOperationException | IOException e) {
       throw new RuntimeException("Unable to add hive.site.dir to CLASSPATH", e);
     }
   }
@@ -216,11 +205,7 @@ public class HiveJdbcConnector implements Closeable {
   private void setHiveProperties(Properties props) throws SQLException {
     Preconditions.checkNotNull(this.conn, "The Hive connection must be set before any queries can be run");
 
-    PreparedStatement preparedStatement = null;
-
-    try {
-      preparedStatement = this.conn.prepareStatement("set ?=?");
-
+    try (PreparedStatement preparedStatement = this.conn.prepareStatement("set ?=?")) {
       Enumeration<?> enumeration = props.propertyNames();
       while (enumeration.hasMoreElements()) {
         String propertyName = (String) enumeration.nextElement();
@@ -230,10 +215,6 @@ public class HiveJdbcConnector implements Closeable {
           preparedStatement.setString(2, props.getProperty(propertyName));
           preparedStatement.execute();
         }
-      }
-    } finally {
-      if (preparedStatement != null) {
-        preparedStatement.close();
       }
     }
   }
@@ -247,13 +228,12 @@ public class HiveJdbcConnector implements Closeable {
     }
   }
 
-  private String choppedStatement(String statement) {
+  private static String choppedStatement(String statement) {
     if (statement.length() <= MAX_OUTPUT_STMT_LENGTH) {
       return statement;
-    } else {
-      return statement.substring(0, MAX_OUTPUT_STMT_LENGTH) + "...... (" + (statement.length() - MAX_OUTPUT_STMT_LENGTH)
-          + " characters ommitted)";
     }
+    return statement.substring(0, MAX_OUTPUT_STMT_LENGTH) + "...... (" + (statement.length() - MAX_OUTPUT_STMT_LENGTH)
+        + " characters ommitted)";
   }
 
   public Connection getConnection() {
@@ -272,7 +252,7 @@ public class HiveJdbcConnector implements Closeable {
 
     if (this.conn != null) {
       try {
-        conn.close();
+        this.conn.close();
       } catch (SQLException e) {
         LOG.error("Failed to close JDBC connection", e);
       }

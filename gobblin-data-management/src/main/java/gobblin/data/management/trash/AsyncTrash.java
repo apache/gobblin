@@ -66,17 +66,18 @@ public class AsyncTrash implements GobblinProxiedTrash, Closeable, Decorator {
   public AsyncTrash(FileSystem fs, Properties properties, String user) throws IOException {
 
     int maxDeletingThreads = DEFAULT_MAX_DELETING_THREADS;
-    if(properties.containsKey(MAX_DELETING_THREADS_KEY)) {
+    if (properties.containsKey(MAX_DELETING_THREADS_KEY)) {
       maxDeletingThreads = Integer.parseInt(properties.getProperty(MAX_DELETING_THREADS_KEY));
     }
     this.innerTrash = TrashFactory.createProxiedTrash(fs, properties, user);
-    this.executor = MoreExecutors.listeningDecorator(MoreExecutors.getExitingExecutorService(ScalingThreadPoolExecutor
-            .newScalingThreadPool(0, maxDeletingThreads, 100,
-                ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("Async-trash-delete-pool-%d")))));
+    this.executor = MoreExecutors.listeningDecorator(
+        MoreExecutors.getExitingExecutorService(ScalingThreadPoolExecutor.newScalingThreadPool(0, maxDeletingThreads,
+            100, ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("Async-trash-delete-pool-%d")))));
 
   }
 
-  @Override public boolean moveToTrashAsUser(Path path, String user) throws IOException {
+  @Override
+  public boolean moveToTrashAsUser(Path path, String user) throws IOException {
     moveToTrashAsUserFuture(path, user);
     return true;
   }
@@ -89,13 +90,14 @@ public class AsyncTrash implements GobblinProxiedTrash, Closeable, Decorator {
    */
   public ListenableFuture<Boolean> moveToTrashAsUserFuture(final Path path, final String user) {
     return this.executor.submit(new Callable<Boolean>() {
-      @Override public Boolean call() throws IOException {
-        return innerTrash.moveToTrashAsUser(path, user);
+      @Override
+      public Boolean call() throws IOException {
+        return AsyncTrash.this.innerTrash.moveToTrashAsUser(path, user);
       }
     });
   }
 
-  public boolean moveToTrashAsOwner(Path path) throws IOException {
+  public boolean moveToTrashAsOwner(Path path) {
     moveToTrashAsOwnerFuture(path);
     return true;
   }
@@ -107,13 +109,15 @@ public class AsyncTrash implements GobblinProxiedTrash, Closeable, Decorator {
    */
   public ListenableFuture<Boolean> moveToTrashAsOwnerFuture(final Path path) {
     return this.executor.submit(new Callable<Boolean>() {
-      @Override public Boolean call() throws IOException {
-        return innerTrash.moveToTrashAsOwner(path);
+      @Override
+      public Boolean call() throws IOException {
+        return AsyncTrash.this.innerTrash.moveToTrashAsOwner(path);
       }
     });
   }
 
-  @Override public boolean moveToTrash(Path path) throws IOException {
+  @Override
+  public boolean moveToTrash(Path path) throws IOException {
     moveToTrashFuture(path);
     return true;
   }
@@ -125,17 +129,20 @@ public class AsyncTrash implements GobblinProxiedTrash, Closeable, Decorator {
    */
   public ListenableFuture<Boolean> moveToTrashFuture(final Path path) {
     return this.executor.submit(new Callable<Boolean>() {
-      @Override public Boolean call() throws IOException {
-        return innerTrash.moveToTrash(path);
+      @Override
+      public Boolean call() throws IOException {
+        return AsyncTrash.this.innerTrash.moveToTrash(path);
       }
     });
   }
 
-  @Override public Object getDecoratedObject() {
+  @Override
+  public Object getDecoratedObject() {
     return this.innerTrash;
   }
 
-  @Override public void close() throws IOException {
+  @Override
+  public void close() throws IOException {
     try {
       this.executor.shutdown();
       this.executor.awaitTermination(5, TimeUnit.HOURS);

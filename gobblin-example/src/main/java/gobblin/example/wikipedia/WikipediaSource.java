@@ -23,6 +23,7 @@ import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.extract.AbstractSource;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.source.workunit.Extract.TableType;
@@ -36,23 +37,21 @@ import gobblin.source.workunit.Extract.TableType;
  *   {@link WikipediaExtractor} to pull the data from Wikipedia.
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
-public class WikipediaSource implements Source<String, JsonElement> {
+public class WikipediaSource extends AbstractSource<String, JsonElement> {
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
-    Extract extract = state
-            .createExtract(TableType.SNAPSHOT_ONLY, state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY),
-                "WikipediaOutput");
+    Extract extract = createExtract(TableType.SNAPSHOT_ONLY,
+        state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), "WikipediaOutput");
 
     WorkUnit workUnit = WorkUnit.create(extract);
     return Arrays.asList(workUnit);
   }
 
   @Override
-  public Extractor<String, JsonElement> getExtractor(WorkUnitState state)
-      throws IOException {
+  public Extractor<String, JsonElement> getExtractor(WorkUnitState state) throws IOException {
     return new WikipediaExtractor(state);
   }
 

@@ -12,30 +12,32 @@
 
 package gobblin.azkaban;
 
-import gobblin.compaction.Compactor;
-
 import java.io.IOException;
-import java.util.List;
 import java.util.Properties;
-
-import org.apache.log4j.Logger;
 
 import azkaban.jobExecutor.AbstractJob;
 
+import com.google.common.base.Optional;
+
+import org.apache.log4j.Logger;
+
+import gobblin.compaction.Compactor;
+import gobblin.compaction.CompactorFactory;
+import gobblin.compaction.CompactorCreationException;
+import gobblin.compaction.listeners.CompactorListener;
+import gobblin.compaction.listeners.CompactorListenerCreationException;
+import gobblin.compaction.listeners.CompactorListenerFactory;
+import gobblin.compaction.ReflectionCompactorFactory;
+import gobblin.compaction.listeners.ReflectionCompactorListenerFactory;
 import gobblin.metrics.Tag;
 
 
 /**
  * A class for launching a Gobblin MR job for compaction through Azkaban.
- *
- * @author ziliu
  */
 public class AzkabanCompactionJobLauncher extends AbstractJob {
 
   private static final Logger LOG = Logger.getLogger(AzkabanCompactionJobLauncher.class);
-
-  private static final String COMPACTION_COMPACTOR_CLASS = "compaction.compactor.class";
-  private static final String DEFAULT_COMPACTION_COMPACTOR_CLASS = "gobblin.compaction.mapreduce.MRCompactor";
 
   private final Properties properties;
   private final Compactor compactor;
@@ -44,30 +46,37 @@ public class AzkabanCompactionJobLauncher extends AbstractJob {
     super(jobId, LOG);
     this.properties = new Properties();
     this.properties.putAll(props);
-    this.compactor = getCompactor();
+    this.compactor = getCompactor(getCompactorFactory(), getCompactorListener(getCompactorListenerFactory()));
   }
 
-  private Compactor getCompactor() {
+  private Compactor getCompactor(CompactorFactory compactorFactory, Optional<CompactorListener> compactorListener) {
     try {
-      Class<? extends Compactor> compactorClass = getCompactorClass();
-      Compactor compactor = compactorClass.getDeclaredConstructor(Properties.class, List.class)
-          .newInstance(this.properties, Tag.fromMap(AzkabanTags.getAzkabanTags()));
-      return compactor;
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to instantiate compactor", e);
+      return compactorFactory
+          .createCompactor(this.properties, Tag.fromMap(AzkabanTags.getAzkabanTags()), compactorListener);
+    } catch (CompactorCreationException e) {
+      throw new RuntimeException("Unable to create compactor", e);
     }
+  }
+
+  protected CompactorFactory getCompactorFactory() {
+    return new ReflectionCompactorFactory();
+  }
+
+  private Optional<CompactorListener> getCompactorListener(CompactorListenerFactory compactorListenerFactory) {
+    try {
+      return compactorListenerFactory.createCompactorListener(this.properties);
+    } catch (CompactorListenerCreationException e) {
+      throw new RuntimeException("Unable to create compactor listener", e);
+    }
+  }
+
+  protected CompactorListenerFactory getCompactorListenerFactory() {
+    return new ReflectionCompactorListenerFactory();
   }
 
   @Override
   public void run() throws Exception {
     this.compactor.compact();
-  }
-
-  @SuppressWarnings("unchecked")
-  private Class<? extends Compactor> getCompactorClass() throws ClassNotFoundException {
-    String compactorClassName =
-        this.properties.getProperty(COMPACTION_COMPACTOR_CLASS, DEFAULT_COMPACTION_COMPACTOR_CLASS);
-    return (Class<? extends Compactor>) Class.forName(compactorClassName);
   }
 
   @Override

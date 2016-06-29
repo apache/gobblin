@@ -26,80 +26,86 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Properties;
+
 
 /**
  * Serves the admin UI interface using embedded Jetty.
  */
 public class AdminWebServer extends AbstractIdleService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AdminWebServer.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AdminWebServer.class);
 
-    private final Properties properties;
-    private final URI restServerUri;
-    protected Server server;
+  private final URI restServerUri;
+  private final URI serverUri;
+  protected Server server;
 
-    public AdminWebServer(Properties properties, URI restServerUri) {
-        Preconditions.checkNotNull(properties);
-        Preconditions.checkNotNull(restServerUri);
+  public AdminWebServer(Properties properties, URI restServerUri) {
+    Preconditions.checkNotNull(properties);
+    Preconditions.checkNotNull(restServerUri);
 
-        this.properties = properties;
-        this.restServerUri = restServerUri;
-    }
+    this.restServerUri = restServerUri;
+    int port = getPort(properties);
+    this.serverUri = URI.create(String.format("http://%s:%d", getHost(properties), port));
+  }
 
-    @Override
-    protected void startUp() throws Exception {
-        int port = Integer.parseInt(
-                properties.getProperty(
-                        ConfigurationKeys.ADMIN_SERVER_PORT_KEY,
-                        ConfigurationKeys.DEFAULT_ADMIN_SERVER_PORT));
+  @Override
+  protected void startUp() throws Exception {
+    LOGGER.info("Starting the admin web server");
 
-        LOGGER.info("Starting the admin web server");
+    this.server = new Server(new InetSocketAddress(this.serverUri.getHost(), this.serverUri.getPort()));
 
-        server = new Server(port);
+    HandlerCollection handlerCollection = new HandlerCollection();
 
-        HandlerCollection handlerCollection = new HandlerCollection();
+    handlerCollection.addHandler(buildSettingsHandler());
+    handlerCollection.addHandler(buildStaticResourceHandler());
 
-        handlerCollection.addHandler(buildSettingsHandler());
-        handlerCollection.addHandler(buildStaticResourceHandler());
+    this.server.setHandler(handlerCollection);
+    this.server.start();
+  }
 
-        server.setHandler(handlerCollection);
-        server.start();
-    }
+  private Handler buildSettingsHandler() {
+    final String responseTemplate = "var Gobblin = window.Gobblin || {};" + "Gobblin.settings = {restServerUrl:\"%s\"}";
 
-    private Handler buildSettingsHandler() {
-        final String responseTemplate =
-                "var Gobblin = window.Gobblin || {};" +
-                "Gobblin.settings = {restServerUrl:\"%s\"}";
-
-        return new AbstractHandler() {
-            @Override
-            public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-                if (request.getRequestURI().equals("/js/settings.js")) {
-                    response.setContentType("application/javascript");
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    response.getWriter().println(String.format(responseTemplate, restServerUri.toString()));
-                    baseRequest.setHandled(true);
-                }
-            }
-        };
-    }
-
-    private ResourceHandler buildStaticResourceHandler() {
-        ResourceHandler staticResourceHandler = new ResourceHandler();
-        staticResourceHandler.setDirectoriesListed(true);
-        staticResourceHandler.setWelcomeFiles(new String[]{"index.html"});
-
-        String staticDir = getClass().getClassLoader().getResource("static").toExternalForm();
-
-        staticResourceHandler.setResourceBase(staticDir);
-        return staticResourceHandler;
-    }
-
-    @Override
-    protected void shutDown() throws Exception {
-        if (server != null) {
-            server.stop();
+    return new AbstractHandler() {
+      @Override
+      public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
+          throws IOException, ServletException {
+        if (request.getRequestURI().equals("/js/settings.js")) {
+          response.setContentType("application/javascript");
+          response.setStatus(HttpServletResponse.SC_OK);
+          response.getWriter().println(String.format(responseTemplate, AdminWebServer.this.restServerUri.toString()));
+          baseRequest.setHandled(true);
         }
+      }
+    };
+  }
+
+  private ResourceHandler buildStaticResourceHandler() {
+    ResourceHandler staticResourceHandler = new ResourceHandler();
+    staticResourceHandler.setDirectoriesListed(true);
+    staticResourceHandler.setWelcomeFiles(new String[] { "index.html" });
+
+    String staticDir = getClass().getClassLoader().getResource("static").toExternalForm();
+
+    staticResourceHandler.setResourceBase(staticDir);
+    return staticResourceHandler;
+  }
+
+  @Override
+  protected void shutDown() throws Exception {
+    if (this.server != null) {
+      this.server.stop();
     }
+  }
+
+  private static int getPort(Properties properties) {
+    return Integer.parseInt(
+        properties.getProperty(ConfigurationKeys.ADMIN_SERVER_PORT_KEY, ConfigurationKeys.DEFAULT_ADMIN_SERVER_PORT));
+  }
+
+  private static String getHost(Properties properties) {
+    return properties.getProperty(ConfigurationKeys.ADMIN_SERVER_HOST_KEY, ConfigurationKeys.DEFAULT_ADMIN_SERVER_HOST);
+  }
 }

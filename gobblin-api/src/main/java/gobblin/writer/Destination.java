@@ -28,7 +28,8 @@ public class Destination {
    */
   public static enum DestinationType {
     HDFS,
-    KAFKA
+    KAFKA,
+    MYSQL
   }
 
   // Type of destination

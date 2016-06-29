@@ -12,13 +12,10 @@
 
 package gobblin.publisher;
 
-import com.google.common.base.Optional;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -33,8 +30,6 @@ import gobblin.util.WriterUtils;
  * where partition path is the time bucket, e.g., 2015/04/08/15.
  *
  * Publisher output directory is $GOBBLIN_WORK_DIR/job-output/{tableName}/{partitionPath}
- *
- * @author ziliu
  */
 public class TimePartitionedDataPublisher extends BaseDataPublisher {
 
@@ -62,7 +57,7 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
       WriterUtils.mkdirsWithRecursivePermission(this.publisherFileSystemByBranches.get(branchId), outputPath.getParent(),
           this.permissions.get(branchId));
 
-      movePath(parallelRunner, status.getPath(), outputPath, branchId);
+      movePath(parallelRunner, workUnitState, status.getPath(), outputPath, branchId);
     }
   }
 }

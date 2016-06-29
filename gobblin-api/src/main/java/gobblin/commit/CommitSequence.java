@@ -54,7 +54,7 @@ import lombok.extern.slf4j.Slf4j;
  *    </pre>
  * </p>
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 @Slf4j
@@ -105,8 +105,7 @@ public class CommitSequence {
      */
     public <T extends CommitStepBase.Builder<?>> T beginStep(Class<T> builderClass) {
       try {
-        //return (T) ConstructorUtils.invokeConstructor(builderClass, this);
-        return (T) builderClass.getDeclaredConstructor(this.getClass()).newInstance(this);
+        return builderClass.getDeclaredConstructor(this.getClass()).newInstance(this);
       } catch (ReflectiveOperationException e) {
         throw new RuntimeException("Failed to instantiate " + builderClass, e);
       }

@@ -12,19 +12,32 @@
 
 package gobblin.util;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.writer.DataWriter;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.Properties;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
+import com.google.common.io.BaseEncoding;
+
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
@@ -35,13 +48,15 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.io.BaseEncoding;
-import com.google.common.io.Closer;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.util.deprecation.DeprecationUtils;
+import gobblin.util.executors.ScalingThreadPoolExecutor;
+import gobblin.writer.DataWriter;
 
 
 /**
@@ -51,6 +66,23 @@ import com.google.common.io.Closer;
 public class HadoopUtils {
 
   public static final String HDFS_ILLEGAL_TOKEN_REGEX = "[\\s:\\\\]";
+
+  /**
+   * A {@link Collection} of all known {@link FileSystem} schemes that do not support atomic renames or copies.
+   *
+   * <p>
+   *   The following important properties are useful to remember when writing code that is compatible with S3:
+   *   <ul>
+   *     <li>Renames are not atomic, and require copying the entire source file to the destination file</li>
+   *     <li>Writes to S3 using {@link FileSystem#create(Path)} will first go to the local filesystem, when the stream
+   *     is closed the local file will be uploaded to S3</li>
+   *   </ul>
+   * </p>
+   */
+  public static final Collection<String> FS_SCHEMES_NON_ATOMIC =
+      ImmutableSortedSet.orderedBy(String.CASE_INSENSITIVE_ORDER).add("s3").add("s3a").add("s3n").build();
+  public static final String MAX_FILESYSTEM_QPS = "filesystem.throttling.max.filesystem.qps";
+  private static final List<String> DEPRECATED_KEYS = Lists.newArrayList("gobblin.copy.max.filesystem.qps");
 
   public static Configuration newConfiguration() {
     Configuration conf = new Configuration();
@@ -101,6 +133,16 @@ public class HadoopUtils {
     }
   }
 
+  /**
+   * A wrapper around {@link FileSystem#delete(Path, boolean)} that only deletes a given {@link Path} if it is present
+   * on the given {@link FileSystem}.
+   */
+  public static void deleteIfExists(FileSystem fs, Path path, boolean recursive) throws IOException {
+    if (fs.exists(path)) {
+      deletePath(fs, path, recursive);
+    }
+  }
+
   public static void deletePathAndEmptyAncestors(FileSystem fs, Path f, boolean recursive) throws IOException {
     deletePath(fs, f, recursive);
     Path parent = f.getParent();
@@ -119,12 +161,27 @@ public class HadoopUtils {
    * {@link FileSystem#rename(Path, Path)} returns False.
    */
   public static void renamePath(FileSystem fs, Path oldName, Path newName) throws IOException {
+    renamePath(fs, oldName, newName, false);
+  }
+
+  /**
+   * A wrapper around {@link FileSystem#rename(Path, Path)} which throws {@link IOException} if
+   * {@link FileSystem#rename(Path, Path)} returns False.
+   */
+  public static void renamePath(FileSystem fs, Path oldName, Path newName, boolean overwrite) throws IOException {
     if (!fs.exists(oldName)) {
       throw new FileNotFoundException(String.format("Failed to rename %s to %s: src not found", oldName, newName));
     }
     if (fs.exists(newName)) {
-      throw new FileAlreadyExistsException(
-          String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
+      if (overwrite) {
+        if (!fs.delete(newName, true)) {
+          throw new IOException(
+              String.format("Failed to delete %s while renaming %s to %s", newName, oldName, newName));
+        }
+      } else {
+        throw new FileAlreadyExistsException(
+            String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
+      }
     }
     if (!fs.rename(oldName, newName)) {
       throw new IOException(String.format("Failed to rename %s to %s", oldName, newName));
@@ -132,36 +189,197 @@ public class HadoopUtils {
   }
 
   /**
-   * A wrapper around {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, Configuration)}
-   * which throws {@link IOException}
-   * if {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, Configuration)} returns false.
+   * Moves a src {@link Path} from a srcFs {@link FileSystem} to a dst {@link Path} on a dstFs {@link FileSystem}. If
+   * the srcFs and the dstFs have the same scheme, and neither of them or S3 schemes, then the {@link Path} is simply
+   * renamed. Otherwise, the data is from the src {@link Path} to the dst {@link Path}. So this method can handle copying
+   * data between different {@link FileSystem} implementations.
+   *
+   * @param srcFs the source {@link FileSystem} where the src {@link Path} exists
+   * @param src the source {@link Path} which will me moved
+   * @param dstFs the destination {@link FileSystem} where the dst {@link Path} should be created
+   * @param dst the {@link Path} to move data to
    */
-  public static void copyPath(FileSystem fs, Path src, Path dst) throws IOException {
-    if (!FileUtil.copy(fs, src, fs, dst, false, fs.getConf())) {
-      throw new IOException(String.format("Failed to copy %s to %s", src, dst));
+  public static void movePath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, Configuration conf)
+      throws IOException {
+
+    movePath(srcFs, src, dstFs, dst, false, conf);
+  }
+
+  /**
+   * Moves a src {@link Path} from a srcFs {@link FileSystem} to a dst {@link Path} on a dstFs {@link FileSystem}. If
+   * the srcFs and the dstFs have the same scheme, and neither of them or S3 schemes, then the {@link Path} is simply
+   * renamed. Otherwise, the data is from the src {@link Path} to the dst {@link Path}. So this method can handle copying
+   * data between different {@link FileSystem} implementations.
+   *
+   * @param srcFs the source {@link FileSystem} where the src {@link Path} exists
+   * @param src the source {@link Path} which will me moved
+   * @param dstFs the destination {@link FileSystem} where the dst {@link Path} should be created
+   * @param dst the {@link Path} to move data to
+   * @param overwrite true if the destination should be overwritten; otherwise, false
+   */
+  public static void movePath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, boolean overwrite,
+      Configuration conf) throws IOException {
+
+    if (srcFs.getUri().getScheme().equals(dstFs.getUri().getScheme())
+        && !FS_SCHEMES_NON_ATOMIC.contains(srcFs.getUri().getScheme())
+        && !FS_SCHEMES_NON_ATOMIC.contains(dstFs.getUri().getScheme())) {
+      renamePath(srcFs, src, dst);
+    } else {
+      copyPath(srcFs, src, dstFs, dst, true, overwrite, conf);
     }
   }
 
   /**
-   * A wrapper around {@link HadoopUtils#renamePath(FileSystem, Path, Path)} and
-   * {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, Configuration)} which will rename the path
-   * if the src and dst filesystems are the same; otherwise, the src file will be moved the the dst filesystem.
-   * An {@link IOException} if {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, Configuration)} returns false.
+   * Copies data from a src {@link Path} to a dst {@link Path}.
+   *
+   * <p>
+   *   This method should be used in preference to
+   *   {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, boolean, Configuration)}, which does not handle
+   *   clean up of incomplete files if there is an error while copying data.
+   * </p>
+   *
+   * <p>
+   *   TODO this method does not handle cleaning up any local files leftover by writing to S3.
+   * </p>
+   *
+   * @param srcFs the source {@link FileSystem} where the src {@link Path} exists
+   * @param src the {@link Path} to copy from the source {@link FileSystem}
+   * @param dstFs the destination {@link FileSystem} where the dst {@link Path} should be created
+   * @param dst the {@link Path} to copy data to
    */
-  public static void movePath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst) throws IOException {
-    if (srcFs.getUri().equals(dstFs.getUri())) {
-      renamePath(srcFs, src, dst);
+  public static void copyPath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, Configuration conf)
+      throws IOException {
+
+    copyPath(srcFs, src, dstFs, dst, false, false, conf);
+  }
+
+  /**
+   * Copies data from a src {@link Path} to a dst {@link Path}.
+   *
+   * <p>
+   *   This method should be used in preference to
+   *   {@link FileUtil#copy(FileSystem, Path, FileSystem, Path, boolean, boolean, Configuration)}, which does not handle
+   *   clean up of incomplete files if there is an error while copying data.
+   * </p>
+   *
+   * <p>
+   *   TODO this method does not handle cleaning up any local files leftover by writing to S3.
+   * </p>
+   *
+   * @param srcFs the source {@link FileSystem} where the src {@link Path} exists
+   * @param src the {@link Path} to copy from the source {@link FileSystem}
+   * @param dstFs the destination {@link FileSystem} where the dst {@link Path} should be created
+   * @param dst the {@link Path} to copy data to
+   * @param overwrite true if the destination should be overwritten; otherwise, false
+   */
+  public static void copyPath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, boolean overwrite,
+      Configuration conf) throws IOException {
+
+    copyPath(srcFs, src, dstFs, dst, false, overwrite, conf);
+  }
+
+  private static void copyPath(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, boolean deleteSource,
+      boolean overwrite, Configuration conf) throws IOException {
+
+    Preconditions.checkArgument(srcFs.exists(src),
+        String.format("Cannot copy from %s to %s because src does not exist", src, dst));
+    Preconditions.checkArgument(overwrite || !dstFs.exists(dst),
+        String.format("Cannot copy from %s to %s because dst exists", src, dst));
+
+    try {
+      if (!FileUtil.copy(srcFs, src, dstFs, dst, deleteSource, overwrite, conf)) {
+        throw new IOException(String.format("Failed to copy %s to %s", src, dst));
+      }
+    } catch (Throwable t1) {
+      try {
+        deleteIfExists(dstFs, dst, true);
+      } catch (Throwable t2) {
+        // Do nothing
+      }
+      throw t1;
+    }
+  }
+
+  /**
+   * Copies a src {@link Path} from a srcFs {@link FileSystem} to a dst {@link Path} on a dstFs {@link FileSystem}. If
+   * either the srcFs or dstFs are S3 {@link FileSystem}s (as dictated by {@link #FS_SCHEMES_NON_ATOMIC}) then data is directly
+   * copied from the src to the dst. Otherwise data is first copied to a tmp {@link Path}, which is then renamed to the
+   * dst.
+   *
+   * @param srcFs the source {@link FileSystem} where the src {@link Path} exists
+   * @param src the {@link Path} to copy from the source {@link FileSystem}
+   * @param dstFs the destination {@link FileSystem} where the dst {@link Path} should be created
+   * @param dst the {@link Path} to copy data to
+   * @param tmp the temporary {@link Path} to use when copying data
+   * @param overwriteDst true if the destination and tmp path should should be overwritten, false otherwise
+   */
+  public static void copyFile(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, Path tmp, boolean overwriteDst,
+      Configuration conf) throws IOException {
+
+    Preconditions.checkArgument(srcFs.isFile(src),
+        String.format("Cannot copy from %s to %s because src is not a file", src, dst));
+
+    if (FS_SCHEMES_NON_ATOMIC.contains(srcFs.getUri().getScheme())
+        || FS_SCHEMES_NON_ATOMIC.contains(dstFs.getUri().getScheme())) {
+      copyFile(srcFs, src, dstFs, dst, overwriteDst, conf);
     } else {
-      if (!FileUtil.copy(srcFs, src, dstFs, dst, true, false, dstFs.getConf())) {
-        throw new IOException(String.format("Failed to move %s to %s", src, dst));
+      copyFile(srcFs, src, dstFs, tmp, overwriteDst, conf);
+      try {
+        boolean renamed = false;
+        if (overwriteDst && dstFs.exists(dst)) {
+          try {
+            deletePath(dstFs, dst, true);
+          } finally {
+            renamePath(dstFs, tmp, dst);
+            renamed = true;
+          }
+        }
+        if (!renamed) {
+          renamePath(dstFs, tmp, dst);
+        }
+      } finally {
+        deletePath(dstFs, tmp, true);
       }
     }
   }
 
-  @SuppressWarnings("deprecation")
+  /**
+   * Copy a file from a srcFs {@link FileSystem} to a dstFs {@link FileSystem}. The src {@link Path} must be a file,
+   * that is {@link FileSystem#isFile(Path)} must return true for src.
+   *
+   * <p>
+   *   If overwrite is specified to true, this method may delete the dst directory even if the copy from src to dst fails.
+   * </p>
+   *
+   * @param srcFs the src {@link FileSystem} to copy the file from
+   * @param src the src {@link Path} to copy
+   * @param dstFs the destination {@link FileSystem} to write to
+   * @param dst the destination {@link Path} to write to
+   * @param overwrite true if the dst {@link Path} should be overwritten, false otherwise
+   */
+  public static void copyFile(FileSystem srcFs, Path src, FileSystem dstFs, Path dst, boolean overwrite,
+      Configuration conf) throws IOException {
+
+    Preconditions.checkArgument(srcFs.isFile(src),
+        String.format("Cannot copy from %s to %s because src is not a file", src, dst));
+    Preconditions.checkArgument(overwrite || !dstFs.exists(dst),
+        String.format("Cannot copy from %s to %s because dst exists", src, dst));
+
+    try (InputStream in = srcFs.open(src); OutputStream out = dstFs.create(dst, overwrite)) {
+      IOUtils.copyBytes(in, out, conf, false);
+    } catch (Throwable t1) {
+      try {
+        deleteIfExists(dstFs, dst, true);
+      } catch (Throwable t2) {
+        // Do nothing
+      }
+      throw t1;
+    }
+  }
+
   private static void walk(List<FileStatus> results, FileSystem fileSystem, Path path) throws IOException {
     for (FileStatus status : fileSystem.listStatus(path)) {
-      if (!status.isDir()) {
+      if (!status.isDirectory()) {
         results.add(status);
       } else {
         walk(results, fileSystem, status.getPath());
@@ -185,24 +403,107 @@ public class HadoopUtils {
    */
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
-    // Need this check for hadoop2
-    if (!fileSystem.exists(from)) {
-      return;
+    FileSystem throttledFS = getOptionallyThrottledFileSystem(fileSystem, 10000);
+
+    ExecutorService executorService = ScalingThreadPoolExecutor.newScalingThreadPool(1, 100, 100,
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("rename-thread-%d")));
+    Queue<Future<?>> futures = Queues.newConcurrentLinkedQueue();
+
+    try {
+      if (!fileSystem.exists(from)) {
+        return;
+      }
+
+      futures.add(executorService
+          .submit(new RenameRecursively(throttledFS, fileSystem.getFileStatus(from), to, executorService, futures)));
+      while (!futures.isEmpty()) {
+        try {
+          futures.poll().get();
+        } catch (ExecutionException | InterruptedException ee) {
+          throw new IOException(ee.getCause());
+        }
+      }
+    } finally {
+      ExecutorsUtils.shutdownExecutorService(executorService, Optional.of(log), 1, TimeUnit.SECONDS);
+    }
+  }
+
+  /**
+   * Calls {@link #getOptionallyThrottledFileSystem(FileSystem, int)} parsing the qps from the input {@link State}
+   * at key {@link #MAX_FILESYSTEM_QPS}.
+   * @throws IOException
+   */
+  public static FileSystem getOptionallyThrottledFileSystem(FileSystem fs, State state) throws IOException {
+    DeprecationUtils.renameDeprecatedKeys(state, MAX_FILESYSTEM_QPS, DEPRECATED_KEYS);
+
+    if (state.contains(MAX_FILESYSTEM_QPS)) {
+      return getOptionallyThrottledFileSystem(fs, state.getPropAsInt(MAX_FILESYSTEM_QPS));
+    }
+    return fs;
+  }
+
+  /**
+   * Get a throttled {@link FileSystem} that limits the number of queries per second to a {@link FileSystem}. If
+   * the input qps is <= 0, no such throttling will be performed.
+   * @throws IOException
+   */
+  public static FileSystem getOptionallyThrottledFileSystem(FileSystem fs, int qpsLimit) throws IOException {
+    if (fs instanceof Decorator) {
+      for (Object obj : DecoratorUtils.getDecoratorLineage(fs)) {
+        if (obj instanceof RateControlledFileSystem) {
+          // Already rate controlled
+          return fs;
+        }
+      }
     }
 
-    for (FileStatus fromFile : fileSystem.listStatus(from)) {
+    if (qpsLimit > 0) {
+      try {
+        RateControlledFileSystem newFS = new RateControlledFileSystem(fs, qpsLimit);
+        newFS.startRateControl();
+        return newFS;
+      } catch (ExecutionException ee) {
+        throw new IOException("Could not create throttled FileSystem.", ee);
+      }
+    }
+    return fs;
+  }
 
-      Path relativeFilePath =
-          new Path(StringUtils.substringAfter(fromFile.getPath().toString(), from.toString() + Path.SEPARATOR));
+  @AllArgsConstructor
+  private static class RenameRecursively implements Runnable {
 
-      Path toFilePath = new Path(to, relativeFilePath);
+    private final FileSystem fileSystem;
+    private final FileStatus from;
+    private final Path to;
+    private final ExecutorService executorService;
+    private final Queue<Future<?>> futures;
 
-      if (!safeRenameIfNotExists(fileSystem, fromFile.getPath(), toFilePath)) {
-        if(fromFile.isDir()) {
-          renameRecursively(fileSystem, fromFile.getPath(), toFilePath);
-        } else {
-          log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
+    @Override
+    public void run() {
+      try {
+
+        // Attempt to move safely if directory, unsafely if file (for performance, files are much less likely to collide on target)
+        boolean moveSucessful =
+            this.from.isDirectory() ? safeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to)
+                : unsafeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to);
+
+        if (!moveSucessful) {
+          if (this.from.isDirectory()) {
+            for (FileStatus fromFile : this.fileSystem.listStatus(this.from.getPath())) {
+              Path relativeFilePath = new Path(StringUtils.substringAfter(fromFile.getPath().toString(),
+                  this.from.getPath().toString() + Path.SEPARATOR));
+              Path toFilePath = new Path(this.to, relativeFilePath);
+              this.futures.add(this.executorService.submit(
+                  new RenameRecursively(this.fileSystem, fromFile, toFilePath, this.executorService, this.futures)));
+            }
+          } else {
+            log.info(String.format("File already exists %s. Will not rewrite", this.to));
+          }
+
         }
+
+      } catch (IOException ioe) {
+        throw new RuntimeException(ioe);
       }
     }
   }
@@ -224,17 +525,29 @@ public class HadoopUtils {
    * @throws IOException if rename failed for reasons other than target exists.
    */
   public synchronized static boolean safeRenameIfNotExists(FileSystem fs, Path from, Path to) throws IOException {
-    if(!fs.exists(to)) {
-      if(!fs.exists(to.getParent())) {
+    return unsafeRenameIfNotExists(fs, from, to);
+  }
+
+  /**
+   * Renames from to to if to doesn't exist in a non-thread-safe way.
+   *
+   * @param fs filesystem where rename will be executed.
+   * @param from origin {@link Path}.
+   * @param to target {@link Path}.
+   * @return true if rename succeeded, false if the target already exists.
+   * @throws IOException if rename failed for reasons other than target exists.
+   */
+  public static boolean unsafeRenameIfNotExists(FileSystem fs, Path from, Path to) throws IOException {
+    if (!fs.exists(to)) {
+      if (!fs.exists(to.getParent())) {
         fs.mkdirs(to.getParent());
       }
-      if(!fs.rename(from, to)) {
+      if (!fs.rename(from, to)) {
         throw new IOException(String.format("Failed to rename %s to %s.", from, to));
       }
       return true;
-    } else {
-      return false;
     }
+    return false;
   }
 
   /**
@@ -267,9 +580,8 @@ public class HadoopUtils {
       if (!fileSystem.exists(toFilePath)) {
         if (!fileSystem.rename(fromFile.getPath(), toFilePath)) {
           throw new IOException(String.format("Failed to rename %s to %s.", fromFile.getPath(), toFilePath));
-        } else {
-          log.info(String.format("Renamed %s to %s", fromFile.getPath(), toFilePath));
         }
+        log.info(String.format("Renamed %s to %s", fromFile.getPath(), toFilePath));
       } else {
         log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
       }
@@ -280,6 +592,14 @@ public class HadoopUtils {
     Configuration conf = newConfiguration();
     for (String propName : state.getPropertyNames()) {
       conf.set(propName, state.getProp(propName));
+    }
+    return conf;
+  }
+
+  public static Configuration getConfFromProperties(Properties properties) {
+    Configuration conf = newConfiguration();
+    for (String propName : properties.stringPropertyNames()) {
+      conf.set(propName, properties.getProperty(propName));
     }
     return conf;
   }
@@ -312,16 +632,10 @@ public class HadoopUtils {
    * @throws IOException if there's something wrong with the serialization
    */
   public static String serializeToString(Writable writable) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      ByteArrayOutputStream byteArrayOutputStream = closer.register(new ByteArrayOutputStream());
-      DataOutputStream dataOutputStream = closer.register(new DataOutputStream(byteArrayOutputStream));
+    try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream)) {
       writable.write(dataOutputStream);
       return BaseEncoding.base64().encode(byteArrayOutputStream.toByteArray());
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 
@@ -349,18 +663,13 @@ public class HadoopUtils {
    */
   public static Writable deserializeFromString(Class<? extends Writable> writableClass, String serializedWritableStr,
       Configuration configuration) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      byte[] writableBytes = BaseEncoding.base64().decode(serializedWritableStr);
-      ByteArrayInputStream byteArrayInputStream = closer.register(new ByteArrayInputStream(writableBytes));
-      DataInputStream dataInputStream = closer.register(new DataInputStream(byteArrayInputStream));
+    byte[] writableBytes = BaseEncoding.base64().decode(serializedWritableStr);
+
+    try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(writableBytes);
+        DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream)) {
       Writable writable = ReflectionUtils.newInstance(writableClass, configuration);
       writable.readFields(dataInputStream);
       return writable;
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 

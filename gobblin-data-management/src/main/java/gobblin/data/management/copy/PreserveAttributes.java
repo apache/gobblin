@@ -64,10 +64,10 @@ public class PreserveAttributes {
    *         {@link PreserveAttributes#fromMnemonicString}
    */
   public String toMnemonicString() {
-    int value = options;
+    int value = this.options;
     StringBuilder mnemonicString = new StringBuilder();
-    for(Option option : Option.values()) {
-      if(value % 2  != 0) {
+    for (Option option : Option.values()) {
+      if (value % 2 != 0) {
         mnemonicString.append(option.token);
       }
       value >>= 1;
@@ -109,7 +109,7 @@ public class PreserveAttributes {
 
   private static Pattern getAllowedRegexp() {
     StringBuilder builder = new StringBuilder("[");
-    for(Option option : Option.values()) {
+    for (Option option : Option.values()) {
       builder.append(option.token);
     }
     builder.append("]*");

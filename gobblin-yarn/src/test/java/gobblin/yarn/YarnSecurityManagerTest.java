@@ -20,18 +20,23 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.TestingServer;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
+
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
+
 import org.mockito.Mockito;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -40,9 +45,13 @@ import org.testng.annotations.Test;
 import com.google.common.base.Function;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.cluster.HelixUtils;
+import gobblin.cluster.TestHelper;
 import gobblin.testing.AssertWithBackoff;
 
 
@@ -67,7 +76,7 @@ import gobblin.testing.AssertWithBackoff;
 @Test(groups = { "gobblin.yarn" })
 public class YarnSecurityManagerTest {
 
-  private static final int TEST_ZK_PORT = 3185;
+  private static final int TEST_ZK_PORT = 3087;
 
   private CuratorFramework curatorFramework;
 
@@ -98,10 +107,10 @@ public class YarnSecurityManagerTest {
 
     Config config = ConfigFactory.parseURL(url).resolve();
 
-    String zkConnectingString = config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    String helixClusterName = config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    String zkConnectingString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    String helixClusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
 
-    YarnHelixUtils.createGobblinYarnHelixCluster(zkConnectingString, helixClusterName);
+    HelixUtils.createGobblinHelixCluster(zkConnectingString, helixClusterName);
 
     this.helixManager = HelixManagerFactory.getZKHelixManager(
         helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.SPECTATOR, zkConnectingString);

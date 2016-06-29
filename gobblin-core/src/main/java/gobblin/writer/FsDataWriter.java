@@ -42,7 +42,6 @@ import gobblin.util.recordcount.IngestionRecordCountProvider;
  *
  * @author akshay@nerdwallet.com
  */
-@SuppressWarnings("deprecation")
 public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
   private static final Logger LOG = LoggerFactory.getLogger(FsDataWriter.class);
@@ -212,7 +211,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
   private synchronized String addRecordCountToFileName() throws IOException {
     String filePath = getOutputFilePath();
-    String filePathWithRecordCount = new IngestionRecordCountProvider().constructFilePath(filePath, recordsWritten());
+    String filePathWithRecordCount = IngestionRecordCountProvider.constructFilePath(filePath, recordsWritten());
     LOG.info("Renaming " + filePath + " to " + filePathWithRecordCount);
     HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount));
     this.outputFile = new Path(filePathWithRecordCount);

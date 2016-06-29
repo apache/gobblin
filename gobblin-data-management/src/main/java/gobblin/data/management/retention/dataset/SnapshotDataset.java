@@ -22,10 +22,10 @@ import org.slf4j.LoggerFactory;
 
 import gobblin.data.management.retention.policy.NewestKRetentionPolicy;
 import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.StringDatasetVersion;
 import gobblin.data.management.retention.version.finder.VersionFinder;
 import gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder;
+import gobblin.data.management.version.FileSystemDatasetVersion;
 
 
 /**
@@ -34,10 +34,10 @@ import gobblin.data.management.retention.version.finder.WatermarkDatasetVersionF
  * Uses a {@link gobblin.data.management.retention.version.finder.WatermarkDatasetVersionFinder} and a
  * {@link gobblin.data.management.retention.policy.NewestKRetentionPolicy}.
  */
-public class SnapshotDataset extends CleanableDatasetBase<DatasetVersion> {
+public class SnapshotDataset extends CleanableDatasetBase<FileSystemDatasetVersion> {
 
   private final VersionFinder<StringDatasetVersion> versionFinder;
-  private final RetentionPolicy<DatasetVersion> retentionPolicy;
+  private final RetentionPolicy<FileSystemDatasetVersion> retentionPolicy;
   private final Path datasetRoot;
 
   public SnapshotDataset(FileSystem fs, Properties props, Path datasetRoot) throws IOException {
@@ -49,16 +49,16 @@ public class SnapshotDataset extends CleanableDatasetBase<DatasetVersion> {
     super(fs, props, log);
     this.datasetRoot = datasetRoot;
     this.versionFinder = new WatermarkDatasetVersionFinder(fs, props);
-    this.retentionPolicy = new NewestKRetentionPolicy(props);
+    this.retentionPolicy = new NewestKRetentionPolicy<FileSystemDatasetVersion>(props);
   }
 
   @Override
-  public VersionFinder<? extends DatasetVersion> getVersionFinder() {
+  public VersionFinder<? extends FileSystemDatasetVersion> getVersionFinder() {
     return this.versionFinder;
   }
 
   @Override
-  public RetentionPolicy<DatasetVersion> getRetentionPolicy() {
+  public RetentionPolicy<FileSystemDatasetVersion> getRetentionPolicy() {
     return this.retentionPolicy;
   }
 

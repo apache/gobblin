@@ -1,0 +1,19 @@
+/* Make the code font size bigger so its easier to read */
+
+code {
+  font-size: 90%;
+}
+
+/* Work around until the TOC becomes collapsable */
+
+a.toctree-l4 {
+  display: none;
+}
+
+a.toctree-l5 {
+  display: none;
+}
+
+a.toctree-l6 {
+  display: none;
+}

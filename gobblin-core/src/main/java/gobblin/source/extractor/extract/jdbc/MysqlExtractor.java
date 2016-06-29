@@ -30,15 +30,13 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.WorkUnit;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -46,13 +44,12 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author nveeramr
  */
+@Slf4j
 public class MysqlExtractor extends JdbcExtractor {
   private static final String MYSQL_TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss";
   private static final String MYSQL_DATE_FORMAT = "yyyy-MM-dd";
   private static final String MYSQL_HOUR_FORMAT = "HH";
   private static final long SAMPLERECORDCOUNT = -1;
-
-  private Logger log = LoggerFactory.getLogger(MysqlExtractor.class);
 
   public MysqlExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
@@ -60,30 +57,29 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.debug("Getting hour predicate for Mysql");
+    log.debug("Getting hour predicate for Mysql");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_HOUR_FORMAT);
     return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.debug("Getting date predicate for Mysql");
+    log.debug("Getting date predicate for Mysql");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_DATE_FORMAT);
     return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
   public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
-    this.log.debug("Getting timestamp predicate for Mysql");
+    log.debug("Getting timestamp predicate for Mysql");
     String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, MYSQL_TIMESTAMP_FORMAT);
     return Utils.getCoalesceColumnNames(column) + " " + operator + " '" + formattedvalue + "'";
   }
 
   @Override
-  public List<Command> getSchemaMetadata(String schema, String entity)
-      throws SchemaException {
-    this.log.debug("Build query to get schema");
-    List<Command> commands = new ArrayList<Command>();
+  public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
+    log.debug("Build query to get schema");
+    List<Command> commands = new ArrayList<>();
     List<String> queryParams = Arrays.asList(entity, schema);
 
     String metadataSql = "select " + " col.column_name, " + " col.data_type, "
@@ -103,10 +99,9 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public List<Command> getHighWatermarkMetadata(String schema, String entity, String watermarkColumn,
-      List<Predicate> predicateList)
-      throws HighWatermarkException {
-    this.log.debug("Build query to get high watermark");
-    List<Command> commands = new ArrayList<Command>();
+      List<Predicate> predicateList) throws HighWatermarkException {
+    log.debug("Build query to get high watermark");
+    List<Command> commands = new ArrayList<>();
 
     String columnProjection = "max(" + Utils.getCoalesceColumnNames(watermarkColumn) + ")";
     String watermarkFilter = this.concatPredicates(predicateList);
@@ -125,8 +120,8 @@ public class MysqlExtractor extends JdbcExtractor {
   @Override
   public List<Command> getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws RecordCountException {
-    this.log.debug("Build query to get source record count");
-    List<Command> commands = new ArrayList<Command>();
+    log.debug("Build query to get source record count");
+    List<Command> commands = new ArrayList<>();
 
     String columnProjection = "COUNT(1)";
     String watermarkFilter = this.concatPredicates(predicateList);
@@ -150,8 +145,8 @@ public class MysqlExtractor extends JdbcExtractor {
   @Override
   public List<Command> getDataMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws DataRecordException {
-    this.log.debug("Build query to extract data");
-    List<Command> commands = new ArrayList<Command>();
+    log.debug("Build query to extract data");
+    List<Command> commands = new ArrayList<>();
     int fetchsize = Integer.MIN_VALUE;
 
     String watermarkFilter = this.concatPredicates(predicateList);
@@ -184,14 +179,13 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public Map<String, String> getDataTypeMap() {
-    Map<String, String> dataTypeMap =
-        ImmutableMap.<String, String>builder().put("tinyint", "int").put("smallint", "int").put("mediumint", "int")
-            .put("int", "int").put("bigint", "long").put("float", "float").put("double", "double")
-            .put("decimal", "double").put("numeric", "double").put("date", "date").put("timestamp", "timestamp")
-            .put("datetime", "timestamp").put("time", "time").put("char", "string").put("varchar", "string")
-            .put("varbinary", "string").put("text", "string").put("tinytext", "string").put("mediumtext", "string")
-            .put("longtext", "string").put("blob", "string").put("tinyblob", "string").put("mediumblob", "string")
-            .put("longblob", "string").put("enum", "string").build();
+    Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder().put("tinyint", "int")
+        .put("smallint", "int").put("mediumint", "int").put("int", "int").put("bigint", "long").put("float", "float")
+        .put("double", "double").put("decimal", "double").put("numeric", "double").put("date", "date")
+        .put("timestamp", "timestamp").put("datetime", "timestamp").put("time", "time").put("char", "string")
+        .put("varchar", "string").put("varbinary", "string").put("text", "string").put("tinytext", "string")
+        .put("mediumtext", "string").put("longtext", "string").put("blob", "string").put("tinyblob", "string")
+        .put("mediumblob", "string").put("longblob", "string").put("enum", "string").build();
     return dataTypeMap;
   }
 
@@ -261,8 +255,7 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit,
-      List<Predicate> predicateList)
-      throws IOException {
+      List<Predicate> predicateList) throws IOException {
     return null;
   }
 }

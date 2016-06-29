@@ -30,6 +30,7 @@ import gobblin.source.extractor.filebased.FileBasedHelperException;
 import gobblin.source.extractor.filebased.TimestampAwareFileBasedHelper;
 import gobblin.util.ProxiedFileSystemWrapper;
 
+
 /**
  * A common helper that extends {@link FileBasedHelper} and provides access to a files via a {@link FileSystem}.
  */
@@ -53,7 +54,7 @@ public abstract class HadoopFsHelper implements TimestampAwareFileBasedHelper {
 
   @Override
   public void connect() throws FileBasedHelperException {
-    String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI);
+    String uri = this.state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI);
     try {
       if (Strings.isNullOrEmpty(uri)) {
         throw new FileBasedHelperException(ConfigurationKeys.SOURCE_FILEBASED_FS_URI + " has not been configured");
@@ -70,39 +71,38 @@ public abstract class HadoopFsHelper implements TimestampAwareFileBasedHelper {
 
   @Override
   public List<String> ls(String path) throws FileBasedHelperException {
-      List<String> results = new ArrayList<>();
-      try {
-          lsr(new Path(path), results);
-      } catch (IOException e) {
-          throw new FileBasedHelperException("Cannot do ls on path " + path + " due to " + e.getMessage(), e);
-      }
-      return results;
+    List<String> results = new ArrayList<>();
+    try {
+      lsr(new Path(path), results);
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Cannot do ls on path " + path + " due to " + e.getMessage(), e);
+    }
+    return results;
   }
 
   public void lsr(Path p, List<String> results) throws IOException {
-      if (!this.fs.getFileStatus(p).isDir()) {
-          results.add(p.toString());
+    if (!this.fs.getFileStatus(p).isDirectory()) {
+      results.add(p.toString());
+    }
+    Path qualifiedPath = this.fs.makeQualified(p);
+    for (FileStatus status : this.fs.listStatus(p)) {
+      if (status.isDirectory()) {
+        // Fix for hadoop issue: https://issues.apache.org/jira/browse/HADOOP-12169
+        if (!qualifiedPath.equals(status.getPath())) {
+          lsr(status.getPath(), results);
+        }
+      } else {
+        results.add(status.getPath().toString());
       }
-      Path qualifiedPath = this.fs.makeQualified(p);
-      for (FileStatus status : this.fs.listStatus(p)) {
-          if (status.isDir()) {
-              // Fix for hadoop issue: https://issues.apache.org/jira/browse/HADOOP-12169
-              if (!qualifiedPath.equals(status.getPath())) {
-                  lsr(status.getPath(), results);
-              }
-          } else {
-              results.add(status.getPath().toString());
-          }
-      }
+    }
   }
 
   private void createFileSystem(String uri) throws IOException, InterruptedException, URISyntaxException {
-    if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
+    if (this.state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       // Initialize file system as a proxy user.
-      this.fs =
-          new ProxiedFileSystemWrapper().getProxiedFileSystem(state, ProxiedFileSystemWrapper.AuthType.TOKEN,
-              state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
+      this.fs = new ProxiedFileSystemWrapper().getProxiedFileSystem(this.state, ProxiedFileSystemWrapper.AuthType.TOKEN,
+          this.state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
 
     } else {
       // Initialize file system as the current user.
@@ -115,8 +115,8 @@ public abstract class HadoopFsHelper implements TimestampAwareFileBasedHelper {
     try {
       return this.getFileSystem().getFileStatus(new Path(filePath)).getModificationTime();
     } catch (IOException e) {
-      throw new FileBasedHelperException(String.format(
-          "Failed to get last modified time for file at path %s due to error %s", filePath, e.getMessage()), e);
+      throw new FileBasedHelperException(String
+          .format("Failed to get last modified time for file at path %s due to error %s", filePath, e.getMessage()), e);
     }
   }
 }

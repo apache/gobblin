@@ -20,6 +20,7 @@ dependencies {
     compile externalDependency.typesafeConfig
     compile externalDependency.commonsLang
     compile externalDependency.commonsIo
+    compile externalDependency.reflections
 
     testCompile externalDependency.mockito
     testCompile externalDependency.testng
@@ -32,9 +33,6 @@ configurations {
 }
 
 test {
-    useTestNG () {
-        excludeGroups 'ignore'
-    }
     workingDir rootProject.rootDir
 }
 

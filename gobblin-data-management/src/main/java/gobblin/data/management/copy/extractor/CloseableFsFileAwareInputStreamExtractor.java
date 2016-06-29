@@ -29,15 +29,14 @@ public class CloseableFsFileAwareInputStreamExtractor extends FileAwareInputStre
 
   private final Closer closer = Closer.create();
 
-  public CloseableFsFileAwareInputStreamExtractor(FileSystem fs, CopyableFile file)
-      throws IOException {
+  public CloseableFsFileAwareInputStreamExtractor(FileSystem fs, CopyableFile file) throws IOException {
 
     super(fs, file);
-    closer.register(fs);
+    this.closer.register(fs);
   }
 
   @Override
   public void close() throws IOException {
-    closer.close();
+    this.closer.close();
   }
 }

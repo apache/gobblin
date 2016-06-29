@@ -31,8 +31,6 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.MDC;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -44,30 +42,31 @@ import gobblin.source.extractor.exception.RecordCountException;
 import gobblin.source.extractor.exception.SchemaException;
 import gobblin.source.extractor.schema.MapDataType;
 import gobblin.source.workunit.WorkUnit;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * An implementation of Common extractor for all types of sources
+ * An implementation of common extractor for query based sources.
  *
  * @param <D> type of data record
  * @param <S> type of schema
  */
+@Slf4j
 public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, ProtocolSpecificLayer<S, D> {
-  private static final Gson gson = new Gson();
-  protected WorkUnitState workUnitState;
-  protected WorkUnit workUnit;
-  protected String workUnitName;
-  private String entity;
-  private String schema;
+  private static final Gson GSON = new Gson();
+  protected final WorkUnitState workUnitState;
+  protected final WorkUnit workUnit;
+  private final String entity;
+  private final String schema;
+
   private boolean fetchStatus = true;
   private S outputSchema;
   private long sourceRecordCount = 0;
   private long highWatermark;
 
   private Iterator<D> iterator;
-  protected List<String> columnList = new ArrayList<String>();
-  private List<Predicate> predicateList = new ArrayList<Predicate>();
-  private Logger log = LoggerFactory.getLogger(QueryBasedExtractor.class);
+  protected final List<String> columnList = new ArrayList<>();
+  private final List<Predicate> predicateList = new ArrayList<>();
 
   private S getOutputSchema() {
     return this.outputSchema;
@@ -78,11 +77,11 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   }
 
   private long getSourceRecordCount() {
-    return sourceRecordCount;
+    return this.sourceRecordCount;
   }
 
   public boolean getFetchStatus() {
-    return fetchStatus;
+    return this.fetchStatus;
   }
 
   public void setFetchStatus(boolean fetchStatus) {
@@ -98,10 +97,18 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   }
 
   private boolean isInitialPull() {
-    return iterator == null;
+    return this.iterator == null;
   }
 
-  private void setWorkUnitName() {
+  public QueryBasedExtractor(WorkUnitState workUnitState) {
+    this.workUnitState = workUnitState;
+    this.workUnit = this.workUnitState.getWorkunit();
+    this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
+    this.entity = this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY);
+    MDC.put("tableName", getWorkUnitName());
+  }
+
+  private String getWorkUnitName() {
     StringBuilder sb = new StringBuilder();
     sb.append("[");
     sb.append(StringUtils.stripToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
@@ -118,33 +125,13 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       }
     }
     sb.append("]");
-    this.workUnitName = sb.toString();
+    return sb.toString();
   }
 
-  protected String getWorkUnitName() {
-    return this.workUnitName;
-  }
-
-  public QueryBasedExtractor(WorkUnitState workUnitState) {
-    this.workUnitState = workUnitState;
-    this.workUnit = this.workUnitState.getWorkunit();
-    this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
-    this.entity = this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY);
-    this.setWorkUnitName();
-    this.log = LoggerFactory.getLogger(QueryBasedExtractor.class);
-    MDC.put("tableName", this.getWorkUnitName());
-  }
-
-  /**
-   * Read a data record from source
-   *
-   * @throws gobblin.source.extractor.DataRecordException,IOException if it can't read data record
-   * @return record of type D
-   */
   @Override
   public D readRecord(@Deprecated D reuse) throws DataRecordException, IOException {
     if (!this.isPullRequired()) {
-      this.log.info("No more records to read");
+      log.info("No more records to read");
       return null;
     }
 
@@ -152,17 +139,17 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
     try {
       if (isInitialPull()) {
-        this.log.info("Initial pull");
-        iterator = this.getIterator();
+        log.info("Initial pull");
+        this.iterator = this.getIterator();
       }
 
-      if (iterator.hasNext()) {
-        nextElement = iterator.next();
+      if (this.iterator.hasNext()) {
+        nextElement = this.iterator.next();
 
-        if (!iterator.hasNext()) {
-          this.log.debug("Getting next pull");
-          iterator = this.getIterator();
-          if (iterator == null) {
+        if (!this.iterator.hasNext()) {
+          log.debug("Getting next pull");
+          this.iterator = this.getIterator();
+          if (this.iterator == null) {
             this.setFetchStatus(false);
           }
         }
@@ -173,15 +160,12 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     return nextElement;
   }
 
-  ;
-
   /**
    * Get iterator from protocol specific api if is.specific.api.active is false
    * Get iterator from source specific api if is.specific.api.active is true
    * @return iterator
    */
-  private Iterator<D> getIterator()
-      throws DataRecordException, IOException {
+  private Iterator<D> getIterator() throws DataRecordException, IOException {
     if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
       return this.getRecordSetFromSourceApi(this.schema, this.entity, this.workUnit, this.predicateList);
     }
@@ -222,7 +206,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   @Override
   public void close() {
     log.info("Updating the current state high water mark with " + this.highWatermark);
-    this.workUnitState.setHighWaterMark(this.highWatermark);
+    this.workUnitState.setActualHighWatermark(new LongWatermark(this.highWatermark));
     try {
       this.closeConnection();
     } catch (Exception e) {
@@ -240,11 +224,10 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   /**
    * build schema, record count and high water mark
    */
-  public Extractor<S, D> build()
-      throws ExtractPrepareException {
+  public Extractor<S, D> build() throws ExtractPrepareException {
     String watermarkColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
-    long lwm = this.workUnit.getLowWaterMark();
-    long hwm = this.workUnit.getHighWaterMark();
+    long lwm = this.workUnit.getLowWatermark(LongWatermark.class).getValue();
+    long hwm = this.workUnit.getExpectedHighWatermark(LongWatermark.class).getValue();
     log.info("Low water mark: " + lwm + "; and High water mark: " + hwm);
     WatermarkType watermarkType;
     if (StringUtils.isBlank(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE))) {
@@ -261,14 +244,13 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
       if (StringUtils.isNotBlank(watermarkColumn)) {
         this.highWatermark = this.getLatestWatermark(watermarkColumn, watermarkType, lwm, hwm);
-        this.log.info("High water mark from source: " + this.highWatermark);
+        log.info("High water mark from source: " + this.highWatermark);
         // If high water mark is found, then consider the same as runtime high water mark.
         // Else, consider the low water mark as high water mark(with no delta).i.e, don't move the pointer
-        long currentRunHighWatermark =
-            (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? this.highWatermark
-                : this.getLowWatermarkWithNoDelta(lwm));
+        long currentRunHighWatermark = (this.highWatermark != ConfigurationKeys.DEFAULT_WATERMARK_VALUE
+            ? this.highWatermark : this.getLowWatermarkWithNoDelta(lwm));
 
-        this.log.info("High water mark for the current run: " + currentRunHighWatermark);
+        log.info("High water mark for the current run: " + currentRunHighWatermark);
         this.setRangePredicates(watermarkColumn, watermarkType, lwm, currentRunHighWatermark);
         this.highWatermark = currentRunHighWatermark;
       }
@@ -277,12 +259,12 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       if (!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SKIP_COUNT_CALC))) {
         this.sourceRecordCount = this.getSourceCount(this.schema, this.entity, this.workUnit, this.predicateList);
       } else {
-        this.log.info("Skip count calculation");
+        log.info("Skip count calculation");
         this.sourceRecordCount = -1;
       }
 
       if (this.sourceRecordCount == 0) {
-        this.log.info("Record count is 0; Setting fetch status to false to skip readRecord()");
+        log.info("Record count is 0; Setting fetch status to false to skip readRecord()");
         this.setFetchStatus(false);
       }
     } catch (SchemaException e) {
@@ -330,8 +312,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       throws HighWatermarkException, IOException {
 
     if (!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SKIP_HIGH_WATERMARK_CALC))) {
-      this.log.info("Getting high watermark");
-      List<Predicate> list = new ArrayList<Predicate>();
+      log.info("Getting high watermark");
+      List<Predicate> list = new ArrayList<>();
       WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
       Predicate lwmPredicate = watermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM);
       Predicate hwmPredicate = watermark.getPredicate(this, hwmValue, "<=", Predicate.PredicateType.HWM);
@@ -342,8 +324,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
         list.add(hwmPredicate);
       }
 
-      return this
-          .getMaxWatermark(this.schema, this.entity, watermarkColumn, list, watermark.getWatermarkSourceFormat(this));
+      return this.getMaxWatermark(this.schema, this.entity, watermarkColumn, list,
+          watermark.getWatermarkSourceFormat(this));
     }
 
     return hwmValue;
@@ -361,7 +343,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    * @param high watermark value
    */
   private void setRangePredicates(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue) {
-    this.log.debug("Getting range predicates");
+    log.debug("Getting range predicates");
     WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
     this.addPredicates(watermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM));
     this.addPredicates(watermark.getPredicate(this, hwmValue, "<=", Predicate.PredicateType.HWM));
@@ -415,11 +397,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       return false;
     }
 
-    if (Arrays.asList(watermarkColumn.toLowerCase().split(",")).size() > 1) {
-      return true;
-    } else {
-      return false;
-    }
+    return Arrays.asList(watermarkColumn.toLowerCase().split(",")).size() > 1;
   }
 
   /**
@@ -445,8 +423,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    * @return true if column is part of metadata columns. otherwise, return false.
    */
   protected boolean isMetadataColumn(String columnName, List<String> columnList) {
-    boolean isColumnCheckEnabled = Boolean.valueOf(this.workUnit
-        .getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED,
+    boolean isColumnCheckEnabled =
+        Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED,
             ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED));
 
     if (!isColumnCheckEnabled) {
@@ -483,7 +461,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       convertedDataType = new DataType(dataType);
     }
 
-    return gson.fromJson(gson.toJson(convertedDataType), JsonObject.class).getAsJsonObject();
+    return GSON.fromJson(GSON.toJson(convertedDataType), JsonObject.class).getAsJsonObject();
   }
 
   /**

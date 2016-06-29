@@ -20,6 +20,8 @@ package gobblin.converter;
  */
 public class DataConversionException extends Exception {
 
+  private static final long serialVersionUID = 1L;
+
   public DataConversionException(Throwable cause) {
     super(cause);
   }
@@ -29,6 +31,6 @@ public class DataConversionException extends Exception {
   }
 
   public DataConversionException(String message) {
-   super(message);
+    super(message);
   }
 }

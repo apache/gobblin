@@ -31,7 +31,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
@@ -63,14 +62,17 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
 
   public FsDatasetStateStore(String fsUri, String storeRootDir) throws IOException {
     super(fsUri, storeRootDir, JobState.DatasetState.class);
+    this.useTmpFileForPut = false;
   }
 
-  public FsDatasetStateStore(FileSystem fs, String storeRootDir) throws IOException {
+  public FsDatasetStateStore(FileSystem fs, String storeRootDir) {
     super(fs, storeRootDir, JobState.DatasetState.class);
+    this.useTmpFileForPut = false;
   }
 
   public FsDatasetStateStore(String storeUrl) throws IOException {
     super(storeUrl, JobState.DatasetState.class);
+    this.useTmpFileForPut = false;
   }
 
   @Override
@@ -80,10 +82,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
       return null;
     }
 
-    Closer closer = Closer.create();
-    try {
-      @SuppressWarnings("deprecation")
-      SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
+    try (@SuppressWarnings("deprecation")
+    SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath, this.conf)) {
       // This is necessary for backward compatibility as existing jobs are using the JobState class
       Writable writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
 
@@ -94,18 +94,13 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
           if (key.toString().equals(stateId)) {
             if (writable instanceof JobState.DatasetState) {
               return (JobState.DatasetState) writable;
-            } else {
-              return ((JobState) writable).newDatasetState(true);
             }
+            return ((JobState) writable).newDatasetState(true);
           }
         }
       } catch (Exception e) {
         throw new IOException(e);
       }
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
 
     return null;
@@ -120,10 +115,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
       return states;
     }
 
-    Closer closer = Closer.create();
-    try {
-      @SuppressWarnings("deprecation")
-      SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(this.fs, tablePath, this.conf));
+    try (@SuppressWarnings("deprecation")
+    SequenceFile.Reader reader = new SequenceFile.Reader(this.fs, tablePath, this.conf)) {
       // This is necessary for backward compatibility as existing jobs are using the JobState class
       Writable writable = reader.getValueClass() == JobState.class ? new JobState() : new JobState.DatasetState();
 
@@ -141,10 +134,6 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
       } catch (Exception e) {
         throw new IOException(e);
       }
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
 
     return states;
@@ -185,8 +174,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
       if (!previousDatasetStates.isEmpty()) {
         // There should be a single dataset state on the list if the list is not empty
         JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
-        datasetStatesByUrns.put(previousDatasetState.getProp(ConfigurationKeys.DATASET_URN_KEY,
-            ConfigurationKeys.DEFAULT_DATASET_URN), previousDatasetState);
+        datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
       }
     }
 
@@ -208,9 +196,9 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
    * @throws IOException
    */
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
-    String alias = Strings.isNullOrEmpty(datasetUrn) ?
-        CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
+    String alias =
+        Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
+            : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
     return get(storeName, alias, datasetUrn);
   }
 
@@ -233,9 +221,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
     createAlias(jobName, tableName, getAliasName(datasetUrn));
   }
 
-  private String getAliasName(String datasetUrn) {
-    return Strings.isNullOrEmpty(datasetUrn) ?
-        CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX :
-        datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
+  private static String getAliasName(String datasetUrn) {
+    return Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
+        : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
   }
 }

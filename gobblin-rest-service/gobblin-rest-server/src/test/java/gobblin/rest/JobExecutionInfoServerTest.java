@@ -12,31 +12,19 @@
 
 package gobblin.rest;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
-import javax.sql.DataSource;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.Closer;
-import com.google.common.io.Files;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
@@ -45,6 +33,8 @@ import com.linkedin.data.template.StringMap;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
+import gobblin.metastore.testing.ITestMetastoreDatabase;
+import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 
 
 /**
@@ -61,6 +51,7 @@ import gobblin.metastore.MetaStoreModule;
  */
 @Test(groups = { "gobblin.rest" })
 public class JobExecutionInfoServerTest {
+  private ITestMetastoreDatabase testMetastoreDatabase;
   private JobHistoryStore jobHistoryStore;
   private JobExecutionInfoClient client;
   private JobExecutionInfoServer server;
@@ -69,14 +60,14 @@ public class JobExecutionInfoServerTest {
 
   @BeforeClass
   public void setUp() throws Exception {
+    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY, "org.apache.derby.jdbc.EmbeddedDriver");
-    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, "jdbc:derby:memory:gobblin;create=true");
+    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, testMetastoreDatabase.getJdbcUrl());
 
-    String randomPort = chooseRandomPort();
-    properties.setProperty(ConfigurationKeys.REST_SERVER_PORT_KEY, randomPort);
+    int randomPort = chooseRandomPort();
+    properties.setProperty(ConfigurationKeys.REST_SERVER_PORT_KEY, Integer.toString(randomPort));
 
-    prepareJobHistoryStoreDatabase(properties);
     Injector injector = Guice.createInjector(new MetaStoreModule(properties));
     this.jobHistoryStore = injector.getInstance(JobHistoryStore.class);
 
@@ -141,23 +132,27 @@ public class JobExecutionInfoServerTest {
     }
   }
 
-  @AfterClass
+  @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
-    this.client.close();
-    this.server.shutDown();
-    this.jobHistoryStore.close();
-    try {
-      DriverManager.getConnection("jdbc:derby:memory:gobblin;shutdown=true");
-    } catch (SQLException se) {
-      // An exception is expected when shutting down the database
+    if (this.client != null) {
+      this.client.close();
+    }
+    if (this.server != null) {
+      this.server.shutDown();
+    }
+    if (this.jobHistoryStore != null) {
+      this.jobHistoryStore.close();
+    }
+    if (this.testMetastoreDatabase != null) {
+      this.testMetastoreDatabase.close();
     }
   }
 
-  private String chooseRandomPort() throws IOException {
+  private static int chooseRandomPort() throws IOException {
     ServerSocket socket = null;
     try {
       socket = new ServerSocket(0);
-      return socket.getLocalPort() + "";
+      return socket.getLocalPort();
     } finally {
       if (socket != null) {
         socket.close();
@@ -165,38 +160,7 @@ public class JobExecutionInfoServerTest {
     }
   }
 
-  private void prepareJobHistoryStoreDatabase(Properties properties) throws Exception {
-    // Read the DDL statements
-    List<String> statementLines = Lists.newArrayList();
-    List<String> lines = Files.readLines(new File("gobblin-metastore/src/test/resources/gobblin_job_history_store.sql"),
-        ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
-    for (String line : lines) {
-      // Skip a comment line
-      if (line.startsWith("--")) {
-        continue;
-      }
-      statementLines.add(line);
-    }
-    String statements = Joiner.on("\n").skipNulls().join(statementLines);
-
-    Optional<Connection> connectionOptional = Optional.absent();
-    try {
-      Injector injector = Guice.createInjector(new MetaStoreModule(properties));
-      DataSource dataSource = injector.getInstance(DataSource.class);
-      connectionOptional = Optional.of(dataSource.getConnection());
-      Connection connection = connectionOptional.get();
-      for (String statement : Splitter.on(";").omitEmptyStrings().trimResults().split(statements)) {
-        PreparedStatement preparedStatement = connection.prepareStatement(statement);
-        preparedStatement.execute();
-      }
-    } finally {
-      if (connectionOptional.isPresent()) {
-        connectionOptional.get().close();
-      }
-    }
-  }
-
-  private JobExecutionInfo createJobExecutionInfo(int index) {
+  private static JobExecutionInfo createJobExecutionInfo(int index) {
     JobExecutionInfo jobExecutionInfo = new JobExecutionInfo();
     jobExecutionInfo.setJobName("TestJob" + index);
     jobExecutionInfo.setJobId(jobExecutionInfo.getJobName() + "_" + System.currentTimeMillis());
@@ -275,7 +239,7 @@ public class JobExecutionInfoServerTest {
     return jobExecutionInfo;
   }
 
-  private void assertJobExecution(JobExecutionInfo actual, JobExecutionInfo expected) {
+  private static void assertJobExecution(JobExecutionInfo actual, JobExecutionInfo expected) {
     Assert.assertEquals(actual.getJobName(), expected.getJobName());
     Assert.assertEquals(actual.getJobId(), expected.getJobId());
     if (expected.hasDuration()) {
@@ -300,7 +264,7 @@ public class JobExecutionInfoServerTest {
     }
   }
 
-  private void assertTaskExecution(TaskExecutionInfo actual, TaskExecutionInfo expected) {
+  private static void assertTaskExecution(TaskExecutionInfo actual, TaskExecutionInfo expected) {
     Assert.assertEquals(actual.getJobId(), expected.getJobId());
     Assert.assertEquals(actual.getTaskId(), expected.getTaskId());
     if (expected.hasDuration()) {
@@ -321,7 +285,7 @@ public class JobExecutionInfoServerTest {
     Assert.assertEquals(actual.getTaskProperties(), expected.getTaskProperties());
   }
 
-  private void assertMetric(Metric actual, Metric expected) {
+  private static void assertMetric(Metric actual, Metric expected) {
     Assert.assertEquals(actual.getGroup(), expected.getGroup());
     Assert.assertEquals(actual.getName(), expected.getName());
     Assert.assertEquals(actual.getType(), expected.getType());

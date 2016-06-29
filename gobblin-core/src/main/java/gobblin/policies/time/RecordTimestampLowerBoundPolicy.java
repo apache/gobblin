@@ -30,7 +30,7 @@ import gobblin.writer.partitioner.TimeBasedWriterPartitioner;
  * An abstract {@link RowLevelPolicy} for checking a record's timestamp against the earliest allowed timestamp.
  * Records whose timestamps are earlier than the earliest allowed timestamp will fail.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public abstract class RecordTimestampLowerBoundPolicy extends RowLevelPolicy {
 
@@ -54,12 +54,11 @@ public abstract class RecordTimestampLowerBoundPolicy extends RowLevelPolicy {
   private Optional<Long> getEarliestAllowedTimestamp() {
     if (!this.state.contains(RECORD_MAX_ALLOWED_TIME_AGO)) {
       return Optional.<Long> absent();
-    } else {
-      DateTime currentTime = new DateTime(this.timeZone);
-      String maxTimeAgoStr = this.state.getProp(RECORD_MAX_ALLOWED_TIME_AGO);
-      Period maxTimeAgo = PERIOD_FORMATTER.parsePeriod(maxTimeAgoStr);
-      return Optional.of(currentTime.minus(maxTimeAgo).getMillis());
     }
+    DateTime currentTime = new DateTime(this.timeZone);
+    String maxTimeAgoStr = this.state.getProp(RECORD_MAX_ALLOWED_TIME_AGO);
+    Period maxTimeAgo = PERIOD_FORMATTER.parsePeriod(maxTimeAgoStr);
+    return Optional.of(currentTime.minus(maxTimeAgo).getMillis());
   }
 
   protected abstract TimeBasedWriterPartitioner<?> getPartitioner();
@@ -70,9 +69,8 @@ public abstract class RecordTimestampLowerBoundPolicy extends RowLevelPolicy {
     long recordTimestamp = this.partitioner.getRecordTimestamp(record);
     if (this.earliestAllowedTimestamp.isPresent() && recordTimestamp < this.earliestAllowedTimestamp.get()) {
       return RowLevelPolicy.Result.FAILED;
-    } else {
-      return RowLevelPolicy.Result.PASSED;
     }
+    return RowLevelPolicy.Result.PASSED;
   }
 
 }

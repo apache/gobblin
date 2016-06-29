@@ -31,6 +31,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.FsStateStore;
 import gobblin.util.ParallelRunner;
 
 
@@ -70,14 +71,13 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
-    this.outputTaskStatesCollectorIntervalSeconds = Integer.parseInt(jobProps
-        .getProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_INTERVAL_SECONDS,
+    this.outputTaskStatesCollectorIntervalSeconds =
+        Integer.parseInt(jobProps.getProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_INTERVAL_SECONDS,
             Integer.toString(ConfigurationKeys.DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS)));
   }
 
   @Override
-  protected void runOneIteration()
-      throws Exception {
+  protected void runOneIteration() throws Exception {
     collectOutputTaskStates();
   }
 
@@ -88,15 +88,13 @@ public class TaskStateCollectorService extends AbstractScheduledService {
   }
 
   @Override
-  protected void startUp()
-      throws Exception {
+  protected void startUp() throws Exception {
     LOGGER.info("Starting the " + TaskStateCollectorService.class.getSimpleName());
     super.startUp();
   }
 
   @Override
-  protected void shutDown()
-      throws Exception {
+  protected void shutDown() throws Exception {
     LOGGER.info("Stopping the " + TaskStateCollectorService.class.getSimpleName());
     try {
       runOneIteration();
@@ -116,8 +114,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
    *
    * @throws IOException if it fails to collect the output {@link TaskState}s
    */
-  private void collectOutputTaskStates()
-      throws IOException {
+  private void collectOutputTaskStates() throws IOException {
     if (!this.fs.exists(this.outputTaskStateDir)) {
       LOGGER.warn(String.format("Output task state path %s does not exist", this.outputTaskStateDir));
       return;
@@ -126,7 +123,8 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     FileStatus[] fileStatuses = this.fs.listStatus(this.outputTaskStateDir, new PathFilter() {
       @Override
       public boolean accept(Path path) {
-        return path.getName().endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX);
+        return path.getName().endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)
+            && !path.getName().startsWith(FsStateStore.TMP_FILE_PREFIX);
       }
     });
     if (fileStatuses == null || fileStatuses.length == 0) {
@@ -135,12 +133,12 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     }
 
     Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
-    try (ParallelRunner stateSerDeRunner = new ParallelRunner(stateSerDeRunnerThreads, this.fs)) {
+    try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
       for (FileStatus status : fileStatuses) {
-        LOGGER.info("Found output task state file " + status.getPath());
+        LOGGER.debug("Found output task state file " + status.getPath());
         // Deserialize the TaskState and delete the file
-        stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(),
-            taskStateQueue, true);
+        stateSerDeRunner.deserializeFromSequenceFile(Text.class, TaskState.class, status.getPath(), taskStateQueue,
+            true);
       }
     } catch (IOException ioe) {
       LOGGER.warn("Could not read all task state files.");
@@ -151,6 +149,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     // Add the TaskStates of completed tasks to the JobState so when the control
     // returns to the launcher, it sees the TaskStates of all completed tasks.
     for (TaskState taskState : taskStateQueue) {
+      taskState.setJobState(this.jobState);
       this.jobState.addTaskState(taskState);
     }
 

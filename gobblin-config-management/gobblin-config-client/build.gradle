@@ -30,9 +30,6 @@ configurations {
 }
 
 test {
-    useTestNG () {
-        excludeGroups 'ignore'
-    }
     workingDir rootProject.rootDir
 }
 

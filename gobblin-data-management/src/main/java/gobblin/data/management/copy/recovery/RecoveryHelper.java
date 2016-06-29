@@ -15,6 +15,7 @@ package gobblin.data.management.copy.recovery;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -28,6 +29,7 @@ import com.google.common.base.Predicate;
 
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.util.guid.Guid;
 
@@ -39,13 +41,17 @@ import gobblin.util.guid.Guid;
 public class RecoveryHelper {
 
   public static final String PERSIST_DIR_KEY = "distcp.persist.dir";
+  public static final String PERSIST_RETENTION_KEY = "distcp.persist.retention.hours";
+  public static final int DEFAULT_PERSIST_RETENTION = 24;
 
   private final FileSystem fs;
   private final Optional<Path> persistDir;
+  private final int retentionHours;
 
   public RecoveryHelper(FileSystem fs, State state) throws IOException {
     this.fs = fs;
     this.persistDir = getPersistDir(state);
+    this.retentionHours = state.getPropAsInt(PERSIST_RETENTION_KEY, DEFAULT_PERSIST_RETENTION);
   }
 
   /**
@@ -56,11 +62,10 @@ public class RecoveryHelper {
    */
   public static Optional<Path> getPersistDir(State state) throws IOException {
     if (state.contains(PERSIST_DIR_KEY)) {
-      return Optional.of(new Path(state.getProp(PERSIST_DIR_KEY),
-          UserGroupInformation.getCurrentUser().getShortUserName()));
-    } else {
-      return Optional.absent();
+      return Optional
+          .of(new Path(state.getProp(PERSIST_DIR_KEY), UserGroupInformation.getCurrentUser().getShortUserName()));
     }
+    return Optional.absent();
   }
 
   /**
@@ -69,7 +74,7 @@ public class RecoveryHelper {
    * persisted file.
    *
    * @param state {@link State} containing job information.
-   * @param file {@link CopyableFile} from which input {@link Path} originated.
+   * @param file {@link gobblin.data.management.copy.CopyEntity} from which input {@link Path} originated.
    * @param path {@link Path} to persist.
    * @return true if persist was successful.
    * @throws IOException
@@ -89,20 +94,24 @@ public class RecoveryHelper {
       this.fs.mkdirs(this.persistDir.get(), new FsPermission(FsAction.ALL, FsAction.READ, FsAction.NONE));
     }
 
-    Path targetPath = new Path(persistDir.get(), nameBuilder.toString());
+    Path targetPath = new Path(this.persistDir.get(), nameBuilder.toString());
     log.info(String.format("Persisting file %s with guid %s to location %s.", path, guid, targetPath));
-    return this.fs.rename(path, targetPath);
+    if (this.fs.rename(path, targetPath)) {
+      this.fs.setTimes(targetPath, System.currentTimeMillis(), -1);
+      return true;
+    }
+    return false;
   }
 
   /**
-   * Searches the persist directory to find {@link Path}s matching the input {@link CopyableFile}.
+   * Searches the persist directory to find {@link Path}s matching the input {@link gobblin.data.management.copy.CopyEntity}.
    * @param state {@link State} containing job information.
-   * @param file {@link CopyableFile} for which persisted {@link Path}s should be found.
+   * @param file {@link gobblin.data.management.copy.CopyEntity} for which persisted {@link Path}s should be found.
    * @param filter {@link com.google.common.base.Predicate} used to filter found paths.
-   * @return Optionally, a {@link Path} in the {@link FileSystem} that is the desired copy of the {@link CopyableFile}.
+   * @return Optionally, a {@link Path} in the {@link FileSystem} that is the desired copy of the {@link gobblin.data.management.copy.CopyEntity}.
    * @throws IOException
    */
-  public Optional<FileStatus> findPersistedFile(State state, CopyableFile file, Predicate<FileStatus> filter)
+  public Optional<FileStatus> findPersistedFile(State state, CopyEntity file, Predicate<FileStatus> filter)
       throws IOException {
     if (!this.persistDir.isPresent() || !this.fs.exists(this.persistDir.get())) {
       return Optional.absent();
@@ -115,6 +124,28 @@ public class RecoveryHelper {
       }
     }
     return Optional.absent();
+  }
+
+  /**
+   * Delete all persisted files older than the number of hours set by {@link #PERSIST_RETENTION_KEY}.
+   * @throws IOException
+   */
+  public void purgeOldPersistedFile() throws IOException {
+    if (!this.persistDir.isPresent() || !this.fs.exists(this.persistDir.get())) {
+      log.info("No persist directory to clean.");
+      return;
+    }
+
+    long retentionMillis = TimeUnit.HOURS.toMillis(this.retentionHours);
+    long now = System.currentTimeMillis();
+
+    for (FileStatus fileStatus : this.fs.listStatus(this.persistDir.get())) {
+      if (now - fileStatus.getModificationTime() > retentionMillis) {
+        if (!this.fs.delete(fileStatus.getPath(), true)) {
+          log.warn("Failed to delete path " + fileStatus.getPath());
+        }
+      }
+    }
   }
 
   /**
@@ -142,12 +173,11 @@ public class RecoveryHelper {
     return replaced.substring(0, bytesPerHalf) + "..." + replaced.substring(replaced.length() - bytesPerHalf);
   }
 
-  private static String computeGuid(State state, CopyableFile file) throws IOException {
+  private static String computeGuid(State state, CopyEntity file) throws IOException {
     Optional<Guid> stateGuid = CopySource.getWorkUnitGuid(state);
     if (stateGuid.isPresent()) {
       return Guid.combine(file.guid(), stateGuid.get()).toString();
-    } else {
-      throw new IOException("State does not contain a guid.");
     }
+    throw new IOException("State does not contain a guid.");
   }
 }

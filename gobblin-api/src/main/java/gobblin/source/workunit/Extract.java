@@ -109,7 +109,7 @@ public class Extract extends State {
    * @param extract the other {@link Extract} instance
    */
   public Extract(Extract extract) {
-    super.addAll(extract);
+    super.addAll(extract.getProperties());
   }
 
   @Override
@@ -197,7 +197,9 @@ public class Extract extends State {
    *
    * @return <code>true</code> if this {@link Extract} represents the full contents
    *         of the source table and <code>false</code> otherwise
+   * @deprecated It is recommend to get this information from {@code WorkUnit} instead of {@code Extract}.
    */
+  @Deprecated
   public boolean getIsFull() {
     return getPropAsBoolean(ConfigurationKeys.EXTRACT_IS_FULL_KEY, false);
   }
@@ -206,7 +208,9 @@ public class Extract extends State {
    * Set full drop date from the given time.
    *
    * @param extractFullRunTime full extract time
+   * @deprecated It is recommend to set this information in {@code WorkUnit} instead of {@code Extract}.
    */
+  @Deprecated
   public void setFullTrue(long extractFullRunTime) {
     setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, true);
     setProp(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, extractFullRunTime);
@@ -220,7 +224,9 @@ public class Extract extends State {
    * </p>
    *
    * @param primaryKeyFieldName primary key names
+   * @deprecated It is recommended to set primary keys in {@code WorkUnit} instead of {@code Extract}.
    */
+  @Deprecated
   public void setPrimaryKeys(String... primaryKeyFieldName) {
     setProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY, Joiner.on(",").join(primaryKeyFieldName));
   }
@@ -229,7 +235,9 @@ public class Extract extends State {
    * Add more primary keys to the existing set of primary keys.
    *
    * @param primaryKeyFieldName primary key names
+   * @deprecated @deprecated It is recommended to add primary keys in {@code WorkUnit} instead of {@code Extract}.
    */
+  @Deprecated
   public void addPrimaryKey(String... primaryKeyFieldName) {
     StringBuilder sb = new StringBuilder(getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY, ""));
     Joiner.on(",").appendTo(sb, primaryKeyFieldName);
@@ -240,7 +248,9 @@ public class Extract extends State {
    * Get the list of primary keys.
    *
    * @return list of primary keys
+   * @deprecated It is recommended to obtain primary keys from {@code WorkUnit} instead of {@code Extract}.
    */
+  @Deprecated
   public List<String> getPrimaryKeys() {
     return getPropAsList(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
   }
@@ -253,7 +263,9 @@ public class Extract extends State {
    * </p>
    *
    * @param deltaFieldName delta field names
+   * @deprecated It is recommended to set delta fields in {@code WorkUnit} instead of {@code Extract}.
    */
+  @Deprecated
   public void setDeltaFields(String... deltaFieldName) {
     setProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, Joiner.on(",").join(deltaFieldName));
   }
@@ -262,7 +274,9 @@ public class Extract extends State {
    * Add more delta fields to the existing set of delta fields.
    *
    * @param deltaFieldName delta field names
+   * @deprecated It is recommended to add delta fields in {@code WorkUnit} instead of {@code Extract}.
    */
+  @Deprecated
   public void addDeltaField(String... deltaFieldName) {
     StringBuilder sb = new StringBuilder(getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, ""));
     Joiner.on(",").appendTo(sb, deltaFieldName);
@@ -273,7 +287,9 @@ public class Extract extends State {
    * Get the list of delta fields.
    *
    * @return list of delta fields
+   * @deprecated It is recommended to obtain delta fields from {@code WorkUnit} instead of {@code Extract}.
    */
+  @Deprecated
   public List<String> getDeltaFields() {
     return getPropAsList(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
   }
@@ -284,6 +300,6 @@ public class Extract extends State {
    * @return previous table {@link State}
    */
   public State getPreviousTableState() {
-    return previousTableState;
+    return this.previousTableState;
   }
 }

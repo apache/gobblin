@@ -15,8 +15,6 @@ package gobblin.runtime.mapreduce;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
@@ -30,6 +28,8 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
+import gobblin.metastore.testing.ITestMetastoreDatabase;
+import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
@@ -42,35 +42,34 @@ import gobblin.writer.WriterOutputFormat;
 /**
  * Unit test for {@link MRJobLauncher}.
  */
-@Test(groups = { "gobblin.runtime.mapreduce" })
+@Test(groups = { "gobblin.runtime.mapreduce", "gobblin.runtime" }, singleThreaded=true)
 public class MRJobLauncherTest extends BMNGRunner {
 
   private Properties launcherProps;
   private JobLauncherTestHelper jobLauncherTestHelper;
+  private ITestMetastoreDatabase testMetastoreDatabase;
 
   @BeforeClass
   public void startUp() throws Exception {
-    System.setProperty("derby.locks.deadlockTrace", "true");
-    System.setProperty("derby.locks.waitTimeout", "180");
-    System.setProperty("derby.locks.deadlockTimeout", "120");
+    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     this.launcherProps = new Properties();
     this.launcherProps.load(new FileReader("gobblin-test/resource/gobblin.mr-test.properties"));
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
-    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
-        "org.apache.derby.jdbc.EmbeddedDriver");
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
-        "jdbc:derby:memory:gobblin2;create=true");
+        testMetastoreDatabase.getJdbcUrl());
 
-    StateStore<JobState.DatasetState> datasetStateStore = new FsStateStore<>(
-        this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
-        this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
-        JobState.DatasetState.class);
+    StateStore<JobState.DatasetState> datasetStateStore =
+        new FsStateStore<>(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
+            this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.DatasetState.class);
 
     this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, datasetStateStore);
-    this.jobLauncherTestHelper.prepareJobHistoryStoreDatabase(this.launcherProps);
+
+    // Other tests may not clean up properly, clean up outputDir or some of these tests might fail.
+    String outputDir = this.launcherProps.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR);
+    FileUtils.deleteDirectory(new File(outputDir));
   }
 
   @Test
@@ -104,14 +103,15 @@ public class MRJobLauncherTest extends BMNGRunner {
 
   @Test
   public void testLaunchJobWithPullLimit() throws Exception {
+    int limit = 10;
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithPullLimit");
     jobProps.setProperty(ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY, Boolean.TRUE.toString());
     jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_TYPE_KEY, BaseLimiterType.COUNT_BASED.toString());
-    jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY, "10");
+    jobProps.setProperty(DefaultLimiterFactory.EXTRACT_LIMIT_COUNT_LIMIT_KEY, Integer.toString(10));
     try {
-      this.jobLauncherTestHelper.runTestWithPullLimit(jobProps);
+      this.jobLauncherTestHelper.runTestWithPullLimit(jobProps, limit);
     } finally {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
@@ -142,10 +142,10 @@ public class MRJobLauncherTest extends BMNGRunner {
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithFork");
     jobProps.setProperty(ConfigurationKeys.CONVERTER_CLASSES_KEY, "gobblin.test.TestConverter2");
     jobProps.setProperty(ConfigurationKeys.FORK_BRANCHES_KEY, "2");
-    jobProps
-        .setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".0", "gobblin.policies.schema.SchemaRowCheckPolicy");
-    jobProps
-        .setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".1", "gobblin.policies.schema.SchemaRowCheckPolicy");
+    jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".0",
+        "gobblin.policies.schema.SchemaRowCheckPolicy");
+    jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST + ".1",
+        "gobblin.policies.schema.SchemaRowCheckPolicy");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".0", "OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE + ".1", "OPTIONAL");
     jobProps.setProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST + ".0",
@@ -184,12 +184,9 @@ public class MRJobLauncherTest extends BMNGRunner {
    * {@link MRJobLauncher#countersToMetrics(GobblinMetrics)} method is called.
    */
   @Test
-  @BMRule(name = "testJobCleanupOnError",
-          targetClass = "gobblin.runtime.mapreduce.MRJobLauncher",
-          targetMethod = "countersToMetrics(GobblinMetrics)",
-          targetLocation = "AT ENTRY",
-          condition = "true",
-          action = "throw new IOException(\"Exception for testJobCleanupOnError\")")
+  @BMRule(name = "testJobCleanupOnError", targetClass = "gobblin.runtime.mapreduce.MRJobLauncher",
+      targetMethod = "countersToMetrics(GobblinMetrics)", targetLocation = "AT ENTRY", condition = "true",
+      action = "throw new IOException(\"Exception for testJobCleanupOnError\")")
   public void testJobCleanupOnError() throws IOException {
     Properties props = loadJobProps();
     try {
@@ -227,12 +224,11 @@ public class MRJobLauncherTest extends BMNGRunner {
    * Seems setting mapreduce.map.failures.maxpercent=100 does not prevent Hadoop2's LocalJobRunner from
    * failing and aborting a job if any mapper task fails. Aborting the job causes its working directory
    * to be deleted in {@link GobblinOutputCommitter}, which further fails this test since all the output
-   * {@link gobblin.runtime.TaskState}s are deleted. It works fine in Hadoop1 though by setting
-   * mapred.max.map.failures.percent=100. There may be a bug in Hadoop2's LocalJobRunner.
+   * {@link gobblin.runtime.TaskState}s are deleted. There may be a bug in Hadoop2's LocalJobRunner.
    *
    * Also applicable to the two tests below.
    */
-  @Test(groups = { "Hadoop1Only" })
+  @Test(groups = { "ignore" })
   public void testLaunchJobWithCommitSuccessfulTasksPolicy() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
@@ -244,11 +240,11 @@ public class MRJobLauncherTest extends BMNGRunner {
     }
   }
 
-  @Test(groups = { "Hadoop1Only" })
+  @Test(groups = { "ignore" })
   public void testLaunchJobWithMultipleDatasetsAndFaultyExtractor() throws Exception {
     Properties jobProps = loadJobProps();
-    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
-        "-testLaunchJobWithMultipleDatasetsAndFaultyExtractor");
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultipleDatasetsAndFaultyExtractor");
     try {
       this.jobLauncherTestHelper.runTestWithMultipleDatasetsAndFaultyExtractor(jobProps, false);
     } finally {
@@ -256,11 +252,11 @@ public class MRJobLauncherTest extends BMNGRunner {
     }
   }
 
-  @Test(groups = { "Hadoop1Only" })
+  @Test(groups = { "ignore" })
   public void testLaunchJobWithMultipleDatasetsAndFaultyExtractorAndPartialCommitPolicy() throws Exception {
     Properties jobProps = loadJobProps();
-    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) +
-        "-testLaunchJobWithMultipleDatasetsAndFaultyExtractorAndPartialCommitPolicy");
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)
+        + "-testLaunchJobWithMultipleDatasetsAndFaultyExtractorAndPartialCommitPolicy");
     try {
       this.jobLauncherTestHelper.runTestWithMultipleDatasetsAndFaultyExtractor(jobProps, true);
     } finally {
@@ -268,12 +264,10 @@ public class MRJobLauncherTest extends BMNGRunner {
     }
   }
 
-  @AfterClass
+  @AfterClass(alwaysRun = true)
   public void tearDown() throws IOException {
-    try {
-      DriverManager.getConnection("jdbc:derby:memory:gobblin2;shutdown=true");
-    } catch (SQLException se) {
-      // An exception is expected when shutting down the database
+    if (testMetastoreDatabase != null) {
+      testMetastoreDatabase.close();
     }
   }
 
@@ -281,9 +275,9 @@ public class MRJobLauncherTest extends BMNGRunner {
     Properties jobProps = new Properties();
     jobProps.load(new FileReader("gobblin-test/resource/mr-job-conf/GobblinMRTest.pull"));
     jobProps.putAll(this.launcherProps);
-    jobProps.setProperty(JobLauncherTestHelper.SOURCE_FILE_LIST_KEY, "gobblin-test/resource/source/test.avro.0,"
-        + "gobblin-test/resource/source/test.avro.1," + "gobblin-test/resource/source/test.avro.2,"
-        + "gobblin-test/resource/source/test.avro.3");
+    jobProps.setProperty(JobLauncherTestHelper.SOURCE_FILE_LIST_KEY,
+        "gobblin-test/resource/source/test.avro.0," + "gobblin-test/resource/source/test.avro.1,"
+            + "gobblin-test/resource/source/test.avro.2," + "gobblin-test/resource/source/test.avro.3");
 
     return jobProps;
   }

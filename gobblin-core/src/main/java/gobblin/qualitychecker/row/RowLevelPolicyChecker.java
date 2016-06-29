@@ -36,7 +36,7 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
   private final Closer closer;
   private RowLevelErrFileWriter writer;
 
-  public RowLevelPolicyChecker(List<RowLevelPolicy> list, String stateId, FileSystem fs) throws IOException {
+  public RowLevelPolicyChecker(List<RowLevelPolicy> list, String stateId, FileSystem fs) {
     this.list = list;
     this.stateId = stateId;
     this.fs = fs;
@@ -54,13 +54,13 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
         if (p.getType().equals(RowLevelPolicy.Type.FAIL)) {
           throw new RuntimeException("RowLevelPolicy " + p + " failed on record " + record);
         } else if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
-          if (!errFileOpen) {
+          if (!this.errFileOpen) {
             this.writer.open(getErrFilePath(p));
             this.writer.write(record);
           } else {
             this.writer.write(record);
           }
-          errFileOpen = true;
+          this.errFileOpen = true;
         }
         return false;
       }
@@ -79,7 +79,7 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
 
   @Override
   public void close() throws IOException {
-    if (errFileOpen) {
+    if (this.errFileOpen) {
       this.closer.close();
     }
   }
@@ -90,6 +90,7 @@ public class RowLevelPolicyChecker implements Closeable, FinalState {
    * @return Merged {@link gobblin.configuration.State} of final states for
    *                {@link gobblin.qualitychecker.row.RowLevelPolicy} used by this checker.
    */
+  @Override
   public State getFinalState() {
     State state = new State();
     for (RowLevelPolicy policy : this.list) {

@@ -20,6 +20,7 @@ import com.google.common.collect.Lists;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.metrics.event.JobEvent;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskState;
 import gobblin.util.ClustersNames;
@@ -73,7 +74,8 @@ public class JobMetrics extends GobblinMetrics {
    */
   public static JobMetrics get(final JobState jobState, final MetricContext parentContext) {
     return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
-      @Override public GobblinMetrics call() throws Exception {
+      @Override
+      public GobblinMetrics call() throws Exception {
         return new JobMetrics(jobState, parentContext);
       }
     });
@@ -87,7 +89,8 @@ public class JobMetrics extends GobblinMetrics {
    */
   public static JobMetrics get(final JobState jobState) {
     return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
-      @Override public GobblinMetrics call() throws Exception {
+      @Override
+      public GobblinMetrics call() throws Exception {
         return new JobMetrics(jobState);
       }
     });
@@ -115,9 +118,8 @@ public class JobMetrics extends GobblinMetrics {
 
   private static List<Tag<?>> tagsForJob(JobState jobState) {
     List<Tag<?>> tags = Lists.newArrayList();
-    tags.add(new Tag<>("jobName", jobState.getJobName() == null ? "" : jobState.getJobName()));
-    tags.add(new Tag<>("jobId", jobState.getJobId()));
-
+    tags.add(new Tag<>(JobEvent.METADATA_JOB_NAME, jobState.getJobName() == null ? "" : jobState.getJobName()));
+    tags.add(new Tag<>(JobEvent.METADATA_JOB_ID, jobState.getJobId()));
     tags.addAll(getCustomTagsFromState(jobState));
     return tags;
   }
@@ -125,6 +127,7 @@ public class JobMetrics extends GobblinMetrics {
   /**
    * @deprecated use {@link ClustersNames#getInstance()#getClusterName()}
    */
+  @Deprecated
   public static String getClusterIdentifierTag() {
     return ClustersNames.getInstance().getClusterName();
   }

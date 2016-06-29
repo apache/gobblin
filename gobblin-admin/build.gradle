@@ -30,8 +30,4 @@ dependencies {
     testCompile externalDependency.testng
 }
 
-test {
-    useTestNG () { excludeGroups 'ignore' }
-}
-
 classification="library"

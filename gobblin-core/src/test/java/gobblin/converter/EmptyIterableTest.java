@@ -28,7 +28,7 @@ public class EmptyIterableTest {
 
   @Test
   public void testIterator() {
-    EmptyIterable<Object> emptyIterable = new EmptyIterable<Object>();
+    EmptyIterable<Object> emptyIterable = new EmptyIterable<>();
     Iterator<Object> iterator = emptyIterable.iterator();
     Assert.assertFalse(iterator.hasNext());
   }

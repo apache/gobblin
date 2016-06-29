@@ -38,6 +38,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -50,6 +51,8 @@ import gobblin.metrics.notification.EventNotification;
 import gobblin.metrics.notification.Notification;
 import gobblin.util.ExecutorsUtils;
 
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_ID;
+import static gobblin.metrics.event.TaskEvent.METADATA_TASK_ID;
 
 /**
  * Abstract class for reporting {@link gobblin.metrics.GobblinTrackingEvent}s at a fixed schedule.
@@ -62,6 +65,9 @@ import gobblin.util.ExecutorsUtils;
 @Slf4j
 public abstract class EventReporter extends ScheduledReporter implements Closeable {
 
+  protected static final Joiner JOINER = Joiner.on('.').skipNulls();
+  protected static final String METRIC_KEY_PREFIX = "gobblin.metrics";
+  protected static final String EVENTS_QUALIFIER = "events";
   private static final Logger LOGGER = LoggerFactory.getLogger(EventReporter.class);
   private static final int QUEUE_CAPACITY = 100;
   private static final String NULL_STRING = "null";
@@ -76,10 +82,10 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     super(builder.context, builder.name, builder.filter, builder.rateUnit, builder.durationUnit);
 
     this.closer = Closer.create();
-    this.immediateReportExecutor = MoreExecutors.
-        getExitingExecutorService((ThreadPoolExecutor) Executors.newFixedThreadPool(1,
+    this.immediateReportExecutor = MoreExecutors.getExitingExecutorService(
+        (ThreadPoolExecutor) Executors.newFixedThreadPool(1,
             ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("EventReporter-" + builder.name + "-%d"))),
-            5, TimeUnit.MINUTES);
+        5, TimeUnit.MINUTES);
 
     this.metricContext = builder.context;
     this.notificationTargetKey = builder.context.addNotificationTarget(new Function<Notification, Void>() {
@@ -99,7 +105,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
    * @param notification {@link gobblin.metrics.notification.Notification} to process.
    */
   public void notificationCallback(Notification notification) {
-    if(notification instanceof EventNotification) {
+    if (notification instanceof EventNotification) {
       addEventToReportingQueue(((EventNotification) notification).getEvent());
     }
   }
@@ -109,17 +115,17 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
    * @param event {@link gobblin.metrics.GobblinTrackingEvent} to add to queue.
    */
   public void addEventToReportingQueue(GobblinTrackingEvent event) {
-    if(this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
+    if (this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
       immediatelyScheduleReport();
     }
     try {
-      if(!this.reportingQueue.offer(sanitizeEvent(event), 10, TimeUnit.SECONDS)) {
+      if (!this.reportingQueue.offer(sanitizeEvent(event), 10, TimeUnit.SECONDS)) {
         log.error("Enqueuing of event %s at reporter with class %s timed out. Sending of events is probably stuck.",
             event, this.getClass().getCanonicalName());
       }
     } catch (InterruptedException ie) {
-      log.warn(String.format("Enqueuing of event %s at reporter with class %s was interrupted.",
-          event, this.getClass().getCanonicalName()), ie);
+      log.warn(String.format("Enqueuing of event %s at reporter with class %s was interrupted.", event,
+          this.getClass().getCanonicalName()), ie);
     }
   }
 
@@ -146,6 +152,19 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     //NOOP
   }
 
+  /**
+   * Constructs the metric key to be emitted.
+   * The actual event name is enriched with the current job and task id to be able to keep track of its origin 
+   * 
+   * @param metadata metadata of the actual {@link GobblinTrackingEvent}
+   * @param eventName name of the actual {@link GobblinTrackingEvent}
+   * @return prefix of the metric key
+   */
+  protected String getMetricName(Map<String, String> metadata, String eventName) {
+    return JOINER.join(METRIC_KEY_PREFIX, metadata.get(METADATA_JOB_ID), metadata.get(METADATA_TASK_ID),
+        EVENTS_QUALIFIER, eventName);
+  }
+  
   private void immediatelyScheduleReport() {
     this.immediateReportExecutor.submit(new Runnable() {
       @Override
@@ -184,16 +203,16 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
       this.metricContext.removeNotificationTarget(this.notificationTargetKey);
       report();
       this.closer.close();
-    } catch(Exception e) {
+    } catch (Exception e) {
       LOGGER.warn("Exception when closing EventReporter", e);
     } finally {
       super.close();
     }
   }
 
-  private GobblinTrackingEvent sanitizeEvent(GobblinTrackingEvent event) {
+  private static GobblinTrackingEvent sanitizeEvent(GobblinTrackingEvent event) {
     Map<String, String> newMetadata = Maps.newHashMap();
-    for(Map.Entry<String, String> metadata : event.getMetadata().entrySet()) {
+    for (Map.Entry<String, String> metadata : event.getMetadata().entrySet()) {
       newMetadata.put(metadata.getKey() == null ? NULL_STRING : metadata.getKey(),
           metadata.getValue() == null ? NULL_STRING : metadata.getValue());
     }

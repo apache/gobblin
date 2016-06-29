@@ -22,11 +22,7 @@ dependencies {
     compile externalDependency.slf4j
     compile externalDependency.gson
     compile externalDependency.commonsVfs
-    if (project.hasProperty('useHadoop2')) {
-      compile externalDependency.avroMapredH2
-    } else {
-      compile externalDependency.avroMapredH1
-    }
+    compile externalDependency.avroMapredH2
 
     testCompile externalDependency.testng
 }
@@ -38,7 +34,6 @@ configurations {
 }
 
 test {
-    useTestNG ()
     include '**/*Test*'
 }
 

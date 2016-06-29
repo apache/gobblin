@@ -37,7 +37,7 @@ import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
  *
  * If the number of reducers is set to 0, then it is an identity mapper.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, AvroKey<GenericRecord>, Object> {
 
@@ -51,10 +51,10 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
 
   @Override
   protected void setup(Context context) throws IOException, InterruptedException {
-    keySchema = AvroJob.getMapOutputKeySchema(context.getConfiguration());
-    outKey = new AvroKey<GenericRecord>();
-    outKey.datum(new GenericData.Record(keySchema));
-    outValue = new AvroValue<GenericRecord>();
+    this.keySchema = AvroJob.getMapOutputKeySchema(context.getConfiguration());
+    this.outKey = new AvroKey<>();
+    this.outKey.datum(new GenericData.Record(this.keySchema));
+    this.outValue = new AvroValue<>();
   }
 
   @Override
@@ -63,10 +63,10 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
     if (context.getNumReduceTasks() == 0) {
       context.write(key, NullWritable.get());
     } else {
-      populateComparableKeyRecord(key.datum(), outKey.datum());
-      outValue.datum(key.datum());
+      populateComparableKeyRecord(key.datum(), this.outKey.datum());
+      this.outValue.datum(key.datum());
       try {
-        context.write(outKey, outValue);
+        context.write(this.outKey, this.outValue);
       } catch (AvroRuntimeException e) {
         final Path[] paths = ((CombineFileSplit) context.getInputSplit()).getPaths();
         throw new IOException("Unable to process paths " + StringUtils.join(paths, ','), e);

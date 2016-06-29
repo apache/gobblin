@@ -8,15 +8,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 
 import com.google.common.base.Charsets;
-
+import com.google.common.collect.ImmutableList;
 import com.typesafe.config.Config;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -24,9 +24,9 @@ import org.testng.annotations.Test;
 
 import gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import gobblin.config.store.api.ConfigKeyPath;
-import gobblin.config.store.api.ConfigStore;
 import gobblin.config.store.api.ConfigStoreCreationException;
-import gobblin.config.store.api.ConfigStoreFactory;
+import gobblin.config.store.deploy.ClasspathConfigSource;
+import gobblin.config.store.deploy.FsDeploymentConfig;
 import gobblin.util.PathUtils;
 
 
@@ -41,6 +41,10 @@ public class SimpleHdfsConfigStoreTest {
   private static final Path CONFIG_DIR_PATH =
       PathUtils.combinePaths(CONFIG_DIR_NAME, SimpleHDFSConfigStore.CONFIG_STORE_NAME, VERSION);
 
+  /**Set by {@link TestEnvironment#setup()}**/
+  public static final String TAG_NAME_SYS_PROP_KEY = "sysProp.tagName1";
+  public static final String TAG_NAME_SYS_PROP_VALUE = "tag1";
+
   private FileSystem fs;
   private SimpleHDFSConfigStore simpleHDFSConfigStore;
 
@@ -53,23 +57,21 @@ public class SimpleHdfsConfigStoreTest {
 
     URI storeURI = getStoreURI(System.getProperty("user.dir") + File.separator + CONFIG_DIR_NAME);
     this.simpleHDFSConfigStore = simpleHDFSConfigStoreConfigFactory.createConfigStore(storeURI);
+    this.simpleHDFSConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(new Properties()), VERSION));
+
   }
 
   @Test
   public void testGetCurrentVersion() throws IOException {
+
     Assert.assertEquals(this.simpleHDFSConfigStore.getCurrentVersion(), VERSION);
 
     String newVersion = "v1.1";
-    Path newVersionPath = PathUtils.combinePaths(CONFIG_DIR_NAME, SimpleHDFSConfigStore.CONFIG_STORE_NAME, newVersion);
 
-    try {
-      this.fs.mkdirs(newVersionPath);
-      Assert.assertEquals(this.simpleHDFSConfigStore.getCurrentVersion(), newVersion);
-    } finally {
-      if (this.fs.exists(newVersionPath)) {
-        this.fs.delete(newVersionPath, true);
-      }
-    }
+    this.simpleHDFSConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(new Properties()), newVersion));
+
+    Assert.assertEquals(this.simpleHDFSConfigStore.getCurrentVersion(), newVersion);
+
   }
 
   @Test
@@ -104,6 +106,7 @@ public class SimpleHdfsConfigStoreTest {
 
   @Test
   public void testGetOwnImports() throws IOException, URISyntaxException, ConfigStoreCreationException {
+
     String datasetName = "dataset-test-get-own-imports";
     String tagKey1 = "/path/to/tag1";
     String tagKey2 = "/path/to/tag2";
@@ -124,8 +127,36 @@ public class SimpleHdfsConfigStoreTest {
       List<ConfigKeyPath> imports = this.simpleHDFSConfigStore.getOwnImports(datasetConfigKey, VERSION);
 
       Assert.assertEquals(imports.size(), 2);
-      Assert.assertEquals(imports.get(0).getAbsolutePathString(), tagKey1);
-      Assert.assertEquals(imports.get(1).getAbsolutePathString(), tagKey2);
+      Assert.assertEquals(imports.get(0).getAbsolutePathString(), tagKey2);
+      Assert.assertEquals(imports.get(1).getAbsolutePathString(), tagKey1);
+    } finally {
+      if (this.fs.exists(datasetPath)) {
+        this.fs.delete(datasetPath, true);
+      }
+    }
+  }
+
+  @Test
+  public void testGetOwnImportsWithResolution() throws IOException, URISyntaxException, ConfigStoreCreationException {
+
+    String datasetName = "dataset-test-get-own-imports-resolution";
+
+    Path datasetPath = new Path(CONFIG_DIR_PATH, datasetName);
+
+    try {
+      this.fs.mkdirs(datasetPath);
+
+      BufferedWriter writer = new BufferedWriter(
+          new OutputStreamWriter(this.fs.create(new Path(datasetPath, "includes.conf")), Charsets.UTF_8));
+
+      writer.write("/path/to/${?" + TAG_NAME_SYS_PROP_KEY + "}");
+      writer.close();
+
+      ConfigKeyPath datasetConfigKey = SingleLinkedListConfigKeyPath.ROOT.createChild(datasetName);
+      List<ConfigKeyPath> imports = this.simpleHDFSConfigStore.getOwnImports(datasetConfigKey, VERSION);
+
+      Assert.assertEquals(imports.size(), 1);
+      Assert.assertEquals(imports.get(0).getAbsolutePathString(), "/path/to/" + TAG_NAME_SYS_PROP_VALUE);
     } finally {
       if (this.fs.exists(datasetPath)) {
         this.fs.delete(datasetPath, true);
@@ -151,6 +182,34 @@ public class SimpleHdfsConfigStoreTest {
         this.fs.delete(datasetPath, true);
       }
     }
+  }
+
+  @Test(dependsOnMethods = { "testGetCurrentVersion" })
+  public void testDeploy() throws Exception {
+
+    Properties props = new Properties();
+
+    props.setProperty(ClasspathConfigSource.CONFIG_STORE_CLASSPATH_RESOURCE_NAME_KEY, "_testDeploy");
+
+    this.simpleHDFSConfigStore.deploy(new FsDeploymentConfig(new ClasspathConfigSource(props), "2.0"));
+
+    Path versionPath = PathUtils.combinePaths(CONFIG_DIR_NAME, SimpleHDFSConfigStore.CONFIG_STORE_NAME, "2.0");
+
+    Assert.assertTrue(fs.exists(new Path(versionPath, "dir1")));
+    Assert.assertTrue(fs.exists(new Path(versionPath, "dir1/f1.conf")));
+
+  }
+
+  @Test
+  public void testResolveImports() throws Exception {
+    List<String> unresolved =
+        ImmutableList.of("/path/to/tag0", "/path/to/${?" + TAG_NAME_SYS_PROP_KEY + "}", "${?" + TAG_NAME_SYS_PROP_KEY
+            + "}/${?" + TAG_NAME_SYS_PROP_KEY + "}");
+
+    List<String> resolved = SimpleHDFSConfigStore.resolveIncludesList(unresolved);
+
+    List<String> expected = ImmutableList.of("/path/to/tag0", "/path/to/tag1", "tag1/tag1");
+    Assert.assertEquals(resolved, expected);
   }
 
   @AfterClass

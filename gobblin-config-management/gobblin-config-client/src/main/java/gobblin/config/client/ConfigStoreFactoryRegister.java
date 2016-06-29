@@ -12,38 +12,38 @@
 
 package gobblin.config.client;
 
+import gobblin.config.store.api.ConfigStoreFactory;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 
 import org.apache.log4j.Logger;
 
-import gobblin.config.store.api.ConfigStoreFactory;
-
 
 public class ConfigStoreFactoryRegister {
   private static final Logger LOG = Logger.getLogger(ConfigStoreFactoryRegister.class);
-  
+
   //key is the configStore scheme name, value is the ConfigStoreFactory
   @SuppressWarnings("rawtypes")
-  private final Map<String, ConfigStoreFactory> configStoreFactoryMap = new HashMap<>() ;
+  private final Map<String, ConfigStoreFactory> configStoreFactoryMap = new HashMap<>();
 
   @SuppressWarnings("rawtypes")
   public ConfigStoreFactoryRegister() {
     ServiceLoader<ConfigStoreFactory> loader = ServiceLoader.load(ConfigStoreFactory.class);
     for (ConfigStoreFactory f : loader) {
-      configStoreFactoryMap.put(f.getScheme(), f);
+      this.configStoreFactoryMap.put(f.getScheme(), f);
       LOG.info("Created the config store factory with scheme name " + f.getScheme());
     }
   }
 
   @SuppressWarnings("rawtypes")
-  public ConfigStoreFactory getConfigStoreFactory(String scheme){
-    return configStoreFactoryMap.get(scheme);
+  public ConfigStoreFactory getConfigStoreFactory(String scheme) {
+    return this.configStoreFactoryMap.get(scheme);
   }
-  
+
   @SuppressWarnings("rawtypes")
-  public void register(ConfigStoreFactory factory){
+  public void register(ConfigStoreFactory factory) {
     this.configStoreFactoryMap.put(factory.getScheme(), factory);
     LOG.info("Registered the config store factory with scheme name " + factory.getScheme());
   }

@@ -49,10 +49,10 @@ public abstract class AvroSerializer<T extends SpecificRecord> implements Closea
     this.closer = Closer.create();
 
     this.byteArrayOutputStream = new ByteArrayOutputStream();
-    this.out = this.closer.register(new DataOutputStream(byteArrayOutputStream));
+    this.out = this.closer.register(new DataOutputStream(this.byteArrayOutputStream));
     this.encoder = getEncoder(schema, this.out);
     this.schemaVersionWriter = schemaVersionWriter;
-    this.writer = new SpecificDatumWriter<T>(schema);
+    this.writer = new SpecificDatumWriter<>(schema);
 
   }
 
@@ -60,7 +60,7 @@ public abstract class AvroSerializer<T extends SpecificRecord> implements Closea
    * Change the {@link gobblin.metrics.reporter.util.SchemaVersionWriter} used by this serializer.
    * @param schemaVersionWriter new {@link gobblin.metrics.reporter.util.SchemaVersionWriter} to use.
    */
-  public void setSchemaVersionWriter(SchemaVersionWriter schemaVersionWriter) {
+  public synchronized void setSchemaVersionWriter(SchemaVersionWriter schemaVersionWriter) {
     this.schemaVersionWriter = schemaVersionWriter;
   }
 
@@ -92,15 +92,14 @@ public abstract class AvroSerializer<T extends SpecificRecord> implements Closea
       this.writer.write(record, this.encoder);
       this.encoder.flush();
       return this.byteArrayOutputStream.toByteArray();
-    } catch(IOException exception) {
+    } catch (IOException exception) {
       LOGGER.warn("Could not serialize Avro record for Kafka Metrics.", exception);
       return null;
     }
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     this.closer.close();
   }
 }

@@ -16,6 +16,7 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
   compile project(":gobblin-core")
+
   compile externalDependency.calciteCore
   compile externalDependency.calciteAvatica
   compile externalDependency.jhyde
@@ -24,16 +25,14 @@ dependencies {
   compile externalDependency.commonsMath
   compile externalDependency.hiveExec
 
-  if (project.hasProperty('useHadoop2')) {
-    runtime externalDependency.hadoopCommon
-    runtime externalDependency.hadoopClientCore
-    runtime externalDependency.hadoopHdfs
-    runtime externalDependency.hadoopAuth
-  } else {
-    runtime externalDependency.hadoop
-  }
+  runtime externalDependency.hadoopCommon
+  runtime externalDependency.hadoopClientCore
+  runtime externalDependency.hadoopHdfs
+  runtime externalDependency.hadoopAuth
 
-  runtime externalDependency.hiveService
+  runtime(externalDependency.hiveService) {
+    exclude group: 'org.apache.hive', module: 'hive-exec'
+  }
   runtime externalDependency.hiveJdbc
   runtime externalDependency.hiveMetastore
   runtime externalDependency.antlrRuntime
@@ -48,37 +47,6 @@ dependencies {
 
 configurations { 
     compile { transitive = true } 
-    archives
 }
 
 ext.classification="library"
-
-jar {
-  def manifestClasspath = configurations.runtime.collect { "gobblin-compaction_lib/" + it.getName() }.join(' ')
-  manifestClasspath = ". " + manifestClasspath
-  manifest {
-    attributes("Manifest-Version"       : "1.0",
-    "Main-Class"             : "gobblin.compaction.hive.CompactionRunner",
-    "Class-Path"             : manifestClasspath
-    )
-  }
-}
-
-task createCompactionTar(type: Tar) {
-  //there seems to be a bug in the Gradle signing module where X.tar.gz will generate
-  // a signature X.gz.asc instead of X.tar.gz.asc. Therefore, we have to use the .tgz 
-  // extension
-  extension = 'tgz'
-  baseName = project.name
-  compression = Compression.GZIP
-
-  into("gobblin-compaction_lib") { from configurations.runtime }
-  into(".") { from "${project.rootDir}/build/${project.name}/libs/${project.name}-${project.version}.jar" }
-  into(".") { from project.rootDir.path + "/conf/log4j-compaction.xml" rename ('log4j-compaction.xml', 'log4j.xml')}
-}
-
-createCompactionTar.dependsOn ':gobblin-compaction:jar'
-
-artifacts {
-  archives createCompactionTar
-}

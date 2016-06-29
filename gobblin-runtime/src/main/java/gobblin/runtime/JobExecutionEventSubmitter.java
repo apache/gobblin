@@ -1,5 +1,17 @@
 package gobblin.runtime;
 
+import static gobblin.metrics.event.JobEvent.JOB_STATE;
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_ID;
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_NAME;
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_START_TIME;
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_END_TIME;
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_STATE;
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_LAUNCHED_TASKS;
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_COMPLETED_TASKS;
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_LAUNCHER_TYPE;
+import static gobblin.metrics.event.JobEvent.METADATA_JOB_TRACKING_URL;
+import static gobblin.metrics.event.TaskEvent.*;
+
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
@@ -17,28 +29,6 @@ import lombok.AllArgsConstructor;
 public class JobExecutionEventSubmitter {
 
   private final EventSubmitter eventSubmitter;
-
-  // Event names
-  private static final String JOB_STATE_EVENT = "JobStateEvent";
-  private static final String TASK_STATE_EVENT = "TaskStateEvent";
-
-  // Job Event metadata keys
-  private static final String JOB_ID = "jobId";
-  private static final String JOB_NAME = "jobName";
-  private static final String JOB_START_TIME = "jobBeginTime";
-  private static final String JOB_END_TIME = "jobEndTime";
-  private static final String JOB_STATE = "jobState";
-  private static final String JOB_LAUNCHED_TASKS = "jobLaunchedTasks";
-  private static final String JOB_COMPLETED_TASKS = "jobCompletedTasks";
-  private static final String JOB_LAUNCHER_TYPE = "jobLauncherType";
-  private static final String JOB_TRACKING_URL = "jobTrackingURL";
-
-  // Task Event metadata keys
-  private static final String TASK_ID = "taskId";
-  private static final String TASK_START_TIME = "taskStartTime";
-  private static final String TASK_END_TIME = "taskEndTime";
-  private static final String TASK_WORKING_STATE = "taskWorkingState";
-  private static final String TASK_FAILURE_CONTEXT = "taskFailureContext";
 
   // The value of any metadata key that cannot be determined
   private static final String UNKNOWN_VALUE = "UNKNOWN";
@@ -59,19 +49,20 @@ public class JobExecutionEventSubmitter {
    * Submits an event for the given {@link JobState}.
    */
   private void submitJobStateEvent(JobState jobState) {
-    ImmutableMap.Builder<String, String> jobMetadataBuilder = new ImmutableMap.Builder<String, String>();
+    ImmutableMap.Builder<String, String> jobMetadataBuilder = new ImmutableMap.Builder<>();
 
-    jobMetadataBuilder.put(JOB_ID, jobState.getJobId());
-    jobMetadataBuilder.put(JOB_NAME, jobState.getJobName());
-    jobMetadataBuilder.put(JOB_START_TIME, Long.toString(jobState.getStartTime()));
-    jobMetadataBuilder.put(JOB_END_TIME, Long.toString(jobState.getEndTime()));
-    jobMetadataBuilder.put(JOB_STATE, jobState.getState().toString());
-    jobMetadataBuilder.put(JOB_LAUNCHED_TASKS, Integer.toString(jobState.getTaskCount()));
-    jobMetadataBuilder.put(JOB_COMPLETED_TASKS, Integer.toString(jobState.getCompletedTasks()));
-    jobMetadataBuilder.put(JOB_LAUNCHER_TYPE, jobState.getLauncherType().toString());
-    jobMetadataBuilder.put(JOB_TRACKING_URL, jobState.getTrackingURL().or(UNKNOWN_VALUE));
+    jobMetadataBuilder.put(METADATA_JOB_ID, jobState.getJobId());
+    jobMetadataBuilder.put(METADATA_JOB_NAME, jobState.getJobName());
+    jobMetadataBuilder.put(METADATA_JOB_START_TIME, Long.toString(jobState.getStartTime()));
+    jobMetadataBuilder.put(METADATA_JOB_END_TIME, Long.toString(jobState.getEndTime()));
+    jobMetadataBuilder.put(METADATA_JOB_STATE, jobState.getState().toString());
+    jobMetadataBuilder.put(METADATA_JOB_LAUNCHED_TASKS, Integer.toString(jobState.getTaskCount()));
+    jobMetadataBuilder.put(METADATA_JOB_COMPLETED_TASKS, Integer.toString(jobState.getCompletedTasks()));
+    jobMetadataBuilder.put(METADATA_JOB_LAUNCHER_TYPE, jobState.getLauncherType().toString());
+    jobMetadataBuilder.put(METADATA_JOB_TRACKING_URL, jobState.getTrackingURL().or(UNKNOWN_VALUE));
+    jobMetadataBuilder.put(EventSubmitter.EVENT_TYPE, JOB_STATE);
 
-    this.eventSubmitter.submit(JOB_STATE_EVENT, jobMetadataBuilder.build());
+    this.eventSubmitter.submit(JOB_STATE, jobMetadataBuilder.build());
   }
 
   /**
@@ -79,10 +70,10 @@ public class JobExecutionEventSubmitter {
    */
   private void submitTaskStateEvents(JobState jobState) {
     // Build Job Metadata applicable for TaskStates
-    ImmutableMap.Builder<String, String> jobMetadataBuilder = new ImmutableMap.Builder<String, String>();
-    jobMetadataBuilder.put(JOB_ID, jobState.getJobId());
-    jobMetadataBuilder.put(JOB_NAME, jobState.getJobName());
-    jobMetadataBuilder.put(JOB_TRACKING_URL, jobState.getTrackingURL().or(UNKNOWN_VALUE));
+    ImmutableMap.Builder<String, String> jobMetadataBuilder = new ImmutableMap.Builder<>();
+    jobMetadataBuilder.put(METADATA_JOB_ID, jobState.getJobId());
+    jobMetadataBuilder.put(METADATA_JOB_NAME, jobState.getJobName());
+    jobMetadataBuilder.put(METADATA_JOB_TRACKING_URL, jobState.getTrackingURL().or(UNKNOWN_VALUE));
     Map<String, String> jobMetadata = jobMetadataBuilder.build();
 
     // Submit event for each TaskState
@@ -95,15 +86,16 @@ public class JobExecutionEventSubmitter {
    * Submits an event for a given {@link TaskState}. It will include all metadata specified in the jobMetadata parameter.
    */
   private void submitTaskStateEvent(TaskState taskState, Map<String, String> jobMetadata) {
-    ImmutableMap.Builder<String, String> taskMetadataBuilder = new ImmutableMap.Builder<String, String>();
+    ImmutableMap.Builder<String, String> taskMetadataBuilder = new ImmutableMap.Builder<>();
 
     taskMetadataBuilder.putAll(jobMetadata);
-    taskMetadataBuilder.put(TASK_ID, taskState.getTaskId());
-    taskMetadataBuilder.put(TASK_START_TIME, Long.toString(taskState.getStartTime()));
-    taskMetadataBuilder.put(TASK_END_TIME, Long.toString(taskState.getEndTime()));
-    taskMetadataBuilder.put(TASK_WORKING_STATE, taskState.getWorkingState().toString());
-    taskMetadataBuilder.put(TASK_FAILURE_CONTEXT, taskState.getTaskFailureException().or(UNKNOWN_VALUE));
+    taskMetadataBuilder.put(METADATA_TASK_ID, taskState.getTaskId());
+    taskMetadataBuilder.put(METADATA_TASK_START_TIME, Long.toString(taskState.getStartTime()));
+    taskMetadataBuilder.put(METADATA_TASK_END_TIME, Long.toString(taskState.getEndTime()));
+    taskMetadataBuilder.put(METADATA_TASK_WORKING_STATE, taskState.getWorkingState().toString());
+    taskMetadataBuilder.put(METADATA_TASK_FAILURE_CONTEXT, taskState.getTaskFailureException().or(UNKNOWN_VALUE));
+    taskMetadataBuilder.put(EventSubmitter.EVENT_TYPE, TASK_STATE);
 
-    this.eventSubmitter.submit(TASK_STATE_EVENT, taskMetadataBuilder.build());
+    this.eventSubmitter.submit(TASK_STATE, taskMetadataBuilder.build());
   }
 }

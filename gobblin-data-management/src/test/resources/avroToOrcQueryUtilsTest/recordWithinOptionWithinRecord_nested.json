@@ -1,0 +1,21 @@
+{
+  "type" : "record",
+  "name" : "parentRecordName",
+  "fields" : [ {
+    "name" : "parentFieldUnion",
+    "type" : [ "null", {
+      "type" : "record",
+      "name" : "unionRecordMember",
+      "fields" : [ {
+        "name" : "unionRecordMemberFieldLong",
+        "type" : "long"
+      }, {
+        "name" : "unionRecordMemberFieldString",
+        "type" : "string"
+      } ]
+    } ]
+  }, {
+    "name" : "parentFieldInt",
+    "type" : "int"
+  } ]
+}

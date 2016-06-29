@@ -19,14 +19,22 @@ dependencies {
     compile externalDependency.slf4j
     compile externalDependency.pegasus.data
     compile externalDependency.commonsDbcp
+    compile externalDependency.commonsLang
+    compile externalDependency.commonsLang3
     compile externalDependency.guice
     compile externalDependency.javaxInject
     compile externalDependency.jodaTime
-    
+    compile externalDependency.httpclient
+    compile externalDependency.flyway
+    compile externalDependency.commonsConfiguration
+    compile externalDependency.lombok
+    compile externalDependency.reflections
+
     runtime externalDependency.mysqlConnector
 
     testCompile externalDependency.testng
-    testRuntime externalDependency.derby
+    testCompile externalDependency.embeddedProcess
+    testCompile externalDependency.testMysqlServer
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
@@ -43,15 +51,24 @@ if (rootProject.publishToMaven) {
 // End HACK
 
 configurations {
+    testFixtures {
+        extendsFrom testRuntime
+    }
     compile {
         transitive = false
     }
 }
 
+task testJar(type: Jar) {
+    from sourceSets.test.output
+    classifier = 'test'
+}
+
+artifacts {
+    testFixtures testJar
+}
+
 test {
-    useTestNG () {
-        excludeGroups 'ignore'
-    }
     workingDir rootProject.rootDir
 }
 

@@ -94,4 +94,70 @@ public class ConfigUtils {
     }
     return ConfigFactory.parseMap(immutableMapBuilder.build());
   }
+
+  /**
+   * Return string value at <code>path</code> if <code>config</code> has path. If not return an empty string
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return string value at <code>path</code> if <code>config</code> has path. If not return an empty string
+   */
+  public static String emptyIfNotPresent(Config config, String path) {
+    return getString(config, path, StringUtils.EMPTY);
+  }
+
+  /**
+   * Return string value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return string value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   */
+  public static String getString(Config config, String path, String def) {
+    if (config.hasPath(path)) {
+      return config.getString(path);
+    }
+    return def;
+  }
+
+
+  /**
+   * Return boolean value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return boolean value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   */
+  public static boolean getBoolean(Config config, String path, boolean def) {
+    if (config.hasPath(path)) {
+      return config.getBoolean(path);
+    }
+    return def;
+  }
+
+  /**
+   * Return {@link Config} value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return config value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   */
+  public static Config getConfig(Config config, String path, Config def) {
+    if (config.hasPath(path)) {
+      return config.getConfig(path);
+    }
+    return def;
+  }
+
+  /**
+   * Check if the given <code>key</code> exists in <code>config</code> and it is not null or empty
+   * Uses {@link StringUtils#isNotBlank(CharSequence)}
+   * @param config which may have the key
+   * @param key to look for in the config
+   *
+   * @return True if key exits and not null or empty. False otherwise
+   */
+  public static boolean hasNonEmptyPath(Config config, String key) {
+    return config.hasPath(key) && StringUtils.isNotBlank(config.getString(key));
+  }
 }

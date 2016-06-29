@@ -73,21 +73,21 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * start reading data from this point in time. If this parameter is not specified the job will start reading data from
    * the beginning of Unix time.
    */
-  private static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE = DATE_PARTITIONED_SOURCE_PREFIX
-      + "min.watermark.value";
+  private static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE =
+      DATE_PARTITIONED_SOURCE_PREFIX + "min.watermark.value";
 
   /**
    * The maximum number of files that this job should process.
    */
-  private static final String DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB = DATE_PARTITIONED_SOURCE_PREFIX
-      + "max.files.per.job";
+  private static final String DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB =
+      DATE_PARTITIONED_SOURCE_PREFIX + "max.files.per.job";
 
   /**
    * The maximum number of {@link MultiWorkUnits} to create for this job. This number also corresponds to the number of
    * tasks (or if running on Hadoop, the number of map tasks) that will be launched in this job.
    */
-  private static final String DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB = DATE_PARTITIONED_SOURCE_PREFIX
-      + "max.workunits.per.job";
+  private static final String DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB =
+      DATE_PARTITIONED_SOURCE_PREFIX + "max.workunits.per.job";
 
   // Default configuration parameter values
 
@@ -131,8 +131,8 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * blank constructor, so any custom initialization of the object needs to be done here.
    */
   private void init(SourceState state) {
-    DateTimeZone.setDefault(DateTimeZone.forID(state.getProp(ConfigurationKeys.SOURCE_TIMEZONE,
-        ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE)));
+    DateTimeZone.setDefault(DateTimeZone
+        .forID(state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE)));
 
     try {
       initFileSystemHelper(state);
@@ -146,18 +146,14 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
     this.sourceState = state;
 
     this.lowWaterMark =
-        getLowWaterMark(
-            state.getPreviousWorkUnitStates(),
-            state.getProp(DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE,
-                DAILY_FOLDER_FORMATTER.print(DEFAULT_DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE)));
+        getLowWaterMark(state.getPreviousWorkUnitStates(), state.getProp(DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE,
+            DAILY_FOLDER_FORMATTER.print(DEFAULT_DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE)));
 
-    this.maxFilesPerJob =
-        state
-            .getPropAsInt(DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB, DEFAULT_DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB);
+    this.maxFilesPerJob = state.getPropAsInt(DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB,
+        DEFAULT_DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB);
 
-    this.maxWorkUnitsPerJob =
-        state.getPropAsInt(DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB,
-            DEFAULT_DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB);
+    this.maxWorkUnitsPerJob = state.getPropAsInt(DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB,
+        DEFAULT_DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB);
 
     this.tableType = TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
 
@@ -196,7 +192,8 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
 
     // If the file count has not exceeded maxFilesPerJob then start adding new WorkUnits to for this job
     if (this.fileCount >= this.maxFilesPerJob) {
-      LOG.info("The number of work units from previous job has already reached the upper limit, no more workunits will be made");
+      LOG.info(
+          "The number of work units from previous job has already reached the upper limit, no more workunits will be made");
       return multiWorkUnitWeightedQueue.getQueueAsList();
     }
 
@@ -220,8 +217,8 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
         Throwables.propagate(e);
       }
 
-      LOG.info("Will process file from previous workunit: "
-          + wu.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
+      LOG.info(
+          "Will process file from previous workunit: " + wu.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
 
       this.fileCount++;
     }
@@ -254,9 +251,8 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
           partitionState.addAll(this.sourceState);
           partitionState.setProp(ConfigurationKeys.SOURCE_ENTITY, topicName);
 
-          Extract extract =
-              partitionState.createExtract(this.tableType,
-                  partitionState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), topicName);
+          Extract extract = partitionState.createExtract(this.tableType,
+              partitionState.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), topicName);
 
           LOG.info("Created extract: " + extract.getExtractId() + " for path " + dayPath);
 
@@ -290,7 +286,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * Gets the LWM for this job runs. The new LWM is the HWM of the previous run + 1 day. If there was no previous
    * execution then it is set to the given lowWaterMark + 1 day.
    */
-  private long getLowWaterMark(Iterable<WorkUnitState> previousStates, String lowWaterMark) {
+  private static long getLowWaterMark(Iterable<WorkUnitState> previousStates, String lowWaterMark) {
 
     long lowWaterMarkValue = DAILY_FOLDER_FORMATTER.parseMillis(lowWaterMark);
 
@@ -311,7 +307,7 @@ public class DatePartitionedDailyAvroSource extends FileBasedSource<Schema, Gene
    * This method is to filter out the .avro files that need to be processed.
    * @return the pathFilter
    */
-  private PathFilter getFileFilter() {
+  private static PathFilter getFileFilter() {
     return new PathFilter() {
       @Override
       public boolean accept(Path path) {

@@ -27,7 +27,7 @@ import com.google.common.collect.Maps;
 /**
  * A class that removes specific fields from a (possibly recursive) Avro schema.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroSchemaFieldRemover {
 
@@ -84,9 +84,8 @@ public class AvroSchemaFieldRemover {
       case RECORD:
         if (schemaMap.containsKey(schema.getFullName())) {
           return schemaMap.get(schema.getFullName());
-        } else {
-          return this.removeFieldsFromRecords(schema, schemaMap);
         }
+        return this.removeFieldsFromRecords(schema, schemaMap);
       case UNION:
         return this.removeFieldsFromUnion(schema, schemaMap);
       case ARRAY:

@@ -18,25 +18,34 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
+
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
+
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
-import org.slf4j.Logger;
+
 import org.slf4j.LoggerFactory;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.cluster.HelixUtils;
+import gobblin.cluster.HelixMessageTestBase;
+import gobblin.cluster.TestHelper;
+import gobblin.cluster.TestShutdownMessageHandlerFactory;
 import gobblin.testing.AssertWithBackoff;
 
 
@@ -53,10 +62,10 @@ import gobblin.testing.AssertWithBackoff;
  *
  * @author Yinan Li
  */
-@Test(groups = { "gobblin.yarn" })
+@Test(groups = { "gobblin.yarn" }, singleThreaded=true)
 public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
-  private static final int TEST_ZK_PORT = 3181;
+  private static final int TEST_ZK_PORT = 3081;
 
   private YarnClient yarnClient;
 
@@ -87,31 +96,33 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
 
-    URL url = GobblinYarnAppLauncherTest.class.getClassLoader().getResource(
-        GobblinYarnAppLauncherTest.class.getSimpleName() + ".conf");
+    URL url = GobblinYarnAppLauncherTest.class.getClassLoader()
+        .getResource(GobblinYarnAppLauncherTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
     this.config = ConfigFactory.parseURL(url).resolve();
 
-    String zkConnectionString = this.config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    this.helixManager = HelixManagerFactory
-        .getZKHelixManager(this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
-            TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER, zkConnectionString);
+    String zkConnectionString = this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    this.helixManager = HelixManagerFactory.getZKHelixManager(
+        this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), TestHelper.TEST_HELIX_INSTANCE_NAME,
+        InstanceType.CONTROLLER, zkConnectionString);
 
     this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(this.config, clusterConf);
   }
 
   @Test
   public void testCreateHelixCluster() throws Exception {
-    // This is tested here instead of in YarnHelixUtilsTest to avoid setting up yet another testing ZooKeeper server.
-    YarnHelixUtils.createGobblinYarnHelixCluster(
-        this.config.getString(GobblinYarnConfigurationKeys.ZK_CONNECTION_STRING_KEY),
-        this.config.getString(GobblinYarnConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
+    // This is tested here instead of in HelixUtilsTest to avoid setting up yet another testing ZooKeeper server.
+    HelixUtils.createGobblinHelixCluster(
+        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+        this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
 
-    Assert.assertEquals(this.curatorFramework.checkExists().forPath(
-        String.format("/%s", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
-    Assert.assertEquals(this.curatorFramework.checkExists().forPath(
-        String.format("/%s/CONTROLLER", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
+    Assert.assertEquals(this.curatorFramework.checkExists()
+        .forPath(String.format("/%s", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(), 0);
+    Assert.assertEquals(
+        this.curatorFramework.checkExists()
+            .forPath(String.format("/%s/CONTROLLER", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(),
+        0);
   }
 
   /**

@@ -28,7 +28,6 @@ dependencies {
   compile project(':gobblin-core')
   compile project(':gobblin-compaction')
   compile project(':gobblin-runtime')
-  compile project(':gobblin-scheduler')
   compile project(':gobblin-utility')
   compile project(':gobblin-metastore')
   compile project(':gobblin-metrics')
@@ -37,12 +36,12 @@ dependencies {
   compile project(":gobblin-rest-service:gobblin-rest-api")
   compile project(":gobblin-rest-service:gobblin-rest-client")
   compile project(":gobblin-rest-service:gobblin-rest-server")
-  if (project.hasProperty('useHadoop2')) {
-    compile project(':gobblin-yarn')
-  }
+  compile project(":gobblin-config-management:gobblin-config-client")
+  compile project(":gobblin-config-management:gobblin-config-core")
+  compile project(':gobblin-yarn')
 }
 
-task build(type: Tar, overwrite: true) {
+task buildDistributionTar(type: Tar, overwrite: true) {
   extension = 'tar.gz'
   baseName = project.name
   compression = Compression.GZIP
@@ -66,3 +65,5 @@ task build(type: Tar, overwrite: true) {
     }
   }
 }
+
+assemble.dependsOn buildDistributionTar

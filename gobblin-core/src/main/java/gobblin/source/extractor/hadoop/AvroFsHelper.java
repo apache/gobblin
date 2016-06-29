@@ -34,6 +34,7 @@ import gobblin.source.extractor.filebased.SizeAwareFileBasedHelper;
 import gobblin.source.extractor.utils.ProxyFsInput;
 import gobblin.util.HadoopUtils;
 
+
 public class AvroFsHelper extends HadoopFsHelper implements SizeAwareFileBasedHelper {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AvroFsHelper.class);
@@ -81,13 +82,11 @@ public class AvroFsHelper extends HadoopFsHelper implements SizeAwareFileBasedHe
     try {
       if (this.getState().getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
           ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
-        dfr =
-            new DataFileReader<>(new ProxyFsInput(new Path(file), this.getFileSystem()),
-                new GenericDatumReader<GenericRecord>());
+        dfr = new DataFileReader<>(new ProxyFsInput(new Path(file), this.getFileSystem()),
+            new GenericDatumReader<GenericRecord>());
       } else {
-        dfr =
-            new DataFileReader<>(new FsInput(new Path(file), this.getFileSystem().getConf()),
-                new GenericDatumReader<GenericRecord>());
+        dfr = new DataFileReader<>(new FsInput(new Path(file), this.getFileSystem().getConf()),
+            new GenericDatumReader<GenericRecord>());
       }
       return dfr.getSchema();
     } catch (IOException e) {
@@ -123,10 +122,9 @@ public class AvroFsHelper extends HadoopFsHelper implements SizeAwareFileBasedHe
           ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
         return new DataFileReader<>(new ProxyFsInput(new Path(file), this.getFileSystem()),
             new GenericDatumReader<GenericRecord>());
-      } else {
-        return new DataFileReader<>(new FsInput(new Path(file), this.getFileSystem().getConf()),
-            new GenericDatumReader<GenericRecord>());
       }
+      return new DataFileReader<>(new FsInput(new Path(file), this.getFileSystem().getConf()),
+          new GenericDatumReader<GenericRecord>());
     } catch (IOException e) {
       throw new FileBasedHelperException("Failed to open avro file " + file + " due to error " + e.getMessage(), e);
     }
@@ -137,8 +135,8 @@ public class AvroFsHelper extends HadoopFsHelper implements SizeAwareFileBasedHe
     try {
       return this.getFileSystem().getFileStatus(new Path(filePath)).getLen();
     } catch (IOException e) {
-      throw new FileBasedHelperException(String.format("Failed to get size for file at path %s due to error %s",
-          filePath, e.getMessage()), e);
+      throw new FileBasedHelperException(
+          String.format("Failed to get size for file at path %s due to error %s", filePath, e.getMessage()), e);
     }
   }
 }

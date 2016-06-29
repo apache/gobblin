@@ -46,7 +46,7 @@ import gobblin.source.workunit.WorkUnit;
  * if we pack lots of partitions of the same topic to the same mapper, and we underestimate the avg time per record
  * for this topic, then this mapper could be much slower than other mappers.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
@@ -60,7 +60,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
   @Override
   public List<WorkUnit> pack(Map<String, List<WorkUnit>> workUnitsByTopic, int numContainers) {
     double totalEstDataSize = setWorkUnitEstSizes(workUnitsByTopic);
-    double avgGroupSize = totalEstDataSize / (double) numContainers / getPreGroupingSizeFactor(this.state);
+    double avgGroupSize = totalEstDataSize / numContainers / getPreGroupingSizeFactor(this.state);
 
     List<MultiWorkUnit> mwuGroups = Lists.newArrayList();
     for (List<WorkUnit> workUnitsForTopic : workUnitsByTopic.values()) {
@@ -69,7 +69,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
         // If the total estimated size of a topic is smaller than group size, put all partitions of this
         // topic in a single group.
-        MultiWorkUnit mwuGroup = new MultiWorkUnit();
+        MultiWorkUnit mwuGroup = MultiWorkUnit.createEmpty();
         addWorkUnitsToMultiWorkUnit(workUnitsForTopic, mwuGroup);
         mwuGroups.add(mwuGroup);
       } else {
@@ -79,7 +79,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
       }
     }
 
-    List<WorkUnit> groups = squeezeMultiWorkUnits(mwuGroups, state);
+    List<WorkUnit> groups = squeezeMultiWorkUnits(mwuGroups);
     return worstFitDecreasingBinPacking(groups, numContainers);
   }
 
@@ -91,7 +91,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
     return totalSize;
   }
 
-  private double getPreGroupingSizeFactor(State state) {
+  private static double getPreGroupingSizeFactor(State state) {
     return state.getPropAsDouble(WORKUNIT_PRE_GROUPING_SIZE_FACTOR, DEFAULT_WORKUNIT_PRE_GROUPING_SIZE_FACTOR);
   }
 
@@ -99,18 +99,18 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
    * Group {@link WorkUnit}s into groups. Each group is a {@link MultiWorkUnit}. Each group has a capacity of
    * avgGroupSize. If there's a single {@link WorkUnit} whose size is larger than avgGroupSize, it forms a group itself.
    */
-  private List<MultiWorkUnit> bestFitDecreasingBinPacking(List<WorkUnit> workUnits, double avgGroupSize) {
+  private static List<MultiWorkUnit> bestFitDecreasingBinPacking(List<WorkUnit> workUnits, double avgGroupSize) {
 
     // Sort workunits by data size desc
     Collections.sort(workUnits, LOAD_DESC_COMPARATOR);
 
-    PriorityQueue<MultiWorkUnit> pQueue = new PriorityQueue<MultiWorkUnit>(workUnits.size(), LOAD_DESC_COMPARATOR);
+    PriorityQueue<MultiWorkUnit> pQueue = new PriorityQueue<>(workUnits.size(), LOAD_DESC_COMPARATOR);
     for (WorkUnit workUnit : workUnits) {
       MultiWorkUnit bestGroup = findAndPopBestFitGroup(workUnit, pQueue, avgGroupSize);
       if (bestGroup != null) {
         addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
       } else {
-        bestGroup = new MultiWorkUnit();
+        bestGroup = MultiWorkUnit.createEmpty();
         addWorkUnitToMultiWorkUnit(workUnit, bestGroup);
       }
       pQueue.add(bestGroup);
@@ -123,7 +123,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
    * The best group is the fullest group that has enough capacity for the new {@link WorkUnit}.
    * If no existing group has enough capacity for the new {@link WorkUnit}, return null.
    */
-  private MultiWorkUnit findAndPopBestFitGroup(WorkUnit workUnit, PriorityQueue<MultiWorkUnit> pQueue,
+  private static MultiWorkUnit findAndPopBestFitGroup(WorkUnit workUnit, PriorityQueue<MultiWorkUnit> pQueue,
       double avgGroupSize) {
 
     List<MultiWorkUnit> fullWorkUnits = Lists.newArrayList();
@@ -134,9 +134,8 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
       if (getWorkUnitEstSize(candidate) + getWorkUnitEstSize(workUnit) <= avgGroupSize) {
         bestFit = candidate;
         break;
-      } else {
-        fullWorkUnits.add(candidate);
       }
+      fullWorkUnits.add(candidate);
     }
 
     for (MultiWorkUnit fullWorkUnit : fullWorkUnits) {

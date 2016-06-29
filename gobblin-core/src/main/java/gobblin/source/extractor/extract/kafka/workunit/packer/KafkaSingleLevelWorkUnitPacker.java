@@ -34,7 +34,7 @@ import gobblin.source.workunit.WorkUnit;
  * Please refer to the Javadoc of {@link KafkaBiLevelWorkUnitPacker} for a comparison between
  * {@link KafkaSingleLevelWorkUnitPacker} and {@link KafkaBiLevelWorkUnitPacker}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaSingleLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
@@ -50,7 +50,7 @@ public class KafkaSingleLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
       // For each topic, merge all empty workunits into a single workunit, so that a single
       // empty task will be created instead of many.
-      MultiWorkUnit zeroSizeWorkUnit = new MultiWorkUnit();
+      MultiWorkUnit zeroSizeWorkUnit = MultiWorkUnit.createEmpty();
       for (WorkUnit workUnit : workUnitsForTopic) {
         if (DoubleMath.fuzzyEquals(getWorkUnitEstSize(workUnit), 0.0, EPS)) {
           addWorkUnitToMultiWorkUnit(workUnit, zeroSizeWorkUnit);
@@ -60,7 +60,7 @@ public class KafkaSingleLevelWorkUnitPacker extends KafkaWorkUnitPacker {
         }
       }
       if (!zeroSizeWorkUnit.getWorkUnits().isEmpty()) {
-        workUnits.add(squeezeMultiWorkUnit(zeroSizeWorkUnit, state));
+        workUnits.add(squeezeMultiWorkUnit(zeroSizeWorkUnit));
       }
     }
     return worstFitDecreasingBinPacking(workUnits, numContainers);

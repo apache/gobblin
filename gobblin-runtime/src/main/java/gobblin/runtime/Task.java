@@ -14,9 +14,9 @@ package gobblin.runtime;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.CompletionService;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import gobblin.Constructs;
@@ -82,12 +82,9 @@ public class Task implements Runnable {
   private final TaskContext taskContext;
   private final TaskState taskState;
   private final TaskStateTracker taskStateTracker;
+  private final TaskExecutor taskExecutor;
   private final Optional<CountDownLatch> countDownLatch;
-
-  private final List<Optional<Fork>> forks = Lists.newArrayList();
-
-  // A CompletionService used to run the batch of Forks of this Task
-  private final CompletionService forkCompletionService;
+  private final Map<Optional<Fork>, Optional<Future<?>>> forks = Maps.newLinkedHashMap();
 
   // Number of task retries
   private final AtomicInteger retryCount = new AtomicInteger();
@@ -107,7 +104,7 @@ public class Task implements Runnable {
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();
     this.taskStateTracker = taskStateTracker;
-    this.forkCompletionService = new ExecutorCompletionService(taskExecutor.getForkExecutor());
+    this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
   }
 
@@ -118,7 +115,7 @@ public class Task implements Runnable {
     this.taskState.setStartTime(startTime);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.RUNNING);
 
-    // Clear the list so it starts with a fresh list of forks for each run/retry
+    // Clear the map so it starts with a fresh set of forks for each run/retry
     this.forks.clear();
 
     Closer closer = Closer.create();
@@ -127,7 +124,7 @@ public class Task implements Runnable {
     RowLevelPolicyChecker rowChecker = null;
     try {
       extractor =
-          closer.register(new InstrumentedExtractorDecorator(this.taskState, this.taskContext.getExtractor()));
+          closer.register(new InstrumentedExtractorDecorator<>(this.taskState, this.taskContext.getExtractor()));
 
       converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
 
@@ -156,10 +153,9 @@ public class Task implements Runnable {
           Fork fork = closer.register(new Fork(this.taskContext,
               schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i));
           // Run the Fork
-          this.forkCompletionService.submit(fork, fork);
-          this.forks.add(Optional.of(fork));
+          this.forks.put(Optional.of(fork), Optional.<Future<?>> of(this.taskExecutor.submit(fork)));
         } else {
-          this.forks.add(Optional.<Fork>absent());
+          this.forks.put(Optional.<Fork> absent(), Optional.<Future<?>> absent());
         }
       }
 
@@ -183,17 +179,17 @@ public class Task implements Runnable {
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED, recordsPulled);
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
 
-      for (Optional<Fork> fork : this.forks) {
+      for (Optional<Fork> fork : this.forks.keySet()) {
         if (fork.isPresent()) {
           // Tell the fork that the main branch is completed and no new incoming data records should be expected
           fork.get().markParentTaskDone();
         }
       }
 
-      for (Optional<Fork> fork : this.forks) {
-        if (fork.isPresent()) {
+      for (Optional<Future<?>> forkFuture : this.forks.values()) {
+        if (forkFuture.isPresent()) {
           try {
-            this.forkCompletionService.take();
+            forkFuture.get().get();
           } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
           }
@@ -202,7 +198,7 @@ public class Task implements Runnable {
 
       // Check if all forks succeeded
       boolean allForksSucceeded = true;
-      for (Optional<Fork> fork : this.forks) {
+      for (Optional<Fork> fork : this.forks.keySet()) {
         if (fork.isPresent()) {
           if (fork.get().isSucceeded()) {
             if (!fork.get().commit()) {
@@ -236,6 +232,16 @@ public class Task implements Runnable {
         closer.close();
       } catch (Throwable t) {
         LOG.error("Failed to close all open resources", t);
+      }
+
+      for (Map.Entry<Optional<Fork>, Optional<Future<?>>> forkAndFuture : this.forks.entrySet()) {
+        if (forkAndFuture.getKey().isPresent() && forkAndFuture.getValue().isPresent()) {
+          try {
+            forkAndFuture.getValue().get().cancel(true);
+          } catch (Throwable t) {
+            LOG.error(String.format("Failed to cancel Fork \"%s\"", forkAndFuture.getKey().get()), t);
+          }
+        }
       }
 
       try {
@@ -302,17 +308,15 @@ public class Task implements Runnable {
   private void publishTaskData() throws IOException {
     Closer closer = Closer.create();
     try {
-      @SuppressWarnings("unchecked")
-      Class<? extends DataPublisher> dataPublisherClass = (Class<? extends DataPublisher>) Class.forName(
-          this.taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
+      Class<? extends DataPublisher> dataPublisherClass = getTaskPublisherClass();
       SingleTaskDataPublisher publisher =
           closer.register(SingleTaskDataPublisher.getInstance(dataPublisherClass, this.taskState));
 
       LOG.info("Publishing data from task " + this.taskId);
       publisher.publish(this.taskState);
     } catch (ClassCastException e) {
-      LOG.error(String.format("To publish data in task, the publisher class (%s) must extend %s",
-          ConfigurationKeys.DATA_PUBLISHER_TYPE, SingleTaskDataPublisher.class.getSimpleName()), e);
+      LOG.error(String.format("To publish data in task, the publisher class must extend %s",
+          SingleTaskDataPublisher.class.getSimpleName()), e);
       this.taskState.setTaskFailureException(e);
       throw closer.rethrow(e);
     } catch (Throwable t) {
@@ -321,6 +325,16 @@ public class Task implements Runnable {
     } finally {
       closer.close();
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private Class<? extends DataPublisher> getTaskPublisherClass() throws ReflectiveOperationException {
+    if (this.taskState.contains(ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE)) {
+      return (Class<? extends DataPublisher>) Class
+          .forName(this.taskState.getProp(ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE));
+    }
+    return (Class<? extends DataPublisher>) Class.forName(
+        this.taskState.getProp(ConfigurationKeys.DATA_PUBLISHER_TYPE, ConfigurationKeys.DEFAULT_DATA_PUBLISHER_TYPE));
   }
 
   /** Get the ID of the job this {@link Task} belongs to.
@@ -364,14 +378,14 @@ public class Task implements Runnable {
    * @return the list of {@link Fork}s created by this {@link Task}
    */
   public List<Optional<Fork>> getForks() {
-    return ImmutableList.copyOf(this.forks);
+    return ImmutableList.copyOf(this.forks.keySet());
   }
 
   /**
    * Update record-level metrics.
    */
   public void updateRecordMetrics() {
-    for (Optional<Fork> fork : this.forks) {
+    for (Optional<Fork> fork : this.forks.keySet()) {
       if (fork.isPresent()) {
         fork.get().updateRecordMetrics();
       }
@@ -387,7 +401,7 @@ public class Task implements Runnable {
    */
   public void updateByteMetrics() {
     try {
-      for (Optional<Fork> fork : this.forks) {
+      for (Optional<Fork> fork : this.forks.keySet()) {
         if (fork.isPresent()) {
           fork.get().updateByteMetrics();
         }
@@ -462,20 +476,24 @@ public class Task implements Runnable {
     // until all puts succeed, at which point the task moves to the next record.
     while (!allPutsSucceeded) {
       allPutsSucceeded = true;
-      for (int i = 0; i < branches; i++) {
-        if (succeededPuts[i]) {
+
+      int branch = 0;
+      for (Optional<Fork> fork : this.forks.keySet()) {
+        if (succeededPuts[branch]) {
+          branch++;
           continue;
         }
-        if (this.forks.get(i).isPresent() && forkedRecords.get(i)) {
-          boolean succeeded = this.forks.get(i).get()
-              .putRecord(convertedRecord instanceof Copyable ? ((Copyable) convertedRecord).copy() : convertedRecord);
-          succeededPuts[i] = succeeded;
+        if (fork.isPresent() && forkedRecords.get(branch)) {
+          boolean succeeded = fork.get()
+              .putRecord(convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord);
+          succeededPuts[branch] = succeeded;
           if (!succeeded) {
             allPutsSucceeded = false;
           }
         } else {
-          succeededPuts[i] = true;
+          succeededPuts[branch] = true;
         }
+        branch++;
       }
     }
   }
@@ -483,7 +501,7 @@ public class Task implements Runnable {
   /**
    * Check if a schema or data record is being passed to more than one branches.
    */
-  private boolean inMultipleBranches(List<Boolean> branches) {
+  private static boolean inMultipleBranches(List<Boolean> branches) {
     int inBranches = 0;
     for (Boolean bool : branches) {
       if (bool && ++inBranches > 1) {
@@ -500,14 +518,11 @@ public class Task implements Runnable {
    */
   private long getRecordsWritten() {
     long recordsWritten = 0;
-    for (Optional<Fork> fork : this.forks) {
-      if (fork.isPresent()) {
-        recordsWritten += fork.get().getRecordsWritten();
-      }
+    for (Optional<Fork> fork : this.forks.keySet()) {
+      recordsWritten += fork.get().getRecordsWritten();
     }
     return recordsWritten;
   }
-
 
   /**
    * Get the total number of bytes written by every {@link Fork}s of this {@link Task}.
@@ -516,10 +531,8 @@ public class Task implements Runnable {
    */
   private long getBytesWritten() {
     long bytesWritten = 0;
-    for (Optional<Fork> fork : this.forks) {
-      if (fork.isPresent()) {
-        bytesWritten += fork.get().getBytesWritten();
-      }
+    for (Optional<Fork> fork : this.forks.keySet()) {
+      bytesWritten += fork.get().getBytesWritten();
     }
     return bytesWritten;
   }
@@ -543,11 +556,9 @@ public class Task implements Runnable {
       constructState.addConstructState(Constructs.ROW_QUALITY_CHECKER, new ConstructState(rowChecker.getFinalState()));
     }
     int forkIdx = 0;
-    for (Optional<Fork> fork : this.forks) {
-      if (fork.isPresent()) {
-        constructState.addConstructState(Constructs.FORK_OPERATOR, new ConstructState(fork.get().getFinalState()),
-            Integer.toString(forkIdx));
-      }
+    for (Optional<Fork> fork : this.forks.keySet()) {
+      constructState.addConstructState(Constructs.FORK_OPERATOR, new ConstructState(fork.get().getFinalState()),
+          Integer.toString(forkIdx));
       forkIdx++;
     }
 

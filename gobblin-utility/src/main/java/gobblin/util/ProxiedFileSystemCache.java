@@ -44,7 +44,8 @@ import gobblin.configuration.State;
  *  {@link FileSystem}s using the {@link ProxiedFileSystemUtils} class.
  * </p>
  *
- * @see {@link Cache}, {@link ProxiedFileSystemUtils}
+ * @see Cache
+ * @see ProxiedFileSystemUtils
  */
 public class ProxiedFileSystemCache {
 
@@ -52,8 +53,8 @@ public class ProxiedFileSystemCache {
   private static final String RATE_CONTROLLED_TOKEN = "RateControlled";
   private static final int DEFAULT_MAX_CACHE_SIZE = 1000;
 
-  private static final Cache<String, FileSystem> USER_NAME_TO_FILESYSTEM_CACHE = CacheBuilder.newBuilder()
-      .maximumSize(DEFAULT_MAX_CACHE_SIZE).build();
+  private static final Cache<String, FileSystem> USER_NAME_TO_FILESYSTEM_CACHE =
+      CacheBuilder.newBuilder().maximumSize(DEFAULT_MAX_CACHE_SIZE).build();
 
   /**
    * Gets a {@link FileSystem} that can perform any operations allowed by the specified userNameToProxyAs.
@@ -117,17 +118,18 @@ public class ProxiedFileSystemCache {
    * @throws IOException
    */
   @Builder(builderClassName = "ProxiedFileSystemFromProperties", builderMethodName = "fromProperties")
-  private static FileSystem getProxiedFileSystem(@NonNull String userNameToProxyAs, Properties properties,
-      URI fsURI, Configuration configuration, FileSystem referenceFS) throws IOException {
+  private static FileSystem getProxiedFileSystem(@NonNull String userNameToProxyAs, Properties properties, URI fsURI,
+      Configuration configuration, FileSystem referenceFS) throws IOException {
     Preconditions.checkNotNull(userNameToProxyAs, "Must provide a user name to proxy as.");
     Preconditions.checkNotNull(properties, "Properties is a mandatory field for proxiedFileSystem generation.");
     URI actualURI = resolveUri(fsURI, configuration, referenceFS);
-    Configuration actualConfiguration =resolveConfiguration(configuration, referenceFS);
+    Configuration actualConfiguration = resolveConfiguration(configuration, referenceFS);
 
     try {
       return USER_NAME_TO_FILESYSTEM_CACHE.get(getFileSystemKey(actualURI, userNameToProxyAs, referenceFS),
-          new CreateProxiedFileSystemFromProperties(userNameToProxyAs, properties, actualURI, actualConfiguration, referenceFS));
-    } catch(ExecutionException ee) {
+          new CreateProxiedFileSystemFromProperties(userNameToProxyAs, properties, actualURI, actualConfiguration,
+              referenceFS));
+    } catch (ExecutionException ee) {
       throw new IOException("Failed to get proxied file system for user " + userNameToProxyAs, ee);
     }
   }
@@ -159,7 +161,7 @@ public class ProxiedFileSystemCache {
     try {
       return getProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName, superUserKeytabLocation, fsURI, conf,
           null);
-    } catch(IOException ioe) {
+    } catch (IOException ioe) {
       throw new ExecutionException(ioe);
     }
   }
@@ -169,8 +171,8 @@ public class ProxiedFileSystemCache {
    */
   @Builder(builderClassName = "ProxiedFileSystemFromKeytab", builderMethodName = "fromKeytab")
   private static FileSystem getProxiedFileSystemUsingKeytab(@NonNull final String userNameToProxyAs,
-      final String superUserName, final Path superUserKeytabLocation, final URI fsURI,
-      final Configuration conf, FileSystem referenceFS) throws IOException, ExecutionException {
+      final String superUserName, final Path superUserKeytabLocation, final URI fsURI, final Configuration conf,
+      FileSystem referenceFS) throws IOException, ExecutionException {
     Preconditions.checkNotNull(userNameToProxyAs, "Must provide a user name to proxy as.");
     Preconditions.checkNotNull(superUserName, "Must provide a super user name.");
     Preconditions.checkNotNull(superUserKeytabLocation, "Must provide a keytab location.");
@@ -178,8 +180,8 @@ public class ProxiedFileSystemCache {
     Configuration actualConfiguration = resolveConfiguration(conf, referenceFS);
 
     return USER_NAME_TO_FILESYSTEM_CACHE.get(getFileSystemKey(actualURI, userNameToProxyAs, referenceFS),
-        new CreateProxiedFileSystemFromKeytab(userNameToProxyAs, superUserName, superUserKeytabLocation,
-            actualURI, actualConfiguration, referenceFS));
+        new CreateProxiedFileSystemFromKeytab(userNameToProxyAs, superUserName, superUserKeytabLocation, actualURI,
+            actualConfiguration, referenceFS));
   }
 
   /**
@@ -191,7 +193,7 @@ public class ProxiedFileSystemCache {
       final Token<?> userNameToken, final URI fsURI, final Configuration conf) throws ExecutionException {
     try {
       return getProxiedFileSystemUsingToken(userNameToProxyAs, userNameToken, fsURI, conf, null);
-    } catch(IOException ioe) {
+    } catch (IOException ioe) {
       throw new ExecutionException(ioe);
     }
   }
@@ -200,97 +202,108 @@ public class ProxiedFileSystemCache {
    * Cached version of {@link ProxiedFileSystemUtils#createProxiedFileSystemUsingToken(String, Token, URI, Configuration)}.
    */
   @Builder(builderClassName = "ProxiedFileSystemFromToken", builderMethodName = "fromToken")
-  private static FileSystem getProxiedFileSystemUsingToken(@NonNull String userNameToProxyAs,
-      Token<?> userNameToken, URI fsURI, Configuration conf, FileSystem referenceFS)
-      throws IOException, ExecutionException {
+  private static FileSystem getProxiedFileSystemUsingToken(@NonNull String userNameToProxyAs, Token<?> userNameToken,
+      URI fsURI, Configuration conf, FileSystem referenceFS) throws IOException, ExecutionException {
     Preconditions.checkNotNull(userNameToProxyAs, "Must provide a user name to proxy as.");
     Preconditions.checkNotNull(userNameToken, "Must provide token for user to proxy.");
     URI actualURI = resolveUri(fsURI, conf, referenceFS);
     Configuration actualConfiguration = resolveConfiguration(conf, referenceFS);
 
     return USER_NAME_TO_FILESYSTEM_CACHE.get(getFileSystemKey(actualURI, userNameToProxyAs, referenceFS),
-        new CreateProxiedFileSystemFromToken(userNameToProxyAs, userNameToken, actualURI,
-            actualConfiguration, referenceFS));
+        new CreateProxiedFileSystemFromToken(userNameToProxyAs, userNameToken, actualURI, actualConfiguration,
+            referenceFS));
   }
 
   @AllArgsConstructor
   private static class CreateProxiedFileSystemFromProperties implements Callable<FileSystem> {
-    @NonNull private final String userNameToProxyAs;
-    @NonNull private final Properties properties;
-    @NonNull private final URI uri;
-    @NonNull private final Configuration configuration;
+    @NonNull
+    private final String userNameToProxyAs;
+    @NonNull
+    private final Properties properties;
+    @NonNull
+    private final URI uri;
+    @NonNull
+    private final Configuration configuration;
     private final FileSystem referenceFS;
 
-    @Override public FileSystem call() throws Exception {
-      FileSystem fs =
-          ProxiedFileSystemUtils.createProxiedFileSystem(this.userNameToProxyAs, this.properties, this.uri, this.configuration);
-      if(this.referenceFS != null) {
+    @Override
+    public FileSystem call() throws Exception {
+      FileSystem fs = ProxiedFileSystemUtils.createProxiedFileSystem(this.userNameToProxyAs, this.properties, this.uri,
+          this.configuration);
+      if (this.referenceFS != null) {
         return decorateFilesystemFromReferenceFS(fs, this.referenceFS);
-      } else {
-        return fs;
       }
+      return fs;
     }
   }
 
   @AllArgsConstructor
   private static class CreateProxiedFileSystemFromKeytab implements Callable<FileSystem> {
-    @NonNull private final String userNameToProxyAs;
-    @NonNull private final String superUser;
-    @NonNull private final Path keytabLocation;
-    @NonNull private final URI uri;
-    @NonNull private final Configuration configuration;
+    @NonNull
+    private final String userNameToProxyAs;
+    @NonNull
+    private final String superUser;
+    @NonNull
+    private final Path keytabLocation;
+    @NonNull
+    private final URI uri;
+    @NonNull
+    private final Configuration configuration;
     private final FileSystem referenceFS;
 
-    @Override public FileSystem call() throws Exception {
-      FileSystem fs =
-          ProxiedFileSystemUtils.createProxiedFileSystemUsingKeytab(userNameToProxyAs, superUser,
-              keytabLocation, uri, configuration);
-      if(this.referenceFS != null) {
+    @Override
+    public FileSystem call() throws Exception {
+      FileSystem fs = ProxiedFileSystemUtils.createProxiedFileSystemUsingKeytab(this.userNameToProxyAs, this.superUser,
+          this.keytabLocation, this.uri, this.configuration);
+      if (this.referenceFS != null) {
         return decorateFilesystemFromReferenceFS(fs, this.referenceFS);
-      } else {
-        return fs;
       }
+      return fs;
     }
   }
 
   @AllArgsConstructor
   private static class CreateProxiedFileSystemFromToken implements Callable<FileSystem> {
-    @NonNull private final String userNameToProxyAs;
-    @NonNull private final Token<?> userNameToken;
-    @NonNull private final URI uri;
-    @NonNull private final Configuration configuration;
+    @NonNull
+    private final String userNameToProxyAs;
+    @NonNull
+    private final Token<?> userNameToken;
+    @NonNull
+    private final URI uri;
+    @NonNull
+    private final Configuration configuration;
     private final FileSystem referenceFS;
 
-    @Override public FileSystem call() throws Exception {
-      FileSystem fs =
-          ProxiedFileSystemUtils.createProxiedFileSystemUsingToken(this.userNameToProxyAs, userNameToken,
-              this.uri, this.configuration);
-      if(this.referenceFS != null) {
+    @Override
+    public FileSystem call() throws Exception {
+      FileSystem fs = ProxiedFileSystemUtils.createProxiedFileSystemUsingToken(this.userNameToProxyAs,
+          this.userNameToken, this.uri, this.configuration);
+      if (this.referenceFS != null) {
         return decorateFilesystemFromReferenceFS(fs, this.referenceFS);
-      } else {
-        return fs;
       }
+      return fs;
     }
   }
 
   private static URI resolveUri(URI uri, Configuration configuration, FileSystem fileSystem) throws IOException {
-    if(uri != null) {
+    if (uri != null) {
       return uri;
     }
-    if(fileSystem != null) {
+    if (fileSystem != null) {
       return fileSystem.getUri();
     }
-    if(configuration != null) {
+    if (configuration != null) {
       return FileSystem.getDefaultUri(configuration);
     }
     throw new IOException("FileSystem URI could not be determined from available inputs.");
   }
 
-  private static Configuration resolveConfiguration(Configuration configuration, FileSystem fileSystem) throws IOException {
-    if(configuration != null) {
+  private static Configuration resolveConfiguration(Configuration configuration, FileSystem fileSystem)
+      throws IOException {
+    if (configuration != null) {
       return configuration;
     }
-    if(fileSystem != null) {
+    if (fileSystem != null) {
       return fileSystem.getConf();
     }
     throw new IOException("FileSystem configuration could not be determined from available inputs.");
@@ -303,7 +316,7 @@ public class ProxiedFileSystemCache {
     keyBuilder.append(KEY_SEPARATOR);
     keyBuilder.append(user);
 
-    if(referenceFS != null && RateControlledFileSystem.getRateIfRateControlled(referenceFS).isPresent()) {
+    if (referenceFS != null && RateControlledFileSystem.getRateIfRateControlled(referenceFS).isPresent()) {
       keyBuilder.append(KEY_SEPARATOR);
       keyBuilder.append(RATE_CONTROLLED_TOKEN);
     }
@@ -315,7 +328,7 @@ public class ProxiedFileSystemCache {
     FileSystem decoratedFs = newFS;
 
     Optional<Long> decoratedFSRateOpt = RateControlledFileSystem.getRateIfRateControlled(decoratedFs);
-    if(!decoratedFSRateOpt.isPresent()) {
+    if (!decoratedFSRateOpt.isPresent()) {
       Optional<Long> referenceRateOpt = RateControlledFileSystem.getRateIfRateControlled(referenceFS);
       if (referenceRateOpt.isPresent()) {
         decoratedFs = new RateControlledFileSystem(decoratedFs, referenceRateOpt.get());

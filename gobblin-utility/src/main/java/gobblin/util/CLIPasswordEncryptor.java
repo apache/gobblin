@@ -32,7 +32,7 @@ import gobblin.password.PasswordManager;
  * A command line tool for encrypting password.
  * Usage: -h print usage, -p plain password, -m master password, -f master password file, -s use strong encryptor.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class CLIPasswordEncryptor {
 
@@ -72,14 +72,13 @@ public class CLIPasswordEncryptor {
             MASTER_PWD_FILE_OPTION, MASTER_PWD_OPTION));
       }
       return cl.getOptionValue(MASTER_PWD_OPTION);
-    } else {
-      Path masterPwdLoc = new Path(cl.getOptionValue(MASTER_PWD_FILE_OPTION));
-      Optional<String> masterPwd = PasswordManager.getMasterPassword(masterPwdLoc);
-      if (masterPwd.isPresent()) {
-        return masterPwd.get();
-      }
-      throw new RuntimeException("Failed to get master password from " + masterPwdLoc);
     }
+    Path masterPwdLoc = new Path(cl.getOptionValue(MASTER_PWD_FILE_OPTION));
+    Optional<String> masterPwd = PasswordManager.getMasterPassword(masterPwdLoc);
+    if (masterPwd.isPresent()) {
+      return masterPwd.get();
+    }
+    throw new RuntimeException("Failed to get master password from " + masterPwdLoc);
   }
 
   private static CommandLine parseArgs(String[] args) throws ParseException {

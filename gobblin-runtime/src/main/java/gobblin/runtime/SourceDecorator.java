@@ -25,7 +25,6 @@ import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.Decorator;
-import gobblin.util.DecoratorUtils;
 
 
 /**
@@ -63,8 +62,7 @@ public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
   }
 
   @Override
-  public Extractor<S, D> getExtractor(WorkUnitState state)
-      throws IOException {
+  public Extractor<S, D> getExtractor(WorkUnitState state) throws IOException {
     try {
       return this.source.getExtractor(state);
     } catch (Throwable t) {

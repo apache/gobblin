@@ -7,6 +7,8 @@
 // Unless required by applicable law or agreed to in writing, software distributed
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied.
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
 
 buildscript {
   repositories {
@@ -16,14 +18,19 @@ buildscript {
   }
   dependencies {
     classpath 'gradle.plugin.org.inferred:gradle-processors:1.1.2'
+    classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:1.0.2'
+    classpath 'gradle.plugin.com.palantir:jacoco-coverage:0.3.0'
   }
 }
 
 apply plugin: 'org.inferred.processors'
 apply plugin: 'idea'
 
+apply from: rootProject.projectDir.path + '/gradle/scripts/jacoco-coveralls-support.gradle'
+
 idea.project {
   ext.languageLevel = JavaVersion.VERSION_1_7
+  languageLevel = JavaVersion.VERSION_1_7
 }
 
 ext.build_script_dir = "${projectDir.path}/build_script"
@@ -37,6 +44,37 @@ File getEnvironmentScript()
 }
 
 apply from: environmentScript
+
+// Maven POM generation is not thread safe, so serialize all the Upload tasks we can use `--parallel`.
+// https://issues.gradle.org/browse/GRADLE-2492
+// When we start building with 2.3 and later we should remove this and just add a common output dir for all tasks and let Gradle serialize them
+def lock = new ReentrantLock()
+def available = lock.newCondition()
+def busy = new AtomicBoolean()
+def serializedTasks = []
+allprojects {
+  apply from: rootProject.projectDir.path + '/gradle/scripts/hadoop-version.gradle'
+  tasks.matching { it.name == "generatePom" || it instanceof Upload }.all {
+    serializedTasks << it
+    doFirst {
+      lock.lock()
+      while (busy.get()) {
+        available.await()
+      }
+      busy.set(true)
+    }
+  }
+}
+
+println "Building against Hadoop version " + ext.hadoopVersion
+
+gradle.taskGraph.afterTask {
+  if (it in serializedTasks && lock.heldByCurrentThread) {
+    busy.set(false)
+    available.signal()
+    lock.unlock()
+  }
+}
 
 ext.publishToMaven = project.hasProperty('publishToMaven')
 if (ext.publishToMaven) {
@@ -76,21 +114,10 @@ if (!project.hasProperty('version') || project.version == 'unspecified') {
     else {
         project.version = tagStr
     }
-    if (!project.hasProperty('useHadoop2')) {
-      project.version = project.version + "-hadoop1"
-    }
 }
 
 println "name=" + project.name + " group=" + project.group
 println "project.version=" + project.version
-
-if (!project.hasProperty('hadoopVersion')) {
-  if (project.hasProperty('useHadoop2')) {
-    ext.hadoopVersion = '2.3.0'
-  } else {
-    ext.hadoopVersion = '1.2.1'
-  }
-}
 
 if (!project.hasProperty('hiveVersion')) {
   ext.hiveVersion = '1.0.1'
@@ -106,11 +133,11 @@ if (!project.hasProperty('bytemanVersion')) {
 
 ext.avroVersion = '1.7.7'
 ext.dropwizardMetricsVersion = '3.1.0'
+ext.findBugsVersion = '3.0.0'
 
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
   "avro": "org.apache.avro:avro:" + avroVersion,
-  "avroMapredH1": "org.apache.avro:avro-mapred:" + avroVersion + ":hadoop1",
   "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion + ":hadoop2",
   "commonsCli": "commons-cli:commons-cli:1.3.1",
   "commonsCodec": "commons-codec:commons-codec:1.10",
@@ -119,16 +146,16 @@ ext.externalDependency = [
   "commonsLang": "commons-lang:commons-lang:2.6",
   "commonsLang3": "org.apache.commons:commons-lang3:3.4",
   "commonsConfiguration": "commons-configuration:commons-configuration:1.10",
-  "commonsIo": "commons-io:commons-io:2.4",
+  "commonsIo": "commons-io:commons-io:2.5",
   "commonsMath": "org.apache.commons:commons-math3:3.5",
   "commonsHttpClient": "commons-httpclient:commons-httpclient:3.1",
   "commonsCompress":"org.apache.commons:commons-compress:1.10",
-  "datanucleusCore": "org.datanucleus:datanucleus-core:4.1.2",
-  "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:4.1.2",
+  "commonsPool": "org.apache.commons:commons-pool2:2.4.2",
+  "datanucleusCore": "org.datanucleus:datanucleus-core:3.2.10",
+  "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:3.2.9",
   "guava": "com.google.guava:guava:15.0",
-  "gson": "com.google.code.gson:gson:2.3.1",
-  "findBugs": "com.google.code.findbugs:jsr305:1.3.9",
-  "hadoop": "org.apache.hadoop:hadoop-core:" + hadoopVersion,
+  "gson": "com.google.code.gson:gson:2.6.2",
+  "findBugsAnnotations": "com.google.code.findbugs:jsr305:" + findBugsVersion,
   "hadoopCommon": "org.apache.hadoop:hadoop-common:" + hadoopVersion,
   "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:" + hadoopVersion,
   "hadoopClientCommon": "org.apache.hadoop:hadoop-mapreduce-client-common:" + hadoopVersion,
@@ -140,26 +167,28 @@ ext.externalDependency = [
   "hadoopYarnMiniCluster": "org.apache.hadoop:hadoop-minicluster:" + hadoopVersion,
   "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:" + hadoopVersion,
   "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
+  "hiveCommon": "org.apache.hive:hive-common:" + hiveVersion,
   "hiveService": "org.apache.hive:hive-service:" + hiveVersion,
   "hiveJdbc": "org.apache.hive:hive-jdbc:" + hiveVersion,
   "hiveMetastore": "org.apache.hive:hive-metastore:" + hiveVersion,
   "hiveExec": "org.apache.hive:hive-exec:" + hiveVersion + ":core",
   "hiveSerDe": "org.apache.hive:hive-serde:" + hiveVersion,
-  "httpclient": "org.apache.httpcomponents:httpclient:4.5",
-  "httpcore": "org.apache.httpcomponents:httpcore:4.4.1",
-  "kafka": "org.apache.kafka:kafka_2.11:0.8.2.1",
-  "kafkaTest": "org.apache.kafka:kafka_2.11:0.8.2.1:test",
-  "kafkaClient": "org.apache.kafka:kafka-clients:0.8.2.1",
-  "quartz": "org.quartz-scheduler:quartz:2.2.1",
-  "testng": "org.testng:testng:6.9.6",
+  "httpclient": "org.apache.httpcomponents:httpclient:4.5.2",
+  "httpcore": "org.apache.httpcomponents:httpcore:4.4.4",
+  "kafka": "org.apache.kafka:kafka_2.11:0.8.2.2",
+  "kafkaTest": "org.apache.kafka:kafka_2.11:0.8.2.2:test",
+  "kafkaClient": "org.apache.kafka:kafka-clients:0.8.2.2",
+  "quartz": "org.quartz-scheduler:quartz:2.2.3",
+  "testng": "org.testng:testng:6.9.10",
+  "mockserver":"org.mock-server:mockserver-netty:3.10.4",
   "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
   "jacksonMapper": "org.codehaus.jackson:jackson-mapper-asl:1.9.13",
   "jasypt": "org.jasypt:jasypt:1.9.2",
-  "slf4j": "org.slf4j:slf4j-api:1.7.12",
+  "slf4j": "org.slf4j:slf4j-api:1.7.21",
   "log4j": "log4j:log4j:1.2.17",
   "log4jextras": "log4j:apache-log4j-extras:1.2.17",
-  "slf4jLog4j": "org.slf4j:slf4j-log4j12:1.7.12",
-  "jodaTime": "joda-time:joda-time:2.9",
+  "slf4jLog4j": "org.slf4j:slf4j-log4j12:1.7.21",
+  "jodaTime": "joda-time:joda-time:2.9.3",
   "metricsCore": "io.dropwizard.metrics:metrics-core:" + dropwizardMetricsVersion,
   "metricsJvm": "io.dropwizard.metrics:metrics-jvm:" + dropwizardMetricsVersion,
   "metricsGraphite": "io.dropwizard.metrics:metrics-graphite:" + dropwizardMetricsVersion,
@@ -167,16 +196,17 @@ ext.externalDependency = [
   "jdo2": "javax.jdo:jdo2-api:2.1",
   "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
   "commonsVfs": "org.apache.commons:commons-vfs2:2.0",
-  "mysqlConnector": "mysql:mysql-connector-java:5.1.36",
+  "mysqlConnector": "mysql:mysql-connector-java:5.1.38",
   "javaxInject": "javax.inject:javax.inject:1",
-  "guice": "com.google.inject:guice:3.0",
-  "derby": "org.apache.derby:derby:10.11.1.1",
+  "guice": "com.google.inject:guice:4.0",
+  "derby": "org.apache.derby:derby:10.12.1.1",
   "mockito": "org.mockito:mockito-core:1.10.19",
-  "salesforceWsc": "com.force.api:force-wsc:29.0.0",
-  "salesforcePartner": "com.force.api:force-partner-api:29.0.0",
-  "scala": "org.scala-lang:scala-library:2.11.6",
-  "influxdbJava": "org.influxdb:influxdb-java:1.5",
-  "lombok":"org.projectlombok:lombok:1.16.4",
+  "salesforceWsc": "com.force.api:force-wsc:37.0.3",
+  "salesforcePartner": "com.force.api:force-partner-api:37.0.3",
+  "scala": "org.scala-lang:scala-library:2.11.8",
+  "influxdbJava": "org.influxdb:influxdb-java:2.1",
+  "libthrift":"org.apache.thrift:libthrift:0.9.3",
+  "lombok":"org.projectlombok:lombok:1.16.8",
   "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
   "xerces":"xerces:xercesImpl:2.11.0",
   "typesafeConfig": "com.typesafe:config:1.2.1",
@@ -187,11 +217,13 @@ ext.externalDependency = [
   "calciteCore": "org.apache.calcite:calcite-core:1.2.0-incubating",
   "calciteAvatica": "org.apache.calcite:calcite-avatica:1.2.0-incubating",
   "jhyde": "org.pentaho:pentaho-aggdesigner-algorithm:5.1.5-jhyde",
-  "curatorFramework": "org.apache.curator:curator-framework:2.8.0",
-  "curatorTest": "org.apache.curator:curator-test:2.8.0",
+  "curatorFramework": "org.apache.curator:curator-framework:2.10.0",
+  "curatorRecipes": "org.apache.curator:curator-recipes:2.10.0",
+  "curatorClient": "org.apache.curator:curator-client:2.10.0",
+  "curatorTest": "org.apache.curator:curator-test:2.10.0",
   "hamcrest": "org.hamcrest:hamcrest-all:1.3",
   "joptSimple": "net.sf.jopt-simple:jopt-simple:4.9",
-  "protobuf": "com.google.protobuf:protobuf-java:2.6.1",
+  "protobuf": "com.google.protobuf:protobuf-java:2.5.0",
   "pegasus" : [
     "data" : "com.linkedin.pegasus:data:" + pegasusVersion,
     "generator" : "com.linkedin.pegasus:generator:" + pegasusVersion,
@@ -208,7 +240,13 @@ ext.externalDependency = [
           "org.eclipse.jetty:jetty-server:9.2.14.v20151106",
           "org.eclipse.jetty:jetty-servlet:9.2.14.v20151106"
   ],
-  "servlet-api": "javax.servlet:servlet-api:3.1.0"
+  "servlet-api": "javax.servlet:servlet-api:3.1.0",
+  "guavaretrying": "com.github.rholder:guava-retrying:2.0.0",
+  "jsonAssert": "org.skyscreamer:jsonassert:1.3.0",
+  "reflections" : "org.reflections:reflections:0.9.10",
+  "embeddedProcess": "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.2",
+  "testMysqlServer": "com.wix:wix-embedded-mysql:1.1.0",
+  "flyway": "org.flywaydb:flyway-core:3.2.1"
 ];
 
 if (!isDefaultEnvironment)
@@ -346,51 +384,68 @@ ext.pomAttributes = {
   }
 }
 
+def getAllDependentProjects(project) {
+  def projectDependencies = project.configurations.runtime.getAllDependencies().withType(ProjectDependency)
+  def dependentProjects = projectDependencies*.dependencyProject
+  if (dependentProjects.size() > 0) {
+      dependentProjects.each { dependentProjects += getAllDependentProjects(it) }
+  }
+  return dependentProjects.unique()
+}
+
 subprojects {
   plugins.withType(JavaPlugin) {
     plugins.apply('idea')
     plugins.apply('eclipse')
     plugins.apply('maven')
-// Disabling the FindBugs plugin for now because FindBugs 2.x is not compatible with Java8
-//  apply plugin: 'findbugs'
+    plugins.apply('findbugs')
 
     sourceCompatibility = JavaVersion.VERSION_1_7
 
-    /*
     findbugs {
-      ignoreFailures = true
+      toolVersion = findBugsVersion
+      ignoreFailures = false
       effort = "max"
+      sourceSets = [sourceSets.main] // Only analyze src/java/main, not src/java/test/
+      // The exclude filter file must be under "ligradle/findbugs/" for internal compatibility with ligradle FindBugs
       excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
     }
-    */
 
     test {
       if (project.hasProperty("printTestOutput")) {
         testLogging.showStandardStreams = true
+      }
+      useTestNG () {
+        excludeGroups 'ignore', 'performance'
+        if (project.hasProperty('skipTestGroup')) {
+          excludeGroups skipTestGroup
+        }
+        if (project.hasProperty('runTestGroups')) {
+          includeGroups project.runTestGroups
+        }
       }
     }
 
     configurations {
       compile
       dependencies {
-        if (project.hasProperty('useHadoop2')) {
-          compile(externalDependency.hadoopCommon) {
-            exclude module: 'servlet-api'
-          }
-          compile externalDependency.hadoopClientCore
-          compile externalDependency.hadoopAnnotations
-          if (project.name.equals('gobblin-runtime') || project.name.equals('gobblin-test')) {
-            compile externalDependency.hadoopClientCommon
-          }
-        } else {
-          compile externalDependency.hadoop
+        compile(externalDependency.hadoopCommon) {
+          exclude module: 'servlet-api'
+        }
+        compile externalDependency.hadoopClientCore
+        compile externalDependency.hadoopAnnotations
+        if (project.name.equals('gobblin-runtime') || project.name.equals('gobblin-test')) {
+          compile externalDependency.hadoopClientCommon
         }
         compile(externalDependency.guava) {
           force = true
         }
+        compile(externalDependency.commonsCodec) {
+          force = true
+        }
 
         // Required to add JDK's tool jar, which is required to run byteman tests.
-        compile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
+        testCompile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
       }
     }
 
@@ -464,6 +519,7 @@ subprojects {
     // an apparent bug in the plugin which doesn't set the outputDir/testOutputDir as documented
     idea.project {
       ext.languageLevel = JavaVersion.VERSION_1_7
+      languageLevel = JavaVersion.VERSION_1_7
     }
     idea.module {
       // Gradle docs claim the two settings below are the default, but
@@ -483,10 +539,6 @@ subprojects {
                                 "https://hive.apache.org/javadocs/r${rootProject.ext.hiveVersion}/api/",
                                 "http://avro.apache.org/docs/${avroVersion}/api/java/",
                                 "https://dropwizard.github.io/metrics/${dropwizardMetricsVersion}/apidocs/"
-    rootProject.ext.javadocPackages.each {
-      tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it}/",
-                                       "${rootProject.buildDir}/${it}/docs/javadoc/"
-    }
 
     afterEvaluate {
       // add the standard pegasus dependencies wherever the plugin is used
@@ -495,6 +547,17 @@ subprojects {
           dataTemplateCompile externalDependency.pegasus.data
           restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
         }
+      }
+    }
+  }
+}
+
+gradle.projectsEvaluated {
+  subprojects {
+    plugins.withType(JavaPlugin) {
+      getAllDependentProjects(project).each {
+        tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it.name}/",
+                                         "${rootProject.buildDir}/${it.name}/docs/javadoc/"
       }
     }
   }
@@ -526,4 +589,3 @@ task dotProjectDependencies(description: 'List of gobblin project dependencies i
   println "}"
   println "// ========= End of project dependency graph ======= "
 }
-

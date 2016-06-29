@@ -12,9 +12,14 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
+  compile project(":gobblin-tunnel")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
+  compile project(":gobblin-hive-registration")
+  compile project(":gobblin-config-management:gobblin-config-client")
+  compile project(":gobblin-config-management:gobblin-config-core")
 
+  compile externalDependency.avroMapredH2
   compile externalDependency.commonsCodec
   compile externalDependency.commonsDbcp
   compile externalDependency.commonsMath
@@ -37,23 +42,19 @@ dependencies {
   compile externalDependency.kafka
   compile externalDependency.kafkaClient
   compile externalDependency.scala
-  compile externalDependency.findBugs
   compile externalDependency.mockito
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
+  compile externalDependency.guavaretrying
+  compile externalDependency.findBugsAnnotations
 
   runtime externalDependency.protobuf
 
-  if (project.hasProperty('useHadoop2')) {
-    compile externalDependency.avroMapredH2
-    testRuntime externalDependency.hadoopAws
-  } else {
-    compile externalDependency.avroMapredH1
-  }
-
+  testRuntime externalDependency.hadoopAws
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
+  testCompile externalDependency.jsonAssert
   testCompile externalDependency.testng
   testCompile externalDependency.mockRunnerJdbc
 }
@@ -68,7 +69,6 @@ configurations {
 }
 
 test {
-  useTestNG () { excludeGroups 'ignore' }
   workingDir rootProject.rootDir
 }
 
