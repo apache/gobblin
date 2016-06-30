@@ -1,7 +1,6 @@
 package gobblin.util.filesystem;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -14,17 +13,20 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.zookeeper.common.PathUtils;
 
 
-public class PathAlterationObserver implements Serializable {
+public class PathAlterationObserver {
 
   private final List<PathAlterationListener> listeners = new CopyOnWriteArrayList<>();
-  private final PathEntry rootEntry;
+  private final FileStatusEntry rootEntry;
   private final PathFilter pathFilter;
   private final Comparator<Path> comparator;
-  private final FileSystem fileSystem;
+  private final Configuration conf = new Configuration();
+  private final FileSystem fs = FileSystem.get(conf);
 
   private final Path[] EMPTY_PATH_ARRAY = new Path[0];
+  private final FileStatusEntry[] EMPTY_PATHENTRY_ARRAY = new FileStatusEntry[0];
 
   /**
    * Final processing.
@@ -57,19 +59,6 @@ public class PathAlterationObserver implements Serializable {
   }
 
   /**
-   * Construct an observer for the specified directory, file filter and
-   * file comparator.
-   *
-   * @param directoryName the name of the directory to observe
-   * @param pathFilter The file filter or null if none
-   * @param caseSensitivity  what case sensitivity to use comparing file names, null means system sensitive
-   */
-  public PathAlterationObserver(final String directoryName, final PathFilter pathFilter, final IOCase caseSensitivity)
-      throws IOException {
-    this(new Path(directoryName), pathFilter, caseSensitivity);
-  }
-
-  /**
    * Construct an observer for the specified directory.
    *
    * @param directory the directory to observe
@@ -87,23 +76,17 @@ public class PathAlterationObserver implements Serializable {
    */
   public PathAlterationObserver(final Path directory, final PathFilter pathFilter)
       throws IOException {
-    this(directory, pathFilter, null);
+    this(new FileStatusEntry(directory), pathFilter);
   }
 
   /**
-   * Construct an observer for the specified directory, file filter and
-   * file comparator.
+   * The comparison between path is always case-sensitive in this general file system context.
    *
-   * @param directory the directory to observe
-   * @param fileFilter The file filter or null if none
-   * @param caseSensitivity  what case sensitivity to use comparing file names, null means system sensitive
+   * @param rootEntry
+   * @param pathFilter
+   * @throws IOException
    */
-  public PathAlterationObserver(final Path directory, final PathFilter fileFilter, final IOCase caseSensitivity)
-      throws IOException {
-    this(new PathEntry(directory), fileFilter, caseSensitivity);
-  }
-
-  public PathAlterationObserver(final PathEntry rootEntry, final PathFilter pathFilter, final IOCase caseSensitivity)
+  public PathAlterationObserver(final FileStatusEntry rootEntry, final PathFilter pathFilter)
       throws IOException {
     if (rootEntry == null) {
       throw new IllegalArgumentException("Root entry is missing");
@@ -113,15 +96,14 @@ public class PathAlterationObserver implements Serializable {
     }
     this.rootEntry = rootEntry;
     this.pathFilter = pathFilter;
-    if (caseSensitivity == null || caseSensitivity.equals(IOCase.SYSTEM)) {
-      this.comparator = PathComparator.PATH_SYSTEM_COMPARATOR;
-    } else if (caseSensitivity.equals(IOCase.INSENSITIVE)) {
-      this.comparator = PathComparator.PATH_INSENSITIVE_COMPARATOR;
-    } else {
-      this.comparator = PathComparator.PATH_COMPARATOR;
-    }
-    Configuration conf = new Configuration();
-    fileSystem = rootEntry.getPath().getFileSystem(conf);
+
+    // By default, the comparsion is case sensitive.
+    this.comparator = new Comparator<Path>() {
+      @Override
+      public int compare(Path o1, Path o2) {
+        return IOCase.SENSITIVE.checkCompareTo(o1.toUri().toString(), o2.toUri().toString());
+      }
+    };
   }
 
   /**
@@ -164,7 +146,7 @@ public class PathAlterationObserver implements Serializable {
   public void initialize()
       throws Exception {
     rootEntry.refresh(rootEntry.getPath());
-    final PathEntry[] children = doListPathsEntry(rootEntry.getPath(), rootEntry);
+    final FileStatusEntry[] children = doListPathsEntry(rootEntry.getPath(), rootEntry);
     rootEntry.setChildren(children);
   }
 
@@ -173,7 +155,6 @@ public class PathAlterationObserver implements Serializable {
    */
   public void checkAndNotify()
       throws IOException {
-
     /* fire onStart() */
     for (final PathAlterationListener listener : listeners) {
       listener.onStart(this);
@@ -182,7 +163,7 @@ public class PathAlterationObserver implements Serializable {
     /* fire directory/file events */
     final Path rootPath = rootEntry.getPath();
 
-    if (rootEntry.isExists()) {
+    if (fs.exists(rootPath)) {
       checkAndNotify(rootEntry, rootEntry.getChildren(), listPaths(rootPath));
     } else if (rootEntry.isExists()) {
       checkAndNotify(rootEntry, rootEntry.getChildren(), EMPTY_PATH_ARRAY);
@@ -203,11 +184,13 @@ public class PathAlterationObserver implements Serializable {
    * @param previous The original list of paths
    * @param paths The current list of paths
    */
-  private void checkAndNotify(final PathEntry parent, final PathEntry[] previous, final Path[] paths)
+  private void checkAndNotify(final FileStatusEntry parent, final FileStatusEntry[] previous, final Path[] paths)
       throws IOException {
+
     int c = 0;
-    final PathEntry[] current = paths.length > 0 ? new PathEntry[paths.length] : PathEntry.EMPTY_ENTRIES;
-    for (final PathEntry entry : previous) {
+    final FileStatusEntry[] current =
+        paths.length > 0 ? new FileStatusEntry[paths.length] : FileStatusEntry.EMPTY_ENTRIES;
+    for (final FileStatusEntry entry : previous) {
       while (c < paths.length && comparator.compare(entry.getPath(), paths[c]) > 0) {
         current[c] = createPathEntry(parent, paths[c]);
         doCreate(current[c]);
@@ -223,6 +206,7 @@ public class PathAlterationObserver implements Serializable {
         doDelete(entry);
       }
     }
+
     for (; c < paths.length; c++) {
       current[c] = createPathEntry(parent, paths[c]);
       doCreate(current[c]);
@@ -231,42 +215,37 @@ public class PathAlterationObserver implements Serializable {
   }
 
   /**
-   * Create a new pathEntry for the specified file.
+   * Create a new FileStatusEntry for the specified file.
    *
    * @param parent The parent file entry
-   * @param path The file to create an entry for
+   * @param childPath The file to create an entry for
    * @return A new file entry
    */
-  private PathEntry createPathEntry(final PathEntry parent, final Path path)
+  private FileStatusEntry createPathEntry(final FileStatusEntry parent, final Path childPath)
       throws IOException {
-    final PathEntry entry = parent.newChildInstance(path);
-    entry.refresh(path);
-    final PathEntry[] children = doListPathsEntry(path, entry);
+    final FileStatusEntry entry = parent.newChildInstance(childPath);
+    entry.refresh(childPath);
+    final FileStatusEntry[] children = doListPathsEntry(childPath, entry);
     entry.setChildren(children);
     return entry;
   }
 
   /**
-   * List the path in the format of PathEntry array
+   * List the path in the format of FileStatusEntry array
    * @param path The path to list files for
    * @param entry the parent entry
    * @return The child files
    */
-  private PathEntry[] doListPathsEntry(Path path, PathEntry entry)
+  private FileStatusEntry[] doListPathsEntry(Path path, FileStatusEntry entry)
       throws IOException {
-    // Create path array by listing all file status.
-    ArrayList<Path> result = new ArrayList<>();
-    final FileStatus[] tmpFileStatusForPaths = fileSystem.listStatus(path);
-    for (FileStatus tmpFileStatusForPath : tmpFileStatusForPaths) {
-      result.add(tmpFileStatusForPath.getPath());
-    }
-    final Path[] paths = result.toArray(new Path[result.size()]);
+    final Path[] paths = listPaths(path);
 
-    final PathEntry[] children = paths.length > 0 ? new PathEntry[paths.length] : PathEntry.EMPTY_ENTRIES;
-    for (int i = 0; i < paths.length; i++) {
-      children[i] = createPathEntry(entry, paths[i]);
+    final FileStatusEntry[] children =
+        paths.length > 0 ? new FileStatusEntry[paths.length] : FileStatusEntry.EMPTY_ENTRIES;
+    for (int i = 0 ; i < paths.length ; i ++ ) {
+      children[i] = createPathEntry(entry, paths[i]) ;
     }
-    return children;
+    return children ;
   }
 
   /**
@@ -274,16 +253,19 @@ public class PathAlterationObserver implements Serializable {
    *
    * @param entry The file entry
    */
-  private void doCreate(final PathEntry entry) {
+  private void doCreate(final FileStatusEntry entry) {
+    System.err.println("Trying to create " + entry.getPath() );
     for (final PathAlterationListener listener : listeners) {
       if (entry.isDirectory()) {
+        System.err.println("call OnCreate directory");
         listener.onDirectoryCreate(entry.getPath());
       } else {
+        System.err.println("call OnCreate file ");
         listener.onFileCreate(entry.getPath());
       }
     }
-    final PathEntry[] children = entry.getChildren();
-    for (final PathEntry aChildren : children) {
+    final FileStatusEntry[] children = entry.getChildren();
+    for (final FileStatusEntry aChildren : children) {
       doCreate(aChildren);
     }
   }
@@ -294,8 +276,9 @@ public class PathAlterationObserver implements Serializable {
    * @param entry The previous file system entry
    * @param path The current file
    */
-  private void doMatch(final PathEntry entry, final Path path)
+  private void doMatch(final FileStatusEntry entry, final Path path)
       throws IOException {
+
     if (entry.refresh(path)) {
       for (final PathAlterationListener listener : listeners) {
         if (entry.isDirectory()) {
@@ -312,7 +295,7 @@ public class PathAlterationObserver implements Serializable {
    *
    * @param entry The file entry
    */
-  private void doDelete(final PathEntry entry) {
+  private void doDelete(final FileStatusEntry entry) {
     for (final PathAlterationListener listener : listeners) {
       if (entry.isDirectory()) {
         listener.onDirectoryDelete(entry.getPath());
@@ -333,10 +316,9 @@ public class PathAlterationObserver implements Serializable {
       throws IOException {
     Path[] children = null;
     ArrayList<Path> tmpChildrenPath = new ArrayList<>();
-    if (fileSystem.isDirectory(path)) {
+    if (fs.isDirectory(path)) {
       // Get children's path list.
-      FileStatus[] chiledrenFileStatus =
-          pathFilter == null ? fileSystem.listStatus(path) : fileSystem.listStatus(path, pathFilter);
+      FileStatus[] chiledrenFileStatus = pathFilter == null ? fs.listStatus(path) : fs.listStatus(path, pathFilter);
       for (FileStatus childFileStatus : chiledrenFileStatus) {
         tmpChildrenPath.add(childFileStatus.getPath());
       }

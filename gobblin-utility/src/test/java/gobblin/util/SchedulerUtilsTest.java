@@ -12,13 +12,19 @@
 
 package gobblin.util;
 
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
+import gobblin.util.filesystem.PathAlterationListener;
+import gobblin.util.filesystem.PathAlterationListenerAdaptor;
+import gobblin.util.filesystem.PathAlterationMonitor;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
+import java.util.Set;
+import java.util.concurrent.Semaphore;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
@@ -28,7 +34,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import gobblin.configuration.ConfigurationKeys;
-
 
 
 /**
@@ -107,7 +112,6 @@ public class SchedulerUtilsTest {
   public void testloadGenericJobConfigs()
       throws ConfigurationException, IOException {
     Properties properties = new Properties();
-    System.err.println(" LEI :  " + this.jobConfigDir.getAbsolutePath());
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
     List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
     Assert.assertEquals(jobConfigs.size(), 4);
@@ -157,7 +161,7 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobProps4.getProperty("k5"), "b5");
   }
 
-  @Test(dependsOnMethods = {"testLoadGenericJobConfigs"})
+  @Test(dependsOnMethods = {"testloadGenericJobConfigs"})
   public void testLoadGenericJobConfigsWithDoneFile()
       throws ConfigurationException, IOException {
 
@@ -167,6 +171,10 @@ public class SchedulerUtilsTest {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
     List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
+    // todo : remove this debugging issue.
+    for (Properties aProperty:jobConfigs ) {
+      System.err.println("property: " + aProperty);
+    }
     Assert.assertEquals(jobConfigs.size(), 3);
 
     // test-job-conf-dir/test1/test11/test111.pull
@@ -238,7 +246,9 @@ public class SchedulerUtilsTest {
   public void testloadGenericJobConfig()
       throws ConfigurationException, IOException {
     Path jobConfigPath = new Path(this.subDir11.getAbsolutePath(), "test111.pull");
+    System.err.println("[testloadGenericJobConfig]" + jobConfigPath);
     Properties properties = new Properties();
+    System.err.println("this.jobConfigDir.getAbsolutePath(): " + this.jobConfigDir.getAbsolutePath());
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
     Properties jobProps =
         SchedulerUtils.loadGenericJobConfig(properties, jobConfigPath, new Path(this.jobConfigDir.getAbsolutePath()));
@@ -254,9 +264,62 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobProps.getProperty("k9"), "a8");
   }
 
+  @Test(dependsOnMethods = {
+      "testLoadGenericJobConfigsWithDoneFile",
+      "testLoadJobConfigsForCommonPropsFile",
+      "testloadGenericJobConfig"
+  })
+  public void testPathAlterationObserver()
+      throws Exception {
+    PathAlterationMonitor monitor = new PathAlterationMonitor(1000);
+    final Set<Path> fileAltered = Sets.newHashSet();
+    final Semaphore semaphore = new Semaphore(0);
+    PathAlterationListener listener = new PathAlterationListenerAdaptor() {
 
-  // TODO: Monitor related tester
+      @Override
+      public void onFileCreate(Path path) {
+        System.err.println("File To added : " + path);
+        fileAltered.add(path);
+        semaphore.release();
+      }
 
+      @Override
+      public void onFileChange(Path path) {
+        System.err.println("File changed " + path);
+        fileAltered.add(path);
+        semaphore.release();
+      }
+    };
+
+    System.err.println("this.jobConfigDir.getPath():" + this.jobConfigDir.getPath());
+    SchedulerUtils.addPathAlterationObserver(monitor, listener, new Path(this.jobConfigDir.getPath()));
+    try {
+      monitor.start();
+      // Give the monitor some time to start
+      Thread.sleep(1000);
+
+      File jobConfigFile = new File(this.subDir11, "test111.pull");
+      Files.touch(jobConfigFile);
+      System.err.println("first:" + jobConfigFile);
+
+      File commonPropsFile = new File(this.subDir1, "test.properties");
+      Files.touch(commonPropsFile);
+      System.err.println("second:" + commonPropsFile);
+
+      File newJobConfigFile = new File(this.subDir11, "test112.pull");
+      Files.append("k1=v1", newJobConfigFile, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
+      System.err.println("third:" + newJobConfigFile);
+
+      semaphore.acquire(3);
+      Assert.assertEquals(fileAltered.size(), 3);
+      // why the folder will be included ?
+      Assert.assertTrue(fileAltered.contains(new Path("file:" + jobConfigFile)));
+      Assert.assertTrue(fileAltered.contains(new Path("file:" + commonPropsFile)));
+      Assert.assertTrue(fileAltered.contains(new Path("file:" + newJobConfigFile)));
+    } finally {
+      monitor.stop();
+    }
+  }
 
   @AfterClass
   public void tearDown()

@@ -12,7 +12,7 @@
 
 package gobblin.util;
 
-
+import gobblin.util.filesystem.FileStatusEntry;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -43,9 +43,6 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationMonitor;
 import gobblin.util.filesystem.PathAlterationObserver;
-import gobblin.util.filesystem.PathEntry;
-
-
 
 
 /**
@@ -59,8 +56,6 @@ public class SchedulerUtils {
 
   // Extension of properties files
   public static final String JOB_PROPS_FILE_EXTENSION = "properties";
-
-
 
   private static final PathFilter PROPERTIES_PATH_FILTER = new PathFilter() {
     @Override
@@ -87,7 +82,7 @@ public class SchedulerUtils {
       throws ConfigurationException, IOException {
     List<Properties> jobConfigs = Lists.newArrayList();
     loadGenericJobConfigsRecursive(jobConfigs, properties, getJobConfigurationFileExtensions(properties),
-        new Path(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)));
+        new Path(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)));
     return jobConfigs;
   }
 
@@ -132,10 +127,12 @@ public class SchedulerUtils {
    */
   public static Properties loadGenericJobConfig(Properties properties, Path jobConfigPath, Path jobConfigPathDir)
       throws ConfigurationException, IOException {
+    System.err.println("[loadGenericJobConfig]" +jobConfigPath.toString());
     List<Properties> commonPropsList = Lists.newArrayList();
     getCommonProperties(commonPropsList, jobConfigPathDir, jobConfigPath.getParent());
     // Add the framework configuration properties to the end
     commonPropsList.add(properties);
+    System.err.println("Common properties size : " + commonPropsList.size());
 
     Properties jobProps = new Properties();
     // Include common properties in reverse order
@@ -144,11 +141,13 @@ public class SchedulerUtils {
     }
 
     // Then load the job configuration properties defined in the job configuration file
-    jobProps.putAll(ConfigurationConverter.getProperties(new PropertiesConfiguration(jobConfigPath.toUri().toURL())));
+    System.err.println("the path is : " + jobConfigPath);
+    jobProps.putAll(ConfigurationConverter.getProperties(
+        new PropertiesConfiguration(new Path("file://", jobConfigPath).toUri().toURL())));
+
     jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigPath.toString());
     return jobProps;
   }
-
 
   /**
    * Add {@link gobblin.util.filesystem.PathAlterationMonitor}s for the given
@@ -173,23 +172,22 @@ public class SchedulerUtils {
       FileStatus[] subDirsStatus = fileSystem.listStatus(rootDirPath, new PathFilter() {
         @Override
         public boolean accept(Path path) {
-          PathEntry pathEntry = new PathEntry(path);
-          return pathEntry.isExists();
+          FileStatusEntry fileStatusEntry = new FileStatusEntry(path);
+          return fileStatusEntry.isExists();
         }
       });
-      if ( subDirsStatus!=null && subDirsStatus.length > 0 ) {
-        ArrayList<Path> tmpSubDirsList = new ArrayList<>();
+      if (subDirsStatus != null && subDirsStatus.length > 0) {
+        ArrayList<Path> subDirsList = new ArrayList<>();
         for (FileStatus subDirStatus : subDirsStatus) {
-          tmpSubDirsList.add(subDirStatus.getPath());
+          subDirsList.add(subDirStatus.getPath());
         }
-        Path[] subDirs = tmpSubDirsList.toArray(new Path[tmpSubDirsList.size()]);
 
-        if (subDirs.length == 0) {
+        if (subDirsList.size() == 0) {
           return;
         }
 
         // Recursively add a observer for each subdirectory
-        for (Path subDir : subDirs) {
+        for (Path subDir : subDirsList) {
           addPathAlterationObserver(monitor, listener, subDir);
         }
       }
@@ -211,7 +209,7 @@ public class SchedulerUtils {
       }
 
       FileStatus[] propertiesFilesStatus = filesystem.listStatus(configDirPath, PROPERTIES_PATH_FILTER);
-      if ( propertiesFilesStatus != null && propertiesFilesStatus.length > 0) {
+      if (propertiesFilesStatus != null && propertiesFilesStatus.length > 0) {
         // There should be a single properties file in each directory (or sub directory)
         if (propertiesFilesStatus.length != 1) {
           throw new RuntimeException("Found more than one .properties file in directory: " + configDirPath);
@@ -230,7 +228,7 @@ public class SchedulerUtils {
 
       // Get all non-properties files
       FileStatus[] nonPropFiles = filesystem.listStatus(configDirPath, NON_PROPERTIES_PATH_FILTER);
-      if ( nonPropFiles == null || nonPropFiles.length == 0 ) {
+      if (nonPropFiles == null || nonPropFiles.length == 0) {
         return;
       }
 
@@ -284,37 +282,48 @@ public class SchedulerUtils {
     }));
   }
 
-  private static void getCommonProperties(List<Properties> commonPropsList, Path jobConfigPathDir, Path dirPath)
+  private static void getCommonProperties(List<Properties> commonPropsList, Path jobConfigPathDir,
+      Path configPathParent)
       throws ConfigurationException, IOException {
     Configuration conf = new Configuration();
     try (FileSystem fileSystem = jobConfigPathDir.getFileSystem(conf)) {
       // Make sure the given starting directory is under the job configuration file directory
       Preconditions.checkArgument(
-          dirPath.toUri().normalize().getPath().startsWith(jobConfigPathDir.toUri().normalize().getPath()),
-          String.format("%s is not an ancestor directory of %s", jobConfigPathDir, dirPath));
+          configPathParent.toUri().normalize().getPath().startsWith(jobConfigPathDir.toUri().normalize().getPath()),
+          String.format("%s is not an ancestor directory of %s", jobConfigPathDir, configPathParent));
 
       // Traversal backward until the parent of the root job configuration file directory is reached
-      while (!dirPath.equals(jobConfigPathDir.getParent())) {
+      // Pay attention that the path Object will have a "file:/" as the prefix, so for comparison requirement
+      // that prefix need to be addressed.
+      while (!configPathParent.equals(PathUtils.addFilePrefixForComparison(jobConfigPathDir.getParent(), "file:"))
+          && !configPathParent.equals(jobConfigPathDir.getParent())) {
+
         // Get the properties file that ends with .properties if any
-        FileStatus[] propertiesFilesStatus = fileSystem.listStatus(dirPath, PROPERTIES_PATH_FILTER);
+        FileStatus[] propertiesFilesStatus = fileSystem.listStatus(configPathParent, PROPERTIES_PATH_FILTER);
         ArrayList<String> propertiesFilesList = new ArrayList<>();
-        for (FileStatus propertiesFileStatus : propertiesFilesStatus) {
-          propertiesFilesList.add(propertiesFileStatus.getPath().getName());
+
+        if (propertiesFilesStatus != null && propertiesFilesStatus.length > 0) {
+          for (FileStatus propertiesFileStatus : propertiesFilesStatus) {
+            propertiesFilesList.add(propertiesFileStatus.getPath().getName());
+          }
         }
+
         String[] propertiesFiles = propertiesFilesList.toArray(new String[propertiesFilesList.size()]);
 
-        if (propertiesFiles.length > 0) {
+        if (propertiesFiles != null && propertiesFiles.length > 0) {
           // There should be a single properties file in each directory (or sub directory)
           if (propertiesFiles.length != 1) {
-            throw new RuntimeException("Found more than one .properties file in directory: " + dirPath);
+            throw new RuntimeException("Found more than one .properties file in directory: " + configPathParent);
           }
-          commonPropsList.add(ConfigurationConverter.getProperties(
-              new PropertiesConfiguration((new Path(dirPath, propertiesFiles[0])).toUri().toURL())));
-        }
+          // todo : remove this debugging thing
+          System.err.println(
+              "_uri:" + (new Path((new Path("file://", configPathParent)), propertiesFiles[0])).toUri().toString());
 
-        dirPath = dirPath.getParent();
+          commonPropsList.add(ConfigurationConverter.getProperties(new PropertiesConfiguration(
+              (new Path((new Path("file://", configPathParent)), propertiesFiles[0])).toUri().toURL())));
+        }
+        configPathParent = configPathParent.getParent();
       }
     }
   }
-
 }

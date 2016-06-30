@@ -61,7 +61,6 @@ public class JobConfigFileMonitorTest {
     public Integer apply(Void input) {
       return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
     }
-
   }
 
   @BeforeClass
@@ -69,12 +68,14 @@ public class JobConfigFileMonitorTest {
       throws Exception {
     this.jobConfigDir = Files.createTempDirectory(
             String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName())).toString();
+
     FileUtils.forceDeleteOnExit(new File(this.jobConfigDir));
     FileUtils.copyDirectory(new File(JOB_CONFIG_FILE_DIR), new File(jobConfigDir));
 
     Properties properties = new Properties();
     properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfigDir);
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, jobConfigDir);
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY, "1000");
     properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
 
@@ -87,7 +88,7 @@ public class JobConfigFileMonitorTest {
   public void testAddNewJobConfigFile()
       throws Exception {
     final Logger log = LoggerFactory.getLogger("testAddNewJobConfigFile");
-    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(7500);
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(15000);
     assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
 
     // Create a new job configuration file by making a copy of an existing
@@ -163,5 +164,6 @@ public class JobConfigFileMonitorTest {
       FileUtils.forceDelete(new File(jobConfigDir));
     }
     this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
+
   }
 }

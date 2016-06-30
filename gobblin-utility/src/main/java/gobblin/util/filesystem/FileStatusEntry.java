@@ -1,19 +1,20 @@
 package gobblin.util.filesystem;
 
 import java.io.IOException;
-import java.io.Serializable;
 
+import org.apache.commons.io.monitor.FileEntry;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 
-public class PathEntry implements Serializable {
+public class FileStatusEntry extends FileStatus {
 
-  static final PathEntry[] EMPTY_ENTRIES = new PathEntry[0];
+  static final FileStatusEntry[] EMPTY_ENTRIES = new FileStatusEntry[0];
 
-  private final PathEntry parent;
-  private PathEntry[] children;
+  private final FileStatusEntry parent;
+  private FileStatusEntry[] children;
   private final Path path;
   private String name;
   private boolean exists;
@@ -21,11 +22,11 @@ public class PathEntry implements Serializable {
   private long lastModified;
   private long length;
 
-  public PathEntry(final Path path) {
+  public FileStatusEntry(final Path path) {
     this(null, path);
   }
 
-  public PathEntry(final PathEntry parent, final Path path) {
+  public FileStatusEntry(final FileStatusEntry parent, final Path path) {
     if (path == null) {
       throw new IllegalArgumentException("File is missing");
     }
@@ -71,8 +72,20 @@ public class PathEntry implements Serializable {
    * @param path The child file
    * @return a new child instance
    */
-  public PathEntry newChildInstance(final Path path) {
-    return new PathEntry(this, path);
+  public FileStatusEntry newChildInstance(final Path path) {
+    return new FileStatusEntry(this, path);
+  }
+
+  /**
+   * @return path The path object for this FileStatusEntry.
+   */
+  @Override
+  public Path getPath() {
+    return this.path;
+  }
+
+  public boolean isDirectory() {
+    return directory;
   }
 
   /**
@@ -80,7 +93,7 @@ public class PathEntry implements Serializable {
    *
    * @return the parent entry
    */
-  public PathEntry getParent() {
+  public FileStatusEntry getParent() {
     return parent;
   }
 
@@ -100,7 +113,7 @@ public class PathEntry implements Serializable {
    * array if the file is not a directory or the
    * directory is empty
    */
-  public PathEntry[] getChildren() {
+  public FileStatusEntry[] getChildren() {
     return children != null ? children : EMPTY_ENTRIES;
   }
 
@@ -109,17 +122,8 @@ public class PathEntry implements Serializable {
    *
    * @param children This directory's files, may be null
    */
-  public void setChildren(final PathEntry[] children) {
+  public void setChildren(final FileStatusEntry[] children) {
     this.children = children;
-  }
-
-  /**
-   * Return the file being monitored.
-   *
-   * @return the file being monitored
-   */
-  public Path getPath() {
-    return path;
   }
 
   /**
@@ -138,35 +142,6 @@ public class PathEntry implements Serializable {
    */
   public void setName(final String name) {
     this.name = name;
-  }
-
-  /**
-   * Return the last modified time from the last time it
-   * was checked.
-   *
-   * @return the last modified time
-   */
-  public long getLastModified() {
-    return lastModified;
-  }
-
-  /**
-   * Return the last modified time from the last time it
-   * was checked.
-   *
-   * @param lastModified The last modified time
-   */
-  public void setLastModified(final long lastModified) {
-    this.lastModified = lastModified;
-  }
-
-  /**
-   * Return the length.
-   *
-   * @return the length
-   */
-  public long getLength() {
-    return length;
   }
 
   /**
@@ -199,15 +174,6 @@ public class PathEntry implements Serializable {
   }
 
   /**
-   * Indicate whether the file is a directory or not.
-   *
-   * @return whether the file is a directory or not
-   */
-  public boolean isDirectory() {
-    return directory;
-  }
-
-  /**
    * Set whether the file is a directory or not.
    *
    * @param directory whether the file is a directory or not
@@ -215,4 +181,30 @@ public class PathEntry implements Serializable {
   public void setDirectory(final boolean directory) {
     this.directory = directory;
   }
+
+
+  /** Compare if this object is equal to another object
+   * @param  o the object to be compared.
+   * @return  true if two file status has the same path name; false if not.
+   */
+  @Override
+  public boolean equals(Object o) {
+    if ( o == null || this.getClass() != o.getClass()) {
+      return false ;
+    }
+    FileStatus other = (FileStatus)o;
+    return this.getPath().equals(other.getPath());
+  }
+
+  /**
+   * Returns a hash code value for the object, which is defined as
+   * the hash code of the path name.
+   *
+   * @return  a hash code value for the path name.
+   */
+  @Override
+  public int hashCode() {
+    return getPath().hashCode();
+  }
+
 }

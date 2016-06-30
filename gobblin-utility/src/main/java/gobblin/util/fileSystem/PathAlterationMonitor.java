@@ -1,21 +1,33 @@
 package gobblin.util.filesystem;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import gobblin.util.ExecutorsUtils;
+
+
+/**
+ * A runnable that spawns a monitoring thread triggering any
+ * registered {@link PathAlterationObserver} at a specified interval.
+ *
+ * Based on {@link org.apache.commons.io.monitor.FileAlterationMonitor}, implemented monitoring
+ * thread to periodically check the monitored file in thread pool.
+ */
 
 public final class PathAlterationMonitor implements Runnable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PathAlterationMonitor.class);
   private final long interval;
   private volatile boolean running = false;
-  private Thread thread = null;
-  private ThreadFactory threadFactory;
-  private ScheduledExecutorService executor;
+  private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1,
+      ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOGGER), Optional.of("newDaemonThreadFactory")));
   private ScheduledFuture<?> executionResult;
   private final List<PathAlterationObserver> observers = new CopyOnWriteArrayList<PathAlterationObserver>();
 
@@ -23,22 +35,11 @@ public final class PathAlterationMonitor implements Runnable {
   private int initialDelay = 0;
 
   public PathAlterationMonitor() {
-    this(10000);
-    this.executor = Executors.newScheduledThreadPool(1);
+    this(3000);
   }
 
   public PathAlterationMonitor(final long interval) {
     this.interval = interval;
-    this.executor = Executors.newScheduledThreadPool(1);
-  }
-
-  /**
-   * Set the thread factory.
-   * For specifying priority, naming conventions, etc.
-   * @param threadFactory the thread factory
-   */
-  public synchronized void setThreadFactory(ThreadFactory threadFactory) {
-    this.threadFactory = threadFactory;
   }
 
   /**
@@ -84,33 +85,26 @@ public final class PathAlterationMonitor implements Runnable {
     if (running) {
       throw new IllegalStateException("Monitor is already running");
     }
+    running = true;
     for (final PathAlterationObserver observer : observers) {
       observer.initialize();
     }
-    running = true;
 
-    if (threadFactory != null) {
-      thread = threadFactory.newThread(this);
-    } else {
-      thread = new Thread(this);
-    }
-
-    executionResult = executor.scheduleWithFixedDelay(thread, initialDelay, interval, TimeUnit.MILLISECONDS);
+    executionResult = executor.scheduleWithFixedDelay(this, initialDelay, interval, TimeUnit.MILLISECONDS);
   }
 
   /**
-   * Stop monitoring, shutdowm the service
+   * Stop monitoring
    *
    * @throws Exception if an error occurs initializing the observer
    */
   public synchronized void stop()
       throws Exception {
     stop(interval);
-    executor.shutdown();
   }
 
   /**
-   * Stop monitoring but don't shutdown the service.
+   * Stop monitoring
    *
    * @param stopInterval the amount of time in milliseconds to wait for the thread to finish.
    * A value of zero will wait until the thread is finished (see {@link Thread#join(long)}).
@@ -119,29 +113,34 @@ public final class PathAlterationMonitor implements Runnable {
    */
   public synchronized void stop(final long stopInterval)
       throws Exception {
-    if (running == false) {
+    if (!running) {
       throw new IllegalStateException("Monitor is not running");
     }
-    executionResult.cancel(true) ;
     running = false;
+
+
     for (final PathAlterationObserver observer : observers) {
       observer.destroy();
+    }
+
+    executionResult.cancel(true);
+    executor.shutdown();
+    if (!executor.awaitTermination(stopInterval, TimeUnit.MILLISECONDS)) {
+      throw new RuntimeException("Did not shutdown in the timeout period");
     }
   }
 
   @Override
   public void run() {
-    while (running) {
-      for (final PathAlterationObserver observer : observers) {
-        try {
-          observer.checkAndNotify();
-        } catch (IOException e) {
-          e.printStackTrace();
-        }
+    for (final PathAlterationObserver observer : observers) {
+      try {
+        observer.checkAndNotify();
+      } catch (IOException e) {
+        e.printStackTrace();
       }
-      if (!running) {
-        break;
-      }
+    }
+    if (!running) {
+      return;
     }
   }
 }

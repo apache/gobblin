@@ -177,4 +177,14 @@ public class PathUtils {
       deleteEmptyParentDirectories(fs, limitPath, startPath.getParent());
     }
   }
+
+  /**
+   * Add a prefix into a path, like "file:" when comparing two Paths,
+   * to avoid the case when the actual path are the same while their comparison result turns out to be false.
+   * @param path
+   * @param prefix
+   */
+  public static Path addFilePrefixForComparison( Path path, String prefix ) {
+    return new Path( prefix + path) ;
+  }
 }
