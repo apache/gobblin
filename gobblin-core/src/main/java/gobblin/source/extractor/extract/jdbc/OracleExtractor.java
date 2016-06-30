@@ -198,29 +198,19 @@ public class OracleExtractor extends JdbcExtractor {
     return commands;
   }
 
+  // TODO: How to handle variable precision datatypes e.g. NUMBER(6)
   @Override
   public Map<String, String> getDataTypeMap() {
-    Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder().put("smallint", "int")
-        .put("tinyint", "int").put("int", "int").put("bigint", "long").put("decimal", "double").put("numeric", "double")
-        .put("float", "float").put("real", "double").put("money", "double").put("smallmoney", "double")
-        .put("binary", "string").put("varbinary", "string").put("char", "string").put("varchar", "string")
-        .put("nchar", "string").put("nvarchar", "string").put("text", "string").put("ntext", "string")
-        .put("image", "string").put("hierarchyid", "string").put("uniqueidentifier", "string").put("date", "date")
-        .put("datetime", "timestamp").put("datetime2", "timestamp").put("datetimeoffset", "timestamp")
-        .put("smalldatetime", "timestamp").put("time", "time").put("bit", "boolean").build();
-    return dataTypeMap;
-  }
-
-  // TODO: How to handle variable precision datatypes e.g. NUMBER(6)
-  //@Override
-  public Map<String, String> getDataTypeMapRefactor() {
     Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder().put("char", "string")
         .put("varchar2", "string").put("varchar", "string").put("nchar", "string").put("nvarchar2", "string")
-        .put("nclob", "string").put("clob", "string").put("long", "string").put(/*number 38b, float 32b*/"number", "double")
+        .put("nclob", "string").put("clob", "string").put("long", "string").put("number", "double")
         .put("binary_float", "float").put("binary_double", "double").put("date", "date").put("datetime", "timestamp")
-        .put("timestamp", "timestamp").put("timestamp with time zone", "timestamp").put("timezone with local timezone")
-        .put("raw", "string").put("long raw", "string").put("rowid", "string").put("urowid", "string")
-        .put("xmltype", "string").build();
+        .put("timestamp", "timestamp").put("timestamp with time zone", "timestamp").put("numeric", "double")
+        .put("timezone with local timezone", "timestamp").put("raw", "string").put("long raw", "string")
+        .put("rowid", "string").put("urowid", "string").put("xmltype", "string").put("float", "float")
+        .put("dec", "double").put("decimal", "double").put("integer", "int").put("int", "int")
+        .put("smallint", "int").put("real", "double").put("double precision", "double")
+        .put("interval year", "date").put("interval day", "timestamp").build();
     return dataTypeMap;
   }
 
