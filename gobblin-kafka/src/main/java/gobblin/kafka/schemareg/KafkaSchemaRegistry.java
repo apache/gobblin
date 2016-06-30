@@ -19,6 +19,8 @@ import org.apache.avro.Schema;
 
 /**
  * An interface for a Kafka Schema Registry
+ * Classes implementing this interface will typically be constructed by a {@link KafkaSchemaRegistryFactory}
+ * and should have a constructor that takes a {@link java.util.Properties} object as a parameter.
  *
  * @param <K> : the type of the schema identifier (e.g. int, string, md5, ...)
  *

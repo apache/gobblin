@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.kafka;
+package gobblin.kafka.schemareg;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -21,6 +21,9 @@ import java.util.Properties;
 
 import org.apache.avro.Schema;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import gobblin.kafka.schemareg.KafkaSchemaRegistry;
 import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.MD5Digest;
@@ -29,10 +32,14 @@ import gobblin.kafka.serialize.MD5Digest;
 /**
  * A Mock SchemaRegistry that hands out MD5 based ids
  */
-public class MockMd5SchemaRegistry implements KafkaSchemaRegistry<MD5Digest> {
+public class ConfigDrivenMd5SchemaRegistry implements KafkaSchemaRegistry<MD5Digest> {
+
+  private class ConfigurationKeys {
+    private static final String SCHEMA_NAME_KEY="schemaRegistry.schema.name";
+    private static final String SCHEMA_VALUE_KEY="schemaRegistry.schema.value";
+  }
 
   private final HashMap<MD5Digest, Schema> _schemaHashMap = new HashMap<>();
-  private final HashMap<String, Schema> _nameSchemaHashMap = new HashMap<>();
 
   private final MD5Digest generateId(Schema schema) {
     try {
@@ -45,14 +52,26 @@ public class MockMd5SchemaRegistry implements KafkaSchemaRegistry<MD5Digest> {
     }
   }
 
-  public MockMd5SchemaRegistry(String name, Schema schema)
+  public ConfigDrivenMd5SchemaRegistry(String name, Schema schema)
       throws IOException, SchemaRegistryException {
     this.register(name, schema);
   }
 
-  public MockMd5SchemaRegistry(Properties props)
-  {
+  public ConfigDrivenMd5SchemaRegistry(Properties props)
+      throws IOException, SchemaRegistryException {
+    this(ConfigFactory.parseProperties(props));
   }
+
+  public ConfigDrivenMd5SchemaRegistry(Config config)
+      throws IOException, SchemaRegistryException {
+    if (config.hasPath(ConfigurationKeys.SCHEMA_NAME_KEY)) {
+      String name = config.getString(ConfigurationKeys.SCHEMA_NAME_KEY);
+      String value = config.getString(ConfigurationKeys.SCHEMA_VALUE_KEY);
+      Schema schema = new Schema.Parser().parse(value);
+      register(name, schema);
+    }
+  }
+
 
 
   /**
@@ -95,10 +114,7 @@ public class MockMd5SchemaRegistry implements KafkaSchemaRegistry<MD5Digest> {
     }
 
   /**
-   * Get the latest schema that was registered under this name
-   * @param name
-   * @return
-   * @throws SchemaRegistryException
+   * {@inheritDoc}
    */
   @Override
   public Schema getLatestSchema(String name)
@@ -108,12 +124,11 @@ public class MockMd5SchemaRegistry implements KafkaSchemaRegistry<MD5Digest> {
 
   /**
    *
-   * SchemaRegistry implementations that do not have an internal cache can set this to false
-   * and Gobblin will supplement such registries with a cache on top (if enabled).
-   * @return whether this implementation of the schema registry has an internal cache
+   * {@inheritDoc}
+   * @return false
    */
   @Override
   public boolean hasInternalCache() {
-    return false;
+    return true;
   }
 }

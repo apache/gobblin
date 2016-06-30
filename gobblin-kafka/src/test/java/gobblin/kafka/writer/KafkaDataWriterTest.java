@@ -18,7 +18,6 @@ import java.util.Properties;
 import java.util.Random;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
@@ -27,7 +26,7 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.Test;
 
 import gobblin.kafka.KafkaTestBase;
-import gobblin.kafka.MockMd5SchemaRegistry;
+import gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
 import gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.LiAvroDeserializer;
@@ -123,7 +122,7 @@ public class KafkaDataWriterTest extends KafkaTestBase {
     // set up mock schema registry
 
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
-        MockMd5SchemaRegistry.class.getCanonicalName());
+        ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
     KafkaDataWriter<GenericRecord> kafkaWriter = new KafkaDataWriter<>(props);
 
@@ -139,7 +138,7 @@ public class KafkaDataWriterTest extends KafkaTestBase {
     Thread.sleep(500);
 
     byte[] message = iterator.next().message();
-    MockMd5SchemaRegistry schemaReg = new MockMd5SchemaRegistry(TOPIC, record.getSchema());
+    ConfigDrivenMd5SchemaRegistry schemaReg = new ConfigDrivenMd5SchemaRegistry(TOPIC, record.getSchema());
     LiAvroDeserializer deser = new LiAvroDeserializer(schemaReg);
     GenericRecord receivedRecord = deser.deserialize(TOPIC, message);
     System.out.println(record.toString());

@@ -24,6 +24,8 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.writer.DataWriter;
 
 
@@ -33,6 +35,7 @@ import gobblin.writer.DataWriter;
  * Applications should expect data to be possibly written to Kafka even if the overall Gobblin job fails.
  *
  */
+@Slf4j
 public class KafkaDataWriter<D> implements DataWriter<D> {
 
   private final KafkaProducer<String, D> producer;
@@ -91,6 +94,9 @@ public class KafkaDataWriter<D> implements DataWriter<D> {
         }
       }
     });
+
+    //recordsWritten.incrementAndGet();
+    log.info("Wrote a record");
   }
 
   @Override
