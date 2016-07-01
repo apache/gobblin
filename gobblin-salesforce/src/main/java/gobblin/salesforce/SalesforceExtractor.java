@@ -627,6 +627,8 @@ public class SalesforceExtractor extends RestApiExtractor {
 
       this.bulkConnection = new BulkConnection(config);
       success = true;
+    } catch (RuntimeException re) {
+      throw re;
     } catch (Exception e) {
       throw new Exception("Failed to connect to salesforce bulk api; error - " + e.getMessage(), e);
     }

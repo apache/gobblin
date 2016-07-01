@@ -30,7 +30,7 @@ import gobblin.metrics.event.EventSubmitter;
  */
 public class HiveMetaStoreEventHelper {
   
-  public static final String SUCCESS_POSTFIX = "Successful";
+  public static final String SUCCESS_POSTFIX = "Succeed";
   public static final String FAILED_POSTFIX = "Failed";
   
   public static final String DB_NAME = "DBName";

@@ -10,13 +10,14 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.publisher;
+package gobblin.hive.publisher;
 
 import java.io.IOException;
 import java.util.Collection;
 
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.publisher.BaseDataPublisher;
 
 
 /**

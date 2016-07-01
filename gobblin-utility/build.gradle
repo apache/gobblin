@@ -35,6 +35,9 @@ dependencies {
   compile externalDependency.commonsPool
   compile externalDependency.hadoopClientCommon
   compile externalDependency.avroMapredH2
+
+  compile externalDependency.hiveExec
+  compile externalDependency.hiveSerDe
   
   runtime externalDependency.hadoopCommon
   runtime externalDependency.hadoopClientCore

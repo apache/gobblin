@@ -21,7 +21,7 @@ import org.apache.hadoop.mapred.RecordReader;
 
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
-import gobblin.hive.HiveSerDeWrapper;
+import gobblin.util.hive.HiveSerDeWrapper;
 import gobblin.source.workunit.WorkUnit;
 
 

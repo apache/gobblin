@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.publisher;
+package gobblin.hive.publisher;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -37,8 +37,9 @@ import gobblin.hive.HiveRegister;
 import gobblin.hive.policy.HiveRegistrationPolicy;
 import gobblin.hive.policy.HiveRegistrationPolicyBase;
 import gobblin.hive.spec.HiveSpec;
+import gobblin.publisher.BaseDataPublisher;
+import gobblin.publisher.DataPublisher;
 import gobblin.util.ExecutorsUtils;
-
 import lombok.extern.slf4j.Slf4j;
 
 

@@ -24,7 +24,7 @@ import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
 import gobblin.hive.HiveRegistrationUnit;
 import gobblin.hive.HiveSerDeManager;
-import gobblin.hive.HiveSerDeWrapper;
+import gobblin.util.hive.HiveSerDeWrapper;
 import gobblin.util.AvroUtils;
 import gobblin.util.HadoopUtils;
 import lombok.extern.slf4j.Slf4j;

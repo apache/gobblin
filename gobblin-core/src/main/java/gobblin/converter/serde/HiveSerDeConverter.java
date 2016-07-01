@@ -27,9 +27,9 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
-import gobblin.hive.HiveSerDeWrapper;
 import gobblin.instrumented.converter.InstrumentedConverter;
 import gobblin.util.HadoopUtils;
+import gobblin.util.hive.HiveSerDeWrapper;
 
 
 /**
