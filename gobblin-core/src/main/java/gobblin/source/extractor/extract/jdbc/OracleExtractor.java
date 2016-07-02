@@ -250,26 +250,61 @@ public class OracleExtractor extends JdbcExtractor {
     return recordcount;
   }
 
+  // @Override
+  // public String removeSampleClauseFromQuery(String query) {
+  //   if (StringUtils.isBlank(query)) {
+  //     return null;
+  //   }
+
+  //   String outputQuery = query;
+  //   String inputQuery = query.toLowerCase();
+  //   int limitStartIndex = inputQuery.indexOf(" top ");
+  //   int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
+  //   if (limitStartIndex > 0) {
+  //     outputQuery = query.substring(0, limitStartIndex) + " " + query.substring(limitEndIndex);
+  //   }
+  //   return outputQuery;
+  // }
+
   @Override
   public String removeSampleClauseFromQuery(String query) {
     if (StringUtils.isBlank(query)) {
       return null;
     }
-
+    // select * from x where x.a < 5 and rownum < 4 
+    // select * from x where rownum < 4
+    // select * from x where rownum < 4 and x.a < 5
     String outputQuery = query;
     String inputQuery = query.toLowerCase();
-    int limitStartIndex = inputQuery.indexOf(" top ");
-    int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
-    if (limitStartIndex > 0) {
-      outputQuery = query.substring(0, limitStartIndex) + " " + query.substring(limitEndIndex);
+
+    int limitStartIndex = -1;
+
+    boolean multiPredicate = inputQuery.indexOf(" and ") != -1 ? true : false;
+    boolean leadingLimit = false;
+    if (!multiPredicate) {
+      limitStartIndex = inputQuery.indexOf(" where rownum <= ");
+    } else {
+      limitStartIndex = inputQuery.indexOf(" and rownum <= ");
+      if (limitStartIndex == -1 && inputQuery.indexOf(" where rownum <= ") > -1) {
+        limitStartIndex = inputQuery.indexOf(" where rownum <= ");
+        leadingLimit = true;
+      } 
     }
-    return outputQuery;
+    
+    int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
+    
+    if ((limitStartIndex > 0 && !multiPredicate) || (limitStartIndex > 0 && multiPredicate && !leadingLimit)) {
+      outputQuery = query.substring(0, limitStartIndex) + " " + query.substring(limitEndIndex);
+    } else if (limitStartIndex > 0 && multiPredicate && leadingLimit) {
+      outputQuery = query.substring(0, limitStartIndex + 6) + " " + query.substring(limitEndIndex + 4);
+    }
+    return outputQuery.trim().replaceAll(" +", " ");
   }
 
   private static int getLimitEndIndex(String inputQuery, int limitStartIndex) {
     int limitEndIndex = -1;
     if (limitStartIndex > 0) {
-      limitEndIndex = limitStartIndex + 5;
+      limitEndIndex = inputQuery.charAt(limitStartIndex + 1) == 'w' ? limitStartIndex + 17 : limitStartIndex + 15;
       String remainingQuery = inputQuery.substring(limitEndIndex);
       boolean numFound = false;
 
@@ -291,11 +326,20 @@ public class OracleExtractor extends JdbcExtractor {
     return limitEndIndex;
   }
 
-  @Override
+  // @Override
+  // public String constructSampleClause() {
+  //   long sampleRowCount = this.getSampleRecordCount();
+  //   if (sampleRowCount >= 0) {
+  //     return " top " + sampleRowCount;
+  //   }
+  //   return "";
+  // }
+
+    @Override
   public String constructSampleClause() {
     long sampleRowCount = this.getSampleRecordCount();
     if (sampleRowCount >= 0) {
-      return " top " + sampleRowCount;
+      return " rownum <= " + sampleRowCount;
     }
     return "";
   }
