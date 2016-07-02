@@ -67,4 +67,25 @@ public class SqlQueryUtilsTest {
     }
   }
 
+  @Test
+  public void testCastToBoolean() {
+    Assert.assertTrue(SqlQueryUtils.castToBoolean("y"));
+    Assert.assertTrue(SqlQueryUtils.castToBoolean("yes"));
+    Assert.assertTrue(SqlQueryUtils.castToBoolean("t"));
+    Assert.assertTrue(SqlQueryUtils.castToBoolean("true"));
+    Assert.assertTrue(SqlQueryUtils.castToBoolean("1"));
+
+    Assert.assertFalse(SqlQueryUtils.castToBoolean("n"));
+    Assert.assertFalse(SqlQueryUtils.castToBoolean("no"));
+    Assert.assertFalse(SqlQueryUtils.castToBoolean("f"));
+    Assert.assertFalse(SqlQueryUtils.castToBoolean("false"));
+    Assert.assertFalse(SqlQueryUtils.castToBoolean("0"));
+
+    Assert.assertTrue(SqlQueryUtils.castToBoolean("YeS"));
+
+    Assert.assertFalse(SqlQueryUtils.castToBoolean(""));
+    Assert.assertFalse(SqlQueryUtils.castToBoolean("asdfafgsagareg"));
+
+  }
+
 }
