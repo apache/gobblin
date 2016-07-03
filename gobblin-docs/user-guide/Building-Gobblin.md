@@ -4,11 +4,18 @@
 
 # Introduction
 
-This page outlines all the options that can be specified when building Gobblin using Gradle. The typical way of building Gobblin is to run:
+This page outlines all the options that can be specified when building Gobblin using Gradle. The typical way of building Gobblin is to first checkout the code-base from GitHub and then build the code-base using Gradle.
+
 ```
-./gradlew build
+git clone https://github.com/linkedin/gobblin.git
+cd gobblin
+./gradlew assemble
 ```
-However, there are a number of parameters that can be passed into the above command to customize the build process.
+
+If one wants to compile the code as well as run the tests, use `./gradle assemble test`
+or `./gradlew build`.
+
+There are a number of parameters that can be passed into the above command to customize the build process.
 
 # Options
 
@@ -18,7 +25,7 @@ These options just need to be added to the command above to take effect.
 
 #### Hadoop Version
 
-The Hadoop version can be specified by adding the option `-PhadoopVersion=[my-hadoop-version]`. 
+The Hadoop version can be specified by adding the option `-PhadoopVersion=[my-hadoop-version]`.
 
 #### Hive Version
 
@@ -51,7 +58,3 @@ Executing this command will print out all the dependencies between the different
 # Useful Gradle Commands
 
 These commands make working with Gradle a little easier.
-
-### Skipping Tests
-
-Add `-x test` to the end of the build command.
