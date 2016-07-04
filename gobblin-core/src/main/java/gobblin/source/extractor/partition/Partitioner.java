@@ -279,18 +279,28 @@ public class Partitioner {
       switch (limitType) {
         case CURRENTDATE:
           format = "yyyyMMdd";
-          limitDelta = limitDelta * 24;
+          limitDelta = limitDelta * 24 * 60 * 60;
           seconds = 86399; // 23:59:59
           break;
         case CURRENTHOUR:
           format = "yyyyMMddHH";
+          limitDelta = limitDelta * 60 * 60;
           seconds = 3599; // x:59:59
+          break;
+        case CURRENTMINUTE:
+          format = "yyyyMMddHHmm";
+          limitDelta = limitDelta * 60;
+          seconds = 59;
+          break;
+        case CURRENTSECOND:
+          format = "yyyyMMddHHmmss";
+          seconds = 0;
           break;
         default:
           break;
       }
 
-      DateTime deltaTime = Utils.getCurrentTime(timeZone).minusHours(limitDelta);
+      DateTime deltaTime = Utils.getCurrentTime(timeZone).minusSeconds(limitDelta);
       DateTime previousTime =
           Utils.toDateTime(Utils.dateTimeToString(deltaTime, format, timeZone), format, timeZone).plusSeconds(seconds);
       highWatermark = Long.parseLong(Utils.dateTimeToString(previousTime, WATERMARKTIMEFORMAT, timeZone));

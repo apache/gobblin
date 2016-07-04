@@ -13,5 +13,5 @@
 package gobblin.source.extractor.partition;
 
 public enum AppendMaxLimitType {
-  CURRENTDATE, CURRENTHOUR;
+  CURRENTDATE, CURRENTHOUR, CURRENTMINUTE, CURRENTSECOND;
 }
