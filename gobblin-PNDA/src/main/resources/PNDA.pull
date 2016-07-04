@@ -1,0 +1,41 @@
+###############################################################################
+###################### Gobblin MapReduce configurations #######################
+###############################################################################
+
+# File system URIs
+fs.uri=hdfs://{{ namenode }}:8020
+writer.fs.uri=${fs.uri}
+
+job.name=PullFromKafkaMR
+job.group=PNDA
+job.description=Pulls data from all kafka topics to HDFS
+
+# ==== Kafka Source ====
+source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleSource
+source.timezone=UTC
+source.schema={"namespace": "pnda.entity", \
+               "type": "record",                            \
+               "name": "event",                             \
+               "fields": [                                  \
+                   {"name": "timestamp", "type": "long"},   \
+                   {"name": "src",       "type": "string"}, \
+                   {"name": "host_ip",   "type": "string"}, \
+                   {"name": "rawdata",   "type": "bytes"}   \
+               ]                                            \
+              }
+
+kafka.brokers=127.0.0.1:9092
+bootstrap.with.offset=earliest
+
+# ==== Converter ====
+converter.classes=gobblin.pnda.PNDAConverter
+PNDA.quarantine.dataset.uri=dataset:hdfs://HDFS-HA:8020/user/pnda/PNDA_datasets/quarantine
+
+
+# ==== Writer ====
+writer.builder.class=gobblin.pnda.PNDAKiteWriterBuilder
+kite.writer.dataset.uri=dataset:hdfs://HDFS-HA:8020/user/pnda/PNDA_datasets/datasets
+
+# ==== Metrics ====
+metrics.enabled=true
+metrics.reporting.file.enabled=true
