@@ -21,7 +21,14 @@ import com.typesafe.config.Config;
 import gobblin.util.ExecutorsUtils;
 
 /**
- * A class for managing AWS login and credentials renewal
+ * Class for managing AWS login and credentials renewal.
+ *
+ * <p>
+ *   This class makes use of {@link BasicAWSCredentials} and {@link BasicSessionCredentials} to
+ *   manage renewal of Amazon AWS authentication.
+ *   This class runs a scheduled login executor
+ *   task to refresh the credentials upon specified renewal interval which is configurable.
+ * </p>
  *
  * @author Abhishek Tiwari
  */
@@ -31,15 +38,16 @@ public class AWSClusterSecurityManager extends AbstractIdleService {
 
   private final Config config;
 
-  private String serviceAccessKey;
-  private String serviceSecretKey;
-  private boolean clientAssumeRole;
-  private String clientRoleArn;
-  private String clientExternalId;
-  private String clientSessionId;
+  private volatile String serviceAccessKey;
+  private volatile String serviceSecretKey;
+  private volatile boolean clientAssumeRole;
+  private volatile String clientRoleArn;
+  private volatile String clientExternalId;
+  private volatile String clientSessionId;
+  private volatile long lastRefreshTimeInMillis;
 
-  private BasicAWSCredentials basicAWSCredentials;
-  private BasicSessionCredentials basicSessionCredentials;
+  private volatile BasicAWSCredentials basicAWSCredentials;
+  private volatile BasicSessionCredentials basicSessionCredentials;
 
   private final long refreshIntervalInMinutes;
 
@@ -112,9 +120,9 @@ public class AWSClusterSecurityManager extends AbstractIdleService {
           .withExternalId(this.clientExternalId)
           .withRoleArn(this.clientRoleArn);
 
-      AWSSecurityTokenServiceClient stsClient = new AWSSecurityTokenServiceClient(this.basicAWSCredentials);
+      final AWSSecurityTokenServiceClient stsClient = new AWSSecurityTokenServiceClient(this.basicAWSCredentials);
 
-      AssumeRoleResult assumeRoleResult = stsClient.assumeRole(assumeRoleRequest);
+      final AssumeRoleResult assumeRoleResult = stsClient.assumeRole(assumeRoleRequest);
 
       this.basicSessionCredentials = new BasicSessionCredentials(
           assumeRoleResult.getCredentials().getAccessKeyId(),
@@ -122,6 +130,12 @@ public class AWSClusterSecurityManager extends AbstractIdleService {
           assumeRoleResult.getCredentials().getSessionToken()
       );
     }
+
+    this.lastRefreshTimeInMillis = System.currentTimeMillis();
+  }
+
+  public long getLastRefreshTimeInMillis() {
+    return lastRefreshTimeInMillis;
   }
 
   public boolean isAssumeRoleEnabled() {

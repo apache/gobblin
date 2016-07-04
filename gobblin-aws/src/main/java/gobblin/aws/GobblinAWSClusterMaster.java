@@ -6,6 +6,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
@@ -21,9 +22,29 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinClusterManager;
+import gobblin.cluster.GobblinHelixJobScheduler;
+import gobblin.cluster.HelixMessageSubTypes;
+import gobblin.cluster.JobConfigurationManager;
+
 
 /**
- * The AWS Cluster Master class for Gobblin.
+ * The AWS Cluster master class for Gobblin.
+ *
+ * <p>
+ *   This class makes use of super class {@link GobblinClusterManager} to run:
+ *   1. {@link GobblinHelixJobScheduler} for scheduling and running Gobblin jobs.
+ *   2. {@link HelixManager} to work with Helix and act as Helix controller.
+ *   3. {@link JobConfigurationManager} to discover new job configurations and updates to
+ *   existing job configurations.
+ *
+ *   More AWS specific services can be added in future to this class that are required to be
+ *   run on Gobblin cluster master.
+ * </p>
+ *
+ * <p>
+ *   Note: Shutdown initiated by {@link GobblinAWSClusterLauncher} via a Helix message of subtype
+ *   {@link HelixMessageSubTypes#APPLICATION_MASTER_SHUTDOWN} is handled by super class {@link GobblinClusterManager}
+ * </p>
  *
  * @author Abhishek Tiwari
  */
@@ -37,8 +58,7 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
       throws Exception {
     super(clusterName, applicationId, config, appWorkDirOptional);
 
-    // Note: JobConfigurationManager and HelixJobScheduler are initializedin GobblinClusterManager
-    // TODO: Add log handler
+    // Note: JobConfigurationManager and HelixJobScheduler are initialized in {@link GobblinClusterManager}
   }
 
   /**
@@ -82,7 +102,7 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
             .format("No handling setup for %s message of subtype: %s", Message.MessageType.USER_DEFINE_MSG.toString(),
                 this._message.getMsgSubType()));
 
-        HelixTaskResult helixTaskResult = new HelixTaskResult();
+        final HelixTaskResult helixTaskResult = new HelixTaskResult();
         helixTaskResult.setSuccess(true);
         return helixTaskResult;
       }
@@ -96,21 +116,22 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
   }
 
   private static Options buildOptions() {
-    Options options = new Options();
+    final Options options = new Options();
     options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "AWS application name");
     options.addOption("d", GobblinAWSConfigurationKeys.APP_WORK_DIR, true, "Application work directory");
+
     return options;
   }
 
   private static void printUsage(Options options) {
-    HelpFormatter formatter = new HelpFormatter();
+    final HelpFormatter formatter = new HelpFormatter();
     formatter.printHelp(GobblinAWSClusterMaster.class.getSimpleName(), options);
   }
 
   public static void main(String[] args) throws Exception {
-    Options options = buildOptions();
+    final Options options = buildOptions();
     try {
-      CommandLine cmd = new DefaultParser().parse(options, args);
+      final CommandLine cmd = new DefaultParser().parse(options, args);
       if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) ||
           !cmd.hasOption(GobblinAWSConfigurationKeys.APP_WORK_DIR)) {
         printUsage(options);
@@ -120,9 +141,10 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
       Log4jConfigHelper.updateLog4jConfiguration(GobblinAWSClusterMaster.class,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE);
 
-      // TODO: If required, change logic to fetch application id
-      String applicationId = "1";
-      String appWorkDir = cmd.getOptionValue(GobblinAWSConfigurationKeys.APP_WORK_DIR);
+      // Note: Application id is required param for {@link GobblinClusterManager} super class
+      // .. but has not meaning in AWS cluster context, so defaulting to a fixed value
+      final String applicationId = "1";
+      final String appWorkDir = cmd.getOptionValue(GobblinAWSConfigurationKeys.APP_WORK_DIR);
 
       try (GobblinAWSClusterMaster clusterMaster = new GobblinAWSClusterMaster(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), applicationId,

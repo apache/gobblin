@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
@@ -50,7 +49,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
@@ -68,25 +66,23 @@ import gobblin.util.EmailUtils;
  * A client driver to launch Gobblin as an AWS Cluster.
  *
  * <p>
- *   This class, upon starting, will check if there's an AWS Cluster that it has previously running and
+ *   This class upon starting, will check if there is an AWS Cluster that is already running and
  *   it is able to reconnect to. More specifically, it checks if an cluster with the same cluster name
- *   exists and can be reconnected to, i.e., if the cluster has not completed yet. If so, it simply starts
+ *   exists and can be reconnected to i.e. if the cluster has not completed yet. If so, it simply starts
  *   monitoring that cluster.
  * </p>
  *
  * <p>
  *   On the other hand, if there's no such a reconnectable AWS cluster, This class will launch a new AWS
  *   cluster and start the {@link GobblinAWSClusterMaster}. It also persists the new cluster details so it
- *   is able to reconnect to the AWS cluster if it is restarted for some reason. Once the cluster is
- *   launched, this class starts to monitor the cluster by periodically polling the status of the cluster
- *   through a {@link ListeningExecutorService}.
+ *   is able to reconnect to the AWS cluster if it is restarted for some reason.
  * </p>
  *
  * <p>
  *   If a shutdown signal is received, it sends a Helix
  *   {@link org.apache.helix.model.Message.MessageType#SCHEDULER_MSG} to the {@link GobblinAWSClusterMaster}
- *   asking it to shutdown and release all the allocated containers. It also sends an email notification for
- *   the shutdown if {@link GobblinAWSConfigurationKeys#EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY} is {@code true}.
+ *   asking it to shutdown. It also sends an email notification for the shutdown if
+ *   {@link GobblinAWSConfigurationKeys#EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY} is {@code true}.
  * </p>
  *
  * @author Abhishek Tiwari
@@ -163,9 +159,6 @@ public class GobblinAWSClusterLauncher {
   private final String sinkLogRootDir;
   private final String appWorkDir;
 
-  // A generator for an integer ID of a Helix instance (participant)
-  private final AtomicInteger helixInstanceIdGenerator = new AtomicInteger(0);
-
   public GobblinAWSClusterLauncher(Config config) throws IOException {
     this.config = config;
 
@@ -233,13 +226,13 @@ public class GobblinAWSClusterLauncher {
   /**
    * Launch a new Gobblin cluster on AWS.
    *
-   * @throws IOException if there's something wrong launching the cluster
+   * @throws IOException If there's something wrong launching the cluster
    */
   public void launch() throws IOException {
     this.eventBus.register(this);
 
     // Create Helix cluster and connect to it
-    String helixClusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    final String helixClusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
     HelixUtils
         .createGobblinHelixCluster(this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
             helixClusterName);
@@ -247,8 +240,7 @@ public class GobblinAWSClusterLauncher {
 
     connectHelixManager();
 
-    // Start all the services running
-    // TODO: Add log copier service
+    // Start all the services
     List<Service> services = Lists.newArrayList();
     this.awsClusterSecurityManager = new AWSClusterSecurityManager(this.config);
     services.add(this.awsClusterSecurityManager);
@@ -264,7 +256,7 @@ public class GobblinAWSClusterLauncher {
   /**
    * Stop this {@link GobblinAWSClusterLauncher} instance.
    *
-   * @throws IOException if this {@link GobblinAWSClusterLauncher} instance fails to clean up its working directory.
+   * @throws IOException If this {@link GobblinAWSClusterLauncher} instance fails to clean up its working directory.
    */
   public synchronized void stop() throws IOException, TimeoutException {
     if (this.stopped) {
@@ -314,7 +306,7 @@ public class GobblinAWSClusterLauncher {
   }
 
   private Optional<String> getClusterId() throws IOException {
-    Optional<String> reconnectableClusterId = getReconnectableClusterId();
+    final Optional<String> reconnectableClusterId = getReconnectableClusterId();
     if (reconnectableClusterId.isPresent()) {
       LOGGER.info("Found reconnectable cluster with cluster ID: " + reconnectableClusterId.get());
       return reconnectableClusterId;
@@ -334,35 +326,42 @@ public class GobblinAWSClusterLauncher {
   /**
    * Setup the Gobblin AWS cluster.
    *
-   * @throws IOException if there's anything wrong setting up the AWS cluster
+   * @throws IOException If there's anything wrong setting up the AWS cluster
    */
   @VisibleForTesting
   String setupGobblinCluster() throws IOException {
 
-    String uuid = UUID.randomUUID().toString();
+    final String uuid = UUID.randomUUID().toString();
 
     // Create security group
-    // TODO: Make security group restrictive and permission set configurable
-    String securityGroupName = "GobblinSecurityGroup_" + uuid;
-    AWSSdkClient.createSecurityGroup(this.awsClusterSecurityManager, Region.getRegion(Regions.fromName(this.awsRegion)),
-        securityGroupName, "Gobblin cluster security group");
+    // TODO: Make security group restrictive
+    final String securityGroupName = "GobblinSecurityGroup_" + uuid;
+    AWSSdkClient.createSecurityGroup(this.awsClusterSecurityManager,
+        Region.getRegion(Regions.fromName(this.awsRegion)),
+        securityGroupName,
+        "Gobblin cluster security group");
     AWSSdkClient.addPermissionsToSecurityGroup(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)), securityGroupName, "0.0.0.0/0", "tcp", 0, 65535);
+        Region.getRegion(Regions.fromName(this.awsRegion)),
+        securityGroupName,
+        "0.0.0.0/0",
+        "tcp",
+        0,
+        65535);
 
     // Create key value pair
-    String keyName = "GobblinKey_" + uuid;
-    String material = AWSSdkClient.createKeyValuePair(this.awsClusterSecurityManager,
+    final String keyName = "GobblinKey_" + uuid;
+    final String material = AWSSdkClient.createKeyValuePair(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         keyName);
     LOGGER.info("Material is: " + material);
     FileUtils.writeStringToFile(new File(keyName + ".pem"), material);
 
     // Get all availability zones in the region. Currently, we will only use first
-    List<AvailabilityZone> availabilityZones = AWSSdkClient.getAvailabilityZones(this.awsClusterSecurityManager,
+    final List<AvailabilityZone> availabilityZones = AWSSdkClient.getAvailabilityZones(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)));
 
     // Launch Cluster Master
-    String clusterId = launchClusterMaster(uuid, keyName, securityGroupName, availabilityZones.get(0));
+    final String clusterId = launchClusterMaster(uuid, keyName, securityGroupName, availabilityZones.get(0));
 
     // Launch WorkUnit runners
     launchWorkUnitRunners(uuid, keyName, securityGroupName, availabilityZones.get(0));
@@ -372,10 +371,10 @@ public class GobblinAWSClusterLauncher {
 
   private String launchClusterMaster(String uuid, String keyName, String securityGroups,
       AvailabilityZone availabilityZone) {
-    String userData = buildClusterMasterCommand(this.masterJvmMemory);
+    final String userData = buildClusterMasterCommand();
 
     // Create launch config for Cluster master
-    String launchConfigName = "GobblinMasterLaunchConfig_" + uuid;
+    final String launchConfigName = "GobblinMasterLaunchConfig_" + uuid;
     AWSSdkClient.createLaunchConfig(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         launchConfigName,
@@ -391,12 +390,12 @@ public class GobblinAWSClusterLauncher {
         userData);
 
     // Create ASG for Cluster master
-    // TODO: Make size configurable when we have a solid multi-master story
-    int minNumMasters = 1;
-    int maxNumMasters = 1;
-    int desiredNumMasters = 1;
-    String autoscalingGroupName = "GobblinMasterASG_" + uuid;
-    Tag tag = new Tag().withKey("GobblinMaster").withValue(uuid);
+    // TODO: Make size configurable when we have support multi-master
+    final int minNumMasters = 1;
+    final int maxNumMasters = 1;
+    final int desiredNumMasters = 1;
+    final String autoscalingGroupName = "GobblinMasterASG_" + uuid;
+    final Tag tag = new Tag().withKey("GobblinMaster").withValue(uuid);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         autoscalingGroupName,
@@ -413,8 +412,8 @@ public class GobblinAWSClusterLauncher {
         Lists.newArrayList(tag));
 
     LOGGER.info("Waiting for cluster master to launch");
-    long startTime = System.currentTimeMillis();
-    long launchTimeout = TimeUnit.MINUTES.toMillis(10);
+    final long startTime = System.currentTimeMillis();
+    final long launchTimeout = TimeUnit.MINUTES.toMillis(10);
     boolean isMasterLaunched = false;
     List<Instance> instanceIds = Collections.emptyList();
     while (!isMasterLaunched && (System.currentTimeMillis() - startTime) < launchTimeout) {
@@ -436,6 +435,8 @@ public class GobblinAWSClusterLauncher {
     }
 
     // This will change if cluster master restarts, but that will be handled by Helix events
+    // TODO: Add listener to Helix / Zookeeper for master restart and update master public ip
+    // .. although tracking master public ip is not important
     this.masterPublicIp = instanceIds.get(0).getPublicIpAddress();
 
     return "GobblinClusterMaster_" + uuid;
@@ -444,10 +445,10 @@ public class GobblinAWSClusterLauncher {
   private void launchWorkUnitRunners(String uuid, String keyName,
       String securityGroups,
       AvailabilityZone availabilityZone) {
-    String userData = buildClusterWorkerCommand(this.workerJvmMemory);
+    final String userData = buildClusterWorkerCommand();
 
-    // Create launch config for Cluster master
-    String launchConfigName = "GobblinWorkerLaunchConfig_" + uuid;
+    // Create launch config for Cluster worker
+    final String launchConfigName = "GobblinWorkerLaunchConfig_" + uuid;
     AWSSdkClient.createLaunchConfig(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         launchConfigName,
@@ -463,8 +464,8 @@ public class GobblinAWSClusterLauncher {
         userData);
 
     // Create ASG for Cluster workers
-    String autoscalingGroupName = "GobblinWorkerASG_" + uuid;
-    Tag tag = new Tag().withKey("GobblinWorker").withValue(uuid);
+    final String autoscalingGroupName = "GobblinWorkerASG_" + uuid;
+    final Tag tag = new Tag().withKey("GobblinWorker").withValue(uuid);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         autoscalingGroupName,
@@ -481,18 +482,33 @@ public class GobblinAWSClusterLauncher {
         Lists.newArrayList(tag));
   }
 
-  private String buildClusterMasterCommand(String memory) {
-    StringBuilder userDataCmds = new StringBuilder().append("#!/bin/bash").append("\n");
+  /***
+   * This method generates the userdata that would be executed by cloud-init module in EC2 instance
+   * upon boot up for {@link GobblinAWSClusterMaster}.
+   *
+   * The userdata is a shell script that does the following:
+   * 1. Mount NFS Server (TODO: To be replaced with EFS soon)
+   * 2. Create all prerequisite directories
+   * 3. Download cluster configuration from S3
+   * 4. Download gobblin application jars from S3 (TODO: To be replaced via baked in jars in custom Gobblin AMI)
+   * 5. Download gobblin custom jars from S3
+   * 6. Launch {@link GobblinAWSClusterMaster} java application
+   * 7. TODO: Add cron that watches the {@link GobblinAWSClusterMaster} application and restarts it if it dies
+   *
+   * @return Userdata to launch {@link GobblinAWSClusterMaster}
+   */
+  private String buildClusterMasterCommand() {
+    final StringBuilder userDataCmds = new StringBuilder().append("#!/bin/bash").append("\n");
 
-    String clusterMasterClassName = GobblinAWSClusterMaster.class.getSimpleName();
+    final String clusterMasterClassName = GobblinAWSClusterMaster.class.getSimpleName();
 
     // Create NFS server
-    // TODO: Replace with EFS when available in GA
+    // TODO: Replace with EFS (it went into GA on 6/30/2016)
     // Note: Until EFS availability, ClusterMaster is SPOF because we loose NFS when it's relaunched / replaced
     //       .. this can be worked around, but would be an un-necessary work
-    String nfsDir = this.nfsParentDir + this.clusterName;
+    final String nfsDir = this.nfsParentDir + this.clusterName;
 
-    String nfsShareDirCmd = String.format("echo '%s %s(%s)' | tee --append %s",
+    final String nfsShareDirCmd = String.format("echo '%s %s(%s)' | tee --append %s",
         nfsDir, NFS_SHARE_ALL_IPS, NFS_SHARE_DEFAULT_OPTS, NFS_CONF_FILE);
     userDataCmds.append("mkdir -p ").append(nfsDir).append(File.separator).append("1").append("\n");
     userDataCmds.append(NFS_SERVER_INSTALL_CMD).append("\n");
@@ -504,33 +520,34 @@ public class GobblinAWSClusterLauncher {
     userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
     userDataCmds.append("chown -R ec2-user:ec2-user /home/ec2-user/*").append("\n");
 
-    // Setup variables to save userdata space
+    // Setup short variables to save userdata space
     userDataCmds.append("cgS3=").append(this.masterS3ConfUri).append("\n");
     userDataCmds.append("cg=").append(this.awsConfDir).append("\n");
     userDataCmds.append("jrS3=").append(this.masterS3JarsUri).append("\n");
     userDataCmds.append("jr=").append(this.masterJarsDir).append("\n");
 
     // Download configurations from S3
-    StringBuilder classpath = new StringBuilder();
-    List<String> awsConfs = SPLITTER.splitToList(this.masterS3ConfFiles);
+    final StringBuilder classpath = new StringBuilder();
+    final List<String> awsConfs = SPLITTER.splitToList(this.masterS3ConfFiles);
     for (String awsConf : awsConfs) {
       userDataCmds.append(String.format("wget -P \"${cg}\" \"${cgS3}\"%s", awsConf)).append("\n");
     }
     classpath.append(this.awsConfDir);
 
     // Download jars from S3
-    // TODO: Limit only custom user jars to pulled from S3, load rest from AMI
-    List<String> awsJars = SPLITTER.splitToList(this.masterS3JarsFiles);
+    // TODO: Eventually limit only custom user jars to pulled from S3, load rest from AMI
+    final List<String> awsJars = SPLITTER.splitToList(this.masterS3JarsFiles);
     for (String awsJar : awsJars) {
       userDataCmds.append(String.format("wget -P \"${jr}\" \"${jrS3}\"%s", awsJar)).append("\n");
     }
     classpath.append(":").append(this.masterJarsDir).append("*");
 
+    // TODO: Add cron that brings back master if it dies
     // Launch Gobblin Cluster Master
-    StringBuilder launchGobblinClusterMasterCmd = new StringBuilder()
+    final StringBuilder launchGobblinClusterMasterCmd = new StringBuilder()
         .append("java")
         .append(" -cp ").append(classpath)
-        .append(" -Xmx").append(memory)
+        .append(" -Xmx").append(this.masterJvmMemory)
         .append(" ").append(this.masterJvmArgs.or(""))
         .append(" ").append(GobblinAWSClusterMaster.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
@@ -547,21 +564,36 @@ public class GobblinAWSClusterLauncher {
             .append(GobblinAWSClusterLauncher.STDERR);
     userDataCmds.append(launchGobblinClusterMasterCmd).append("\n");
 
-    String userData = userDataCmds.toString();
+    final String userData = userDataCmds.toString();
     LOGGER.info("Userdata for master node: " + userData);
 
     return encodeBase64(userData);
   }
 
-  private String buildClusterWorkerCommand(String memory) {
-    StringBuilder userDataCmds = new StringBuilder().append("#!/bin/bash").append("\n");
+  /***
+   * This method generates the userdata that would be executed by cloud-init module in EC2 instance
+   * upon boot up for {@link GobblinAWSTaskRunner}.
+   *
+   * The userdata is a shell script that does the following:
+   * 1. Mount NFS volume (TODO: To be replaced with EFS soon)
+   * 2. Create all prerequisite directories
+   * 3. Download cluster configuration from S3
+   * 4. Download gobblin application jars from S3 (TODO: To be replaced via baked in jars in custom Gobblin AMI)
+   * 5. Download gobblin custom jars from S3
+   * 6. Launch {@link GobblinAWSTaskRunner} java application
+   * 7. TODO: Add cron that watches the {@link GobblinAWSTaskRunner} application and restarts it if it dies
+   *
+   * @return Userdata to launch {@link GobblinAWSTaskRunner}
+   */
+  private String buildClusterWorkerCommand() {
+    final StringBuilder userDataCmds = new StringBuilder().append("#!/bin/bash").append("\n");
 
-    String clusterWorkerClassName = GobblinAWSTaskRunner.class.getSimpleName();
+    final String clusterWorkerClassName = GobblinAWSTaskRunner.class.getSimpleName();
 
     // Connect to NFS server
-    // TODO: Replace with EFS when available in GA
-    String nfsDir = this.nfsParentDir + this.clusterName;
-    String nfsMountCmd = String.format("mount -t %s %s:%s %s", NFS_TYPE_4, this.masterPublicIp, nfsDir,
+    // TODO: Replace with EFS (it went into GA on 6/30/2016)
+    final String nfsDir = this.nfsParentDir + this.clusterName;
+    final String nfsMountCmd = String.format("mount -t %s %s:%s %s", NFS_TYPE_4, this.masterPublicIp, nfsDir,
         nfsDir);
     userDataCmds.append("mkdir -p ").append(nfsDir).append("\n");
     userDataCmds.append(nfsMountCmd).append("\n");
@@ -570,15 +602,15 @@ public class GobblinAWSClusterLauncher {
     userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
     userDataCmds.append("chown -R ec2-user:ec2-user /home/ec2-user/*").append("\n");
 
-    // Setup variables to save userdata space
+    // Setup short variables to save userdata space
     userDataCmds.append("cg0=").append(this.workerS3ConfUri).append("\n");
     userDataCmds.append("cg=").append(this.awsConfDir).append("\n");
     userDataCmds.append("jr0=").append(this.workerS3JarsUri).append("\n");
     userDataCmds.append("jr=").append(this.workerJarsDir).append("\n");
 
     // Download configurations from S3
-    StringBuilder classpath = new StringBuilder();
-    List<String> awsConfs = SPLITTER.splitToList(this.workerS3ConfFiles);
+    final StringBuilder classpath = new StringBuilder();
+    final List<String> awsConfs = SPLITTER.splitToList(this.workerS3ConfFiles);
     for (String awsConf : awsConfs) {
       userDataCmds.append(String.format("wget -P \"${cg}\" \"${cg0}\"%s", awsConf)).append("\n");
     }
@@ -586,7 +618,7 @@ public class GobblinAWSClusterLauncher {
 
     // Download jars from S3
     // TODO: Limit only custom user jars to pulled from S3, load rest from AMI
-    List<String> awsJars = SPLITTER.splitToList(this.workerS3JarsFiles);
+    final List<String> awsJars = SPLITTER.splitToList(this.workerS3JarsFiles);
     for (String awsJar : awsJars) {
       userDataCmds.append(String.format("wget -P \"${jr}\" \"${jr0}\"%s", awsJar)).append("\n");
     }
@@ -595,11 +627,12 @@ public class GobblinAWSClusterLauncher {
     // Get a random Helix instance name
     userDataCmds.append("pi=`curl http://169.254.169.254/latest/meta-data/local-ipv4`").append("\n");
 
+    // TODO: Add cron that brings back worker if it dies
     // Launch Gobblin Worker
-    StringBuilder launchGobblinClusterWorkerCmd = new StringBuilder()
+    final StringBuilder launchGobblinClusterWorkerCmd = new StringBuilder()
         .append("java")
         .append(" -cp ").append(classpath)
-        .append(" -Xmx").append(memory)
+        .append(" -Xmx").append(this.workerJvmMemory)
         .append(" ").append(this.workerJvmArgs.or(""))
         .append(" ").append(GobblinAWSTaskRunner.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
@@ -618,7 +651,7 @@ public class GobblinAWSClusterLauncher {
             .append(GobblinAWSClusterLauncher.STDERR);
     userDataCmds.append(launchGobblinClusterWorkerCmd);
 
-    String userData = userDataCmds.toString();
+    final String userData = userDataCmds.toString();
     LOGGER.info("Userdata for worker node: " + userData);
 
     return encodeBase64(userData);
@@ -626,7 +659,7 @@ public class GobblinAWSClusterLauncher {
 
   @FindbugsSuppressWarnings("DM_DEFAULT_ENCODING")
   private String encodeBase64(String data) {
-    byte[] encodedBytes = Base64.encodeBase64(data.getBytes());
+    final byte[] encodedBytes = Base64.encodeBase64(data.getBytes());
 
     return new String(encodedBytes);
   }
@@ -634,19 +667,19 @@ public class GobblinAWSClusterLauncher {
   /***
    * List and generate classpath string from paths
    *
-   * Note: This is currently unused, and will be brought in use with custom Gobblin AMI
+   * Note: This is currently unused, and will be brought in to use with custom Gobblin AMI
    *
    * @param paths Paths to list
    * @return Classpath string
    */
   private String getClasspathFromPaths(File... paths) {
-    StringBuilder classpath = new StringBuilder();
+    final StringBuilder classpath = new StringBuilder();
     boolean isFirst = true;
     for (File path : paths) {
       if (!isFirst) {
         classpath.append(":");
       }
-      String subClasspath = getClasspathFromPath(path);
+      final String subClasspath = getClasspathFromPath(path);
       if (subClasspath.length() > 0) {
         classpath.append(subClasspath);
         isFirst = false;
@@ -669,7 +702,7 @@ public class GobblinAWSClusterLauncher {
 
   @VisibleForTesting
   void sendShutdownRequest() {
-    Criteria criteria = new Criteria();
+    final Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
     criteria.setResource("%");
     criteria.setPartition("%");
@@ -677,20 +710,20 @@ public class GobblinAWSClusterLauncher {
     criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
     criteria.setSessionSpecific(true);
 
-    Message shutdownRequest = new Message(Message.MessageType.SHUTDOWN,
+    final Message shutdownRequest = new Message(Message.MessageType.SHUTDOWN,
         HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString().toLowerCase() + UUID.randomUUID().toString());
     shutdownRequest.setMsgSubType(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
     shutdownRequest.setMsgState(Message.MessageState.NEW);
     shutdownRequest.setTgtSessionId("*");
 
-    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest);
+    final int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest);
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the controller", shutdownRequest.getMsgSubType()));
     }
   }
 
   private void cleanUpClusterWorkDirectory(String clusterId) throws IOException {
-    File appWorkDir = new File(GobblinClusterUtils.getAppWorkDirPath(this.clusterName, clusterId));
+    final File appWorkDir = new File(GobblinClusterUtils.getAppWorkDirPath(this.clusterName, clusterId));
 
     if (appWorkDir.exists() && appWorkDir.isDirectory()) {
       LOGGER.info("Deleting application working directory " + appWorkDir);
@@ -699,9 +732,9 @@ public class GobblinAWSClusterLauncher {
   }
 
   private void sendEmailOnShutdown(Optional<String> report) {
-    String subject = String.format("Gobblin AWS cluster %s completed", this.clusterName);
+    final String subject = String.format("Gobblin AWS cluster %s completed", this.clusterName);
 
-    StringBuilder messageBuilder = new StringBuilder("Gobblin AWS cluster was shutdown at: " + new Date());
+    final StringBuilder messageBuilder = new StringBuilder("Gobblin AWS cluster was shutdown at: " + new Date());
     if (report.isPresent()) {
       messageBuilder.append(' ').append(report.get());
     }

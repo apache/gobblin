@@ -51,7 +51,7 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.SchedulerUtils;
 
 /**
- * A class for managing AWS Gobblin job configurations.
+ * Class for managing AWS Gobblin job configurations.
  *
  * <p>
  *   This class reads all the job configuration at startup from S3
@@ -99,7 +99,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
         String.format("Scheduling the job configuration refresh task with an interval of %d minute(s)",
             this.refreshIntervalInMinutes));
 
-    // Schedule the login task
+    // Schedule the job config fetch task
     this.fetchJobConfExecutor.scheduleAtFixedRate(new Runnable() {
       @Override
       public void run() {
@@ -123,31 +123,32 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
     if (this.jobConfS3Uri.isPresent() && this.jobConfDirPath.isPresent()) {
 
       // Download the zip file
-      String zipFile = appendSlash(this.jobConfDirPath.get()) +
+      final String zipFile = appendSlash(this.jobConfDirPath.get()) +
           StringUtils.substringAfterLast(this.jobConfS3Uri.get(), File.separator);
       LOGGER.debug("Downloading to zip: " + zipFile + " from uri: " + this.jobConfS3Uri.get());
 
       FileUtils.copyURLToFile(new URL(this.jobConfS3Uri.get()), new File(zipFile));
-      String extractedPullFilesPath = appendSlash(this.jobConfDirPath.get()) + "files";
+      final String extractedPullFilesPath = appendSlash(this.jobConfDirPath.get()) + "files";
 
       // Extract the zip file
       LOGGER.debug("Extracting to directory: " + extractedPullFilesPath + " from zip: " + zipFile);
       unzipArchive(zipFile, new File(extractedPullFilesPath));
 
       // Load all new job configurations
-      // TODO: Current new and updated jobs are handled, we should un-schedule deleted jobs as well
-      File jobConfigDir = new File(extractedPullFilesPath);
+      // TODO: Currently new and updated jobs are handled, we should un-schedule deleted jobs as well
+      final File jobConfigDir = new File(extractedPullFilesPath);
       if (jobConfigDir.exists()) {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
-        Properties properties = new Properties();
+        final Properties properties = new Properties();
         properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfigDir.getAbsolutePath());
-        List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
+
+        final List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
           LOGGER.debug("Config value: " + config);
 
           // If new config or existing config got updated, then post new job config arrival event
-          String jobConfigPathIdentifier = config.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY);
+          final String jobConfigPathIdentifier = config.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY);
           if (!jobConfFiles.containsKey(jobConfigPathIdentifier)) {
             jobConfFiles.put(jobConfigPathIdentifier, config);
 
@@ -168,15 +169,21 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
     }
   }
 
+  /***
+   * Unzip a zip archive
+   * @param file Zip file to unarchive
+   * @param outputDir Output directory for the unarchived file
+   * @throws IOException If any issue occurs in unzipping the file
+   */
   public void unzipArchive(String file, File outputDir)
       throws IOException {
 
     try (ZipFile zipFile = new ZipFile(file)) {
 
-      Enumeration<? extends ZipEntry> entries = zipFile.entries();
+      final Enumeration<? extends ZipEntry> entries = zipFile.entries();
       while (entries.hasMoreElements()) {
-        ZipEntry entry = entries.nextElement();
-        File entryDestination = new File(outputDir, entry.getName());
+        final ZipEntry entry = entries.nextElement();
+        final File entryDestination = new File(outputDir, entry.getName());
 
         if (entry.isDirectory()) {
           // If entry is directory, create directory

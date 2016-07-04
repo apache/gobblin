@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +58,13 @@ import com.google.common.collect.Lists;
 
 
 /**
- * This class is responsible for all AWS API calls
+ * Class responsible for all AWS API calls.
+ *
+ * <p>
+ *   This class makes use of AWS SDK API and provides clients for various Amazon AWS services
+ *   such as: EC2, S3, AutoScaling; as well as this class provides various helper methods to
+ *   perform AWS service API calls.
+ * </p>
  *
  * @author Abhishek Tiwari
  */
@@ -67,10 +73,19 @@ public class AWSSdkClient {
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
-  private static String AWS_ASG_SERVICE = "autoscaling";
-  private static String AWS_EC2_SERVICE = "ec2";
-  private static String AWS_S3_SERVICE = "s3";
+  private static volatile AmazonEC2 amazonEC2;
+  private static volatile AmazonS3 amazonS3;
+  private static volatile AmazonAutoScaling amazonAutoScaling;
+  private static volatile long lastRefreshCacheTime = 0;
 
+  /***
+   * Create an Amazon AWS security group
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param groupName Security group name
+   * @param description Security group description
+   */
   public static void createSecurityGroup(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region,
       String groupName,
@@ -78,7 +93,7 @@ public class AWSSdkClient {
 
     AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
     try {
-      CreateSecurityGroupRequest securityGroupRequest = new CreateSecurityGroupRequest()
+      final CreateSecurityGroupRequest securityGroupRequest = new CreateSecurityGroupRequest()
           .withGroupName(groupName)
           .withDescription(description);
       amazonEC2.createSecurityGroup(securityGroupRequest);
@@ -90,6 +105,17 @@ public class AWSSdkClient {
     }
   }
 
+  /***
+   * Open firewall for a security group
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param groupName Open firewall for this security group
+   * @param ipRanges Open firewall for this IP range
+   * @param ipProtocol Open firewall for this protocol type (eg. tcp, udp)
+   * @param fromPort Open firewall for port range starting at this port
+   * @param toPort Open firewall for port range ending at this port
+   */
   public static void addPermissionsToSecurityGroup(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region,
       String groupName,
@@ -98,14 +124,14 @@ public class AWSSdkClient {
       Integer fromPort,
       Integer toPort) {
 
-    AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
+    final AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
 
-    IpPermission ipPermission = new IpPermission()
+    final IpPermission ipPermission = new IpPermission()
         .withIpRanges(ipRanges)
         .withIpProtocol(ipProtocol)
         .withFromPort(fromPort)
         .withToPort(toPort);
-    AuthorizeSecurityGroupIngressRequest authorizeSecurityGroupIngressRequest =
+    final AuthorizeSecurityGroupIngressRequest authorizeSecurityGroupIngressRequest =
         new AuthorizeSecurityGroupIngressRequest()
             .withGroupName(groupName)
             .withIpPermissions(ipPermission);
@@ -114,22 +140,47 @@ public class AWSSdkClient {
     LOGGER.info("Added permissions: " + ipPermission + " to security group: " + groupName);
   }
 
+  /***
+   * Creates a 2048-bit RSA key pair with the specified name
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param keyName Key name to use
+   * @return Unencrypted PEM encoded PKCS#8 private key
+   */
   public static String createKeyValuePair(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region,
       String keyName) {
 
-    AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
+    final AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
 
-    CreateKeyPairRequest createKeyPairRequest = new CreateKeyPairRequest().withKeyName(keyName);
-    CreateKeyPairResult createKeyPairResult = amazonEC2.createKeyPair(createKeyPairRequest);
-    KeyPair keyPair = createKeyPairResult.getKeyPair();
-    String material = keyPair.getKeyMaterial();
+    final CreateKeyPairRequest createKeyPairRequest = new CreateKeyPairRequest().withKeyName(keyName);
+    final CreateKeyPairResult createKeyPairResult = amazonEC2.createKeyPair(createKeyPairRequest);
+    final KeyPair keyPair = createKeyPairResult.getKeyPair();
+    final String material = keyPair.getKeyMaterial();
     LOGGER.info("Created key: " + keyName);
-    LOGGER.info("Created material: " + material);
+    LOGGER.debug("Created material: " + material);
 
     return material;
   }
 
+  /***
+   * Create a launch configuration that can be later used to create {@link AmazonAutoScaling} groups
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param launchConfigName Desired launch config name
+   * @param imageId AMI image id to use
+   * @param instanceType EC2 instance type to use
+   * @param keyName Key name
+   * @param securityGroups Security groups to apply
+   * @param kernelId Optional kernel id
+   * @param ramdiskId Optional ram disk id
+   * @param blockDeviceMapping Optional EBS device mapping
+   * @param iamInstanceProfile Optional IAM instance profile
+   * @param instanceMonitoring Optional instance monitoring
+   * @param userData User data (eg. shell script to execute at instance boot under this launch config)
+   */
   public static void createLaunchConfig(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region,
       String launchConfigName,
@@ -144,7 +195,7 @@ public class AWSSdkClient {
       Optional<InstanceMonitoring> instanceMonitoring,
       String userData) {
 
-    AmazonAutoScaling autoScaling = getAmazonAutoScalingClient(awsClusterSecurityManager, region);
+    final AmazonAutoScaling autoScaling = getAmazonAutoScalingClient(awsClusterSecurityManager, region);
 
     CreateLaunchConfigurationRequest createLaunchConfigurationRequest = new CreateLaunchConfigurationRequest()
         .withLaunchConfigurationName(launchConfigName)
@@ -179,13 +230,29 @@ public class AWSSdkClient {
     LOGGER.info("Created Launch Configuration: " + launchConfigName);
   }
 
+  /***
+   * Create and launch an {@link AmazonAutoScaling} group
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param groupName Auto scaling group name
+   * @param launchConfig Launch configuration string
+   * @param minSize Minimum number of instances to maintain in auto scaling group
+   * @param maxSize Maximum number of instances to scale up-to for load
+   * @param desiredCapacity Desired number of instances to maintain in auto scaling group
+   * @param availabilityZones Optional availability zones to make use of
+   * @param cooldown Optional cooldown period before any scaling event (default is 300 secs)
+   * @param healthCheckGracePeriod Optional grace period till which no health check is performed after bootup (default is 300 secs)
+   * @param healthCheckType Optional health check type (default is EC2 instance check)
+   * @param loadBalancer Optional load balancer to use
+   * @param terminationPolicy Optional termination policies
+   * @param tags Optional tags to set on auto scaling group (they are set to propagate to EC2 instances implicitly)
+   */
   public static void createAutoScalingGroup(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region,
       String groupName,
       String launchConfig,
-      Integer minSize,
-      Integer maxSize,
-      Integer desiredCapacity,
+      Integer minSize, Integer maxSize, Integer desiredCapacity,
       Optional<String> availabilityZones,
       Optional<Integer> cooldown,
       Optional<Integer> healthCheckGracePeriod,
@@ -198,7 +265,7 @@ public class AWSSdkClient {
 
     // Propagate ASG tags to EC2 instances launched under the ASG by default
     // (we want to ensure this, hence not configurable)
-    List<Tag> tagsWithPropagationSet = Lists.newArrayList();
+    final List<Tag> tagsWithPropagationSet = Lists.newArrayList();
     for (Tag tag : tags) {
       tagsWithPropagationSet.add(tag.withPropagateAtLaunch(true));
     }
@@ -240,17 +307,26 @@ public class AWSSdkClient {
     LOGGER.info("Created AutoScalingGroup: " + groupName);
   }
 
+  /***
+   * Get list of EC2 {@link Instance}s for a auto scaling group
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param groupName Auto scaling group name
+   * @param status Instance status (eg. running)
+   * @return List of EC2 instances found for the input auto scaling group
+   */
   public static List<Instance> getInstancesForGroup(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region,
       String groupName,
       String status) {
 
-    AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
+    final AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
 
     final DescribeInstancesResult instancesResult = amazonEC2.describeInstances(new DescribeInstancesRequest()
         .withFilters(new Filter().withName("tag:aws:autoscaling:groupName").withValues(groupName)));
 
-    List<Instance> instances = new ArrayList<>();
+    final List<Instance> instances = new ArrayList<>();
     for (Reservation reservation : instancesResult.getReservations()) {
       for (Instance instance : reservation.getInstances()) {
         if (null == status|| null == instance.getState()
@@ -266,10 +342,17 @@ public class AWSSdkClient {
     return instances;
   }
 
+  /***
+   * Get availability zones in an Amazon AWS region
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @return List of availability zones
+   */
   public static List<AvailabilityZone> getAvailabilityZones(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region) {
 
-    AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
+    final AmazonEC2 amazonEC2 = getEc2Client(awsClusterSecurityManager, region);
 
     final DescribeAvailabilityZonesResult describeAvailabilityZonesResult = amazonEC2.describeAvailabilityZones();
     final List<AvailabilityZone> availabilityZones = describeAvailabilityZonesResult.getAvailabilityZones();
@@ -278,6 +361,15 @@ public class AWSSdkClient {
     return availabilityZones;
   }
 
+  /***
+   * Download a S3 object to local directory
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param s3ObjectSummary S3 object summary for the object to download
+   * @param targetDirectory Local target directory to download the object to
+   * @throws IOException If any errors were encountered in downloading the object
+   */
   public static void downloadS3Object(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region,
       S3ObjectSummary s3ObjectSummary,
@@ -293,12 +385,20 @@ public class AWSSdkClient {
     final S3Object s3Object = amazonS3.getObject(getObjectRequest);
 
     final String targetFile = StringUtils.removeEnd(targetDirectory, File.separator) + File.separator + s3Object.getKey();
-    FileUtils.copyInputStreamToFile(s3Object.getObjectContent(),
-        new File(targetFile));
+    FileUtils.copyInputStreamToFile(s3Object.getObjectContent(), new File(targetFile));
 
     LOGGER.info("S3 object downloaded to file: " + targetFile);
   }
 
+  /***
+   * Get list of S3 objects within a S3 bucket qualified by prefix path
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param bucketName S3 bucket name
+   * @param prefix S3 prefix to object
+   * @return List of {@link S3ObjectSummary} objects within the bucket qualified by prefix path
+   */
   public static List<S3ObjectSummary> listS3Bucket(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region,
       String bucketName,
@@ -316,49 +416,93 @@ public class AWSSdkClient {
     return objectListing.getObjectSummaries();
   }
 
-
+  /***
+   * Creates a new Amazon EC2 client to invoke service methods on Amazon EC2
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon EC2 {@link Region} to get the client for
+   * @return Amazon EC2 client to invoke service methods on Amazon EC2
+   */
   public static AmazonEC2 getEc2Client(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region) {
 
-    // TODO: Add client caching
-    final AmazonEC2 ec2;
-    if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
-      ec2 = new AmazonEC2Client(awsClusterSecurityManager.getBasicSessionCredentials());
-    } else {
-      ec2 = new AmazonEC2Client(awsClusterSecurityManager.getBasicAWSCredentials());
+    if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
+        awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
+      return amazonEC2;
     }
-    ec2.setRegion(region);
 
-    return ec2;
+    synchronized (AWSSdkClient.class) {
+      if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
+          awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
+        if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
+          amazonEC2 = new AmazonEC2Client(awsClusterSecurityManager.getBasicSessionCredentials());
+        } else {
+          amazonEC2 = new AmazonEC2Client(awsClusterSecurityManager.getBasicAWSCredentials());
+        }
+        amazonEC2.setRegion(region);
+      }
+    }
+
+    return amazonEC2;
   }
 
+  /***
+   * Creates a new Amazon AutoScaling client to invoke service methods on Amazon AutoScaling
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AutoScaling {@link Region} to get the client for
+   * @return Amazon AutoScaling client to invoke service methods on Amazon AutoScaling
+   */
   public static AmazonAutoScaling getAmazonAutoScalingClient(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region) {
 
-    // TODO: Add client caching
-    final AmazonAutoScaling autoScaling;
-    if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
-      autoScaling = new AmazonAutoScalingClient(awsClusterSecurityManager.getBasicSessionCredentials());
-    } else {
-      autoScaling = new AmazonAutoScalingClient(awsClusterSecurityManager.getBasicAWSCredentials());
+    if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
+        awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
+      return amazonAutoScaling;
     }
-    autoScaling.setRegion(region);
 
-    return autoScaling;
+    synchronized (AWSSdkClient.class) {
+      if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
+          awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
+        if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
+          amazonAutoScaling = new AmazonAutoScalingClient(awsClusterSecurityManager.getBasicSessionCredentials());
+        } else {
+          amazonAutoScaling = new AmazonAutoScalingClient(awsClusterSecurityManager.getBasicAWSCredentials());
+        }
+        amazonAutoScaling.setRegion(region);
+      }
+    }
+
+    return amazonAutoScaling;
   }
 
+  /***
+   * Creates a new Amazon S3 client to invoke service methods on Amazon S3
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon S3 {@link Region} to get the client for
+   * @return Amazon S3 client to invoke service methods on Amazon S3
+   */
   public static AmazonS3 getS3Client(AWSClusterSecurityManager awsClusterSecurityManager,
       Region region) {
 
-    // TODO: Add client caching
-    final AmazonS3 s3;
-    if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
-      s3 = new AmazonS3Client(awsClusterSecurityManager.getBasicSessionCredentials());
-    } else {
-      s3 = new AmazonS3Client(awsClusterSecurityManager.getBasicAWSCredentials());
+    if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
+        awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
+      return amazonS3;
     }
-    s3.setRegion(region);
 
-    return s3;
+    synchronized (AWSSdkClient.class) {
+      if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
+          awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
+        if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
+          amazonS3 = new AmazonS3Client(awsClusterSecurityManager.getBasicSessionCredentials());
+        } else {
+          amazonS3 = new AmazonS3Client(awsClusterSecurityManager.getBasicAWSCredentials());
+        }
+        amazonS3.setRegion(region);
+      }
+    }
+
+    return amazonS3;
   }
 }

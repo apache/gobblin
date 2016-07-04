@@ -25,10 +25,10 @@ public class Log4jConfigHelper {
    */
   public static void updateLog4jConfiguration(Class<?> targetClass, String log4jFileName)
       throws IOException {
-    Closer closer = Closer.create();
+    final Closer closer = Closer.create();
     try {
-      InputStream inputStream = closer.register(targetClass.getResourceAsStream("/" + log4jFileName));
-      Properties originalProperties = new Properties();
+      final InputStream inputStream = closer.register(targetClass.getResourceAsStream("/" + log4jFileName));
+      final Properties originalProperties = new Properties();
       originalProperties.load(inputStream);
 
       LogManager.resetConfiguration();

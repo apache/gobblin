@@ -20,6 +20,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
@@ -35,10 +36,31 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.cluster.GobblinClusterManager;
+import gobblin.cluster.GobblinHelixTask;
+import gobblin.cluster.GobblinHelixTaskFactory;
 import gobblin.cluster.GobblinTaskRunner;
+import gobblin.cluster.HelixMessageSubTypes;
+
 
 /**
- * This class is responsible for running Gobblin task on Worker nodes
+ * Class running on worker nodes managing services for executing Gobblin
+ * {@link gobblin.source.workunit.WorkUnit}s.
+ *
+ * <p>
+ *   This class makes use of super class {@link GobblinTaskRunner} to run:
+ *   1. {@link GobblinHelixTaskFactory} for creating {@link GobblinHelixTask}s that Helix manages
+ *      to run Gobblin data ingestion tasks.
+ *   2. {@link HelixManager} to work with Helix and act as Helix participant to execute tasks.
+ *
+ *   More AWS specific services can be added in future to this class that are required to be
+ *   run on Gobblin cluster worker.
+ * </p>
+ *
+ * <p>
+ *   Note: Shutdown initiated by {@link GobblinClusterManager} via a Helix message of subtype
+ *   {@link HelixMessageSubTypes#WORK_UNIT_RUNNER_SHUTDOWN} is handled by super class {@link GobblinTaskRunner}
+ * </p>
  *
  * @author Abhishek Tiwari
  */
@@ -103,7 +125,7 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
             .format("No handling setup for %s message of subtype: %s", Message.MessageType.USER_DEFINE_MSG.toString(),
                 this._message.getMsgSubType()));
 
-        HelixTaskResult helixTaskResult = new HelixTaskResult();
+        final HelixTaskResult helixTaskResult = new HelixTaskResult();
         helixTaskResult.setSuccess(true);
         return helixTaskResult;
       }
@@ -125,7 +147,7 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
   }
 
   public static Options buildOptions() {
-    Options options = new Options();
+    final Options options = new Options();
     options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Application name");
     options.addOption("i", GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME, true, "Helix instance name");
     options.addOption("d", GobblinAWSConfigurationKeys.APP_WORK_DIR, true, "Application work directory");
@@ -133,10 +155,10 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
   }
 
   public static void main(String[] args) throws Exception {
-    Options options = buildOptions();
+    final Options options = buildOptions();
 
     try {
-      CommandLine cmd = new DefaultParser().parse(options, args);
+      final CommandLine cmd = new DefaultParser().parse(options, args);
       if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) ||
           !cmd.hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME) ||
           !cmd.hasOption(GobblinAWSConfigurationKeys.APP_WORK_DIR)) {
@@ -147,11 +169,11 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
       Log4jConfigHelper.updateLog4jConfiguration(GobblinTaskRunner.class,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE);
 
-      String applicationName = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME);
-      String helixInstanceName = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);
-      String appWorkDir = cmd.getOptionValue(GobblinAWSConfigurationKeys.APP_WORK_DIR);
+      final String applicationName = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME);
+      final String helixInstanceName = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);
+      final String appWorkDir = cmd.getOptionValue(GobblinAWSConfigurationKeys.APP_WORK_DIR);
 
-      GobblinTaskRunner gobblinTaskRunner =
+      final GobblinTaskRunner gobblinTaskRunner =
           new GobblinAWSTaskRunner(applicationName, helixInstanceName, ConfigFactory.load(),
               Optional.of(new Path(appWorkDir)));
       gobblinTaskRunner.start();
