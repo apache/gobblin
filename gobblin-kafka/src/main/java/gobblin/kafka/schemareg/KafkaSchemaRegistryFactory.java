@@ -47,7 +47,7 @@ public class KafkaSchemaRegistryFactory {
       KafkaSchemaRegistry schemaRegistry = (KafkaSchemaRegistry) ConstructorUtils.invokeConstructor(clazz, props);
       if (tryCache && !schemaRegistry.hasInternalCache())
       {
-        // TODO: Wrap the schema registry with an caching schema registry
+        schemaRegistry = new CachingKafkaSchemaRegistry(schemaRegistry);
       }
       return schemaRegistry;
     } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException

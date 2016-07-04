@@ -36,7 +36,7 @@ import gobblin.kafka.schemareg.SchemaRegistryException;
  */
 public class LiAvroSerializer implements Serializer<GenericRecord> {
 
-  private KafkaSchemaRegistry<MD5Digest> schemaRegistry;
+  private KafkaSchemaRegistry<MD5Digest, Schema> schemaRegistry;
   private final EncoderFactory encoderFactory;
   private boolean isKey;
 
@@ -46,12 +46,6 @@ public class LiAvroSerializer implements Serializer<GenericRecord> {
     encoderFactory = EncoderFactory.get();
   }
 
-  /**
-   * Configure this class.
-
-   * @param configs configs in key/value pairs
-   * @param isKey whether is for key or value
-   */
   @Override
   public void configure(Map<String, ?> configs, boolean isKey) {
     if (null == schemaRegistry)
@@ -61,12 +55,6 @@ public class LiAvroSerializer implements Serializer<GenericRecord> {
     this.isKey = isKey;
   }
 
-  /**
-   *
-   * @param topic topic associated with data
-   * @param data typed data
-   * @return serialized bytes
-   */
   @Override
   public byte[] serialize(String topic, GenericRecord data) {
     Schema schema = data.getSchema();
@@ -88,9 +76,6 @@ public class LiAvroSerializer implements Serializer<GenericRecord> {
     }
   }
 
-  /**
-   * Close this serializer
-   */
   @Override
   public void close() {
 

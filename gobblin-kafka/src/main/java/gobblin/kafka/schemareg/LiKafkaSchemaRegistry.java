@@ -37,7 +37,7 @@ import gobblin.util.AvroUtils;
 /**
  * Integration with LinkedIn's implementation of a schema registry that uses md5-hash for schema ids.
  */
-public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest> {
+public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Schema> {
 
 
   private static final Logger LOG = LoggerFactory.getLogger(LiKafkaSchemaRegistry.class);
@@ -45,9 +45,6 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest> {
   private static final String GET_RESOURCE_BY_TYPE = "/latest_with_type=";
   private static final String SCHEMA_ID_HEADER_NAME = "Location";
   private static final String SCHEMA_ID_HEADER_PREFIX = "/id=";
-
-  public static final int SCHEMA_ID_LENGTH_BYTE = 16;
-  public static final byte MAGIC_BYTE = 0x0;
 
   private final GenericObjectPool<HttpClient> httpClientPool;
   private final String url;
@@ -247,24 +244,4 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest> {
     return schema;
   }
 
-  public static void main(String[] args)
-      throws SchemaRegistryException {
-    Properties props = new Properties();
-    props.setProperty(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_URL, "http://eat1-schema-registry-vip-1.corp.linkedin.com:12250/schemaRegistry/schemas");
-    LiKafkaSchemaRegistry schemaRegistry = new LiKafkaSchemaRegistry(props);
-    String topic = "ServiceCallEvent";
-    for (int i = 0; i < 5; ++i)
-    {
-      long time = System.nanoTime();
-      Schema schema = schemaRegistry.getLatestSchema(topic);
-      time = System.nanoTime() - time;
-      MD5Digest md5 = schemaRegistry.register(topic, schema);
-      System.out.println("Schema Id = " + md5.asString() + "; Time taken = " + time/1000000.0  + " millis");
-    }
-
-
-
-
-
-  }
 }

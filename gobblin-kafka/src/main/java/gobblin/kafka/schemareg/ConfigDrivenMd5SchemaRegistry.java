@@ -30,9 +30,12 @@ import gobblin.kafka.serialize.MD5Digest;
 
 
 /**
- * A Mock SchemaRegistry that hands out MD5 based ids
+ * A SchemaRegistry that hands out MD5 based ids based on configuration
+ * Can be configured to be initialized with a single schema name, value pair.
+ * {@see ConfigDrivenMd5SchemaRegistry.ConfigurationKeys} for configuration.
+ *
  */
-public class ConfigDrivenMd5SchemaRegistry implements KafkaSchemaRegistry<MD5Digest> {
+public class ConfigDrivenMd5SchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Schema> {
 
   private class ConfigurationKeys {
     private static final String SCHEMA_NAME_KEY="schemaRegistry.schema.name";

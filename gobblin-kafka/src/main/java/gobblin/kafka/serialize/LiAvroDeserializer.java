@@ -38,10 +38,10 @@ import gobblin.kafka.schemareg.SchemaRegistryException;
 @Slf4j
 public class LiAvroDeserializer implements Deserializer<GenericRecord> {
 
-  private KafkaSchemaRegistry<MD5Digest> _schemaRegistry;
+  private KafkaSchemaRegistry<MD5Digest, Schema> _schemaRegistry;
   private GenericDatumReader<GenericData.Record> _datumReader;
 
-  public LiAvroDeserializer(KafkaSchemaRegistry<MD5Digest> schemaRegistry)
+  public LiAvroDeserializer(KafkaSchemaRegistry<MD5Digest, Schema> schemaRegistry)
   {
     _schemaRegistry = schemaRegistry;
     _datumReader = new GenericDatumReader<>();

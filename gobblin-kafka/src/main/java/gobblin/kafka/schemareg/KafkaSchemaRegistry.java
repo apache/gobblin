@@ -23,9 +23,9 @@ import org.apache.avro.Schema;
  * and should have a constructor that takes a {@link java.util.Properties} object as a parameter.
  *
  * @param <K> : the type of the schema identifier (e.g. int, string, md5, ...)
- *
+ * @param <S> : the type of the schema system in use (e.g. avro's Schema, ... )
  */
-public interface  KafkaSchemaRegistry<K> {
+public interface  KafkaSchemaRegistry<K, S> {
 
   /**
    * Register this schema under the provided name
@@ -35,7 +35,7 @@ public interface  KafkaSchemaRegistry<K> {
    * @throws IOException
    * @throws SchemaRegistryException
    */
-  public K register(String name, Schema schema) throws IOException, SchemaRegistryException;
+  public K register(String name, S schema) throws IOException, SchemaRegistryException;
 
   /**
    * Get a schema given an id
@@ -44,7 +44,7 @@ public interface  KafkaSchemaRegistry<K> {
    * @throws IOException
    * @throws SchemaRegistryException
    */
-  public Schema getById(K id)
+  public S getById(K id)
       throws IOException, SchemaRegistryException;
 
   /**
@@ -53,7 +53,7 @@ public interface  KafkaSchemaRegistry<K> {
    * @return the latest Schema
    * @throws SchemaRegistryException
    */
-  public Schema getLatestSchema(String name) throws IOException, SchemaRegistryException;
+  public S getLatestSchema(String name) throws IOException, SchemaRegistryException;
 
 
 
