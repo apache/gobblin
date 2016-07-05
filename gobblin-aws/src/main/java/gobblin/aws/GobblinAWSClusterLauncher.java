@@ -58,6 +58,7 @@ import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinClusterUtils;
 import gobblin.cluster.HelixMessageSubTypes;
@@ -91,6 +92,7 @@ import gobblin.util.EmailUtils;
  *
  * @author Abhishek Tiwari
  */
+@Alpha
 public class GobblinAWSClusterLauncher {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterLauncher.class);
 

@@ -61,6 +61,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * Class responsible for all AWS API calls.
@@ -73,6 +75,7 @@ import com.google.common.collect.Lists;
  *
  * @author Abhishek Tiwari
  */
+@Alpha
 public class AWSSdkClient {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterLauncher.class);
 

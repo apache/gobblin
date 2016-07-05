@@ -21,12 +21,15 @@ import org.slf4j.LoggerFactory;
 import com.amazonaws.regions.Region;
 import com.google.common.base.Optional;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * Class that handles Helix shutdown response and consequently shutdowns Amazon AutoScaling group.
  *
  * @author Abhishek Tiwari
  */
+@Alpha
 public class AWSShutdownHandler extends AsyncCallback {
   private static final Logger LOGGER = LoggerFactory.getLogger(AWSShutdownHandler.class);
 

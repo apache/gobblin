@@ -35,6 +35,7 @@ import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinClusterManager;
 import gobblin.cluster.GobblinHelixTask;
@@ -64,6 +65,7 @@ import gobblin.cluster.HelixMessageSubTypes;
  *
  * @author Abhishek Tiwari
  */
+@Alpha
 public class GobblinAWSTaskRunner extends GobblinTaskRunner {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinTaskRunner.class);
 

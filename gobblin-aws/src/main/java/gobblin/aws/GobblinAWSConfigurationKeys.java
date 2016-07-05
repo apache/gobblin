@@ -12,11 +12,15 @@
 
 package gobblin.aws;
 
+import gobblin.annotation.Alpha;
+
+
 /**
  * A central place for configuration related constants of Gobblin on AWS.
  *
  * @author Abhishek Tiwari
  */
+@Alpha
 public class GobblinAWSConfigurationKeys {
 
   public static final String GOBBLIN_AWS_PREFIX = "gobblin.aws.";

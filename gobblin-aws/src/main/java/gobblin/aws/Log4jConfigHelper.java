@@ -9,12 +9,15 @@ import org.apache.log4j.PropertyConfigurator;
 
 import com.google.common.io.Closer;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * A helper class for programmatically configuring log4j.
  *
  * @author Abhishek Tiwari
  */
+@Alpha
 public class Log4jConfigHelper {
   /**
    * Update the log4j configuration.

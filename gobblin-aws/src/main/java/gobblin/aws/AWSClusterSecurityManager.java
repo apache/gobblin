@@ -18,6 +18,7 @@ import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
 import gobblin.util.ExecutorsUtils;
 
 /**
@@ -32,6 +33,7 @@ import gobblin.util.ExecutorsUtils;
  *
  * @author Abhishek Tiwari
  */
+@Alpha
 public class AWSClusterSecurityManager extends AbstractIdleService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AWSClusterSecurityManager.class);
