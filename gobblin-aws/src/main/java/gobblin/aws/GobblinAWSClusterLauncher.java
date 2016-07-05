@@ -13,6 +13,7 @@ package gobblin.aws;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -29,6 +30,7 @@ import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
+import org.apache.helix.messaging.AsyncCallback;
 import org.apache.helix.model.Message;
 import org.quartz.utils.FindbugsSuppressWarnings;
 import org.slf4j.Logger;
@@ -158,6 +160,13 @@ public class GobblinAWSClusterLauncher {
   private final String libJarsDir;
   private final String sinkLogRootDir;
   private final String appWorkDir;
+
+  private String masterLaunchConfigName;
+  private String masterAutoScalingGroupName;
+
+  private String workerLaunchConfigName;
+  private String workerAutoScalingGroupName;
+
 
   public GobblinAWSClusterLauncher(Config config) throws IOException {
     this.config = config;
@@ -374,10 +383,10 @@ public class GobblinAWSClusterLauncher {
     final String userData = buildClusterMasterCommand();
 
     // Create launch config for Cluster master
-    final String launchConfigName = "GobblinMasterLaunchConfig_" + uuid;
+    this.masterLaunchConfigName = "GobblinMasterLaunchConfig_" + uuid;
     AWSSdkClient.createLaunchConfig(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
-        launchConfigName,
+        this.masterLaunchConfigName,
         this.masterAmiId,
         this.masterInstanceType,
         keyName,
@@ -391,17 +400,16 @@ public class GobblinAWSClusterLauncher {
 
     // Create ASG for Cluster master
     // TODO: Make size configurable when we have support multi-master
+    this.masterAutoScalingGroupName = "GobblinMasterASG_" + uuid;
     final int minNumMasters = 1;
     final int maxNumMasters = 1;
     final int desiredNumMasters = 1;
-    final String autoscalingGroupName = "GobblinMasterASG_" + uuid;
     final Tag tag = new Tag().withKey("GobblinMaster").withValue(uuid);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
-        autoscalingGroupName,
-        launchConfigName,
-        minNumMasters,
-        maxNumMasters,
+        this.masterAutoScalingGroupName,
+        this.masterLaunchConfigName,
+        minNumMasters, maxNumMasters,
         desiredNumMasters,
         Optional.of(availabilityZone.getZoneName()),
         Optional.<Integer>absent(),
@@ -424,14 +432,14 @@ public class GobblinAWSClusterLauncher {
       }
       instanceIds = AWSSdkClient.getInstancesForGroup(this.awsClusterSecurityManager,
           Region.getRegion(Regions.fromName(this.awsRegion)),
-          autoscalingGroupName,
+          this.masterAutoScalingGroupName,
           "running");
       isMasterLaunched = instanceIds.size() > 0;
     }
 
     if (!isMasterLaunched) {
       throw new RuntimeException("Timed out while waiting for cluster master. "
-          + "Check for issue manually for ASG: " + autoscalingGroupName);
+          + "Check for issue manually for ASG: " + this.masterAutoScalingGroupName);
     }
 
     // This will change if cluster master restarts, but that will be handled by Helix events
@@ -448,10 +456,10 @@ public class GobblinAWSClusterLauncher {
     final String userData = buildClusterWorkerCommand();
 
     // Create launch config for Cluster worker
-    final String launchConfigName = "GobblinWorkerLaunchConfig_" + uuid;
+    this.workerLaunchConfigName = "GobblinWorkerLaunchConfig_" + uuid;
     AWSSdkClient.createLaunchConfig(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
-        launchConfigName,
+        this.workerLaunchConfigName,
         this.workerAmiId,
         this.workerInstanceType,
         keyName,
@@ -464,12 +472,12 @@ public class GobblinAWSClusterLauncher {
         userData);
 
     // Create ASG for Cluster workers
-    final String autoscalingGroupName = "GobblinWorkerASG_" + uuid;
+    this.workerAutoScalingGroupName = "GobblinWorkerASG_" + uuid;
     final Tag tag = new Tag().withKey("GobblinWorker").withValue(uuid);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
-        autoscalingGroupName,
-        launchConfigName,
+        this.workerAutoScalingGroupName,
+        this.workerLaunchConfigName,
         this.minWorkers,
         this.maxWorkers,
         this.desiredWorkers,
@@ -716,10 +724,33 @@ public class GobblinAWSClusterLauncher {
     shutdownRequest.setMsgState(Message.MessageState.NEW);
     shutdownRequest.setTgtSessionId("*");
 
-    final int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest);
+    // Wait for 5 minutes
+    final int timeout = 300000;
+
+    // Send shutdown request to Cluster master, which will send shutdown request to workers
+    // .. master will callback shutdownASG() once it receives shutdown response from workers as well
+    // .. shuts itself down
+    final int messagesSent = this.helixManager.getMessagingService().sendAndWait(criteria, shutdownRequest,
+        shutdownASG(),timeout);
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the controller", shutdownRequest.getMsgSubType()));
     }
+  }
+
+  /***
+   * Callback method that deletes AutoScalingGroup
+   * @return Callback method that deletes AutoScalingGroup
+   */
+  private AsyncCallback shutdownASG() {
+    Optional<List<String>> optionalLaunchConfigurationNames = Optional
+        .of(Arrays.asList(this.masterLaunchConfigName, this.workerLaunchConfigName));
+    Optional<List<String>> optionalAutoScalingGroupNames = Optional
+        .of(Arrays.asList(this.masterAutoScalingGroupName, this.workerAutoScalingGroupName));
+
+    return new AWSShutdownHandler(this.awsClusterSecurityManager,
+        Region.getRegion(Regions.fromName(this.awsRegion)),
+        optionalLaunchConfigurationNames,
+        optionalAutoScalingGroupNames);
   }
 
   private void cleanUpClusterWorkDirectory(String clusterId) throws IOException {

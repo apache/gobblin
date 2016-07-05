@@ -28,6 +28,8 @@ import com.amazonaws.services.autoscaling.AmazonAutoScalingClient;
 import com.amazonaws.services.autoscaling.model.BlockDeviceMapping;
 import com.amazonaws.services.autoscaling.model.CreateAutoScalingGroupRequest;
 import com.amazonaws.services.autoscaling.model.CreateLaunchConfigurationRequest;
+import com.amazonaws.services.autoscaling.model.DeleteAutoScalingGroupRequest;
+import com.amazonaws.services.autoscaling.model.DeleteLaunchConfigurationRequest;
 import com.amazonaws.services.autoscaling.model.InstanceMonitoring;
 import com.amazonaws.services.autoscaling.model.Tag;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -231,6 +233,27 @@ public class AWSSdkClient {
   }
 
   /***
+   * Delete a launch configuration by its name
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param launchConfigName Name of launch config to delete
+   */
+  public static void deleteLaunchConfiguration(AWSClusterSecurityManager awsClusterSecurityManager,
+      Region region,
+      String launchConfigName) {
+
+    final AmazonAutoScaling autoScaling = getAmazonAutoScalingClient(awsClusterSecurityManager, region);
+
+    final DeleteLaunchConfigurationRequest deleteLaunchConfigurationRequest = new DeleteLaunchConfigurationRequest()
+        .withLaunchConfigurationName(launchConfigName);
+
+    autoScaling.deleteLaunchConfiguration(deleteLaunchConfigurationRequest);
+
+    LOGGER.info("Deleted Launch Configuration: " + launchConfigName);
+  }
+
+  /***
    * Create and launch an {@link AmazonAutoScaling} group
    *
    * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
@@ -305,6 +328,30 @@ public class AWSSdkClient {
     autoScaling.createAutoScalingGroup(createAutoScalingGroupRequest);
 
     LOGGER.info("Created AutoScalingGroup: " + groupName);
+  }
+
+  /***
+   * Delete an auto scaling group by its name
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param autoScalingGroupName Name of auto scaling group to delete
+   * @param shouldForceDelete If the AutoScalingGroup should be deleted without waiting for instances to terminate
+   */
+  public static void deleteAutoScalingGroup(AWSClusterSecurityManager awsClusterSecurityManager,
+      Region region,
+      String autoScalingGroupName,
+      boolean shouldForceDelete) {
+
+    final AmazonAutoScaling autoScaling = getAmazonAutoScalingClient(awsClusterSecurityManager, region);
+
+    final DeleteAutoScalingGroupRequest deleteLaunchConfigurationRequest = new DeleteAutoScalingGroupRequest()
+        .withAutoScalingGroupName(autoScalingGroupName)
+        .withForceDelete(shouldForceDelete);
+
+    autoScaling.deleteAutoScalingGroup(deleteLaunchConfigurationRequest);
+
+    LOGGER.info("Deleted AutoScalingGroup: " + autoScalingGroupName);
   }
 
   /***
