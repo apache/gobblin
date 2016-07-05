@@ -21,10 +21,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.FileFileFilter;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.mail.EmailException;
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
@@ -32,7 +29,6 @@ import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.messaging.AsyncCallback;
 import org.apache.helix.model.Message;
-import org.quartz.utils.FindbugsSuppressWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,9 +42,7 @@ import com.amazonaws.services.autoscaling.model.TagDescription;
 import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.Instance;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
@@ -95,18 +89,6 @@ import gobblin.util.EmailUtils;
 @Alpha
 public class GobblinAWSClusterLauncher {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterLauncher.class);
-
-  private static final Splitter SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
-
-  private static final String STDOUT = "stdout";
-  private static final String STDERR = "stderr";
-  private static final String NFS_SHARE_ALL_IPS = "*";
-  private static final String NFS_SHARE_DEFAULT_OPTS = "rw,sync,no_subtree_check,fsid=1,no_root_squash";
-  private static final String NFS_CONF_FILE = "/etc/exports";
-  private static final String NFS_SERVER_INSTALL_CMD = "yum install nfs-utils nfs-utils-lib";
-  private static final String NFS_SERVER_START_CMD = "/etc/init.d/nfs start";
-  private static final String NFS_EXPORT_FS_CMD = "exportfs -a";
-  private static final String NFS_TYPE_4 = "nfs4";
 
   private static final String CLUSTER_NAME_ASG_TAG = "ClusterName";
   private static final String CLUSTER_ID_ASG_TAG = "ClusterId";
@@ -433,8 +415,10 @@ public class GobblinAWSClusterLauncher {
 
     // Create key value pair
     final String keyName = "GobblinKey_" + uuid;
-    final String material = AWSSdkClient.createKeyValuePair(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)), keyName);
+    final String material = AWSSdkClient
+        .createKeyValuePair(this.awsClusterSecurityManager,
+            Region.getRegion(Regions.fromName(this.awsRegion)),
+            keyName);
     LOGGER.debug("Material is: " + material);
     FileUtils.writeStringToFile(new File(keyName + ".pem"), material);
 
@@ -453,7 +437,20 @@ public class GobblinAWSClusterLauncher {
 
   private String launchClusterMaster(String uuid, String keyName, String securityGroups,
       AvailabilityZone availabilityZone) {
-    final String userData = buildClusterMasterCommand();
+
+    // Get cloud-init script to launch cluster master
+    final String userData = CloudInitScriptBuilder.buildClusterMasterCommand(this.clusterName,
+        this.nfsParentDir,
+        this.sinkLogRootDir,
+        this.awsConfDir,
+        this.appWorkDir,
+        this.masterS3ConfUri,
+        this.masterS3ConfFiles,
+        this.masterS3JarsUri,
+        this.masterS3JarsFiles,
+        this.masterJarsDir,
+        this.masterJvmMemory,
+        this.masterJvmArgs);
 
     // Create launch config for Cluster master
     this.masterLaunchConfigName = MASTER_LAUNCH_CONFIG_NAME_PREFIX + uuid;
@@ -533,7 +530,21 @@ public class GobblinAWSClusterLauncher {
   private void launchWorkUnitRunners(String uuid, String keyName,
       String securityGroups,
       AvailabilityZone availabilityZone) {
-    final String userData = buildClusterWorkerCommand();
+
+    // Get cloud-init script to launch cluster worker
+    final String userData = CloudInitScriptBuilder.buildClusterWorkerCommand(this.clusterName,
+        this.nfsParentDir,
+        this.sinkLogRootDir,
+        this.awsConfDir,
+        this.appWorkDir,
+        this.masterPublicIp,
+        this.workerS3ConfUri,
+        this.workerS3ConfFiles,
+        this.workerS3JarsUri,
+        this.workerS3JarsFiles,
+        this.workerJarsDir,
+        this.workerJvmMemory,
+        this.workerJvmArgs);
 
     // Create launch config for Cluster worker
     this.workerLaunchConfigName = WORKERS_LAUNCH_CONFIG_PREFIX + uuid;
@@ -570,224 +581,6 @@ public class GobblinAWSClusterLauncher {
         Optional.<String>absent(),
         Optional.<String>absent(),
         Lists.newArrayList(clusterNameTag, clusterUuidTag, asgTypeTag));
-  }
-
-  /***
-   * This method generates the userdata that would be executed by cloud-init module in EC2 instance
-   * upon boot up for {@link GobblinAWSClusterMaster}.
-   *
-   * The userdata is a shell script that does the following:
-   * 1. Mount NFS Server (TODO: To be replaced with EFS soon)
-   * 2. Create all prerequisite directories
-   * 3. Download cluster configuration from S3
-   * 4. Download gobblin application jars from S3 (TODO: To be replaced via baked in jars in custom Gobblin AMI)
-   * 5. Download gobblin custom jars from S3
-   * 6. Launch {@link GobblinAWSClusterMaster} java application
-   * 7. TODO: Add cron that watches the {@link GobblinAWSClusterMaster} application and restarts it if it dies
-   *
-   * @return Userdata to launch {@link GobblinAWSClusterMaster}
-   */
-  private String buildClusterMasterCommand() {
-    final StringBuilder userDataCmds = new StringBuilder().append("#!/bin/bash").append("\n");
-
-    final String clusterMasterClassName = GobblinAWSClusterMaster.class.getSimpleName();
-
-    // Create NFS server
-    // TODO: Replace with EFS (it went into GA on 6/30/2016)
-    // Note: Until EFS availability, ClusterMaster is SPOF because we loose NFS when it's relaunched / replaced
-    //       .. this can be worked around, but would be an un-necessary work
-    final String nfsDir = this.nfsParentDir + this.clusterName;
-
-    final String nfsShareDirCmd = String.format("echo '%s %s(%s)' | tee --append %s",
-        nfsDir, NFS_SHARE_ALL_IPS, NFS_SHARE_DEFAULT_OPTS, NFS_CONF_FILE);
-    userDataCmds.append("mkdir -p ").append(nfsDir).append(File.separator).append("1").append("\n");
-    userDataCmds.append(NFS_SERVER_INSTALL_CMD).append("\n");
-    userDataCmds.append(nfsShareDirCmd).append("\n");
-    userDataCmds.append(NFS_SERVER_START_CMD).append("\n");
-    userDataCmds.append(NFS_EXPORT_FS_CMD).append("\n");
-
-    // Create various directories
-    userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
-    userDataCmds.append("chown -R ec2-user:ec2-user /home/ec2-user/*").append("\n");
-
-    // Setup short variables to save userdata space
-    userDataCmds.append("cgS3=").append(this.masterS3ConfUri).append("\n");
-    userDataCmds.append("cg=").append(this.awsConfDir).append("\n");
-    userDataCmds.append("jrS3=").append(this.masterS3JarsUri).append("\n");
-    userDataCmds.append("jr=").append(this.masterJarsDir).append("\n");
-
-    // Download configurations from S3
-    final StringBuilder classpath = new StringBuilder();
-    final List<String> awsConfs = SPLITTER.splitToList(this.masterS3ConfFiles);
-    for (String awsConf : awsConfs) {
-      userDataCmds.append(String.format("wget -P \"${cg}\" \"${cgS3}\"%s", awsConf)).append("\n");
-    }
-    classpath.append(this.awsConfDir);
-
-    // Download jars from S3
-    // TODO: Eventually limit only custom user jars to pulled from S3, load rest from AMI
-    final List<String> awsJars = SPLITTER.splitToList(this.masterS3JarsFiles);
-    for (String awsJar : awsJars) {
-      userDataCmds.append(String.format("wget -P \"${jr}\" \"${jrS3}\"%s", awsJar)).append("\n");
-    }
-    classpath.append(":").append(this.masterJarsDir).append("*");
-
-    // TODO: Add cron that brings back master if it dies
-    // Launch Gobblin Cluster Master
-    final StringBuilder launchGobblinClusterMasterCmd = new StringBuilder()
-        .append("java")
-        .append(" -cp ").append(classpath)
-        .append(" -Xmx").append(this.masterJvmMemory)
-        .append(" ").append(this.masterJvmArgs.or(""))
-        .append(" ").append(GobblinAWSClusterMaster.class.getName())
-        .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
-        .append(" ").append(this.clusterName)
-        .append(" --").append(GobblinAWSConfigurationKeys.APP_WORK_DIR)
-        .append(" ").append(this.appWorkDir)
-        .append(" 1>").append(this.sinkLogRootDir)
-            .append(clusterMasterClassName).append(".")
-            .append("master").append(".")
-            .append(GobblinAWSClusterLauncher.STDOUT)
-        .append(" 2>").append(this.sinkLogRootDir)
-            .append(clusterMasterClassName).append(".")
-            .append("master").append(".")
-            .append(GobblinAWSClusterLauncher.STDERR);
-    userDataCmds.append(launchGobblinClusterMasterCmd).append("\n");
-
-    final String userData = userDataCmds.toString();
-    LOGGER.info("Userdata for master node: " + userData);
-
-    return encodeBase64(userData);
-  }
-
-  /***
-   * This method generates the userdata that would be executed by cloud-init module in EC2 instance
-   * upon boot up for {@link GobblinAWSTaskRunner}.
-   *
-   * The userdata is a shell script that does the following:
-   * 1. Mount NFS volume (TODO: To be replaced with EFS soon)
-   * 2. Create all prerequisite directories
-   * 3. Download cluster configuration from S3
-   * 4. Download gobblin application jars from S3 (TODO: To be replaced via baked in jars in custom Gobblin AMI)
-   * 5. Download gobblin custom jars from S3
-   * 6. Launch {@link GobblinAWSTaskRunner} java application
-   * 7. TODO: Add cron that watches the {@link GobblinAWSTaskRunner} application and restarts it if it dies
-   *
-   * @return Userdata to launch {@link GobblinAWSTaskRunner}
-   */
-  private String buildClusterWorkerCommand() {
-    final StringBuilder userDataCmds = new StringBuilder().append("#!/bin/bash").append("\n");
-
-    final String clusterWorkerClassName = GobblinAWSTaskRunner.class.getSimpleName();
-
-    // Connect to NFS server
-    // TODO: Replace with EFS (it went into GA on 6/30/2016)
-    final String nfsDir = this.nfsParentDir + this.clusterName;
-    final String nfsMountCmd = String.format("mount -t %s %s:%s %s", NFS_TYPE_4, this.masterPublicIp, nfsDir,
-        nfsDir);
-    userDataCmds.append("mkdir -p ").append(nfsDir).append("\n");
-    userDataCmds.append(nfsMountCmd).append("\n");
-
-    // Create various other directories
-    userDataCmds.append("mkdir -p ").append(this.sinkLogRootDir).append("\n");
-    userDataCmds.append("chown -R ec2-user:ec2-user /home/ec2-user/*").append("\n");
-
-    // Setup short variables to save userdata space
-    userDataCmds.append("cg0=").append(this.workerS3ConfUri).append("\n");
-    userDataCmds.append("cg=").append(this.awsConfDir).append("\n");
-    userDataCmds.append("jr0=").append(this.workerS3JarsUri).append("\n");
-    userDataCmds.append("jr=").append(this.workerJarsDir).append("\n");
-
-    // Download configurations from S3
-    final StringBuilder classpath = new StringBuilder();
-    final List<String> awsConfs = SPLITTER.splitToList(this.workerS3ConfFiles);
-    for (String awsConf : awsConfs) {
-      userDataCmds.append(String.format("wget -P \"${cg}\" \"${cg0}\"%s", awsConf)).append("\n");
-    }
-    classpath.append(this.awsConfDir);
-
-    // Download jars from S3
-    // TODO: Limit only custom user jars to pulled from S3, load rest from AMI
-    final List<String> awsJars = SPLITTER.splitToList(this.workerS3JarsFiles);
-    for (String awsJar : awsJars) {
-      userDataCmds.append(String.format("wget -P \"${jr}\" \"${jr0}\"%s", awsJar)).append("\n");
-    }
-    classpath.append(":").append(this.workerJarsDir).append("*");
-
-    // Get a random Helix instance name
-    userDataCmds.append("pi=`curl http://169.254.169.254/latest/meta-data/local-ipv4`").append("\n");
-
-    // TODO: Add cron that brings back worker if it dies
-    // Launch Gobblin Worker
-    final StringBuilder launchGobblinClusterWorkerCmd = new StringBuilder()
-        .append("java")
-        .append(" -cp ").append(classpath)
-        .append(" -Xmx").append(this.workerJvmMemory)
-        .append(" ").append(this.workerJvmArgs.or(""))
-        .append(" ").append(GobblinAWSTaskRunner.class.getName())
-        .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
-        .append(" ").append(this.clusterName)
-        .append(" --").append(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)
-        .append(" ").append("$pi")
-        .append(" --").append(GobblinAWSConfigurationKeys.APP_WORK_DIR)
-        .append(" ").append(this.appWorkDir)
-        .append(" 1>").append(this.sinkLogRootDir)
-            .append(clusterWorkerClassName).append(".")
-            .append("$pi").append(".")
-            .append(GobblinAWSClusterLauncher.STDOUT)
-        .append(" 2>").append(this.sinkLogRootDir)
-            .append(clusterWorkerClassName).append(".")
-            .append("$pi").append(".")
-            .append(GobblinAWSClusterLauncher.STDERR);
-    userDataCmds.append(launchGobblinClusterWorkerCmd);
-
-    final String userData = userDataCmds.toString();
-    LOGGER.info("Userdata for worker node: " + userData);
-
-    return encodeBase64(userData);
-  }
-
-  @FindbugsSuppressWarnings("DM_DEFAULT_ENCODING")
-  private String encodeBase64(String data) {
-    final byte[] encodedBytes = Base64.encodeBase64(data.getBytes());
-
-    return new String(encodedBytes);
-  }
-
-  /***
-   * List and generate classpath string from paths
-   *
-   * Note: This is currently unused, and will be brought in to use with custom Gobblin AMI
-   *
-   * @param paths Paths to list
-   * @return Classpath string
-   */
-  private String getClasspathFromPaths(File... paths) {
-    final StringBuilder classpath = new StringBuilder();
-    boolean isFirst = true;
-    for (File path : paths) {
-      if (!isFirst) {
-        classpath.append(":");
-      }
-      final String subClasspath = getClasspathFromPath(path);
-      if (subClasspath.length() > 0) {
-        classpath.append(subClasspath);
-        isFirst = false;
-      }
-    }
-
-    return classpath.toString();
-  }
-
-  private String getClasspathFromPath(File path) {
-    if (null == path) {
-      return StringUtils.EMPTY;
-    }
-    if (!path.isDirectory()) {
-      return path.getAbsolutePath();
-    }
-
-    return Joiner.on(":").skipNulls().join(path.list(FileFileFilter.FILE));
   }
 
   @VisibleForTesting
