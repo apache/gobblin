@@ -66,17 +66,38 @@ public class AWSShutdownHandler extends AsyncCallback {
   private void shutdownASG() {
     if (optionalLaunchConfigurationNames.isPresent()) {
       for (String launchConfigurationName : optionalLaunchConfigurationNames.get()) {
-        AWSSdkClient.deleteLaunchConfiguration(this.awsClusterSecurityManager,
-            this.region,
-            launchConfigurationName);
+        try {
+          AWSSdkClient.deleteLaunchConfiguration(this.awsClusterSecurityManager,
+              this.region,
+              launchConfigurationName);
+        } catch (Exception e) {
+          // Ignore and continue, so that we clean up as many resources as possible
+          LOGGER.error("Issue in deleting launch configuration: " + launchConfigurationName, e);
+        }
       }
     }
     if (optionalAutoScalingGroupNames.isPresent()) {
       for (String autoScalingGroupName : optionalAutoScalingGroupNames.get()) {
-        AWSSdkClient.deleteAutoScalingGroup(this.awsClusterSecurityManager,
-            this.region,
-            autoScalingGroupName,
-            SHOULD_FORCE_DELETE_ASG_DEFAULT);
+        try {
+          AWSSdkClient.deleteAutoScalingGroup(this.awsClusterSecurityManager,
+              this.region,
+              autoScalingGroupName,
+              SHOULD_FORCE_DELETE_ASG_DEFAULT);
+        } catch (Exception e1) {
+          LOGGER.error("Issue in deleting auto scaling group (in graceful mode): " + autoScalingGroupName
+              + " Going to try forceful cleanup.", e1);
+
+          try {
+            // Delete forcefully
+            AWSSdkClient.deleteAutoScalingGroup(this.awsClusterSecurityManager,
+                this.region,
+                autoScalingGroupName,
+                true);
+          } catch (Exception e2) {
+            // Ignore and continue, so that we clean up as many resources as possible
+            LOGGER.error("Issue in deleting auto scaling group (in forced mode): " + autoScalingGroupName, e2);
+          }
+        }
       }
     }
   }
