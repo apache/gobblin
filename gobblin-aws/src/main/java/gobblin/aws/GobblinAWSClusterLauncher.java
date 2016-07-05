@@ -90,16 +90,16 @@ import gobblin.util.EmailUtils;
 public class GobblinAWSClusterLauncher {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterLauncher.class);
 
-  private static final String CLUSTER_NAME_ASG_TAG = "ClusterName";
-  private static final String CLUSTER_ID_ASG_TAG = "ClusterId";
-  private static final String ASG_TYPE_ASG_TAG = "AsgType";
-  private static final String ASG_TYPE_MASTER = "master";
-  private static final String ASG_TYPE_WORKERS = "workers";
+  public static final String CLUSTER_NAME_ASG_TAG = "ClusterName";
+  public static final String CLUSTER_ID_ASG_TAG = "ClusterId";
+  public static final String ASG_TYPE_ASG_TAG = "AsgType";
+  public static final String ASG_TYPE_MASTER = "master";
+  public static final String ASG_TYPE_WORKERS = "workers";
 
-  private static final String MASTER_ASG_NAME_PREFIX = "GobblinMasterASG_";
-  private static final String MASTER_LAUNCH_CONFIG_NAME_PREFIX = "GobblinMasterLaunchConfig_";
-  private static final String WORKERS_ASG_NAME_PREFIX = "GobblinWorkerASG_";
-  private static final String WORKERS_LAUNCH_CONFIG_PREFIX = "GobblinWorkerLaunchConfig_";
+  public static final String MASTER_ASG_NAME_PREFIX = "GobblinMasterASG_";
+  public static final String MASTER_LAUNCH_CONFIG_NAME_PREFIX = "GobblinMasterLaunchConfig_";
+  public static final String WORKERS_ASG_NAME_PREFIX = "GobblinWorkerASG_";
+  public static final String WORKERS_LAUNCH_CONFIG_PREFIX = "GobblinWorkerLaunchConfig_";
 
   private final Config config;
 
@@ -107,6 +107,7 @@ public class GobblinAWSClusterLauncher {
   private final EventBus eventBus = new EventBus(GobblinAWSClusterLauncher.class.getSimpleName());
   private volatile Optional<ServiceManager> serviceManager = Optional.absent();
   private AWSClusterSecurityManager awsClusterSecurityManager;
+  private AWSSdkClient awsSdkClient;
 
   private final Closer closer = Closer.create();
 
@@ -220,6 +221,9 @@ public class GobblinAWSClusterLauncher {
 
     this.emailNotificationOnShutdown =
         config.getBoolean(GobblinAWSConfigurationKeys.EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY);
+
+    this.awsClusterSecurityManager = new AWSClusterSecurityManager(this.config);
+    this.awsSdkClient = createAWSSdkClient();
   }
 
   private String appendSlash(String value) {
@@ -248,7 +252,6 @@ public class GobblinAWSClusterLauncher {
 
     // Start all the services
     List<Service> services = Lists.newArrayList();
-    this.awsClusterSecurityManager = new AWSClusterSecurityManager(this.config);
     services.add(this.awsClusterSecurityManager);
     this.serviceManager = Optional.of(new ServiceManager(services));
     this.serviceManager.get().startAsync();
@@ -311,6 +314,12 @@ public class GobblinAWSClusterLauncher {
     }
   }
 
+  @VisibleForTesting
+  AWSSdkClient createAWSSdkClient() {
+    return new AWSSdkClient(this.awsClusterSecurityManager,
+        Region.getRegion(Regions.fromName(this.awsRegion)));
+  }
+
   private Optional<String> getClusterId() throws IOException {
     final Optional<String> reconnectableClusterId = getReconnectableClusterId();
     if (reconnectableClusterId.isPresent()) {
@@ -328,10 +337,7 @@ public class GobblinAWSClusterLauncher {
     final Tag clusterNameTag = new Tag()
         .withKey(CLUSTER_NAME_ASG_TAG)
         .withValue(this.clusterName);
-    final List<AutoScalingGroup> autoScalingGroups = AWSSdkClient.getAutoScalingGroupsWithTag(
-        this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)),
-        clusterNameTag);
+    final List<AutoScalingGroup> autoScalingGroups = this.awsSdkClient.getAutoScalingGroupsWithTag(clusterNameTag);
 
     // If no auto scaling group is found, we don't have an existing cluster to connect to
     if (autoScalingGroups.size() == 0) {
@@ -401,13 +407,8 @@ public class GobblinAWSClusterLauncher {
     // Create security group
     // TODO: Make security group restrictive
     final String securityGroupName = "GobblinSecurityGroup_" + uuid;
-    AWSSdkClient.createSecurityGroup(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)),
-        securityGroupName,
-        "Gobblin cluster security group");
-    AWSSdkClient.addPermissionsToSecurityGroup(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)),
-        securityGroupName,
+    this.awsSdkClient.createSecurityGroup(securityGroupName, "Gobblin cluster security group");
+    this.awsSdkClient.addPermissionsToSecurityGroup(securityGroupName,
         "0.0.0.0/0",
         "tcp",
         0,
@@ -415,16 +416,12 @@ public class GobblinAWSClusterLauncher {
 
     // Create key value pair
     final String keyName = "GobblinKey_" + uuid;
-    final String material = AWSSdkClient
-        .createKeyValuePair(this.awsClusterSecurityManager,
-            Region.getRegion(Regions.fromName(this.awsRegion)),
-            keyName);
+    final String material = this.awsSdkClient.createKeyValuePair(keyName);
     LOGGER.debug("Material is: " + material);
     FileUtils.writeStringToFile(new File(keyName + ".pem"), material);
 
     // Get all availability zones in the region. Currently, we will only use first
-    final List<AvailabilityZone> availabilityZones = AWSSdkClient.getAvailabilityZones(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)));
+    final List<AvailabilityZone> availabilityZones = this.awsSdkClient.getAvailabilityZones();
 
     // Launch Cluster Master
     final String clusterId = launchClusterMaster(uuid, keyName, securityGroupName, availabilityZones.get(0));
@@ -454,9 +451,7 @@ public class GobblinAWSClusterLauncher {
 
     // Create launch config for Cluster master
     this.masterLaunchConfigName = MASTER_LAUNCH_CONFIG_NAME_PREFIX + uuid;
-    AWSSdkClient.createLaunchConfig(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)),
-        this.masterLaunchConfigName,
+    this.awsSdkClient.createLaunchConfig(this.masterLaunchConfigName,
         this.masterAmiId,
         this.masterInstanceType,
         keyName,
@@ -477,9 +472,7 @@ public class GobblinAWSClusterLauncher {
     final Tag clusterNameTag = new Tag().withKey(CLUSTER_NAME_ASG_TAG).withValue(this.clusterName);
     final Tag clusterUuidTag = new Tag().withKey(CLUSTER_ID_ASG_TAG).withValue(uuid);
     final Tag asgTypeTag = new Tag().withKey(ASG_TYPE_ASG_TAG).withValue(ASG_TYPE_MASTER);
-    AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)),
-        this.masterAutoScalingGroupName,
+    this.awsSdkClient.createAutoScalingGroup(this.masterAutoScalingGroupName,
         this.masterLaunchConfigName,
         minNumMasters,
         maxNumMasters,
@@ -509,10 +502,7 @@ public class GobblinAWSClusterLauncher {
       } catch (InterruptedException e) {
         throw new RuntimeException("Interrupted while waiting for cluster master to boot up", e);
       }
-      instanceIds = AWSSdkClient.getInstancesForGroup(this.awsClusterSecurityManager,
-          Region.getRegion(Regions.fromName(this.awsRegion)),
-          this.masterAutoScalingGroupName,
-          "running");
+      instanceIds = this.awsSdkClient.getInstancesForGroup(this.masterAutoScalingGroupName, "running");
       isMasterLaunched = instanceIds.size() > 0;
     }
 
@@ -548,9 +538,7 @@ public class GobblinAWSClusterLauncher {
 
     // Create launch config for Cluster worker
     this.workerLaunchConfigName = WORKERS_LAUNCH_CONFIG_PREFIX + uuid;
-    AWSSdkClient.createLaunchConfig(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)),
-        this.workerLaunchConfigName,
+    this.awsSdkClient.createLaunchConfig(this.workerLaunchConfigName,
         this.workerAmiId,
         this.workerInstanceType,
         keyName,
@@ -567,9 +555,7 @@ public class GobblinAWSClusterLauncher {
     final Tag clusterNameTag = new Tag().withKey(CLUSTER_NAME_ASG_TAG).withValue(this.clusterName);
     final Tag clusterUuidTag = new Tag().withKey(CLUSTER_ID_ASG_TAG).withValue(uuid);
     final Tag asgTypeTag = new Tag().withKey(ASG_TYPE_ASG_TAG).withValue(ASG_TYPE_WORKERS);
-    AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)),
-        this.workerAutoScalingGroupName,
+    this.awsSdkClient.createAutoScalingGroup(this.workerAutoScalingGroupName,
         this.workerLaunchConfigName,
         this.minWorkers,
         this.maxWorkers,
@@ -604,7 +590,7 @@ public class GobblinAWSClusterLauncher {
 
     // Send shutdown request to Cluster master, which will send shutdown request to workers
     // Upon receiving shutdown response from workers, master will shut itself down and call back shutdownASG()
-    final int messagesSent = this.helixManager.getMessagingService().sendAndWait(criteria, shutdownRequest,
+    final int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest,
         shutdownASG(),timeout);
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the controller", shutdownRequest.getMsgSubType()));
@@ -621,8 +607,7 @@ public class GobblinAWSClusterLauncher {
     Optional<List<String>> optionalAutoScalingGroupNames = Optional
         .of(Arrays.asList(this.masterAutoScalingGroupName, this.workerAutoScalingGroupName));
 
-    return new AWSShutdownHandler(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)),
+    return new AWSShutdownHandler(this.awsSdkClient,
         optionalLaunchConfigurationNames,
         optionalAutoScalingGroupNames);
   }

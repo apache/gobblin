@@ -18,7 +18,6 @@ import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.amazonaws.regions.Region;
 import com.google.common.base.Optional;
 
 import gobblin.annotation.Alpha;
@@ -35,17 +34,14 @@ public class AWSShutdownHandler extends AsyncCallback {
 
   private static final boolean SHOULD_FORCE_DELETE_ASG_DEFAULT = false;
 
-  private final AWSClusterSecurityManager awsClusterSecurityManager;
-  private final Region region;
+  private final AWSSdkClient awsSdkClient;
   private final Optional<List<String>> optionalLaunchConfigurationNames;
   private final Optional<List<String>> optionalAutoScalingGroupNames;
 
-  public AWSShutdownHandler(AWSClusterSecurityManager awsClusterSecurityManager,
-      Region region,
+  public AWSShutdownHandler(AWSSdkClient awsSdkClient,
       Optional<List<String>> optionalLaunchConfigurationNames,
       Optional<List<String>> optionalAutoScalingGroupNames) {
-    this.awsClusterSecurityManager = awsClusterSecurityManager;
-    this.region = region;
+    this.awsSdkClient = awsSdkClient;
     this.optionalLaunchConfigurationNames = optionalLaunchConfigurationNames;
     this.optionalAutoScalingGroupNames = optionalAutoScalingGroupNames;
   }
@@ -70,9 +66,7 @@ public class AWSShutdownHandler extends AsyncCallback {
     if (optionalLaunchConfigurationNames.isPresent()) {
       for (String launchConfigurationName : optionalLaunchConfigurationNames.get()) {
         try {
-          AWSSdkClient.deleteLaunchConfiguration(this.awsClusterSecurityManager,
-              this.region,
-              launchConfigurationName);
+          this.awsSdkClient.deleteLaunchConfiguration(launchConfigurationName);
         } catch (Exception e) {
           // Ignore and continue, so that we clean up as many resources as possible
           LOGGER.error("Issue in deleting launch configuration: " + launchConfigurationName, e);
@@ -82,20 +76,14 @@ public class AWSShutdownHandler extends AsyncCallback {
     if (optionalAutoScalingGroupNames.isPresent()) {
       for (String autoScalingGroupName : optionalAutoScalingGroupNames.get()) {
         try {
-          AWSSdkClient.deleteAutoScalingGroup(this.awsClusterSecurityManager,
-              this.region,
-              autoScalingGroupName,
-              SHOULD_FORCE_DELETE_ASG_DEFAULT);
+          this.awsSdkClient.deleteAutoScalingGroup(autoScalingGroupName, SHOULD_FORCE_DELETE_ASG_DEFAULT);
         } catch (Exception e1) {
           LOGGER.error("Issue in deleting auto scaling group (in graceful mode): " + autoScalingGroupName
               + " Going to try forceful cleanup.", e1);
 
           try {
             // Delete forcefully
-            AWSSdkClient.deleteAutoScalingGroup(this.awsClusterSecurityManager,
-                this.region,
-                autoScalingGroupName,
-                true);
+            this.awsSdkClient.deleteAutoScalingGroup(autoScalingGroupName, true);
           } catch (Exception e2) {
             // Ignore and continue, so that we clean up as many resources as possible
             LOGGER.error("Issue in deleting auto scaling group (in forced mode): " + autoScalingGroupName, e2);

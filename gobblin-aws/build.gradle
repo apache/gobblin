@@ -58,9 +58,10 @@ dependencies {
   testCompile project(":gobblin-example")
 
   testCompile externalDependency.testng
-  testCompile externalDependency.hadoopYarnMiniCluster
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
+  testCompile externalDependency.mockito
+  testCompile externalDependency.powermock
 
   compile files('./src/main/resources/helix-core-0.6.6-SNAPSHOT.jar')
 }

@@ -303,7 +303,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
     // Wait for 5 minutes
     final int timeout = 300000;
 
-    int messagesSent = this.helixManager.getMessagingService().sendAndWait(criteria, shutdownRequest,
+    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest,
         new NoopReplyHandler(), timeout);
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the participants", shutdownRequest.getMsgSubType()));

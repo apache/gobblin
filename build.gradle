@@ -216,6 +216,7 @@ ext.externalDependency = [
   "guice": "com.google.inject:guice:4.0",
   "derby": "org.apache.derby:derby:10.12.1.1",
   "mockito": "org.mockito:mockito-core:1.10.19",
+  "powermock": "org.powermock:powermock-mockito-release-full:1.6.2",
   "salesforceWsc": "com.force.api:force-wsc:37.0.3",
   "salesforcePartner": "com.force.api:force-partner-api:37.0.3",
   "scala": "org.scala-lang:scala-library:2.11.8",
