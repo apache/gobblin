@@ -62,7 +62,7 @@ public class CachingKafkaSchemaRegistry<K,S> implements KafkaSchemaRegistry<K,S>
   }
 
   @Override
-  public K register(String name, S schema)
+  synchronized public K register(String name, S schema)
       throws IOException, SchemaRegistryException {
 
     Map<S, K> schemaIdMap;
@@ -88,11 +88,12 @@ public class CachingKafkaSchemaRegistry<K,S> implements KafkaSchemaRegistry<K,S>
     }
     K id = _kafkaSchemaRegistry.register(name, schema);
     schemaIdMap.put(schema, id);
+    _idBasedCache.put(id, schema);
     return id;
   }
 
   @Override
-  public S getById(K id)
+  synchronized public S getById(K id)
       throws IOException, SchemaRegistryException {
     if (_idBasedCache.containsKey(id))
     {
