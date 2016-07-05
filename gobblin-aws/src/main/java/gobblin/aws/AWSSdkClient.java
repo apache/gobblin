@@ -25,13 +25,16 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.regions.Region;
 import com.amazonaws.services.autoscaling.AmazonAutoScaling;
 import com.amazonaws.services.autoscaling.AmazonAutoScalingClient;
+import com.amazonaws.services.autoscaling.model.AutoScalingGroup;
 import com.amazonaws.services.autoscaling.model.BlockDeviceMapping;
 import com.amazonaws.services.autoscaling.model.CreateAutoScalingGroupRequest;
 import com.amazonaws.services.autoscaling.model.CreateLaunchConfigurationRequest;
 import com.amazonaws.services.autoscaling.model.DeleteAutoScalingGroupRequest;
 import com.amazonaws.services.autoscaling.model.DeleteLaunchConfigurationRequest;
+import com.amazonaws.services.autoscaling.model.DescribeAutoScalingGroupsRequest;
 import com.amazonaws.services.autoscaling.model.InstanceMonitoring;
 import com.amazonaws.services.autoscaling.model.Tag;
+import com.amazonaws.services.autoscaling.model.TagDescription;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
@@ -352,6 +355,39 @@ public class AWSSdkClient {
     autoScaling.deleteAutoScalingGroup(deleteLaunchConfigurationRequest);
 
     LOGGER.info("Deleted AutoScalingGroup: " + autoScalingGroupName);
+  }
+
+  /***
+   * Get list of {@link AutoScalingGroup}s for a given tag
+   *
+   * @param awsClusterSecurityManager The {@link AWSClusterSecurityManager} to fetch AWS credentials
+   * @param region The Amazon AWS {@link Region}
+   * @param tag Tag to filter the auto scaling groups
+   * @return List of {@link AutoScalingGroup}s qualifying the filter tag
+   */
+  public static List<AutoScalingGroup> getAutoScalingGroupsWithTag(AWSClusterSecurityManager awsClusterSecurityManager,
+      Region region,
+      Tag tag) {
+
+    final AmazonAutoScaling autoScaling = getAmazonAutoScalingClient(awsClusterSecurityManager, region);
+
+    final DescribeAutoScalingGroupsRequest describeAutoScalingGroupsRequest = new DescribeAutoScalingGroupsRequest();
+
+    final List<AutoScalingGroup> allAutoScalingGroups = autoScaling
+        .describeAutoScalingGroups(describeAutoScalingGroupsRequest)
+        .getAutoScalingGroups();
+
+    final List<AutoScalingGroup> filteredAutoScalingGroups = Lists.newArrayList();
+    for (AutoScalingGroup autoScalingGroup : allAutoScalingGroups) {
+      for (TagDescription tagDescription : autoScalingGroup.getTags()) {
+        if (tagDescription.getKey().equalsIgnoreCase(tag.getKey()) &&
+            tagDescription.getValue().equalsIgnoreCase(tag.getValue())) {
+          filteredAutoScalingGroups.add(autoScalingGroup);
+        }
+      }
+    }
+
+    return filteredAutoScalingGroups;
   }
 
   /***

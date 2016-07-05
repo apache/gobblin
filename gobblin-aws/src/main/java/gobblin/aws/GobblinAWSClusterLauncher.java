@@ -38,9 +38,11 @@ import org.slf4j.LoggerFactory;
 
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
+import com.amazonaws.services.autoscaling.model.AutoScalingGroup;
 import com.amazonaws.services.autoscaling.model.BlockDeviceMapping;
 import com.amazonaws.services.autoscaling.model.InstanceMonitoring;
 import com.amazonaws.services.autoscaling.model.Tag;
+import com.amazonaws.services.autoscaling.model.TagDescription;
 import com.amazonaws.services.ec2.model.AvailabilityZone;
 import com.amazonaws.services.ec2.model.Instance;
 import com.google.common.annotations.VisibleForTesting;
@@ -103,6 +105,17 @@ public class GobblinAWSClusterLauncher {
   private static final String NFS_SERVER_START_CMD = "/etc/init.d/nfs start";
   private static final String NFS_EXPORT_FS_CMD = "exportfs -a";
   private static final String NFS_TYPE_4 = "nfs4";
+
+  private static final String CLUSTER_NAME_ASG_TAG = "ClusterName";
+  private static final String CLUSTER_ID_ASG_TAG = "ClusterId";
+  private static final String ASG_TYPE_ASG_TAG = "AsgType";
+  private static final String ASG_TYPE_MASTER = "master";
+  private static final String ASG_TYPE_WORKERS = "workers";
+
+  private static final String MASTER_ASG_NAME_PREFIX = "GobblinMasterASG_";
+  private static final String MASTER_LAUNCH_CONFIG_NAME_PREFIX = "GobblinMasterLaunchConfig_";
+  private static final String WORKERS_ASG_NAME_PREFIX = "GobblinWorkerASG_";
+  private static final String WORKERS_LAUNCH_CONFIG_PREFIX = "GobblinWorkerLaunchConfig_";
 
   private final Config config;
 
@@ -327,9 +340,68 @@ public class GobblinAWSClusterLauncher {
 
   @VisibleForTesting
   Optional<String> getReconnectableClusterId() throws IOException {
-    // TODO: Discover all available ASG's and reconnect if there is an ClusterMaster
+    // List ASGs with Tag of cluster name
+    final Tag clusterNameTag = new Tag()
+        .withKey(CLUSTER_NAME_ASG_TAG)
+        .withValue(this.clusterName);
+    final List<AutoScalingGroup> autoScalingGroups = AWSSdkClient.getAutoScalingGroupsWithTag(
+        this.awsClusterSecurityManager,
+        Region.getRegion(Regions.fromName(this.awsRegion)),
+        clusterNameTag);
 
-    return Optional.absent();
+    // If no auto scaling group is found, we don't have an existing cluster to connect to
+    if (autoScalingGroups.size() == 0) {
+      return Optional.absent();
+    }
+
+    // If more than 0 auto scaling groups are found, validate the setup
+    if (autoScalingGroups.size() != 2) {
+      throw new IOException("Expected 2 auto scaling groups (1 each for master and workers) but found: " +
+        autoScalingGroups.size());
+    }
+
+    // Retrieve cluster information from ASGs
+    Optional<String> clusterId = Optional.absent();
+    Optional<AutoScalingGroup> masterAsg = Optional.absent();
+    Optional<AutoScalingGroup> workersAsg = Optional.absent();
+
+    for (TagDescription tagDescription : autoScalingGroups.get(0).getTags()) {
+      LOGGER.info("Found tag: " + tagDescription);
+      if (tagDescription.getKey().equalsIgnoreCase(CLUSTER_ID_ASG_TAG)) {
+        clusterId = Optional.of(tagDescription.getValue());
+      }
+      if (tagDescription.getKey().equalsIgnoreCase(ASG_TYPE_ASG_TAG)) {
+        if (tagDescription.getValue().equalsIgnoreCase(ASG_TYPE_MASTER)) {
+          masterAsg = Optional.of(autoScalingGroups.get(0));
+          workersAsg = Optional.of(autoScalingGroups.get(1));
+        } else {
+          masterAsg = Optional.of(autoScalingGroups.get(1));
+          workersAsg = Optional.of(autoScalingGroups.get(0));
+        }
+      }
+    }
+
+    if (!clusterId.isPresent()) {
+      throw new IOException("Found 2 auto scaling group names for: " + this.clusterName +
+          " but tags seem to be corrupted, hence could not determine cluster id");
+    }
+
+    if (!masterAsg.isPresent() || !workersAsg.isPresent()) {
+      throw new IOException("Found 2 auto scaling group names for: " + this.clusterName +
+      " but tags seem to be corrupted, hence could not determine master and workers ASG");
+    }
+
+    // Get Master and Workers launch config name and auto scaling group name
+    this.masterAutoScalingGroupName = masterAsg.get().getAutoScalingGroupName();
+    this.masterLaunchConfigName = masterAsg.get().getLaunchConfigurationName();
+    this.workerAutoScalingGroupName = workersAsg.get().getAutoScalingGroupName();
+    this.workerLaunchConfigName = workersAsg.get().getLaunchConfigurationName();
+
+    LOGGER.info("Trying to find cluster master public ip");
+    this.masterPublicIp = getMasterPublicIp();
+    LOGGER.info("Master public ip: "+ this.masterPublicIp);
+
+    return clusterId;
   }
 
   /**
@@ -360,9 +432,8 @@ public class GobblinAWSClusterLauncher {
     // Create key value pair
     final String keyName = "GobblinKey_" + uuid;
     final String material = AWSSdkClient.createKeyValuePair(this.awsClusterSecurityManager,
-        Region.getRegion(Regions.fromName(this.awsRegion)),
-        keyName);
-    LOGGER.info("Material is: " + material);
+        Region.getRegion(Regions.fromName(this.awsRegion)), keyName);
+    LOGGER.debug("Material is: " + material);
     FileUtils.writeStringToFile(new File(keyName + ".pem"), material);
 
     // Get all availability zones in the region. Currently, we will only use first
@@ -383,7 +454,7 @@ public class GobblinAWSClusterLauncher {
     final String userData = buildClusterMasterCommand();
 
     // Create launch config for Cluster master
-    this.masterLaunchConfigName = "GobblinMasterLaunchConfig_" + uuid;
+    this.masterLaunchConfigName = MASTER_LAUNCH_CONFIG_NAME_PREFIX + uuid;
     AWSSdkClient.createLaunchConfig(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         this.masterLaunchConfigName,
@@ -400,26 +471,35 @@ public class GobblinAWSClusterLauncher {
 
     // Create ASG for Cluster master
     // TODO: Make size configurable when we have support multi-master
-    this.masterAutoScalingGroupName = "GobblinMasterASG_" + uuid;
+    this.masterAutoScalingGroupName = MASTER_ASG_NAME_PREFIX + uuid;
     final int minNumMasters = 1;
     final int maxNumMasters = 1;
     final int desiredNumMasters = 1;
-    final Tag tag = new Tag().withKey("GobblinMaster").withValue(uuid);
+    final Tag clusterNameTag = new Tag().withKey(CLUSTER_NAME_ASG_TAG).withValue(this.clusterName);
+    final Tag clusterUuidTag = new Tag().withKey(CLUSTER_ID_ASG_TAG).withValue(uuid);
+    final Tag asgTypeTag = new Tag().withKey(ASG_TYPE_ASG_TAG).withValue(ASG_TYPE_MASTER);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         this.masterAutoScalingGroupName,
         this.masterLaunchConfigName,
-        minNumMasters, maxNumMasters,
+        minNumMasters,
+        maxNumMasters,
         desiredNumMasters,
         Optional.of(availabilityZone.getZoneName()),
         Optional.<Integer>absent(),
         Optional.<Integer>absent(),
         Optional.<String>absent(),
         Optional.<String>absent(),
-        Optional.<String>absent(),
-        Lists.newArrayList(tag));
+        Optional.<String>absent(), Lists.newArrayList(clusterNameTag, clusterUuidTag, asgTypeTag));
 
     LOGGER.info("Waiting for cluster master to launch");
+    this.masterPublicIp = getMasterPublicIp();
+    LOGGER.info("Master public ip: "+ this.masterPublicIp);
+
+    return uuid;
+  }
+
+  private String getMasterPublicIp() {
     final long startTime = System.currentTimeMillis();
     final long launchTimeout = TimeUnit.MINUTES.toMillis(10);
     boolean isMasterLaunched = false;
@@ -444,10 +524,8 @@ public class GobblinAWSClusterLauncher {
 
     // This will change if cluster master restarts, but that will be handled by Helix events
     // TODO: Add listener to Helix / Zookeeper for master restart and update master public ip
-    // .. although tracking master public ip is not important
-    this.masterPublicIp = instanceIds.get(0).getPublicIpAddress();
-
-    return "GobblinClusterMaster_" + uuid;
+    // .. although we do not use master public ip for anything
+    return instanceIds.get(0).getPublicIpAddress();
   }
 
   private void launchWorkUnitRunners(String uuid, String keyName,
@@ -456,7 +534,7 @@ public class GobblinAWSClusterLauncher {
     final String userData = buildClusterWorkerCommand();
 
     // Create launch config for Cluster worker
-    this.workerLaunchConfigName = "GobblinWorkerLaunchConfig_" + uuid;
+    this.workerLaunchConfigName = WORKERS_LAUNCH_CONFIG_PREFIX + uuid;
     AWSSdkClient.createLaunchConfig(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         this.workerLaunchConfigName,
@@ -472,8 +550,10 @@ public class GobblinAWSClusterLauncher {
         userData);
 
     // Create ASG for Cluster workers
-    this.workerAutoScalingGroupName = "GobblinWorkerASG_" + uuid;
-    final Tag tag = new Tag().withKey("GobblinWorker").withValue(uuid);
+    this.workerAutoScalingGroupName = WORKERS_ASG_NAME_PREFIX + uuid;
+    final Tag clusterNameTag = new Tag().withKey(CLUSTER_NAME_ASG_TAG).withValue(this.clusterName);
+    final Tag clusterUuidTag = new Tag().withKey(CLUSTER_ID_ASG_TAG).withValue(uuid);
+    final Tag asgTypeTag = new Tag().withKey(ASG_TYPE_ASG_TAG).withValue(ASG_TYPE_WORKERS);
     AWSSdkClient.createAutoScalingGroup(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)),
         this.workerAutoScalingGroupName,
@@ -487,7 +567,7 @@ public class GobblinAWSClusterLauncher {
         Optional.<String>absent(),
         Optional.<String>absent(),
         Optional.<String>absent(),
-        Lists.newArrayList(tag));
+        Lists.newArrayList(clusterNameTag, clusterUuidTag, asgTypeTag));
   }
 
   /***
@@ -728,8 +808,7 @@ public class GobblinAWSClusterLauncher {
     final int timeout = 300000;
 
     // Send shutdown request to Cluster master, which will send shutdown request to workers
-    // .. master will callback shutdownASG() once it receives shutdown response from workers as well
-    // .. shuts itself down
+    // Upon receiving shutdown response from workers, master will shut itself down and call back shutdownASG()
     final int messagesSent = this.helixManager.getMessagingService().sendAndWait(criteria, shutdownRequest,
         shutdownASG(),timeout);
     if (messagesSent == 0) {
@@ -738,8 +817,8 @@ public class GobblinAWSClusterLauncher {
   }
 
   /***
-   * Callback method that deletes AutoScalingGroup
-   * @return Callback method that deletes AutoScalingGroup
+   * Callback method that deletes {@link AutoScalingGroup}s
+   * @return Callback method that deletes {@link AutoScalingGroup}s
    */
   private AsyncCallback shutdownASG() {
     Optional<List<String>> optionalLaunchConfigurationNames = Optional
