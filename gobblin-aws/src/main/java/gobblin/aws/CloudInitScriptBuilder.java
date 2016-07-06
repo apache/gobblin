@@ -61,13 +61,14 @@ public class CloudInitScriptBuilder {
    * @param masterJarsDir Directory to save downloaded Gobblin jar files
    * @param masterJvmMemory Xmx memory setting for Gobblin master java application
    * @param masterJvmArgs JVM arguments for Gobblin master application
+   * @param gobblinVersion Optional Gobblin version
    * @return Cloud-init script to launch {@link GobblinAWSClusterMaster}
    */
   public static String buildClusterMasterCommand(String clusterName, String nfsParentDir, String sinkLogRootDir,
       String awsConfDir, String appWorkDir,
       String masterS3ConfUri, String masterS3ConfFiles,
       String masterS3JarsUri, String masterS3JarsFiles, String masterJarsDir,
-      String masterJvmMemory, Optional<String> masterJvmArgs) {
+      String masterJvmMemory, Optional<String> masterJvmArgs, Optional<String> gobblinVersion) {
     final StringBuilder cloudInitCmds = new StringBuilder().append("#!/bin/bash").append("\n");
 
     final String clusterMasterClassName = GobblinAWSClusterMaster.class.getSimpleName();
@@ -91,6 +92,9 @@ public class CloudInitScriptBuilder {
     cloudInitCmds.append("chown -R ec2-user:ec2-user /home/ec2-user/*").append("\n");
 
     // Setup short variables to save cloud-init script space
+    if (gobblinVersion.isPresent()) {
+      cloudInitCmds.append("vr=").append(gobblinVersion.get()).append("\n");
+    }
     cloudInitCmds.append("cgS3=").append(masterS3ConfUri).append("\n");
     cloudInitCmds.append("cg=").append(awsConfDir).append("\n");
     cloudInitCmds.append("jrS3=").append(masterS3JarsUri).append("\n");
@@ -166,13 +170,14 @@ public class CloudInitScriptBuilder {
    * @param workerJarsDir Directory to save downloaded Gobblin jar files
    * @param workerJvmMemory Xmx memory setting for Gobblin worker java application
    * @param workerJvmArgs JVM arguments for Gobblin worker application
+   * @param gobblinVersion Optional Gobblin version
    * @return Cloud-init script to launch {@link GobblinAWSTaskRunner}
    */
   public static String buildClusterWorkerCommand(String clusterName, String nfsParentDir, String sinkLogRootDir,
       String awsConfDir, String appWorkDir, String masterPublicIp,
       String workerS3ConfUri, String workerS3ConfFiles,
       String workerS3JarsUri, String workerS3JarsFiles, String workerJarsDir,
-      String workerJvmMemory, Optional<String> workerJvmArgs) {
+      String workerJvmMemory, Optional<String> workerJvmArgs, Optional<String> gobblinVersion) {
     final StringBuilder cloudInitCmds = new StringBuilder().append("#!/bin/bash").append("\n");
 
     final String clusterWorkerClassName = GobblinAWSTaskRunner.class.getSimpleName();
@@ -190,6 +195,9 @@ public class CloudInitScriptBuilder {
     cloudInitCmds.append("chown -R ec2-user:ec2-user /home/ec2-user/*").append("\n");
 
     // Setup short variables to save cloud-init script space
+    if (gobblinVersion.isPresent()) {
+      cloudInitCmds.append("vr=").append(gobblinVersion.get()).append("\n");
+    }
     cloudInitCmds.append("cg0=").append(workerS3ConfUri).append("\n");
     cloudInitCmds.append("cg=").append(awsConfDir).append("\n");
     cloudInitCmds.append("jr0=").append(workerS3JarsUri).append("\n");

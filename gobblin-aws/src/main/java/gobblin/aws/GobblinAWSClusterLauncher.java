@@ -166,6 +166,8 @@ public class GobblinAWSClusterLauncher {
   private String workerLaunchConfigName;
   private String workerAutoScalingGroupName;
 
+  private final Optional<String> gobblinVersion;
+
 
   public GobblinAWSClusterLauncher(Config config) throws IOException {
     this.config = config;
@@ -225,6 +227,12 @@ public class GobblinAWSClusterLauncher {
 
     this.awsClusterSecurityManager = new AWSClusterSecurityManager(this.config);
     this.awsSdkClient = createAWSSdkClient();
+
+    if (config.hasPath(GobblinAWSConfigurationKeys.GOBBLIN_VERSION)) {
+      this.gobblinVersion = Optional.of(config.getString(GobblinAWSConfigurationKeys.GOBBLIN_VERSION));
+    } else {
+      this.gobblinVersion = Optional.<String>absent();
+    }
   }
 
   /**
@@ -441,7 +449,8 @@ public class GobblinAWSClusterLauncher {
         this.masterS3JarsFiles,
         this.masterJarsDir,
         this.masterJvmMemory,
-        this.masterJvmArgs);
+        this.masterJvmArgs,
+        this.gobblinVersion);
 
     // Create launch config for Cluster master
     this.masterLaunchConfigName = MASTER_LAUNCH_CONFIG_NAME_PREFIX + uuid;
@@ -528,7 +537,8 @@ public class GobblinAWSClusterLauncher {
         this.workerS3JarsFiles,
         this.workerJarsDir,
         this.workerJvmMemory,
-        this.workerJvmArgs);
+        this.workerJvmArgs,
+        this.gobblinVersion);
 
     // Create launch config for Cluster worker
     this.workerLaunchConfigName = WORKERS_LAUNCH_CONFIG_PREFIX + uuid;

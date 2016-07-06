@@ -92,4 +92,5 @@ public class GobblinAWSConfigurationKeys {
 
   // Work environment properties.
   public static final String APP_WORK_DIR = GOBBLIN_AWS_PREFIX + "work.dir";
+  public static final String GOBBLIN_VERSION = GOBBLIN_AWS_PREFIX + "version";
 }

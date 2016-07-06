@@ -33,27 +33,29 @@ public class CloudInitScriptBuilderTest {
 
   private String clusterName = "cluster";
   private String nfsParentDir = "/home/ec2-user/";
-  private String awsConfDir = nfsParentDir + clusterName + "cluster-conf";
-  private String appWorkDir = nfsParentDir + clusterName + "work-dir";
-  private String sinkLogRootDir = nfsParentDir + clusterName + "log-dir";
+  private String awsConfDir = nfsParentDir + clusterName + "/cluster-conf/";
+  private String appWorkDir = nfsParentDir + clusterName + "/work-dir/";
+  private String sinkLogRootDir = nfsParentDir + clusterName + "/log-dir/";
 
   private String masterS3ConfUri = "https://s3-us-west-2.amazonaws.com/some-bucket/cluster-conf/";
   private String masterS3ConfFiles = "application.conf,log4j-aws.properties,quartz.properties";
   private String masterS3JarsUri = "https://s3-us-west-2.amazonaws.com/some-bucket/gobblin-jars/";
-  private String masterS3JarFiles = "myjar1.jar,myjar2.jar,myjar3.jar,myjar4.jar";
-  private String masterJarsDir = nfsParentDir + clusterName + "gobblin-jars";
+  private String masterS3JarFiles = "myjar1.jar,myjar2.jar,myjar3.jar,myjar4-\"${vr}\".jar";
+  private String masterJarsDir = nfsParentDir + clusterName + "/gobblin-jars/";
   private String masterJvmMemory = "-Xms1G";
   private String masterPublicIp = "0.0.0.0";
 
   private String workerS3ConfUri = "https://s3-us-west-2.amazonaws.com/some-bucket/cluster-conf/";
   private String workerS3ConfFiles = "application.conf,log4j-aws.properties,quartz.properties";
   private String workerS3JarsUri = "https://s3-us-west-2.amazonaws.com/some-bucket/gobblin-jars/";
-  private String workerS3JarFiles = "myjar1.jar,myjar2.jar,myjar3.jar,myjar4.jar";
-  private String workerJarsDir = nfsParentDir + clusterName + "gobblin-jars";
+  private String workerS3JarFiles = "myjar1.jar,myjar2.jar,myjar3.jar,myjar4-\"${vr}\".jar";
+  private String workerJarsDir = nfsParentDir + clusterName + "/gobblin-jars/";
   private String workerJvmMemory = "-Xms1G";
 
   private String expectedMasterCloudInitScript;
   private String expectedWorkerCloudInitScript;
+
+  private Optional<String> gobblinVersion = Optional.of("0.7.1");
 
   @BeforeClass
   public void setup() throws Exception {
@@ -68,7 +70,7 @@ public class CloudInitScriptBuilderTest {
     final String script = CloudInitScriptBuilder.buildClusterMasterCommand(this.clusterName, this.nfsParentDir,
         this.sinkLogRootDir, this.awsConfDir, this.appWorkDir, this.masterS3ConfUri, this.masterS3ConfFiles,
         this.masterS3JarsUri, this.masterS3JarFiles, this.masterJarsDir, this.masterJvmMemory,
-        Optional.<String>absent());
+        Optional.<String>absent(), gobblinVersion);
     final String decodedScript = new String(Base64.decodeBase64(script));
 
     Assert.assertEquals(decodedScript, this.expectedMasterCloudInitScript,
@@ -80,7 +82,7 @@ public class CloudInitScriptBuilderTest {
     final String script = CloudInitScriptBuilder.buildClusterWorkerCommand(this.clusterName, this.nfsParentDir,
         this.sinkLogRootDir, this.awsConfDir, this.appWorkDir, this.masterPublicIp, this.workerS3ConfUri,
         this.workerS3ConfFiles, this.workerS3JarsUri, this.workerS3JarFiles, this.workerJarsDir, this.workerJvmMemory,
-        Optional.<String>absent());
+        Optional.<String>absent(), gobblinVersion);
     final String decodedScript = new String(Base64.decodeBase64(script));
 
     Assert.assertEquals(decodedScript, this.expectedWorkerCloudInitScript,
