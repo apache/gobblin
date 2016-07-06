@@ -87,6 +87,8 @@ public class GobblinAWSConfigurationKeys {
   public static final String JOB_CONF_S3_URI_KEY = GOBBLIN_AWS_PREFIX + "job.conf.s3.uri";
   public static final String JOB_CONF_REFRESH_INTERVAL_IN_MINUTES =
       GOBBLIN_AWS_PREFIX + "job.conf.refresh.interval.minutes";
+  public static final String JOB_CONF_REFRESH_INTERVAL_IN_SECONDS =
+      GOBBLIN_AWS_PREFIX + "job.conf.refresh.interval.seconds";
 
   // Work environment properties.
   public static final String APP_WORK_DIR = GOBBLIN_AWS_PREFIX + "work.dir";

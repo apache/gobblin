@@ -69,14 +69,20 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
   private Optional<String> jobConfS3Uri;
   private Map<String, Properties> jobConfFiles;
 
-  private final long refreshIntervalInMinutes;
+  private final long refreshIntervalInSeconds;
 
   private final ScheduledExecutorService fetchJobConfExecutor;
 
   public AWSJobConfigurationManager(EventBus eventBus, Config config) {
     super(eventBus, config);
     this.jobConfFiles = Maps.newHashMap();
-    this.refreshIntervalInMinutes = config.getLong(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL_IN_MINUTES);
+    if (config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL_IN_SECONDS)) {
+      this.refreshIntervalInSeconds = config
+          .getLong(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL_IN_SECONDS);
+    } else {
+      this.refreshIntervalInSeconds = config
+          .getLong(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL_IN_MINUTES) * 60;
+    }
 
     this.fetchJobConfExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("FetchJobConfExecutor")));
@@ -97,7 +103,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
     LOGGER.info(
         String.format("Scheduling the job configuration refresh task with an interval of %d minute(s)",
-            this.refreshIntervalInMinutes));
+            this.refreshIntervalInSeconds));
 
     // Schedule the job config fetch task
     this.fetchJobConfExecutor.scheduleAtFixedRate(new Runnable() {
@@ -110,7 +116,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
           throw Throwables.propagate(e);
         }
       }
-    }, 0, this.refreshIntervalInMinutes, TimeUnit.MINUTES);
+    }, 0, this.refreshIntervalInSeconds, TimeUnit.SECONDS);
   }
 
   private void fetchJobConf()
