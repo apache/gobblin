@@ -84,7 +84,7 @@ public class AWSSdkClient {
   private volatile AmazonEC2 amazonEC2;
   private volatile AmazonS3 amazonS3;
   private volatile AmazonAutoScaling amazonAutoScaling;
-  private volatile long lastRefreshCacheTime = 0;
+  private volatile long lastCacheRefreshTime = 0;
 
   private final AWSClusterSecurityManager awsClusterSecurityManager;
   private final Region region;
@@ -476,14 +476,14 @@ public class AWSSdkClient {
    */
   public AmazonEC2 getEc2Client() {
 
-    if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
+    if (lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
         awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
       return amazonEC2;
     }
 
     synchronized (AWSSdkClient.class) {
-      if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
-          awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
+      if (!(lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
+          awsClusterSecurityManager.getLastRefreshTimeInMillis())) {
         if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
           amazonEC2 = new AmazonEC2Client(awsClusterSecurityManager.getBasicSessionCredentials());
         } else {
@@ -503,14 +503,14 @@ public class AWSSdkClient {
    */
   public AmazonAutoScaling getAmazonAutoScalingClient() {
 
-    if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
+    if (lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
         awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
       return amazonAutoScaling;
     }
 
     synchronized (AWSSdkClient.class) {
-      if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
-          awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
+      if (!(lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
+          awsClusterSecurityManager.getLastRefreshTimeInMillis())) {
         if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
           amazonAutoScaling = new AmazonAutoScalingClient(awsClusterSecurityManager.getBasicSessionCredentials());
         } else {
@@ -530,14 +530,14 @@ public class AWSSdkClient {
    */
   public AmazonS3 getS3Client() {
 
-    if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
+    if (lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
         awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
       return amazonS3;
     }
 
     synchronized (AWSSdkClient.class) {
-      if (lastRefreshCacheTime > 0 && lastRefreshCacheTime >=
-          awsClusterSecurityManager.getLastRefreshTimeInMillis()) {
+      if (!(lastCacheRefreshTime > 0 && lastCacheRefreshTime >=
+          awsClusterSecurityManager.getLastRefreshTimeInMillis())) {
         if (awsClusterSecurityManager.isAssumeRoleEnabled()) {
           amazonS3 = new AmazonS3Client(awsClusterSecurityManager.getBasicSessionCredentials());
         } else {
