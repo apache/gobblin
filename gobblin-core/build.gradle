@@ -47,6 +47,9 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.guavaretrying
   compile externalDependency.findBugsAnnotations
+  compile externalDependency.confluentSchemaRegistryClient
+  compile externalDependency.confluentAvroSerializer
+  compile externalDependency.confluentJsonSerializer
 
   runtime externalDependency.protobuf
 

@@ -1,0 +1,5 @@
+INSERT OVERWRITE TABLE `testdb.testtable_orc_nested`
+SELECT
+  `parentFieldRecord`,
+  `parentFieldInt`
+FROM `testdb.testtable`

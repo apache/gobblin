@@ -76,7 +76,6 @@ import gobblin.source.extractor.utils.Utils;
 import gobblin.source.extractor.watermark.Predicate;
 import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.WorkUnit;
-
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -602,9 +601,11 @@ public class SalesforceExtractor extends RestApiExtractor {
             super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
       }
 
+      String securityToken = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
+      String password = PasswordManager.getInstance(this.workUnit)
+          .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
       partnerConfig.setUsername(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME));
-      partnerConfig.setPassword(PasswordManager.getInstance(this.workUnit)
-          .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD)));
+      partnerConfig.setPassword(password + securityToken);
       partnerConfig.setAuthEndpoint(soapAuthEndPoint);
       new PartnerConnection(partnerConfig);
       String soapEndpoint = partnerConfig.getServiceEndpoint();
@@ -626,8 +627,8 @@ public class SalesforceExtractor extends RestApiExtractor {
 
       this.bulkConnection = new BulkConnection(config);
       success = true;
-    } catch (Exception e) {
-      throw new Exception("Failed to connect to salesforce bulk api; error - " + e.getMessage(), e);
+    } catch (RuntimeException e) {
+      throw new RuntimeException("Failed to connect to salesforce bulk api; error - " + e, e);
     }
     return success;
   }

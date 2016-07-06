@@ -60,8 +60,6 @@ public class HiveTargetPathHelper {
   public static final String RELOCATE_DATA_FILES_KEY =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.relocate.data.files";
   public static final String DEFAULT_RELOCATE_DATA_FILES = Boolean.toString(false);
-  private static final String databaseToken = "$DB";
-  private static final String tableToken = "$TABLE";
   private final boolean relocateDataFiles;
   private final Optional<Path> targetTableRoot;
   private final Optional<Path> targetTablePrefixTobeReplaced;
@@ -101,9 +99,9 @@ public class HiveTargetPathHelper {
    * resolved to /data/myDatabase/myTable.
    */
   protected static Path resolvePath(String pattern, String database, String table) {
-    pattern = pattern.replace(databaseToken, database);
-    if (pattern.contains(tableToken)) {
-      pattern = pattern.replace(tableToken, table);
+    pattern = pattern.replace(HiveDataset.DATABASE_TOKEN, database);
+    if (pattern.contains(HiveDataset.TABLE_TOKEN)) {
+      pattern = pattern.replace(HiveDataset.TABLE_TOKEN, table);
       return new Path(pattern);
     } else {
       return new Path(pattern, table);

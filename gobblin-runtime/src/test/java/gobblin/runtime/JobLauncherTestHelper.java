@@ -73,6 +73,7 @@ public class JobLauncherTestHelper {
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(datasetState.getCompletedTasks(), 4);
     Assert.assertEquals(datasetState.getJobFailures(), 0);
+
     for (TaskState taskState : datasetState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),

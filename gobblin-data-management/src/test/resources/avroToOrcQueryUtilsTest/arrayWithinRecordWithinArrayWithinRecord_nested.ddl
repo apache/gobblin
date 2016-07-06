@@ -1,5 +1,5 @@
 CREATE EXTERNAL TABLE IF NOT EXISTS `default.testArrayWithinRecordWithinArrayWithinRecordDDL` (
-  `parentRecordFieldName` array<struct<nestedRecordFieldName:array<string>>>)
+  `parentRecordFieldName` array<struct<`nestedRecordFieldName`:array<string>>>)
 ROW FORMAT SERDE
   'org.apache.hadoop.hive.ql.io.orc.OrcSerde'
 STORED AS INPUTFORMAT
