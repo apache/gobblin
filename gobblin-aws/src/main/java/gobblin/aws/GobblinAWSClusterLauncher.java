@@ -59,6 +59,7 @@ import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.cluster.HelixUtils;
 import gobblin.util.ConfigUtils;
 import gobblin.util.EmailUtils;
+import static gobblin.aws.GobblinAWSUtils.*;
 
 
 /**
@@ -224,13 +225,6 @@ public class GobblinAWSClusterLauncher {
 
     this.awsClusterSecurityManager = new AWSClusterSecurityManager(this.config);
     this.awsSdkClient = createAWSSdkClient();
-  }
-
-  private String appendSlash(String value) {
-    if (value.endsWith("/")) {
-      return value;
-    }
-    return value + "/";
   }
 
   /**

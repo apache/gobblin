@@ -49,6 +49,8 @@ import gobblin.cluster.event.NewJobConfigArrivalEvent;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.SchedulerUtils;
+import static gobblin.aws.GobblinAWSUtils.*;
+
 
 /**
  * Class for managing AWS Gobblin job configurations.
@@ -101,8 +103,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
   protected void startUp() throws Exception {
     LOGGER.info("Starting the " + AWSJobConfigurationManager.class.getSimpleName());
 
-    LOGGER.info(
-        String.format("Scheduling the job configuration refresh task with an interval of %d minute(s)",
+    LOGGER.info(String.format("Scheduling the job configuration refresh task with an interval of %d second(s)",
             this.refreshIntervalInSeconds));
 
     // Schedule the job config fetch task
@@ -225,12 +226,5 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
   @Override
   protected void shutDown() throws Exception {
     // Nothing to do
-  }
-
-  private String appendSlash(String value) {
-    if (value.endsWith("/")) {
-      return value;
-    }
-    return value + "/";
   }
 }

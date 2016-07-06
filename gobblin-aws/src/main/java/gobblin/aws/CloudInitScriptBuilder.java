@@ -3,19 +3,15 @@ package gobblin.aws;
 import java.io.File;
 import java.util.List;
 
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.filefilter.FileFileFilter;
-import org.apache.commons.lang.StringUtils;
-import org.quartz.utils.FindbugsSuppressWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 
 import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
+import static gobblin.aws.GobblinAWSUtils.encodeBase64;
 
 
 /**
@@ -246,48 +242,5 @@ public class CloudInitScriptBuilder {
     LOGGER.info("Cloud-init script for worker node: " + cloudInitScript);
 
     return encodeBase64(cloudInitScript);
-  }
-
-  @FindbugsSuppressWarnings("DM_DEFAULT_ENCODING")
-  private static String encodeBase64(String data) {
-    final byte[] encodedBytes = Base64.encodeBase64(data.getBytes());
-
-    return new String(encodedBytes);
-  }
-
-  /***
-   * List and generate classpath string from paths
-   *
-   * Note: This is currently unused, and will be brought in to use with custom Gobblin AMI
-   *
-   * @param paths Paths to list
-   * @return Classpath string
-   */
-  public static String getClasspathFromPaths(File... paths) {
-    final StringBuilder classpath = new StringBuilder();
-    boolean isFirst = true;
-    for (File path : paths) {
-      if (!isFirst) {
-        classpath.append(":");
-      }
-      final String subClasspath = getClasspathFromPath(path);
-      if (subClasspath.length() > 0) {
-        classpath.append(subClasspath);
-        isFirst = false;
-      }
-    }
-
-    return classpath.toString();
-  }
-
-  private static String getClasspathFromPath(File path) {
-    if (null == path) {
-      return StringUtils.EMPTY;
-    }
-    if (!path.isDirectory()) {
-      return path.getAbsolutePath();
-    }
-
-    return Joiner.on(":").skipNulls().join(path.list(FileFileFilter.FILE));
   }
 }
