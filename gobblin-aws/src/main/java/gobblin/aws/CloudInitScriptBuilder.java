@@ -14,6 +14,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 
+import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 
 
@@ -23,6 +24,7 @@ import gobblin.cluster.GobblinClusterConfigurationKeys;
  *
  * @author Abhishek Tiwari
  */
+@Alpha
 public class CloudInitScriptBuilder {
   private static final Logger LOGGER = LoggerFactory.getLogger(CloudInitScriptBuilder.class);
 
