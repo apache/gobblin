@@ -73,9 +73,11 @@ public class KafkaDataWriterTest extends KafkaTestBase {
     }
 
     Thread.sleep(500);
+    Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
     byte[] message = iterator.next().message();
     String messageReceived = new String(message);
     Assert.assertEquals(messageReceived, messageString);
+
   }
 
   @Test
@@ -98,6 +100,7 @@ public class KafkaDataWriterTest extends KafkaTestBase {
     }
 
     Thread.sleep(500);
+    Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
     byte[] message = iterator.next().message();
     Assert.assertEquals(message, messageBytes);
   }
@@ -136,7 +139,7 @@ public class KafkaDataWriterTest extends KafkaTestBase {
     }
 
     Thread.sleep(500);
-
+    Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
     byte[] message = iterator.next().message();
     ConfigDrivenMd5SchemaRegistry schemaReg = new ConfigDrivenMd5SchemaRegistry(TOPIC, record.getSchema());
     LiAvroDeserializer deser = new LiAvroDeserializer(schemaReg);

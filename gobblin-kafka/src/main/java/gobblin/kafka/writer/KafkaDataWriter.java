@@ -39,6 +39,7 @@ import gobblin.writer.DataWriter;
 public class KafkaDataWriter<D> implements DataWriter<D> {
 
   private final KafkaProducer<String, D> producer;
+  private final Callback producerCallback;
   private final String topic;
   private final AtomicInteger recordsWritten;
   private final AtomicInteger bytesWritten;
@@ -49,12 +50,9 @@ public class KafkaDataWriter<D> implements DataWriter<D> {
   private static final String VALUE_SERIALIZER_CONFIG = "value.serializer";
   private static final String DEFAULT_VALUE_SERIALIZER = "org.apache.kafka.common.serialization.ByteArraySerializer";
 
-  public KafkaDataWriter(Properties props) {
-    recordsWritten = new AtomicInteger(0);
-    bytesWritten = new AtomicInteger(0);
 
-    Config config = ConfigFactory.parseProperties(props);
-    this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
+  private static Properties getProducerProperties(Properties props)
+  {
     Properties producerProperties = stripPrefix(props, KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX);
 
     //Provide default properties if not set from above
@@ -64,11 +62,33 @@ public class KafkaDataWriter<D> implements DataWriter<D> {
     if (!producerProperties.containsKey(VALUE_SERIALIZER_CONFIG)) {
       producerProperties.setProperty(VALUE_SERIALIZER_CONFIG, DEFAULT_VALUE_SERIALIZER);
     }
-    //producerProperties.put("request.required.acks", "1");
-    this.producer = new KafkaProducer<>(producerProperties);
+    return producerProperties;
   }
 
-  private Properties stripPrefix(Properties props, String prefix) {
+
+  public KafkaDataWriter(Properties props) {
+    this(new KafkaProducer<>(getProducerProperties(props)), ConfigFactory.parseProperties(props));
+  }
+
+  public KafkaDataWriter(KafkaProducer producer, Config config)
+  {
+    recordsWritten = new AtomicInteger(0);
+    bytesWritten = new AtomicInteger(-1);
+
+    this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
+    this.producer = producer;
+    this.producerCallback = new Callback() {
+      @Override
+      public void onCompletion(RecordMetadata metadata, Exception exception) {
+        if (null == exception)
+        {
+          recordsWritten.incrementAndGet();
+        }
+      }
+    };
+  }
+
+  private static Properties stripPrefix(Properties props, String prefix) {
     Properties strippedProps = new Properties();
     int prefixLength = prefix.length();
     for (String key: props.stringPropertyNames())
@@ -81,22 +101,10 @@ public class KafkaDataWriter<D> implements DataWriter<D> {
     return strippedProps;
   }
 
-
   @Override
   public void write(D record)
       throws IOException {
-    this.producer.send(new ProducerRecord<String, D>(topic, record), new Callback() {
-      @Override
-      public void onCompletion(RecordMetadata metadata, Exception exception) {
-        if (exception != null)
-        {
-          recordsWritten.incrementAndGet();
-        }
-      }
-    });
-
-    //recordsWritten.incrementAndGet();
-    log.info("Wrote a record");
+    this.producer.send(new ProducerRecord<String, D>(topic, record), this.producerCallback);
   }
 
   @Override
