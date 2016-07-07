@@ -12,54 +12,40 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
-  compile project(":gobblin-tunnel")
+  compile project(":gobblin-core")
   compile project(":gobblin-utility")
-  compile project(":gobblin-metrics")
-  compile project(":gobblin-hive-registration")
-  compile project(":gobblin-config-management:gobblin-config-client")
-  compile project(":gobblin-config-management:gobblin-config-core")
 
-  compile externalDependency.avroMapredH2
-  compile externalDependency.commonsCodec
-  compile externalDependency.commonsDbcp
-  compile externalDependency.commonsMath
-  compile externalDependency.commonsHttpClient
   compile externalDependency.avro
-  compile externalDependency.guava
-  compile externalDependency.gson
-  compile externalDependency.slf4j
-  compile externalDependency.jodaTime
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
-  compile externalDependency.jsch
+  compile externalDependency.commonsHttpClient
+  compile externalDependency.commonsPool
   compile externalDependency.commonsLang3
-  compile externalDependency.commonsIo
-  compile externalDependency.hiveExec
-  compile externalDependency.hiveSerDe
+  compile externalDependency.guava
+  compile externalDependency.slf4j
   compile externalDependency.httpclient
   compile externalDependency.httpcore
-  compile externalDependency.metricsCore
-  compile externalDependency.kafka
+  compile(externalDependency.kafka){
+    exclude group: "com.sun.jmx", module: "jmxri"
+    exclude group: "com.sun.jdmk", module: "jmxtools"
+    exclude group: "javax.jms", module: "jms"
+  }  
   compile externalDependency.kafkaClient
   compile externalDependency.scala
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
-  compile externalDependency.guavaretrying
   compile externalDependency.findBugsAnnotations
-  compile externalDependency.confluentSchemaRegistryClient
-  compile externalDependency.confluentAvroSerializer
-  compile externalDependency.confluentJsonSerializer
 
   runtime externalDependency.protobuf
 
-  testRuntime externalDependency.hadoopAws
-  testCompile externalDependency.calciteCore
-  testCompile externalDependency.calciteAvatica
-  testCompile externalDependency.jhyde
   testCompile externalDependency.jsonAssert
-  testCompile externalDependency.testng
   testCompile externalDependency.mockito
-  testCompile externalDependency.mockRunnerJdbc
+  testCompile externalDependency.testng
+  testCompile(externalDependency.kafkaTest){
+    exclude group: "com.sun.jmx", module: "jmxri"
+    exclude group: "com.sun.jdmk", module: "jmxtools"
+    exclude group: "javax.jms", module: "jms"
+  }
 }
 
 configurations {
