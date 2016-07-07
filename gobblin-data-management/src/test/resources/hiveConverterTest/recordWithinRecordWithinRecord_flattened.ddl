@@ -11,7 +11,7 @@ STORED AS INPUTFORMAT
 OUTPUTFORMAT
   'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
 LOCATION
-  'file:/tmp/testtable_orc/null'
+  'file:/tmp/testtable_orc'
 TBLPROPERTIES (
   'orc.compress'='SNAPPY',
   'orc.row.index.stride'='268435456')

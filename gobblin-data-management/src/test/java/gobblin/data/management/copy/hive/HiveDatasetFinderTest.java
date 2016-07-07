@@ -166,7 +166,7 @@ public class HiveDatasetFinderTest {
     Assert.assertEquals(hiveDataset.getDatasetConfig().getString("hive.dataset.test.conf2"), "conf2-val2");
 
     // Test scoped configs with prefix
-    properties.put(HiveDatasetFinder.HIVE_DATASET_CONIFG_PREFIX_KEY, "hive.dataset.test");
+    properties.put(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, "hive.dataset.test");
 
     finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
     datasets = Lists.newArrayList(finder.getDatasetsIterator());
