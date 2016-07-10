@@ -36,6 +36,9 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 
+  runtime externalDependency.confluentAvroSerializer
+  runtime externalDependency.confluentJsonSerializer
+  runtime externalDependency.confluentSchemaRegistryClient
   runtime externalDependency.protobuf
 
   testCompile externalDependency.jsonAssert
