@@ -62,6 +62,7 @@ dependencies {
   testCompile externalDependency.bytemanBmunit
   testCompile externalDependency.curatorClient
   testCompile externalDependency.curatorTest
+  testCompile externalDependency.mockito
   testRuntime externalDependency.derby
 }
 

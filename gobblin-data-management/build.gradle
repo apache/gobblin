@@ -29,6 +29,7 @@ dependencies {
   compile externalDependency.jodaTime
   compile externalDependency.azkaban
   compile externalDependency.metricsCore
+  compile externalDependency.mockito
   compile externalDependency.commonsCodec
   compile externalDependency.commonsCompress
   compile externalDependency.commonsIo
@@ -41,7 +42,6 @@ dependencies {
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
-  testCompile externalDependency.mockito
   testCompile externalDependency.joptSimple
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
