@@ -12,8 +12,10 @@
 package gobblin.data.management.conversion.hive.publisher;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.Collection;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Predicate;
@@ -24,7 +26,9 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.conversion.hive.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.events.EventConstants;
+import gobblin.data.management.conversion.hive.util.HiveAvroORCQueryUtils;
 import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
+import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
@@ -40,6 +44,7 @@ import gobblin.util.HadoopUtils;
 public class HiveConvertPublisher extends DataPublisher {
 
   private final AvroSchemaManager avroSchemaManager;
+  private final HiveJdbcConnector hiveJdbcConnector;
   private MetricContext metricContext;
   private EventSubmitter eventSubmitter;
 
@@ -48,6 +53,11 @@ public class HiveConvertPublisher extends DataPublisher {
     this.avroSchemaManager = new AvroSchemaManager(FileSystem.get(HadoopUtils.newConfiguration()), state);
     this.metricContext = Instrumented.getMetricContext(state, HiveConvertPublisher.class);
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, EventConstants.CONVERSION_NAMESPACE).build();
+    try {
+      this.hiveJdbcConnector = HiveJdbcConnector.newConnectorWithProps(state.getProperties());
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -57,13 +67,39 @@ public class HiveConvertPublisher extends DataPublisher {
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
 
+    String cleanupCommands = StringUtils.EMPTY;
+    boolean isFirst = true;
     if (Iterables.tryFind(states, UNSUCCESSFUL_WORKUNIT).isPresent()) {
       for (WorkUnitState wus : states) {
+        if (isFirst) {
+          // Get cleanup staging table commands
+          cleanupCommands = HiveAvroORCQueryUtils.deserializeCleanupCommands(wus);
+          isFirst = false;
+        }
         wus.setWorkingState(WorkingState.FAILED);
         new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
       }
     } else {
+      String publishTableCommands = StringUtils.EMPTY;
       for (WorkUnitState wus : states) {
+        if (isFirst) {
+          // Get publish table commands
+          publishTableCommands = HiveAvroORCQueryUtils.deserializePublishTableCommands(wus);
+
+          // Execute publish table commands
+          executeQueries(publishTableCommands);
+
+          // Get cleanup staging table commands
+          cleanupCommands = HiveAvroORCQueryUtils.deserializeCleanupCommands(wus);
+          isFirst = false;
+        }
+
+        // Get publish partition commands if any
+        String publishPartitionCommands = HiveAvroORCQueryUtils.deserializePublishPartitionCommands(wus);
+
+        // Execute publish partition commands if any
+        executeQueries(publishPartitionCommands);
+
         wus.setWorkingState(WorkingState.COMMITTED);
         wus.setActualHighWatermark(TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(),
             LongWatermark.class));
@@ -71,6 +107,19 @@ public class HiveConvertPublisher extends DataPublisher {
         new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
             .submit();
       }
+    }
+    // Execute cleanup staging table commands
+    executeQueries(cleanupCommands);
+  }
+
+  private void executeQueries(String queries) {
+    if (StringUtils.isBlank(queries)) {
+      return;
+    }
+    try {
+      this.hiveJdbcConnector.executeStatements(queries);
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
     }
   }
 

@@ -35,6 +35,7 @@ dependencies {
   compile externalDependency.commonsIo
   compile externalDependency.gson
   compile externalDependency.commonsCodec
+  compile externalDependency.mockito
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
   compile externalDependency.testng

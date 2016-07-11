@@ -13,12 +13,14 @@
 package gobblin.data.management.conversion.hive.util;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -33,6 +35,8 @@ import gobblin.util.AvroFlattener;
 public class HiveAvroORCQueryUtilsTest {
 
   private static String resourceDir = "avroToOrcQueryUtilsTest";
+  private static Optional<Table> destinationTableMeta = Optional.absent();
+  private static boolean isEvolutionEnabled = true;
 
   /***
    * Test DDL generation for schema structured as: Array within record within array within record
@@ -48,11 +52,10 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent());
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
-    Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "arrayWithinRecordWithinArrayWithinRecord_nested.ddl")
-            .replaceAll(" ", ""));
+    Assert.assertEquals(q,
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "arrayWithinRecordWithinArrayWithinRecord_nested.ddl"));
   }
 
   /***
@@ -69,11 +72,10 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent());
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
-    Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "optionWithinOptionWithinRecord_nested.ddl")
-            .replaceAll(" ", ""));
+    Assert.assertEquals(q,
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "optionWithinOptionWithinRecord_nested.ddl"));
   }
 
   /***
@@ -90,11 +92,10 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent());
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
-    Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinOptionWithinRecord_nested.ddl")
-            .replaceAll(" ", ""));
+    Assert.assertEquals(q.trim(),
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinOptionWithinRecord_nested.ddl"));
   }
 
   /***
@@ -111,11 +112,10 @@ public class HiveAvroORCQueryUtilsTest {
         "file:/user/hive/warehouse/" + schemaName, Optional.<String>absent(), Optional.<Map<String, String>>absent(),
         Optional.<List<String>>absent(), Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
         Optional.<Integer>absent(), Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent());
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
-    Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_nested.ddl")
-            .replaceAll(" ", ""));
+    Assert.assertEquals(q.trim(),
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_nested.ddl"));
   }
 
   /***
@@ -134,11 +134,10 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent());
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
-    Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_flattened.ddl")
-            .replaceAll(" ", ""));
+    Assert.assertEquals(q,
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_flattened.ddl"));
   }
 
   /***
@@ -156,11 +155,11 @@ public class HiveAvroORCQueryUtilsTest {
 
     String q = HiveAvroORCQueryUtils.generateTableMappingDML(schema, flattenedSchema, schemaName,
         schemaName + "_orc", Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(), Optional.<Boolean>absent());
+        Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(), Optional.<Boolean>absent(),
+        isEvolutionEnabled, destinationTableMeta);
 
-    Assert.assertEquals(q.trim().replaceAll(" ", ""),
-        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord.dml")
-            .replaceAll(" ", ""));
+    Assert.assertEquals(q.trim(),
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord.dml"));
   }
 
   /***
@@ -176,6 +175,6 @@ public class HiveAvroORCQueryUtilsTest {
         "file:/user/hive/warehouse/" + schemaName, Optional.<String>absent(), Optional.<Map<String, String>>absent(),
         Optional.<List<String>>absent(), Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
         Optional.<Integer>absent(), Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent());
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
   }
 }
