@@ -22,6 +22,7 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.thrift.TException;
 
@@ -202,11 +203,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     //      .. schema throws a Runtime exeption, hence preventing further execution
     StringBuilder publishTableQueries = new StringBuilder();
     publishTableQueries.append(HiveAvroORCQueryUtils
-        .generateEvolutionDDL(orcStagingTableName,
-            orcTableName,
-            outputAvroSchema,
-            isEvolutionEnabled,
-            hiveColumns,
+        .generateEvolutionDDL(orcStagingTableName, orcTableName, outputAvroSchema, isEvolutionEnabled, hiveColumns,
             destinationTableMeta)).append("\n");
     publishTableQueries.append(
         HiveAvroORCQueryUtils.generatePublishTableDDL(orcStagingTableName,
@@ -287,6 +284,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
         table = Optional.of(client.get().getTable(dbName, tableName));
       }
+    } catch (NoSuchObjectException e) {
+      return Optional.<Table>absent();
     } catch (IOException | TException e) {
       throw new DataConversionException("Could not fetch destination table metadata", e);
     }

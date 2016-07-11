@@ -1,4 +1,4 @@
-INSERT OVERWRITE TABLE `testdb.testtable_orc`
+INSERT OVERWRITE TABLE `testdb.testtable_orc_staging`
 SELECT
   `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldString`,
   `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldInt`,

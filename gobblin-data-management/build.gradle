@@ -34,6 +34,7 @@ dependencies {
   compile externalDependency.commonsIo
   compile externalDependency.gson
   compile externalDependency.commonsCodec
+  compile externalDependency.mockito
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
   compile externalDependency.testng
@@ -41,7 +42,6 @@ dependencies {
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
-  testCompile externalDependency.mockito
   testCompile externalDependency.joptSimple
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
