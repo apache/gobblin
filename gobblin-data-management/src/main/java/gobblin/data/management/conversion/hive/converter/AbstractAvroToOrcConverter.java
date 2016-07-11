@@ -12,6 +12,7 @@
 package gobblin.data.management.conversion.hive.converter;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -126,6 +127,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
     // ORC table name and location
     String orcTableName = getConversionConfig().getDestinationTableName();
+    String orcStagingTableName = orcTableName + "_staging"; // Fixed and non-configurable
     String orcTableDatabase = getConversionConfig().getDestinationDbName();
     String orcDataLocation = getOrcDataLocation(workUnit);
     boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
@@ -147,9 +149,11 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
 
     // Create DDL statement
+
+    Map<String, String> hiveColumns = new HashMap<String, String>();
     String createTargetTableDDL =
         HiveAvroORCQueryUtils.generateCreateTableDDL(outputAvroSchema,
-            orcTableName,
+            orcStagingTableName,
             orcDataLocation,
             Optional.of(orcTableDatabase),
             Optional.of(partitionsDDLInfo),
@@ -161,7 +165,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             Optional.<String> absent(),
             Optional.<Map<String, String>> absent(),
             isEvolutionEnabled,
-            destinationTableMeta);
+            destinationTableMeta,
+            hiveColumns);
     conversionEntity.getQueries().add(createTargetTableDDL);
     log.debug("Create DDL: " + createTargetTableDDL);
 
@@ -170,7 +175,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         HiveAvroORCQueryUtils.generateTableMappingDML(conversionEntity.getHiveTable().getAvroSchema(),
             outputAvroSchema,
             avroTableName,
-            orcTableName,
+            orcStagingTableName,
             Optional.of(conversionEntity.getHiveTable().getDbName()),
             Optional.of(orcTableDatabase),
             Optional.of(partitionsDMLInfo),
@@ -180,6 +185,52 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             destinationTableMeta);
     conversionEntity.getQueries().add(insertInORCTableDML);
     log.debug("Conversion DML: " + insertInORCTableDML);
+
+    // Addition to WUS for Staging publish:
+    // A. Evolution turned on:
+    //    1. If table does not exists: simply create it
+    //    2. If table exists:
+    //       2.1 Evolve table (alter table)
+    //       2.2 Move partitions from staging to final table
+    //       2.3 Drop staging table
+    // B. Evolution turned off:
+    //    1. If table does not exists: simply create it
+    //    2. If table exists:
+    //       2.1 Move partitions from staging to final table (staging is already based on un-evolved schema)
+    //       2.2 Drop staging table
+    // Note: The queries below also serve as compatibility check module before conversion, an incompatible
+    //      .. schema throws a Runtime exeption, hence preventing further execution
+    StringBuilder publishTableQueries = new StringBuilder();
+    publishTableQueries.append(HiveAvroORCQueryUtils
+        .generateEvolutionDDL(orcStagingTableName,
+            orcTableName,
+            outputAvroSchema,
+            isEvolutionEnabled,
+            hiveColumns,
+            destinationTableMeta)).append("\n");
+    publishTableQueries.append(
+        HiveAvroORCQueryUtils.generatePublishTableDDL(orcStagingTableName,
+            orcTableName,
+            destinationTableMeta)).append("\n");
+    workUnit.setProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_TABLE_COMMANDS,
+        HiveAvroORCQueryUtils.GSON.toJson(publishTableQueries));
+    log.debug("Publish table queries: " + publishTableQueries);
+
+    StringBuilder publishPartitionQueries = new StringBuilder();
+    publishPartitionQueries.append(
+        HiveAvroORCQueryUtils.generatePublishPartitionDDL(orcStagingTableName,
+            orcTableName,
+            partitionsDMLInfo,
+            destinationTableMeta)).append("\n");
+    workUnit.setProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_PARTITION_COMMANDS,
+        HiveAvroORCQueryUtils.GSON.toJson(publishPartitionQueries));
+    log.debug("Publish partition queries: " + publishPartitionQueries);
+
+    StringBuilder cleanupQueries = new StringBuilder();
+    cleanupQueries.append(HiveAvroORCQueryUtils.generateCleanupDDL(orcStagingTableName)).append("\n");
+    workUnit.setProp(HiveAvroORCQueryUtils.SERIALIZED_CLEANUP_COMMANDS,
+        HiveAvroORCQueryUtils.GSON.toJson(cleanupQueries));
+    log.debug("Cleanup queries: " + cleanupQueries);
 
     log.debug("Conversion Query " + conversionEntity.getQueries());
     return new SingleRecordIterable<>(conversionEntity);

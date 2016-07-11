@@ -13,6 +13,7 @@ package gobblin.data.management.conversion.hive.converter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +30,7 @@ import org.testng.annotations.Test;
 
 import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import gobblin.data.management.ConversionHiveTestUtils;
@@ -76,10 +78,11 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(),
             Optional.<Map<String, String>>absent(),
             isEvolutionEnabled,
-            destinationTableMeta);
+            destinationTableMeta,
+            new HashMap<String, String>());
 
     Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir, 
-        "source_schema_evolution_enabled.ddl"));
+        "source_schema_evolution_enabled.ddl"), "Generated DDL did not match expected for evolution enabled");
 
     String dml = HiveAvroORCQueryUtils.generateTableMappingDML(inputSchema,
         outputSchema,
@@ -94,7 +97,7 @@ public class HiveSchemaEvolutionTest {
         destinationTableMeta);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
-        "source_schema_evolution_enabled.dml"));
+        "source_schema_evolution_enabled.dml"), "Generated DML did not match expected for evolution enabled");
   }
 
   @Test
@@ -116,10 +119,12 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(),
             Optional.<Map<String, String>>absent(),
             isEvolutionEnabled,
-            destinationTableMeta);
+            destinationTableMeta,
+            new HashMap<String, String>());
 
-    Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir, 
-        "source_schema_evolution_enabled.ddl"));
+    Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
+        "source_schema_evolution_enabled.ddl"),
+        "Generated DDL did not match expected for evolution enabled");
 
     String dml = HiveAvroORCQueryUtils.generateTableMappingDML(inputSchema,
         outputSchema,
@@ -134,7 +139,8 @@ public class HiveSchemaEvolutionTest {
         destinationTableMeta);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
-        "source_schema_evolution_enabled.dml"));
+        "source_schema_evolution_enabled.dml"),
+        "Generated DML did not match expected for evolution enabled");
   }
 
   @Test
@@ -156,10 +162,12 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(),
             Optional.<Map<String, String>>absent(),
             isEvolutionEnabled,
-            destinationTableMeta);
+            destinationTableMeta,
+            new HashMap<String, String>());
 
     Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir, 
-        "source_schema_evolution_disabled.ddl"));
+        "source_schema_evolution_disabled.ddl"),
+        "Generated DDL did not match expected for evolution disabled");
 
     String dml = HiveAvroORCQueryUtils.generateTableMappingDML(inputSchema,
         outputSchema,
@@ -174,7 +182,8 @@ public class HiveSchemaEvolutionTest {
         destinationTableMeta);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
-        "source_schema_evolution_disabled.dml"));
+        "source_schema_evolution_disabled.dml"),
+        "Generated DML did not match expected for evolution disabled");
   }
 
   @Test
@@ -196,10 +205,12 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(),
             Optional.<Map<String, String>>absent(),
             isEvolutionEnabled,
-            destinationTableMeta);
+            destinationTableMeta,
+            new HashMap<String, String>());
 
     Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
-        "source_schema_evolution_enabled.ddl"));
+        "source_schema_evolution_enabled.ddl"),
+        "Generated DDL did not match expected for evolution disabled");
 
     String dml = HiveAvroORCQueryUtils.generateTableMappingDML(inputSchema,
         outputSchema,
@@ -214,7 +225,8 @@ public class HiveSchemaEvolutionTest {
         destinationTableMeta);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
-        "source_schema_evolution_enabled.dml"));
+        "source_schema_evolution_enabled.dml"),
+        "Generated DML did not match expected for evolution disabled");
   }
 
   @Test
@@ -236,10 +248,12 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(),
             Optional.<Map<String, String>>absent(),
             isEvolutionEnabled,
-            destinationTableMeta);
+            destinationTableMeta,
+            new HashMap<String, String>());
 
     Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
-        "source_schema_lineage_missing.ddl"));
+        "source_schema_lineage_missing.ddl"),
+        "Generated DDL did not match expected for evolution disabled");
 
     String dml = HiveAvroORCQueryUtils.generateTableMappingDML(inputSchema,
         outputSchema,
@@ -254,7 +268,174 @@ public class HiveSchemaEvolutionTest {
         destinationTableMeta);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
-        "source_schema_lineage_missing.dml"));
+        "source_schema_lineage_missing.dml"),
+        "Generated DML did not match expected for evolution disabled");
+  }
+
+  @Test
+  public void testEvolutionEnabledGenerateEvolutionDDL() {
+    String orcStagingTableName = schemaName + "_staging";
+    String orcTableName = schemaName;
+    boolean isEvolutionEnabled = true;
+    Optional<Table> destinationTableMeta = createEvolvedDestinationTable(schemaName, "default", "", true);
+    Map<String, String> hiveColumns = new HashMap<>();
+
+    // Call to help populate hiveColumns via real code path
+    HiveAvroORCQueryUtils.generateCreateTableDDL(outputSchema, schemaName, "/tmp/dummy", Optional.<String>absent(),
+        Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
+        Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
+        Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, hiveColumns);
+
+    // Destination table exists
+    String generateEvolutionDDL = HiveAvroORCQueryUtils
+        .generateEvolutionDDL(orcStagingTableName,
+            orcTableName,
+            outputSchema,
+            isEvolutionEnabled,
+            hiveColumns,
+            destinationTableMeta);
+    Assert.assertEquals(generateEvolutionDDL,
+        "ALTER TABLE sourceSchema ADD COLUMNS (parentFieldRecord__nestedFieldInt int COMMENT "
+            + "'from flatten_source parentFieldRecord.nestedFieldInt');\n",
+        "Generated evolution DDL did not match for evolution enabled");
+
+    // Destination table does not exists
+    destinationTableMeta = Optional.absent();
+    generateEvolutionDDL = HiveAvroORCQueryUtils
+        .generateEvolutionDDL(orcStagingTableName,
+            orcTableName,
+            outputSchema,
+            isEvolutionEnabled,
+            hiveColumns,
+            destinationTableMeta);
+    // No DDL should be generated, because create table will take care of destination table
+    Assert.assertEquals(generateEvolutionDDL, "",
+        "Generated evolution DDL did not match for evolution enabled");
+  }
+
+  @Test
+  public void testEvolutionDisabledGenerateEvolutionDDL() {
+    String orcStagingTableName = schemaName + "_staging";
+    String orcTableName = schemaName;
+    boolean isEvolutionEnabled = false;
+    Optional<Table> destinationTableMeta = createEvolvedDestinationTable(schemaName, "default", "", true);
+    Map<String, String> hiveColumns = new HashMap<>();
+
+    // Call to help populate hiveColumns via real code path
+    HiveAvroORCQueryUtils.generateCreateTableDDL(outputSchema, schemaName, "/tmp/dummy", Optional.<String>absent(),
+        Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
+        Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
+        Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, hiveColumns);
+
+    // Destination table exists
+    String generateEvolutionDDL = HiveAvroORCQueryUtils
+        .generateEvolutionDDL(orcStagingTableName,
+            orcTableName,
+            outputSchema,
+            isEvolutionEnabled,
+            hiveColumns,
+            destinationTableMeta);
+    // No DDL should be generated, because select based on destination table will selectively project columns
+    Assert.assertEquals(generateEvolutionDDL, "",
+        "Generated evolution DDL did not match for evolution disabled");
+
+    // Destination table does not exists
+    destinationTableMeta = Optional.absent();
+    generateEvolutionDDL = HiveAvroORCQueryUtils
+        .generateEvolutionDDL(orcStagingTableName,
+            orcTableName,
+            outputSchema,
+            isEvolutionEnabled,
+            hiveColumns,
+            destinationTableMeta);
+    // No DDL should be generated, because create table will take care of destination table
+    Assert.assertEquals(generateEvolutionDDL, "",
+        "Generated evolution DDL did not match for evolution disabled");
+  }
+
+  @Test
+  public void testGeneratePublishTableDDL() {
+    String orcStagingTableName = schemaName + "_staging";
+    String orcTableName = schemaName;
+    Optional<Table> destinationTableMeta = createEvolvedDestinationTable(schemaName, "default", "", true);
+
+    // Destination table exists
+    String generatePublishDDL = HiveAvroORCQueryUtils
+        .generatePublishTableDDL(orcStagingTableName,
+            orcTableName,
+            destinationTableMeta);
+    // No DDL should be generated, because:
+    // 1. If evolution is enabled, alter table DDL will take care of destination table evolution
+    // 2. If evolution is disabled, select based on destination table will selectively project columns
+    // Subsequently partitions from staging will be moved to destination
+    Assert.assertEquals(generatePublishDDL, "",
+        "Generated publish table DDL did not match for existing destination table");
+
+    // Destination table does not exists
+    destinationTableMeta = Optional.absent();
+    generatePublishDDL = HiveAvroORCQueryUtils
+        .generatePublishTableDDL(orcStagingTableName,
+            orcTableName,
+            destinationTableMeta);
+    Assert.assertEquals(generatePublishDDL, "DROP TABLE IF EXISTS sourceSchema;\n"
+        + "ALTER TABLE sourceSchema_staging RENAME TO sourceSchema;\n",
+        "Generated publish table DDL did not match for new destination table");
+  }
+
+  @Test
+  public void testGeneratePublishPartitionDDL() {
+    String orcStagingTableName = schemaName + "_staging";
+    String orcTableName = schemaName;
+    Map<String, String> partitionInfo = ImmutableMap.<String, String>builder().put("datepartition", "20160101").build();
+    Optional<Table> destinationTableMeta = createEvolvedDestinationTable(schemaName, "default", "", true);
+
+    // Destination table exists
+    String generatePublishDDL = HiveAvroORCQueryUtils
+        .generatePublishPartitionDDL(orcStagingTableName,
+            orcTableName,
+            partitionInfo,
+            destinationTableMeta);
+    // Evolution enabled:
+    // - Table exist: Move partition from staging to destination
+    // Evolution disabled:
+    // - Table exist: Move partition from staging to destination
+    Assert.assertEquals(generatePublishDDL,
+        "ALTER TABLE sourceSchema EXCHANGE PARTITION (datepartition='20160101') WITH TABLE sourceSchema_staging;\n",
+        "Generated publish partition DDL did not match");
+
+    destinationTableMeta = Optional.absent();
+    // Destination table does not exists
+    generatePublishDDL = HiveAvroORCQueryUtils
+        .generatePublishPartitionDDL(orcStagingTableName,
+            orcTableName,
+            partitionInfo,
+            destinationTableMeta);
+    // Evolution enabled:
+    // - Table does not exist: no-op (staging is already renamed to final)
+    // Evolution disabled:
+    // - Table does not exist: no op (staging is already renamed to final)
+    Assert.assertEquals(generatePublishDDL, "", "Generated publish partition DDL did not match");
+
+    // Destination table exists but its a snapshot table (no partition)
+    generatePublishDDL = HiveAvroORCQueryUtils
+        .generatePublishPartitionDDL(orcStagingTableName,
+            orcTableName,
+            new HashMap<String, String>(),
+            destinationTableMeta);
+    Assert.assertEquals(generatePublishDDL, "", "Generated publish partition DDL did not match");
+  }
+
+  @Test
+  public void testGenerateCleanupDDL() {
+    String orcStagingTableName = schemaName + "_staging";
+
+    // Destination table exists
+    String generateCleanupDDL = HiveAvroORCQueryUtils.generateCleanupDDL(orcStagingTableName);
+    Assert.assertEquals(generateCleanupDDL,
+        "DROP TABLE IF EXISTS sourceSchema_staging;\n",
+        "Generated cleanup staging DDL did not match");
   }
 
   private Optional<Table> createEvolvedDestinationTable(String tableName, String dbName, String location,
@@ -268,8 +449,9 @@ public class HiveSchemaEvolutionTest {
     cols.add(new FieldSchema("parentFieldRecord__nestedFieldString", "string",
         withComment ? "from flatten_source parentFieldRecord.nestedFieldString" : ""));
     // The following column is skipped (simulating un-evolved schema):
-    // cols.add(new FieldSchema("parentFieldRecord__nestedFieldInt", "int",
-    //   withComment ? "from flatten_source parentFieldRecord.nestedFieldInt" : ""));
+    // Column name   : parentFieldRecord__nestedFieldInt
+    // Column type   : int
+    // Column comment: from flatten_source parentFieldRecord.nestedFieldInt
     cols.add(new FieldSchema("parentFieldInt", "int",
         withComment ? "from flatten_source parentFieldInt" : ""));
     // Extra schema

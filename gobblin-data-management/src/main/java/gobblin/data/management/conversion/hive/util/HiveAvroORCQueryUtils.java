@@ -13,9 +13,9 @@
 package gobblin.data.management.conversion.hive.util;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +29,10 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 
 /***
@@ -36,6 +40,11 @@ import com.google.common.collect.ImmutableMap;
  */
 @Slf4j
 public class HiveAvroORCQueryUtils {
+
+  public static final String SERIALIZED_PUBLISH_TABLE_COMMANDS = "serialized.publish.table.commands";
+  public static final String SERIALIZED_PUBLISH_PARTITION_COMMANDS = "serialized.publish.partition.commands";
+  public static final String SERIALIZED_CLEANUP_COMMANDS = "serialized.cleanup.commands";
+  public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
   // Table properties keys
   private static final String ORC_COMPRESSION_KEY                 = "orc.compress";
@@ -72,6 +81,26 @@ public class HiveAvroORCQueryUtils {
       .put(Schema.Type.ENUM,    "string")
       .put(Schema.Type.FIXED,   "binary")
       .build();
+
+  // Hive evolution types supported
+  private static final Map<String, Set<String>> HIVE_COMPATIBLE_TYPES = ImmutableMap
+      .<String, Set<String>>builder()
+      .put("tinyint", ImmutableSet.<String>builder()
+          .add("smallint", "int", "bigint", "float", "double", "decimal", "string", "varchar").build())
+      .put("smallint",  ImmutableSet.<String>builder().add("int", "bigint", "float", "double", "decimal", "string",
+          "varchar").build())
+      .put("int",       ImmutableSet.<String>builder().add("bigint", "float", "double", "decimal", "string", "varchar")
+          .build())
+      .put("bigint",    ImmutableSet.<String>builder().add("float", "double", "decimal", "string", "varchar").build())
+      .put("float",     ImmutableSet.<String>builder().add("double", "decimal", "string", "varchar").build())
+      .put("double",    ImmutableSet.<String>builder().add("decimal", "string", "varchar").build())
+      .put("decimal",   ImmutableSet.<String>builder().add("string", "varchar").build())
+      .put("string",    ImmutableSet.<String>builder().add("double", "decimal", "varchar").build())
+      .put("varchar",   ImmutableSet.<String>builder().add("double", "string", "varchar").build())
+      .put("timestamp", ImmutableSet.<String>builder().add("string", "varchar").build())
+      .put("date",      ImmutableSet.<String>builder().add("string", "varchar").build())
+      .put("binary",    Sets.<String>newHashSet())
+      .put("boolean",    Sets.<String>newHashSet()).build();
 
   @ToString
   public static enum COLUMN_SORT_ORDER {
@@ -116,7 +145,8 @@ public class HiveAvroORCQueryUtils {
       Optional<String> optionalOutputFormat,
       Optional<Map<String, String>> optionalTblProperties,
       boolean isEvolutionEnabled,
-      Optional<Table> destinationTableMeta) {
+      Optional<Table> destinationTableMeta,
+      Map<String, String> hiveColumns) {
 
     Preconditions.checkNotNull(schema);
     Preconditions.checkArgument(StringUtils.isNotBlank(tblName));
@@ -133,7 +163,6 @@ public class HiveAvroORCQueryUtils {
     // Refer to Hive DDL manual for explanation of clauses:
     // https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL#LanguageManualDDL-Create/Drop/TruncateTable
     StringBuilder ddl = new StringBuilder();
-    Map<String, String> hiveColumns = new HashMap<String, String>();
 
     // Create statement
     ddl.append(String.format("CREATE EXTERNAL TABLE IF NOT EXISTS `%s.%s` ", dbName, tblName));
@@ -581,5 +610,142 @@ public class HiveAvroORCQueryUtils {
   public static Schema readSchemaFromString(String schemaStr)
       throws IOException {
     return new Schema.Parser().parse(schemaStr);
+  }
+
+  /***
+   * Generate DDLs to evolve final destination table.
+   * @param stagingTableName Staging table.
+   * @param finalTableName Un-evolved final destination table.
+   * @param evolvedSchema Evolved Avro Schema.
+   * @param isEvolutionEnabled Is schema evolution enabled.
+   * @param evolvedColumns Evolved columns in Hive format.
+   * @param destinationTableMeta Destination table metadata.
+   * @return DDLs to evolve final destination table.
+   */
+  public static String generateEvolutionDDL(String stagingTableName,
+      String finalTableName,
+      Schema evolvedSchema,
+      boolean isEvolutionEnabled,
+      Map<String, String> evolvedColumns,
+      Optional<Table> destinationTableMeta) {
+    // If schema evolution is disabled, then do nothing OR
+    // If destination table does not exists, then do nothing
+    if (!isEvolutionEnabled || !destinationTableMeta.isPresent()) {
+      return StringUtils.EMPTY;
+    }
+
+    StringBuilder ddl = new StringBuilder();
+
+    // Evolve schema
+    Table destinationTable = destinationTableMeta.get();
+    for (Map.Entry<String, String> evolvedColumn : evolvedColumns.entrySet()) {
+      // Find evolved column in destination table
+      boolean found = false;
+      for (FieldSchema destinationField : destinationTable.getSd().getCols()) {
+        if (destinationField.getName().equalsIgnoreCase(evolvedColumn.getKey())) {
+          // If evolved column is found, but type is evolved - evolve it
+          // .. if incompatible, isTypeEvolved will throw an exception
+          if (isTypeEvolved(evolvedColumn.getValue(), destinationField.getType())) {
+            ddl.append(String.format("ALTER TABLE %s CHANGE COLUMN %s %s %s COMMENT '%s';",
+                finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
+                destinationField.getComment())).append("\n");
+          }
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        // If evolved column is not found ie. its new, add this column
+        String flattenSource = evolvedSchema.getField(evolvedColumn.getKey()).getProp("flatten_source");
+        if (StringUtils.isBlank(flattenSource)) {
+          flattenSource = evolvedSchema.getField(evolvedColumn.getKey()).name();
+        }
+        ddl.append(String.format("ALTER TABLE %s ADD COLUMNS (%s %s COMMENT 'from flatten_source %s');",
+            finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource)).append("\n");
+      }
+    }
+
+    return ddl.toString();
+  }
+
+  /***
+   * Generate DDLs to publish staging table to final destination table.
+   * @param stagingTableName Staging table name to publish from.
+   * @param finalTableName Final table name to publish to.
+   * @param destinationTableMeta Existing final table metadata if any.
+   * @return DDL to publish to final destination table from staging table.
+   */
+  public static String generatePublishTableDDL(String stagingTableName,
+      String finalTableName,
+      Optional<Table> destinationTableMeta) {
+    StringBuilder ddl = new StringBuilder();
+
+    // If new table, then create table
+    if (!destinationTableMeta.isPresent()) {
+      ddl.append(String.format("DROP TABLE IF EXISTS %s;", finalTableName)).append("\n");
+      ddl.append(String.format("ALTER TABLE %s RENAME TO %s;", stagingTableName, finalTableName)).append("\n");
+
+      return ddl.toString();
+    }
+
+    return StringUtils.EMPTY;
+  }
+
+  /***
+   * Generate DDLs to publish staging table partitions to final destination table.
+   * @param stagingTableName Staging table name to publish from.
+   * @param finalTableName Final table name to publish to.
+   * @param partitionsDMLInfo Partitions to be moved from staging to final table.
+   * @param destinationTableMeta Existing final table metadata if any.
+   * @return DDL to publish to final destination table from staging table.
+   */
+  public static String generatePublishPartitionDDL(String stagingTableName,
+      String finalTableName,
+      Map<String, String> partitionsDMLInfo,
+      Optional<Table> destinationTableMeta) {
+    if (!destinationTableMeta.isPresent() || partitionsDMLInfo.size() == 0) {
+      return StringUtils.EMPTY;
+    }
+
+    // Format: alter table t4 exchange partition (ds='3') with table t3
+    StringBuilder ddl = new StringBuilder();
+
+    // Schema is already evolved or if evolution is turned off then staging and final table have same schema
+    // .. now we have to move partitions from staging to final table
+    for (Map.Entry<String, String> partition : partitionsDMLInfo.entrySet()) {
+      ddl.append(String.format("ALTER TABLE %s EXCHANGE PARTITION (%s='%s') WITH TABLE %s;",
+          finalTableName, partition.getKey(), partition.getValue(), stagingTableName)).append("\n");
+    }
+
+    return ddl.toString();
+  }
+
+  /***
+   * Generate DDL statement for cleaning up temporary staging table.
+   * @param stagingTableName Staging table to be cleaned.
+   * @return DDL to clean up temporary staging table.
+   */
+  public static String generateCleanupDDL(String stagingTableName) {
+    return String.format("DROP TABLE IF EXISTS %s;", stagingTableName) + "\n";
+  }
+
+  private static boolean isTypeEvolved(String evolvedType, String destinationType) {
+    if (evolvedType.equalsIgnoreCase(destinationType)) {
+      // Same type, not evolved
+      return false;
+    }
+    // Look for compatibility in evolved type
+    if (HIVE_COMPATIBLE_TYPES.containsKey(destinationType)) {
+      if (HIVE_COMPATIBLE_TYPES.get(destinationType).contains(evolvedType)) {
+        return true;
+      } else {
+        throw new RuntimeException(String.format("Incompatible type evolution from: %s to: %s",
+            destinationType, evolvedType));
+      }
+    } else {
+      // We assume all complex types are compatible
+      // TODO: Add compatibility check when ORC evolution supports complex types
+      return true;
+    }
   }
 }

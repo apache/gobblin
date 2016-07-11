@@ -13,6 +13,7 @@
 package gobblin.data.management.conversion.hive.util;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -51,7 +52,7 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta);
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
     Assert.assertEquals(q,
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "arrayWithinRecordWithinArrayWithinRecord_nested.ddl"));
@@ -71,7 +72,7 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta);
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
     Assert.assertEquals(q,
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "optionWithinOptionWithinRecord_nested.ddl"));
@@ -91,7 +92,7 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta);
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
     Assert.assertEquals(q.trim(),
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinOptionWithinRecord_nested.ddl"));
@@ -111,7 +112,7 @@ public class HiveAvroORCQueryUtilsTest {
         "file:/user/hive/warehouse/" + schemaName, Optional.<String>absent(), Optional.<Map<String, String>>absent(),
         Optional.<List<String>>absent(), Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
         Optional.<Integer>absent(), Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta);
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
     Assert.assertEquals(q.trim(),
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_nested.ddl"));
@@ -133,7 +134,7 @@ public class HiveAvroORCQueryUtilsTest {
         Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta);
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
 
     Assert.assertEquals(q,
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_flattened.ddl"));
@@ -174,6 +175,6 @@ public class HiveAvroORCQueryUtilsTest {
         "file:/user/hive/warehouse/" + schemaName, Optional.<String>absent(), Optional.<Map<String, String>>absent(),
         Optional.<List<String>>absent(), Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
         Optional.<Integer>absent(), Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta);
+        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
   }
 }
