@@ -23,6 +23,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -56,7 +57,7 @@ public class TeradataExtractor extends JdbcExtractor {
   private static final long SAMPLE_RECORD_COUNT = -1;
   private static final String ELEMENT_DATA_TYPE = "string";
   
-  private static final String TERADATA_SAMPLE_CLAUSE =" sample "; 
+  private static final String TERADATA_SAMPLE_CLAUSE = " sample "; 
   
   private static final Gson gson = new Gson();
   
@@ -109,7 +110,7 @@ public class TeradataExtractor extends JdbcExtractor {
     log.debug("Build query to get source record count");
     List<Command> commands = new ArrayList<Command>();
 
-    String columnProjection = "COUNT(1)";
+    String columnProjection = "CAST(COUNT(1) AS BIGINT)";
     String watermarkFilter = this.concatPredicates(predicateList);
     String query = this.getExtractSql();
 
@@ -122,7 +123,7 @@ public class TeradataExtractor extends JdbcExtractor {
     query = query + sampleFilter;
 
     if (!isNullOrEmpty(sampleFilter)) {
-      query = "SELECT COUNT(1) FROM (" + query.replace(" COUNT(1) ", " 1 at t") + ") temp";
+      query = "SELECT " + columnProjection + " FROM (" + query.replace(columnProjection, "1 as t") + ") temp";
     }
     commands.add(JdbcExtractor.getCommand(query, JdbcCommand.JdbcCommandType.QUERY));
     return commands;
@@ -144,13 +145,8 @@ public class TeradataExtractor extends JdbcExtractor {
 
     query = query.replace(ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL, watermarkFilter);
     String sampleFilter = this.constructSampleClause();
-
-    if (!isNullOrEmpty(sampleFilter)) {
-      String columnProjection = this.getOutputColumnProjection();
-      String newColumnProjection = sampleFilter + " " + columnProjection;
-      query = query.replace(columnProjection, newColumnProjection);
-    }
-
+    query = query + sampleFilter;
+    
     commands.add(JdbcExtractor.getCommand(query, JdbcCommand.JdbcCommandType.QUERY));
     commands.add(JdbcExtractor.getCommand(fetchSize, JdbcCommand.JdbcCommandType.FETCHSIZE));
     return commands;    
@@ -176,6 +172,14 @@ public class TeradataExtractor extends JdbcExtractor {
             .put("clob", "string")
             .put("blob", "string")
             .put("structured udt", "array")
+            .put("double precision", "float")
+            .put("numeric", "double")
+            .put("real", "float")
+            .put("character", "string")
+            .put("char varying", "string")
+            .put("character varying", "string")
+            .put("long varchar", "string")
+            .put("interval", "string")            
             .build();
     return dataTypeMap;
   }
@@ -188,12 +192,15 @@ public class TeradataExtractor extends JdbcExtractor {
 
   @Override
   public String getConnectionUrl() {
+    String urlPrefix = "jdbc:teradata://"; 
     String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
+    checkArgument(!isNullOrEmpty(host), "Connectionn host cannot be null or empty at %s", ConfigurationKeys.SOURCE_CONN_HOST_NAME);
+    
     String port = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PORT,"1025");
     String database = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
-    String url = "jdbc:teradata://" + host.trim() + "/DATABASE=" + database.trim() + ",DBS_PORT=" + port.trim() ;
-    
-    return url;
+    String defaultUrl = urlPrefix + host.trim() + "/DATABASE=" + database.trim() + ",DBS_PORT=" + port.trim() ;
+    // use custom url from source.conn.host if Teradata jdbc url available
+    return host.contains(urlPrefix) ? host.trim() : defaultUrl;
   }
 
   @Override
@@ -208,7 +215,7 @@ public class TeradataExtractor extends JdbcExtractor {
     String inputQuery = query.toLowerCase();
     int limitIndex = inputQuery.indexOf(TERADATA_SAMPLE_CLAUSE);
     if (limitIndex > 0) {
-      limit = query.substring(limitIndex + 8).trim();
+      limit = query.substring(limitIndex + TERADATA_SAMPLE_CLAUSE.length()).trim();
     }
 
     if (!isNullOrEmpty(limit)) {

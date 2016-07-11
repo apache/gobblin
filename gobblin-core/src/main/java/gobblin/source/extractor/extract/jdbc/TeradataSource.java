@@ -37,7 +37,7 @@ public class TeradataSource extends QueryBasedSource<JsonArray, JsonElement> {
     try {
       extractor = new TeradataExtractor(state).build();
     } catch (ExtractPrepareException e) {
-      log.error("Failed to prepare extractor: error - " + e.getMessage());
+      log.error("Failed to prepare extractor: error - {}", e.getMessage());
       throw new IOException(e);
     }
     return extractor;
