@@ -11,6 +11,7 @@
  */
 package gobblin.data.management.conversion.hive.converter;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -19,6 +20,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.thrift.TException;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -33,6 +37,9 @@ import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.data.management.conversion.hive.util.HiveAvroORCQueryUtils;
+import gobblin.data.management.copy.hive.HiveDatasetFinder;
+import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.util.AutoReturnableObject;
 
 
 /**
@@ -121,6 +128,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     String orcTableName = getConversionConfig().getDestinationTableName();
     String orcTableDatabase = getConversionConfig().getDestinationDbName();
     String orcDataLocation = getOrcDataLocation(workUnit);
+    boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
+    Optional<Table> destinationTableMeta = getDestinationTableMeta(orcTableDatabase, orcTableName, workUnit);
 
     // Optional
     Optional<List<String>> clusterBy =
@@ -139,18 +148,36 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
     // Create DDL statement
     String createTargetTableDDL =
-        HiveAvroORCQueryUtils.generateCreateTableDDL(outputAvroSchema, orcTableName, orcDataLocation, Optional.of(orcTableDatabase),
-            Optional.of(partitionsDDLInfo), clusterBy, Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>> absent(),
-            numBuckets, Optional.<String> absent(), Optional.<String> absent(), Optional.<String> absent(),
-            Optional.<Map<String, String>> absent());
+        HiveAvroORCQueryUtils.generateCreateTableDDL(outputAvroSchema,
+            orcTableName,
+            orcDataLocation,
+            Optional.of(orcTableDatabase),
+            Optional.of(partitionsDDLInfo),
+            clusterBy,
+            Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>> absent(),
+            numBuckets,
+            Optional.<String> absent(),
+            Optional.<String> absent(),
+            Optional.<String> absent(),
+            Optional.<Map<String, String>> absent(),
+            isEvolutionEnabled,
+            destinationTableMeta);
     conversionEntity.getQueries().add(createTargetTableDDL);
     log.debug("Create DDL: " + createTargetTableDDL);
 
     // Create DML statement
     String insertInORCTableDML =
-        HiveAvroORCQueryUtils.generateTableMappingDML(conversionEntity.getHiveTable().getAvroSchema(), outputAvroSchema, avroTableName, orcTableName,
-            Optional.of(conversionEntity.getHiveTable().getDbName()), Optional.of(orcTableDatabase), Optional.of(partitionsDMLInfo),
-            Optional.<Boolean> absent(), Optional.<Boolean> absent());
+        HiveAvroORCQueryUtils.generateTableMappingDML(conversionEntity.getHiveTable().getAvroSchema(),
+            outputAvroSchema,
+            avroTableName,
+            orcTableName,
+            Optional.of(conversionEntity.getHiveTable().getDbName()),
+            Optional.of(orcTableDatabase),
+            Optional.of(partitionsDMLInfo),
+            Optional.<Boolean> absent(),
+            Optional.<Boolean> absent(),
+            isEvolutionEnabled,
+            destinationTableMeta);
     conversionEntity.getQueries().add(insertInORCTableDML);
     log.debug("Conversion DML: " + insertInORCTableDML);
 
@@ -182,7 +209,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
     if (StringUtils.isNotBlank(partitionsInfoString) || StringUtils.isNotBlank(partitionsTypeString)) {
       if (StringUtils.isBlank(partitionsInfoString) || StringUtils.isBlank(partitionsTypeString)) {
-        throw new IllegalArgumentException("Both partitions info and partions must be present, if one is specified");
+        throw new IllegalArgumentException("Both partitions info and partitions must be present, if one is specified");
       }
       List<String> pInfo = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsInfoString);
       List<String> pType = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsTypeString);
@@ -200,5 +227,22 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         partitionsDMLInfo.put(partitionInfoParts.get(0), partitionInfoParts.get(1));
       }
     }
+  }
+
+  private Optional<Table> getDestinationTableMeta(String dbName, String tableName, WorkUnitState state)
+      throws DataConversionException {
+    Optional<Table> table = Optional.<Table>absent();
+
+    try {
+      HiveMetastoreClientPool pool = HiveMetastoreClientPool.get(state.getJobState().getProperties(),
+          Optional.fromNullable(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
+      try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+        table = Optional.of(client.get().getTable(dbName, tableName));
+      }
+    } catch (IOException | TException e) {
+      throw new DataConversionException("Could not fetch destination table metadata", e);
+    }
+
+    return table;
   }
 }

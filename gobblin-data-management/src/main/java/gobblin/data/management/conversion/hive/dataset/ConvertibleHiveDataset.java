@@ -135,6 +135,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
     public static final String DESTINATION_DATA_PATH_KEY = "destination.dataPath";
     public static final String CLUSTER_BY_KEY = "clusterByList";
     public static final String NUM_BUCKETS_KEY = "numBuckets";
+    public static final String EVOLUTION_ENABLED = "evolution.enabled";
 
     private static final String HIVE_RUNTIME_PROPERTIES_KEY_PREFIX = "hiveRuntime";
     private final String destinationFormat;
@@ -144,6 +145,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
     private final List<String> clusterBy;
     private final Optional<Integer> numBuckets;
     private final Properties hiveRuntimeProperties;
+    private final boolean evolutionEnabled;
 
     private ConversionConfig(Config config, Table table, String destinationFormat) {
 
@@ -161,7 +163,9 @@ public class ConvertibleHiveDataset extends HiveDataset {
       // Optional
       this.clusterBy = ConfigUtils.getStringList(config, CLUSTER_BY_KEY);
       this.numBuckets = Optional.fromNullable(ConfigUtils.getInt(config, NUM_BUCKETS_KEY, null));
-      this.hiveRuntimeProperties = ConfigUtils.configToProperties(ConfigUtils.getConfig(config, HIVE_RUNTIME_PROPERTIES_KEY_PREFIX, ConfigFactory.empty()));
+      this.hiveRuntimeProperties = ConfigUtils
+          .configToProperties(ConfigUtils.getConfig(config, HIVE_RUNTIME_PROPERTIES_KEY_PREFIX, ConfigFactory.empty()));
+      this.evolutionEnabled = config.hasPath(EVOLUTION_ENABLED) && config.getBoolean(EVOLUTION_ENABLED);
     }
   }
 

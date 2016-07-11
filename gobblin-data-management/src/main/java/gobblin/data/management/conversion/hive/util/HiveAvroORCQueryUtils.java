@@ -23,6 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -98,19 +100,23 @@ public class HiveAvroORCQueryUtils {
    * @param optionalInputFormat Optional input format serde, default is ORC
    * @param optionalOutputFormat Optional output format serde, default is ORC
    * @param optionalTblProperties Optional table properties
-   * @return Generated DDL query to create new Hive table
+   * @param isEvolutionEnabled If schema evolution is turned on
+   * @param destinationTableMeta Optional destination table metadata  @return Generated DDL query to create new Hive table
    */
   public static String generateCreateTableDDL(Schema schema,
-                                              String tblName,
-                                              String tblLocation,
-                                              Optional<String> optionalDbName,
-                                              Optional<Map<String, String>> optionalPartitionDDLInfo,
-                                              Optional<List<String>> optionalClusterInfo,
-                                              Optional<Map<String, COLUMN_SORT_ORDER>> optionalSortOrderInfo,
-                                              Optional<Integer> optionalNumOfBuckets,
-                                              Optional<String> optionalRowFormatSerde,
-                                              Optional<String> optionalInputFormat,
-                                              Optional<String> optionalOutputFormat, Optional<Map<String, String>> optionalTblProperties) {
+      String tblName,
+      String tblLocation,
+      Optional<String> optionalDbName,
+      Optional<Map<String, String>> optionalPartitionDDLInfo,
+      Optional<List<String>> optionalClusterInfo,
+      Optional<Map<String, COLUMN_SORT_ORDER>> optionalSortOrderInfo,
+      Optional<Integer> optionalNumOfBuckets,
+      Optional<String> optionalRowFormatSerde,
+      Optional<String> optionalInputFormat,
+      Optional<String> optionalOutputFormat,
+      Optional<Map<String, String>> optionalTblProperties,
+      boolean isEvolutionEnabled,
+      Optional<Table> destinationTableMeta) {
 
     Preconditions.checkNotNull(schema);
     Preconditions.checkArgument(StringUtils.isNotBlank(tblName));
@@ -133,7 +139,24 @@ public class HiveAvroORCQueryUtils {
     ddl.append(String.format("CREATE EXTERNAL TABLE IF NOT EXISTS `%s.%s` ", dbName, tblName));
     // .. open bracket for CREATE
     ddl.append("( \n");
-    ddl.append(generateAvroToHiveColumnMapping(schema, Optional.of(hiveColumns), true));
+
+    // 1. If evolution is enabled, and destination table does not exists
+    //    .. use columns from new schema
+    //    (evolution does not matter if its new destination table)
+    // 2. If evolution is enabled, and destination table does exists
+    //    .. use columns from new schema
+    //    (alter table will be used before moving data from staging to final table)
+    // 3. If evolution is disabled, and destination table does not exists
+    //    .. use columns from new schema
+    //    (evolution does not matter if its new destination table)
+    // 4. If evolution is disabled, and destination table does exists
+    //    .. use columns from destination schema
+    if (isEvolutionEnabled || !destinationTableMeta.isPresent()) {
+      ddl.append(generateAvroToHiveColumnMapping(schema, Optional.of(hiveColumns), true));
+    } else {
+      ddl.append(generateDestinationToHiveColumnMapping(Optional.of(hiveColumns), destinationTableMeta.get()));
+    }
+
     // .. close bracket for CREATE
     ddl.append(") \n");
 
@@ -237,7 +260,8 @@ public class HiveAvroORCQueryUtils {
    * @param topLevel If this is first level
    * @return Generate Hive columns with types for given Avro schema
    */
-  private static String generateAvroToHiveColumnMapping(Schema schema, Optional<Map<String, String>> hiveColumns,
+  private static String generateAvroToHiveColumnMapping(Schema schema,
+      Optional<Map<String, String>> hiveColumns,
       boolean topLevel) {
     if (topLevel && !schema.getType().equals(Schema.Type.RECORD)) {
       throw new IllegalArgumentException(String.format("Schema for table must be of type RECORD. Received type: %s",
@@ -260,7 +284,11 @@ public class HiveAvroORCQueryUtils {
             if (hiveColumns.isPresent()) {
               hiveColumns.get().put(field.name(), type);
             }
-            columns.append(String.format("  `%s` %s", field.name(), type));
+            String flattenSource = field.getProp("flatten_source");
+            if (StringUtils.isBlank(flattenSource)) {
+              flattenSource = field.name();
+            }
+            columns.append(String.format("  `%s` %s COMMENT 'from flatten_source %s'", field.name(), type,flattenSource));
           }
         } else {
           columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
@@ -331,6 +359,36 @@ public class HiveAvroORCQueryUtils {
   }
 
   /***
+   * Use destination table schema to generate column mapping
+   * @param hiveColumns Optional Map to populate with the generated hive columns for reference of caller
+   * @param destinationTableMeta destination table metadata
+   * @return Generate Hive columns with types for given Avro schema
+   */
+  private static String generateDestinationToHiveColumnMapping(
+      Optional<Map<String, String>> hiveColumns,
+      Table destinationTableMeta) {
+    StringBuilder columns = new StringBuilder();
+    boolean isFirst = true;
+    List<FieldSchema> fieldList = destinationTableMeta.getSd().getCols();
+    for (FieldSchema field : fieldList) {
+      if (isFirst) {
+        isFirst = false;
+      } else {
+        columns.append(", \n");
+      }
+      String name = field.getName();
+      String type = field.getType();
+      String comment = field.getComment();
+      if (hiveColumns.isPresent()) {
+        hiveColumns.get().put(name, type);
+      }
+      columns.append(String.format("  `%s` %s COMMENT '%s'", name, type, comment));
+    }
+
+    return columns.toString();
+  }
+
+  /***
    * Check if the Avro Schema is of type OPTION
    * ie. [null, TYPE] or [TYPE, null]
    * @param schema Avro Schema to check
@@ -375,15 +433,20 @@ public class HiveAvroORCQueryUtils {
    * @param optionalPartitionDMLInfo Optional partition info in form of map of partition key, partition value pairs
    * @param optionalOverwriteTable Optional overwrite table, if not specified it is set to true
    * @param optionalCreateIfNotExists Optional create if not exists, if not specified it is set to false
-   * @return DML query
+   * @param isEvolutionEnabled If schema evolution is turned on
+   * @param destinationTableMeta Optional destination table metadata  @return DML query
    */
-  public static String generateTableMappingDML(Schema inputAvroSchema, Schema outputOrcSchema,
-      String inputTblName, String outputTblName,
+  public static String generateTableMappingDML(Schema inputAvroSchema,
+      Schema outputOrcSchema,
+      String inputTblName,
+      String outputTblName,
       Optional<String> optionalInputDbName,
       Optional<String> optionalOutputDbName,
       Optional<Map<String, String>> optionalPartitionDMLInfo,
       Optional<Boolean> optionalOverwriteTable,
-      Optional<Boolean> optionalCreateIfNotExists) {
+      Optional<Boolean> optionalCreateIfNotExists,
+      boolean isEvolutionEnabled,
+      Optional<Table> destinationTableMeta) {
     Preconditions.checkNotNull(inputAvroSchema);
     Preconditions.checkNotNull(outputOrcSchema);
     Preconditions.checkArgument(StringUtils.isNotBlank(inputTblName));
@@ -428,26 +491,76 @@ public class HiveAvroORCQueryUtils {
     // Select query
     dmlQuery.append("SELECT \n");
 
-    boolean isFirst = true;
-    List<Schema.Field> fieldList = outputOrcSchema.getFields();
-    for (Schema.Field field : fieldList) {
-      String flattenSource = field.getProp("flatten_source");
-      String colName;
-      if (StringUtils.isNotBlank(flattenSource)) {
-        colName = flattenSource;
-      } else {
-        colName = field.name();
-      }
-      if (isFirst) {
-        isFirst = false;
-      } else {
-        dmlQuery.append(", \n");
-      }
-      // Escape the column name
-      colName = colName.replaceAll("\\.", "`.`");
+    // 1. If evolution is enabled, and destination table does not exists
+    //    .. use columns from new schema
+    //    (evolution does not matter if its new destination table)
+    // 2. If evolution is enabled, and destination table does exists
+    //    .. use columns from new schema
+    //    (alter table will be used before moving data from staging to final table)
+    // 3. If evolution is disabled, and destination table does not exists
+    //    .. use columns from new schema
+    //    (evolution does not matter if its new destination table)
+    // 4. If evolution is disabled, and destination table does exists
+    //    .. use columns from destination schema
+    if (isEvolutionEnabled || !destinationTableMeta.isPresent()) {
+      boolean isFirst = true;
+      List<Schema.Field> fieldList = outputOrcSchema.getFields();
+      for (Schema.Field field : fieldList) {
+        String flattenSource = field.getProp("flatten_source");
+        String colName;
+        if (StringUtils.isNotBlank(flattenSource)) {
+          colName = flattenSource;
+        } else {
+          colName = field.name();
+        }
+        // Escape the column name
+        colName = colName.replaceAll("\\.", "`.`");
 
-      dmlQuery.append(String.format("  `%s`", colName));
+        if (isFirst) {
+          isFirst = false;
+        } else {
+          dmlQuery.append(", \n");
+        }
+        dmlQuery.append(String.format("  `%s`", colName));
+      }
+    } else {
+      boolean isFirst = true;
+      List<FieldSchema> fieldList = destinationTableMeta.get().getSd().getCols();
+      for (FieldSchema field : fieldList) {
+        String colName = StringUtils.EMPTY;
+        if (field.isSetComment() && field.getComment().startsWith("from flatten_source ")) {
+          // Retrieve from column (flatten_source) from comment
+          colName = field.getComment().replaceAll("from flatten_source ", "").trim();
+        } else {
+          // Or else find field in flattened schema
+          List<Schema.Field> evolvedFieldList = outputOrcSchema.getFields();
+          for (Schema.Field evolvedField : evolvedFieldList) {
+            if (evolvedField.name().equalsIgnoreCase(field.getName())) {
+              String flattenSource = evolvedField.getProp("flatten_source");
+              if (StringUtils.isNotBlank(flattenSource)) {
+                colName = flattenSource;
+              } else {
+                colName = evolvedField.name();
+              }
+              break;
+            }
+          }
+        }
+        // Escape the column name
+        colName = colName.replaceAll("\\.", "`.`");
+
+        // colName can be blank if it is deleted in new evolved schema, so we shouldn't try to fetch it
+        if (StringUtils.isNotBlank(colName)) {
+          if (isFirst) {
+            isFirst = false;
+          } else {
+            dmlQuery.append(", \n");
+          }
+          dmlQuery.append(String.format("  `%s`", colName));
+        }
+      }
     }
+
     dmlQuery.append(String.format(" %n FROM `%s.%s` ", inputDbName, inputTblName));
 
     // Partition details
