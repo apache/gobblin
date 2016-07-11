@@ -73,8 +73,7 @@ public class HiveConvertPublisher extends DataPublisher {
       for (WorkUnitState wus : states) {
         if (isFirst) {
           // Get cleanup staging table commands
-          cleanupCommands = HiveAvroORCQueryUtils.GSON
-              .fromJson(wus.getProp(HiveAvroORCQueryUtils.SERIALIZED_CLEANUP_COMMANDS), String.class);
+          cleanupCommands = HiveAvroORCQueryUtils.deserializeCleanupCommands(wus);
           isFirst = false;
         }
         wus.setWorkingState(WorkingState.FAILED);
@@ -85,21 +84,18 @@ public class HiveConvertPublisher extends DataPublisher {
       for (WorkUnitState wus : states) {
         if (isFirst) {
           // Get publish table commands
-          publishTableCommands = HiveAvroORCQueryUtils.GSON
-              .fromJson(wus.getProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_TABLE_COMMANDS), String.class);
+          publishTableCommands = HiveAvroORCQueryUtils.deserializePublishTableCommands(wus);
 
           // Execute publish table commands
           executeQueries(publishTableCommands);
 
           // Get cleanup staging table commands
-          cleanupCommands = HiveAvroORCQueryUtils.GSON
-              .fromJson(wus.getProp(HiveAvroORCQueryUtils.SERIALIZED_CLEANUP_COMMANDS), String.class);
+          cleanupCommands = HiveAvroORCQueryUtils.deserializeCleanupCommands(wus);
           isFirst = false;
         }
 
         // Get publish partition commands if any
-        String publishPartitionCommands = HiveAvroORCQueryUtils.GSON.fromJson(
-            wus.getProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_PARTITION_COMMANDS), String.class);
+        String publishPartitionCommands = HiveAvroORCQueryUtils.deserializePublishPartitionCommands(wus);
 
         // Execute publish partition commands if any
         executeQueries(publishPartitionCommands);

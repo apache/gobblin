@@ -127,7 +127,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
     // ORC table name and location
     String orcTableName = getConversionConfig().getDestinationTableName();
-    String orcStagingTableName = orcTableName + "_staging"; // Fixed and non-configurable
+    String orcStagingTableName = getConversionConfig().getDestinationStagingTableName();
     String orcTableDatabase = getConversionConfig().getDestinationDbName();
     String orcDataLocation = getOrcDataLocation(workUnit);
     boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
@@ -212,8 +212,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         HiveAvroORCQueryUtils.generatePublishTableDDL(orcStagingTableName,
             orcTableName,
             destinationTableMeta)).append("\n");
-    workUnit.setProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_TABLE_COMMANDS,
-        HiveAvroORCQueryUtils.GSON.toJson(publishTableQueries));
+    HiveAvroORCQueryUtils.serializePublishTableCommands(workUnit, publishTableQueries.toString());
     log.debug("Publish table queries: " + publishTableQueries);
 
     StringBuilder publishPartitionQueries = new StringBuilder();
@@ -222,14 +221,12 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             orcTableName,
             partitionsDMLInfo,
             destinationTableMeta)).append("\n");
-    workUnit.setProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_PARTITION_COMMANDS,
-        HiveAvroORCQueryUtils.GSON.toJson(publishPartitionQueries));
+    HiveAvroORCQueryUtils.serializePublishPartitionCommands(workUnit, publishPartitionQueries.toString());
     log.debug("Publish partition queries: " + publishPartitionQueries);
 
     StringBuilder cleanupQueries = new StringBuilder();
     cleanupQueries.append(HiveAvroORCQueryUtils.generateCleanupDDL(orcStagingTableName)).append("\n");
-    workUnit.setProp(HiveAvroORCQueryUtils.SERIALIZED_CLEANUP_COMMANDS,
-        HiveAvroORCQueryUtils.GSON.toJson(cleanupQueries));
+    HiveAvroORCQueryUtils.serializedCleanupCommands(workUnit, cleanupQueries.toString());
     log.debug("Cleanup queries: " + cleanupQueries);
 
     log.debug("Conversion Query " + conversionEntity.getQueries());

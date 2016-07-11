@@ -34,6 +34,8 @@ import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import gobblin.configuration.State;
+
 
 /***
  * Generate Hive queries
@@ -41,10 +43,10 @@ import com.google.gson.GsonBuilder;
 @Slf4j
 public class HiveAvroORCQueryUtils {
 
-  public static final String SERIALIZED_PUBLISH_TABLE_COMMANDS = "serialized.publish.table.commands";
-  public static final String SERIALIZED_PUBLISH_PARTITION_COMMANDS = "serialized.publish.partition.commands";
-  public static final String SERIALIZED_CLEANUP_COMMANDS = "serialized.cleanup.commands";
-  public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+  private static final String SERIALIZED_PUBLISH_TABLE_COMMANDS = "serialized.publish.table.commands";
+  private static final String SERIALIZED_PUBLISH_PARTITION_COMMANDS = "serialized.publish.partition.commands";
+  private static final String SERIALIZED_CLEANUP_COMMANDS = "serialized.cleanup.commands";
+  private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
   // Table properties keys
   private static final String ORC_COMPRESSION_KEY                 = "orc.compress";
@@ -727,6 +729,65 @@ public class HiveAvroORCQueryUtils {
    */
   public static String generateCleanupDDL(String stagingTableName) {
     return String.format("DROP TABLE IF EXISTS %s;", stagingTableName) + "\n";
+  }
+
+  /***
+   * Serialize a {@link String} of publish table commands into a {@link State} at
+   * {@link #SERIALIZED_PUBLISH_TABLE_COMMANDS}.
+   * @param state {@link State} to serialize commands into.
+   * @param commands Publish table commands to serialize.
+   */
+  public static void serializePublishTableCommands(State state, String commands) {
+    state.setProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_TABLE_COMMANDS,
+        GSON.toJson(commands));
+  }
+
+  /***
+   * Serialize a {@link String} of publish partition commands into a {@link State} at
+   * {@link #SERIALIZED_PUBLISH_PARTITION_COMMANDS}.
+   * @param state {@link State} to serialize commands into.
+   * @param commands Publish partition commands to serialize.
+   */
+  public static void serializePublishPartitionCommands(State state, String commands) {
+    state.setProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_PARTITION_COMMANDS,
+        GSON.toJson(commands));
+  }
+
+  /***
+   * Serialize a {@link String} of cleanup commands into a {@link State} at {@link #SERIALIZED_CLEANUP_COMMANDS}.
+   * @param state {@link State} to serialize commands into.
+   * @param commands Cleanup commands to serialize.
+   */
+  public static void serializedCleanupCommands(State state, String commands) {
+    state.setProp(HiveAvroORCQueryUtils.SERIALIZED_CLEANUP_COMMANDS,
+        GSON.toJson(commands));
+  }
+
+  /***
+   * Deserialize the publish table commands from a {@link State} at {@link #SERIALIZED_PUBLISH_TABLE_COMMANDS}.
+   * @param state {@link State} to look into for serialized commands.
+   * @return Publish table commands.
+   */
+  public static String deserializePublishTableCommands(State state) {
+    return GSON.fromJson(state.getProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_TABLE_COMMANDS), String.class);
+  }
+
+  /***
+   * Deserialize the publish partition commands from a {@link State} at {@link #SERIALIZED_PUBLISH_PARTITION_COMMANDS}.
+   * @param state {@link State} to look into for serialized commands.
+   * @return Publish partition commands.
+   */
+  public static String deserializePublishPartitionCommands(State state) {
+    return GSON.fromJson(state.getProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_PARTITION_COMMANDS), String.class);
+  }
+
+  /***
+   * Deserialize the cleanup commands from a {@link State} at {@link #SERIALIZED_CLEANUP_COMMANDS}.
+   * @param state {@link State} to look into for serialized commands.
+   * @return Cleanup commands.
+   */
+  public static String deserializeCleanupCommands(State state) {
+    return GSON.fromJson(state.getProp(HiveAvroORCQueryUtils.SERIALIZED_CLEANUP_COMMANDS), String.class);
   }
 
   private static boolean isTypeEvolved(String evolvedType, String destinationType) {
