@@ -12,7 +12,6 @@
 
 package gobblin.data.management.conversion.hive.util;
 
-import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +27,7 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 
 import gobblin.data.management.ConversionHiveTestUtils;
+import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.util.AvroFlattener;
 
 
@@ -38,6 +38,7 @@ public class HiveAvroORCQueryGeneratorTest {
   private static String resourceDir = "avroToOrcQueryUtilsTest";
   private static Optional<Table> destinationTableMeta = Optional.absent();
   private static boolean isEvolutionEnabled = true;
+  private static Optional<Integer> rowLimit = Optional.absent();
 
   /***
    * Test DDL generation for schema structured as: Array within record within array within record
@@ -167,7 +168,7 @@ public class HiveAvroORCQueryGeneratorTest {
     String q = HiveAvroORCQueryGenerator
         .generateTableMappingDML(schema, flattenedSchema, schemaName, schemaName + "_orc", Optional.<String>absent(),
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
-            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta);
+            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta, rowLimit);
 
     Assert.assertEquals(q.trim(),
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord.dml"));
@@ -189,5 +190,28 @@ public class HiveAvroORCQueryGeneratorTest {
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
             Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
+  }
+
+  /***
+   * Test DML generation with row limit
+   * @throws IOException
+   */
+  @Test
+  public void testFlattenedDMLWithRowLimit() throws IOException {
+    String schemaName = "testRecordWithinRecordWithinRecordDDL";
+    Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
+        "recordWithinRecordWithinRecord_nested.json");
+    Optional<Integer> rowLimit = Optional.of(1);
+
+    AvroFlattener avroFlattener = new AvroFlattener();
+    Schema flattenedSchema = avroFlattener.flatten(schema, true);
+
+    String q = HiveAvroORCQueryGenerator
+        .generateTableMappingDML(schema, flattenedSchema, schemaName, schemaName + "_orc", Optional.<String>absent(),
+            Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
+            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta, rowLimit);
+
+    Assert.assertEquals(q.trim(),
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "flattenedWithRowLimit.dml"));
   }
 }

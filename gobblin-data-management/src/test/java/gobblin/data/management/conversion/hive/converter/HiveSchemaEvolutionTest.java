@@ -49,6 +49,7 @@ public class HiveSchemaEvolutionTest {
   private static AvroFlattener avroFlattener = new AvroFlattener();
   private static Schema inputSchema;
   private static Schema outputSchema;
+  private static Optional<Integer> rowLimit = Optional.absent();
 
   static {
     try {
@@ -79,7 +80,7 @@ public class HiveSchemaEvolutionTest {
     String dml = HiveAvroORCQueryGenerator
         .generateTableMappingDML(inputSchema, outputSchema, schemaName, schemaName + "_orc", Optional.<String>absent(),
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
-            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta);
+            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta, rowLimit);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
         "source_schema_evolution_enabled.dml"), "Generated DML did not match expected for evolution enabled");
@@ -105,7 +106,7 @@ public class HiveSchemaEvolutionTest {
     String dml = HiveAvroORCQueryGenerator
         .generateTableMappingDML(inputSchema, outputSchema, schemaName, schemaName + "_orc", Optional.<String>absent(),
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
-            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta);
+            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta, rowLimit);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
         "source_schema_evolution_enabled.dml"),
@@ -132,7 +133,7 @@ public class HiveSchemaEvolutionTest {
     String dml = HiveAvroORCQueryGenerator
         .generateTableMappingDML(inputSchema, outputSchema, schemaName, schemaName + "_orc", Optional.<String>absent(),
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
-            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta);
+            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta, rowLimit);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
         "source_schema_evolution_disabled.dml"),
@@ -159,7 +160,7 @@ public class HiveSchemaEvolutionTest {
     String dml = HiveAvroORCQueryGenerator
         .generateTableMappingDML(inputSchema, outputSchema, schemaName, schemaName + "_orc", Optional.<String>absent(),
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
-            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta);
+            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta, rowLimit);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
         "source_schema_evolution_enabled.dml"),
@@ -186,7 +187,7 @@ public class HiveSchemaEvolutionTest {
     String dml = HiveAvroORCQueryGenerator
         .generateTableMappingDML(inputSchema, outputSchema, schemaName, schemaName + "_orc", Optional.<String>absent(),
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
-            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta);
+            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta, rowLimit);
 
     Assert.assertEquals(dml, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
         "source_schema_lineage_missing.dml"),
