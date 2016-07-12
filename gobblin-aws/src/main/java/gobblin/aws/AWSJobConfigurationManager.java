@@ -9,7 +9,6 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-
 package gobblin.aws;
 
 import java.io.File;
@@ -36,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
@@ -49,7 +47,8 @@ import gobblin.cluster.event.NewJobConfigArrivalEvent;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.SchedulerUtils;
-import static gobblin.aws.GobblinAWSUtils.*;
+
+import static gobblin.aws.GobblinAWSUtils.appendSlash;
 
 
 /**
@@ -68,6 +67,8 @@ import static gobblin.aws.GobblinAWSUtils.*;
 public class AWSJobConfigurationManager extends JobConfigurationManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(AWSJobConfigurationManager.class);
 
+  private static final long DEFAULT_JOB_CONF_REFRESH_INTERVAL = 60;
+
   private Optional<String> jobConfS3Uri;
   private Map<String, Properties> jobConfFiles;
 
@@ -78,12 +79,11 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
   public AWSJobConfigurationManager(EventBus eventBus, Config config) {
     super(eventBus, config);
     this.jobConfFiles = Maps.newHashMap();
-    if (config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL_IN_SECONDS)) {
-      this.refreshIntervalInSeconds = config
-          .getLong(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL_IN_SECONDS);
+    if (config.hasPath(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL)) {
+      this.refreshIntervalInSeconds = config.getDuration(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL,
+          TimeUnit.SECONDS);
     } else {
-      this.refreshIntervalInSeconds = config
-          .getLong(GobblinAWSConfigurationKeys.JOB_CONF_REFRESH_INTERVAL_IN_MINUTES) * 60;
+      this.refreshIntervalInSeconds = DEFAULT_JOB_CONF_REFRESH_INTERVAL;
     }
 
     this.fetchJobConfExecutor = Executors.newSingleThreadScheduledExecutor(
@@ -114,7 +114,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
           fetchJobConf();
         } catch (IOException | ConfigurationException e) {
           LOGGER.error("Failed to fetch job configurations", e);
-          throw Throwables.propagate(e);
+          throw new RuntimeException("Failed to fetch job configurations", e);
         }
       }
     }, 0, this.refreshIntervalInSeconds, TimeUnit.SECONDS);
@@ -225,6 +225,6 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
   @Override
   protected void shutDown() throws Exception {
-    // Nothing to do
+    GobblinAWSUtils.shutdownExecutorService(this.getClass(), this.fetchJobConfExecutor, LOGGER);
   }
 }

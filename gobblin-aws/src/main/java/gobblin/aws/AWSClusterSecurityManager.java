@@ -104,7 +104,7 @@ public class AWSClusterSecurityManager extends AbstractIdleService {
   @Override
   protected void shutDown()
       throws Exception {
-
+    GobblinAWSUtils.shutdownExecutorService(this.getClass(), this.loginExecutor, LOGGER);
   }
 
   private void login() throws IOException {

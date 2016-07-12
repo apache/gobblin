@@ -49,7 +49,7 @@ public class AWSShutdownHandler extends AsyncCallback {
   @Override
   public void onTimeOut() {
     LOGGER.warn("Timeout while waiting for Helix controller and participants shutdown. "
-        + "Moving ahead with ungraceful shutdown of Amazon AutoScaling group");
+        + "Moving ahead with forced shutdown of Amazon AutoScaling group");
 
     shutdownASG();
   }
@@ -69,7 +69,8 @@ public class AWSShutdownHandler extends AsyncCallback {
           this.awsSdkClient.deleteLaunchConfiguration(launchConfigurationName);
         } catch (Exception e) {
           // Ignore and continue, so that we clean up as many resources as possible
-          LOGGER.error("Issue in deleting launch configuration: " + launchConfigurationName, e);
+          LOGGER.warn("Issue in deleting launch configuration, please delete manually: " + launchConfigurationName +
+              " Continuing to cleanup AutoScalingGroups", e);
         }
       }
     }
@@ -78,7 +79,7 @@ public class AWSShutdownHandler extends AsyncCallback {
         try {
           this.awsSdkClient.deleteAutoScalingGroup(autoScalingGroupName, SHOULD_FORCE_DELETE_ASG_DEFAULT);
         } catch (Exception e1) {
-          LOGGER.error("Issue in deleting auto scaling group (in graceful mode): " + autoScalingGroupName
+          LOGGER.warn("Issue in deleting auto scaling group (in graceful mode): " + autoScalingGroupName
               + " Going to try forceful cleanup.", e1);
 
           try {
@@ -86,7 +87,8 @@ public class AWSShutdownHandler extends AsyncCallback {
             this.awsSdkClient.deleteAutoScalingGroup(autoScalingGroupName, true);
           } catch (Exception e2) {
             // Ignore and continue, so that we clean up as many resources as possible
-            LOGGER.error("Issue in deleting auto scaling group (in forced mode): " + autoScalingGroupName, e2);
+            LOGGER.warn("Issue in deleting auto scaling group (in forced mode), please delete manually: " +
+                autoScalingGroupName + " Continuing to cleanup other resources", e2);
           }
         }
       }

@@ -13,11 +13,15 @@
 package gobblin.aws;
 
 import java.io.File;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.filefilter.FileFileFilter;
 import org.apache.commons.lang.StringUtils;
 import org.quartz.utils.FindbugsSuppressWarnings;
+import org.slf4j.Logger;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -32,6 +36,8 @@ import gobblin.annotation.Alpha;
  */
 @Alpha
 public class GobblinAWSUtils {
+  private static final long DEFAULT_EXECUTOR_SERVICE_SHUTDOWN_TIME_IN_MINUTES = 2;
+
   /***
    * Append a slash ie / at the end of input string.
    *
@@ -97,5 +103,30 @@ public class GobblinAWSUtils {
     final byte[] encodedBytes = Base64.encodeBase64(data.getBytes());
 
     return new String(encodedBytes);
+  }
+
+  /***
+   * Initiates an orderly shutdown in which previously submitted
+   * tasks are executed, but no new tasks are accepted.
+   * Invocation has no additional effect if already shut down.
+   *
+   * This also blocks until all tasks have completed execution
+   * request, or the timeout occurs, or the current thread is
+   * interrupted, whichever happens first.
+   * @param clazz {@link Class} that invokes shutdown on the {@link ExecutorService}.
+   * @param executorService {@link ExecutorService} to shutdown.
+   * @param logger {@link Logger} to log shutdown for invoking class.
+   * @throws InterruptedException if shutdown is interrupted.
+   */
+  public static void shutdownExecutorService(Class clazz,
+      ExecutorService executorService, Logger logger) throws InterruptedException{
+    executorService.shutdown();
+    if (!executorService.awaitTermination(DEFAULT_EXECUTOR_SERVICE_SHUTDOWN_TIME_IN_MINUTES, TimeUnit.MINUTES)) {
+      logger.warn("Executor service shutdown timed out.");
+      List<Runnable> pendingTasks = executorService.shutdownNow();
+      logger.warn(String
+          .format("%s was shutdown instantly. %s tasks were not executed: %s", clazz.getName(), pendingTasks.size(),
+              StringUtils.join(pendingTasks, ",")));
+    }
   }
 }

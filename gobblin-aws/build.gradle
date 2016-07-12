@@ -83,7 +83,6 @@ configurations {
   testRuntime {
     resolutionStrategy {
       force 'com.google.inject:guice:3.0'
-//      force 'org.apache.hadoop:hadoop-yarn-server-resourcemanager:'+hadoopVersion
     }
   }
 }
