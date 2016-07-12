@@ -59,7 +59,10 @@ import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.cluster.HelixUtils;
 import gobblin.util.ConfigUtils;
 import gobblin.util.EmailUtils;
+
 import static gobblin.aws.GobblinAWSUtils.*;
+import static gobblin.aws.GobblinAWSConfigurationKeys.*;
+import static gobblin.cluster.GobblinClusterConfigurationKeys.*;
 
 
 /**
@@ -104,6 +107,8 @@ public class GobblinAWSClusterLauncher {
 
   private final Config config;
 
+  private final String zkConnectionString;
+  private final String helixClusterName;
   private final HelixManager helixManager;
   private final EventBus eventBus = new EventBus(GobblinAWSClusterLauncher.class.getSimpleName());
   private volatile Optional<ServiceManager> serviceManager = Optional.absent();
@@ -143,20 +148,17 @@ public class GobblinAWSClusterLauncher {
 
   private final String nfsParentDir;
   private final String masterJarsDir;
-  private final String masterConfLocalDir;
   private final String masterS3ConfUri;
   private final String masterS3ConfFiles;
   private final String masterS3JarsUri;
   private final String masterS3JarsFiles;
 
   private final String workerJarsDir;
-  private final String workerConfLocalDir;
   private final String workerS3ConfUri;
   private final String workerS3ConfFiles;
   private final String workerS3JarsUri;
   private final String workerS3JarsFiles;
 
-  private final String libJarsDir;
   private final String sinkLogRootDir;
   private final String appWorkDir;
 
@@ -172,28 +174,30 @@ public class GobblinAWSClusterLauncher {
   public GobblinAWSClusterLauncher(Config config) throws IOException {
     this.config = config;
 
-    this.clusterName = config.getString(GobblinAWSConfigurationKeys.CLUSTER_NAME_KEY);
+    // Mandatory configs
+    this.zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    LOGGER.info("Using ZooKeeper connection string: " + this.zkConnectionString);
 
-    String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
+    // Configs with default values
+    this.clusterName = ConfigUtils.getString(config, CLUSTER_NAME_KEY, DEFAULT_CLUSTER_NAME);
+    this.helixClusterName = ConfigUtils.getString(config, HELIX_CLUSTER_NAME_KEY, this.clusterName);
 
-    this.helixManager = HelixManagerFactory
-        .getZKHelixManager(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
-            GobblinClusterUtils.getHostname(), InstanceType.SPECTATOR, zkConnectionString);
+    this.nfsParentDir = appendSlash(ConfigUtils.getString(config, NFS_PARENT_DIR_KEY, DEFAULT_NFS_PARENT_DIR));
 
-    this.awsRegion = config.getString(GobblinAWSConfigurationKeys.AWS_REGION_KEY);
-    this.awsConfDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.AWS_CONF_DIR));
+    this.awsRegion = ConfigUtils.getString(config, AWS_REGION_KEY, DEFAULT_AWS_REGION);
+    this.awsConfDir =
+        appendSlash(ConfigUtils.getString(config, AWS_CONF_DIR, nfsParentDir + DEFAULT_AWS_CONF_DIR_POSTFIX));
 
-    this.masterAmiId = config.getString(GobblinAWSConfigurationKeys.MASTER_AMI_ID_KEY);
-    this.masterInstanceType = config.getString(GobblinAWSConfigurationKeys.MASTER_INSTANCE_TYPE_KEY);
-    this.masterJvmMemory = config.getString(GobblinAWSConfigurationKeys.MASTER_JVM_MEMORY_KEY);
+    this.masterAmiId = ConfigUtils.getString(config, MASTER_AMI_ID_KEY, DEFAULT_MASTER_AMI_ID);
+    this.masterInstanceType = ConfigUtils.getString(config, MASTER_INSTANCE_TYPE_KEY, DEFAULT_MASTER_INSTANCE_TYPE);
+    this.masterJvmMemory = ConfigUtils.getString(config, MASTER_JVM_MEMORY_KEY, DEFAULT_MASTER_JVM_MEMORY);
 
-    this.workerAmiId = config.getString(GobblinAWSConfigurationKeys.WORKER_AMI_ID_KEY);
-    this.workerInstanceType = config.getString(GobblinAWSConfigurationKeys.WORKER_INSTANCE_TYPE_KEY);
-    this.workerJvmMemory = config.getString(GobblinAWSConfigurationKeys.WORKER_JVM_MEMORY_KEY);
-    this.minWorkers = config.getInt(GobblinAWSConfigurationKeys.MIN_WORKERS_KEY);
-    this.maxWorkers = config.getInt(GobblinAWSConfigurationKeys.MAX_WORKERS_KEY);
-    this.desiredWorkers = config.getInt(GobblinAWSConfigurationKeys.DESIRED_WORKERS_KEY);
+    this.workerAmiId = ConfigUtils.getString(config, WORKER_AMI_ID_KEY, DEFAULT_WORKER_AMI_ID);
+    this.workerInstanceType = ConfigUtils.getString(config, WORKER_INSTANCE_TYPE_KEY, DEFAULT_WORKER_INSTANCE_TYPE);
+    this.workerJvmMemory = ConfigUtils.getString(config, WORKER_JVM_MEMORY_KEY, DEFAULT_WORKER_JVM_MEMORY);
+    this.minWorkers = ConfigUtils.getInteger(config, MIN_WORKERS_KEY, DEFAULT_MIN_WORKERS);
+    this.maxWorkers = ConfigUtils.getInteger(config, MAX_WORKERS_KEY, DEFAULT_MAX_WORKERS);
+    this.desiredWorkers = ConfigUtils.getInteger(config, DESIRED_WORKERS_KEY, DEFAULT_DESIRED_WORKERS);
 
     this.masterJvmArgs = config.hasPath(GobblinAWSConfigurationKeys.MASTER_JVM_ARGS_KEY) ?
         Optional.of(config.getString(GobblinAWSConfigurationKeys.MASTER_JVM_ARGS_KEY)) :
@@ -202,28 +206,27 @@ public class GobblinAWSClusterLauncher {
         Optional.of(config.getString(GobblinAWSConfigurationKeys.WORKER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    this.nfsParentDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.NFS_PARENT_DIR_KEY));
+    this.masterJarsDir = appendSlash(ConfigUtils.getString(config, MASTER_JARS_KEY,
+        nfsParentDir + DEFAULT_MASTER_JARS_POSTFIX));
+    this.masterS3ConfUri = appendSlash(ConfigUtils.getString(config, MASTER_S3_CONF_URI_KEY, DEFAULT_MASTER_S3_CONF_URI));
+    this.masterS3ConfFiles = ConfigUtils.getString(config, MASTER_S3_CONF_FILES_KEY, DEFAULT_MASTER_S3_CONF_FILES);
+    this.masterS3JarsUri = ConfigUtils.getString(config, MASTER_S3_JARS_URI_KEY, DEFAULT_MASTER_S3_JARS_URI);
+    this.masterS3JarsFiles = ConfigUtils.getString(config, MASTER_S3_JARS_FILES_KEY, DEFAULT_MASTER_S3_JARS_FILES);
 
-    this.masterJarsDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.MASTER_JARS_KEY));
-    this.masterConfLocalDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.MASTER_CONF_LOCAL_KEY));
-    this.masterS3ConfUri = appendSlash(config.getString(GobblinAWSConfigurationKeys.MASTER_S3_CONF_URI_KEY));
-    this.masterS3ConfFiles = config.getString(GobblinAWSConfigurationKeys.MASTER_S3_CONF_FILES_KEY);
-    this.masterS3JarsUri = config.getString(GobblinAWSConfigurationKeys.MASTER_S3_JARS_URI_KEY);
-    this.masterS3JarsFiles = config.getString(GobblinAWSConfigurationKeys.MASTER_S3_JARS_FILES_KEY);
+    this.workerJarsDir = appendSlash(ConfigUtils.getString(config, WORKER_JARS_KEY,
+        nfsParentDir + DEFAULT_WORKER_JARS_POSTFIX));
+    this.workerS3ConfUri = appendSlash(ConfigUtils.getString(config, WORKER_S3_CONF_URI_KEY, DEFAULT_WORKER_S3_CONF_URI));
+    this.workerS3ConfFiles = ConfigUtils.getString(config, WORKER_S3_CONF_FILES_KEY, DEFAULT_WORKER_S3_CONF_FILES);
+    this.workerS3JarsUri = ConfigUtils.getString(config, WORKER_S3_JARS_URI_KEY, DEFAULT_WORKER_S3_JARS_URI);
+    this.workerS3JarsFiles = ConfigUtils.getString(config, WORKER_S3_JARS_FILES_KEY, DEFAULT_WORKER_S3_JARS_FILES);
 
-    this.workerJarsDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.WORKER_JARS_KEY));
-    this.workerConfLocalDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.WORKER_CONF_LOCAL_KEY));
-    this.workerS3ConfUri = appendSlash(config.getString(GobblinAWSConfigurationKeys.WORKER_S3_CONF_URI_KEY));
-    this.workerS3ConfFiles = config.getString(GobblinAWSConfigurationKeys.WORKER_S3_CONF_FILES_KEY);
-    this.workerS3JarsUri = config.getString(GobblinAWSConfigurationKeys.WORKER_S3_JARS_URI_KEY);
-    this.workerS3JarsFiles = config.getString(GobblinAWSConfigurationKeys.WORKER_S3_JARS_FILES_KEY);
+    this.sinkLogRootDir = appendSlash(ConfigUtils.getString(config, LOGS_SINK_ROOT_DIR_KEY,
+        nfsParentDir + DEFAULT_LOGS_SINK_ROOT_DIR_POSTFIX));
+    this.appWorkDir = appendSlash(ConfigUtils.getString(config, APP_WORK_DIR,
+        nfsParentDir + DEFAULT_APP_WORK_DIR_POSTFIX));
 
-    this.libJarsDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.LIB_JARS_DIR_KEY));
-    this.sinkLogRootDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY));
-    this.appWorkDir = appendSlash(config.getString(GobblinAWSConfigurationKeys.APP_WORK_DIR));
-
-    this.emailNotificationOnShutdown =
-        config.getBoolean(GobblinAWSConfigurationKeys.EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY);
+    this.emailNotificationOnShutdown = ConfigUtils
+        .getBoolean(config, EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY, DEFAULT_EMAIL_NOTIFICATION_ON_SHUTDOWN);
 
     this.awsClusterSecurityManager = new AWSClusterSecurityManager(this.config);
     this.awsSdkClient = createAWSSdkClient();
@@ -233,6 +236,9 @@ public class GobblinAWSClusterLauncher {
     } else {
       this.gobblinVersion = Optional.<String>absent();
     }
+
+    this.helixManager = HelixManagerFactory.getZKHelixManager(this.helixClusterName, GobblinClusterUtils.getHostname(),
+        InstanceType.SPECTATOR, this.zkConnectionString);
   }
 
   /**
@@ -244,11 +250,8 @@ public class GobblinAWSClusterLauncher {
     this.eventBus.register(this);
 
     // Create Helix cluster and connect to it
-    final String helixClusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-    HelixUtils
-        .createGobblinHelixCluster(this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
-            helixClusterName);
-    LOGGER.info("Created Helix cluster " + helixClusterName);
+    HelixUtils.createGobblinHelixCluster(this.zkConnectionString, this.helixClusterName);
+    LOGGER.info("Created Helix cluster " + this.helixClusterName);
 
     connectHelixManager();
 
