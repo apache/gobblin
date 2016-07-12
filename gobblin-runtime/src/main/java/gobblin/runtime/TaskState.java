@@ -282,9 +282,9 @@ public class TaskState extends WorkUnitState {
   public void readFields(DataInput in) throws IOException {
     Text text = new Text();
     text.readFields(in);
-    this.jobId = text.toString();
+    this.jobId = text.toString().intern();
     text.readFields(in);
-    this.taskId = text.toString();
+    this.taskId = text.toString().intern();
     this.setId(this.taskId);
     this.startTime = in.readLong();
     this.endTime = in.readLong();
