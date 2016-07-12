@@ -16,7 +16,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 
-public class JsonConverter extends Converter<String, JsonArray, String, JsonObject> {
+public class JsonStringToJsonIntermediateConverter extends Converter<String, JsonArray, String, JsonObject> {
 
   /**
    * Take in an input schema of type string, the schema must be in JSON format
@@ -45,13 +45,13 @@ public class JsonConverter extends Converter<String, JsonArray, String, JsonObje
       String expectedColumnName = outputSchema.get(i).getAsJsonObject().get("columnName").getAsString();
 
       if (inputRecord.has(expectedColumnName)) {
-        //As currently Gobblin is not able to handle complex schema's so storing it as string
+        //As currently gobblin.converter.avro.JsonIntermediateToAvroConverter is not able to handle complex schema's so storing it as string
 
         if (inputRecord.get(expectedColumnName).isJsonArray()) {
           outputRecord.addProperty(expectedColumnName, inputRecord.get(expectedColumnName).toString());
         } else if (inputRecord.get(expectedColumnName).isJsonObject()) {
           //To check if internally in an JsonObject there is multiple hierarchy
-          Boolean isMultiHierarchyInsideJsonObject = false;
+          boolean isMultiHierarchyInsideJsonObject = false;
           for (Map.Entry<String, JsonElement> entry : ((JsonObject) inputRecord.get(expectedColumnName)).entrySet()) {
             if (entry.getValue().isJsonArray() || entry.getValue().isJsonObject()) {
               isMultiHierarchyInsideJsonObject = true;
