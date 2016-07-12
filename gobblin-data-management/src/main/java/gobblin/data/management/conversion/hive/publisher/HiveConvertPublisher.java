@@ -26,7 +26,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.conversion.hive.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.events.EventConstants;
-import gobblin.data.management.conversion.hive.util.HiveAvroORCQueryUtils;
+import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
 import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
@@ -73,7 +73,7 @@ public class HiveConvertPublisher extends DataPublisher {
       for (WorkUnitState wus : states) {
         if (isFirst) {
           // Get cleanup staging table commands
-          cleanupCommands = HiveAvroORCQueryUtils.deserializeCleanupCommands(wus);
+          cleanupCommands = HiveAvroORCQueryGenerator.deserializeCleanupCommands(wus);
           isFirst = false;
         }
         wus.setWorkingState(WorkingState.FAILED);
@@ -84,18 +84,18 @@ public class HiveConvertPublisher extends DataPublisher {
       for (WorkUnitState wus : states) {
         if (isFirst) {
           // Get publish table commands
-          publishTableCommands = HiveAvroORCQueryUtils.deserializePublishTableCommands(wus);
+          publishTableCommands = HiveAvroORCQueryGenerator.deserializePublishTableCommands(wus);
 
           // Execute publish table commands
           executeQueries(publishTableCommands);
 
           // Get cleanup staging table commands
-          cleanupCommands = HiveAvroORCQueryUtils.deserializeCleanupCommands(wus);
+          cleanupCommands = HiveAvroORCQueryGenerator.deserializeCleanupCommands(wus);
           isFirst = false;
         }
 
         // Get publish partition commands if any
-        String publishPartitionCommands = HiveAvroORCQueryUtils.deserializePublishPartitionCommands(wus);
+        String publishPartitionCommands = HiveAvroORCQueryGenerator.deserializePublishPartitionCommands(wus);
 
         // Execute publish partition commands if any
         executeQueries(publishPartitionCommands);
