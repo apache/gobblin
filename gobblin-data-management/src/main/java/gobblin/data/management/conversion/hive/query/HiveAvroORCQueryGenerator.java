@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.conversion.hive.util;
+package gobblin.data.management.conversion.hive.query;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,7 +41,7 @@ import gobblin.configuration.State;
  * Generate Hive queries
  */
 @Slf4j
-public class HiveAvroORCQueryUtils {
+public class HiveAvroORCQueryGenerator {
 
   private static final String SERIALIZED_PUBLISH_TABLE_COMMANDS = "serialized.publish.table.commands";
   private static final String SERIALIZED_PUBLISH_PARTITION_COMMANDS = "serialized.publish.partition.commands";
@@ -738,7 +738,7 @@ public class HiveAvroORCQueryUtils {
    * @param commands Publish table commands to serialize.
    */
   public static void serializePublishTableCommands(State state, String commands) {
-    state.setProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_TABLE_COMMANDS,
+    state.setProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_TABLE_COMMANDS,
         GSON.toJson(commands));
   }
 
@@ -749,7 +749,7 @@ public class HiveAvroORCQueryUtils {
    * @param commands Publish partition commands to serialize.
    */
   public static void serializePublishPartitionCommands(State state, String commands) {
-    state.setProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_PARTITION_COMMANDS,
+    state.setProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_PARTITION_COMMANDS,
         GSON.toJson(commands));
   }
 
@@ -759,7 +759,7 @@ public class HiveAvroORCQueryUtils {
    * @param commands Cleanup commands to serialize.
    */
   public static void serializedCleanupCommands(State state, String commands) {
-    state.setProp(HiveAvroORCQueryUtils.SERIALIZED_CLEANUP_COMMANDS,
+    state.setProp(HiveAvroORCQueryGenerator.SERIALIZED_CLEANUP_COMMANDS,
         GSON.toJson(commands));
   }
 
@@ -769,7 +769,7 @@ public class HiveAvroORCQueryUtils {
    * @return Publish table commands.
    */
   public static String deserializePublishTableCommands(State state) {
-    return GSON.fromJson(state.getProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_TABLE_COMMANDS), String.class);
+    return GSON.fromJson(state.getProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_TABLE_COMMANDS), String.class);
   }
 
   /***
@@ -778,7 +778,7 @@ public class HiveAvroORCQueryUtils {
    * @return Publish partition commands.
    */
   public static String deserializePublishPartitionCommands(State state) {
-    return GSON.fromJson(state.getProp(HiveAvroORCQueryUtils.SERIALIZED_PUBLISH_PARTITION_COMMANDS), String.class);
+    return GSON.fromJson(state.getProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_PARTITION_COMMANDS), String.class);
   }
 
   /***
@@ -787,7 +787,7 @@ public class HiveAvroORCQueryUtils {
    * @return Cleanup commands.
    */
   public static String deserializeCleanupCommands(State state) {
-    return GSON.fromJson(state.getProp(HiveAvroORCQueryUtils.SERIALIZED_CLEANUP_COMMANDS), String.class);
+    return GSON.fromJson(state.getProp(HiveAvroORCQueryGenerator.SERIALIZED_CLEANUP_COMMANDS), String.class);
   }
 
   private static boolean isTypeEvolved(String evolvedType, String destinationType) {

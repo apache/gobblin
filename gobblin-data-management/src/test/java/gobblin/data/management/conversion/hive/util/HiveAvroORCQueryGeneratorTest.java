@@ -12,6 +12,7 @@
 
 package gobblin.data.management.conversion.hive.util;
 
+import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -32,7 +33,7 @@ import gobblin.util.AvroFlattener;
 
 @Slf4j
 @Test(groups = { "gobblin.data.management.conversion" })
-public class HiveAvroORCQueryUtilsTest {
+public class HiveAvroORCQueryGeneratorTest {
 
   private static String resourceDir = "avroToOrcQueryUtilsTest";
   private static Optional<Table> destinationTableMeta = Optional.absent();
@@ -48,11 +49,13 @@ public class HiveAvroORCQueryUtilsTest {
     Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
         "arrayWithinRecordWithinArrayWithinRecord_nested.json");
 
-    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
-        Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
-        Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
-        Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
+    String q = HiveAvroORCQueryGenerator
+        .generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
+            Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
+            Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
+            Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            new HashMap<String, String>());
 
     Assert.assertEquals(q,
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "arrayWithinRecordWithinArrayWithinRecord_nested.ddl"));
@@ -68,11 +71,13 @@ public class HiveAvroORCQueryUtilsTest {
     Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
         "optionWithinOptionWithinRecord_nested.json");
 
-    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
-        Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
-        Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
-        Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
+    String q = HiveAvroORCQueryGenerator
+        .generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
+            Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
+            Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
+            Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            new HashMap<String, String>());
 
     Assert.assertEquals(q,
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "optionWithinOptionWithinRecord_nested.ddl"));
@@ -88,11 +93,13 @@ public class HiveAvroORCQueryUtilsTest {
     Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
         "recordWithinOptionWithinRecord_nested.json");
 
-    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
-        Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
-        Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
-        Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
+    String q = HiveAvroORCQueryGenerator
+        .generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
+            Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
+            Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
+            Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            new HashMap<String, String>());
 
     Assert.assertEquals(q.trim(),
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinOptionWithinRecord_nested.ddl"));
@@ -108,11 +115,13 @@ public class HiveAvroORCQueryUtilsTest {
     Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
         "recordWithinRecordWithinRecord_nested.json");
 
-    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName,
-        "file:/user/hive/warehouse/" + schemaName, Optional.<String>absent(), Optional.<Map<String, String>>absent(),
-        Optional.<List<String>>absent(), Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
-        Optional.<Integer>absent(), Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
+    String q = HiveAvroORCQueryGenerator
+        .generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
+            Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
+            Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
+            Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            new HashMap<String, String>());
 
     Assert.assertEquals(q.trim(),
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_nested.ddl"));
@@ -130,11 +139,13 @@ public class HiveAvroORCQueryUtilsTest {
     AvroFlattener avroFlattener = new AvroFlattener();
     Schema flattenedSchema = avroFlattener.flatten(schema, true);
 
-    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(flattenedSchema, schemaName, "file:/user/hive/warehouse/" + schemaName,
-        Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
-        Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
-        Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
+    String q = HiveAvroORCQueryGenerator
+        .generateCreateTableDDL(flattenedSchema, schemaName, "file:/user/hive/warehouse/" + schemaName,
+            Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
+            Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
+            Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            new HashMap<String, String>());
 
     Assert.assertEquals(q,
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_flattened.ddl"));
@@ -153,10 +164,10 @@ public class HiveAvroORCQueryUtilsTest {
     AvroFlattener avroFlattener = new AvroFlattener();
     Schema flattenedSchema = avroFlattener.flatten(schema, true);
 
-    String q = HiveAvroORCQueryUtils.generateTableMappingDML(schema, flattenedSchema, schemaName,
-        schemaName + "_orc", Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(), Optional.<Boolean>absent(),
-        isEvolutionEnabled, destinationTableMeta);
+    String q = HiveAvroORCQueryGenerator
+        .generateTableMappingDML(schema, flattenedSchema, schemaName, schemaName + "_orc", Optional.<String>absent(),
+            Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
+            Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta);
 
     Assert.assertEquals(q.trim(),
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord.dml"));
@@ -171,10 +182,12 @@ public class HiveAvroORCQueryUtilsTest {
     String schemaName = "nonRecordRootSchema";
     Schema schema = Schema.create(Schema.Type.STRING);
 
-    String q = HiveAvroORCQueryUtils.generateCreateTableDDL(schema, schemaName,
-        "file:/user/hive/warehouse/" + schemaName, Optional.<String>absent(), Optional.<Map<String, String>>absent(),
-        Optional.<List<String>>absent(), Optional.<Map<String, HiveAvroORCQueryUtils.COLUMN_SORT_ORDER>>absent(),
-        Optional.<Integer>absent(), Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, new HashMap<String, String>());
+    String q = HiveAvroORCQueryGenerator
+        .generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
+            Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
+            Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
+            Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            new HashMap<String, String>());
   }
 }

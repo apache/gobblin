@@ -33,7 +33,7 @@ import com.google.common.hash.Hashing;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.data.management.conversion.hive.util.HiveAvroORCQueryUtils;
+import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.hive.avro.HiveAvroSerDeManager;
 import gobblin.util.AvroUtils;
 import gobblin.util.HadoopUtils;
@@ -128,7 +128,7 @@ public class AvroSchemaManager {
           // Fetch schema literal via HTTP GET if scheme is http(s)
           schemaString = IOUtils.toString(new URI(schemaUrl), StandardCharsets.UTF_8);
           log.debug("Schema string is: " + schemaString);
-          Schema schema = HiveAvroORCQueryUtils.readSchemaFromString(schemaString);
+          Schema schema = HiveAvroORCQueryGenerator.readSchemaFromString(schemaString);
 
           return getOrGenerateSchemaFile(schema);
         } else {
@@ -140,7 +140,7 @@ public class AvroSchemaManager {
       else if (sd.getSerdeInfo().getParameters().containsKey(HiveAvroSerDeManager.SCHEMA_LITERAL)) {
         schemaString = sd.getSerdeInfo().getParameters().get(HiveAvroSerDeManager.SCHEMA_LITERAL);
         log.debug("Schema string is: " + schemaString);
-        Schema schema = HiveAvroORCQueryUtils.readSchemaFromString(schemaString);
+        Schema schema = HiveAvroORCQueryGenerator.readSchemaFromString(schemaString);
 
         return getOrGenerateSchemaFile(schema);
       }
