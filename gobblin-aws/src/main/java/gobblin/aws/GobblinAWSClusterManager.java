@@ -49,11 +49,11 @@ import gobblin.cluster.JobConfigurationManager;
  * @author Abhishek Tiwari
  */
 @Alpha
-public class GobblinAWSClusterMaster extends GobblinClusterManager {
+public class GobblinAWSClusterManager extends GobblinClusterManager {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterMaster.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinAWSClusterManager.class);
 
-  public GobblinAWSClusterMaster(String clusterName, String applicationId, Config config,
+  public GobblinAWSClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional)
       throws Exception {
     super(clusterName, applicationId, config, appWorkDirOptional);
@@ -125,7 +125,7 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
 
   private static void printUsage(Options options) {
     final HelpFormatter formatter = new HelpFormatter();
-    formatter.printHelp(GobblinAWSClusterMaster.class.getSimpleName(), options);
+    formatter.printHelp(GobblinAWSClusterManager.class.getSimpleName(), options);
   }
 
   public static void main(String[] args) throws Exception {
@@ -138,7 +138,7 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
         System.exit(1);
       }
 
-      Log4jConfigHelper.updateLog4jConfiguration(GobblinAWSClusterMaster.class,
+      Log4jConfigHelper.updateLog4jConfiguration(GobblinAWSClusterManager.class,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE);
 
       // Note: Application id is required param for {@link GobblinClusterManager} super class
@@ -146,7 +146,7 @@ public class GobblinAWSClusterMaster extends GobblinClusterManager {
       final String applicationId = "1";
       final String appWorkDir = cmd.getOptionValue(GobblinAWSConfigurationKeys.APP_WORK_DIR);
 
-      try (GobblinAWSClusterMaster clusterMaster = new GobblinAWSClusterMaster(
+      try (GobblinAWSClusterManager clusterMaster = new GobblinAWSClusterManager(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), applicationId,
           ConfigFactory.load(), Optional.of(new Path(appWorkDir)))) {
 

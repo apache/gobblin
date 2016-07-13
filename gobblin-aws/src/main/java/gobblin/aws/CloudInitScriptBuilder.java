@@ -38,7 +38,7 @@ public class CloudInitScriptBuilder {
   
   /***
    * This method generates the script that would be executed by cloud-init module in EC2 instance
-   * upon boot up for {@link GobblinAWSClusterMaster}.
+   * upon boot up for {@link GobblinAWSClusterManager}.
    *
    * This will generate cloud init shell script that does the following:
    * 1. Mount NFS Server (TODO: To be replaced with EFS soon)
@@ -46,8 +46,8 @@ public class CloudInitScriptBuilder {
    * 3. Download cluster configuration from S3
    * 4. Download Gobblin application jars from S3 (TODO: To be replaced via baked in jars in custom Gobblin AMI)
    * 5. Download Gobblin custom jars from S3
-   * 6. Launch {@link GobblinAWSClusterMaster} java application
-   * 7. TODO: Add cron that watches the {@link GobblinAWSClusterMaster} application and restarts it if it dies
+   * 6. Launch {@link GobblinAWSClusterManager} java application
+   * 7. TODO: Add cron that watches the {@link GobblinAWSClusterManager} application and restarts it if it dies
    *
    * @param clusterName Name of the cluster
    * @param nfsParentDir Directory within which NFS directory should be created and mounted
@@ -62,7 +62,7 @@ public class CloudInitScriptBuilder {
    * @param masterJvmMemory Xmx memory setting for Gobblin master java application
    * @param masterJvmArgs JVM arguments for Gobblin master application
    * @param gobblinVersion Optional Gobblin version
-   * @return Cloud-init script to launch {@link GobblinAWSClusterMaster}
+   * @return Cloud-init script to launch {@link GobblinAWSClusterManager}
    */
   public static String buildClusterMasterCommand(String clusterName, String nfsParentDir, String sinkLogRootDir,
       String awsConfDir, String appWorkDir,
@@ -71,7 +71,7 @@ public class CloudInitScriptBuilder {
       String masterJvmMemory, Optional<String> masterJvmArgs, Optional<String> gobblinVersion) {
     final StringBuilder cloudInitCmds = new StringBuilder().append("#!/bin/bash").append("\n");
 
-    final String clusterMasterClassName = GobblinAWSClusterMaster.class.getSimpleName();
+    final String clusterMasterClassName = GobblinAWSClusterManager.class.getSimpleName();
 
     // Create NFS server
     // TODO: Replace with EFS (it went into GA on 6/30/2016)
@@ -123,7 +123,7 @@ public class CloudInitScriptBuilder {
         .append(" -cp ").append(classpath)
         .append(" -Xmx").append(masterJvmMemory)
         .append(" ").append(masterJvmArgs.or(""))
-        .append(" ").append(GobblinAWSClusterMaster.class.getName())
+        .append(" ").append(GobblinAWSClusterManager.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(clusterName)
         .append(" --").append(GobblinAWSConfigurationKeys.APP_WORK_DIR)

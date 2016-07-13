@@ -77,13 +77,13 @@ import static gobblin.cluster.GobblinClusterConfigurationKeys.*;
  *
  * <p>
  *   On the other hand, if there's no such a reconnectable AWS cluster, This class will launch a new AWS
- *   cluster and start the {@link GobblinAWSClusterMaster}. It also persists the new cluster details so it
+ *   cluster and start the {@link GobblinAWSClusterManager}. It also persists the new cluster details so it
  *   is able to reconnect to the AWS cluster if it is restarted for some reason.
  * </p>
  *
  * <p>
  *   If a shutdown signal is received, it sends a Helix
- *   {@link org.apache.helix.model.Message.MessageType#SCHEDULER_MSG} to the {@link GobblinAWSClusterMaster}
+ *   {@link org.apache.helix.model.Message.MessageType#SCHEDULER_MSG} to the {@link GobblinAWSClusterManager}
  *   asking it to shutdown. It also sends an email notification for the shutdown if
  *   {@link GobblinAWSConfigurationKeys#EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY} is {@code true}.
  * </p>
@@ -206,16 +206,18 @@ public class GobblinAWSClusterLauncher {
         Optional.of(config.getString(GobblinAWSConfigurationKeys.WORKER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    this.masterJarsDir = appendSlash(ConfigUtils.getString(config, MASTER_JARS_KEY,
-        nfsParentDir + DEFAULT_MASTER_JARS_POSTFIX));
-    this.masterS3ConfUri = appendSlash(ConfigUtils.getString(config, MASTER_S3_CONF_URI_KEY, DEFAULT_MASTER_S3_CONF_URI));
+    this.masterJarsDir = appendSlash(
+        ConfigUtils.getString(config, MASTER_JARS_KEY, nfsParentDir + DEFAULT_MASTER_JARS_POSTFIX));
+    this.masterS3ConfUri = appendSlash(
+        ConfigUtils.getString(config, MASTER_S3_CONF_URI_KEY, DEFAULT_MASTER_S3_CONF_URI));
     this.masterS3ConfFiles = ConfigUtils.getString(config, MASTER_S3_CONF_FILES_KEY, DEFAULT_MASTER_S3_CONF_FILES);
     this.masterS3JarsUri = ConfigUtils.getString(config, MASTER_S3_JARS_URI_KEY, DEFAULT_MASTER_S3_JARS_URI);
     this.masterS3JarsFiles = ConfigUtils.getString(config, MASTER_S3_JARS_FILES_KEY, DEFAULT_MASTER_S3_JARS_FILES);
 
     this.workerJarsDir = appendSlash(ConfigUtils.getString(config, WORKER_JARS_KEY,
         nfsParentDir + DEFAULT_WORKER_JARS_POSTFIX));
-    this.workerS3ConfUri = appendSlash(ConfigUtils.getString(config, WORKER_S3_CONF_URI_KEY, DEFAULT_WORKER_S3_CONF_URI));
+    this.workerS3ConfUri = appendSlash(
+        ConfigUtils.getString(config, WORKER_S3_CONF_URI_KEY, DEFAULT_WORKER_S3_CONF_URI));
     this.workerS3ConfFiles = ConfigUtils.getString(config, WORKER_S3_CONF_FILES_KEY, DEFAULT_WORKER_S3_CONF_FILES);
     this.workerS3JarsUri = ConfigUtils.getString(config, WORKER_S3_JARS_URI_KEY, DEFAULT_WORKER_S3_JARS_URI);
     this.workerS3JarsFiles = ConfigUtils.getString(config, WORKER_S3_JARS_FILES_KEY, DEFAULT_WORKER_S3_JARS_FILES);
