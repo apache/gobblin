@@ -32,8 +32,6 @@ import gobblin.annotation.Alpha;
 public class AWSShutdownHandler extends AsyncCallback {
   private static final Logger LOGGER = LoggerFactory.getLogger(AWSShutdownHandler.class);
 
-  private static final boolean SHOULD_FORCE_DELETE_ASG_DEFAULT = false;
-
   private final AWSSdkClient awsSdkClient;
   private final Optional<List<String>> optionalLaunchConfigurationNames;
   private final Optional<List<String>> optionalAutoScalingGroupNames;
@@ -77,7 +75,7 @@ public class AWSShutdownHandler extends AsyncCallback {
     if (optionalAutoScalingGroupNames.isPresent()) {
       for (String autoScalingGroupName : optionalAutoScalingGroupNames.get()) {
         try {
-          this.awsSdkClient.deleteAutoScalingGroup(autoScalingGroupName, SHOULD_FORCE_DELETE_ASG_DEFAULT);
+          this.awsSdkClient.deleteAutoScalingGroup(autoScalingGroupName, false);
         } catch (Exception e1) {
           LOGGER.warn("Issue in deleting auto scaling group (in graceful mode): " + autoScalingGroupName
               + " Going to try forceful cleanup.", e1);
