@@ -140,6 +140,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             ? Optional.<List<String>> absent()
             : Optional.of(getConversionConfig().getClusterBy());
     Optional<Integer> numBuckets = getConversionConfig().getNumBuckets();
+    Optional<Integer> rowLimit = getConversionConfig().getRowLimit();
 
     // Populate optional partition info
     Map<String, String> partitionsDDLInfo = Maps.newHashMap();
@@ -186,7 +187,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 Optional.<Boolean>absent(),
                 Optional.<Boolean>absent(),
                 isEvolutionEnabled,
-                destinationTableMeta);
+                destinationTableMeta,
+                rowLimit);
     conversionEntity.getQueries().add(insertInORCTableDML);
     log.debug("Conversion DML: " + insertInORCTableDML);
 

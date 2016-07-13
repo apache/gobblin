@@ -465,7 +465,9 @@ public class HiveAvroORCQueryGenerator {
    * @param optionalOverwriteTable Optional overwrite table, if not specified it is set to true
    * @param optionalCreateIfNotExists Optional create if not exists, if not specified it is set to false
    * @param isEvolutionEnabled If schema evolution is turned on
-   * @param destinationTableMeta Optional destination table metadata  @return DML query
+   * @param destinationTableMeta Optional destination table metadata
+   * @param rowLimit Optional row limit
+   * @return DML query
    */
   public static String generateTableMappingDML(Schema inputAvroSchema,
       Schema outputOrcSchema,
@@ -477,7 +479,8 @@ public class HiveAvroORCQueryGenerator {
       Optional<Boolean> optionalOverwriteTable,
       Optional<Boolean> optionalCreateIfNotExists,
       boolean isEvolutionEnabled,
-      Optional<Table> destinationTableMeta) {
+      Optional<Table> destinationTableMeta,
+      Optional<Integer> rowLimit) {
     Preconditions.checkNotNull(inputAvroSchema);
     Preconditions.checkNotNull(outputOrcSchema);
     Preconditions.checkArgument(StringUtils.isNotBlank(inputTblName));
@@ -604,6 +607,11 @@ public class HiveAvroORCQueryGenerator {
         }
         dmlQuery.append(" \n");
       }
+    }
+
+    // Limit clause
+    if (rowLimit.isPresent()) {
+      dmlQuery.append(String.format("LIMIT %s", rowLimit.get()));
     }
 
     return dmlQuery.toString();
