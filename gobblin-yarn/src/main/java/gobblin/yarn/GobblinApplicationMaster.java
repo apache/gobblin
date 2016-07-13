@@ -19,6 +19,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -34,6 +35,7 @@ import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -61,7 +63,8 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
 
   public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
-    super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(), config);
+    super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(), config,
+        Optional.<Path>absent());
 
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {

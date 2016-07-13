@@ -18,6 +18,7 @@ dependencies {
     runtime project(":gobblin-kafka")
 
     compile externalDependency.avro
+    compile externalDependency.commonsLang3
     compile externalDependency.guava
     compile externalDependency.jacksonCore
     compile externalDependency.slf4j

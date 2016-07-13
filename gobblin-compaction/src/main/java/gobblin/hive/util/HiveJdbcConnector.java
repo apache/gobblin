@@ -48,6 +48,7 @@ public class HiveJdbcConnector implements Closeable {
   public static final String HIVESERVER_USER = "hiveserver.user";
   public static final String HIVESERVER_PASSWORD = "hiveserver.password";
   public static final String HIVESITE_DIR = "hivesite.dir";
+  public static final String HIVE_EXECUTION_SIMULATE = "hive.execution.simulate";
 
   private static final String HIVE_JDBC_DRIVER_NAME = "org.apache.hadoop.hive.jdbc.HiveDriver";
   private static final String HIVE2_JDBC_DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
@@ -66,7 +67,15 @@ public class HiveJdbcConnector implements Closeable {
 
   private int hiveServerVersion;
 
-  private HiveJdbcConnector() {}
+  private boolean isSimulate;
+
+  private HiveJdbcConnector() {
+    this(false);
+  }
+
+  private HiveJdbcConnector(boolean isSimulate) {
+    this.isSimulate = isSimulate;
+  }
 
   /**
    * Create a new {@link HiveJdbcConnector} using the specified Hive server version.
@@ -86,7 +95,10 @@ public class HiveJdbcConnector implements Closeable {
    * @return
    */
   public static HiveJdbcConnector newConnectorWithProps(Properties compactRunProps) throws SQLException {
-    HiveJdbcConnector hiveJdbcConnector = new HiveJdbcConnector();
+
+    boolean isSimulate = Boolean.valueOf(compactRunProps.getProperty(HIVE_EXECUTION_SIMULATE));
+
+    HiveJdbcConnector hiveJdbcConnector = new HiveJdbcConnector(isSimulate);
 
     // Set the Hive Server type
     hiveJdbcConnector.withHiveServerVersion(
@@ -223,8 +235,12 @@ public class HiveJdbcConnector implements Closeable {
     Preconditions.checkNotNull(this.conn, "The Hive connection must be set before any queries can be run");
 
     for (String statement : statements) {
-      LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
-      this.stmt.execute(statement);
+      if (isSimulate) {
+        LOG.info("[SIMULATE MODE] STATEMENT NOT RUN: " + choppedStatement(statement));
+      } else {
+        LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
+        this.stmt.execute(statement);
+      }
     }
   }
 

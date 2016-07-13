@@ -147,18 +147,21 @@ public class JobScheduler extends AbstractIdleService {
     LOG.info("Starting the job scheduler");
     this.scheduler.start();
 
-    Preconditions.checkArgument(
-        this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || this.properties.containsKey(
-            ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
-        "Error in configuration file: Please check your .pull file");
+    // Note: This should not be mandatory, gobblin-cluster modes have their own job configuration managers
+    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
 
-    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) && !this.properties.containsKey(
-        ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
-      this.properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
-          "file://" + this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
+      Preconditions.checkArgument(this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)
+              || this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
+              "Error in configuration file: Please check your .pull file");
+
+      if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) &&
+          !this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
+        this.properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
+            "file://" + this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
+      }
+      scheduleGeneralConfiguredJobs();
+      startJobConfigFileMonitor();
     }
-    scheduleGeneralConfiguredJobs();
-    startJobConfigFileMonitor();
   }
 
   @Override

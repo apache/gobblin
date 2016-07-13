@@ -78,7 +78,8 @@ public class GobblinTaskRunnerTest {
 
     // Controller
     this.gobblinClusterManager =
-        new GobblinClusterManager(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_APPLICATION_ID, config);
+        new GobblinClusterManager(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_APPLICATION_ID, config,
+            Optional.<Path>absent());
     this.gobblinClusterManager.connectHelixManager();
 
   }
