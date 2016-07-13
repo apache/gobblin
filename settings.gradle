@@ -32,7 +32,8 @@ def modules = ['gobblin-admin',
                'gobblin-audit',
                'gobblin-yarn',
                'gobblin-cluster',
-               'gobblin-aws']
+               'gobblin-aws',
+               'gobblin-kafka']
 
 modules.each { module ->
   include "${module}"

@@ -578,6 +578,15 @@ subprojects {
   }
 }
 
+allprojects {
+  tasks.withType(FindBugs) {
+  reports {
+      xml.enabled = false
+      html.enabled = true
+  }
+ }
+}
+
 gradle.projectsEvaluated {
   subprojects {
     plugins.withType(JavaPlugin) {

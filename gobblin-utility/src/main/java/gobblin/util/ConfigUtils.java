@@ -12,18 +12,23 @@
 
 package gobblin.util;
 
-import gobblin.configuration.State;
-
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigList;
 import com.typesafe.config.ConfigValue;
+
+import gobblin.configuration.State;
 
 
 /**
@@ -121,15 +126,29 @@ public class ConfigUtils {
   }
 
   /**
-   * Return integer value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   * Return {@link Long} value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
    *
    * @param config in which the path may be present
    * @param path key to look for in the config object
-   * @return integer value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   * @return {@link Long} value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
    */
-  public static Integer getInteger(Config config, String path, Integer def) {
+  public static Long getLong(Config config, String path, Long def) {
     if (config.hasPath(path)) {
-      return config.getInt(path);
+      return Long.valueOf(config.getLong(path));
+    }
+    return def;
+  }
+
+  /**
+   * Return {@link Integer} value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return {@link Integer} value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   */
+  public static Integer getInt(Config config, String path, Integer def) {
+    if (config.hasPath(path)) {
+      return Integer.valueOf(config.getInt(path));
     }
     return def;
   }
@@ -162,6 +181,30 @@ public class ConfigUtils {
     return def;
   }
 
+  /**
+   * An extension to {@link Config#getStringList(String)}. The string list can either be specified as a TypeSafe {@link ConfigList} of strings
+   * or as list of comma separated strings.
+   *
+   * Returns an empty list of <code>path</code> does not exist
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return list of strings
+   */
+  public static List<String> getStringList(Config config, String path) {
+
+    if (!config.hasPath(path)) {
+      return Collections.emptyList();
+    }
+
+    try {
+      return config.getStringList(path);
+    } catch (ConfigException.WrongType e) {
+      Splitter tokenSplitter = Splitter.on(",").omitEmptyStrings().trimResults();
+      return tokenSplitter.splitToList(config.getString(path));
+    }
+
+  }
   /**
    * Check if the given <code>key</code> exists in <code>config</code> and it is not null or empty
    * Uses {@link StringUtils#isNotBlank(CharSequence)}

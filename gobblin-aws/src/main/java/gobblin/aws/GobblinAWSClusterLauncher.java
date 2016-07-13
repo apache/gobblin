@@ -195,9 +195,9 @@ public class GobblinAWSClusterLauncher {
     this.workerAmiId = ConfigUtils.getString(config, WORKER_AMI_ID_KEY, DEFAULT_WORKER_AMI_ID);
     this.workerInstanceType = ConfigUtils.getString(config, WORKER_INSTANCE_TYPE_KEY, DEFAULT_WORKER_INSTANCE_TYPE);
     this.workerJvmMemory = ConfigUtils.getString(config, WORKER_JVM_MEMORY_KEY, DEFAULT_WORKER_JVM_MEMORY);
-    this.minWorkers = ConfigUtils.getInteger(config, MIN_WORKERS_KEY, DEFAULT_MIN_WORKERS);
-    this.maxWorkers = ConfigUtils.getInteger(config, MAX_WORKERS_KEY, DEFAULT_MAX_WORKERS);
-    this.desiredWorkers = ConfigUtils.getInteger(config, DESIRED_WORKERS_KEY, DEFAULT_DESIRED_WORKERS);
+    this.minWorkers = ConfigUtils.getInt(config, MIN_WORKERS_KEY, DEFAULT_MIN_WORKERS);
+    this.maxWorkers = ConfigUtils.getInt(config, MAX_WORKERS_KEY, DEFAULT_MAX_WORKERS);
+    this.desiredWorkers = ConfigUtils.getInt(config, DESIRED_WORKERS_KEY, DEFAULT_DESIRED_WORKERS);
 
     this.masterJvmArgs = config.hasPath(GobblinAWSConfigurationKeys.MASTER_JVM_ARGS_KEY) ?
         Optional.of(config.getString(GobblinAWSConfigurationKeys.MASTER_JVM_ARGS_KEY)) :

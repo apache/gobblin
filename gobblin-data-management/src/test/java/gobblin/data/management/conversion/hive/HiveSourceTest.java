@@ -14,8 +14,6 @@ package gobblin.data.management.conversion.hive;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.joda.time.DateTime;
@@ -31,14 +29,10 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.ConversionHiveTestUtils;
-import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
-import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
 import gobblin.data.management.conversion.hive.source.HiveSource;
-import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
+import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 
-
-@Slf4j
 @Test(groups = {"gobblin.data.management.conversion"})
 public class HiveSourceTest {
 
@@ -69,11 +63,11 @@ public class HiveSourceTest {
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
 
-    SerializableHiveTable serializedHiveTable = HiveSourceUtils.deserializeTable(wu);
+    HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
-    Assert.assertEquals(serializedHiveTable.getDbName(), dbName);
-    Assert.assertEquals(serializedHiveTable.getTableName(), tableName);
-    Assert.assertEquals(serializedHiveTable.getSchemaUrl(), new Path("/tmp/dummy"));
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), tableName);
+    Assert.assertEquals(hwu.getTableSchemaUrl(), new Path("/tmp/dummy"));
   }
 
   @Test
@@ -96,13 +90,11 @@ public class HiveSourceTest {
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
 
-    SerializableHiveTable serializedHiveTable = HiveSourceUtils.deserializeTable(wu);
-    SerializableHivePartition serializedHivePartition = HiveSourceUtils.deserializePartition(wu);
+    HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
-    Assert.assertEquals(serializedHiveTable.getDbName(), dbName);
-    Assert.assertEquals(serializedHiveTable.getTableName(), tableName);
-
-    Assert.assertEquals(serializedHivePartition.getPartitionName(), "field=f1");
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), tableName);
+    Assert.assertEquals(hwu.getPartitionName().get(), "field=f1");
   }
 
   @Test
@@ -133,10 +125,10 @@ public class HiveSourceTest {
     Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
 
-    SerializableHiveTable serializedHiveTable = HiveSourceUtils.deserializeTable(wu);
+    HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
-    Assert.assertEquals(serializedHiveTable.getDbName(), dbName);
-    Assert.assertEquals(serializedHiveTable.getTableName(), tableName2);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), tableName2);
   }
 
   @Test

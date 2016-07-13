@@ -17,7 +17,7 @@ import gobblin.source.extractor.extract.LongWatermark;
  * A {@link HiveSource} used to create workunits without a watermark check.
  * {@link #shouldCreateWorkunit(long, LongWatermark)} will always return <code>true</code>
  */
-public class BackfillHiveSource extends HiveSource {
+public class BackfillHiveSource extends HiveAvroToOrcSource {
 
   @Override
   public boolean shouldCreateWorkunit(long updateTime, LongWatermark lowWatermark) {
