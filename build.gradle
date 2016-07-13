@@ -197,6 +197,7 @@ ext.externalDependency = [
   "confluentSchemaRegistryClient": "io.confluent:kafka-schema-registry-client:" + confluentVersion,
   "confluentAvroSerializer": "io.confluent:kafka-avro-serializer:" + confluentVersion,
   "confluentJsonSerializer": "io.confluent:kafka-json-serializer:" + confluentVersion,
+  "zkClient": "com.101tec:zkclient:0.7",
   "quartz": "org.quartz-scheduler:quartz:2.2.3",
   "testng": "org.testng:testng:6.9.10",
   "mockserver":"org.mock-server:mockserver-netty:3.10.4",
