@@ -58,7 +58,7 @@ public class AWSClusterSecurityManager extends AbstractIdleService {
   public AWSClusterSecurityManager(Config config) {
     this.config = config;
 
-    this.refreshIntervalInMinutes = config.getLong(GobblinAWSConfigurationKeys.CREDENTIALS_REFRESH_INTERVAL_IN_MINUTES);
+    this.refreshIntervalInMinutes = config.getLong(GobblinAWSConfigurationKeys.CREDENTIALS_REFRESH_INTERVAL);
 
     this.loginExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("LoginExecutor")));
