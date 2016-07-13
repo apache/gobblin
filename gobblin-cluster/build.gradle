@@ -38,6 +38,7 @@ dependencies {
   compile externalDependency.commonsEmail
   compile externalDependency.pegasus.data
   compile externalDependency.typesafeConfig
+  compile externalDependency.zkClient
   compile externalDependency.hadoopClientCommon
   compile externalDependency.hadoopCommon
   compile externalDependency.avroMapredH2

@@ -333,7 +333,7 @@ public class HiveCopyEntityHelper {
    * 4. If the table is partitioned, create a file set for each partition.
    * 5. Create work units for registering, deregistering partitions / tables, and deleting unnecessary files in the target.
    *
-   * For computation of target locations see {@link HiveTargetPathHelper#getTargetPath(Path, FileSystem, Optional, boolean, HiveCopyEntityHelper)}
+   * For computation of target locations see {@link HiveTargetPathHelper#getTargetPath}
    */
   Iterator<FileSet<CopyEntity>> getCopyEntities() throws IOException {
     if (HiveUtils.isPartitioned(this.dataset.table)) {
@@ -492,7 +492,8 @@ public class HiveCopyEntityHelper {
                   ioe);
               return Lists.newArrayList();
             }
-            log.warn("Source and target partitions are not compatible. Will override target partition.", ioe);
+            log.warn("Source and target partitions are not compatible. Will override target partition: " + ioe.getMessage());
+            log.debug("Incompatibility details:", ioe);
             stepPriority = addPartitionDeregisterSteps(copyEntities, fileSet, stepPriority,
                 HiveCopyEntityHelper.this.targetTable, this.existingTargetPartition.get());
             this.existingTargetPartition = Optional.absent();

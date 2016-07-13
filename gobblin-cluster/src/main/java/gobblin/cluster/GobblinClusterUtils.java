@@ -44,6 +44,17 @@ public class GobblinClusterUtils {
    * @return the cluster application working directory {@link Path}
    */
   public static Path getAppWorkDirPath(FileSystem fs, String applicationName, String applicationId) {
-    return new Path(fs.getHomeDirectory(), applicationName + Path.SEPARATOR + applicationId);
+    return new Path(fs.getHomeDirectory(), getAppWorkDirPath(applicationName, applicationId));
+  }
+
+  /**
+   * Get the application working directory {@link String}.
+   *
+   * @param applicationName the application name
+   * @param applicationId the application ID in string form
+   * @return the cluster application working directory {@link String}
+   */
+  public static String getAppWorkDirPath(String applicationName, String applicationId) {
+    return applicationName + Path.SEPARATOR + applicationId;
   }
 }

@@ -46,7 +46,7 @@ public class ConversionHiveTestUtils {
     WorkUnitState wus = new WorkUnitState();
     wus.setActualHighWatermark(new LongWatermark(watermark));
     wus.setProp(ConfigurationKeys.DATASET_URN_KEY, dbName + "@" + tableName);
-
+    wus.setProp(ConfigurationKeys.JOB_ID_KEY, "jobId");
     return wus;
   }
 }

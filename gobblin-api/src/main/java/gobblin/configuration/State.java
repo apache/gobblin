@@ -486,9 +486,9 @@ public class State implements Writable {
 
     while (numEntries-- > 0) {
       txt.readFields(in);
-      String key = txt.toString();
+      String key = txt.toString().intern();
       txt.readFields(in);
-      String value = txt.toString();
+      String value = txt.toString().intern();
 
       this.properties.put(key, value);
     }

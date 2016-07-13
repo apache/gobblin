@@ -32,7 +32,6 @@ public class HiveQueryExecutionWriter implements DataWriter<QueryBasedHiveConver
 
   @Override
   public void write(QueryBasedHiveConversionEntity hiveConversionEntity) throws IOException {
-
     try {
       List<String> conversionQueries = hiveConversionEntity.getQueries();
       this.hiveJdbcConnector.executeStatements(conversionQueries.toArray(new String[conversionQueries.size()]));

@@ -75,10 +75,10 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
    * 3. For retention, prefix is hive.dataset.retention.
    *
    */
-  public static final String HIVE_DATASET_CONIFG_PREFIX_KEY = "hive.dataset.configPrefix";
+  public static final String HIVE_DATASET_CONFIG_PREFIX_KEY = "hive.dataset.configPrefix";
   private static final String DEFAULT_HIVE_DATASET_CONIFG_PREFIX = StringUtils.EMPTY;
 
-  private static final String HIVE_DATASET_IS_BLACKLISTED_KEY = "is.blacklisted";
+  public static final String HIVE_DATASET_IS_BLACKLISTED_KEY = "is.blacklisted";
   private static final boolean DEFAULT_HIVE_DATASET_IS_BLACKLISTED_KEY = false;
 
   // Event names
@@ -132,7 +132,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
     this.eventSubmitter = Optional.fromNullable(eventSubmitter);
     this.configStoreUri = Optional.fromNullable(properties.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI));
-    this.datasetConfigPrefix = properties.getProperty(HIVE_DATASET_CONIFG_PREFIX_KEY, DEFAULT_HIVE_DATASET_CONIFG_PREFIX);
+    this.datasetConfigPrefix = properties.getProperty(HIVE_DATASET_CONFIG_PREFIX_KEY, DEFAULT_HIVE_DATASET_CONIFG_PREFIX);
     this.configClient = ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY);
     this.jobConfig = ConfigUtils.propertiesToConfig(properties);
   }
