@@ -12,3 +12,7 @@ Gobblin @Linkedin and beyond
 * [Gobblin on Yarn: A Preview](http://www.slideshare.net/YinanLi/gobblinmeetupyarn?qid=bda2e238-f302-402b-8c02-9dca1a3b7f4e&v=qf1&b=&from_search=6) (Gobblin Meetup November 2015)
 * [Gobblin@NerdWallet  External Use Case 1](http://www.slideshare.net/NerdWalletHQ/gobblin-nerdwallet-nov-2015?qid=33ba50e5-8122-4668-89d5-bbf3302adb31&v=default&b=&from_search=2) (Gobblin Meetup November 2015)
 * [Gobblin@Intel  External Use Case 2](http://www.slideshare.net/IntelITCenter/gobblin-for-data-analytics) (Gobblin Meetup November 2015)
+* [Gobblin: Beyond ingest to big data management](http://www.slideshare.net/VasanthRajamani/gobblin-meetupwhats-new-in-07) (Gobblin Meetup June 2016)
+* [Gobblin: Inter cluster replication](http://www.slideshare.net/VasanthRajamani/distcp-gobblin) (Gobblin Meetup June 2016)
+* [Gobblin: Configuration and Orchestration](http://www.slideshare.net/VasanthRajamani/gobbin-configmeetupjune2016) (Gobblin Meetup June 2016)
+* [Gobblin on AWS](http://www.slideshare.net/VasanthRajamani/gobblin-onaws-63970489) (Gobblin Meetup June 2016)
