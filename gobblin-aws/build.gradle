@@ -14,6 +14,7 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-admin")
   compile project(":gobblin-api")
+  compile project(":gobblin-cluster")
   compile project(":gobblin-core")
   compile project(":gobblin-metrics")
   compile project(":gobblin-metastore")
@@ -23,6 +24,13 @@ dependencies {
   compile project(":gobblin-rest-service:gobblin-rest-server")
 
   compile externalDependency.avro
+  compile externalDependency.awsCore
+  compile externalDependency.awsAsg
+  compile externalDependency.awsAppAsg
+  compile externalDependency.awsEc2
+  compile externalDependency.awsIam
+  compile externalDependency.awsS3
+  compile externalDependency.awsSts
   compile externalDependency.commonsConfiguration
   compile externalDependency.quartz
   compile externalDependency.guava
@@ -38,17 +46,22 @@ dependencies {
   compile externalDependency.commonsEmail
   compile externalDependency.pegasus.data
   compile externalDependency.typesafeConfig
-  compile externalDependency.zkClient
   compile externalDependency.hadoopClientCommon
   compile externalDependency.hadoopCommon
+  compile externalDependency.hadoopYarnApi
+  compile externalDependency.hadoopYarnCommon
+  compile externalDependency.hadoopYarnClient
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
 
+  testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
 
   testCompile externalDependency.testng
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
+  testCompile externalDependency.mockito
+  testCompile externalDependency.powermock
 
   compile files('./src/main/resources/helix-core-0.6.6-SNAPSHOT.jar')
 }
@@ -60,10 +73,6 @@ task testJar(type: Jar, dependsOn: testClasses) {
 
 configurations {
   tests
-}
-
-artifacts {
-  tests testJar
 }
 
 configurations {
@@ -78,9 +87,18 @@ configurations {
   }
 }
 
+artifacts {
+  tests testJar
+}
+
 test {
   workingDir rootProject.rootDir
   maxParallelForks = 1
+}
+
+clean {
+  delete "../gobblin-test/locks"
+  delete "../gobblin-test/basicTest"
 }
 
 ext.classification="library"

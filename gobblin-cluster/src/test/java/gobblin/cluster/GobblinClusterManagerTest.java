@@ -17,6 +17,7 @@ import java.net.URL;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
@@ -32,6 +33,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
 import com.typesafe.config.Config;
@@ -86,7 +88,8 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
         new TestShutdownMessageHandlerFactory(this));
 
     this.gobblinClusterManager =
-        new GobblinClusterManager(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_APPLICATION_ID, config);
+        new GobblinClusterManager(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_APPLICATION_ID, config,
+            Optional.<Path>absent());
     this.gobblinClusterManager.getEventBus().register(this.gobblinClusterManager);
     this.gobblinClusterManager.connectHelixManager();
   }
