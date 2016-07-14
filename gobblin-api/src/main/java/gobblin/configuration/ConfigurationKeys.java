@@ -402,6 +402,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
   public static final String SOURCE_CONN_DRIVER = "source.conn.driver";
   public static final String SOURCE_CONN_PORT = "source.conn.port";
+  public static final String SOURCE_CONN_SID = "source.conn.sid";
   public static final int SOURCE_CONN_DEFAULT_PORT = 22;
 
   /**
