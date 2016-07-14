@@ -423,6 +423,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_CONN_DRIVER = SOURCE_CONN_PREFIX + "driver";
   public static final String SOURCE_CONN_PORT = SOURCE_CONN_PREFIX + "port";
   public static final int SOURCE_CONN_DEFAULT_PORT = 22;
+  public static final String SOURCE_CONN_SID = SOURCE_CONN_PREFIX + "sid";
 
   /**
    * Source default configurations.
