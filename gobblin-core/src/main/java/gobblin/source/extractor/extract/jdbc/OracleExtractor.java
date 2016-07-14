@@ -227,7 +227,7 @@ public class OracleExtractor extends JdbcExtractor {
   public String getConnectionUrl() {
     String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String port = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
-    String sid = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_SID).trim()
+    String sid = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_SID).trim();
     String url = "jdbc:oracle:thin:@" + host.trim() + ":" + port + ":" + /*host.trim().split("\\.")[0]*/ sid;
     return url;
   }
