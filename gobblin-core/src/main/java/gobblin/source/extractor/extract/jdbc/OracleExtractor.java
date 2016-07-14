@@ -210,7 +210,10 @@ public class OracleExtractor extends JdbcExtractor {
         .put("rowid", "string").put("urowid", "string").put("xmltype", "string").put("float", "float")
         .put("dec", "double").put("decimal", "double").put("integer", "int").put("int", "int")
         .put("smallint", "int").put("real", "double").put("double precision", "double")
-        .put("interval year", "date").put("interval day", "timestamp").build();
+        .put("interval year", "date").put("interval day", "timestamp").put("timestamp(0)", "timestamp")
+        .put("timestamp(1)", "timestamp").put("timestamp(2)", "timestamp").put("timestamp(3)", "timestamp")
+        .put("timestamp(4)", "timestamp").put("timestamp(5)", "timestamp").put("timestamp(6)", "timestamp")
+        .put("timestamp(7)", "timestamp").put("timestamp(8)", "timestamp").put("timestamp(9)", "timestamp").build();
     return dataTypeMap;
   }
 
@@ -237,10 +240,23 @@ public class OracleExtractor extends JdbcExtractor {
     long recordcount = SAMPLERECORDCOUNT;
     String inputQuery = query.toLowerCase();
 
-    int limitStartIndex = inputQuery.indexOf(" top ");
+    int limitStartIndex = -1;
+
+    boolean multiPredicate = inputQuery.indexOf(" and ") != -1 ? true : false;
+    boolean leadingLimit = false;
+    if (!multiPredicate) {
+      limitStartIndex = inputQuery.indexOf(" where rownum <= ");
+    } else {
+      limitStartIndex = inputQuery.indexOf(" and rownum <= ");
+      if (limitStartIndex == -1 && inputQuery.indexOf(" where rownum <= ") > -1) {
+        limitStartIndex = inputQuery.indexOf(" where rownum <= ");
+        leadingLimit = true;
+      } 
+    }
+
     int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
     if (limitStartIndex > 0) {
-      String limitValue = query.substring(limitStartIndex + 5, limitEndIndex);
+      String limitValue = query.substring(query.indexOf("<=") + 3, limitEndIndex);
       try {
         recordcount = Long.parseLong(limitValue);
       } catch (Exception e) {
@@ -353,6 +369,8 @@ public class OracleExtractor extends JdbcExtractor {
         break;
       case DATE:
         columnFormat = "yyyy-MM-dd";
+        break;
+      case SIMPLE:
         break;
       default:
         log.error("Watermark type " + watermarkType.toString() + " not recognized");
