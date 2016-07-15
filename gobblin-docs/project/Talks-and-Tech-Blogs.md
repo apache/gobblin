@@ -1,8 +1,8 @@
 Gobblin @ LinkedIn and beyond
 
-* Bigger, Faster, Easier: Building a Real-Time Self Service Data Analytics Ecosystem at LinkedIn <small><b>| [Presentation](http://www.slideshare.net/Hadoop_Summit/bigger-faster-easier-building-a-realtime-self-service-data-analytics-ecosystem-at-linkedin?qid=9c8f8c33-0083-495b-a6e2-572ac45f7f2c&v=qf1&b=&from_search=9) | (Hadoop Summit 2015)</b></small>
 * QCon presentation <small><b>| [Presentation](http://www.slideshare.net/LinQiao1/gobblin-big-data-with-ease) | (Nov 5th, 2014)</b></small>
 * Engineering Blog Post <small><b>| [Presentation](http://engineering.linkedin.com/data-ingestion/gobblin-big-data-ease) | (Nov 25th, 2014)</b></small>
+* Bigger, Faster, Easier: Building a Real-Time Self Service Data Analytics Ecosystem at LinkedIn <small><b>| [Presentation](http://www.slideshare.net/Hadoop_Summit/bigger-faster-easier-building-a-realtime-self-service-data-analytics-ecosystem-at-linkedin?qid=9c8f8c33-0083-495b-a6e2-572ac45f7f2c&v=qf1&b=&from_search=9) | (Hadoop Summit 2015)</b></small>
 * Gobblin: Unifying Data Ingestion for Hadoop <small><b>| [Presentation](http://www.vldb.org/pvldb/vol8/p1764-qiao.pdf) | (VLDB 2015)</b></small>
 * Gobblin: Unifying Data Ingestion for Hadoop <small><b>| [Presentation](http://www.slideshare.net/YinanLi/gobblin-unifying-data-ingestion-for-hadoop) | (VLDB 2015 slides)</b></small>
 * Ingestion from Kafka using Gobblin <small><b>| [Presentation](http://www.slideshare.net/ZiyangLiu1/ingestion-from-kafka-using-gobblin?qid=b7dce13f-85f6-49f2-94df-feedd6057cbe&v=qf1&b=&from_search=4) | (Gobblin Meetup November 2015)</b></small>
