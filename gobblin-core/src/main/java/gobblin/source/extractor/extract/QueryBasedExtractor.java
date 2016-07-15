@@ -105,7 +105,6 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     this.workUnit = this.workUnitState.getWorkunit();
     this.schema = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
     this.entity = this.workUnitState.getProp(ConfigurationKeys.SOURCE_ENTITY);
-    log.info("AAA source entity " + this.entity + " schema is " + this.schema);
     MDC.put("tableName", getWorkUnitName());
   }
 
@@ -222,11 +221,6 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     return Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY));
   }
 
-  private void display(java.util.Properties p){
-    for(Object s: p.keySet()){
-      log.info("DDD key " + s + " value: " + p.getProperty((String)s));
-    }
-  }
   /**
    * build schema, record count and high water mark
    */
@@ -235,12 +229,6 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     long lwm = this.workUnit.getLowWatermark(LongWatermark.class).getValue();
     long hwm = this.workUnit.getExpectedHighWatermark(LongWatermark.class).getValue();
     log.info("Low water mark: " + lwm + "; and High water mark: " + hwm);
-    
-    log.info("BBB workUnit prop size " + this.workUnit.getProperties().size());
-
-    this.display(this.workUnit.getProperties());
-    log.info("BBB workUnitState prop size " + this.workUnitState.getProperties().size());
-    this.display(this.workUnitState.getProperties());
     
     WatermarkType watermarkType;
     if (StringUtils.isBlank(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE))) {

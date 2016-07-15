@@ -298,19 +298,13 @@ public class SalesforceExtractor extends RestApiExtractor {
   public List<Command> getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws RecordCountException {
     log.debug("Build url to retrieve source record count");
-    log.info("AAA Build url to retrieve source record count");
     String existingPredicate = "";
     if (this.updatedQuery != null) {
-      log.info("AAA update query is " + this.updatedQuery);
       String queryLowerCase = this.updatedQuery.toLowerCase();
       int startIndex = queryLowerCase.indexOf(" where ");
       if (startIndex > 0) {
         existingPredicate = this.updatedQuery.substring(startIndex);
       }
-      log.info("AAA existingPredicate " + existingPredicate);
-    }
-    else{
-      log.info("AAA update query is null");
     }
 
     String query = "SELECT COUNT() FROM " + entity + existingPredicate;
@@ -319,8 +313,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 
     try {
       if (isNullPredicate(predicateList)) {
-        log.info("AAA predicatedList is null");
-        log.info("QUERY: " + query);
+        log.info("QUERY with null predicate: " + query);
         return constructGetCommand(this.sfConnector.getFullUri(getSoqlUrl(query)));
       }
       Iterator<Predicate> i = predicateList.listIterator();
@@ -330,7 +323,6 @@ public class SalesforceExtractor extends RestApiExtractor {
       }
 
       query = query + getLimitFromInputQuery(this.updatedQuery);
-      log.info("AAA predicatedList is NOT null");
       log.info("QUERY: " + query);
       return constructGetCommand(this.sfConnector.getFullUri(getSoqlUrl(query)));
     } catch (Exception e) {
