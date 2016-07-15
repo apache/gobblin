@@ -57,7 +57,7 @@ public class RetentionIntegrationTest {
   private FileSystem fs;
   private Path testClassTempPath;
   private static final String SETUP_VALIDATE_CONFIG_CLASSPATH_FILENAME = "setup_validate.conf";
-  private static final String TEST_PACKAGE_RESOURCE_NAME = "retentionIntegrationTest";
+  static final String TEST_PACKAGE_RESOURCE_NAME = "retentionIntegrationTest";
   private static final String TEST_DATA_DIR_NAME = "retentionIntegrationTestData";
 
   @BeforeClass
