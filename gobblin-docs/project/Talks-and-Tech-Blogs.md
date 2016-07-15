@@ -12,4 +12,4 @@ Gobblin @ LinkedIn and beyond
 * Gobblin: Beyond ingest to big data management <small><b>| [Video](https://www.youtube.com/watch?v=MvohU8rSFqU) | [Presentation](http://www.slideshare.net/VasanthRajamani/gobblin-meetupwhats-new-in-07) | (Gobblin Meetup June 2016)</b></small>
 * Gobblin: Inter cluster replication <small><b>| [Video](https://www.youtube.com/watch?v=o1BnaovUObE) | [Presentation](http://www.slideshare.net/VasanthRajamani/distcp-gobblin) | (Gobblin Meetup June 2016)</b></small>
 * Gobblin: Configuration and Orchestration <small><b>| [Video](https://www.youtube.com/watch?v=O9KbPDLsy_c) | [Presentation](http://www.slideshare.net/VasanthRajamani/gobbin-configmeetupjune2016) | (Gobblin Meetup June 2016)</b></small>
-* Gobblin on AWS <small><b>| [Video](https://www.youtube.com/watch?v=_c7agtS5bI8) | [Presentation](http://www.slideshare.net/VasanthRajamani/gobblin-onaws-63970489) | (Gobblin Meetup June 2016)</b></small>
+* Gobblin on AWS <small><b>| [Video](https://youtu.be/_c7agtS5bI8?t=107) | [Presentation](http://www.slideshare.net/VasanthRajamani/gobblin-onaws-63970489) | (Gobblin Meetup June 2016)</b></small>
