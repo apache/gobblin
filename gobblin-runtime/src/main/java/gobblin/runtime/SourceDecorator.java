@@ -67,6 +67,7 @@ public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
   @Override
   public Extractor<S, D> getExtractor(WorkUnitState state) throws IOException {
     try {
+      this.logger.info("EEE here 0 " + state.getProp("source.entity"));
       return this.source.getExtractor(state);
     } catch (Throwable t) {
       this.logger.error("Failed to get extractor for job " + this.jobId, t);

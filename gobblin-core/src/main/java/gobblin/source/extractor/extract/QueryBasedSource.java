@@ -74,19 +74,26 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     List<WorkUnit> workUnits = Lists.newArrayList();
     String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
 
+    log.info("AAA here 0");
     Map<String, String> tableNameToEntityMap = Maps.newHashMap();
     Set<String> entities = getSourceEntities(state);
+    log.info("AAA here 0 set size is " + entities.size());
     List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, ENTITY_BLACKLIST);
     List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, ENTITY_WHITELIST);
     for (String entity : DatasetFilterUtils.filter(entities, blacklist, whitelist)) {
       tableNameToEntityMap.put(Utils.escapeSpecialCharacters(entity, ConfigurationKeys.ESCAPE_CHARS_IN_TABLE_NAME, "_"),
           entity);
     }
+    
+    log.info("AAA here 0 size is " + tableNameToEntityMap.size());
 
+    log.info("AAA get config is " + shouldObtainTablePropsFromConfigStore(state));
     Map<String, State> tableSpecificPropsMap = shouldObtainTablePropsFromConfigStore(state)
         ? getTableSpecificPropsFromConfigStore(tableNameToEntityMap.keySet(), state)
         : DatasetUtils.getDatasetSpecificProps(tableNameToEntityMap.keySet(), state);
     Map<String, Long> prevWatermarksByTable = getPreviousWatermarksForAllTables(state);
+    
+    log.info("AAA here 0 prevWatermarksByTable is " + prevWatermarksByTable.size());
 
     for (String tableName : Sets.union(tableNameToEntityMap.keySet(), prevWatermarksByTable.keySet())) {
 
@@ -139,13 +146,17 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   }
 
   protected Set<String> getSourceEntities(State state) {
+    log.info("AAA here 1");
     if (state.contains(ConfigurationKeys.SOURCE_ENTITIES)) {
       log.info("Using entity names in " + ConfigurationKeys.SOURCE_ENTITIES);
       return state.getPropAsSet(ConfigurationKeys.SOURCE_ENTITIES);
     } else if (state.contains(ConfigurationKeys.SOURCE_ENTITY)) {
+      log.info("AAA here 2");
       log.info("Using entity name in " + ConfigurationKeys.SOURCE_ENTITY);
       return ImmutableSet.of(state.getProp(ConfigurationKeys.SOURCE_ENTITY));
     }
+    
+    log.info("AAA here wrong");
 
     throw new IllegalStateException(String.format("One of the following properties must be specified: %s, %s.",
         ConfigurationKeys.SOURCE_ENTITIES, ConfigurationKeys.SOURCE_ENTITY));

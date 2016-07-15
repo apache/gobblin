@@ -298,13 +298,19 @@ public class SalesforceExtractor extends RestApiExtractor {
   public List<Command> getCountMetadata(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
       throws RecordCountException {
     log.debug("Build url to retrieve source record count");
+    log.info("AAA Build url to retrieve source record count");
     String existingPredicate = "";
     if (this.updatedQuery != null) {
+      log.info("AAA update query is " + this.updatedQuery);
       String queryLowerCase = this.updatedQuery.toLowerCase();
       int startIndex = queryLowerCase.indexOf(" where ");
       if (startIndex > 0) {
         existingPredicate = this.updatedQuery.substring(startIndex);
       }
+      log.info("AAA existingPredicate " + existingPredicate);
+    }
+    else{
+      log.info("AAA update query is null");
     }
 
     String query = "SELECT COUNT() FROM " + entity + existingPredicate;
@@ -313,6 +319,7 @@ public class SalesforceExtractor extends RestApiExtractor {
 
     try {
       if (isNullPredicate(predicateList)) {
+        log.info("AAA predicatedList is null");
         log.info("QUERY: " + query);
         return constructGetCommand(this.sfConnector.getFullUri(getSoqlUrl(query)));
       }
@@ -323,6 +330,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       }
 
       query = query + getLimitFromInputQuery(this.updatedQuery);
+      log.info("AAA predicatedList is NOT null");
       log.info("QUERY: " + query);
       return constructGetCommand(this.sfConnector.getFullUri(getSoqlUrl(query)));
     } catch (Exception e) {
@@ -377,7 +385,7 @@ public class SalesforceExtractor extends RestApiExtractor {
           query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
 
-        if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
+        if (Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
           query = SqlQueryUtils.addPredicate(query, "IsDeleted = true");
         }
 
@@ -586,8 +594,8 @@ public class SalesforceExtractor extends RestApiExtractor {
   public boolean bulkApiLogin() throws Exception {
     log.info("Authenticating salesforce bulk api");
     boolean success = false;
-    String hostName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
-    String apiVersion = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_VERSION);
+    String hostName = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
+    String apiVersion = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_VERSION);
     if (Strings.isNullOrEmpty(apiVersion)) {
       apiVersion = "29.0";
     }
@@ -601,10 +609,10 @@ public class SalesforceExtractor extends RestApiExtractor {
             super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
       }
 
-      String securityToken = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
-      String password = PasswordManager.getInstance(this.workUnit)
-          .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
-      partnerConfig.setUsername(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME));
+      String securityToken = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
+      String password = PasswordManager.getInstance(this.workUnitState)
+          .readPassword(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+      partnerConfig.setUsername(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME));
       partnerConfig.setPassword(password + securityToken);
       partnerConfig.setAuthEndpoint(soapAuthEndPoint);
       new PartnerConnection(partnerConfig);
@@ -741,7 +749,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       // if Buffer stream has data then process the same
 
       // Get batch size from .pull file
-      int batchSize = Utils.getAsInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE));
+      int batchSize = Utils.getAsInt(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE));
       if (batchSize == 0) {
         batchSize = ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE;
       }

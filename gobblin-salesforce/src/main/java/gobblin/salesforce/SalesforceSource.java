@@ -49,6 +49,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   @Override
   public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
     try {
+      log.info("EEE source entity in salesforceSource is " + state.getProp("source.entity"));
       return new SalesforceExtractor(state).build();
     } catch (ExtractPrepareException e) {
       log.error("Failed to prepare extractor", e);
