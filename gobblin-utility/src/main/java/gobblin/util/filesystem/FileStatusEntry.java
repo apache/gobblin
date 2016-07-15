@@ -1,8 +1,8 @@
 package gobblin.util.filesystem;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 
-import org.apache.commons.io.monitor.FileEntry;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -15,24 +15,23 @@ public class FileStatusEntry extends FileStatus {
 
   private final FileStatusEntry parent;
   private FileStatusEntry[] children;
-  private final Path path;
-  private String name;
-  private boolean exists;
-  private boolean directory;
-  private long lastModified;
-  private long length;
 
-  public FileStatusEntry(final Path path) {
+  private boolean exists;
+
+  public Optional<FileStatus> _fileStatus;
+
+  public FileStatusEntry(final Path path)
+      throws IOException {
     this(null, path);
   }
 
-  public FileStatusEntry(final FileStatusEntry parent, final Path path) {
+  public FileStatusEntry(final FileStatusEntry parent, final Path path)
+      throws IOException {
     if (path == null) {
-      throw new IllegalArgumentException("File is missing");
+      throw new IllegalArgumentException("Path is missing");
     }
-    this.path = path;
     this.parent = parent;
-    this.name = path.getName();
+    this._fileStatus = Optional.of(path.getFileSystem(new Configuration()).getFileStatus(path));
   }
 
   public boolean refresh(final Path path)
@@ -40,26 +39,28 @@ public class FileStatusEntry extends FileStatus {
 
     // cache original values
     final boolean origExists = exists;
-    final long origLastModified = lastModified;
-    final boolean origDirectory = directory;
-    final long origLength = length;
+    if (_fileStatus.isPresent()) {
+      FileStatus oldStatus = _fileStatus.get();
+      Configuration conf = new Configuration();
 
-    Configuration conf = new Configuration();
+      try (FileSystem fileSystem = path.getFileSystem(conf)) {
 
-    try (FileSystem fileSystem = path.getFileSystem(conf)) {
+        // refresh the values
+        exists = fileSystem.exists(path);
+        this._fileStatus = Optional.of(fileSystem.getFileStatus(path));
 
-      // refresh the values
-      name = path.getName();
-      exists = fileSystem.exists(path);
-      directory = exists && fileSystem.isDirectory(path);
-      lastModified = exists ? fileSystem.getFileStatus(path).getModificationTime() : 0;
-      length = exists && !directory ? fileSystem.getFileStatus(path).getLen() : 0;
-
-      // Return if there are changes
-      return exists != origExists ||
-          lastModified != origLastModified ||
-          directory != origDirectory ||
-          length != origLength;
+        if ( _fileStatus.isPresent() ) {
+          // Return if there are changes
+          return exists != origExists ||
+              _fileStatus.get().getModificationTime() != oldStatus.getModificationTime() ||
+              _fileStatus.get().isDirectory() != oldStatus.isDirectory() ||
+              _fileStatus.get().getLen() != oldStatus.getLen();
+        }else {
+          throw new NullPointerException("Path is missing "); 
+        }
+      }
+    } else {
+      throw new IllegalArgumentException("Path is missing");
     }
   }
 
@@ -72,20 +73,9 @@ public class FileStatusEntry extends FileStatus {
    * @param path The child file
    * @return a new child instance
    */
-  public FileStatusEntry newChildInstance(final Path path) {
+  public FileStatusEntry newChildInstance(final Path path)
+      throws IOException {
     return new FileStatusEntry(this, path);
-  }
-
-  /**
-   * @return path The path object for this FileStatusEntry.
-   */
-  @Override
-  public Path getPath() {
-    return this.path;
-  }
-
-  public boolean isDirectory() {
-    return directory;
   }
 
   /**
@@ -127,33 +117,6 @@ public class FileStatusEntry extends FileStatus {
   }
 
   /**
-   * Return the file name.
-   *
-   * @return the file name
-   */
-  public String getName() {
-    return name;
-  }
-
-  /**
-   * Set the file name.
-   *
-   * @param name the file name
-   */
-  public void setName(final String name) {
-    this.name = name;
-  }
-
-  /**
-   * Set the length.
-   *
-   * @param length the length
-   */
-  public void setLength(final long length) {
-    this.length = length;
-  }
-
-  /**
    * Indicate whether the file existed the last time it
    * was checked.
    *
@@ -164,35 +127,31 @@ public class FileStatusEntry extends FileStatus {
   }
 
   /**
-   * Set whether the file existed the last time it
-   * was checked.
-   *
-   * @param exists whether the file exists or not
+   * Return the path from the instance FileStatus variable
+   * @return
    */
-  public void setExists(final boolean exists) {
-    this.exists = exists;
+  public Path getPath() {
+    return _fileStatus.get().getPath();
   }
 
   /**
-   * Set whether the file is a directory or not.
-   *
-   * @param directory whether the file is a directory or not
+   * Return whether the path is a directory from the instance FileStatus variable.
+   * @return
    */
-  public void setDirectory(final boolean directory) {
-    this.directory = directory;
+  public boolean isDirectory() {
+    return _fileStatus.get().isDirectory();
   }
-
 
   /** Compare if this object is equal to another object
    * @param  o the object to be compared.
-   * @return  true if two file status has the same path name; false if not.
+   * @return true if two file status has the same path name; false if not.
    */
   @Override
   public boolean equals(Object o) {
-    if ( o == null || this.getClass() != o.getClass()) {
-      return false ;
+    if (o == null || this.getClass() != o.getClass()) {
+      return false;
     }
-    FileStatus other = (FileStatus)o;
+    FileStatus other = (FileStatus) o;
     return this.getPath().equals(other.getPath());
   }
 
@@ -200,11 +159,10 @@ public class FileStatusEntry extends FileStatus {
    * Returns a hash code value for the object, which is defined as
    * the hash code of the path name.
    *
-   * @return  a hash code value for the path name.
+   * @return a hash code value for the path name.
    */
   @Override
   public int hashCode() {
     return getPath().hashCode();
   }
-
 }

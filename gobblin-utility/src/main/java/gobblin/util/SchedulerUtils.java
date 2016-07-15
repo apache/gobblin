@@ -127,12 +127,10 @@ public class SchedulerUtils {
    */
   public static Properties loadGenericJobConfig(Properties properties, Path jobConfigPath, Path jobConfigPathDir)
       throws ConfigurationException, IOException {
-    System.err.println("[loadGenericJobConfig]" +jobConfigPath.toString());
     List<Properties> commonPropsList = Lists.newArrayList();
     getCommonProperties(commonPropsList, jobConfigPathDir, jobConfigPath.getParent());
     // Add the framework configuration properties to the end
     commonPropsList.add(properties);
-    System.err.println("Common properties size : " + commonPropsList.size());
 
     Properties jobProps = new Properties();
     // Include common properties in reverse order
@@ -141,7 +139,6 @@ public class SchedulerUtils {
     }
 
     // Then load the job configuration properties defined in the job configuration file
-    System.err.println("the path is : " + jobConfigPath);
     jobProps.putAll(ConfigurationConverter.getProperties(
         new PropertiesConfiguration(new Path("file://", jobConfigPath).toUri().toURL())));
 
@@ -172,8 +169,13 @@ public class SchedulerUtils {
       FileStatus[] subDirsStatus = fileSystem.listStatus(rootDirPath, new PathFilter() {
         @Override
         public boolean accept(Path path) {
-          FileStatusEntry fileStatusEntry = new FileStatusEntry(path);
-          return fileStatusEntry.isExists();
+          try {
+            FileStatusEntry fileStatusEntry = new FileStatusEntry(path);
+            return fileStatusEntry.isExists();
+          }catch (IOException e) {
+            e.printStackTrace();
+          }
+          return false ;
         }
       });
       if (subDirsStatus != null && subDirsStatus.length > 0) {
@@ -315,9 +317,6 @@ public class SchedulerUtils {
           if (propertiesFiles.length != 1) {
             throw new RuntimeException("Found more than one .properties file in directory: " + configPathParent);
           }
-          // todo : remove this debugging thing
-          System.err.println(
-              "_uri:" + (new Path((new Path("file://", configPathParent)), propertiesFiles[0])).toUri().toString());
 
           commonPropsList.add(ConfigurationConverter.getProperties(new PropertiesConfiguration(
               (new Path((new Path("file://", configPathParent)), propertiesFiles[0])).toUri().toURL())));

@@ -171,10 +171,7 @@ public class SchedulerUtilsTest {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
     List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
-    // todo : remove this debugging issue.
-    for (Properties aProperty:jobConfigs ) {
-      System.err.println("property: " + aProperty);
-    }
+
     Assert.assertEquals(jobConfigs.size(), 3);
 
     // test-job-conf-dir/test1/test11/test111.pull
@@ -246,9 +243,7 @@ public class SchedulerUtilsTest {
   public void testloadGenericJobConfig()
       throws ConfigurationException, IOException {
     Path jobConfigPath = new Path(this.subDir11.getAbsolutePath(), "test111.pull");
-    System.err.println("[testloadGenericJobConfig]" + jobConfigPath);
     Properties properties = new Properties();
-    System.err.println("this.jobConfigDir.getAbsolutePath(): " + this.jobConfigDir.getAbsolutePath());
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
     Properties jobProps =
         SchedulerUtils.loadGenericJobConfig(properties, jobConfigPath, new Path(this.jobConfigDir.getAbsolutePath()));
@@ -278,20 +273,17 @@ public class SchedulerUtilsTest {
 
       @Override
       public void onFileCreate(Path path) {
-        System.err.println("File To added : " + path);
         fileAltered.add(path);
         semaphore.release();
       }
 
       @Override
       public void onFileChange(Path path) {
-        System.err.println("File changed " + path);
         fileAltered.add(path);
         semaphore.release();
       }
     };
 
-    System.err.println("this.jobConfigDir.getPath():" + this.jobConfigDir.getPath());
     SchedulerUtils.addPathAlterationObserver(monitor, listener, new Path(this.jobConfigDir.getPath()));
     try {
       monitor.start();
@@ -300,15 +292,12 @@ public class SchedulerUtilsTest {
 
       File jobConfigFile = new File(this.subDir11, "test111.pull");
       Files.touch(jobConfigFile);
-      System.err.println("first:" + jobConfigFile);
 
       File commonPropsFile = new File(this.subDir1, "test.properties");
       Files.touch(commonPropsFile);
-      System.err.println("second:" + commonPropsFile);
 
       File newJobConfigFile = new File(this.subDir11, "test112.pull");
       Files.append("k1=v1", newJobConfigFile, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
-      System.err.println("third:" + newJobConfigFile);
 
       semaphore.acquire(3);
       Assert.assertEquals(fileAltered.size(), 3);

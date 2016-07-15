@@ -52,7 +52,7 @@ public class AWSJobConfigurationManagerTest {
   private static final String JOB_SECOND_ZIP = "wikipedia2.zip";
   private static final String URI_ZIP_NAME = "wikipedia.zip";
 
-  private static final String   JOB_CONFIG_DIR_NAME = AWSJobConfigurationManagerTest.class.getSimpleName();
+  private static final String JOB_CONFIG_DIR_NAME = AWSJobConfigurationManagerTest.class.getSimpleName();
 
   private final File jobConfigFileDir = new File(JOB_CONFIG_DIR_NAME + "_" + System.currentTimeMillis());
   private final EventBus eventBus = new EventBus();

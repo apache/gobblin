@@ -103,10 +103,6 @@ artifacts {
 test {
     workingDir rootProject.rootDir
     maxParallelForks = 1
-    jacoco{
-      excludes = ['gobblin/runtime/scheduler/JobConfigFileMonitorTest']
-      append = false
-    }
 }
 
 clean {

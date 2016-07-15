@@ -12,11 +12,13 @@
 
 package gobblin.scheduler;
 
+import gobblin.util.SchedulerUtils;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -66,8 +68,9 @@ public class JobConfigFileMonitorTest {
   @BeforeClass
   public void setUp()
       throws Exception {
-    this.jobConfigDir = Files.createTempDirectory(
-            String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName())).toString();
+    this.jobConfigDir =
+        Files.createTempDirectory(String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName()))
+            .toString();
 
     FileUtils.forceDeleteOnExit(new File(this.jobConfigDir));
     FileUtils.copyDirectory(new File(JOB_CONFIG_FILE_DIR), new File(jobConfigDir));
@@ -90,6 +93,10 @@ public class JobConfigFileMonitorTest {
     final Logger log = LoggerFactory.getLogger("testAddNewJobConfigFile");
     AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(15000);
     assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
+
+    /* Set a time gap, to let the monitor recognize the "3-file" status as old status,
+    so that new added file can be discovered */
+    Thread.sleep(1000);
 
     // Create a new job configuration file by making a copy of an existing
     // one and giving a different job name
@@ -122,7 +129,9 @@ public class JobConfigFileMonitorTest {
     jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
-    AssertWithBackoff.create().logger(log).timeoutMs(7500)
+    AssertWithBackoff.create()
+        .logger(log)
+        .timeoutMs(7500)
         .assertEquals(new GetNumScheduledJobs(), 4, "4 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
@@ -146,8 +155,9 @@ public class JobConfigFileMonitorTest {
     jobProps.setProperty(ConfigurationKeys.JOB_DISABLED_KEY, "true");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
-
-    AssertWithBackoff.create().logger(log).timeoutMs(7500)
+    AssertWithBackoff.create()
+        .logger(log)
+        .timeoutMs(7500)
         .assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
@@ -164,6 +174,5 @@ public class JobConfigFileMonitorTest {
       FileUtils.forceDelete(new File(jobConfigDir));
     }
     this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
-
   }
 }

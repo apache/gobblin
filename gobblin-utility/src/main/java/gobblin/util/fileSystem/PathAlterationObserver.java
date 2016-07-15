@@ -254,13 +254,10 @@ public class PathAlterationObserver {
    * @param entry The file entry
    */
   private void doCreate(final FileStatusEntry entry) {
-    System.err.println("Trying to create " + entry.getPath() );
     for (final PathAlterationListener listener : listeners) {
       if (entry.isDirectory()) {
-        System.err.println("call OnCreate directory");
         listener.onDirectoryCreate(entry.getPath());
       } else {
-        System.err.println("call OnCreate file ");
         listener.onFileCreate(entry.getPath());
       }
     }

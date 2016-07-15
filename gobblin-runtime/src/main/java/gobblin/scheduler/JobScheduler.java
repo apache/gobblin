@@ -22,8 +22,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
+import org.codehaus.jackson.map.DeserializerFactory;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
@@ -62,7 +65,6 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.SchedulerUtils;
 import gobblin.util.filesystem.PathAlterationListener;
-import gobblin.util.filesystem.PathAlterationListenerAdaptor;
 import gobblin.util.filesystem.PathAlterationMonitor;
 
 
@@ -96,7 +98,7 @@ public class JobScheduler extends AbstractIdleService {
   public static final String JOB_LISTENER_KEY = "jobListener";
 
   // System configuration properties
-  private final Properties properties;
+  public final Properties properties;
 
   // A Quartz scheduler
   private final Scheduler scheduler;
@@ -111,7 +113,7 @@ public class JobScheduler extends AbstractIdleService {
   private final Map<String, JobKey> scheduledJobs = Maps.newHashMap();
 
   // Set of supported job configuration file extensions
-  private final Set<String> jobConfigFileExtensions;
+  public final Set<String> jobConfigFileExtensions;
 
   // A monitor for changes to job conf files for general FS
   public final PathAlterationMonitor pathAlterationMonitor;
@@ -390,152 +392,7 @@ public class JobScheduler extends AbstractIdleService {
     return jobConfigs;
   }
 
-  /**
-   * Inner subclass of PathAlterationListenerAdaptor for implementation of Listen's methods,
-   * avoiding anonymous class
-   */
-  public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListenerAdaptor {
 
-    Path jobConfigFileDirPath;
-
-    PathAlterationListenerAdaptorForMonitor(Path jobConfigFileDirPath) {
-      this.jobConfigFileDirPath = jobConfigFileDirPath;
-    }
-
-    public void loadNewJobConfigAndHandleNewJob(Path path, Action action) {
-      // Load the new job configuration and schedule the new job
-
-      String customizedInfo = "";
-      try {
-        Properties jobProps =
-            SchedulerUtils.loadGenericJobConfig(JobScheduler.this.properties, path, jobConfigFileDirPath);
-
-        switch (action) {
-          case SCHEDULE:
-            boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-            scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-            customizedInfo = "schedule";
-            break;
-          case UNSCHEDULE:
-            String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-            unscheduleJob(jobName);
-            customizedInfo = "unschedule";
-            break;
-          case RESCHEDULE:
-            rescheduleJob(jobProps);
-            customizedInfo = "reschedule";
-            break;
-          default:
-            break;
-        }
-
-      } catch (ConfigurationException | IOException e) {
-        LOG.error("Failed to load from job configuration file " + path.toString(), e);
-      } catch (JobException je) {
-        LOG.error("Failed to " + customizedInfo + " new job loaded from job configuration file " + path.toString(), je);
-      }
-
-    }
-
-    public void loadNewCommonConfigAndHandleNewJob(Path path, Action action) {
-      String customizedInfoAction = "";
-      String customizedInfoResult = "";
-      try {
-        for (Properties jobProps : SchedulerUtils.loadGenericJobConfigs(JobScheduler.this.properties, path,
-            jobConfigFileDirPath)) {
-          try {
-            switch (action) {
-              case RESCHEDULE:
-                rescheduleJob(jobProps);
-                customizedInfoAction = "schedule";
-                customizedInfoResult = "change";
-                break;
-              case UNSCHEDULE:
-                String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-                unscheduleJob(jobName);
-                customizedInfoAction = "unschedule";
-                customizedInfoResult = "deletion";
-                break;
-              default:
-                break;
-            }
-          } catch (JobException je) {
-            LOG.error("Failed to " + customizedInfoAction + " job reloaded from job configuration file "
-                + jobProps.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), je);
-          }
-        }
-      } catch (ConfigurationException | IOException e) {
-        LOG.error(
-            "Failed to reload job configuration files affected by " + customizedInfoResult + " to " + path.toString(),
-            e);
-      }
-    }
-
-    @Override
-    public void onFileCreate(Path path) {
-
-      String fileExtensionFromPath = path.getName().substring(path.getName().lastIndexOf('.') + 1);
-      if (!JobScheduler.this.jobConfigFileExtensions.contains(fileExtensionFromPath)) {
-        return;
-      }
-      LOG.info("Detected new job configuration file " + path.toString());
-
-      loadNewJobConfigAndHandleNewJob(path, Action.SCHEDULE);
-    }
-
-    /**
-     * Called when a job configuration file is changed.
-     */
-    @Override
-    public void onFileChange(Path path) {
-      String fileExtension = path.getName().substring(path.getName().lastIndexOf('.') + 1);
-      if (fileExtension.equalsIgnoreCase(SchedulerUtils.JOB_PROPS_FILE_EXTENSION)) {
-        LOG.info("Detected change to common properties file " + path.toString());
-        loadNewCommonConfigAndHandleNewJob(path, Action.RESCHEDULE);
-        return;
-      }
-
-      if (!JobScheduler.this.jobConfigFileExtensions.contains(fileExtension)) {
-        // Not a job configuration file, ignore.
-        return;
-      }
-
-      LOG.info("Detected change to job configuration file " + path.toString());
-      loadNewJobConfigAndHandleNewJob(path, Action.RESCHEDULE);
-    }
-
-    /**
-     * Called when a job configuration file is deleted.
-     */
-    @Override
-    public void onFileDelete(Path path) {
-      String fileExtension = path.getName().substring(path.getName().lastIndexOf('.') + 1);
-      if (fileExtension.equalsIgnoreCase(SchedulerUtils.JOB_PROPS_FILE_EXTENSION)) {
-        LOG.info("Detected deletion to common properties file " + path.toString());
-        // Unschedule all the job using this common properties file
-        loadNewCommonConfigAndHandleNewJob(path, Action.UNSCHEDULE);
-        return;
-      }
-
-      if (!JobScheduler.this.jobConfigFileExtensions.contains(fileExtension)) {
-        // Not a job configuration file, ignore.
-        return;
-      }
-
-      LOG.info("Detected deletion to job configuration file " + path.toString());
-      loadNewJobConfigAndHandleNewJob(path, Action.UNSCHEDULE);
-    }
-
-    private void rescheduleJob(Properties jobProps)
-        throws JobException {
-      String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-      // First unschedule and delete the old job
-      unscheduleJob(jobName);
-      boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-      // Reschedule the job with the new job configuration
-      scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-    }
-  }
 
   /**
    * Start the job configuration file monitor using generic file system API.
@@ -564,7 +421,7 @@ public class JobScheduler extends AbstractIdleService {
     final Path jobConfigFileDirPath =
         new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
 
-    PathAlterationListener listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath);
+    PathAlterationListener listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath, this);
     SchedulerUtils.addPathAlterationObserver(this.pathAlterationMonitor, listener, jobConfigFileDirPath);
     this.pathAlterationMonitor.start();
   }
