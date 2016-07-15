@@ -70,9 +70,9 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
    * By passing scoped configurations the same config keys can be used in different contexts.
    *
    * E.g
-   * 1. For CopySource, prefix is hive.dataset.copy
+   * 1. For CopySource, prefix is gobblin.dataset.copy
    * 2. For avro to Orc conversion, prefix is hive.dataset.conversion.avro.orc
-   * 3. For retention, prefix is hive.dataset.retention.
+   * 3. For retention, prefix is gobblin.retention.
    *
    */
   public static final String HIVE_DATASET_CONFIG_PREFIX_KEY = "hive.dataset.configPrefix";
@@ -86,7 +86,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   private static final String DATASET_ERROR = "DatasetError";
   private static final String FAILURE_CONTEXT = "FailureContext";
 
-  private final Properties properties;
+  protected final Properties properties;
   protected final HiveMetastoreClientPool clientPool;
   protected final FileSystem fs;
   private final WhitelistBlacklist whitelistBlacklist;
@@ -102,6 +102,10 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     this(fs, properties, createClientPool(properties));
   }
 
+  protected HiveDatasetFinder(FileSystem fs, Properties properties, ConfigClient configClient) throws IOException {
+    this(fs, properties, createClientPool(properties), null, configClient);
+  }
+
   public HiveDatasetFinder(FileSystem fs, Properties properties, EventSubmitter eventSubmitter) throws IOException {
     this(fs, properties, createClientPool(properties), eventSubmitter);
   }
@@ -113,6 +117,12 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
   protected HiveDatasetFinder(FileSystem fs, Properties properties, HiveMetastoreClientPool clientPool,
       EventSubmitter eventSubmitter) throws IOException {
+    this(fs, properties, clientPool, eventSubmitter, ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY));
+  }
+
+  protected HiveDatasetFinder(FileSystem fs, Properties properties, HiveMetastoreClientPool clientPool,
+      EventSubmitter eventSubmitter, ConfigClient configClient) throws IOException {
+
     this.properties = properties;
     this.clientPool = clientPool;
     this.fs = fs;
@@ -133,8 +143,9 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     this.eventSubmitter = Optional.fromNullable(eventSubmitter);
     this.configStoreUri = Optional.fromNullable(properties.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI));
     this.datasetConfigPrefix = properties.getProperty(HIVE_DATASET_CONFIG_PREFIX_KEY, DEFAULT_HIVE_DATASET_CONIFG_PREFIX);
-    this.configClient = ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY);
+    this.configClient = configClient;
     this.jobConfig = ConfigUtils.propertiesToConfig(properties);
+
   }
 
   protected static HiveMetastoreClientPool createClientPool(Properties properties) throws IOException {

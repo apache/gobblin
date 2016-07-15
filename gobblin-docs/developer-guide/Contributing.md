@@ -9,6 +9,8 @@ This document will outline best practices for contributing Gobblin.
 
 ## Code Contributions
 
+We observe standard github practices for code contributions. Fork the repository and make your local changes on a feature branch, then open a pull request (PR). A committer will review the changes and merge it in once it is approved. For first time contributors to Gobblin, we do require that you fill out a [one-time survey](https://docs.google.com/a/linkedin.com/forms/d/e/1FAIpQLSeH-8so0m68et6kPvxEiCNqezL7k6cyOlz9W-6eXnk7LEkwiA/viewform), so that we can identify and credit you properly in the future.  
+
 ## Documentation Contributions
 
 To make changes to the documentation modify the files under `gobblin-docs` as you would any other version controlled file. All documentation is checked into GitHub, so the process for making documentation changes is similar to how code changes are made (creating Pull Requests). If one wants to see what the rendered documentation looks like they simply need to take the following steps:

@@ -109,7 +109,7 @@ public class HiveSource implements Source {
 
       initialize(state);
 
-      EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.FIND_HIVE_TABLES_EVENT);
+      EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.CONVERSION_FIND_HIVE_TABLES_EVENT);
       Iterator<HiveDataset> iterator = this.datasetFinder.getDatasetsIterator();
 
       while (iterator.hasNext()) {
@@ -144,7 +144,7 @@ public class HiveSource implements Source {
     this.workunits = Lists.newArrayList();
 
     this.watermarker = new TableLevelWatermarker(state);
-    EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.SETUP_EVENT);
+    EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.CONVERSION_SETUP_EVENT);
     this.datasetFinder = GobblinConstructorUtils.invokeConstructor(HiveDatasetFinder.class,
         state.getProp(HIVE_SOURCE_DATASET_FINDER_CLASS_KEY, DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS), getSourceFs(), state.getProperties(),
         this.eventSubmitter);
