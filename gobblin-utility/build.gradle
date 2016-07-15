@@ -12,7 +12,7 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
-
+  compile files("${System.properties['java.home']}/../lib/tools.jar")
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsCompress
@@ -35,7 +35,8 @@ dependencies {
   compile externalDependency.commonsPool
   compile externalDependency.hadoopClientCommon
   compile externalDependency.avroMapredH2
-  
+  compile externalDependency.freeMarker
+
   runtime externalDependency.hadoopCommon
   runtime externalDependency.hadoopClientCore
   runtime externalDependency.hadoopHdfs
@@ -58,7 +59,6 @@ test {
 }
 
 ext.classification="library"
-
 
 task utilityTar(type: Tar) {
   //there seems to be a bug in the Gradle signing module where X.tar.gz will generate
