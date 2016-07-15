@@ -12,5 +12,6 @@
     <li><a href="http://www.cleverleaf.co.uk" target="_blank"><b>Cleverdata</b></li>
     <li><a href="http://www.stunlockstudios.com" target="_blank"><b>Stunlock Studios</b></li>
     <li><a href="http://www.ibm.com" target="_blank"><b>IBM</b></li>
+    <li><a href="http://www.paypal.com" target="_blank"><b>Paypal</b></li>
   </ul>
 </p>
