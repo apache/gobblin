@@ -364,7 +364,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     for (int branchId = 0; branchId < this.numBranches; branchId++) {
       FileSystem fs = this.metaDataWriterFileSystemByBranches.get(branchId);
 
-      String fileName = ForkOperatorUtils.getPropertyNameForBranch("metadata.txt", this.numBranches, branchId);
+      String filePrefix = state.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE);
+      String fileName = ForkOperatorUtils.getPropertyNameForBranch(filePrefix, this.numBranches, branchId);
       String metaDataOutputDirStr = state.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
 
       Path metaDataOutputPath = new Path(metaDataOutputDirStr);
@@ -380,10 +381,11 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
           HadoopUtils.deletePath(fs, metaFilepath, false);
         }
 
-        FSDataOutputStream outputStream = this.closer.register(fs.create(metaFilepath));
-        outputStream.write(metadataValue.getBytes());
+        try (FSDataOutputStream outputStream = this.closer.register(fs.create(metaFilepath))) {
+          outputStream.write(metadataValue.getBytes("UTF-8"));
+        }
       } catch (IOException e) {
-        LOG.error("metadata file is not generated", e);
+        LOG.error("metadata file is not generated: " + e, e);
       }
     }
   }
