@@ -57,8 +57,8 @@ public class OracleExtractor extends JdbcExtractor {
   private static final String DATE_FORMAT = "dd-MMM-yy";
   private static final String HOUR_FORMAT = "hh";
   private static final long SAMPLERECORDCOUNT = -1;
-  private static final Pattern SAMPLE_CLAUSE_PATTERN = Pattern.compile("rownum <=? \\d+ and|
-    where rownum <=? \\d+$|and rownum <=? \\d+");
+  private static final Pattern SAMPLE_CLAUSE_PATTERN = Pattern
+    .compile("rownum <=? \\d+ and|where rownum <=? \\d+$|and rownum <=? \\d+");
 
 
   public OracleExtractor(WorkUnitState workUnitState) {
@@ -250,13 +250,14 @@ public class OracleExtractor extends JdbcExtractor {
     int limitEndIndex = -1;
     Matcher matcher = SAMPLE_CLAUSE_PATTERN.matcher(inputQuery);
     if (matcher.find()) {
+      String recordCountString = matcher.group().replaceAll("[\\D]", "");
       try {
-        recordcount = Long.parseLong(matcher.group().replaceAll("[\\D]", ""));
+        recordcount = Long.parseLong(recordCountString);
       } catch (Exception e) {
-        log.error("Ignoring incorrct limit value in input query:" + limitValue);
+        log.error("Ignoring incorrect limit value in input query:" + recordCountString);
       }
     }
-    return recordcount
+    return recordcount;
 
     // boolean multiPredicate = inputQuery.indexOf(" and ") != -1 ? true : false;
     // boolean leadingLimit = false;
