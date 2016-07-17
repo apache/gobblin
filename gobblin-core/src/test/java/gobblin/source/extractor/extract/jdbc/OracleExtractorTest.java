@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
@@ -45,15 +46,22 @@ public class OracleExtractorTest {
 	private final static String QUERY_3 = "SELECT * FROM x WHERE x.a < 10 AND ROWNUM <= 50";
 	private final static String QUERY_EMPTY = "";
 	private final static String QUERY_REG = "SELECT * FROM x WHERE x.a < 10";
+
+	private CommandOutput<JdbcCommand, ResultSet> output;
+	private State state; 
+	private OracleExtractor oracleExtractor;
+
+	@BeforeClass
+    public void setup() {
+    	output = new JdbcCommandOutput();
+	    output.put(new JdbcCommand(), buildMockResultSet());
+	    state = new WorkUnitState();
+	    state.setId("id");
+	    oracleExtractor = new OracleExtractor((WorkUnitState) state);
+    }
 	
 	@Test
 	public void testConstructSampleClause() throws Exception {
-	    CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
-	    output.put(new JdbcCommand(), buildMockResultSet());
-
-	    State state = new WorkUnitState();
-	    state.setId("id");
-	    OracleExtractor oracleExtractor = new OracleExtractor((WorkUnitState) state);
 	    String sClause = oracleExtractor.constructSampleClause();
 	    assertEquals(sClause.trim(), (" rownum <= " + oracleExtractor.getSampleRecordCount()).trim());
 	}
@@ -63,13 +71,6 @@ public class OracleExtractorTest {
 		String q1Clean = "SELECT * FROM x";
 		String q2Clean = "SELECT * FROM x WHERE x.a < 10";
 		String qEmptyClean = "";
-
-	    CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
-	    output.put(new JdbcCommand(), buildMockResultSet());
-
-	    State state = new WorkUnitState();
-	    state.setId("id");
-	    OracleExtractor oracleExtractor = new OracleExtractor((WorkUnitState) state);
 
 	    String q1Parsed = oracleExtractor.removeSampleClauseFromQuery(QUERY_1);
 	    String q2Parsed = oracleExtractor.removeSampleClauseFromQuery(QUERY_2);
@@ -86,13 +87,7 @@ public class OracleExtractorTest {
 	}
 
 	@Test
-	public void testExractSampleRecordCountFromQuery() throws Exception {
-	    CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
-	    output.put(new JdbcCommand(), buildMockResultSet());
-
-	    State state = new WorkUnitState();
-	    state.setId("id");
-	    OracleExtractor oracleExtractor = new OracleExtractor((WorkUnitState) state);	
+	public void testExractSampleRecordCountFromQuery() throws Exception {	
 	    long l1 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_1);
 	    long l2 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_2);
 	    long l3 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_3);
