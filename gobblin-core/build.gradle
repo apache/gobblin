@@ -50,8 +50,6 @@ dependencies {
 
   runtime externalDependency.protobuf
 
-  runtime files('./src/main/resources/lib/ojdbc6.jar')
-
   testRuntime externalDependency.hadoopAws
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica

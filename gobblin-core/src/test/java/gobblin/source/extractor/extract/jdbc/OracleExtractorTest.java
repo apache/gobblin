@@ -40,9 +40,9 @@ public class OracleExtractorTest {
 	private final static List<MockJdbcColumn> COLUMNS = ImmutableList.of(new MockJdbcColumn("id", "1", Types.INTEGER),
       new MockJdbcColumn("name", "name_1", Types.VARCHAR), new MockJdbcColumn("age", "20", Types.INTEGER));
 
-	private final static String QUERY_1 = "SELECT * FROM x WHERE ROWNUM <= 5";
+	private final static String QUERY_1 = "SELECT * FROM x WHERE ROWNUM <= 532";
 	private final static String QUERY_2 = "SELECT * FROM x WHERE ROWNUM <= 5 AND x.a < 10";
-	private final static String QUERY_3 = "SELECT * FROM x WHERE x.a < 10 AND ROWNUM <= 5";
+	private final static String QUERY_3 = "SELECT * FROM x WHERE x.a < 10 AND ROWNUM <= 50";
 	private final static String QUERY_EMPTY = "";
 	private final static String QUERY_REG = "SELECT * FROM x WHERE x.a < 10";
 	
@@ -62,7 +62,7 @@ public class OracleExtractorTest {
 	public void testRemoveSampleClauseFromQuery() throws Exception {
 		String q1Clean = "SELECT * FROM x";
 		String q2Clean = "SELECT * FROM x WHERE x.a < 10";
-		String qEmptyClean = null;
+		String qEmptyClean = "";
 
 	    CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
 	    output.put(new JdbcCommand(), buildMockResultSet());
@@ -83,6 +83,27 @@ public class OracleExtractorTest {
 	    assertEquals(qEmptyClean, qEmptyParsed);
 	    assertEquals(q2Clean, qRegParsed);		
 
+	}
+
+	@Test
+	public void testExractSampleRecordCountFromQuery() throws Exception {
+	    CommandOutput<JdbcCommand, ResultSet> output = new JdbcCommandOutput();
+	    output.put(new JdbcCommand(), buildMockResultSet());
+
+	    State state = new WorkUnitState();
+	    state.setId("id");
+	    OracleExtractor oracleExtractor = new OracleExtractor((WorkUnitState) state);	
+	    long l1 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_1);
+	    long l2 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_2);
+	    long l3 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_3);
+	    long l4 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_EMPTY);
+	    long l5 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_REG);
+
+	    assertEquals(l1, (long)532);
+	    assertEquals(l2, (long)5);
+	    assertEquals(l3, (long)50);
+	    assertEquals(l4, (long)-1);
+	    assertEquals(l5, (long)-1);	
 	}
 
     /*

@@ -24,6 +24,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import java.sql.ResultSet;
 
 import org.apache.commons.lang3.StringUtils;
@@ -55,6 +57,9 @@ public class OracleExtractor extends JdbcExtractor {
   private static final String DATE_FORMAT = "dd-MMM-yy";
   private static final String HOUR_FORMAT = "hh";
   private static final long SAMPLERECORDCOUNT = -1;
+  private static final Pattern SAMPLE_CLAUSE_PATTERN = Pattern.compile("rownum <=? \\d+ and|
+    where rownum <=? \\d+$|and rownum <=? \\d+");
+
 
   public OracleExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
@@ -208,8 +213,8 @@ public class OracleExtractor extends JdbcExtractor {
         .put("timestamp", "timestamp").put("timestamp with time zone", "timestamp").put("numeric", "double")
         .put("timezone with local timezone", "timestamp").put("raw", "string").put("long raw", "string")
         .put("rowid", "string").put("urowid", "string").put("xmltype", "string").put("float", "float")
-        .put("dec", "double").put("decimal", "double").put("integer", "int").put("int", "int")
-        .put("smallint", "int").put("real", "double").put("double precision", "double")
+        .put("dec", "double").put("decimal", "double").put("integer", "int").put("int", "int").put("bigint", "long")
+        .put("smallint", "int").put("real", "double").put("double precision", "double").put("float", "double")
         .put("interval year", "date").put("interval day", "timestamp").put("timestamp(0)", "timestamp")
         .put("timestamp(1)", "timestamp").put("timestamp(2)", "timestamp").put("timestamp(3)", "timestamp")
         .put("timestamp(4)", "timestamp").put("timestamp(5)", "timestamp").put("timestamp(6)", "timestamp")
@@ -228,7 +233,7 @@ public class OracleExtractor extends JdbcExtractor {
     String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String port = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
     String sid = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_SID).trim();
-    String url = "jdbc:oracle:thin:@" + host.trim() + ":" + port + ":" + /*host.trim().split("\\.")[0]*/ sid;
+    String url = "jdbc:oracle:thin:@" + host.trim() + (StringUtils.isEmpty(port) ? "" : ":" + port) + ":" + sid;
     return url;
   }
 
@@ -242,114 +247,106 @@ public class OracleExtractor extends JdbcExtractor {
     String inputQuery = query.toLowerCase();
 
     int limitStartIndex = -1;
-
-    boolean multiPredicate = inputQuery.indexOf(" and ") != -1 ? true : false;
-    boolean leadingLimit = false;
-    if (!multiPredicate) {
-      limitStartIndex = inputQuery.indexOf(" where rownum <= ");
-    } else {
-      limitStartIndex = inputQuery.indexOf(" and rownum <= ");
-      if (limitStartIndex == -1 && inputQuery.indexOf(" where rownum <= ") > -1) {
-        limitStartIndex = inputQuery.indexOf(" where rownum <= ");
-        leadingLimit = true;
-      } 
-    }
-
-    int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
-    if (limitStartIndex > 0) {
-      String limitValue = query.substring(query.indexOf("<=") + 3, limitEndIndex);
+    int limitEndIndex = -1;
+    Matcher matcher = SAMPLE_CLAUSE_PATTERN.matcher(inputQuery);
+    if (matcher.find()) {
       try {
-        recordcount = Long.parseLong(limitValue);
+        recordcount = Long.parseLong(matcher.group().replaceAll("[\\D]", ""));
       } catch (Exception e) {
         log.error("Ignoring incorrct limit value in input query:" + limitValue);
       }
     }
-    return recordcount;
+    return recordcount
+
+    // boolean multiPredicate = inputQuery.indexOf(" and ") != -1 ? true : false;
+    // boolean leadingLimit = false;
+    // if (!multiPredicate) {
+    //   limitStartIndex = inputQuery.indexOf(" where rownum <= ");
+    // } else {
+    //   limitStartIndex = inputQuery.indexOf(" and rownum <= ");
+    //   if (limitStartIndex == -1 && inputQuery.indexOf(" where rownum <= ") > -1) {
+    //     limitStartIndex = inputQuery.indexOf(" where rownum <= ");
+    //     leadingLimit = true;
+    //   } 
+    // }
+
+    // int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
+    // if (limitStartIndex > 0) {
+    //   String limitValue = query.substring(query.indexOf("<=") + 3, limitEndIndex);
+    //   try {
+    //     recordcount = Long.parseLong(limitValue);
+    //   } catch (Exception e) {
+    //     log.error("Ignoring incorrct limit value in input query:" + limitValue);
+    //   }
+    // }
+    // return recordcount;
   }
-
-  // @Override
-  // public String removeSampleClauseFromQuery(String query) {
-  //   if (StringUtils.isBlank(query)) {
-  //     return null;
-  //   }
-
-  //   String outputQuery = query;
-  //   String inputQuery = query.toLowerCase();
-  //   int limitStartIndex = inputQuery.indexOf(" top ");
-  //   int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
-  //   if (limitStartIndex > 0) {
-  //     outputQuery = query.substring(0, limitStartIndex) + " " + query.substring(limitEndIndex);
-  //   }
-  //   return outputQuery;
-  // }
 
   @Override
   public String removeSampleClauseFromQuery(String query) {
     if (StringUtils.isBlank(query)) {
-      return null;
+      return query;
     }
-    // select * from x where x.a < 5 and rownum < 4 
-    // select * from x where rownum < 4
-    // select * from x where rownum < 4 and x.a < 5
+
     String outputQuery = query;
     String inputQuery = query.toLowerCase();
 
     int limitStartIndex = -1;
-
-    boolean multiPredicate = inputQuery.indexOf(" and ") != -1 ? true : false;
-    boolean leadingLimit = false;
-    if (!multiPredicate) {
-      limitStartIndex = inputQuery.indexOf(" where rownum <= ");
-    } else {
-      limitStartIndex = inputQuery.indexOf(" and rownum <= ");
-      if (limitStartIndex == -1 && inputQuery.indexOf(" where rownum <= ") > -1) {
-        limitStartIndex = inputQuery.indexOf(" where rownum <= ");
-        leadingLimit = true;
-      } 
-    }
-    
-    int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
-    
-    if ((limitStartIndex > 0 && !multiPredicate) || (limitStartIndex > 0 && multiPredicate && !leadingLimit)) {
+    int limitEndIndex = -1;
+    Matcher matcher = SAMPLE_CLAUSE_PATTERN.matcher(inputQuery);
+    if (matcher.find()) {
+      limitStartIndex = matcher.start();
+      limitEndIndex = matcher.end();
       outputQuery = query.substring(0, limitStartIndex) + " " + query.substring(limitEndIndex);
-    } else if (limitStartIndex > 0 && multiPredicate && leadingLimit) {
-      outputQuery = query.substring(0, limitStartIndex + 6) + " " + query.substring(limitEndIndex + 4);
     }
     return outputQuery.trim().replaceAll(" +", " ");
+
+    // boolean multiPredicate = inputQuery.indexOf(" and ") != -1 ? true : false;
+    // boolean leadingLimit = false;
+    // if (!multiPredicate) {
+    //   limitStartIndex = inputQuery.indexOf(" where rownum <= ");
+    // } else {
+    //   limitStartIndex = inputQuery.indexOf(" and rownum <= ");
+    //   if (limitStartIndex == -1 && inputQuery.indexOf(" where rownum <= ") > -1) {
+    //     limitStartIndex = inputQuery.indexOf(" where rownum <= ");
+    //     leadingLimit = true;
+    //   } 
+    // }
+    
+    
+    // int limitEndIndex = getLimitEndIndex(inputQuery, limitStartIndex);
+    
+    // if ((limitStartIndex > 0 && !multiPredicate) || (limitStartIndex > 0 && multiPredicate && !leadingLimit)) {
+    //   outputQuery = query.substring(0, limitStartIndex) + " " + query.substring(limitEndIndex);
+    // } else if (limitStartIndex > 0 && multiPredicate && leadingLimit) {
+    //   outputQuery = query.substring(0, limitStartIndex + 6) + " " + query.substring(limitEndIndex + 4);
+    // }
+    // return outputQuery.trim().replaceAll(" +", " ");
   }
 
-  private static int getLimitEndIndex(String inputQuery, int limitStartIndex) {
-    int limitEndIndex = -1;
-    if (limitStartIndex > 0) {
-      limitEndIndex = inputQuery.charAt(limitStartIndex + 1) == 'w' ? limitStartIndex + 17 : limitStartIndex + 15;
-      String remainingQuery = inputQuery.substring(limitEndIndex);
-      boolean numFound = false;
+  // private static int getLimitEndIndex(String inputQuery, int limitStartIndex) {
+  //   int limitEndIndex = -1;
+  //   if (limitStartIndex > 0) {
+  //     limitEndIndex = inputQuery.charAt(limitStartIndex + 1) == 'w' ? limitStartIndex + 17 : limitStartIndex + 15;
+  //     String remainingQuery = inputQuery.substring(limitEndIndex);
+  //     boolean numFound = false;
 
-      int pos = 0;
-      while (pos < remainingQuery.length()) {
-        char ch = remainingQuery.charAt(pos);
-        if (ch == ' ' && !numFound) {
-          pos++;
-          continue;
-        } else if (numFound && (!Character.isDigit(ch))) {
-          break;
-        } else {
-          numFound = true;
-        }
-        pos++;
-      }
-      limitEndIndex = limitEndIndex + pos;
-    }
-    return limitEndIndex;
-  }
-
-  // @Override
-  // public String constructSampleClause() {
-  //   long sampleRowCount = this.getSampleRecordCount();
-  //   if (sampleRowCount >= 0) {
-  //     return " top " + sampleRowCount;
+  //     int pos = 0;
+  //     while (pos < remainingQuery.length()) {
+  //       char ch = remainingQuery.charAt(pos);
+  //       if (ch == ' ' && !numFound) {
+  //         pos++;
+  //         continue;
+  //       } else if (numFound && (!Character.isDigit(ch))) {
+  //         break;
+  //       } else {
+  //         numFound = true;
+  //       }
+  //       pos++;
+  //     }
+  //     limitEndIndex = limitEndIndex + pos;
   //   }
-  //   return "";
+  //   return limitEndIndex;
   // }
 
     @Override
