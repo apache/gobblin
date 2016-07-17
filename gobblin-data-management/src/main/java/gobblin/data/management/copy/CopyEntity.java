@@ -121,7 +121,7 @@ public class CopyEntity implements HasGuid {
   /**
    * Used for simulate runs. Should explain what this copy entity will do.
    */
-  public String explain() {
+  public String explain() throws IOException {
     return toString();
   }
 

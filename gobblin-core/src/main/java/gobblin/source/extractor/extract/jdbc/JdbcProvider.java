@@ -13,10 +13,11 @@
 package gobblin.source.extractor.extract.jdbc;
 
 import gobblin.tunnel.Tunnel;
-import org.apache.commons.dbcp.BasicDataSource;
 
 import java.io.IOException;
 import java.sql.SQLException;
+
+import org.apache.commons.dbcp2.BasicDataSource;
 
 
 /**
@@ -74,7 +75,7 @@ public class JdbcProvider extends BasicDataSource {
     this.setUrl(connectionUrl);
     this.setInitialSize(0);
     this.setMaxIdle(numconn);
-    this.setMaxWait(timeout);
+    this.setMaxWaitMillis(timeout);
   }
 
   @Override

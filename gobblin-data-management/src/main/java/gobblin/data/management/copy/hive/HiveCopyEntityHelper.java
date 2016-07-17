@@ -125,6 +125,11 @@ public class HiveCopyEntityHelper {
   private static final String target_client = "target_client";
   public static final String GOBBLIN_DISTCP = "gobblin-distcp";
 
+  // Used for qualifying the keys for the commit step DB
+  public static final String DEREGISTER_KEY = "_deregister";
+  public static final String DELETE_FILES_KEY = "_deleteFiles";
+  public static final String REGISTER_KEY = "_register";
+
   public static class Stages {
     public static final String EXISTING_PARTITION = "ExistingPartition";
     public static final String PARTITION_SKIP_PREDICATE = "PartitionSkipPredicate";
@@ -513,7 +518,8 @@ public class HiveCopyEntityHelper {
             .withPartition(Optional.of(HiveMetaStoreUtils.getHivePartition(targetPartition.getTPartition()))).build();
         HiveRegisterStep register = new HiveRegisterStep(HiveCopyEntityHelper.this.targetURI, partitionHiveSpec,
             HiveCopyEntityHelper.this.hiveRegProps);
-        copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), register, stepPriority++));
+        copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), register, stepPriority++,
+            this.partition.getCompleteName() + REGISTER_KEY));
 
         multiTimer.nextStage(Stages.CREATE_LOCATIONS);
         HiveLocationDescriptor sourceLocation =
@@ -533,7 +539,8 @@ public class HiveCopyEntityHelper {
         if (diffPathSet.pathsToDelete.size() > 0) {
           DeleteFileCommitStep deleteStep = DeleteFileCommitStep.fromPaths(HiveCopyEntityHelper.this.targetFs,
               diffPathSet.pathsToDelete, HiveCopyEntityHelper.this.dataset.properties);
-          copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object> newHashMap(), deleteStep, stepPriority++));
+          copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object> newHashMap(), deleteStep, stepPriority++,
+              this.partition.getCompleteName() + DELETE_FILES_KEY));
         }
 
         multiTimer.nextStage(Stages.CREATE_COPY_UNITS);
@@ -569,12 +576,14 @@ public class HiveCopyEntityHelper {
     if (!partitionPaths.isEmpty()) {
       DeleteFileCommitStep deletePaths = DeleteFileCommitStep.fromPaths(this.targetFs, partitionPaths,
           this.dataset.getProperties(), table.getDataLocation());
-      copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), deletePaths, stepPriority++));
+      copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), deletePaths, stepPriority++,
+          partition.getCompleteName() + DEREGISTER_KEY));
     }
 
     PartitionDeregisterStep deregister =
         new PartitionDeregisterStep(table.getTTable(), partition.getTPartition(), this.targetURI, this.hiveRegProps);
-    copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), deregister, stepPriority++));
+    copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), deregister, stepPriority++,
+        partition.getCompleteName() + DELETE_FILES_KEY));
     return stepPriority;
   }
 
@@ -607,20 +616,22 @@ public class HiveCopyEntityHelper {
     if (!tablePaths.isEmpty()) {
       DeleteFileCommitStep deletePaths = DeleteFileCommitStep.fromPaths(this.getTargetFs(), tablePaths,
           this.getDataset().getProperties(), table.getDataLocation());
-      copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), deletePaths, stepPriority++));
+      copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), deletePaths, stepPriority++,
+          table.getCompleteName() + DEREGISTER_KEY));
     }
 
     TableDeregisterStep deregister =
         new TableDeregisterStep(table.getTTable(), this.getTargetURI(), this.getHiveRegProps());
-    copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), deregister, stepPriority++));
+    copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), deregister, stepPriority++,
+        table.getCompleteName() + DELETE_FILES_KEY));
     return stepPriority;
   }
 
-  private int addSharedSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority) {
+  private int addSharedSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority) throws IOException {
     int priority = initialPriority;
     if (this.tableRegistrationStep.isPresent()) {
       copyEntities.add(new PostPublishStep(fileSet, Maps.<String, Object> newHashMap(), this.tableRegistrationStep.get(),
-          priority++));
+          priority++, this.dataset.getTable().getCompleteName() + REGISTER_KEY));
     }
     return priority;
   }
@@ -675,7 +686,8 @@ public class HiveCopyEntityHelper {
     // Could used to delete files for the existing snapshot
     DeleteFileCommitStep deleteStep =
         DeleteFileCommitStep.fromPaths(this.targetFs, diffPathSet.pathsToDelete, this.dataset.getProperties());
-    copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object> newHashMap(), deleteStep, stepPriority++));
+    copyEntities.add(new PrePublishStep(fileSet, Maps.<String, Object> newHashMap(), deleteStep, stepPriority++,
+        this.dataset.getTable().getCompleteName() + DELETE_FILES_KEY));
 
     for (CopyableFile.Builder builder : getCopyableFilesFromPaths(diffPathSet.filesToCopy, this.configuration,
         Optional.<Partition> absent())) {

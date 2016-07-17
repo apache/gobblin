@@ -15,6 +15,7 @@ package gobblin.data.management.copy.entities;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
+import java.io.IOException;
 import java.util.Map;
 
 import gobblin.commit.CommitStep;
@@ -27,20 +28,25 @@ import gobblin.data.management.copy.CopyEntity;
 @EqualsAndHashCode(callSuper = true)
 public class CommitStepCopyEntity extends CopyEntity {
 
-  @Getter
-  private final CommitStep step;
   /** A priority value that can be used for sorting {@link CommitStepCopyEntity}s. Lower values are higher priority.*/
   @Getter
   private final int priority;
+  private final String key;
 
-  public CommitStepCopyEntity(String fileSet, Map<String, Object> additionalMetadata, CommitStep step, int priority) {
+  public CommitStepCopyEntity(String fileSet, Map<String, Object> additionalMetadata, CommitStep step, int priority,
+      String stepKey) throws IOException {
     super(fileSet, additionalMetadata);
-    this.step = step;
+    CommitStepDB.put(stepKey, step);
+    this.key = stepKey;
     this.priority = priority;
   }
 
+  public CommitStep getStep() throws IOException {
+    return CommitStepDB.get(this.key);
+  }
+
   @Override
-  public String explain() {
-    return this.step.toString();
+  public String explain() throws IOException {
+    return this.getStep().toString();
   }
 }
