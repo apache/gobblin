@@ -93,11 +93,11 @@ public class OracleExtractorTest {
 	    State state = new WorkUnitState();
 	    state.setId("id");
 	    OracleExtractor oracleExtractor = new OracleExtractor((WorkUnitState) state);	
-	    long l1 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_1);
-	    long l2 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_2);
-	    long l3 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_3);
-	    long l4 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_EMPTY);
-	    long l5 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_REG);
+	    long l1 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_1);
+	    long l2 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_2);
+	    long l3 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_3);
+	    long l4 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_EMPTY);
+	    long l5 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_REG);
 
 	    assertEquals(l1, (long)532);
 	    assertEquals(l2, (long)5);
