@@ -211,6 +211,12 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   @Override
   public void shutdown(SourceState state) {}
 
+    private static void display(java.util.Properties p){
+        for(Object s: p.keySet()){
+          log.info("DDD key " + s + " value: " + p.getProperty((String)s));
+        }
+      }
+  
   /**
    * For each table, if job commit policy is to commit on full success, and the table has failed tasks in the
    * previous run, return the lowest low watermark among all previous {@code WorkUnitState}s of the table.
@@ -224,16 +230,32 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     boolean commitOnFullSuccess = JobCommitPolicy.getCommitPolicy(state) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
 
     for (WorkUnitState previousWus : state.getPreviousWorkUnitStates()) {
+      log.info("AAA workunitstate size " + previousWus.getProperties().size());
+      display(previousWus.getProperties());
+      log.info("AAA workunit size " + previousWus.getWorkunit().getProperties().size());
+      display(previousWus.getWorkunit().getProperties());
+      
       String table = previousWus.getExtract().getTable();
 
-      long lowWm = previousWus.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
+      long lowWm = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+      LongWatermark waterMarkObj = previousWus.getWorkunit().getLowWatermark(LongWatermark.class);
+      // while upgrade the gobblin version, the 2015 version do NOT have following entry
+      // "watermark.interval.value": "{\"low.watermark.to.json\":{\"value\":20160101000000},\"expected.watermark.to.json\":{\"value\":20160715230234}}",
+      if(waterMarkObj != null){
+        lowWm = previousWus.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
+      }
+
       if (!prevLowWatermarksByTable.containsKey(table)) {
         prevLowWatermarksByTable.put(table, lowWm);
       } else {
         prevLowWatermarksByTable.put(table, Math.min(prevLowWatermarksByTable.get(table), lowWm));
       }
 
-      long highWm = previousWus.getActualHighWatermark(LongWatermark.class).getValue();
+      long highWm = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+      waterMarkObj = previousWus.getActualHighWatermark(LongWatermark.class);
+      if(waterMarkObj != null){
+        highWm = previousWus.getActualHighWatermark(LongWatermark.class).getValue();
+      }
       if (!prevActualHighWatermarksByTable.containsKey(table)) {
         prevActualHighWatermarksByTable.put(table, highWm);
       } else {
