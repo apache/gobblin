@@ -5,24 +5,15 @@ Table of Contents
 
 # Introduction
 
-This guide will help you setup Gobblin, and run your first job. Currently, Gobblin requires JDK 7 or later to compile and run.
+This guide will help you setup Gobblin, and run your first job. Currently, Gobblin requires JDK 7 or later to run.
 
-# Download and Build
+# Download
 
-* Checkout Gobblin:
+Download the latest Gobblin release from the [Release Page](https://github.com/linkedin/gobblin/releases). You will want to download the `gobblin-distribution-[RELEASE-VERSION].tar.gz` file.
 
-```bash
-git clone https://github.com/linkedin/gobblin.git
-```
+Unpackage the distribution locally:
 
-* Build Gobblin: Gobblin is built using Gradle.
-
-```bash
-cd gobblin
-./gradlew clean build
-```
-
-To skip unit tests, add `-x test`.
+`tar -xvf gobblin-distribution-[RELEASE-VERSION].tar.gz`.
 
 # Run Your First Job
 
@@ -47,13 +38,9 @@ A list of commonly used configuration properties can be found here: [Configurati
 * Create a folder to store the job configuration file. Put [wikipedia.pull](https://github.com/linkedin/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull) in this folder, and set environment variable `GOBBLIN_JOB_CONFIG_DIR` to point to this folder. Also, make sure that the environment variable `JAVA_HOME` is set correctly.
 
 * Create a folder as Gobblin's working directory. Gobblin will write job output as well as other information there, such as locks and state-store (for more information, see the [Standalone Deployment](user-guide/Gobblin-Deployment#Standalone-Deployment) page). Set environment variable `GOBBLIN_WORK_DIR` to point to that folder.  
-<!---stakiar can we list all the folders under gobblin-dist and explain what each folder means -->
+
 * Unpack Gobblin distribution:
 
-```bash
-tar -zxvf gobblin-dist-[project-version].tar.gz
-cd gobblin-dist
-```
 * Launch Gobblin:
 
 ```bash
@@ -112,7 +99,6 @@ java -jar avro-tools-1.8.1.jar tojson --pretty [job_output].avro > output.json
 `output.json` will contain all retrieved records in JSON format.
 
 Note that since this job configuration file we used ([wikipedia.pull](https://github.com/linkedin/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull)) doesn't specify a job schedule, the job will run immediately and will run only once. To schedule a job to run at a certain time and/or repeatedly, set the `job.schedule` property with a cron-based syntax. For example, `job.schedule=0 0/2 * * * ?` will run the job every two minutes. See [this link](http://www.quartz-scheduler.org/documentation/quartz-2.1.x/tutorials/crontrigger.html) (Quartz CronTrigger) for more details.
-
 
 # Other Example Jobs
 
