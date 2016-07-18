@@ -211,11 +211,6 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   @Override
   public void shutdown(SourceState state) {}
 
-    private static void display(java.util.Properties p){
-        for(Object s: p.keySet()){
-          log.info("DDD key " + s + " value: " + p.getProperty((String)s));
-        }
-      }
   
   /**
    * For each table, if job commit policy is to commit on full success, and the table has failed tasks in the
@@ -230,19 +225,22 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     boolean commitOnFullSuccess = JobCommitPolicy.getCommitPolicy(state) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
 
     for (WorkUnitState previousWus : state.getPreviousWorkUnitStates()) {
-      log.info("AAA workunitstate size " + previousWus.getProperties().size());
-      display(previousWus.getProperties());
-      log.info("AAA workunit size " + previousWus.getWorkunit().getProperties().size());
-      display(previousWus.getWorkunit().getProperties());
       
       String table = previousWus.getExtract().getTable();
 
       long lowWm = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
       LongWatermark waterMarkObj = previousWus.getWorkunit().getLowWatermark(LongWatermark.class);
-      // while upgrade the gobblin version, the 2015 version do NOT have following entry
+      // new job state file(version 0.2.1270) , water mark format:
       // "watermark.interval.value": "{\"low.watermark.to.json\":{\"value\":20160101000000},\"expected.watermark.to.json\":{\"value\":20160715230234}}",
       if(waterMarkObj != null){
         lowWm = previousWus.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
+      }
+      // job state file(version 0.2.805)
+      // "workunit.low.water.mark": "20160711000000",
+      // "workunit.state.runtime.high.water.mark": "20160716140338",
+      else if(previousWus.getProperties().containsKey(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY)){
+        lowWm = Long.parseLong(previousWus.getProperties().getProperty(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY));
+        log.warn("can not find low water mark in json format, getting value from " + ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY + " low water mark " + lowWm);
       }
 
       if (!prevLowWatermarksByTable.containsKey(table)) {
@@ -256,6 +254,11 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       if(waterMarkObj != null){
         highWm = previousWus.getActualHighWatermark(LongWatermark.class).getValue();
       }
+      else if(previousWus.getProperties().containsKey(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK)){
+        highWm = Long.parseLong(previousWus.getProperties().getProperty(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK));
+        log.warn("can not find high water mark in json format, getting value from " + ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK + " high water mark " + highWm);
+      }
+      
       if (!prevActualHighWatermarksByTable.containsKey(table)) {
         prevActualHighWatermarksByTable.put(table, highWm);
       } else {
