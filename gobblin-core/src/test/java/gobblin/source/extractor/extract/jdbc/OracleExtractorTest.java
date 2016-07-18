@@ -12,6 +12,7 @@
 package gobblin.source.extractor.extract.jdbc;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 import java.sql.ResultSet;
 import java.sql.Types;
@@ -54,7 +55,12 @@ public class OracleExtractorTest {
 	@BeforeClass
     public void setup() {
     	output = new JdbcCommandOutput();
-	    output.put(new JdbcCommand(), buildMockResultSet());
+    	try {
+	    	output.put(new JdbcCommand(), buildMockResultSet());
+		} catch (Exception e) {
+			// hack for test failure
+			assertEquals("OracleExtractorTest: error initializing mock result set", "false");
+		}
 	    state = new WorkUnitState();
 	    state.setId("id");
 	    oracleExtractor = new OracleExtractor((WorkUnitState) state);
