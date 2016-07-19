@@ -634,6 +634,8 @@ public class HiveAvroORCQueryGenerator {
    */
   public static String generateEvolutionDDL(String stagingTableName,
       String finalTableName,
+      Optional<String> optionalStagingDbName,
+      Optional<String> optionalFinalDbName,
       Schema evolvedSchema,
       boolean isEvolutionEnabled,
       Map<String, String> evolvedColumns,
@@ -643,6 +645,9 @@ public class HiveAvroORCQueryGenerator {
     if (!isEvolutionEnabled || !destinationTableMeta.isPresent()) {
       return StringUtils.EMPTY;
     }
+
+    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
+    String finalDbName = optionalFinalDbName.isPresent() ? optionalFinalDbName.get() : DEFAULT_DB_NAME;
 
     StringBuilder ddl = new StringBuilder();
 
@@ -656,8 +661,8 @@ public class HiveAvroORCQueryGenerator {
           // If evolved column is found, but type is evolved - evolve it
           // .. if incompatible, isTypeEvolved will throw an exception
           if (isTypeEvolved(evolvedColumn.getValue(), destinationField.getType())) {
-            ddl.append(String.format("ALTER TABLE %s CHANGE COLUMN %s %s %s COMMENT '%s';",
-                finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
+            ddl.append(String.format("ALTER TABLE `%s`.`%s` CHANGE COLUMN %s %s %s COMMENT '%s'",
+                finalDbName, finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
                 destinationField.getComment())).append("\n");
           }
           found = true;
@@ -670,8 +675,8 @@ public class HiveAvroORCQueryGenerator {
         if (StringUtils.isBlank(flattenSource)) {
           flattenSource = evolvedSchema.getField(evolvedColumn.getKey()).name();
         }
-        ddl.append(String.format("ALTER TABLE %s ADD COLUMNS (%s %s COMMENT 'from flatten_source %s');",
-            finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource)).append("\n");
+        ddl.append(String.format("ALTER TABLE `%s`.`%s` ADD COLUMNS (%s %s COMMENT 'from flatten_source %s')",
+            finalDbName, finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource)).append("\n");
       }
     }
 
@@ -685,15 +690,22 @@ public class HiveAvroORCQueryGenerator {
    * @param destinationTableMeta Existing final table metadata if any.
    * @return DDL to publish to final destination table from staging table.
    */
-  public static String generatePublishTableDDL(String stagingTableName,
+  public static String generatePublishTableDDL(
+      String stagingTableName,
       String finalTableName,
+      Optional<String> optionalStagingDbName,
+      Optional<String> optionalFinalDbName,
       Optional<Table> destinationTableMeta) {
     StringBuilder ddl = new StringBuilder();
 
+    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
+    String finalDbName = optionalFinalDbName.isPresent() ? optionalFinalDbName.get() : DEFAULT_DB_NAME;
+
     // If new table, then create table
     if (!destinationTableMeta.isPresent()) {
-      ddl.append(String.format("DROP TABLE IF EXISTS %s;", finalTableName)).append("\n");
-      ddl.append(String.format("ALTER TABLE %s RENAME TO %s;", stagingTableName, finalTableName)).append("\n");
+      ddl.append(String.format("DROP TABLE IF EXISTS `%s`.`%s`", finalDbName, finalTableName)).append("\n");
+      ddl.append(String.format("ALTER TABLE `%s`.`%s` RENAME TO `%s`.`%s`", stagingDbName, stagingTableName,
+          finalDbName, finalTableName)).append("\n");
 
       return ddl.toString();
     }
@@ -711,6 +723,8 @@ public class HiveAvroORCQueryGenerator {
    */
   public static String generatePublishPartitionDDL(String stagingTableName,
       String finalTableName,
+      Optional<String> optionalStagingDbName,
+      Optional<String> optionalFinalDbName,
       Map<String, String> partitionsDMLInfo,
       Optional<Table> destinationTableMeta) {
     if (!destinationTableMeta.isPresent() || partitionsDMLInfo.size() == 0) {
@@ -720,11 +734,15 @@ public class HiveAvroORCQueryGenerator {
     // Format: alter table t4 exchange partition (ds='3') with table t3
     StringBuilder ddl = new StringBuilder();
 
+    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
+    String finalDbName = optionalFinalDbName.isPresent() ? optionalFinalDbName.get() : DEFAULT_DB_NAME;
+
     // Schema is already evolved or if evolution is turned off then staging and final table have same schema
     // .. now we have to move partitions from staging to final table
     for (Map.Entry<String, String> partition : partitionsDMLInfo.entrySet()) {
-      ddl.append(String.format("ALTER TABLE %s EXCHANGE PARTITION (%s='%s') WITH TABLE %s;",
-          finalTableName, partition.getKey(), partition.getValue(), stagingTableName)).append("\n");
+      ddl.append(String.format("ALTER TABLE `%s`.`%s` EXCHANGE PARTITION (%s='%s') WITH TABLE `%s`.`%s`",
+          finalDbName, finalTableName, partition.getKey(), partition.getValue(), stagingDbName, stagingTableName))
+          .append("\n");
     }
 
     return ddl.toString();
@@ -735,8 +753,9 @@ public class HiveAvroORCQueryGenerator {
    * @param stagingTableName Staging table to be cleaned.
    * @return DDL to clean up temporary staging table.
    */
-  public static String generateCleanupDDL(String stagingTableName) {
-    return String.format("DROP TABLE IF EXISTS %s;", stagingTableName) + "\n";
+  public static String generateCleanupDDL(String stagingTableName, Optional<String> optionalStagingDbName) {
+    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
+    return String.format("DROP TABLE IF EXISTS `%s`.`%s`", stagingDbName, stagingTableName) + "\n";
   }
 
   /***
