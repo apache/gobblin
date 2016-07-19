@@ -141,6 +141,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             : Optional.of(getConversionConfig().getClusterBy());
     Optional<Integer> numBuckets = getConversionConfig().getNumBuckets();
     Optional<Integer> rowLimit = getConversionConfig().getRowLimit();
+    Optional<String> hiveVersion = getConversionConfig().getHiveVersion();
 
     // Populate optional partition info
     Map<String, String> partitionsDDLInfo = Maps.newHashMap();
@@ -153,7 +154,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
 
     // Create DDL statement
-
     Map<String, String> hiveColumns = new HashMap<String, String>();
     String createTargetTableDDL =
         HiveAvroORCQueryGenerator.generateCreateTableDDL(outputAvroSchema,
@@ -233,7 +233,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 Optional.of(orcTableDatabase),
                 Optional.of(orcTableDatabase),
                 partitionsDMLInfo,
-                destinationTableMeta)).append("\n");
+                destinationTableMeta,
+                hiveVersion)).append("\n");
     HiveAvroORCQueryGenerator.serializePublishPartitionCommands(workUnit, publishPartitionQueries.toString());
     log.debug("Publish partition queries: " + publishPartitionQueries);
 

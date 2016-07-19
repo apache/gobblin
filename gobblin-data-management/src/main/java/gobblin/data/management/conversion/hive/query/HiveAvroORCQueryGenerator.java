@@ -626,6 +626,8 @@ public class HiveAvroORCQueryGenerator {
    * Generate DDLs to evolve final destination table.
    * @param stagingTableName Staging table.
    * @param finalTableName Un-evolved final destination table.
+   * @param optionalStagingDbName Optional staging database name, defaults to default.
+   * @param optionalFinalDbName Optional final database name, defaults to default.
    * @param evolvedSchema Evolved Avro Schema.
    * @param isEvolutionEnabled Is schema evolution enabled.
    * @param evolvedColumns Evolved columns in Hive format.
@@ -687,6 +689,8 @@ public class HiveAvroORCQueryGenerator {
    * Generate DDLs to publish staging table to final destination table.
    * @param stagingTableName Staging table name to publish from.
    * @param finalTableName Final table name to publish to.
+   * @param optionalStagingDbName Optional staging database name, defaults to default.
+   * @param optionalFinalDbName Optional final database name, defaults to default.
    * @param destinationTableMeta Existing final table metadata if any.
    * @return DDL to publish to final destination table from staging table.
    */
@@ -721,8 +725,11 @@ public class HiveAvroORCQueryGenerator {
    * Generate DDLs to publish staging table partitions to final destination table.
    * @param stagingTableName Staging table name to publish from.
    * @param finalTableName Final table name to publish to.
+   * @param optionalStagingDbName Optional staging database name, defaults to default.
+   * @param optionalFinalDbName Optional final database name, defaults to default.
    * @param partitionsDMLInfo Partitions to be moved from staging to final table.
    * @param destinationTableMeta Existing final table metadata if any.
+   * @param hiveVersion Hive version for compatibility.
    * @return DDL to publish to final destination table from staging table.
    */
   public static String generatePublishPartitionDDL(String stagingTableName,
@@ -730,7 +737,8 @@ public class HiveAvroORCQueryGenerator {
       Optional<String> optionalStagingDbName,
       Optional<String> optionalFinalDbName,
       Map<String, String> partitionsDMLInfo,
-      Optional<Table> destinationTableMeta) {
+      Optional<Table> destinationTableMeta,
+      Optional<String> hiveVersion) {
     if (!destinationTableMeta.isPresent() || partitionsDMLInfo.size() == 0) {
       return StringUtils.EMPTY;
     }
@@ -743,10 +751,20 @@ public class HiveAvroORCQueryGenerator {
 
     // Schema is already evolved or if evolution is turned off then staging and final table have same schema
     // .. now we have to move partitions from staging to final table
+    // Note: In Hive v0.13 exchange partition behaves inversely: HIVE-6129 and was fixed later
+    //       More context: HIVE-4095
     for (Map.Entry<String, String> partition : partitionsDMLInfo.entrySet()) {
-      ddl.append(String.format("ALTER TABLE `%s`.`%s` EXCHANGE PARTITION (%s='%s') WITH TABLE `%s`.`%s`",
-          finalDbName, finalTableName, partition.getKey(), partition.getValue(), stagingDbName, stagingTableName))
-          .append("\n");
+      if (hiveVersion.isPresent()
+          && !"0.13".equalsIgnoreCase(hiveVersion.get())
+          && !"0.12".equalsIgnoreCase(hiveVersion.get())) {
+        // Newer versions have the bug fixed
+        ddl.append(String.format("ALTER TABLE `%s`.`%s` EXCHANGE PARTITION (%s='%s') WITH TABLE `%s`.`%s`", stagingDbName,
+            stagingTableName, partition.getKey(), partition.getValue(), finalDbName, finalTableName)).append("\n");
+      } else {
+        // By default assume it is 0.13 or 0.12 with the bug (pre 0.12 versions did not support exchange partitions)
+        ddl.append(String.format("ALTER TABLE `%s`.`%s` EXCHANGE PARTITION (%s='%s') WITH TABLE `%s`.`%s`", finalDbName,
+            finalTableName, partition.getKey(), partition.getValue(), stagingDbName, stagingTableName)).append("\n");
+      }
     }
 
     return ddl.toString();
@@ -755,6 +773,7 @@ public class HiveAvroORCQueryGenerator {
   /***
    * Generate DDL statement for cleaning up temporary staging table.
    * @param stagingTableName Staging table to be cleaned.
+   * @param optionalStagingDbName Optional staging database name, defaults to default.
    * @return DDL to clean up temporary staging table.
    */
   public static String generateCleanupDDL(String stagingTableName, Optional<String> optionalStagingDbName) {
