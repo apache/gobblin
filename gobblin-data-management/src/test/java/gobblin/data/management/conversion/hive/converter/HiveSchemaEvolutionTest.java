@@ -300,7 +300,7 @@ public class HiveSchemaEvolutionTest {
     // Destination table exists
     String generatePublishDDL = HiveAvroORCQueryGenerator
         .generatePublishPartitionDDL(orcStagingTableName, orcTableName, Optional.of(hiveDbName),
-            Optional.of(hiveDbName),partitionInfo, destinationTableMeta);
+            Optional.of(hiveDbName),partitionInfo, destinationTableMeta, Optional.of("0.13"));
     // Evolution enabled:
     // - Table exist: Move partition from staging to destination
     // Evolution disabled:
@@ -314,7 +314,7 @@ public class HiveSchemaEvolutionTest {
     // Destination table does not exists
     generatePublishDDL = HiveAvroORCQueryGenerator
         .generatePublishPartitionDDL(orcStagingTableName, orcTableName, Optional.of(hiveDbName),
-            Optional.of(hiveDbName),partitionInfo, destinationTableMeta);
+            Optional.of(hiveDbName),partitionInfo, destinationTableMeta, Optional.of("0.13"));
     // Evolution enabled:
     // - Table does not exist: no-op (staging is already renamed to final)
     // Evolution disabled:
@@ -324,7 +324,7 @@ public class HiveSchemaEvolutionTest {
     // Destination table exists but its a snapshot table (no partition)
     generatePublishDDL = HiveAvroORCQueryGenerator
         .generatePublishPartitionDDL(orcStagingTableName, orcTableName, Optional.of(hiveDbName),
-            Optional.of(hiveDbName),new HashMap<String, String>(), destinationTableMeta);
+            Optional.of(hiveDbName),new HashMap<String, String>(), destinationTableMeta, Optional.of("0.13"));
     Assert.assertEquals(generatePublishDDL, "", "Generated publish partition DDL did not match");
   }
 
