@@ -700,12 +700,16 @@ public class HiveAvroORCQueryGenerator {
 
     String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
     String finalDbName = optionalFinalDbName.isPresent() ? optionalFinalDbName.get() : DEFAULT_DB_NAME;
+    Preconditions.checkArgument(stagingDbName.equalsIgnoreCase(finalDbName), "We do not support staging and final "
+        + "tables in different Hive databases because of limitations of Hive v0.13");
 
     // If new table, then create table
     if (!destinationTableMeta.isPresent()) {
       ddl.append(String.format("DROP TABLE IF EXISTS `%s`.`%s`", finalDbName, finalTableName)).append("\n");
-      ddl.append(String.format("ALTER TABLE `%s`.`%s` RENAME TO `%s`.`%s`", stagingDbName, stagingTableName,
-          finalDbName, finalTableName)).append("\n");
+      // Note: Hive does not support fully qualified Hive table names such as db.table for 'RENAME' in v0.13
+      // .. hence specifying 'use dbName' as a precursor to rename
+      ddl.append(String.format("USE `%s`", finalDbName)).append("\n");
+      ddl.append(String.format("ALTER TABLE `%s` RENAME TO `%s`", stagingTableName, finalTableName)).append("\n");
 
       return ddl.toString();
     }

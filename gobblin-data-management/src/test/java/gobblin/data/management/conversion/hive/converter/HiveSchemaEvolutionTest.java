@@ -285,7 +285,8 @@ public class HiveSchemaEvolutionTest {
         .generatePublishTableDDL(orcStagingTableName, orcTableName, Optional.of(hiveDbName), Optional.of(hiveDbName),
             destinationTableMeta);
     Assert.assertEquals(generatePublishDDL, "DROP TABLE IF EXISTS `hiveDb`.`sourceSchema`\n"
-            + "ALTER TABLE `hiveDb`.`sourceSchema_staging` RENAME TO `hiveDb`.`sourceSchema`\n",
+            + "USE `hiveDb`\n"
+            + "ALTER TABLE `sourceSchema_staging` RENAME TO `sourceSchema`\n",
         "Generated publish table DDL did not match for new destination table");
   }
 
