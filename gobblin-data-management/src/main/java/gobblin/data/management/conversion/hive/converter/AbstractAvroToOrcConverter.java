@@ -210,6 +210,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     publishTableQueries.append(HiveAvroORCQueryGenerator
         .generateEvolutionDDL(orcStagingTableName,
             orcTableName,
+            Optional.of(orcTableDatabase),
+            Optional.of(orcTableDatabase),
             outputAvroSchema,
             isEvolutionEnabled,
             hiveColumns,
@@ -217,6 +219,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     publishTableQueries.append(
         HiveAvroORCQueryGenerator.generatePublishTableDDL(orcStagingTableName,
             orcTableName,
+            Optional.of(orcTableDatabase),
+            Optional.of(orcTableDatabase),
             destinationTableMeta)).append("\n");
     HiveAvroORCQueryGenerator.serializePublishTableCommands(workUnit, publishTableQueries.toString());
     log.debug("Publish table queries: " + publishTableQueries);
@@ -226,13 +230,16 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         HiveAvroORCQueryGenerator
             .generatePublishPartitionDDL(orcStagingTableName,
                 orcTableName,
+                Optional.of(orcTableDatabase),
+                Optional.of(orcTableDatabase),
                 partitionsDMLInfo,
                 destinationTableMeta)).append("\n");
     HiveAvroORCQueryGenerator.serializePublishPartitionCommands(workUnit, publishPartitionQueries.toString());
     log.debug("Publish partition queries: " + publishPartitionQueries);
 
     StringBuilder cleanupQueries = new StringBuilder();
-    cleanupQueries.append(HiveAvroORCQueryGenerator.generateCleanupDDL(orcStagingTableName)).append("\n");
+    cleanupQueries.append(HiveAvroORCQueryGenerator.generateCleanupDDL(orcStagingTableName,
+        Optional.of(orcTableDatabase))).append("\n");
     HiveAvroORCQueryGenerator.serializedCleanupCommands(workUnit, cleanupQueries.toString());
     log.debug("Cleanup queries: " + cleanupQueries);
 
