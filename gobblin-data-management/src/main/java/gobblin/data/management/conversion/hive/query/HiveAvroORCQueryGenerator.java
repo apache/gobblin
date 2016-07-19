@@ -25,6 +25,7 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.Partition;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -35,6 +36,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import gobblin.configuration.State;
+import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
 
 
 /***
@@ -44,6 +46,7 @@ import gobblin.configuration.State;
 public class HiveAvroORCQueryGenerator {
 
   private static final String SERIALIZED_PUBLISH_TABLE_COMMANDS = "serialized.publish.table.commands";
+  private static final String SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH = "serialized.publish.partition.preCleanup";
   private static final String SERIALIZED_PUBLISH_PARTITION_COMMANDS = "serialized.publish.partition.commands";
   private static final String SERIALIZED_CLEANUP_COMMANDS = "serialized.cleanup.commands";
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -712,6 +715,7 @@ public class HiveAvroORCQueryGenerator {
       ddl.append(String.format("DROP TABLE IF EXISTS `%s`.`%s`", finalDbName, finalTableName)).append("\n");
       // Note: Hive does not support fully qualified Hive table names such as db.table for 'RENAME' in v0.13
       // .. hence specifying 'use dbName' as a precursor to rename
+      // Refer: HIVE-2496
       ddl.append(String.format("USE `%s`", finalDbName)).append("\n");
       ddl.append(String.format("ALTER TABLE `%s` RENAME TO `%s`", stagingTableName, finalTableName)).append("\n");
 
@@ -754,6 +758,13 @@ public class HiveAvroORCQueryGenerator {
     // Note: In Hive v0.13 exchange partition behaves inversely: HIVE-6129 and was fixed later
     //       More context: HIVE-4095
     for (Map.Entry<String, String> partition : partitionsDMLInfo.entrySet()) {
+      // Note: Hive does not support fully qualified Hive table names such as db.table for ALTER TABLE in v0.13
+      // .. hence specifying 'use dbName' as a precursor to rename
+      // Refer: HIVE-2496
+      ddl.append(String.format("USE `%s`", finalDbName)).append("\n");
+      ddl.append(String.format("ALTER TABLE `%s` DROP IF EXISTS PARTITION (%s='%s')", finalTableName,
+          partition.getKey(), partition.getValue())).append("\n");
+
       if (hiveVersion.isPresent()
           && !"0.13".equalsIgnoreCase(hiveVersion.get())
           && !"0.12".equalsIgnoreCase(hiveVersion.get())) {
@@ -768,6 +779,34 @@ public class HiveAvroORCQueryGenerator {
     }
 
     return ddl.toString();
+  }
+
+  /***
+   * Find directory to delete before partition is published. This is required when a pre-existing destination
+   * partition is being overwritten and it has a data directory.
+   * Exchange partition has a bug because of which it is not able to cleanly overwrite data, and instead moves
+   * staging table partition as a sub-directory of existing destination partition directory, rather than
+   * completely replacing it.
+   *
+   * Refer: HIVE-11194
+   *
+   * @param sourcePartition Source table partition.
+   * @param destinationPartitionsMeta Metadata about destination partition.
+   * @return Directory to be deleted recursively before publish.
+   */
+  public static Optional<String> findDirToDeleteBeforePartitionPublish(
+      Optional<SchemaAwareHivePartition> sourcePartition, Optional<List<Partition>> destinationPartitionsMeta) {
+    if (!sourcePartition.isPresent() || !destinationPartitionsMeta.isPresent()) {
+      return Optional.<String>absent();
+    }
+
+    for (Partition partitionMeta : destinationPartitionsMeta.get()) {
+      if (sourcePartition.get().getName().equalsIgnoreCase(partitionMeta.getName())) {
+        return Optional.of(partitionMeta.getLocation());
+      }
+    }
+
+    return Optional.<String>absent();
   }
 
   /***
@@ -790,6 +829,22 @@ public class HiveAvroORCQueryGenerator {
   public static void serializePublishTableCommands(State state, String commands) {
     state.setProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_TABLE_COMMANDS,
         GSON.toJson(commands));
+  }
+
+  /***
+   * Serialize a {@link String} of dir to delete before partition publish into a {@link State} at
+   * {@link #SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH}.
+   * @param state {@link State} to serialize dir into.
+   * @param dirName Dir to delete before partition publish.
+   */
+  public static void serializeDirToDeleteBeforePartitionPublish(State state, Optional<String> dirName) {
+    if (dirName.isPresent()) {
+      state.setProp(HiveAvroORCQueryGenerator.SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH,
+          GSON.toJson(dirName.get()));
+    } else {
+      state.setProp(HiveAvroORCQueryGenerator.SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH,
+          GSON.toJson(StringUtils.EMPTY));
+    }
   }
 
   /***
@@ -820,6 +875,17 @@ public class HiveAvroORCQueryGenerator {
    */
   public static String deserializePublishTableCommands(State state) {
     return GSON.fromJson(state.getProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_TABLE_COMMANDS), String.class);
+  }
+
+  /***
+   * Deserialize the dir to delete before partition publish from a {@link State} at
+   * {@link #SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH}
+   * @param state {@link State} to look into for dir name.
+   * @return Dir to delete before partition publish.
+   */
+  public static String deserializeDirToDeleteBeforePartitionPublish(State state) {
+    return GSON.fromJson(state.getProp(HiveAvroORCQueryGenerator.SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH),
+        String.class);
   }
 
   /***
