@@ -14,11 +14,13 @@ package gobblin.data.management.conversion.hive.publisher;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 
 import gobblin.configuration.State;
@@ -117,7 +119,8 @@ public class HiveConvertPublisher extends DataPublisher {
       return;
     }
     try {
-      this.hiveJdbcConnector.executeStatements(queries);
+      List<String> queryList = Splitter.on("\n").omitEmptyStrings().trimResults().splitToList(queries);
+      this.hiveJdbcConnector.executeStatements(queryList.toArray(new String[queryList.size()]));
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
