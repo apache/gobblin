@@ -186,8 +186,10 @@ public class HiveAvroORCQueryGenerator {
     // 4. If evolution is disabled, and destination table does exists
     //    .. use columns from destination schema
     if (isEvolutionEnabled || !destinationTableMeta.isPresent()) {
+      log.info("Generating DDL using source schema");
       ddl.append(generateAvroToHiveColumnMapping(schema, Optional.of(hiveColumns), true));
     } else {
+      log.info("Generating DDL using destination schema");
       ddl.append(generateDestinationToHiveColumnMapping(Optional.of(hiveColumns), destinationTableMeta.get()));
     }
 
@@ -540,6 +542,7 @@ public class HiveAvroORCQueryGenerator {
     // 4. If evolution is disabled, and destination table does exists
     //    .. use columns from destination schema
     if (isEvolutionEnabled || !destinationTableMeta.isPresent()) {
+      log.info("Generating DML using source schema");
       boolean isFirst = true;
       List<Schema.Field> fieldList = outputOrcSchema.getFields();
       for (Schema.Field field : fieldList) {
@@ -561,6 +564,7 @@ public class HiveAvroORCQueryGenerator {
         dmlQuery.append(String.format("  `%s`", colName));
       }
     } else {
+      log.info("Generating DML using destination schema");
       boolean isFirst = true;
       List<FieldSchema> fieldList = destinationTableMeta.get().getSd().getCols();
       for (FieldSchema field : fieldList) {
