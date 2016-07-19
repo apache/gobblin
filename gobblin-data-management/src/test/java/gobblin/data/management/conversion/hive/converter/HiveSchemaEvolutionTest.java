@@ -306,7 +306,8 @@ public class HiveSchemaEvolutionTest {
     // Evolution disabled:
     // - Table exist: Move partition from staging to destination
     Assert.assertEquals(generatePublishDDL,
-        "ALTER TABLE `hiveDb`.`sourceSchema` EXCHANGE PARTITION (datepartition='20160101') "
+        "USE `hiveDb`\n" + "ALTER TABLE `sourceSchema` DROP IF EXISTS PARTITION (datepartition='20160101')\n"
+            + "ALTER TABLE `hiveDb`.`sourceSchema` EXCHANGE PARTITION (datepartition='20160101') "
             + "WITH TABLE `hiveDb`.`sourceSchema_staging`\n",
         "Generated publish partition DDL did not match");
 
