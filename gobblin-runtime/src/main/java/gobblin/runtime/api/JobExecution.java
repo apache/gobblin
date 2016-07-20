@@ -13,12 +13,18 @@ package gobblin.runtime.api;
 
 import java.net.URI;
 
+import gobblin.annotation.Alpha;
+
+import lombok.Data;
+
 /**
  * Identifies a specific execution of a {@link JobSpec}
  */
-public interface JobExecution {
-  URI getJobSpecURI();
-  String getJobSpecVersion();
-  long getStartTimeMillis();
-  String getExecutionId();
+@Alpha
+@Data
+public class JobExecution {
+  final URI jobSpecURI;
+  final String jobSpecVersion;
+  final long startTimeMillis;
+  final String executionId;
 }

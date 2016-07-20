@@ -13,8 +13,13 @@ package gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Optional;
+import java.util.Properties;
+
+import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
+
+import lombok.Data;
 
 /**
  * Defines a Gobblin Job that can be run once, or multiple times. A {@link JobSpec} is
@@ -24,13 +29,18 @@ import gobblin.annotation.Alpha;
  *
  */
 @Alpha
-public interface JobSpec extends Configurable {
+@Data
+public class JobSpec implements Configurable {
+  /** Job config as a typesafe config object*/
+  final Config config;
+  /** Job config as a properties collection for backwards compatibility */
+  final Properties configAsProperties;
   /** An URI identifying the job. */
-  URI getUri();
+  final URI uri;
   /** The implementation-defined version of this spec. */
-  String getVersion();
+  final String version;
   /** Human-readable description of the job spec */
-  String getDescription();
+  final String description;
   /** The URI of a optional job template used to generate the spec */
-  Optional<URI> getTemplate();
+  final Optional<URI> template;
 }
