@@ -16,6 +16,7 @@ import gobblin.runtime.api.JobCatalogListenersContainer;
 import gobblin.runtime.api.JobSpec;
 import gobblin.util.callbacks.CallbacksDispatcher;
 
+
 /** A helper class to manage a list of {@link JobCatalogListener}s for a
  * {@link JobCatalog}. It will dispatch the callbacks to each listener sequentially.*/
 public class JobCatalogListenersList implements JobCatalogListener, JobCatalogListenersContainer {

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import lombok.Getter;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -52,6 +53,7 @@ import lombok.extern.slf4j.Slf4j;
  * Used to load pull files from the file system.
  */
 @Slf4j
+@Getter
 public class PullFileLoader {
 
   public static final String GLOBAL_PROPS_EXTENSION = ".properties";
@@ -110,7 +112,7 @@ public class PullFileLoader {
 
   /**
    * Load a single pull file.
-   * @param path The {@link Path} to the pull file to load.
+   * @param path The {@link Path} to the pull file to load, full path
    * @param sysProps A {@link Config} used as fallback.
    * @param loadGlobalProperties if true, will also load at most one *.properties file per directory from the
    *          {@link #rootDirectory} to the pull file {@link Path}.

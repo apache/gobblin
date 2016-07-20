@@ -288,4 +288,17 @@ public class ConfigUtils {
   public static boolean hasNonEmptyPath(Config config, String key) {
     return config.hasPath(key) && StringUtils.isNotBlank(config.getString(key));
   }
+
+  /**
+   * Check that every key-value in superConfig is in subConfig
+   */
+  public static boolean verifySubset(Config superConfig, Config subConfig) {
+    for (Map.Entry<String, ConfigValue> entry : subConfig.entrySet()) {
+      if (!superConfig.hasPath(entry.getKey())
+          || !superConfig.getValue(entry.getKey()).unwrapped().equals(entry.getValue().unwrapped())) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
