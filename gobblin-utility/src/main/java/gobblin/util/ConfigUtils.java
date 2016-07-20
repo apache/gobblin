@@ -13,6 +13,7 @@
 package gobblin.util;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -21,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
@@ -91,13 +93,47 @@ public class ConfigUtils {
    * @return a {@link Config} instance
    */
   public static Config propertiesToConfig(Properties properties, Optional<String> prefix) {
+    Map<String, Object> typedProps = guessPropertiesTypes(properties);
     ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
-    for (Map.Entry<Object, Object> entry : properties.entrySet()) {
-      if (StringUtils.startsWith(entry.getKey().toString(), prefix.or(StringUtils.EMPTY))) {
-        immutableMapBuilder.put(entry.getKey().toString(), entry.getValue());
+    for (Map.Entry<String, Object> entry : typedProps.entrySet()) {
+      if (StringUtils.startsWith(entry.getKey(), prefix.or(StringUtils.EMPTY))) {
+        immutableMapBuilder.put(entry.getKey(), entry.getValue());
       }
     }
     return ConfigFactory.parseMap(immutableMapBuilder.build());
+  }
+
+  /** Attempts to guess type types of a Properties. By default, typesafe will make all property
+   * values Strings. This implementation will try to recognize booleans and numbers. All keys are
+   * treated as strings.*/
+  private static Map<String, Object> guessPropertiesTypes(Map<Object, Object> srcProperties) {
+    Map<String, Object> res = new HashMap<>();
+    for (Map.Entry<Object, Object> prop: srcProperties.entrySet()) {
+      Object value = prop.getValue();
+      if (null != value && value instanceof String && !Strings.isNullOrEmpty(value.toString())) {
+        try {
+          value = Long.parseLong(value.toString());
+        }
+        catch (NumberFormatException e) {
+          try {
+            value = Double.parseDouble(value.toString());
+          }
+          catch (NumberFormatException e2) {
+            if (value.toString().equalsIgnoreCase("true") || value.toString().equalsIgnoreCase("yes")) {
+              value = Boolean.TRUE;
+            }
+            else if (value.toString().equalsIgnoreCase("false") || value.toString().equalsIgnoreCase("no")) {
+              value = Boolean.FALSE;
+            }
+            else {
+              // nothing to do
+            }
+          }
+        }
+      }
+      res.put(prop.getKey().toString(), value);
+    }
+    return res;
   }
 
   /**
