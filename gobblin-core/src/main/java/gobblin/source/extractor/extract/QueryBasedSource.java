@@ -233,7 +233,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       // new job state file(version 0.2.1270) , water mark format:
       // "watermark.interval.value": "{\"low.watermark.to.json\":{\"value\":20160101000000},\"expected.watermark.to.json\":{\"value\":20160715230234}}",
       if(waterMarkObj != null){
-        lowWm = previousWus.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
+        lowWm = waterMarkObj.getValue();
       }
       // job state file(version 0.2.805)
       // "workunit.low.water.mark": "20160711000000",
@@ -252,7 +252,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       long highWm = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
       waterMarkObj = previousWus.getActualHighWatermark(LongWatermark.class);
       if(waterMarkObj != null){
-        highWm = previousWus.getActualHighWatermark(LongWatermark.class).getValue();
+        highWm = waterMarkObj.getValue();
       }
       else if(previousWus.getProperties().containsKey(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK)){
         highWm = Long.parseLong(previousWus.getProperties().getProperty(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK));
