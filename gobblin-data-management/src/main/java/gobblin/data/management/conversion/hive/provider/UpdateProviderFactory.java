@@ -13,6 +13,7 @@ package gobblin.data.management.conversion.hive.provider;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 
@@ -38,6 +39,18 @@ public class UpdateProviderFactory {
       return (HiveUnitUpdateProvider) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(state.getProp(
           OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_CLASS)),
           ImmutableList.<Object>of(FileSystem.get(HadoopUtils.getConfFromState(state))), ImmutableList.of());
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException | IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static HiveUnitUpdateProvider create(Properties properties) {
+    try {
+      return (HiveUnitUpdateProvider) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(properties
+              .getProperty(
+              OPTIONAL_HIVE_UNIT_UPDATE_PROVIDER_CLASS_KEY, DEFAULT_HIVE_UNIT_UPDATE_PROVIDER_CLASS)),
+          ImmutableList.<Object>of(FileSystem.get(HadoopUtils.getConfFromProperties(properties))), ImmutableList.of());
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException | IOException e) {
       throw new RuntimeException(e);

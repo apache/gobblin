@@ -25,6 +25,7 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.Partition;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -35,6 +36,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import gobblin.configuration.State;
+import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
 
 
 /***
@@ -44,6 +46,7 @@ import gobblin.configuration.State;
 public class HiveAvroORCQueryGenerator {
 
   private static final String SERIALIZED_PUBLISH_TABLE_COMMANDS = "serialized.publish.table.commands";
+  private static final String SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH = "serialized.publish.partition.preCleanup";
   private static final String SERIALIZED_PUBLISH_PARTITION_COMMANDS = "serialized.publish.partition.commands";
   private static final String SERIALIZED_CLEANUP_COMMANDS = "serialized.cleanup.commands";
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -183,8 +186,10 @@ public class HiveAvroORCQueryGenerator {
     // 4. If evolution is disabled, and destination table does exists
     //    .. use columns from destination schema
     if (isEvolutionEnabled || !destinationTableMeta.isPresent()) {
+      log.info("Generating DDL using source schema");
       ddl.append(generateAvroToHiveColumnMapping(schema, Optional.of(hiveColumns), true));
     } else {
+      log.info("Generating DDL using destination schema");
       ddl.append(generateDestinationToHiveColumnMapping(Optional.of(hiveColumns), destinationTableMeta.get()));
     }
 
@@ -537,6 +542,7 @@ public class HiveAvroORCQueryGenerator {
     // 4. If evolution is disabled, and destination table does exists
     //    .. use columns from destination schema
     if (isEvolutionEnabled || !destinationTableMeta.isPresent()) {
+      log.info("Generating DML using source schema");
       boolean isFirst = true;
       List<Schema.Field> fieldList = outputOrcSchema.getFields();
       for (Schema.Field field : fieldList) {
@@ -558,6 +564,7 @@ public class HiveAvroORCQueryGenerator {
         dmlQuery.append(String.format("  `%s`", colName));
       }
     } else {
+      log.info("Generating DML using destination schema");
       boolean isFirst = true;
       List<FieldSchema> fieldList = destinationTableMeta.get().getSd().getCols();
       for (FieldSchema field : fieldList) {
@@ -626,6 +633,8 @@ public class HiveAvroORCQueryGenerator {
    * Generate DDLs to evolve final destination table.
    * @param stagingTableName Staging table.
    * @param finalTableName Un-evolved final destination table.
+   * @param optionalStagingDbName Optional staging database name, defaults to default.
+   * @param optionalFinalDbName Optional final database name, defaults to default.
    * @param evolvedSchema Evolved Avro Schema.
    * @param isEvolutionEnabled Is schema evolution enabled.
    * @param evolvedColumns Evolved columns in Hive format.
@@ -634,6 +643,8 @@ public class HiveAvroORCQueryGenerator {
    */
   public static String generateEvolutionDDL(String stagingTableName,
       String finalTableName,
+      Optional<String> optionalStagingDbName,
+      Optional<String> optionalFinalDbName,
       Schema evolvedSchema,
       boolean isEvolutionEnabled,
       Map<String, String> evolvedColumns,
@@ -643,6 +654,9 @@ public class HiveAvroORCQueryGenerator {
     if (!isEvolutionEnabled || !destinationTableMeta.isPresent()) {
       return StringUtils.EMPTY;
     }
+
+    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
+    String finalDbName = optionalFinalDbName.isPresent() ? optionalFinalDbName.get() : DEFAULT_DB_NAME;
 
     StringBuilder ddl = new StringBuilder();
 
@@ -656,8 +670,8 @@ public class HiveAvroORCQueryGenerator {
           // If evolved column is found, but type is evolved - evolve it
           // .. if incompatible, isTypeEvolved will throw an exception
           if (isTypeEvolved(evolvedColumn.getValue(), destinationField.getType())) {
-            ddl.append(String.format("ALTER TABLE %s CHANGE COLUMN %s %s %s COMMENT '%s';",
-                finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
+            ddl.append(String.format("ALTER TABLE `%s`.`%s` CHANGE COLUMN %s %s %s COMMENT '%s'",
+                finalDbName, finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
                 destinationField.getComment())).append("\n");
           }
           found = true;
@@ -670,8 +684,8 @@ public class HiveAvroORCQueryGenerator {
         if (StringUtils.isBlank(flattenSource)) {
           flattenSource = evolvedSchema.getField(evolvedColumn.getKey()).name();
         }
-        ddl.append(String.format("ALTER TABLE %s ADD COLUMNS (%s %s COMMENT 'from flatten_source %s');",
-            finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource)).append("\n");
+        ddl.append(String.format("ALTER TABLE `%s`.`%s` ADD COLUMNS (%s %s COMMENT 'from flatten_source %s')",
+            finalDbName, finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource)).append("\n");
       }
     }
 
@@ -682,18 +696,32 @@ public class HiveAvroORCQueryGenerator {
    * Generate DDLs to publish staging table to final destination table.
    * @param stagingTableName Staging table name to publish from.
    * @param finalTableName Final table name to publish to.
+   * @param optionalStagingDbName Optional staging database name, defaults to default.
+   * @param optionalFinalDbName Optional final database name, defaults to default.
    * @param destinationTableMeta Existing final table metadata if any.
    * @return DDL to publish to final destination table from staging table.
    */
-  public static String generatePublishTableDDL(String stagingTableName,
+  public static String generatePublishTableDDL(
+      String stagingTableName,
       String finalTableName,
+      Optional<String> optionalStagingDbName,
+      Optional<String> optionalFinalDbName,
       Optional<Table> destinationTableMeta) {
     StringBuilder ddl = new StringBuilder();
 
+    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
+    String finalDbName = optionalFinalDbName.isPresent() ? optionalFinalDbName.get() : DEFAULT_DB_NAME;
+    Preconditions.checkArgument(stagingDbName.equalsIgnoreCase(finalDbName), "We do not support staging and final "
+        + "tables in different Hive databases because of limitations of Hive v0.13");
+
     // If new table, then create table
     if (!destinationTableMeta.isPresent()) {
-      ddl.append(String.format("DROP TABLE IF EXISTS %s;", finalTableName)).append("\n");
-      ddl.append(String.format("ALTER TABLE %s RENAME TO %s;", stagingTableName, finalTableName)).append("\n");
+      ddl.append(String.format("DROP TABLE IF EXISTS `%s`.`%s`", finalDbName, finalTableName)).append("\n");
+      // Note: Hive does not support fully qualified Hive table names such as db.table for 'RENAME' in v0.13
+      // .. hence specifying 'use dbName' as a precursor to rename
+      // Refer: HIVE-2496
+      ddl.append(String.format("USE `%s`", finalDbName)).append("\n");
+      ddl.append(String.format("ALTER TABLE `%s` RENAME TO `%s`", stagingTableName, finalTableName)).append("\n");
 
       return ddl.toString();
     }
@@ -705,14 +733,20 @@ public class HiveAvroORCQueryGenerator {
    * Generate DDLs to publish staging table partitions to final destination table.
    * @param stagingTableName Staging table name to publish from.
    * @param finalTableName Final table name to publish to.
+   * @param optionalStagingDbName Optional staging database name, defaults to default.
+   * @param optionalFinalDbName Optional final database name, defaults to default.
    * @param partitionsDMLInfo Partitions to be moved from staging to final table.
    * @param destinationTableMeta Existing final table metadata if any.
+   * @param hiveVersion Hive version for compatibility.
    * @return DDL to publish to final destination table from staging table.
    */
   public static String generatePublishPartitionDDL(String stagingTableName,
       String finalTableName,
+      Optional<String> optionalStagingDbName,
+      Optional<String> optionalFinalDbName,
       Map<String, String> partitionsDMLInfo,
-      Optional<Table> destinationTableMeta) {
+      Optional<Table> destinationTableMeta,
+      Optional<String> hiveVersion) {
     if (!destinationTableMeta.isPresent() || partitionsDMLInfo.size() == 0) {
       return StringUtils.EMPTY;
     }
@@ -720,23 +754,74 @@ public class HiveAvroORCQueryGenerator {
     // Format: alter table t4 exchange partition (ds='3') with table t3
     StringBuilder ddl = new StringBuilder();
 
+    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
+    String finalDbName = optionalFinalDbName.isPresent() ? optionalFinalDbName.get() : DEFAULT_DB_NAME;
+
     // Schema is already evolved or if evolution is turned off then staging and final table have same schema
     // .. now we have to move partitions from staging to final table
+    // Note: In Hive v0.13 exchange partition behaves inversely: HIVE-6129 and was fixed later
+    //       More context: HIVE-4095
     for (Map.Entry<String, String> partition : partitionsDMLInfo.entrySet()) {
-      ddl.append(String.format("ALTER TABLE %s EXCHANGE PARTITION (%s='%s') WITH TABLE %s;",
-          finalTableName, partition.getKey(), partition.getValue(), stagingTableName)).append("\n");
+      // Note: Hive does not support fully qualified Hive table names such as db.table for ALTER TABLE in v0.13
+      // .. hence specifying 'use dbName' as a precursor to rename
+      // Refer: HIVE-2496
+      ddl.append(String.format("USE `%s`", finalDbName)).append("\n");
+      ddl.append(String.format("ALTER TABLE `%s` DROP IF EXISTS PARTITION (%s='%s')", finalTableName,
+          partition.getKey(), partition.getValue())).append("\n");
+
+      if (hiveVersion.isPresent()
+          && !"0.13".equalsIgnoreCase(hiveVersion.get())
+          && !"0.12".equalsIgnoreCase(hiveVersion.get())) {
+        // Newer versions have the bug fixed
+        ddl.append(String.format("ALTER TABLE `%s`.`%s` EXCHANGE PARTITION (%s='%s') WITH TABLE `%s`.`%s`", stagingDbName,
+            stagingTableName, partition.getKey(), partition.getValue(), finalDbName, finalTableName)).append("\n");
+      } else {
+        // By default assume it is 0.13 or 0.12 with the bug (pre 0.12 versions did not support exchange partitions)
+        ddl.append(String.format("ALTER TABLE `%s`.`%s` EXCHANGE PARTITION (%s='%s') WITH TABLE `%s`.`%s`", finalDbName,
+            finalTableName, partition.getKey(), partition.getValue(), stagingDbName, stagingTableName)).append("\n");
+      }
     }
 
     return ddl.toString();
   }
 
   /***
+   * Find directory to delete before partition is published. This is required when a pre-existing destination
+   * partition is being overwritten and it has a data directory.
+   * Exchange partition has a bug because of which it is not able to cleanly overwrite data, and instead moves
+   * staging table partition as a sub-directory of existing destination partition directory, rather than
+   * completely replacing it.
+   *
+   * Refer: HIVE-11194
+   *
+   * @param sourcePartition Source table partition.
+   * @param destinationPartitionsMeta Metadata about destination partition.
+   * @return Directory to be deleted recursively before publish.
+   */
+  public static Optional<String> findDirToDeleteBeforePartitionPublish(
+      Optional<SchemaAwareHivePartition> sourcePartition, Optional<List<Partition>> destinationPartitionsMeta) {
+    if (!sourcePartition.isPresent() || !destinationPartitionsMeta.isPresent()) {
+      return Optional.<String>absent();
+    }
+
+    for (Partition partitionMeta : destinationPartitionsMeta.get()) {
+      if (sourcePartition.get().getName().equalsIgnoreCase(partitionMeta.getName())) {
+        return Optional.of(partitionMeta.getLocation());
+      }
+    }
+
+    return Optional.<String>absent();
+  }
+
+  /***
    * Generate DDL statement for cleaning up temporary staging table.
    * @param stagingTableName Staging table to be cleaned.
+   * @param optionalStagingDbName Optional staging database name, defaults to default.
    * @return DDL to clean up temporary staging table.
    */
-  public static String generateCleanupDDL(String stagingTableName) {
-    return String.format("DROP TABLE IF EXISTS %s;", stagingTableName) + "\n";
+  public static String generateCleanupDDL(String stagingTableName, Optional<String> optionalStagingDbName) {
+    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
+    return String.format("DROP TABLE IF EXISTS `%s`.`%s`", stagingDbName, stagingTableName) + "\n";
   }
 
   /***
@@ -748,6 +833,22 @@ public class HiveAvroORCQueryGenerator {
   public static void serializePublishTableCommands(State state, String commands) {
     state.setProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_TABLE_COMMANDS,
         GSON.toJson(commands));
+  }
+
+  /***
+   * Serialize a {@link String} of dir to delete before partition publish into a {@link State} at
+   * {@link #SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH}.
+   * @param state {@link State} to serialize dir into.
+   * @param dirName Dir to delete before partition publish.
+   */
+  public static void serializeDirToDeleteBeforePartitionPublish(State state, Optional<String> dirName) {
+    if (dirName.isPresent()) {
+      state.setProp(HiveAvroORCQueryGenerator.SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH,
+          GSON.toJson(dirName.get()));
+    } else {
+      state.setProp(HiveAvroORCQueryGenerator.SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH,
+          GSON.toJson(StringUtils.EMPTY));
+    }
   }
 
   /***
@@ -778,6 +879,17 @@ public class HiveAvroORCQueryGenerator {
    */
   public static String deserializePublishTableCommands(State state) {
     return GSON.fromJson(state.getProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_TABLE_COMMANDS), String.class);
+  }
+
+  /***
+   * Deserialize the dir to delete before partition publish from a {@link State} at
+   * {@link #SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH}
+   * @param state {@link State} to look into for dir name.
+   * @return Dir to delete before partition publish.
+   */
+  public static String deserializeDirToDeleteBeforePartitionPublish(State state) {
+    return GSON.fromJson(state.getProp(HiveAvroORCQueryGenerator.SERIALIZED_DIR_TO_DELETE_BEFORE_PARTITION_PUBLISH),
+        String.class);
   }
 
   /***

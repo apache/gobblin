@@ -103,17 +103,17 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   public QueryBasedExtractor(WorkUnitState workUnitState) {
     this.workUnitState = workUnitState;
     this.workUnit = this.workUnitState.getWorkunit();
-    this.schema = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
-    this.entity = this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY);
+    this.schema = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
+    this.entity = this.workUnitState.getProp(ConfigurationKeys.SOURCE_ENTITY);
     MDC.put("tableName", getWorkUnitName());
   }
 
   private String getWorkUnitName() {
     StringBuilder sb = new StringBuilder();
     sb.append("[");
-    sb.append(StringUtils.stripToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
+    sb.append(StringUtils.stripToEmpty(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA)));
     sb.append("_");
-    sb.append(StringUtils.stripToEmpty(this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY)));
+    sb.append(StringUtils.stripToEmpty(this.workUnitState.getProp(ConfigurationKeys.SOURCE_ENTITY)));
     sb.append("_");
     String id = this.workUnitState.getId();
     int seqIndex = id.lastIndexOf("_", id.length());
@@ -166,7 +166,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    * @return iterator
    */
   private Iterator<D> getIterator() throws DataRecordException, IOException {
-    if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
+    if (Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
       return this.getRecordSetFromSourceApi(this.schema, this.entity, this.workUnit, this.predicateList);
     }
     return this.getRecordSet(this.schema, this.entity, this.workUnit, this.predicateList);
@@ -218,28 +218,29 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    * @return full dump or not
    */
   public boolean isFullDump() {
-    return Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY));
+    return Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY));
   }
 
   /**
    * build schema, record count and high water mark
    */
   public Extractor<S, D> build() throws ExtractPrepareException {
-    String watermarkColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
+    String watermarkColumn = this.workUnitState.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
     long lwm = this.workUnit.getLowWatermark(LongWatermark.class).getValue();
     long hwm = this.workUnit.getExpectedHighWatermark(LongWatermark.class).getValue();
     log.info("Low water mark: " + lwm + "; and High water mark: " + hwm);
+    
     WatermarkType watermarkType;
-    if (StringUtils.isBlank(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE))) {
+    if (StringUtils.isBlank(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE))) {
       watermarkType = null;
     } else {
       watermarkType = WatermarkType
-          .valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE).toUpperCase());
+          .valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE).toUpperCase());
     }
 
     try {
       this.setTimeOut(
-          this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_TIMEOUT, ConfigurationKeys.DEFAULT_CONN_TIMEOUT));
+          this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_TIMEOUT, ConfigurationKeys.DEFAULT_CONN_TIMEOUT));
       this.extractMetadata(this.schema, this.entity, this.workUnit);
 
       if (StringUtils.isNotBlank(watermarkColumn)) {
@@ -256,7 +257,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       }
 
       // if it is set to true, skip count calculation and set source count to -1
-      if (!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SKIP_COUNT_CALC))) {
+      if (!Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SKIP_COUNT_CALC))) {
         this.sourceRecordCount = this.getSourceCount(this.schema, this.entity, this.workUnit, this.predicateList);
       } else {
         log.info("Skip count calculation");
@@ -311,7 +312,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   private long getLatestWatermark(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue)
       throws HighWatermarkException, IOException {
 
-    if (!Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SKIP_HIGH_WATERMARK_CALC))) {
+    if (!Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SKIP_HIGH_WATERMARK_CALC))) {
       log.info("Getting high watermark");
       List<Predicate> list = new ArrayList<>();
       WatermarkPredicate watermark = new WatermarkPredicate(watermarkColumn, watermarkType);
@@ -348,8 +349,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     this.addPredicates(watermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM));
     this.addPredicates(watermark.getPredicate(this, hwmValue, "<=", Predicate.PredicateType.HWM));
 
-    if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_HOURLY_EXTRACT))) {
-      String hourColumn = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_HOUR_COLUMN);
+    if (Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_HOURLY_EXTRACT))) {
+      String hourColumn = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_HOUR_COLUMN);
       if (StringUtils.isNotBlank(hourColumn)) {
         WatermarkPredicate hourlyWatermark = new WatermarkPredicate(hourColumn, WatermarkType.HOUR);
         this.addPredicates(hourlyWatermark.getPredicate(this, lwmValue, ">=", Predicate.PredicateType.LWM));
@@ -424,7 +425,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    */
   protected boolean isMetadataColumn(String columnName, List<String> columnList) {
     boolean isColumnCheckEnabled =
-        Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED,
+        Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED,
             ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED));
 
     if (!isColumnCheckEnabled) {

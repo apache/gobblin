@@ -50,6 +50,7 @@ public class CleanableDatasetBaseTest {
     DatasetVersion dataset1Version2 = new StringDatasetVersion("version2", new Path(datasetRoot, "version2"));
 
     when(fs.delete(any(Path.class), anyBoolean())).thenReturn(true);
+    when(fs.exists(any(Path.class))).thenReturn(true);
 
     DatasetImpl dataset = new DatasetImpl(fs, false, false, false, false, datasetRoot);
 
@@ -77,7 +78,7 @@ public class CleanableDatasetBaseTest {
 
     when(fs.delete(any(Path.class), anyBoolean())).thenReturn(true);
     when(trash.moveToTrash(any(Path.class))).thenReturn(true);
-
+    when(fs.exists(any(Path.class))).thenReturn(true);
     DatasetImpl dataset = new DatasetImpl(fs, false, true, false, false, datasetRoot);
 
     when(dataset.versionFinder.findDatasetVersions(dataset)).
@@ -106,7 +107,7 @@ public class CleanableDatasetBaseTest {
 
     when(fs.delete(any(Path.class), anyBoolean())).thenReturn(true);
     when(trash.moveToTrash(any(Path.class))).thenReturn(true);
-
+    when(fs.exists(any(Path.class))).thenReturn(true);
     DatasetImpl dataset = new DatasetImpl(fs, true, false, false, false, datasetRoot);
 
     when(dataset.versionFinder.findDatasetVersions(dataset)).
@@ -134,7 +135,7 @@ public class CleanableDatasetBaseTest {
 
     when(fs.delete(any(Path.class), anyBoolean())).thenReturn(true);
     when(trash.moveToTrash(any(Path.class))).thenReturn(true);
-
+    when(fs.exists(any(Path.class))).thenReturn(true);
     DatasetImpl dataset = new DatasetImpl(fs, false, false, true, false, datasetRoot);
 
     when(dataset.versionFinder.findDatasetVersions(dataset)).
