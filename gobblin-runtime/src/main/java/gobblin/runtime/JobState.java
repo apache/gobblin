@@ -352,9 +352,9 @@ public class JobState extends SourceState {
   public void readFields(DataInput in) throws IOException {
     Text text = new Text();
     text.readFields(in);
-    this.jobName = text.toString();
+    this.jobName = text.toString().intern();
     text.readFields(in);
-    this.jobId = text.toString();
+    this.jobId = text.toString().intern();
     this.setId(this.jobId);
     this.startTime = in.readLong();
     this.endTime = in.readLong();
@@ -366,7 +366,7 @@ public class JobState extends SourceState {
     for (int i = 0; i < numTaskStates; i++) {
       TaskState taskState = new TaskState();
       taskState.readFields(in);
-      this.taskStates.put(taskState.getTaskId(), taskState);
+      this.taskStates.put(taskState.getTaskId().intern(), taskState);
     }
     super.readFields(in);
   }

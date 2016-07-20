@@ -19,14 +19,18 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.thrift.TException;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
@@ -66,6 +70,15 @@ public class LocalHiveMetastoreTestUtils {
     return localMetastoreClient;
   }
 
+  public void dropDatabaseIfExists(String dbName) throws MetaException, TException {
+    try {
+      this.getLocalMetastoreClient().getDatabase(dbName);
+      this.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
+    } catch (NoSuchObjectException e) {
+      // No need to drop
+    }
+  }
+
   public Table createTestTable(String dbName, String tableName, String tableSdLoc, Optional<String> partitionFieldName)
       throws Exception {
     return createTestTable(dbName, tableName, tableSdLoc, partitionFieldName, false);
@@ -90,6 +103,31 @@ public class LocalHiveMetastoreTestUtils {
     return tbl;
   }
 
+  public Table createTestTable(String dbName, String tableName, List<String> partitionFieldNames) throws Exception {
+    return createTestTable(dbName, tableName, "/tmp/" + tableName, partitionFieldNames, true);
+  }
+
+  public Table createTestTable(String dbName, String tableName, String tableSdLoc,
+      List<String> partitionFieldNames, boolean ignoreDbCreation)
+      throws Exception {
+
+    if (!ignoreDbCreation) {
+      createTestDb(dbName);
+    }
+
+    Table tbl = org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(dbName, tableName);
+    tbl.getSd().setLocation(tableSdLoc);
+    tbl.getSd().getSerdeInfo().setParameters(ImmutableMap.of(HiveAvroSerDeManager.SCHEMA_URL, "/tmp/dummy"));
+
+    for (String partitionFieldName : partitionFieldNames) {
+      tbl.addToPartitionKeys(new FieldSchema(partitionFieldName, "string", "some comment"));
+    }
+
+    this.localMetastoreClient.createTable(tbl);
+
+    return tbl;
+  }
+
   public void createTestDb(String dbName) throws Exception {
     Database db = new Database(dbName, "Some description", "/tmp/" + dbName, new HashMap<String, String>());
     try {
@@ -101,7 +139,12 @@ public class LocalHiveMetastoreTestUtils {
 
   public Partition addTestPartition(Table tbl, List<String> values, int createTime) throws Exception {
     StorageDescriptor partitionSd = new StorageDescriptor();
-    partitionSd.setLocation("/tmp/" + tbl.getTableName() + "/part1");
+    if (StringUtils.isNotBlank(tbl.getSd().getLocation())) {
+      partitionSd.setLocation(tbl.getSd().getLocation() + values);
+    } else {
+      partitionSd.setLocation("/tmp/" + tbl.getTableName() + "/part1");
+    }
+
     partitionSd.setSerdeInfo(
         new SerDeInfo("name", "serializationLib", ImmutableMap.of(HiveAvroSerDeManager.SCHEMA_URL, "/tmp/dummy")));
     partitionSd.setCols(tbl.getPartitionKeys());

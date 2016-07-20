@@ -13,6 +13,7 @@
 package gobblin.cluster;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
@@ -26,11 +27,9 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
@@ -44,19 +43,18 @@ import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.MoreExecutors;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -69,6 +67,7 @@ import gobblin.runtime.app.ApplicationLauncher;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.util.ConfigUtils;
 import gobblin.util.logs.Log4jConfigurationHelper;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -113,7 +112,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   protected final String applicationId;
 
-  public GobblinClusterManager(String clusterName, String applicationId, Config config) throws Exception {
+  public GobblinClusterManager(String clusterName, String applicationId, Config config,
+      Optional<Path> appWorkDirOptional) throws Exception {
 
     // Done to preserve backwards compatibility with the previously hard-coded timeout of 5 minutes
     Properties properties = ConfigUtils.configToProperties(config);
@@ -131,7 +131,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
     this.helixManager = buildHelixManager(config, zkConnectionString);
 
     this.fs = buildFileSystem(config);
-    this.appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
+    this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
+        GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
 
     this.applicationLauncher
         .addService(buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId)));
@@ -217,10 +218,22 @@ public class GobblinClusterManager implements ApplicationLauncher {
    * Build the {@link JobConfigurationManager} for the Application Master.
    */
   private JobConfigurationManager buildJobConfigurationManager(Config config) {
-    Optional<String> jobConfPackagePath =
-        config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
-            .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
-    return new JobConfigurationManager(this.eventBus, jobConfPackagePath);
+    return create(config);
+  }
+
+  private JobConfigurationManager create(Config config) {
+    try {
+      if (config.hasPath(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)) {
+        return (JobConfigurationManager) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
+                config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)),
+            ImmutableList.<Object>of(this.eventBus, config));
+      } else {
+        return new JobConfigurationManager(this.eventBus, config);
+      }
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @SuppressWarnings("unused")
@@ -287,7 +300,11 @@ public class GobblinClusterManager implements ApplicationLauncher {
     shutdownRequest.setMsgSubType(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
     shutdownRequest.setMsgState(Message.MessageState.NEW);
 
-    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest);
+    // Wait for 5 minutes
+    final int timeout = 300000;
+
+    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest,
+        new NoopReplyHandler(), timeout);
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the participants", shutdownRequest.getMsgSubType()));
     }
@@ -483,7 +500,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
       try (GobblinClusterManager gobblinClusterManager = new GobblinClusterManager(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), getApplicationId(),
-          ConfigFactory.load())) {
+          ConfigFactory.load(), Optional.<Path>absent())) {
 
         gobblinClusterManager.start();
       }

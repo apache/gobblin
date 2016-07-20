@@ -13,19 +13,15 @@
 package gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
 import com.google.common.collect.ImmutableMap;
@@ -37,12 +33,10 @@ import gobblin.data.management.policy.EmbeddedRetentionSelectionPolicy;
 import gobblin.data.management.policy.VersionSelectionPolicy;
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.trash.ProxiedTrash;
-import gobblin.data.management.trash.TrashFactory;
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.data.management.version.finder.VersionFinder;
 import gobblin.dataset.FileSystemDataset;
 import gobblin.util.ConfigUtils;
-import gobblin.util.PathUtils;
 
 
 /**
@@ -99,29 +93,77 @@ import gobblin.util.PathUtils;
 public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatasetVersion>
     implements CleanableDataset, FileSystemDataset {
 
-  public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
-  public static final String SIMULATE_KEY = CONFIGURATION_KEY_PREFIX + "simulate";
-  public static final String SIMULATE_DEFAULT = Boolean.toString(false);
-  public static final String SKIP_TRASH_KEY = CONFIGURATION_KEY_PREFIX + "skip.trash";
-  public static final String SKIP_TRASH_DEFAULT = Boolean.toString(false);
-  public static final String DELETE_EMPTY_DIRECTORIES_KEY = CONFIGURATION_KEY_PREFIX + "delete.empty.directories";
-  public static final String IS_DATASET_BLACKLISTED_KEY = CONFIGURATION_KEY_PREFIX + "dataset.is.blacklisted";
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
+  public static final String CONFIGURATION_KEY_PREFIX = FsCleanableHelper.CONFIGURATION_KEY_PREFIX;
 
-  public static final String DELETE_EMPTY_DIRECTORIES_DEFAULT = Boolean.toString(true);
-  public static final String DELETE_AS_OWNER_KEY = CONFIGURATION_KEY_PREFIX + "delete.as.owner";
-  public static final String DELETE_AS_OWNER_DEFAULT = Boolean.toString(true);
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
+  public static final String SIMULATE_KEY = FsCleanableHelper.SIMULATE_KEY;
+  public static final String SIMULATE_DEFAULT = FsCleanableHelper.SIMULATE_DEFAULT;
+
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
+  public static final String SKIP_TRASH_KEY = FsCleanableHelper.SKIP_TRASH_KEY;
+  public static final String SKIP_TRASH_DEFAULT = FsCleanableHelper.SKIP_TRASH_DEFAULT;
+
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
+  public static final String DELETE_EMPTY_DIRECTORIES_KEY = FsCleanableHelper.DELETE_EMPTY_DIRECTORIES_KEY;
+  public static final String DELETE_EMPTY_DIRECTORIES_DEFAULT = FsCleanableHelper.DELETE_EMPTY_DIRECTORIES_DEFAULT;
+
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
+  public static final String DELETE_AS_OWNER_KEY = FsCleanableHelper.DELETE_AS_OWNER_KEY;
+  public static final String DELETE_AS_OWNER_DEFAULT = FsCleanableHelper.DELETE_AS_OWNER_DEFAULT;
+
+  public static final String IS_DATASET_BLACKLISTED_KEY = CONFIGURATION_KEY_PREFIX + "dataset.is.blacklisted";
   public static final String IS_DATASET_BLACKLISTED_DEFAULT = Boolean.toString(false);
 
   protected final FileSystem fs;
+
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
   protected final ProxiedTrash trash;
-  protected final boolean simulate;
-  protected final boolean skipTrash;
-  protected final boolean deleteEmptyDirectories;
-  protected final boolean deleteAsOwner;
+
   protected final boolean isDatasetBlacklisted;
+
+  private final FsCleanableHelper fsCleanableHelper;
 
   protected final Logger log;
 
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
+  protected final boolean simulate;
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
+  protected final boolean skipTrash;
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
+  protected final boolean deleteEmptyDirectories;
+  /**
+   * @deprecated in favor of {@link FsCleanableHelper}
+   */
+  @Deprecated
+  protected final boolean deleteAsOwner;
   /**
    * Get {@link gobblin.data.management.retention.policy.RetentionPolicy} to use.
    */
@@ -158,21 +200,16 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
       boolean deleteEmptyDirectories, boolean deleteAsOwner, boolean isDatasetBlacklisted, Logger log)
       throws IOException {
     this.log = log;
+    this.fsCleanableHelper = new FsCleanableHelper(fs, properties, simulate, skipTrash, deleteEmptyDirectories, deleteAsOwner, log);
     this.fs = fs;
     this.simulate = simulate;
     this.skipTrash = skipTrash;
     this.deleteEmptyDirectories = deleteEmptyDirectories;
-    Properties thisProperties = new Properties();
-    thisProperties.putAll(properties);
-    if (this.simulate) {
-      thisProperties.setProperty(TrashFactory.SIMULATE, Boolean.toString(true));
-    }
-    if (this.skipTrash) {
-      thisProperties.setProperty(TrashFactory.SKIP_TRASH, Boolean.toString(true));
-    }
-    this.trash = TrashFactory.createProxiedTrash(this.fs, thisProperties);
+    this.trash = this.fsCleanableHelper.getTrash();
     this.deleteAsOwner = deleteAsOwner;
     this.isDatasetBlacklisted = isDatasetBlacklisted;
+
+
   }
 
   public MultiVersionCleanableDatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
@@ -223,49 +260,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   }
 
   protected void cleanImpl(Collection<T> deletableVersions) throws IOException {
-    if (deletableVersions.isEmpty()) {
-      this.log.warn("No deletable dataset version can be found. Ignoring.");
-      return;
-    }
-
-    Set<Path> possiblyEmptyDirectories = new HashSet<>();
-
-    for (FileSystemDatasetVersion versionToDelete : deletableVersions) {
-      this.log.info("Deleting dataset version " + versionToDelete);
-
-      Set<Path> pathsToDelete = versionToDelete.getPaths();
-      this.log.info("Deleting paths: " + Arrays.toString(pathsToDelete.toArray()));
-
-      boolean deletedAllPaths = true;
-
-      for (Path path : pathsToDelete) {
-
-        boolean successfullyDeleted =
-            this.deleteAsOwner ? this.trash.moveToTrashAsOwner(path) : this.trash.moveToTrash(path);
-
-        if (successfullyDeleted) {
-          possiblyEmptyDirectories.add(path.getParent());
-        } else {
-          this.log.error("Failed to delete path " + path + " in dataset version " + versionToDelete);
-          deletedAllPaths = false;
-        }
-      }
-
-      if (!deletedAllPaths) {
-        this.log.error("Failed to delete some paths in dataset version " + versionToDelete);
-      }
-
-    }
-
-    if (this.deleteEmptyDirectories) {
-      for (Path parentDirectory : possiblyEmptyDirectories) {
-        deleteEmptyParentDirectories(datasetRoot(), parentDirectory);
-      }
-    }
-  }
-
-  private void deleteEmptyParentDirectories(Path datasetRoot, Path parent) throws IOException {
-    PathUtils.deleteEmptyParentDirectories(this.fs, datasetRoot, parent);
+    this.fsCleanableHelper.clean(deletableVersions, this);
   }
 
   @Override

@@ -18,18 +18,21 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 
 import gobblin.password.PasswordManager;
 
@@ -48,6 +51,7 @@ public class HiveJdbcConnector implements Closeable {
   public static final String HIVESERVER_USER = "hiveserver.user";
   public static final String HIVESERVER_PASSWORD = "hiveserver.password";
   public static final String HIVESITE_DIR = "hivesite.dir";
+  public static final String HIVE_EXECUTION_SIMULATE = "hive.execution.simulate";
 
   private static final String HIVE_JDBC_DRIVER_NAME = "org.apache.hadoop.hive.jdbc.HiveDriver";
   private static final String HIVE2_JDBC_DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
@@ -66,7 +70,15 @@ public class HiveJdbcConnector implements Closeable {
 
   private int hiveServerVersion;
 
-  private HiveJdbcConnector() {}
+  private boolean isSimulate;
+
+  private HiveJdbcConnector() {
+    this(false);
+  }
+
+  private HiveJdbcConnector(boolean isSimulate) {
+    this.isSimulate = isSimulate;
+  }
 
   /**
    * Create a new {@link HiveJdbcConnector} using the specified Hive server version.
@@ -86,7 +98,10 @@ public class HiveJdbcConnector implements Closeable {
    * @return
    */
   public static HiveJdbcConnector newConnectorWithProps(Properties compactRunProps) throws SQLException {
-    HiveJdbcConnector hiveJdbcConnector = new HiveJdbcConnector();
+
+    boolean isSimulate = Boolean.valueOf(compactRunProps.getProperty(HIVE_EXECUTION_SIMULATE));
+
+    HiveJdbcConnector hiveJdbcConnector = new HiveJdbcConnector(isSimulate);
 
     // Set the Hive Server type
     hiveJdbcConnector.withHiveServerVersion(
@@ -219,13 +234,44 @@ public class HiveJdbcConnector implements Closeable {
     }
   }
 
+  /***
+   * Executes the given SQL statements.
+   *
+   * @param statements SQL statements to be executed.
+   * @throws SQLException if any issue in executing any statement.
+   */
   public void executeStatements(String... statements) throws SQLException {
     Preconditions.checkNotNull(this.conn, "The Hive connection must be set before any queries can be run");
 
     for (String statement : statements) {
-      LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
-      this.stmt.execute(statement);
+      if (isSimulate) {
+        LOG.info("[SIMULATE MODE] STATEMENT NOT RUN: " + choppedStatement(statement));
+      } else {
+        LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
+        this.stmt.execute(statement);
+      }
     }
+  }
+
+  /***
+   * Executes the given SQL statements, and return a {@link List} of
+   * {@link ResultSet} objects for each statement executed.
+   *
+   * @param statements SQL statements to be executed.
+   * @return {@link List} of {@link ResultSet} objects that contain the data
+   *         produced by the given queries; never null.
+   * @throws SQLException if any issue in executing any statement.
+   */
+  public List<ResultSet> executeStatementsWithResult(String... statements) throws SQLException {
+    Preconditions.checkNotNull(this.conn, "The Hive connection must be set before any queries can be run");
+
+    List<ResultSet> resultSets = Lists.newArrayList();
+    for (String statement : statements) {
+      LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
+      resultSets.add(this.stmt.executeQuery(statement));
+    }
+
+    return resultSets;
   }
 
   private static String choppedStatement(String statement) {

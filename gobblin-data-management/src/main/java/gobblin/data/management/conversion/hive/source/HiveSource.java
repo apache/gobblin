@@ -32,18 +32,15 @@ import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
 import gobblin.annotation.Alpha;
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.AvroSchemaManager;
-import gobblin.data.management.conversion.hive.entities.SerializableHivePartition;
-import gobblin.data.management.conversion.hive.entities.SerializableHiveTable;
 import gobblin.data.management.conversion.hive.events.EventConstants;
+import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
 import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 import gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
 import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
-import gobblin.data.management.conversion.hive.util.HiveSourceUtils;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
 import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
 import gobblin.data.management.copy.hive.HiveDataset;
@@ -61,6 +58,7 @@ import gobblin.source.workunit.WorkUnit;
 import gobblin.util.AutoReturnableObject;
 import gobblin.util.HadoopUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -90,6 +88,9 @@ public class HiveSource implements Source {
   public static final String HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY = "hive.source.maximum.lookbackDays";
   public static final int DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS = 30;
 
+  public static final String HIVE_SOURCE_DATASET_FINDER_CLASS_KEY = "hive.dataset.finder.class";
+  public static final String DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS = HiveDatasetFinder.class.getName();
+
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   private MetricContext metricContext;
@@ -108,7 +109,7 @@ public class HiveSource implements Source {
 
       initialize(state);
 
-      EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.FIND_HIVE_TABLES_EVENT);
+      EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.CONVERSION_FIND_HIVE_TABLES_EVENT);
       Iterator<HiveDataset> iterator = this.datasetFinder.getDatasetsIterator();
 
       while (iterator.hasNext()) {
@@ -143,8 +144,10 @@ public class HiveSource implements Source {
     this.workunits = Lists.newArrayList();
 
     this.watermarker = new TableLevelWatermarker(state);
-    EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.SETUP_EVENT);
-    this.datasetFinder = new HiveDatasetFinder(getSourceFs(), state.getProperties(), this.eventSubmitter);
+    EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.CONVERSION_SETUP_EVENT);
+    this.datasetFinder = GobblinConstructorUtils.invokeConstructor(HiveDatasetFinder.class,
+        state.getProp(HIVE_SOURCE_DATASET_FINDER_CLASS_KEY, DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS), getSourceFs(), state.getProperties(),
+        this.eventSubmitter);
     int maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS);
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
   }
@@ -162,14 +165,14 @@ public class HiveSource implements Source {
 
         log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
 
-        WorkUnit workUnit = WorkUnit.createEmpty();
-        workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
-        HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), this.avroSchemaManager);
-        workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
+        HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
+        hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
+        hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
 
-        HiveSourceUtils.setTableSlaEventMetadata(workUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue());
-        this.workunits.add(workUnit);
-        log.debug(String.format("Workunit added for table: %s", workUnit));
+        EventWorkunitUtils.setTableSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue());
+        this.workunits.add(hiveWorkUnit);
+        log.debug(String.format("Workunit added for table: %s", hiveWorkUnit));
+
       } else {
         log.info(String.format("Not creating workunit for table %s as updateTime %s is lesser than low watermark %s",
             hiveDataset.getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
@@ -198,16 +201,16 @@ public class HiveSource implements Source {
         if (shouldCreateWorkunit(updateTime, lowWatermark)) {
           log.debug(String.format("Processing partition: %s", sourcePartition));
 
-          WorkUnit workUnit = WorkUnit.createEmpty();
-          workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, hiveDataset.getTable().getCompleteName());
-          HiveSourceUtils.serializeTable(workUnit, hiveDataset.getTable(), this.avroSchemaManager);
-          HiveSourceUtils.serializePartition(workUnit, sourcePartition, this.avroSchemaManager);
-          workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
+          HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
+          hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
+          hiveWorkUnit.setPartitionSchemaUrl(this.avroSchemaManager.getSchemaUrl(sourcePartition));
+          hiveWorkUnit.setPartitionName(sourcePartition.getName());
+          hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
 
-          HiveSourceUtils.setPartitionSlaEventMetadata(workUnit, hiveDataset.getTable(), sourcePartition, updateTime,
+          EventWorkunitUtils.setPartitionSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), sourcePartition, updateTime,
               lowWatermark.getValue());
-          workunits.add(workUnit);
-          log.debug(String.format("Workunit added for partition: %s", workUnit));
+          workunits.add(hiveWorkUnit);
+          log.debug(String.format("Workunit added for partition: %s", hiveWorkUnit));
         } else {
           // If watermark tracking at a partition level is necessary, create a dummy workunit for this partition here.
           log.info(String.format(

@@ -20,11 +20,13 @@ buildscript {
     classpath 'gradle.plugin.org.inferred:gradle-processors:1.1.2'
     classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:1.0.2'
     classpath 'gradle.plugin.com.palantir:jacoco-coverage:0.3.0'
+    classpath 'io.spring.gradle:dependency-management-plugin:0.5.4.RELEASE'
   }
 }
 
 apply plugin: 'org.inferred.processors'
 apply plugin: 'idea'
+apply plugin: 'io.spring.dependency-management'
 
 apply from: rootProject.projectDir.path + '/gradle/scripts/jacoco-coveralls-support.gradle'
 
@@ -134,11 +136,25 @@ if (!project.hasProperty('bytemanVersion')) {
 ext.avroVersion = '1.7.7'
 ext.dropwizardMetricsVersion = '3.1.0'
 ext.findBugsVersion = '3.0.0'
+ext.confluentVersion = '2.0.1'
+
+dependencyManagement {
+  imports {
+    mavenBom 'com.amazonaws:aws-java-sdk-bom:1.11.8'
+  }
+}
 
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
   "avro": "org.apache.avro:avro:" + avroVersion,
   "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion + ":hadoop2",
+  "awsCore": "com.amazonaws:aws-java-sdk-core:1.11.8",
+  "awsAsg": "com.amazonaws:aws-java-sdk-autoscaling:1.11.8",
+  "awsAppAsg": "com.amazonaws:aws-java-sdk-applicationautoscaling:1.11.8",
+  "awsEc2": "com.amazonaws:aws-java-sdk-ec2:1.11.8",
+  "awsIam": "com.amazonaws:aws-java-sdk-iam:1.11.8",
+  "awsS3": "com.amazonaws:aws-java-sdk-s3:1.11.8",
+  "awsSts": "com.amazonaws:aws-java-sdk-sts:1.11.8",
   "commonsCli": "commons-cli:commons-cli:1.3.1",
   "commonsCodec": "commons-codec:commons-codec:1.10",
   "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
@@ -178,6 +194,10 @@ ext.externalDependency = [
   "kafka": "org.apache.kafka:kafka_2.11:0.8.2.2",
   "kafkaTest": "org.apache.kafka:kafka_2.11:0.8.2.2:test",
   "kafkaClient": "org.apache.kafka:kafka-clients:0.8.2.2",
+  "confluentSchemaRegistryClient": "io.confluent:kafka-schema-registry-client:" + confluentVersion,
+  "confluentAvroSerializer": "io.confluent:kafka-avro-serializer:" + confluentVersion,
+  "confluentJsonSerializer": "io.confluent:kafka-json-serializer:" + confluentVersion,
+  "zkClient": "com.101tec:zkclient:0.7",
   "quartz": "org.quartz-scheduler:quartz:2.2.3",
   "testng": "org.testng:testng:6.9.10",
   "mockserver":"org.mock-server:mockserver-netty:3.10.4",
@@ -201,6 +221,7 @@ ext.externalDependency = [
   "guice": "com.google.inject:guice:4.0",
   "derby": "org.apache.derby:derby:10.12.1.1",
   "mockito": "org.mockito:mockito-core:1.10.19",
+  "powermock": "org.powermock:powermock-mockito-release-full:1.6.2",
   "salesforceWsc": "com.force.api:force-wsc:37.0.3",
   "salesforcePartner": "com.force.api:force-partner-api:37.0.3",
   "scala": "org.scala-lang:scala-library:2.11.8",
@@ -449,6 +470,12 @@ subprojects {
       }
     }
 
+    repositories {
+      maven {
+        url "http://packages.confluent.io/maven/"
+      }
+    }
+
     if (isDefaultEnvironment) {
       task sourcesJar(type: Jar, dependsOn: classes) {
         from sourceSets.main.allSource
@@ -550,6 +577,20 @@ subprojects {
       }
     }
   }
+}
+
+allprojects {
+  tasks.withType(FindBugs) {
+
+    // Only one findbugs report can be enabled at a time.
+    // We do not enable HTML when xml:withMessages is enabled as it is immutable
+    if (reports.find { it.name == "xml:withMessages"} == null) {
+      reports {
+        html.enabled = true
+        xml.enabled = false
+      }
+    }
+ }
 }
 
 gradle.projectsEvaluated {

@@ -12,7 +12,10 @@
 
 package gobblin.util;
 
+import java.util.Map;
 import java.util.Properties;
+
+import com.google.common.collect.ImmutableMap;
 
 
 /**
@@ -29,5 +32,16 @@ public class PropertiesUtils {
       combinedProperties.putAll(props);
     }
     return combinedProperties;
+  }
+
+  /**
+   * Converts a {@link Properties} object to a {@link Map} where each key is a {@link String}.
+   */
+  public static Map<String, ?> propsToStringKeyMap(Properties properties) {
+    ImmutableMap.Builder<String, Object> mapBuilder = ImmutableMap.builder();
+    for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+      mapBuilder.put(entry.getKey().toString(), entry.getValue());
+    }
+    return mapBuilder.build();
   }
 }

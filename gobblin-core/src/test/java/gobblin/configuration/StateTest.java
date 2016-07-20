@@ -14,9 +14,12 @@ package gobblin.configuration;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInput;
 import java.io.DataInputStream;
+import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -119,5 +122,50 @@ public class StateTest {
     Assert.assertEquals(state2.getPropAsInt("int"), Integer.MIN_VALUE);
     Assert.assertEquals(state2.getPropAsDouble("double"), Double.MIN_VALUE);
     Assert.assertEquals(state2.getPropAsBoolean("boolean"), false);
+  }
+
+  @Test
+  public void testInterningOfKeyValues() throws Exception {
+
+    // Prove we can identify interned keys
+    String nonInterned = new String("myKey"); // not interned
+    String interned = new String("myInternedKey").intern(); // interned
+
+    Assert.assertFalse(isInterned(nonInterned));
+    Assert.assertTrue(isInterned(interned));
+
+    State state = new State();
+    state.setProp(new String("someKey"), new String("someValue"));
+
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    DataOutput dataOutput = new DataOutputStream(outputStream);
+    state.write(dataOutput);
+    outputStream.flush();
+
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+    DataInput dataInput = new DataInputStream(inputStream);
+    State readState = new State();
+    readState.readFields(dataInput);
+    inputStream.close();
+
+    Assert.assertEquals(state, readState);
+
+    assertInterned(state.getProperties(), false);
+    assertInterned(readState.getProperties(), true);
+  }
+
+  public static void assertInterned(Map<Object, Object> map, boolean interned) {
+    for (Map.Entry<Object, Object> entry : map.entrySet()) {
+      if (entry.getKey() instanceof String) {
+        Assert.assertEquals(isInterned((String) entry.getKey()), interned);
+      }
+      if (entry.getValue() instanceof String) {
+        Assert.assertEquals(isInterned((String) entry.getValue()), interned);
+      }
+    }
+  }
+
+  public static boolean isInterned(String str) {
+    return str == str.intern();
   }
 }
