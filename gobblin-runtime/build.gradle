@@ -65,6 +65,7 @@ dependencies {
   testCompile externalDependency.curatorTest
   testCompile externalDependency.mockito
   testRuntime externalDependency.derby
+
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
