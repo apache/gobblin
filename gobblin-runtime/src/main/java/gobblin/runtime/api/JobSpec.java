@@ -25,6 +25,7 @@ import gobblin.util.ConfigUtils;
 
 import lombok.Data;
 
+
 /**
  * Defines a Gobblin Job that can be run once, or multiple times. A {@link JobSpec} is
  * {@link Configurable} so it has an associated {@link Config}, along with other mandatory
