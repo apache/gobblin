@@ -44,6 +44,8 @@ public class JobSpec implements Configurable {
   /** Job config as a typesafe config object*/
   final Config config;
   /** Job config as a properties collection for backwards compatibility */
+  // Note that this property is not strictly necessary as it can be generated from the typesafe
+  // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
   final Properties configAsProperties;
 
   public static Builder builer(URI jobSpecUri) {

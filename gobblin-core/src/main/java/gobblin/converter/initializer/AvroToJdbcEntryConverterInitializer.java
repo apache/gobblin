@@ -76,9 +76,11 @@ public class AvroToJdbcEntryConverterInitializer implements ConverterInitializer
   public void initialize() {
     String table = Preconditions.checkNotNull(this.state.getProp(ForkOperatorUtils
         .getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, this.branches, this.branchId)));
+    String db = Preconditions.checkNotNull(this.state.getProp(ForkOperatorUtils
+        .getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_DATABASE_NAME, this.branches, this.branchId)));
     try (Connection conn = createConnection()) {
       JdbcWriterCommands commands = this.jdbcWriterCommandsFactory.newInstance(this.state, conn);
-      Map<String, JdbcType> dateColumnMapping = commands.retrieveDateColumns(table);
+      Map<String, JdbcType> dateColumnMapping = commands.retrieveDateColumns(db, table);
       LOG.info("Date column mapping: " + dateColumnMapping);
 
       final String dateFieldsKey = ForkOperatorUtils.getPropertyNameForBranch(

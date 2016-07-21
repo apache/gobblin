@@ -61,6 +61,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
   private final State state;
   private final Collection<WorkUnit> workUnits;
   private final JdbcWriterCommandsFactory jdbcWriterCommandsFactory;
+  private final String database;
   private String userCreatedStagingTable;
   private Set<String> createdStagingTables;
 
@@ -76,6 +77,8 @@ public class JdbcWriterInitializer implements WriterInitializer {
     this.branches = branches;
     this.branchId = branchId;
     this.jdbcWriterCommandsFactory = jdbcWriterCommandsFactory;
+    this.database =
+        getProp(this.state, JdbcPublisher.JDBC_PUBLISHER_DATABASE_NAME, this.branches, this.branchId);
     this.createdStagingTables = Sets.newHashSet();
 
     //AbstractJobLauncher assumes that the staging is in HDFS and trying to clean it.
@@ -97,13 +100,13 @@ public class JdbcWriterInitializer implements WriterInitializer {
       if (!this.createdStagingTables.isEmpty()) {
         for (String stagingTable : this.createdStagingTables) {
           LOG.info("Dropping staging table " + this.createdStagingTables);
-          commands.drop(stagingTable);
+          commands.drop(database, stagingTable);
         }
       }
 
       if (this.userCreatedStagingTable != null) {
         LOG.info("Truncating staging table " + this.userCreatedStagingTable);
-        commands.truncate(this.userCreatedStagingTable);
+        commands.truncate(database, this.userCreatedStagingTable);
       }
     } catch (SQLException e) {
       throw new RuntimeException("Failed to close", e);
@@ -142,14 +145,14 @@ public class JdbcWriterInitializer implements WriterInitializer {
     for (int i = 0; i < NAMING_STAGING_TABLE_TRIAL; i++) {
       String tmp = String.format(STAGING_TABLE_FORMAT, System.nanoTime());
       LOG.info("Check if staging table " + tmp + " exists.");
-      ResultSet res = conn.getMetaData().getTables(null, null, tmp, new String[] { "TABLE" });
+      ResultSet res = conn.getMetaData().getTables(null, database, tmp, new String[] { "TABLE" });
       if (!res.next()) {
         LOG.info("Staging table " + tmp + " does not exist. Creating.");
         try {
-          commands.createTableStructure(destinationTable, tmp);
+          commands.createTableStructure(database, destinationTable, tmp);
           LOG.info("Test if staging table can be dropped. Test by dropping and Creating staging table.");
-          commands.drop(tmp);
-          commands.createTableStructure(destinationTable, tmp);
+          commands.drop(database, tmp);
+          commands.createTableStructure(database, destinationTable, tmp);
           stagingTable = tmp;
           break;
         } catch (SQLException e) {
@@ -226,7 +229,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
                 this.branchId)) {
               LOG.info("User chose to replace final table " + publishTable + " on branch " + this.branchId
                   + " workunit " + i);
-              commands.truncate(publishTable);
+              commands.truncate(database, publishTable);
             }
           }
           continue;
@@ -242,11 +245,11 @@ public class JdbcWriterInitializer implements WriterInitializer {
             if (this.state.getPropAsBoolean(ForkOperatorUtils.getPropertyNameForBranch(
                 ConfigurationKeys.WRITER_TRUNCATE_STAGING_TABLE, this.branches, this.branchId), false)) {
               LOG.info("Truncating staging table " + stagingTable + " as requested.");
-              commands.truncate(stagingTable);
+              commands.truncate(database, stagingTable);
             }
 
             //2.2. Confirm if staging table is empty.
-            if (!commands.isEmpty(stagingTable)) {
+            if (!commands.isEmpty(database, stagingTable)) {
               LOG.error("Staging table " + stagingTable + " is not empty. Failing.");
               throw new IllegalArgumentException("Staging table " + stagingTable + " should be empty.");
             }

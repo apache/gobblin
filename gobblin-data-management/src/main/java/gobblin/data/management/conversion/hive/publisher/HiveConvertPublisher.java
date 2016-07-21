@@ -12,15 +12,24 @@
 package gobblin.data.management.conversion.hive.publisher;
 
 import java.io.IOException;
+import java.net.URI;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.List;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
@@ -41,18 +50,29 @@ import gobblin.util.HadoopUtils;
 /**
  * A simple {@link DataPublisher} updates the watermark and working state
  */
+@Slf4j
 public class HiveConvertPublisher extends DataPublisher {
 
   private final AvroSchemaManager avroSchemaManager;
   private final HiveJdbcConnector hiveJdbcConnector;
   private MetricContext metricContext;
   private EventSubmitter eventSubmitter;
+  private final FileSystem fs;
 
   public HiveConvertPublisher(State state) throws IOException {
     super(state);
     this.avroSchemaManager = new AvroSchemaManager(FileSystem.get(HadoopUtils.newConfiguration()), state);
     this.metricContext = Instrumented.getMetricContext(state, HiveConvertPublisher.class);
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, EventConstants.CONVERSION_NAMESPACE).build();
+
+    Configuration conf = new Configuration();
+    Optional<String> uri = Optional.fromNullable(this.state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI));
+    if (uri.isPresent()) {
+      this.fs = FileSystem.get(URI.create(uri.get()), conf);
+    } else {
+      this.fs = FileSystem.get(conf);
+    }
+
     try {
       this.hiveJdbcConnector = HiveJdbcConnector.newConnectorWithProps(state.getProperties());
     } catch (SQLException e) {
@@ -94,10 +114,14 @@ public class HiveConvertPublisher extends DataPublisher {
           isFirst = false;
         }
 
+        // Get directory to delete before publish partition if any
+        String dirToDelete = HiveAvroORCQueryGenerator.deserializeDirToDeleteBeforePartitionPublish(wus);
+
         // Get publish partition commands if any
         String publishPartitionCommands = HiveAvroORCQueryGenerator.deserializePublishPartitionCommands(wus);
 
         // Execute publish partition commands if any
+        deleteDirectory(dirToDelete);
         executeQueries(publishPartitionCommands);
 
         wus.setWorkingState(WorkingState.COMMITTED);
@@ -112,12 +136,22 @@ public class HiveConvertPublisher extends DataPublisher {
     executeQueries(cleanupCommands);
   }
 
+  private void deleteDirectory(String dirToDelete) throws IOException {
+    if (StringUtils.isBlank(dirToDelete)) {
+      return;
+    }
+
+    log.info("Going to delete existing partition data: " + dirToDelete);
+    this.fs.delete(new Path(dirToDelete), true);
+  }
+
   private void executeQueries(String queries) {
     if (StringUtils.isBlank(queries)) {
       return;
     }
     try {
-      this.hiveJdbcConnector.executeStatements(queries);
+      List<String> queryList = Splitter.on("\n").omitEmptyStrings().trimResults().splitToList(queries);
+      this.hiveJdbcConnector.executeStatements(queryList.toArray(new String[queryList.size()]));
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }

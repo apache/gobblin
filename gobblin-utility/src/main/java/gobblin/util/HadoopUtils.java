@@ -403,6 +403,8 @@ public class HadoopUtils {
    */
   public static void renameRecursively(FileSystem fileSystem, Path from, Path to) throws IOException {
 
+    log.info(String.format("Recursively renaming %s in %s to %s.", from, fileSystem.getUri(), to));
+
     FileSystem throttledFS = getOptionallyThrottledFileSystem(fileSystem, 10000);
 
     ExecutorService executorService = ScalingThreadPoolExecutor.newScalingThreadPool(1, 100, 100,
@@ -411,18 +413,23 @@ public class HadoopUtils {
 
     try {
       if (!fileSystem.exists(from)) {
-        return;
+        throw new IOException("Trying to rename a path that does not exist! " + from);
       }
 
       futures.add(executorService
           .submit(new RenameRecursively(throttledFS, fileSystem.getFileStatus(from), to, executorService, futures)));
+      int futuresUsed = 0;
       while (!futures.isEmpty()) {
         try {
           futures.poll().get();
+          futuresUsed++;
         } catch (ExecutionException | InterruptedException ee) {
           throw new IOException(ee.getCause());
         }
       }
+
+      log.info(String.format("Recursive renaming of %s to %s. (details: used %d futures)", from, to, futuresUsed));
+
     } finally {
       ExecutorsUtils.shutdownExecutorService(executorService, Optional.of(log), 1, TimeUnit.SECONDS);
     }

@@ -20,10 +20,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.thrift.TException;
 
 import com.google.common.base.Optional;
@@ -40,6 +43,7 @@ import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.Co
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
+import gobblin.data.management.copy.hive.HiveUtils;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.util.AutoReturnableObject;
 
@@ -132,7 +136,10 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     String orcTableDatabase = getConversionConfig().getDestinationDbName();
     String orcDataLocation = getOrcDataLocation(workUnit);
     boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
-    Optional<Table> destinationTableMeta = getDestinationTableMeta(orcTableDatabase, orcTableName, workUnit);
+    Pair<Optional<Table>, Optional<List<Partition>>> destinationMeta = getDestinationTableMeta(orcTableDatabase,
+        orcTableName, workUnit);
+    Optional<Table> destinationTableMeta = destinationMeta.getLeft();
+    Optional<List<Partition>> destinationPartitionsMeta = destinationMeta.getRight();
 
     // Optional
     Optional<List<String>> clusterBy =
@@ -141,6 +148,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             : Optional.of(getConversionConfig().getClusterBy());
     Optional<Integer> numBuckets = getConversionConfig().getNumBuckets();
     Optional<Integer> rowLimit = getConversionConfig().getRowLimit();
+    Optional<String> hiveVersion = getConversionConfig().getHiveVersion();
 
     // Populate optional partition info
     Map<String, String> partitionsDDLInfo = Maps.newHashMap();
@@ -153,7 +161,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
 
     // Create DDL statement
-
     Map<String, String> hiveColumns = new HashMap<String, String>();
     String createTargetTableDDL =
         HiveAvroORCQueryGenerator.generateCreateTableDDL(outputAvroSchema,
@@ -210,6 +217,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     publishTableQueries.append(HiveAvroORCQueryGenerator
         .generateEvolutionDDL(orcStagingTableName,
             orcTableName,
+            Optional.of(orcTableDatabase),
+            Optional.of(orcTableDatabase),
             outputAvroSchema,
             isEvolutionEnabled,
             hiveColumns,
@@ -217,22 +226,37 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     publishTableQueries.append(
         HiveAvroORCQueryGenerator.generatePublishTableDDL(orcStagingTableName,
             orcTableName,
+            Optional.of(orcTableDatabase),
+            Optional.of(orcTableDatabase),
             destinationTableMeta)).append("\n");
     HiveAvroORCQueryGenerator.serializePublishTableCommands(workUnit, publishTableQueries.toString());
     log.debug("Publish table queries: " + publishTableQueries);
+
+    Optional<String> dirToDeleteBeforePartitionPublish = HiveAvroORCQueryGenerator
+            .findDirToDeleteBeforePartitionPublish(conversionEntity.getHivePartition(), destinationPartitionsMeta);
+    HiveAvroORCQueryGenerator.serializeDirToDeleteBeforePartitionPublish(workUnit, dirToDeleteBeforePartitionPublish);
+    if (dirToDeleteBeforePartitionPublish.isPresent()) {
+      log.info("Directory to delete before publish partition: " + dirToDeleteBeforePartitionPublish.get());
+    } else {
+      log.info("No pre-existing partition directory to delete before publish partition.");
+    }
 
     StringBuilder publishPartitionQueries = new StringBuilder();
     publishPartitionQueries.append(
         HiveAvroORCQueryGenerator
             .generatePublishPartitionDDL(orcStagingTableName,
                 orcTableName,
+                Optional.of(orcTableDatabase),
+                Optional.of(orcTableDatabase),
                 partitionsDMLInfo,
-                destinationTableMeta)).append("\n");
+                destinationTableMeta,
+                hiveVersion)).append("\n");
     HiveAvroORCQueryGenerator.serializePublishPartitionCommands(workUnit, publishPartitionQueries.toString());
     log.debug("Publish partition queries: " + publishPartitionQueries);
 
     StringBuilder cleanupQueries = new StringBuilder();
-    cleanupQueries.append(HiveAvroORCQueryGenerator.generateCleanupDDL(orcStagingTableName)).append("\n");
+    cleanupQueries.append(HiveAvroORCQueryGenerator.generateCleanupDDL(orcStagingTableName,
+        Optional.of(orcTableDatabase))).append("\n");
     HiveAvroORCQueryGenerator.serializedCleanupCommands(workUnit, cleanupQueries.toString());
     log.debug("Cleanup queries: " + cleanupQueries);
 
@@ -284,22 +308,31 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
   }
 
-  private Optional<Table> getDestinationTableMeta(String dbName, String tableName, WorkUnitState state)
+  private Pair<Optional<Table>, Optional<List<Partition>>> getDestinationTableMeta(String dbName,
+      String tableName, WorkUnitState state)
       throws DataConversionException {
+
     Optional<Table> table = Optional.<Table>absent();
+    Optional<List<Partition>> partitions = Optional.<List<Partition>>absent();
 
     try {
       HiveMetastoreClientPool pool = HiveMetastoreClientPool.get(state.getJobState().getProperties(),
           Optional.fromNullable(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
       try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
         table = Optional.of(client.get().getTable(dbName, tableName));
+        if (table.isPresent()) {
+          org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
+          if (HiveUtils.isPartitioned(qlTable)) {
+            partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String>absent()));
+          }
+        }
       }
     } catch (NoSuchObjectException e) {
-      return Optional.<Table>absent();
+      return ImmutablePair.of(table, partitions);
     } catch (IOException | TException e) {
       throw new DataConversionException("Could not fetch destination table metadata", e);
     }
 
-    return table;
+    return ImmutablePair.of(table, partitions);
   }
 }
