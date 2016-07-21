@@ -267,7 +267,8 @@ ext.externalDependency = [
   "reflections" : "org.reflections:reflections:0.9.10",
   "embeddedProcess": "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.2",
   "testMysqlServer": "com.wix:wix-embedded-mysql:1.1.0",
-  "flyway": "org.flywaydb:flyway-core:3.2.1"
+  "flyway": "org.flywaydb:flyway-core:3.2.1",
+  "freeMarker": "org.freemarker:freemarker:2.3.20"
 ];
 
 if (!isDefaultEnvironment)

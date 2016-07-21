@@ -51,7 +51,8 @@ public class ConfigurationKeys {
   /**
    * Job scheduler configuration properties.
    */
-  // Job executor thread pool size
+  /**Job executor thread pool size*/
+  @ConfigKey
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
   public static final int DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = 5;
   // Job configuration file monitor polling interval in milliseconds
