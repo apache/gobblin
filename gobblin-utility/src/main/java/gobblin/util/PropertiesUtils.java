@@ -44,4 +44,8 @@ public class PropertiesUtils {
     }
     return mapBuilder.build();
   }
+  
+  public static boolean getPropAsBoolean(Properties properties, String key, String defaultValue) {
+    return Boolean.valueOf(properties.getProperty(key, defaultValue));
+  }
 }

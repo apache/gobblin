@@ -12,6 +12,8 @@
 
 package gobblin.metrics;
 
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -19,6 +21,10 @@ import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Lists;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 
 
 /**
@@ -102,5 +108,40 @@ public class GobblinMetricsRegistry {
    */
   public static GobblinMetricsRegistry getInstance() {
     return GLOBAL_INSTANCE;
+  }
+  
+  /**
+   * <p>
+   * Creates {@link gobblin.metrics.MetricContext}. Tries to read the name of the parent context
+   * from key "metrics.context.name" at state, and tries to get the parent context by name from
+   * the {@link gobblin.metrics.MetricContext} registry (the parent context must be registered).
+   * </p>
+   *
+   * <p>
+   * Automatically adds two tags to the inner context:
+   * <ul>
+   * <li> component: attempts to determine which component type within gobblin-api generated this instance. </li>
+   * <li> class: the specific class of the object that generated this instance of Instrumented </li>
+   * </ul>
+   * </p>
+   *
+   */
+  public MetricContext getMetricContext(State state, Class<?> klazz, List<Tag<?>> tags) {
+    int randomId = new Random().nextInt(Integer.MAX_VALUE);
+
+    List<Tag<?>> generatedTags = Lists.newArrayList();
+    
+    if (!klazz.isAnonymousClass()) {
+      generatedTags.add(new Tag<>("class", klazz.getCanonicalName()));
+    }
+
+    Optional<GobblinMetrics> gobblinMetrics = state.contains(ConfigurationKeys.METRIC_CONTEXT_NAME_KEY)
+        ? GobblinMetricsRegistry.getInstance().get(state.getProp(ConfigurationKeys.METRIC_CONTEXT_NAME_KEY))
+        : Optional.<GobblinMetrics> absent();
+
+    MetricContext.Builder builder = gobblinMetrics.isPresent()
+        ? gobblinMetrics.get().getMetricContext().childBuilder(klazz.getCanonicalName() + "." + randomId)
+        : MetricContext.builder(klazz.getCanonicalName() + "." + randomId);
+    return builder.addTags(generatedTags).addTags(tags).build();
   }
 }
