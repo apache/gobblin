@@ -1,7 +1,6 @@
-package gobblin.refactor;
+package gobblin.runtime.util;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+import gobblin.runtime.api.JobSpec;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -32,7 +31,13 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.SchedulerUtils;
+import gobblin.runtime.std.FSJobCatalog.Action;
 
+
+/**
+ * Pretty much the same as ScheudlerUtils.java at current stage.
+ * Todo: To completely migrate those parts of code into refactored job launcher.
+ */
 
 public class JobCatalogUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerUtils.class);
@@ -77,8 +82,7 @@ public class JobCatalogUtils {
    * @param jobConfigPathDir the path for root job configuration file directory
    * @return a list of job configurations in the form of {@link java.util.Properties}
    */
-  public static List<JobSpec> loadGenericJobConfigs(Properties properties, Path commonPropsPath,
-      Path jobConfigPathDir)
+  public static List<JobSpec> loadGenericJobConfigs(Properties properties, Path commonPropsPath, Path jobConfigPathDir)
       throws ConfigurationException, IOException {
     List<Properties> commonPropsList = Lists.newArrayList();
     // Start from the parent of parent of the changed common properties file to avoid
@@ -108,7 +112,7 @@ public class JobCatalogUtils {
    * @param jobConfigPathDir root job configuration file directory
    * @return a job configuration in the form of {@link java.util.Properties}
    */
-  public static Properties loadGenericJobConfig(Properties properties, Path jobConfigPath, Path jobConfigPathDir)
+  public static JobSpec loadGenericJobConfig(Properties properties, Path jobConfigPath, Path jobConfigPathDir)
       throws ConfigurationException, IOException {
     List<Properties> commonPropsList = Lists.newArrayList();
     getCommonProperties(commonPropsList, jobConfigPathDir, jobConfigPath.getParent());
@@ -126,7 +130,13 @@ public class JobCatalogUtils {
         new PropertiesConfiguration(new Path("file://", jobConfigPath).toUri().toURL())));
 
     jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigPath.toString());
-    return jobProps;
+
+    // Create a JobSpec instance based on the info known.
+    FileStatus configFileStatus = jobConfigPath.getFileSystem(new Configuration()).getFileStatus(jobConfigPath);
+    JobSpec.Builder builder = new JobSpec.Builder(jobConfigPath.toUri()).withConfigAsProperties(jobProps)
+        .withVersion(configFileStatus.getModificationTime() + "")
+        .withDescription("Single job" + jobConfigPath + "loaded ");
+    return builder.build();
   }
 
   /**
@@ -197,9 +207,10 @@ public class JobCatalogUtils {
             jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
             jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, configFilePath.toString());
 
-            jobConfigs.add(
-                new JobSpec(configFilePath.toUri(), filesystem.getFileStatus(configFilePath).getModificationTime() + "",
-                    ConfigFactory.parseProperties(jobProps)));
+            // create a new JobSpec instance
+            JobSpec.Builder jobSpecBuilder = new JobSpec.Builder(configFilePath.toUri());
+            JobSpec jobSpec = jobSpecBuilder.build();
+            jobConfigs.add(jobSpec);
           }
         }
       }
@@ -255,21 +266,54 @@ public class JobCatalogUtils {
 
   /**
    * To convert a JobSpec list into a HashMap with URI as the primary key.
+   * Prepared to cache implementation.
    * @param jobSpecList
    * @return
    */
   public static HashMap<URI, JobSpec> jobSpecListToMap(List<JobSpec> jobSpecList) {
-    HashMap<URI, JobSpec> persistedJob = new HashMap<>() ;
-    if ( jobSpecList == null || jobSpecList.size() == 0 ) {
-      return persistedJob ;
-    }
-    else {
+    HashMap<URI, JobSpec> persistedJob = new HashMap<>();
+    if (jobSpecList == null || jobSpecList.size() == 0) {
+      return persistedJob;
+    } else {
 
-      for ( JobSpec aJobSpec:jobSpecList ) {
-        persistedJob.put( aJobSpec.uri, aJobSpec );
+      for (JobSpec aJobSpec : jobSpecList) {
+        persistedJob.put(aJobSpec.getUri(), aJobSpec);
       }
     }
     return persistedJob;
   }
 
+  public static List<JobSpec> loadJobConfigHelper(Path jobConfDirPath, Action action, Path jobConfigPath) {
+    List<JobSpec> jobSpecList = new ArrayList<>();
+    try (FileSystem fs = jobConfDirPath.getFileSystem(new Configuration())) {
+      // initialization of target folder.
+      if (fs.exists(jobConfDirPath)) {
+        LOGGER.info("Loading job configurations from " + jobConfDirPath);
+        Properties properties = new Properties();
+        // Temporarily adding this to make sure backward compatibility.
+        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfDirPath.toString());
+        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, jobConfDirPath.toString());
+        switch (action) {
+          case SINGLEJOB:
+            jobSpecList = JobCatalogUtils.loadGenericJobConfigs(properties);
+            LOGGER.info("Loaded " + jobSpecList.size() + " job configuration(s)");
+            break;
+          case BATCHJOB:
+            jobSpecList.add(JobCatalogUtils.loadGenericJobConfig(properties, jobConfigPath, jobConfDirPath));
+            LOGGER.info("Loaded a job configuration : " + jobConfigPath);
+            break;
+          default:
+            break;
+        }
+      } else {
+        LOGGER.warn("Job configuration directory " + jobConfDirPath + " not found");
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to get the file system info based on configuration file" + jobConfDirPath);
+    } catch (ConfigurationException e) {
+      throw new RuntimeException("Failed to load job configuration from" + jobConfDirPath);
+    }
+
+    return jobSpecList;
+  }
 }

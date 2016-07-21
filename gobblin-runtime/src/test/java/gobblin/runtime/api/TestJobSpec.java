@@ -71,5 +71,4 @@ public class TestJobSpec {
     Assert.assertEquals(js3.getConfigAsProperties().getProperty("a2.c.d"), "1.2");
     Assert.assertEquals(js3.getConfigAsProperties().getProperty("a2.e.f"), "true");
   }
-
 }

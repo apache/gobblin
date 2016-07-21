@@ -20,15 +20,15 @@ import gobblin.annotation.Alpha;
 public interface JobCatalogListener {
   /** Invoked when a new JobSpec is added to the catalog and for all pre-existing jobs on registration
    * of the listener.*/
-  public void onAddJob(JobSpec addedJob);
+  void onAddJob(JobSpec addedJob);
 
   /**
    * Invoked when a JobSpec gets removed from the catalog.
    */
-  public void onDeleteJob(JobSpec deletedJob);
+  void onDeleteJob(JobSpec deletedJob);
 
   /**
    * Invoked when the contents of a JobSpec gets updated in the catalog.
    */
-  public void onUpdateJob(JobSpec originalJob, JobSpec updatedJob);
+  void onUpdateJob(JobSpec originalJob, JobSpec updatedJob);
 }

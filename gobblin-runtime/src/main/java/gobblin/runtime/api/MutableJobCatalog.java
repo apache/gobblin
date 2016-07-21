@@ -25,10 +25,10 @@ public interface MutableJobCatalog extends JobCatalog {
   /**
    * Registers a new JobSpec. If a JobSpec with the same {@link JobSpec#getUri()} exists,
    * it will be replaced. */
-  public void put(JobSpec jobSpec);
+  void put(JobSpec jobSpec);
 
   /**
    * Removes an existing JobSpec with the given URI. A no-op if such JobSpec does not exist.
    */
-  public void remove(URI uri);
+  void remove(URI uri);
 }

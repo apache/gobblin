@@ -9,11 +9,13 @@ import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 
+
 /** Unit tests for {@link InMemoryJobCatalog} */
 public class TestInMemoryJobCatalog {
 
   @Test
-  public void testCallbacks() throws Exception {
+  public void testCallbacks()
+      throws Exception {
     InMemoryJobCatalog cat = new InMemoryJobCatalog();
 
     JobCatalogListener l = Mockito.mock(JobCatalogListener.class);
@@ -40,5 +42,5 @@ public class TestInMemoryJobCatalog {
     Mockito.verify(l).onDeleteJob(Mockito.eq(js2));
 
     Mockito.verifyNoMoreInteractions(l);
-}
+  }
 }
