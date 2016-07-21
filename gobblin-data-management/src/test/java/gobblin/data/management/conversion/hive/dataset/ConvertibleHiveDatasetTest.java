@@ -155,7 +155,7 @@ public class ConvertibleHiveDatasetTest {
     return cd;
   }
 
-  private static Table getTestTable(String dbName, String tableName) {
+  public static Table getTestTable(String dbName, String tableName) {
     Table table = new Table();
     table.setDbName(dbName);
     table.setTableName(tableName);
