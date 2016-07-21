@@ -15,7 +15,10 @@ import java.util.Properties;
 
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
+
 /** A generic interface for any class that can be configured using a {@link Config}. */
+@Alpha
 public interface Configurable {
   /** The configuration */
   public Config getConfig();
