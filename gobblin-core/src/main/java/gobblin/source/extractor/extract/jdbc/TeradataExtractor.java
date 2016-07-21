@@ -198,7 +198,7 @@ public class TeradataExtractor extends JdbcExtractor {
     
     String port = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PORT,"1025");
     String database = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
-    String defaultUrl = urlPrefix + host.trim() + "/DATABASE=" + database.trim() + ",DBS_PORT=" + port.trim() ;
+    String defaultUrl = urlPrefix + host.trim() + "/TYPE=FASTEXPORT,DATABASE=" + database.trim() + ",DBS_PORT=" + port.trim() ;
     // use custom url from source.conn.host if Teradata jdbc url available
     return host.contains(urlPrefix) ? host.trim() : defaultUrl;
   }
