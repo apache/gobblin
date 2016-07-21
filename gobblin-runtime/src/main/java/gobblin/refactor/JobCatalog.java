@@ -17,4 +17,6 @@ public interface JobCatalog {
    * {@link JobCatalog}.
    */
   void addListener(JobCatalogListener jobListener);
+
+  void removeListener(JobCatalogListener jobListener);
 }

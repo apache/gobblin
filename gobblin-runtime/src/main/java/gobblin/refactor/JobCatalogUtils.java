@@ -77,8 +77,7 @@ public class JobCatalogUtils {
    * @param jobConfigPathDir the path for root job configuration file directory
    * @return a list of job configurations in the form of {@link java.util.Properties}
    */
-  public static List<JobSpec> loadGenericJobConfigs(Properties properties, Path commonPropsPath,
-      Path jobConfigPathDir)
+  public static List<JobSpec> loadGenericJobConfigs(Properties properties, Path commonPropsPath, Path jobConfigPathDir)
       throws ConfigurationException, IOException {
     List<Properties> commonPropsList = Lists.newArrayList();
     // Start from the parent of parent of the changed common properties file to avoid
@@ -259,17 +258,15 @@ public class JobCatalogUtils {
    * @return
    */
   public static HashMap<URI, JobSpec> jobSpecListToMap(List<JobSpec> jobSpecList) {
-    HashMap<URI, JobSpec> persistedJob = new HashMap<>() ;
-    if ( jobSpecList == null || jobSpecList.size() == 0 ) {
-      return persistedJob ;
-    }
-    else {
+    HashMap<URI, JobSpec> persistedJob = new HashMap<>();
+    if (jobSpecList == null || jobSpecList.size() == 0) {
+      return persistedJob;
+    } else {
 
-      for ( JobSpec aJobSpec:jobSpecList ) {
-        persistedJob.put( aJobSpec.uri, aJobSpec );
+      for (JobSpec aJobSpec : jobSpecList) {
+        persistedJob.put(aJobSpec.uri, aJobSpec);
       }
     }
     return persistedJob;
   }
-
 }

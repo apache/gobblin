@@ -34,7 +34,7 @@ public class JobSpec implements Configurable {
   }
 
   /**
-   * Convert the Config into Properties format.
+   * todo : Convert the Config into Properties format.
    * @return
    */
   public Properties getConfigAsProperties(){

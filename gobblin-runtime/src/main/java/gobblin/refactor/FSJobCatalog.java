@@ -1,6 +1,5 @@
 package gobblin.refactor;
 
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -78,7 +77,14 @@ public class FSJobCatalog implements JobCatalog {
 
   @Override
   public void addListener(JobCatalogListener jobListener) {
-    if (listeners != null) {
+    if (jobListener != null) {
+      listeners.add(jobListener);
+    }
+  }
+
+  @Override
+  public void removeListener(JobCatalogListener jobListener) {
+    if (jobListener != null) {
       listeners.add(jobListener);
     }
   }
