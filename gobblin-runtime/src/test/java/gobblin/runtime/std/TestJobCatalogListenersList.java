@@ -18,13 +18,13 @@ public class TestJobCatalogListenersList {
     JobSpec js2 = JobSpec.builer("test:job2").build();
 
     JobCatalogListener l1 = Mockito.mock(JobCatalogListener.class);
-    Mockito.doThrow(new RuntimeException("injected l1.onDeleteJob failure")).when(l1).onDeleteJob(Mockito.eq(js2));
+    Mockito.doThrow(new RuntimeException("injected l1 failure")).when(l1).onDeleteJob(Mockito.eq(js2));
 
     JobCatalogListener l2 = Mockito.mock(JobCatalogListener.class);
-    Mockito.doThrow(new RuntimeException("injected l2.onUpdateJob failure")).when(l2).onUpdateJob(Mockito.eq(js1_1), Mockito.eq(js1_2));
+    Mockito.doThrow(new RuntimeException("injected l2 failure")).when(l2).onUpdateJob(Mockito.eq(js1_1), Mockito.eq(js1_2));
 
     JobCatalogListener l3 = Mockito.mock(JobCatalogListener.class);
-    Mockito.doThrow(new RuntimeException("injected l3.onAddJob failure")).when(l3).onAddJob(Mockito.eq(js2));
+    Mockito.doThrow(new RuntimeException("injected l3 failure")).when(l3).onAddJob(Mockito.eq(js2));
 
     ll.addListener(l1);
     ll.addListener(l2);

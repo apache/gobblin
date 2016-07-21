@@ -44,92 +44,104 @@ public class JobCatalogListenersList implements JobCatalogListener {
 
   @Override
   public synchronized void onAddJob(JobSpec addedJob) {
-    for (JobCatalogListener listener: _listeners) {
-      safeCall(new AddJobRunnable(listener, addedJob));
-    }
+    callbackAllListeners(new AddJobCallback(addedJob));
   }
 
   @Override
   public synchronized void onDeleteJob(JobSpec deletedJob) {
-    for (JobCatalogListener listener: _listeners) {
-      safeCall(new DeleteJobRunnable(listener, deletedJob));
-    }
+    callbackAllListeners(new DeleteJobCallback(deletedJob));
   }
 
   @Override
   public synchronized void onUpdateJob(JobSpec originalJob, JobSpec updatedJob) {
+    callbackAllListeners(new UpdateJobCallback(originalJob, updatedJob));
+  }
+
+  private void callbackAllListeners(Callback callback) {
     for (JobCatalogListener listener: _listeners) {
-      safeCall(new UpdateJobRunnable(listener, originalJob, updatedJob));
+      safeCallback(callback, listener);
     }
   }
 
-  private void safeCall(Runnable methodCall) {
+  private void safeCallback(Callback callback, JobCatalogListener listener) {
+    String callbackMsg = null;
     if (_debugLogEnabled) {
-      _log.debug("Starting call: " + methodCall);
+      callbackMsg = "callback " + callback + " on " + listener;
+      _log.debug("Started: " + callbackMsg);
     }
     try {
-      methodCall.run();
+      callback.invoke(listener);
     }
     catch (RuntimeException e) {
-      _log.error("Call failed: " + methodCall + "; error : " + e, e);
+      if (null == callbackMsg) {
+        callbackMsg = "callback " + callback + " on " + listener;
+      }
+      _log.error("FAILED: " + callbackMsg + " ; error : " + e);
     }
     if (_debugLogEnabled) {
-      _log.debug("Finished call: " + methodCall);
+      _log.debug("Finished: " + callbackMsg);
     }
   }
 
   @RequiredArgsConstructor
-  static abstract class MethodRunnable implements Runnable {
+  static abstract class Callback {
     final protected String methodName;
-    final protected JobCatalogListener listener;
+    final protected JobSpec param1;
+    final protected JobSpec param2;
 
     @Override
     public String toString() {
-      return this.methodName + " for " + this.listener;
+      StringBuilder sb = new StringBuilder(this.methodName);
+      sb.append('(');
+      sb.append('[');
+      jobSpecToParamString(param1, sb);
+      if (null != param2) {
+        sb.append(']');
+        sb.append(',');
+        jobSpecToParamString(param2, sb);
+      }
+      sb.append(']');
+      sb.append(')');
+      return sb.toString();
+    }
+
+    public abstract void invoke(JobCatalogListener listener);
+
+    private static StringBuilder jobSpecToParamString(JobSpec js, StringBuilder sb) {
+      return sb.append(js.getUri().toString()).append(',').append(js.getVersion());
     }
   }
 
-  static class AddJobRunnable extends MethodRunnable {
-    final JobSpec addedJob;
-
-    public AddJobRunnable(JobCatalogListener listener, JobSpec addedJob) {
-      super("onAddJob", listener);
-      this.addedJob = addedJob;
+  static class AddJobCallback extends Callback {
+    public AddJobCallback(JobSpec addedJob) {
+      super("onAddJob", addedJob, null);
     }
 
     @Override
-    public void run() {
-      this.listener.onAddJob(this.addedJob);
+    public void invoke(JobCatalogListener listener) {
+      listener.onAddJob(this.param1);
     }
   }
 
-  static class DeleteJobRunnable extends MethodRunnable {
-    final JobSpec deletedJob;
-
-    public DeleteJobRunnable(JobCatalogListener listener, JobSpec deletedJob) {
-      super("onDeleteJob", listener);
-      this.deletedJob = deletedJob;
+  static class DeleteJobCallback extends Callback {
+    public DeleteJobCallback(JobSpec deletedJob) {
+      super("onDeleteJob", deletedJob, null);
     }
 
     @Override
-    public void run() {
-      this.listener.onDeleteJob(this.deletedJob);
+    public void invoke(JobCatalogListener listener) {
+      listener.onDeleteJob(this.param1);
     }
   }
 
-  static class UpdateJobRunnable extends MethodRunnable {
-    final JobSpec originalJob;
-    final JobSpec updatedJob;
-
-    public UpdateJobRunnable(JobCatalogListener listener, JobSpec originalJob, JobSpec updatedJob) {
-      super("onUpdateJob", listener);
-      this.originalJob = originalJob;
-      this.updatedJob = updatedJob;
+  static class UpdateJobCallback extends Callback {
+    public UpdateJobCallback(JobSpec originalJob, JobSpec updatedJob) {
+      super("onUpdateJob", originalJob, updatedJob);
     }
 
     @Override
-    public void run() {
-      this.listener.onUpdateJob(this.originalJob, this.updatedJob);
+    public void invoke(JobCatalogListener listener) {
+      listener.onUpdateJob(this.param1, this.param2);
     }
   }
 
