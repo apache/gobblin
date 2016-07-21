@@ -46,6 +46,14 @@ public class JobSpec implements Configurable {
   /** Job config as a properties collection for backwards compatibility */
   final Properties configAsProperties;
 
+  public static Builder builer(URI jobSpecUri) {
+    return new Builder(jobSpecUri);
+  }
+
+  public static Builder builer(String jobSpecUri) {
+    return new Builder(jobSpecUri);
+  }
+
   public static class Builder {
     private Optional<Config> config = Optional.absent();
     private Optional<Properties> configAsProperties = Optional.absent();
