@@ -138,8 +138,8 @@ public class ConvertibleHiveDataset extends HiveDataset {
     public static final String EVOLUTION_ENABLED = "evolution.enabled";
     public static final String ROW_LIMIT_KEY = "rowLimit";
     public static final String HIVE_VERSION_KEY = "hiveVersion";
-
     private static final String HIVE_RUNTIME_PROPERTIES_KEY_PREFIX = "hiveRuntime";
+
     private final String destinationFormat;
     private final String destinationTableName;
     private final String destinationStagingTableName;
@@ -174,6 +174,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
       this.evolutionEnabled = ConfigUtils.getBoolean(config, EVOLUTION_ENABLED, false);
       this.rowLimit = Optional.fromNullable(ConfigUtils.getInt(config, ROW_LIMIT_KEY, null));
       this.hiveVersion = Optional.fromNullable(ConfigUtils.getString(config, HIVE_VERSION_KEY, null));
+
     }
   }
 
