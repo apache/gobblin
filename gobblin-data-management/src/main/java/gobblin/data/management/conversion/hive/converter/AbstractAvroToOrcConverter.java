@@ -12,6 +12,7 @@
 package gobblin.data.management.conversion.hive.converter;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,14 +25,18 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.thrift.TException;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import gobblin.configuration.WorkUnitState;
@@ -74,6 +79,11 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       return this.configPrefix;
     }
   }
+
+  /**
+   * list of partitions that a partition has replaced. E.g. list of hourly partitons for a daily partition
+   */
+  private static final String REPLACED_PARTITIONS_HIVE_METASTORE_KEY = "gobblin.replaced.partitions";
 
   /**
    * The dataset being converted.
@@ -251,6 +261,15 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 partitionsDMLInfo,
                 destinationTableMeta,
                 hiveVersion)).append("\n");
+
+    /*
+     * Drop the replaced partitions if any. This is required in case the partition being converted is derived from
+     * several other partitions. E.g. Daily partition is a replacement of hourly partitions of the same day. When daily
+     * partition is converted to ORC all it's hourly ORC partitions need to be dropped.
+     */
+    publishPartitionQueries.append(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(orcTableDatabase,
+        orcTableName, getDropPartitionsDDLInfo(conversionEntity))).append("\n");
+
     HiveAvroORCQueryGenerator.serializePublishPartitionCommands(workUnit, publishPartitionQueries.toString());
     log.debug("Publish partition queries: " + publishPartitionQueries);
 
@@ -274,6 +293,44 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       orcDataLocation += Path.SEPARATOR + workUnit.getJobState().getId();
     }
     return orcDataLocation;
+  }
+
+  /**
+   * Parse the {@link #REPLACED_PARTITIONS_KEY} from partition parameters to returns DDLs for all the partitions to be
+   * dropped.
+   */
+  @VisibleForTesting
+  public static List<Map<String, String>> getDropPartitionsDDLInfo(QueryBasedHiveConversionEntity conversionEntity) {
+    if (!conversionEntity.getHivePartition().isPresent()) {
+      return Collections.emptyList();
+    }
+
+    Table table = conversionEntity.getHiveTable().getTTable();
+    Partition hivePartition = conversionEntity.getHivePartition().get();
+
+    List<Map<String, String>> replacedPartitionsDDLInfo = Lists.newArrayList();
+    List<FieldSchema> partitionKeys = table.getPartitionKeys();
+
+    if (StringUtils.isNotBlank(hivePartition.getParameters().get(REPLACED_PARTITIONS_HIVE_METASTORE_KEY))) {
+
+      // Partitions are separated by "|"
+      for (String partitionsInfoString : Splitter.on("|").omitEmptyStrings().split(hivePartition.getParameters().get(REPLACED_PARTITIONS_HIVE_METASTORE_KEY))) {
+
+        // Values for a partition are separated by ","
+        List<String> partitionValues = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsInfoString);
+
+        // Do not drop partition the being processed. Sometimes a partition may have replaced another partition of the same values.
+        if (!partitionValues.equals(hivePartition.getValues())) {
+          ImmutableMap.Builder<String, String> partitionDDLInfoMap = ImmutableMap.builder();
+          for (int i = 0; i < partitionKeys.size(); i++) {
+            partitionDDLInfoMap.put(partitionKeys.get(i).getName(), partitionValues.get(i));
+          }
+          replacedPartitionsDDLInfo.add(partitionDDLInfoMap.build());
+        }
+      }
+    }
+
+    return replacedPartitionsDDLInfo;
   }
 
   private void populatePartitionInfo(QueryBasedHiveConversionEntity conversionEntity, Map<String, String> partitionsDDLInfo,

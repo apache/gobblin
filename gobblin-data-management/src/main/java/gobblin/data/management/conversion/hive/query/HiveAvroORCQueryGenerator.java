@@ -27,10 +27,14 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -824,6 +828,31 @@ public class HiveAvroORCQueryGenerator {
     return String.format("DROP TABLE IF EXISTS `%s`.`%s`", stagingDbName, stagingTableName) + "\n";
   }
 
+  /**
+   * Generate DDL for dropping partitions of a table.
+   * <p>
+   * ALTER TABLE finalTableName DROP IF EXISTS PARTITION partition_spec, PARTITION partition_spec, ...;
+   * </p>
+   * @param finalTableName Table name where partitions are dropped
+   * @param partitionDMLInfos list of Partition to be dropped
+   * @return DDL to drop partitions in <code>finalTableName</code>
+   */
+  public static String generateDropPartitionsDDL(final String dbName, final String finalTableName,
+      final List<Map<String, String>> partitionDMLInfos) {
+
+    if (partitionDMLInfos.isEmpty()) {
+      return StringUtils.EMPTY;
+    }
+
+    StringBuilder ddl = new StringBuilder(String.format("USE %s%n", dbName));
+    ddl.append(String.format("ALTER TABLE %s DROP IF EXISTS ", finalTableName));
+
+    // Join the partition specs
+    ddl.append(Joiner.on(",").join(Iterables.transform(partitionDMLInfos, PARTITION_SPEC_GENERATOR)));
+    ddl.append("\n");
+    return ddl.toString();
+  }
+
   /***
    * Serialize a {@link String} of publish table commands into a {@link State} at
    * {@link #SERIALIZED_PUBLISH_TABLE_COMMANDS}.
@@ -929,4 +958,26 @@ public class HiveAvroORCQueryGenerator {
       return true;
     }
   }
+
+  /**
+   * Generate partition spec in Hive standard syntax. (partition_column=partition_col_value, partition_column=partition_col_value, ...)
+   */
+  private static final Function<Map<String, String>, String> PARTITION_SPEC_GENERATOR = new Function<Map<String, String>, String>() {
+    @Override
+    public String apply(Map<String, String> partitionDMLInfo) {
+
+      if (partitionDMLInfo == null) {
+        return StringUtils.EMPTY;
+      }
+      return String.format(" PARTITION (%s)", Joiner.on(",").withKeyValueSeparator("=").join(Maps.transformValues(partitionDMLInfo, QUOTE_PARTITION_VALUES)));
+    }
+  };
+
+  private static final Function<String, String> QUOTE_PARTITION_VALUES = new Function<String, String>() {
+
+    @Override
+    public String apply(String value) {
+      return String.format("'%s'", value);
+    }
+  };
 }
