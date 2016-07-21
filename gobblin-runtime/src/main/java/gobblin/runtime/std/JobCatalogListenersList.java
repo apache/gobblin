@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
@@ -35,35 +36,41 @@ public class JobCatalogListenersList implements JobCatalogListener {
   }
 
   public synchronized void addListener(JobCatalogListener newListener) {
+    Preconditions.checkNotNull(newListener);
     _listeners.add(newListener);
   }
 
   public synchronized void removeListener(JobCatalogListener oldListener) {
+    Preconditions.checkNotNull(oldListener);
     _listeners.remove(oldListener);
   }
 
   @Override
   public synchronized void onAddJob(JobSpec addedJob) {
+    Preconditions.checkNotNull(addedJob);
     callbackAllListeners(new AddJobCallback(addedJob));
   }
 
   @Override
   public synchronized void onDeleteJob(JobSpec deletedJob) {
+    Preconditions.checkNotNull(deletedJob);
     callbackAllListeners(new DeleteJobCallback(deletedJob));
   }
 
   @Override
   public synchronized void onUpdateJob(JobSpec originalJob, JobSpec updatedJob) {
+    Preconditions.checkNotNull(originalJob);
+    Preconditions.checkNotNull(updatedJob);
     callbackAllListeners(new UpdateJobCallback(originalJob, updatedJob));
   }
 
-  private void callbackAllListeners(Callback callback) {
+  public void callbackAllListeners(Callback callback) {
     for (JobCatalogListener listener: _listeners) {
-      safeCallback(callback, listener);
+      callbackOneListener(callback, listener);
     }
   }
 
-  private void safeCallback(Callback callback, JobCatalogListener listener) {
+  public void callbackOneListener(Callback callback, JobCatalogListener listener) {
     String callbackMsg = null;
     if (_debugLogEnabled) {
       callbackMsg = "callback " + callback + " on " + listener;
