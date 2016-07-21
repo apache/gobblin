@@ -47,10 +47,7 @@ public class DefaultConfigurableImpl implements Configurable {
   }
 
   public static DefaultConfigurableImpl createFromProperties(Properties srcConfig) {
-    return new DefaultConfigurableImpl(convertPropertiesToConfig(srcConfig), srcConfig);
+    return new DefaultConfigurableImpl(ConfigUtils.propertiesToConfig(srcConfig), srcConfig);
   }
 
-  public static Config convertPropertiesToConfig(Properties srcConfig) {
-    return ConfigUtils.propertiesToConfig(srcConfig);
-  }
 }

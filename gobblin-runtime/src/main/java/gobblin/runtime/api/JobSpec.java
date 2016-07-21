@@ -12,12 +12,16 @@
 package gobblin.runtime.api;
 
 import java.net.URI;
-import java.util.Optional;
+import java.net.URISyntaxException;
 import java.util.Properties;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.annotation.Alpha;
+import gobblin.util.ConfigUtils;
 
 import lombok.Data;
 
@@ -31,16 +35,82 @@ import lombok.Data;
 @Alpha
 @Data
 public class JobSpec implements Configurable {
-  /** Job config as a typesafe config object*/
-  final Config config;
-  /** Job config as a properties collection for backwards compatibility */
-  final Properties configAsProperties;
   /** An URI identifying the job. */
   final URI uri;
   /** The implementation-defined version of this spec. */
   final String version;
   /** Human-readable description of the job spec */
   final String description;
-  /** The URI of a optional job template used to generate the spec */
-  final Optional<URI> template;
+  /** Job config as a typesafe config object*/
+  final Config config;
+  /** Job config as a properties collection for backwards compatibility */
+  final Properties configAsProperties;
+
+  public static class Builder {
+    private Optional<Config> config = Optional.absent();
+    private Optional<Properties> configAsProperties = Optional.absent();
+    private URI uri;
+    private String version = "1";
+    private Optional<String> description = Optional.absent();
+
+    public Builder(URI jobSpecUri) {
+      Preconditions.checkNotNull(jobSpecUri);
+      this.uri = jobSpecUri;
+    }
+
+    public Builder(String jobSpecUri) {
+      Preconditions.checkNotNull(jobSpecUri);
+      Preconditions.checkNotNull(jobSpecUri);
+      try {
+        this.uri = new URI(jobSpecUri);
+      }
+      catch (URISyntaxException e) {
+        throw new RuntimeException("Invalid JobSpec config: " + e, e);
+      }
+    }
+
+    public JobSpec build() {
+      Preconditions.checkNotNull(this.uri);
+      Preconditions.checkNotNull(this.version);
+
+      if (! this.config.isPresent() && ! this.configAsProperties.isPresent()) {
+        this.config = Optional.of(ConfigFactory.empty());
+      }
+      if (! this.configAsProperties.isPresent()) {
+        this.configAsProperties = Optional.of(ConfigUtils.configToProperties(this.config.get()));
+      }
+      if (! this.config.isPresent()) {
+        this.config = Optional.of(ConfigUtils.propertiesToConfig(this.configAsProperties.get()));
+      }
+      if (! this.description.isPresent()) {
+        this.description = Optional.of("Gobblin job " + this.uri);
+      }
+      return new JobSpec(this.uri, this.version, this.description.get(), this.config.get(),
+          this.configAsProperties.get());
+    }
+
+    public Builder withVersion(String version) {
+      Preconditions.checkNotNull(version);
+      this.version = version;
+      return this;
+    }
+
+    public Builder withDescription(String jobDescription) {
+      Preconditions.checkNotNull(jobDescription);
+      this.description = Optional.of(jobDescription);
+      return this;
+    }
+
+    public Builder withConfig(Config jobConfig) {
+      Preconditions.checkNotNull(jobConfig);
+      this.config = Optional.of(jobConfig);
+      return this;
+    }
+
+    public Builder withConfigAsProperties(Properties jobConfig) {
+      Preconditions.checkNotNull(jobConfig);
+      this.configAsProperties = Optional.of(jobConfig);
+      return this;
+    }
+  }
 }
