@@ -31,7 +31,7 @@ public class FileStatusEntry extends FileStatus {
       throw new IllegalArgumentException("Path is missing");
     }
     this.parent = parent;
-    this._fileStatus = Optional.of(path.getFileSystem(new Configuration()).getFileStatus(path));
+    this._fileStatus = Optional.fromNullable(path.getFileSystem(new Configuration()).getFileStatus(path));
   }
 
   public boolean refresh(final Path path)
@@ -46,21 +46,31 @@ public class FileStatusEntry extends FileStatus {
       try (FileSystem fileSystem = path.getFileSystem(conf)) {
 
         // refresh the values
-        exists = fileSystem.exists(path);
-        this._fileStatus = Optional.of(fileSystem.getFileStatus(path));
 
-        if ( _fileStatus.isPresent() ) {
+        this._fileStatus = Optional.fromNullable(fileSystem.getFileStatus(path));
+        exists = this._fileStatus.isPresent();
+
+        if (_fileStatus.isPresent()) {
           // Return if there are changes
-          return exists != origExists ||
-              _fileStatus.get().getModificationTime() != oldStatus.getModificationTime() ||
+          // We cannot replace using _fileStatus.equal method, as the FileEntry's implementation of equal
+          // only compare the path itself, instead of taking other metadata into consideration.
+          return exists != origExists || _fileStatus.get().getModificationTime() != oldStatus.getModificationTime() ||
               _fileStatus.get().isDirectory() != oldStatus.isDirectory() ||
               _fileStatus.get().getLen() != oldStatus.getLen();
-        }else {
-          throw new NullPointerException("Path is missing "); 
+        } else {
+          throw new IllegalArgumentException("Path is missing ");
         }
       }
     } else {
-      throw new IllegalArgumentException("Path is missing");
+      if (!exists) {
+        throw new IllegalArgumentException("Path is missing");
+      } else {
+        /*
+        The semantics is:
+        For this round of checking doesn't report anything until next round of check is issued.
+        */
+        return false;
+      }
     }
   }
 
@@ -151,8 +161,8 @@ public class FileStatusEntry extends FileStatus {
     if (o == null || this.getClass() != o.getClass()) {
       return false;
     }
-    FileStatus other = (FileStatus) o;
-    return this.getPath().equals(other.getPath());
+    FileStatusEntry other = (FileStatusEntry) o;
+    return this._fileStatus.get().equals(other._fileStatus.get());
   }
 
   /**

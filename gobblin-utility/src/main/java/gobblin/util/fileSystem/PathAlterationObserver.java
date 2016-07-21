@@ -13,7 +13,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
-import org.apache.zookeeper.common.PathUtils;
+
 
 
 public class PathAlterationObserver {
@@ -275,7 +275,6 @@ public class PathAlterationObserver {
    */
   private void doMatch(final FileStatusEntry entry, final Path path)
       throws IOException {
-
     if (entry.refresh(path)) {
       for (final PathAlterationListener listener : listeners) {
         if (entry.isDirectory()) {

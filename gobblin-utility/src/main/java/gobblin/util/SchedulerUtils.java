@@ -166,12 +166,13 @@ public class SchedulerUtils {
     try (final FileSystem fileSystem = rootDirPath.getFileSystem(conf)) {
 
       // List subdirectories under the current root directory, obtain a Path array
-      FileStatus[] subDirsStatus = fileSystem.listStatus(rootDirPath, new PathFilter() {
+      FileStatus[] subDirsStatus = fileSystem.listStatus(rootDirPath
+          , new PathFilter() {
         @Override
         public boolean accept(Path path) {
           try {
             FileStatusEntry fileStatusEntry = new FileStatusEntry(path);
-            return fileStatusEntry.isExists();
+            return fileStatusEntry.isDirectory();
           }catch (IOException e) {
             e.printStackTrace();
           }

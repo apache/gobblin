@@ -259,11 +259,7 @@ public class SchedulerUtilsTest {
     Assert.assertEquals(jobProps.getProperty("k9"), "a8");
   }
 
-  @Test(dependsOnMethods = {
-      "testLoadGenericJobConfigsWithDoneFile",
-      "testLoadJobConfigsForCommonPropsFile",
-      "testloadGenericJobConfig"
-  })
+  @Test(dependsOnMethods = {"testLoadGenericJobConfigsWithDoneFile", "testLoadJobConfigsForCommonPropsFile", "testloadGenericJobConfig"})
   public void testPathAlterationObserver()
       throws Exception {
     PathAlterationMonitor monitor = new PathAlterationMonitor(1000);
@@ -301,7 +297,7 @@ public class SchedulerUtilsTest {
 
       semaphore.acquire(3);
       Assert.assertEquals(fileAltered.size(), 3);
-      // why the folder will be included ?
+
       Assert.assertTrue(fileAltered.contains(new Path("file:" + jobConfigFile)));
       Assert.assertTrue(fileAltered.contains(new Path("file:" + commonPropsFile)));
       Assert.assertTrue(fileAltered.contains(new Path("file:" + newJobConfigFile)));
