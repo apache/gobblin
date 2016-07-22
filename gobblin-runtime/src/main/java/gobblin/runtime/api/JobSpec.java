@@ -74,8 +74,7 @@ public class JobSpec implements Configurable {
       Preconditions.checkNotNull(jobSpecUri);
       try {
         this.uri = new URI(jobSpecUri);
-      }
-      catch (URISyntaxException e) {
+      } catch (URISyntaxException e) {
         throw new RuntimeException("Invalid JobSpec config: " + e, e);
       }
     }
@@ -84,16 +83,16 @@ public class JobSpec implements Configurable {
       Preconditions.checkNotNull(this.uri);
       Preconditions.checkNotNull(this.version);
 
-      if (! this.config.isPresent() && ! this.configAsProperties.isPresent()) {
+      if (!this.config.isPresent() && !this.configAsProperties.isPresent()) {
         this.config = Optional.of(ConfigFactory.empty());
       }
-      if (! this.configAsProperties.isPresent()) {
+      if (!this.configAsProperties.isPresent()) {
         this.configAsProperties = Optional.of(ConfigUtils.configToProperties(this.config.get()));
       }
-      if (! this.config.isPresent()) {
+      if (!this.config.isPresent()) {
         this.config = Optional.of(ConfigUtils.propertiesToConfig(this.configAsProperties.get()));
       }
-      if (! this.description.isPresent()) {
+      if (!this.description.isPresent()) {
         this.description = Optional.of("Gobblin job " + this.uri);
       }
       return new JobSpec(this.uri, this.version, this.description.get(), this.config.get(),
@@ -123,5 +122,13 @@ public class JobSpec implements Configurable {
       this.configAsProperties = Optional.of(jobConfig);
       return this;
     }
+  }
+
+  /**
+   * get the private uri as the primary key for this object.
+   * @return
+   */
+  public URI getUri() {
+    return this.uri ;
   }
 }

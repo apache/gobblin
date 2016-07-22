@@ -28,6 +28,7 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.std.JobCatalogListenersList.AddJobCallback;
 
+
 /**
  * Simple implementation of a Gobblin job catalog that stores all JobSpecs in memory. No persistence
  * is provided.
@@ -64,7 +65,7 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
     Preconditions.checkNotNull(jobListener);
 
     this.listeners.addListener(jobListener);
-    for (Map.Entry<URI, JobSpec> jobSpecEntry: this.jobSpecs.entrySet()) {
+    for (Map.Entry<URI, JobSpec> jobSpecEntry : this.jobSpecs.entrySet()) {
       AddJobCallback addJobCallback = new AddJobCallback(jobSpecEntry.getValue());
       this.listeners.callbackOneListener(addJobCallback, jobListener);
     }
@@ -82,8 +83,7 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
     JobSpec oldSpec = this.jobSpecs.put(jobSpec.getUri(), jobSpec);
     if (null == oldSpec) {
       this.listeners.onAddJob(jobSpec);
-    }
-    else {
+    } else {
       this.listeners.onUpdateJob(oldSpec, jobSpec);
     }
   }
@@ -96,5 +96,4 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
       this.listeners.onDeleteJob(jobSpec);
     }
   }
-
 }
