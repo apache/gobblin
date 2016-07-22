@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.std.JobCatalogListenersList.AddJobCallback;
 
@@ -55,7 +56,12 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
   /**{@inheritDoc}*/
   @Override
   public synchronized JobSpec getJobSpec(URI uri) {
-    return this.jobSpecs.get(uri);
+    if (this.jobSpecs.containsKey(uri)) {
+      return this.jobSpecs.get(uri);
+    }
+    else {
+      throw new JobSpecNotFoundException(uri);
+    }
   }
 
   /**{@inheritDoc}*/

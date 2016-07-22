@@ -12,7 +12,7 @@
 
 package gobblin.source.extractor.extract.kafka;
 
-import static org.mockito.Mockito.any;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -25,28 +25,10 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
-
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import io.confluent.kafka.serializers.KafkaAvroSerializer;
-import io.confluent.kafka.serializers.KafkaJsonDeserializer;
-import io.confluent.kafka.serializers.KafkaJsonSerializer;
-
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-import kafka.message.Message;
-import kafka.message.MessageAndOffset;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -55,6 +37,20 @@ import gobblin.metrics.kafka.KafkaSchemaRegistry;
 import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.PropertiesUtils;
+
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import io.confluent.kafka.serializers.KafkaJsonDeserializer;
+import io.confluent.kafka.serializers.KafkaJsonSerializer;
+import kafka.message.Message;
+import kafka.message.MessageAndOffset;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 
 @Test(groups = { "gobblin.source.extractor.extract.kafka" })
@@ -73,7 +69,7 @@ public class KafkaDeserializerExtractorTest {
     String testString = "Hello World";
     ByteBuffer testStringByteBuffer = ByteBuffer.wrap(testString.getBytes(StandardCharsets.UTF_8));
 
-    Deserializer<?> mockKafkaDecoder = mock(Deserializer.class);
+    Deserializer<Object> mockKafkaDecoder = mock(Deserializer.class);
     KafkaSchemaRegistry<?, ?> mockKafkaSchemaRegistry = mock(KafkaSchemaRegistry.class);
     when(mockKafkaDecoder.deserialize(TEST_TOPIC_NAME, testStringByteBuffer.array())).thenReturn(testString);
 

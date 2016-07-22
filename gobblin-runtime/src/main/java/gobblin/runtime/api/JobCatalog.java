@@ -24,7 +24,10 @@ public interface JobCatalog {
   /** Returns an immutable {@link Collection} of {@link JobSpec}s that are known to the catalog. */
   Collection<JobSpec> getJobs();
 
-  /** Get a {@link JobSpec} by uri. */
+  /**
+   * Get a {@link JobSpec} by uri.
+   * @throws JobSpecNotFoundException if no such JobSpec exists
+   **/
   JobSpec getJobSpec(URI uri);
 
   /**
