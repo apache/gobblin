@@ -24,6 +24,9 @@ import com.google.common.base.Optional;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecNotFoundException;
+import gobblin.runtime.job_catalog.CachingJobCatalog;
+import gobblin.runtime.job_catalog.InMemoryJobCatalog;
+import gobblin.runtime.job_catalog.MutableCachingJobCatalog;
 
 /** Unit tests for {@link CachingJobCatalog} and {@link MutableCachingJobCatalog} */
 public class TestMutableCachingJobCatalog {

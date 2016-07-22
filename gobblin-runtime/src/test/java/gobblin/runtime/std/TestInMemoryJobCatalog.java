@@ -7,6 +7,7 @@ import org.testng.annotations.Test;
 
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 
 /** Unit tests for {@link InMemoryJobCatalog} */
 public class TestInMemoryJobCatalog {

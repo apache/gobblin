@@ -5,6 +5,7 @@ import org.testng.annotations.Test;
 
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.job_catalog.JobCatalogListenersList;
 
 /** Unit tests for {@link JobCatalogListenersList} */
 public class TestJobCatalogListenersList {
