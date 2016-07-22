@@ -24,10 +24,13 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.commit.CommitStep;
@@ -174,8 +177,12 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         prePublish.size(), postPublish.size()));
 
     executeCommitSequence(prePublish);
-    // Targets are always absolute, so we start moving from root (will skip any existing directories).
-    HadoopUtils.renameRecursively(this.fs, datasetWriterOutputPath, new Path("/"));
+    if (hasCopyableFiles(datasetWorkUnitStates)) {
+      // Targets are always absolute, so we start moving from root (will skip any existing directories).
+      HadoopUtils.renameRecursively(this.fs, datasetWriterOutputPath, new Path("/"));
+    } else {
+      log.info(String.format("[%s] No copyable files in dataset. Proceeding to postpublish steps.", datasetAndPartition.identifier()));
+    }
     executeCommitSequence(postPublish);
 
     this.fs.delete(datasetWriterOutputPath, true);
@@ -204,6 +211,15 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(this.eventSubmitter, datasetAndPartition,
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp));
+  }
+
+  private static boolean hasCopyableFiles(Collection<WorkUnitState> workUnits) throws IOException {
+    for (WorkUnitState wus : workUnits) {
+      if (CopyableFile.class.isAssignableFrom(CopySource.getCopyEntityClass(wus))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static List<CommitStep> getCommitSequence(Collection<WorkUnitState> workUnits, Class<?> baseClass)

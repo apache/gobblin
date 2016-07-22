@@ -16,11 +16,14 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.avro.Schema;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
@@ -32,6 +35,7 @@ import gobblin.data.management.conversion.hive.LocalHiveMetastoreTestUtils;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetTest;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
 
 
@@ -135,4 +139,30 @@ public class HiveAvroToOrcConverterTest {
     }
   }
 
+  @Test
+  public void dropReplacedPartitionsTest() throws Exception {
+
+    Table table = ConvertibleHiveDatasetTest.getTestTable("dbName", "tableName");
+    table.setTableType("VIRTUAL_VIEW");
+    table.setPartitionKeys(ImmutableList.of(new FieldSchema("year", "string", ""), new FieldSchema("month", "string", "")));
+
+    Partition part = new Partition();
+    part.setParameters(ImmutableMap.of("gobblin.replaced.partitions", "2015,12|2016,01"));
+
+    SchemaAwareHiveTable hiveTable = new SchemaAwareHiveTable(table, null);
+    SchemaAwareHivePartition partition = new SchemaAwareHivePartition(table, part, null);
+
+    QueryBasedHiveConversionEntity conversionEntity = new QueryBasedHiveConversionEntity(null, hiveTable, Optional.of(partition));
+    List<ImmutableMap<String, String>> expected =
+        ImmutableList.of(ImmutableMap.of("year", "2015", "month", "12"), ImmutableMap.of("year", "2016", "month", "01"));
+    Assert.assertEquals(AbstractAvroToOrcConverter.getDropPartitionsDDLInfo(conversionEntity), expected);
+
+    // Make sure that a partition itself is not dropped
+    Partition replacedSelf = new Partition();
+    replacedSelf.setParameters(ImmutableMap.of("gobblin.replaced.partitions", "2015,12|2016,01|2016,02"));
+    replacedSelf.setValues(ImmutableList.of("2016", "02"));
+
+    conversionEntity = new QueryBasedHiveConversionEntity(null, hiveTable, Optional.of(new SchemaAwareHivePartition(table, replacedSelf, null)));
+    Assert.assertEquals(AbstractAvroToOrcConverter.getDropPartitionsDDLInfo(conversionEntity), expected);
+  }
 }

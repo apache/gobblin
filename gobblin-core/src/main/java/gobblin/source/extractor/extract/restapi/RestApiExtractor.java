@@ -72,14 +72,14 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
   public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException {
     log.info("Extract Metadata using Rest Api");
     JsonArray columnArray = new JsonArray();
-    String inputQuery = workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
+    String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
     List<String> columnListInQuery = null;
     JsonArray array = null;
     if (!Strings.isNullOrEmpty(inputQuery)) {
       columnListInQuery = Utils.getColumnListFromQuery(inputQuery);
     }
 
-    String excludedColumns = workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXCLUDED_COLUMNS);
+    String excludedColumns = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXCLUDED_COLUMNS);
     List<String> columnListExcluded = ImmutableList.<String> of();
 
     if (Strings.isNullOrEmpty(inputQuery) && !Strings.isNullOrEmpty(excludedColumns)) {
@@ -101,16 +101,16 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
         Schema obj = GSON.fromJson(columnElement, Schema.class);
         String columnName = obj.getColumnName();
 
-        obj.setWaterMark(this.isWatermarkColumn(workUnit.getProp("extract.delta.fields"), columnName));
+        obj.setWaterMark(this.isWatermarkColumn(workUnitState.getProp("extract.delta.fields"), columnName));
 
-        if (this.isWatermarkColumn(workUnit.getProp("extract.delta.fields"), columnName)) {
+        if (this.isWatermarkColumn(workUnitState.getProp("extract.delta.fields"), columnName)) {
           obj.setNullable(false);
-        } else if (this.getPrimarykeyIndex(workUnit.getProp("extract.primary.key.fields"), columnName) == 0) {
+        } else if (this.getPrimarykeyIndex(workUnitState.getProp("extract.primary.key.fields"), columnName) == 0) {
           // set all columns as nullable except primary key and watermark columns
           obj.setNullable(true);
         }
 
-        obj.setPrimaryKey(this.getPrimarykeyIndex(workUnit.getProp("extract.primary.key.fields"), columnName));
+        obj.setPrimaryKey(this.getPrimarykeyIndex(workUnitState.getProp("extract.primary.key.fields"), columnName));
 
         String jsonStr = GSON.toJson(obj);
         JsonObject jsonObject = GSON.fromJson(jsonStr, JsonObject.class).getAsJsonObject();

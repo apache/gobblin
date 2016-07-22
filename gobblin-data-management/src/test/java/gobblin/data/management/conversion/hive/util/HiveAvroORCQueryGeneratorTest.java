@@ -13,11 +13,10 @@
 package gobblin.data.management.conversion.hive.util;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -25,13 +24,14 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import gobblin.data.management.ConversionHiveTestUtils;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.util.AvroFlattener;
 
 
-@Slf4j
 @Test(groups = { "gobblin.data.management.conversion" })
 public class HiveAvroORCQueryGeneratorTest {
 
@@ -183,7 +183,7 @@ public class HiveAvroORCQueryGeneratorTest {
     String schemaName = "nonRecordRootSchema";
     Schema schema = Schema.create(Schema.Type.STRING);
 
-    String q = HiveAvroORCQueryGenerator
+    HiveAvroORCQueryGenerator
         .generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
@@ -213,5 +213,24 @@ public class HiveAvroORCQueryGeneratorTest {
 
     Assert.assertEquals(q.trim(),
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "flattenedWithRowLimit.dml"));
+  }
+
+  @Test
+  public void testDropPartitions() throws Exception {
+
+    List<Map<String, String>> partitionDMLInfos = Lists.newArrayList();
+    partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-01", "sizepartition", "10"));
+    partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-02", "sizepartition", "20"));
+    partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-03", "sizepartition", "30"));
+
+    String ddl = HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1", partitionDMLInfos);
+
+    Assert.assertEquals(ddl, "USE db1\n"
+        + "ALTER TABLE table1 DROP IF EXISTS  PARTITION (datepartition='2016-01-01',sizepartition='10'), "
+        + "PARTITION (datepartition='2016-01-02',sizepartition='20'), "
+        + "PARTITION (datepartition='2016-01-03',sizepartition='30')\n");
+
+    // Check empty partitions
+    Assert.assertEquals(HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1", Collections.<Map<String, String>> emptyList()), "");
   }
 }
