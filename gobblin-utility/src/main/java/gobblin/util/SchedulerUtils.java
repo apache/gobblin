@@ -12,6 +12,7 @@
 
 package gobblin.util;
 
+import com.google.common.base.Predicate;
 import gobblin.util.filesystem.FileStatusEntry;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -161,40 +162,6 @@ public class SchedulerUtils {
     PathAlterationObserver observer = new PathAlterationObserver(rootDirPath);
     observer.addListener(listener);
     monitor.addObserver(observer);
-
-    Configuration conf = new Configuration();
-    try (final FileSystem fileSystem = rootDirPath.getFileSystem(conf)) {
-
-      // List subdirectories under the current root directory, obtain a Path array
-      FileStatus[] subDirsStatus = fileSystem.listStatus(rootDirPath
-          , new PathFilter() {
-        @Override
-        public boolean accept(Path path) {
-          try {
-            FileStatusEntry fileStatusEntry = new FileStatusEntry(path);
-            return fileStatusEntry.isDirectory();
-          }catch (IOException e) {
-            e.printStackTrace();
-          }
-          return false ;
-        }
-      });
-      if (subDirsStatus != null && subDirsStatus.length > 0) {
-        ArrayList<Path> subDirsList = new ArrayList<>();
-        for (FileStatus subDirStatus : subDirsStatus) {
-          subDirsList.add(subDirStatus.getPath());
-        }
-
-        if (subDirsList.size() == 0) {
-          return;
-        }
-
-        // Recursively add a observer for each subdirectory
-        for (Path subDir : subDirsList) {
-          addPathAlterationObserver(monitor, listener, subDir);
-        }
-      }
-    }
   }
 
   /**
@@ -298,8 +265,7 @@ public class SchedulerUtils {
       // Traversal backward until the parent of the root job configuration file directory is reached
       // Pay attention that the path Object will have a "file:/" as the prefix, so for comparison requirement
       // that prefix need to be addressed.
-      while (!configPathParent.equals(PathUtils.addFilePrefixForComparison(jobConfigPathDir.getParent(), "file:"))
-          && !configPathParent.equals(jobConfigPathDir.getParent())) {
+      while (!PathUtils.compareWithoutSchemeAndAuthority(configPathParent, jobConfigPathDir.getParent())) {
 
         // Get the properties file that ends with .properties if any
         FileStatus[] propertiesFilesStatus = fileSystem.listStatus(configPathParent, PROPERTIES_PATH_FILTER);

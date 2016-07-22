@@ -164,8 +164,10 @@ public class PathAlterationObserver {
     final Path rootPath = rootEntry.getPath();
 
     if (fs.exists(rootPath)) {
+      // Current existed.
       checkAndNotify(rootEntry, rootEntry.getChildren(), listPaths(rootPath));
     } else if (rootEntry.isExists()) {
+      // Existed before and not existed now.
       checkAndNotify(rootEntry, rootEntry.getChildren(), EMPTY_PATH_ARRAY);
     } else {
       // Didn't exist and still doesn't

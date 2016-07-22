@@ -1,6 +1,7 @@
 package gobblin.util.filesystem;
 
 import com.google.common.base.Optional;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -36,40 +37,29 @@ public class FileStatusEntry extends FileStatus {
 
   public boolean refresh(final Path path)
       throws IOException {
-
-    // cache original values
-    final boolean origExists = exists;
-    if (_fileStatus.isPresent()) {
-      FileStatus oldStatus = _fileStatus.get();
-      Configuration conf = new Configuration();
-
-      try (FileSystem fileSystem = path.getFileSystem(conf)) {
-
-        // refresh the values
-
-        this._fileStatus = Optional.fromNullable(fileSystem.getFileStatus(path));
-        exists = this._fileStatus.isPresent();
-
-        if (_fileStatus.isPresent()) {
-          // Return if there are changes
-          // We cannot replace using _fileStatus.equal method, as the FileEntry's implementation of equal
-          // only compare the path itself, instead of taking other metadata into consideration.
-          return exists != origExists || _fileStatus.get().getModificationTime() != oldStatus.getModificationTime() ||
-              _fileStatus.get().isDirectory() != oldStatus.isDirectory() ||
-              _fileStatus.get().getLen() != oldStatus.getLen();
-        } else {
-          throw new IllegalArgumentException("Path is missing ");
+    try (FileSystem fs = path.getFileSystem(new Configuration())) {
+      if (_fileStatus.isPresent()) {
+        Optional<FileStatus> oldStatus = this._fileStatus;
+        try {
+          Optional<FileStatus> newStatus = Optional.of(fs.getFileStatus(path));
+          this.exists = newStatus.isPresent();
+          return (oldStatus.isPresent() != this._fileStatus.isPresent()
+              || oldStatus.get().getModificationTime() != newStatus.get().getModificationTime()
+              || oldStatus.get().isDirectory() != newStatus.get().isDirectory() || oldStatus.get().getLen() != newStatus
+              .get()
+              .getLen());
+        } catch (FileNotFoundException e) {
+          _fileStatus = Optional.absent();
+          this.exists = false;
+          return true;
         }
-      }
-    } else {
-      if (!exists) {
-        throw new IllegalArgumentException("Path is missing");
       } else {
-        /*
-        The semantics is:
-        For this round of checking doesn't report anything until next round of check is issued.
-        */
-        return false;
+        if (path.getFileSystem(new Configuration()).exists(path)) {
+          _fileStatus = Optional.of(fs.getFileStatus(path));
+          return true;
+        } else {
+          return false;
+        }
       }
     }
   }
