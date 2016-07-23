@@ -141,7 +141,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     }
 
     this.eventSubmitter = Optional.fromNullable(eventSubmitter);
-    this.configStoreUri = Optional.fromNullable(properties.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI));
+    this.configStoreUri = StringUtils.isNotBlank(properties.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI)) ?
+        Optional.of(properties.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI)) : Optional.<String>absent();
     this.datasetConfigPrefix = properties.getProperty(HIVE_DATASET_CONFIG_PREFIX_KEY, DEFAULT_HIVE_DATASET_CONIFG_PREFIX);
     this.configClient = configClient;
     this.jobConfig = ConfigUtils.propertiesToConfig(properties);

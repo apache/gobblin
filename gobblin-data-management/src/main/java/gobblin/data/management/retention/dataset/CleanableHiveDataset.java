@@ -91,6 +91,7 @@ public class CleanableHiveDataset extends HiveDataset implements CleanableDatase
               Class.forName(ConfigUtils.getString(datasetConfig, VERSION_FINDER_CLASS_KEY, DEFAULT_VERSION_FINDER_CLASS)),
               ImmutableList.<Object> of(this.fs, datasetConfig), ImmutableList.<Object> of(this.fs, jobProps));
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
+      log.error("Failed to instantiate CleanableHiveDataset", e);
       throw new IllegalArgumentException(e);
     }
 
