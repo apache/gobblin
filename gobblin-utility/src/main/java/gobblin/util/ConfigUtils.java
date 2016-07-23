@@ -93,6 +93,30 @@ public class ConfigUtils {
    * @return a {@link Config} instance
    */
   public static Config propertiesToConfig(Properties properties, Optional<String> prefix) {
+    ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
+    for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+      if (StringUtils.startsWith(entry.getKey().toString(), prefix.or(StringUtils.EMPTY))) {
+        immutableMapBuilder.put(entry.getKey().toString(), entry.getValue());
+      }
+    }
+    return ConfigFactory.parseMap(immutableMapBuilder.build());
+  }
+
+  /**
+   * Convert all the keys that start with a <code>prefix</code> in {@link Properties} to a
+   * {@link Config} instance. The method also tries to guess the types of properties.
+   *
+   * <p>
+   *   This method will throw an exception if (1) the {@link Object#toString()} method of any two keys in the
+   *   {@link Properties} objects returns the same {@link String}, or (2) if any two keys are prefixes of one another,
+   *   see the Java Docs of {@link ConfigFactory#parseMap(Map)} for more details.
+   * </p>
+   *
+   * @param properties the given {@link Properties} instance
+   * @param prefix of keys to be converted
+   * @return a {@link Config} instance
+   */
+  public static Config propertiesToTypedConfig(Properties properties, Optional<String> prefix) {
     Map<String, Object> typedProps = guessPropertiesTypes(properties);
     ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
     for (Map.Entry<String, Object> entry : typedProps.entrySet()) {
