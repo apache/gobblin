@@ -13,11 +13,10 @@
 package gobblin.data.management.conversion.hive.util;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -25,13 +24,14 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import gobblin.data.management.ConversionHiveTestUtils;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.util.AvroFlattener;
 
 
-@Slf4j
 @Test(groups = { "gobblin.data.management.conversion" })
 public class HiveAvroORCQueryGeneratorTest {
 
@@ -183,7 +183,7 @@ public class HiveAvroORCQueryGeneratorTest {
     String schemaName = "nonRecordRootSchema";
     Schema schema = Schema.create(Schema.Type.STRING);
 
-    String q = HiveAvroORCQueryGenerator
+    HiveAvroORCQueryGenerator
         .generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
@@ -213,5 +213,74 @@ public class HiveAvroORCQueryGeneratorTest {
 
     Assert.assertEquals(q.trim(),
         ConversionHiveTestUtils.readQueryFromFile(resourceDir, "flattenedWithRowLimit.dml"));
+  }
+
+  @Test
+  public void testDropPartitions() throws Exception {
+
+    List<Map<String, String>> partitionDMLInfos = Lists.newArrayList();
+    partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-01", "sizepartition", "10"));
+    partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-02", "sizepartition", "20"));
+    partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-03", "sizepartition", "30"));
+
+    List<String> ddl = HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1", partitionDMLInfos);
+
+    Assert.assertEquals(ddl.size(), 2);
+    Assert.assertEquals(ddl.get(0), "USE db1 \n");
+    Assert.assertEquals(ddl.get(1),
+          "ALTER TABLE table1 DROP IF EXISTS  PARTITION (datepartition='2016-01-01',sizepartition='10'), "
+        + "PARTITION (datepartition='2016-01-02',sizepartition='20'), "
+        + "PARTITION (datepartition='2016-01-03',sizepartition='30')");
+
+    // Check empty partitions
+    Assert.assertEquals(HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1",
+        Collections.<Map<String, String>>emptyList()), Collections.emptyList());
+  }
+
+  @Test
+  public void testCreatePartitionDDL() throws Exception {
+    List<String> ddl = HiveAvroORCQueryGenerator.generateCreatePartitionDDL("db1", "table1", "/tmp",
+        ImmutableMap.of("datepartition", "2016-01-01", "sizepartition", "10"));
+
+    Assert.assertEquals(ddl.size(), 2);
+    Assert.assertEquals(ddl.get(0), "USE db1\n");
+    Assert.assertEquals(ddl.get(1),
+        "ALTER TABLE `table1` ADD IF NOT EXISTS PARTITION (`datepartition`='2016-01-01', `sizepartition`='10') \n"
+            + " LOCATION '/tmp' ");
+  }
+
+  @Test
+  public void testDropTableDDL() throws Exception {
+    String ddl = HiveAvroORCQueryGenerator.generateDropTableDDL("db1", "table1");
+
+    Assert.assertEquals(ddl, "DROP TABLE IF EXISTS `db1`.`table1`");
+  }
+
+  @Test
+  public void testHiveTypeEscaping() throws Exception {
+    String type = "array<struct<singleItems:array<struct<scoredEntity:struct<id:string,score:float,"
+        + "sourceName:string,sourceModel:string>,scores:struct<fprScore:double,fprUtility:double,"
+        + "calibratedFprUtility:double,sprScore:double,adjustedSprScore:double,sprUtility:double>,"
+        + "sponsoredFlag:string,blendingRequestId:string,forExploration:boolean,d2Resource:string,"
+        + "restliFinder:string,trackingId:binary,aggregation:struct<positionInAggregation:struct<index:int>,"
+        + "typeOfAggregation:string>,decoratedFeedUpdateData:struct<avoData:struct<actorUrn:string,verbType:"
+        + "string,objectUrn:string,objectType:string>,attributedActivityUrn:string,createdTime:bigint,totalLikes:"
+        + "bigint,totalComments:bigint,rootActivity:struct<activityUrn:string,avoData:struct<actorUrn:string,"
+        + "verbType:string,objectUrn:string,objectType:string>>>>>,scores:struct<fprScore:double,fprUtility:double,"
+        + "calibratedFprUtility:double,sprScore:double,adjustedSprScore:double,sprUtility:double>,position:int>>";
+    String expectedEscapedType = "array<struct<`singleItems`:array<struct<`scoredEntity`:struct<`id`:string,"
+        + "`score`:float,`sourceName`:string,`sourceModel`:string>,`scores`:struct<`fprScore`:double,"
+        + "`fprUtility`:double,`calibratedFprUtility`:double,`sprScore`:double,`adjustedSprScore`:double,"
+        + "`sprUtility`:double>,`sponsoredFlag`:string,`blendingRequestId`:string,`forExploration`:boolean,"
+        + "`d2Resource`:string,`restliFinder`:string,`trackingId`:binary,`aggregation`:struct<`positionInAggregation`"
+        + ":struct<`index`:int>,`typeOfAggregation`:string>,`decoratedFeedUpdateData`:struct<`avoData`:"
+        + "struct<`actorUrn`:string,`verbType`:string,`objectUrn`:string,`objectType`:string>,`attributedActivityUrn`"
+        + ":string,`createdTime`:bigint,`totalLikes`:bigint,`totalComments`:bigint,`rootActivity`:struct<`activityUrn`"
+        + ":string,`avoData`:struct<`actorUrn`:string,`verbType`:string,`objectUrn`:string,`objectType`:string>>>>>,"
+        + "`scores`:struct<`fprScore`:double,`fprUtility`:double,`calibratedFprUtility`:double,`sprScore`:double,"
+        + "`adjustedSprScore`:double,`sprUtility`:double>,`position`:int>>";
+    String actualEscapedType = HiveAvroORCQueryGenerator.escapeHiveType(type);
+
+    Assert.assertEquals(actualEscapedType, expectedEscapedType);
   }
 }

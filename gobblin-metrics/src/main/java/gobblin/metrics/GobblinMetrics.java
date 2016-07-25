@@ -55,7 +55,7 @@ import gobblin.metrics.reporter.OutputStreamEventReporter;
 import gobblin.metrics.reporter.OutputStreamReporter;
 import gobblin.metrics.reporter.ScheduledReporter;
 import gobblin.password.PasswordManager;
-import gobblin.source.extractor.utils.Utils;
+import gobblin.util.PropertiesUtils;
 
 
 /**
@@ -85,7 +85,7 @@ public class GobblinMetrics {
    * @return whether metrics collection and reporting are enabled
    */
   public static boolean isEnabled(Properties properties) {
-    return Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_ENABLED_KEY,
+    return PropertiesUtils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_ENABLED);
   }
 
@@ -561,12 +561,12 @@ public class GobblinMetrics {
 
   private void buildGraphiteMetricReporter(Properties properties) {
     boolean metricsEnabled =
-        Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY,
+        PropertiesUtils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_METRICS_ENABLED);
     if (metricsEnabled) LOGGER.info("Reporting metrics to Graphite");
     
     boolean eventsEnabled =
-        Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED_KEY,
+        PropertiesUtils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_EVENTS_ENABLED);
     if (eventsEnabled) LOGGER.info("Reporting events to Graphite");
     
@@ -612,7 +612,7 @@ public class GobblinMetrics {
         
     if (eventsEnabled) {
       boolean emitValueAsKey =
-          Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY,
+          PropertiesUtils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY,
               ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_EVENTS_VALUE_AS_KEY);
       String eventsPortProp = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_EVENTS_PORT);
       int eventsPort =
@@ -635,12 +635,12 @@ public class GobblinMetrics {
 
   private void buildInfluxDBMetricReporter(Properties properties) {
     boolean metricsEnabled =
-        Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_INFLUXDB_METRICS_ENABLED_KEY,
+        PropertiesUtils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_INFLUXDB_METRICS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_INFLUXDB_METRICS_ENABLED);
     if (metricsEnabled) LOGGER.info("Reporting metrics to InfluxDB");
     
     boolean eventsEnabled =
-        Utils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED_KEY,
+        PropertiesUtils.getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_INFLUXDB_EVENTS_ENABLED);
     if (eventsEnabled) LOGGER.info("Reporting events to InfluxDB");
     

@@ -39,6 +39,10 @@ import gobblin.hive.HiveRegister;
 import gobblin.hive.HiveRegistrationUnit.Column;
 import gobblin.hive.HiveTable;
 import gobblin.hive.spec.HiveSpec;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.GobblinMetricsRegistry;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventSubmitter;
 import gobblin.util.AutoCloseableLock;
 import gobblin.util.AutoReturnableObject;
 
@@ -67,6 +71,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
   private final HiveMetastoreClientPool clientPool;
   private final HiveLock locks = new HiveLock();
+  private final EventSubmitter eventSubmitter;
 
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
@@ -75,6 +80,11 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     config.setMaxTotal(this.props.getNumThreads());
     config.setMaxIdle(this.props.getNumThreads());
     this.clientPool = HiveMetastoreClientPool.get(this.props.getProperties(), metastoreURI);
+    
+    MetricContext metricContext =
+        GobblinMetricsRegistry.getInstance().getMetricContext(state, HiveMetaStoreBasedRegister.class, GobblinMetrics.getCustomTagsFromState(state));
+        
+    this.eventSubmitter = new EventSubmitter.Builder(metricContext, "gobblin.hive.HiveMetaStoreBasedRegister").build();
   }
 
   @Override
@@ -89,7 +99,9 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       if (partition.isPresent()) {
         addOrAlterPartition(client.get(), table, HiveMetaStoreUtils.getPartition(partition.get()), spec);
       }
+      HiveMetaStoreEventHelper.submitSuccessfulPathRegistration(eventSubmitter, spec);
     } catch (TException e) {
+      HiveMetaStoreEventHelper.submitFailedPathRegistration(eventSubmitter, spec, e);
       throw new IOException(e);
     }
   }
@@ -122,10 +134,12 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       try {
         client.createDatabase(db);
         log.info("Created database " + dbName);
+        HiveMetaStoreEventHelper.submitSuccessfulDBCreation(this.eventSubmitter, dbName);
         return true;
       } catch (AlreadyExistsException e) {
         return false;
       } catch (TException e) {
+        HiveMetaStoreEventHelper.submitFailedDBCreation(this.eventSubmitter, dbName, e);
         throw new IOException("Unable to create Hive database " + dbName, e);
       }
     }
@@ -135,7 +149,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public boolean createTableIfNotExists(HiveTable table) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
         AutoCloseableLock lock = this.locks.getTableLock(table.getDbName(), table.getTableName())) {
-      return createTableIfNotExists(client.get(), HiveMetaStoreUtils.getTable(table));
+      return createTableIfNotExists(client.get(), HiveMetaStoreUtils.getTable(table), table);
     }
   }
 
@@ -149,15 +163,17 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       } catch (NoSuchObjectException e) {
         client.get().alter_partition(table.getDbName(), table.getTableName(),
             HiveMetaStoreUtils.getPartition(partition));
+        HiveMetaStoreEventHelper.submitSuccessfulPartitionAdd(this.eventSubmitter, table, partition);
         return true;
       }
     } catch (TException e) {
+      HiveMetaStoreEventHelper.submitFailedPartitionAdd(this.eventSubmitter, table, partition, e);
       throw new IOException(String.format("Unable to add partition %s in table %s in db %s", partition.getValues(),
           table.getTableName(), table.getDbName()), e);
     }
   }
 
-  private boolean createTableIfNotExists(IMetaStoreClient client, Table table) throws IOException {
+  private boolean createTableIfNotExists(IMetaStoreClient client, Table table, HiveTable hiveTable) throws IOException {
     String dbName = table.getDbName();
     String tableName = table.getTableName();
 
@@ -167,8 +183,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       }
       client.createTable(table);
       log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
+      HiveMetaStoreEventHelper.submitSuccessfulTableCreation(this.eventSubmitter, hiveTable);
       return true;
     } catch (TException e) {
+      HiveMetaStoreEventHelper.submitFailedTableCreation(eventSubmitter, hiveTable, e);
       throw new IOException(String.format("Error in creating or altering Hive table %s in db %s", table.getTableName(),
           table.getDbName()), e);
     }
@@ -227,9 +245,11 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       if (client.get().tableExists(dbName, tableName)) {
         client.get().dropTable(dbName, tableName);
+        HiveMetaStoreEventHelper.submitSuccessfulTableDrop(eventSubmitter, dbName, tableName);
         log.info("Dropped table " + tableName + " in db " + dbName);
       }
     } catch (TException e) {
+      HiveMetaStoreEventHelper.submitFailedTableDrop(eventSubmitter, dbName, tableName, e);
       throw new IOException(String.format("Unable to deregister table %s in db %s", tableName, dbName), e);
     }
   }
@@ -239,10 +259,12 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       List<String> partitionValues) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       client.get().dropPartition(dbName, tableName, partitionValues, false);
+      HiveMetaStoreEventHelper.submitSuccessfulPartitionDrop(eventSubmitter, dbName, tableName, partitionValues);
       log.info("Dropped partition " + partitionValues + " in table " + tableName + " in db " + dbName);
     } catch (NoSuchObjectException e) {
       // Partition does not exist. Nothing to do
     } catch (TException e) {
+      HiveMetaStoreEventHelper.submitFailedPartitionDrop(eventSubmitter, dbName, tableName, partitionValues, e);
       throw new IOException(String.format("Unable to check existence of Hive partition %s in table %s in db %s",
           partitionValues, tableName, dbName), e);
     }
@@ -323,7 +345,9 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         throw new IOException("Table " + table.getTableName() + " in db " + table.getDbName() + " does not exist");
       }
       client.get().alter_table(table.getDbName(), table.getTableName(), HiveMetaStoreUtils.getTable(table));
+      HiveMetaStoreEventHelper.submitSuccessfulTableAlter(eventSubmitter, table);
     } catch (TException e) {
+      HiveMetaStoreEventHelper.submitFailedTableAlter(eventSubmitter, table, e);
       throw new IOException("Unable to alter table " + table.getTableName() + " in db " + table.getDbName(), e);
     }
   }
@@ -332,7 +356,9 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public void alterPartition(HiveTable table, HivePartition partition) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       client.get().alter_partition(table.getDbName(), table.getTableName(), HiveMetaStoreUtils.getPartition(partition));
+      HiveMetaStoreEventHelper.submitSuccessfulPartitionAlter(eventSubmitter, table, partition);
     } catch (TException e) {
+      HiveMetaStoreEventHelper.submitFailedPartitionAlter(eventSubmitter, table, partition, e);
       throw new IOException(String.format("Unable to alter partition %s in table %s in db %s", partition.getValues(),
           table.getTableName(), table.getDbName()), e);
     }

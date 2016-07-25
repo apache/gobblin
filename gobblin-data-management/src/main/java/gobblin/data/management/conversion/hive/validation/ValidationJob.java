@@ -30,9 +30,9 @@ import org.joda.time.DateTime;
 
 import azkaban.jobExecutor.AbstractJob;
 
-import com.beust.jcommander.internal.Maps;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;

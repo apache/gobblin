@@ -460,6 +460,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_ENABLED = Boolean.toString(true);
   public static final String METRICS_REPORT_INTERVAL_KEY = METRICS_CONFIGURATIONS_PREFIX + "report.interval";
   public static final String DEFAULT_METRICS_REPORT_INTERVAL = Long.toString(TimeUnit.SECONDS.toMillis(30));
+  public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
 
   // File-based reporting
   public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
