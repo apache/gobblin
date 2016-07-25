@@ -223,14 +223,17 @@ public class HiveAvroORCQueryGeneratorTest {
     partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-02", "sizepartition", "20"));
     partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-03", "sizepartition", "30"));
 
-    String ddl = HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1", partitionDMLInfos);
+    List<String> ddl = HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1", partitionDMLInfos);
 
-    Assert.assertEquals(ddl, "USE db1\n"
-        + "ALTER TABLE table1 DROP IF EXISTS  PARTITION (datepartition='2016-01-01',sizepartition='10'), "
+    Assert.assertEquals(ddl.size(), 2);
+    Assert.assertEquals(ddl.get(0), "USE db1 \n");
+    Assert.assertEquals(ddl.get(1),
+          "ALTER TABLE table1 DROP IF EXISTS  PARTITION (datepartition='2016-01-01',sizepartition='10'), "
         + "PARTITION (datepartition='2016-01-02',sizepartition='20'), "
-        + "PARTITION (datepartition='2016-01-03',sizepartition='30')\n");
+        + "PARTITION (datepartition='2016-01-03',sizepartition='30')");
 
     // Check empty partitions
-    Assert.assertEquals(HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1", Collections.<Map<String, String>> emptyList()), "");
+    Assert.assertEquals(HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1",
+        Collections.<Map<String, String>>emptyList()), Collections.emptyList());
   }
 }
