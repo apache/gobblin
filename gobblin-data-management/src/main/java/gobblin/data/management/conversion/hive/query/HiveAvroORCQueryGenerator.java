@@ -335,7 +335,13 @@ public class HiveAvroORCQueryGenerator {
 
     return ddls;
   }
-  
+
+  /***
+   * Generate DDL query to drop a Hive table.
+   * @param dbName Hive database name.
+   * @param tableName Hive table name.
+   * @return Command to drop the table.
+   */
   public static String generateDropTableDDL(String dbName, String tableName) {
     return String.format("DROP TABLE IF EXISTS `%s`.`%s`", dbName, tableName);
   }
