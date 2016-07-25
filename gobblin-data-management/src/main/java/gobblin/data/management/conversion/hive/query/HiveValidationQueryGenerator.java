@@ -18,8 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import gobblin.data.management.copy.hive.HiveDataset;
