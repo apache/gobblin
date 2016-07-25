@@ -26,7 +26,6 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.ql.metadata.Partition;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -43,7 +42,6 @@ import com.google.gson.GsonBuilder;
 
 import gobblin.configuration.State;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
-import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
 
 
 /***
@@ -669,7 +667,7 @@ public class HiveAvroORCQueryGenerator {
 
     // Partition details
     if (optionalPartitionDMLInfo.isPresent()) {
-      if (optionalPartitionDMLInfo.get().size()  > 0) {
+      if (optionalPartitionDMLInfo.get().size() > 0) {
         dmlQuery.append("WHERE ");
         for (Map.Entry<String, String> partition : optionalPartitionDMLInfo.get().entrySet()) {
           dmlQuery.append(String.format("`%s`='%s'",
@@ -753,140 +751,6 @@ public class HiveAvroORCQueryGenerator {
     }
 
     return ddl;
-  }
-
-  /***
-   * Generate DDLs to publish staging table to final destination table.
-   * @param stagingTableName Staging table name to publish from.
-   * @param finalTableName Final table name to publish to.
-   * @param optionalStagingDbName Optional staging database name, defaults to default.
-   * @param optionalFinalDbName Optional final database name, defaults to default.
-   * @param destinationTableMeta Existing final table metadata if any.
-   * @return DDL to publish to final destination table from staging table.
-   */
-  public static List<String> generatePublishTableDDL(
-      String stagingTableName,
-      String finalTableName,
-      Optional<String> optionalStagingDbName,
-      Optional<String> optionalFinalDbName,
-      Optional<Table> destinationTableMeta) {
-    List<String> ddl = Lists.newArrayList();
-
-    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
-    String finalDbName = optionalFinalDbName.isPresent() ? optionalFinalDbName.get() : DEFAULT_DB_NAME;
-    Preconditions.checkArgument(stagingDbName.equalsIgnoreCase(finalDbName), "We do not support staging and final "
-        + "tables in different Hive databases because of limitations of Hive v0.13");
-
-    // If new table, then create table
-    if (!destinationTableMeta.isPresent()) {
-      ddl.add(String.format("DROP TABLE IF EXISTS `%s`.`%s`", finalDbName, finalTableName));
-      // Note: Hive does not support fully qualified Hive table names such as db.table for 'RENAME' in v0.13
-      // .. hence specifying 'use dbName' as a precursor to rename
-      // Refer: HIVE-2496
-      ddl.add(String.format("USE `%s`", finalDbName));
-      ddl.add(String.format("ALTER TABLE `%s` RENAME TO `%s`", stagingTableName, finalTableName));
-    }
-
-    return ddl;
-  }
-
-  /***
-   * Generate DDLs to publish staging table partitions to final destination table.
-   * @param stagingTableName Staging table name to publish from.
-   * @param finalTableName Final table name to publish to.
-   * @param optionalStagingDbName Optional staging database name, defaults to default.
-   * @param optionalFinalDbName Optional final database name, defaults to default.
-   * @param partitionsDMLInfo Partitions to be moved from staging to final table.
-   * @param destinationTableMeta Existing final table metadata if any.
-   * @param hiveVersion Hive version for compatibility.
-   * @return DDL to publish to final destination table from staging table.
-   */
-  public static List<String> generatePublishPartitionDDL(String stagingTableName,
-      String finalTableName,
-      Optional<String> optionalStagingDbName,
-      Optional<String> optionalFinalDbName,
-      Map<String, String> partitionsDMLInfo,
-      Optional<Table> destinationTableMeta,
-      Optional<String> hiveVersion) {
-    if (!destinationTableMeta.isPresent() || partitionsDMLInfo.size() == 0) {
-      return Collections.emptyList();
-    }
-
-    // Format: alter table t4 exchange partition (ds='3') with table t3
-    List<String> ddl = Lists.newArrayList();
-
-    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
-    String finalDbName = optionalFinalDbName.isPresent() ? optionalFinalDbName.get() : DEFAULT_DB_NAME;
-
-    // Schema is already evolved or if evolution is turned off then staging and final table have same schema
-    // .. now we have to move partitions from staging to final table
-    // Note: In Hive v0.13 exchange partition behaves inversely: HIVE-6129 and was fixed later
-    //       More context: HIVE-4095
-    for (Map.Entry<String, String> partition : partitionsDMLInfo.entrySet()) {
-      // Note: Hive does not support fully qualified Hive table names such as db.table for ALTER TABLE in v0.13
-      // .. hence specifying 'use dbName' as a precursor to rename
-      // Refer: HIVE-2496
-      ddl.add(String.format("USE `%s`", finalDbName));
-      ddl.add(String.format("ALTER TABLE `%s` DROP IF EXISTS PARTITION (%s='%s')", finalTableName, partition.getKey(),
-          partition.getValue()));
-
-      if (hiveVersion.isPresent()
-          && !"0.13".equalsIgnoreCase(hiveVersion.get())
-          && !"0.12".equalsIgnoreCase(hiveVersion.get())) {
-        // Newer versions have the bug fixed
-        ddl.add(String.format("ALTER TABLE `%s`.`%s` EXCHANGE PARTITION (%s='%s') WITH TABLE `%s`.`%s`", stagingDbName,
-            stagingTableName, partition.getKey(), partition.getValue(), finalDbName, finalTableName));
-      } else {
-        // By default assume it is 0.13 or 0.12 with the bug (pre 0.12 versions did not support exchange partitions)
-        ddl.add(String.format("ALTER TABLE `%s`.`%s` EXCHANGE PARTITION (%s='%s') WITH TABLE `%s`.`%s`", finalDbName,
-            finalTableName, partition.getKey(), partition.getValue(), stagingDbName, stagingTableName));
-      }
-    }
-
-    return ddl;
-  }
-
-  /***
-   * Find directory to delete before partition is published. This is required when a pre-existing destination
-   * partition is being overwritten and it has a data directory.
-   * Exchange partition has a bug because of which it is not able to cleanly overwrite data, and instead moves
-   * staging table partition as a sub-directory of existing destination partition directory, rather than
-   * completely replacing it.
-   *
-   * Refer: HIVE-11194
-   *
-   * @param sourcePartition Source table partition.
-   * @param destinationPartitionsMeta Metadata about destination partition.
-   * @return Directory to be deleted recursively before publish.
-   */
-  public static Optional<String> findDirToDeleteBeforePartitionPublish(
-      Optional<SchemaAwareHivePartition> sourcePartition, Optional<List<Partition>> destinationPartitionsMeta) {
-    if (!sourcePartition.isPresent() || !destinationPartitionsMeta.isPresent()) {
-      return Optional.<String>absent();
-    }
-
-    for (Partition partitionMeta : destinationPartitionsMeta.get()) {
-      if (sourcePartition.get().getName().equalsIgnoreCase(partitionMeta.getName())) {
-        return Optional.of(partitionMeta.getLocation());
-      }
-    }
-
-    return Optional.<String>absent();
-  }
-
-  /***
-   * Generate DDL statement for cleaning up temporary staging table.
-   * @param stagingTableName Staging table to be cleaned.
-   * @param optionalStagingDbName Optional staging database name, defaults to default.
-   * @return DDL to clean up temporary staging table.
-   */
-  public static List<String> generateCleanupDDL(String stagingTableName, Optional<String> optionalStagingDbName) {
-    List<String> ddls = Lists.newArrayList();
-
-    String stagingDbName = optionalStagingDbName.isPresent() ? optionalStagingDbName.get() : DEFAULT_DB_NAME;
-    ddls.add(String.format("DROP TABLE IF EXISTS `%s`.`%s`", stagingDbName, stagingTableName));
-
-    return ddls;
   }
 
   /**
