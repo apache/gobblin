@@ -140,6 +140,15 @@ public class ConvertibleHiveDataset extends HiveDataset {
     public static final String HIVE_VERSION_KEY = "hiveVersion";
     private static final String HIVE_RUNTIME_PROPERTIES_KEY_PREFIX = "hiveRuntime";
 
+    /***
+     * Comma separated list of string that should be used as prefix for destination table partition location dir name
+     * .. if present in the location path string of source destination
+     * This helps with rollup situations where hourly partitions roll up to 0th hour for daily but we do not want to
+     * .. to overwrite data so that the queries in flight do not fail; instead the Hive metadata is updated to new
+     * .. directory location
+     */
+    private static final String PARTITION_DIR_PREFIX_LOCATION_HINT = "partitionDir.prefixLocationHint";
+
     private final String destinationFormat;
     private final String destinationTableName;
     private final String destinationStagingTableName;
@@ -151,6 +160,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
     private final boolean evolutionEnabled;
     private final Optional<Integer> rowLimit;
     private final Optional<String> hiveVersion;
+    private final List<String> partitionDirPrefixHint;
 
     private ConversionConfig(Config config, Table table, String destinationFormat) {
 
@@ -174,7 +184,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
       this.evolutionEnabled = ConfigUtils.getBoolean(config, EVOLUTION_ENABLED, false);
       this.rowLimit = Optional.fromNullable(ConfigUtils.getInt(config, ROW_LIMIT_KEY, null));
       this.hiveVersion = Optional.fromNullable(ConfigUtils.getString(config, HIVE_VERSION_KEY, null));
-
+      this.partitionDirPrefixHint = ConfigUtils.getStringList(config, PARTITION_DIR_PREFIX_LOCATION_HINT);
     }
   }
 
