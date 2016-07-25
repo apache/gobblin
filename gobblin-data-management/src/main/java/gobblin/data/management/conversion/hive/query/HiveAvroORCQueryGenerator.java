@@ -26,6 +26,14 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
+import org.apache.hadoop.hive.serde2.typeinfo.UnionTypeInfo;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -468,7 +476,7 @@ public class HiveAvroORCQueryGenerator {
         columns.append(", \n");
       }
       String name = field.getName();
-      String type = field.getType();
+      String type = escapeHiveType(field.getType());
       String comment = field.getComment();
       if (hiveColumns.isPresent()) {
         hiveColumns.get().put(name, type);
@@ -477,6 +485,71 @@ public class HiveAvroORCQueryGenerator {
     }
 
     return columns.toString();
+  }
+
+  /***
+   * Escape the Hive nested field names.
+   * @param type Primitive or nested Hive type.
+   * @return Escaped Hive nested field.
+   */
+  public static String escapeHiveType(String type) {
+    TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(type);
+
+    // Primitve
+    if (ObjectInspector.Category.PRIMITIVE.equals(typeInfo.getCategory())) {
+      return type;
+    }
+    // List
+    else if (ObjectInspector.Category.LIST.equals(typeInfo.getCategory())) {
+      ListTypeInfo listTypeInfo = (ListTypeInfo) typeInfo;
+      return org.apache.hadoop.hive.serde.serdeConstants.LIST_TYPE_NAME + "<"
+          + escapeHiveType(listTypeInfo.getListElementTypeInfo().getTypeName()) + ">";
+    }
+    // Map
+    else if (ObjectInspector.Category.MAP.equals(typeInfo.getCategory())) {
+      MapTypeInfo mapTypeInfo = (MapTypeInfo) typeInfo;
+      return org.apache.hadoop.hive.serde.serdeConstants.MAP_TYPE_NAME + "<"
+          + escapeHiveType(mapTypeInfo.getMapKeyTypeInfo().getTypeName()) + ","
+          + escapeHiveType(mapTypeInfo.getMapValueTypeInfo().getTypeName()) + ">";
+    }
+    // Struct
+    else if (ObjectInspector.Category.STRUCT.equals(typeInfo.getCategory())) {
+      StructTypeInfo structTypeInfo = (StructTypeInfo) typeInfo;
+      List<String> allStructFieldNames = structTypeInfo.getAllStructFieldNames();
+      List<TypeInfo> allStructFieldTypeInfos = structTypeInfo.getAllStructFieldTypeInfos();
+      StringBuilder sb = new StringBuilder();
+      sb.append(serdeConstants.STRUCT_TYPE_NAME + "<");
+      for (int i = 0; i < allStructFieldNames.size(); i++) {
+        if (i > 0) {
+          sb.append(",");
+        }
+        sb.append("`");
+        sb.append(allStructFieldNames.get(i));
+        sb.append("`");
+        sb.append(":");
+        sb.append(escapeHiveType(allStructFieldTypeInfos.get(i).getTypeName()));
+      }
+      sb.append(">");
+      return sb.toString();
+    }
+    // Union
+    else if (ObjectInspector.Category.UNION.equals(typeInfo.getCategory())) {
+      UnionTypeInfo unionTypeInfo = (UnionTypeInfo) typeInfo;
+      List<TypeInfo> allUnionObjectTypeInfos = unionTypeInfo.getAllUnionObjectTypeInfos();
+
+      StringBuilder sb = new StringBuilder();
+      sb.append(serdeConstants.UNION_TYPE_NAME + "<");
+      for (int i = 0; i < allUnionObjectTypeInfos.size(); i++) {
+        if (i > 0) {
+          sb.append(",");
+        }
+        sb.append(escapeHiveType(allUnionObjectTypeInfos.get(i).getTypeName()));
+      }
+      sb.append(">");
+      return sb.toString();
+    } else {
+      throw new RuntimeException("Unknown type encountered: " + type);
+    }
   }
 
   /***
