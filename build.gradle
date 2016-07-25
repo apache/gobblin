@@ -581,13 +581,18 @@ subprojects {
 
 allprojects {
   tasks.withType(FindBugs) {
-
     // Only one findbugs report can be enabled at a time.
     // We do not enable HTML when xml:withMessages is enabled as it is immutable
-    if (reports.find { it.name == "xml:withMessages"} == null) {
+    if (!project.hasProperty("withFindBugsXmlReport") && reports.find { it.name == "xml:withMessages"} == null) {
       reports {
         html.enabled = true
         xml.enabled = false
+      }
+    }
+    else {
+      reports {
+        html.enabled = false
+        xml.enabled = true
       }
     }
  }
