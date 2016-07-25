@@ -255,4 +255,32 @@ public class HiveAvroORCQueryGeneratorTest {
 
     Assert.assertEquals(ddl, "DROP TABLE IF EXISTS `db1`.`table1`");
   }
+
+  @Test
+  public void testHiveTypeEscaping() throws Exception {
+    String type = "array<struct<singleItems:array<struct<scoredEntity:struct<id:string,score:float,"
+        + "sourceName:string,sourceModel:string>,scores:struct<fprScore:double,fprUtility:double,"
+        + "calibratedFprUtility:double,sprScore:double,adjustedSprScore:double,sprUtility:double>,"
+        + "sponsoredFlag:string,blendingRequestId:string,forExploration:boolean,d2Resource:string,"
+        + "restliFinder:string,trackingId:binary,aggregation:struct<positionInAggregation:struct<index:int>,"
+        + "typeOfAggregation:string>,decoratedFeedUpdateData:struct<avoData:struct<actorUrn:string,verbType:"
+        + "string,objectUrn:string,objectType:string>,attributedActivityUrn:string,createdTime:bigint,totalLikes:"
+        + "bigint,totalComments:bigint,rootActivity:struct<activityUrn:string,avoData:struct<actorUrn:string,"
+        + "verbType:string,objectUrn:string,objectType:string>>>>>,scores:struct<fprScore:double,fprUtility:double,"
+        + "calibratedFprUtility:double,sprScore:double,adjustedSprScore:double,sprUtility:double>,position:int>>";
+    String expectedEscapedType = "array<struct<`singleItems`:array<struct<`scoredEntity`:struct<`id`:string,"
+        + "`score`:float,`sourceName`:string,`sourceModel`:string>,`scores`:struct<`fprScore`:double,"
+        + "`fprUtility`:double,`calibratedFprUtility`:double,`sprScore`:double,`adjustedSprScore`:double,"
+        + "`sprUtility`:double>,`sponsoredFlag`:string,`blendingRequestId`:string,`forExploration`:boolean,"
+        + "`d2Resource`:string,`restliFinder`:string,`trackingId`:binary,`aggregation`:struct<`positionInAggregation`"
+        + ":struct<`index`:int>,`typeOfAggregation`:string>,`decoratedFeedUpdateData`:struct<`avoData`:"
+        + "struct<`actorUrn`:string,`verbType`:string,`objectUrn`:string,`objectType`:string>,`attributedActivityUrn`"
+        + ":string,`createdTime`:bigint,`totalLikes`:bigint,`totalComments`:bigint,`rootActivity`:struct<`activityUrn`"
+        + ":string,`avoData`:struct<`actorUrn`:string,`verbType`:string,`objectUrn`:string,`objectType`:string>>>>>,"
+        + "`scores`:struct<`fprScore`:double,`fprUtility`:double,`calibratedFprUtility`:double,`sprScore`:double,"
+        + "`adjustedSprScore`:double,`sprUtility`:double>,`position`:int>>";
+    String actualEscapedType = HiveAvroORCQueryGenerator.escapeHiveType(type);
+
+    Assert.assertEquals(actualEscapedType, expectedEscapedType);
+  }
 }
