@@ -12,7 +12,6 @@
 
 package gobblin.scheduler;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -23,11 +22,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
 
-import org.apache.commons.io.monitor.FileAlterationListener;
-import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
-import org.apache.commons.io.monitor.FileAlterationMonitor;
-
+import org.codehaus.jackson.map.DeserializerFactory;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
@@ -53,7 +52,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
-import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -66,6 +64,8 @@ import gobblin.runtime.listeners.RunOnceJobListener;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.SchedulerUtils;
+import gobblin.util.filesystem.PathAlterationListener;
+import gobblin.util.filesystem.PathAlterationMonitor;
 
 
 /**
@@ -89,12 +89,16 @@ public class JobScheduler extends AbstractIdleService {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobScheduler.class);
 
+  public enum Action {
+    SCHEDULE, RESCHEDULE, UNSCHEDULE
+  }
+
   public static final String JOB_SCHEDULER_KEY = "jobScheduler";
   public static final String PROPERTIES_KEY = "jobProps";
   public static final String JOB_LISTENER_KEY = "jobListener";
 
   // System configuration properties
-  private final Properties properties;
+  public final Properties properties;
 
   // A Quartz scheduler
   private final Scheduler scheduler;
@@ -109,10 +113,10 @@ public class JobScheduler extends AbstractIdleService {
   private final Map<String, JobKey> scheduledJobs = Maps.newHashMap();
 
   // Set of supported job configuration file extensions
-  private final Set<String> jobConfigFileExtensions;
+  public final Set<String> jobConfigFileExtensions;
 
-  // A monitor for changes to job configuration files
-  private final FileAlterationMonitor fileAlterationMonitor;
+  // A monitor for changes to job conf files for general FS
+  public final PathAlterationMonitor pathAlterationMonitor;
 
   private final boolean waitForJobCompletion;
 
@@ -134,7 +138,7 @@ public class JobScheduler extends AbstractIdleService {
     long pollingInterval = Long.parseLong(
         this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
-    this.fileAlterationMonitor = new FileAlterationMonitor(pollingInterval);
+    this.pathAlterationMonitor = new PathAlterationMonitor(pollingInterval);
 
     this.waitForJobCompletion = Boolean.parseBoolean(
         this.properties.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
@@ -150,17 +154,18 @@ public class JobScheduler extends AbstractIdleService {
     // Note: This should not be mandatory, gobblin-cluster modes have their own job configuration managers
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
 
-      Preconditions.checkArgument(this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)
-              || this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
-              "Error in configuration file: Please check your .pull file");
+      Preconditions.checkArgument(
+          this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || this.properties.containsKey(
+              ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
+          "Error in configuration file: Please check your .pull file");
 
-      if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) &&
-          !this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
+      if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) && !this.properties.containsKey(
+          ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
         this.properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             "file://" + this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
       }
       scheduleGeneralConfiguredJobs();
-      startJobConfigFileMonitor();
+      startGeneralJobConfigFileMonitor();
     }
   }
 
@@ -169,9 +174,9 @@ public class JobScheduler extends AbstractIdleService {
       throws Exception {
     LOG.info("Stopping the job scheduler");
 
-    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
-      // Stop the file alteration monitor in one second
-      this.fileAlterationMonitor.stop(1000);
+    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY) || this.properties.containsKey(
+        ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
+      this.pathAlterationMonitor.stop(1000);
     }
 
     try {
@@ -366,7 +371,7 @@ public class JobScheduler extends AbstractIdleService {
   }
 
   /**
-   * Schedule Gobblin jobs configured in general position
+   * Schedule Gobblin jobs in general position
    */
   private void scheduleGeneralConfiguredJobs()
       throws ConfigurationException, JobException, IOException {
@@ -387,8 +392,10 @@ public class JobScheduler extends AbstractIdleService {
     return jobConfigs;
   }
 
+
+
   /**
-   * Start the job configuration file monitor.
+   * Start the job configuration file monitor using generic file system API.
    *
    * <p>
    *   The job configuration file monitor currently only supports monitoring the following types of changes:
@@ -397,6 +404,8 @@ public class JobScheduler extends AbstractIdleService {
    *     <li>New job configuration files.</li>
    *     <li>Changes to existing job configuration files.</li>
    *     <li>Changes to existing common properties file with a .properties extension.</li>
+   *     <li>Deletion to existing job configuration files.</li>
+   *     <li>Deletion to existing common properties file with a .properties extension.</li>
    *   </ul>
    * </p>
    *
@@ -407,89 +416,14 @@ public class JobScheduler extends AbstractIdleService {
    *   is called on the changes is not controlled by Gobblin, but instead by the monitor itself.
    * </p>
    */
-  private void startJobConfigFileMonitor()
+  private void startGeneralJobConfigFileMonitor()
       throws Exception {
-    LOG.info("Monitor debugging: " + this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
-    final File jobConfigFileDir = new File(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
-    FileAlterationListener listener = new FileAlterationListenerAdaptor() {
-      /**
-       * Called when a new job configuration file is dropped in.
-       */
-      @Override
-      public void onFileCreate(File file) {
-        String fileExtension = Files.getFileExtension(file.getName());
-        if (!JobScheduler.this.jobConfigFileExtensions.contains(fileExtension)) {
-          // Not a job configuration file, ignore.
-          return;
-        }
+    final Path jobConfigFileDirPath =
+        new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
 
-        // Load the new job configuration and schedule the new job
-        try {
-          LOG.info("Detected new job configuration file " + file.getAbsolutePath());
-          Properties jobProps = SchedulerUtils.loadJobConfig(JobScheduler.this.properties, file, jobConfigFileDir);
-          boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-          scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-        } catch (ConfigurationException | IOException e) {
-          LOG.error("Failed to load from job configuration file " + file.getAbsolutePath(), e);
-        } catch (JobException je) {
-          LOG.error("Failed to schedule new job loaded from job configuration file " + file.getAbsolutePath(), je);
-        }
-      }
-
-      /**
-       * Called when a job configuration file is changed.
-       */
-      @Override
-      public void onFileChange(File file) {
-        String fileExtension = Files.getFileExtension(file.getName());
-        if (fileExtension.equalsIgnoreCase(SchedulerUtils.JOB_PROPS_FILE_EXTENSION)) {
-          LOG.info("Detected change to common properties file " + file.getAbsolutePath());
-          try {
-            for (Properties jobProps : SchedulerUtils.loadJobConfigs(JobScheduler.this.properties, file,
-                jobConfigFileDir)) {
-              try {
-                rescheduleJob(jobProps);
-              } catch (JobException je) {
-                LOG.error("Failed to reschedule job reloaded from job configuration file " + jobProps.getProperty(
-                    ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), je);
-              }
-            }
-          } catch (ConfigurationException | IOException e) {
-            LOG.error("Failed to reload job configuration files affected by changes to " + file.getAbsolutePath(), e);
-          }
-
-          return;
-        }
-
-        if (!JobScheduler.this.jobConfigFileExtensions.contains(fileExtension)) {
-          // Not a job configuration file, ignore.
-          return;
-        }
-
-        try {
-          LOG.info("Detected change to job configuration file " + file.getAbsolutePath());
-          Properties jobProps = SchedulerUtils.loadJobConfig(JobScheduler.this.properties, file, jobConfigFileDir);
-          rescheduleJob(jobProps);
-        } catch (ConfigurationException | IOException e) {
-          LOG.error("Failed to reload from job configuration file " + file.getAbsolutePath(), e);
-        } catch (JobException je) {
-          LOG.error("Failed to reschedule job reloaded from job configuration file " + file.getAbsolutePath(), je);
-        }
-      }
-
-      private void rescheduleJob(Properties jobProps)
-          throws JobException {
-        String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-        // First unschedule and delete the old job
-        unscheduleJob(jobName);
-        boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-        // Reschedule the job with the new job configuration
-        scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-      }
-    };
-
-    SchedulerUtils.addFileAlterationObserver(this.fileAlterationMonitor, listener, jobConfigFileDir);
-    this.fileAlterationMonitor.start();
+    PathAlterationListener listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath, this);
+    SchedulerUtils.addPathAlterationObserver(this.pathAlterationMonitor, listener, jobConfigFileDirPath);
+    this.pathAlterationMonitor.start();
   }
 
   /**
