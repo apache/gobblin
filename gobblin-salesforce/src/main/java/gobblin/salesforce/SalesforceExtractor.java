@@ -159,6 +159,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   @Override
   public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
     log.debug("Build url to retrieve schema");
+    log.info("AAA entity is " + entity);
     return constructGetCommand(this.sfConnector.getFullUri("/sobjects/" + entity.trim() + "/describe"));
   }
 

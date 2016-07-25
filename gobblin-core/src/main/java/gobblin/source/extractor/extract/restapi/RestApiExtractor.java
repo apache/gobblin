@@ -19,6 +19,7 @@ import gobblin.source.extractor.exception.RestApiProcessingException;
 import gobblin.source.extractor.utils.Utils;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -73,10 +74,13 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     log.info("Extract Metadata using Rest Api");
     JsonArray columnArray = new JsonArray();
     String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
+    
+    log.info("AAA inputQuery is " + inputQuery);
     List<String> columnListInQuery = null;
     JsonArray array = null;
     if (!Strings.isNullOrEmpty(inputQuery)) {
       columnListInQuery = Utils.getColumnListFromQuery(inputQuery);
+      log.info("columnList " + columnListInQuery);
     }
 
     String excludedColumns = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXCLUDED_COLUMNS);
@@ -93,6 +97,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
         throw new SchemaException("Failed to connect.");
       }
       log.debug("Connected successfully.");
+      log.info("AAA Connected successfully.");
       List<Command> cmds = this.getSchemaMetadata(schema, entity);
       CommandOutput<?, ?> response = this.connector.getResponse(cmds);
       array = this.getSchema(response);

@@ -106,6 +106,10 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     this.schema = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
     this.entity = this.workUnitState.getProp(ConfigurationKeys.SOURCE_ENTITY);
     MDC.put("tableName", getWorkUnitName());
+    System.out.println("BBB entity " + this.workUnitState.getProp(ConfigurationKeys.SOURCE_ENTITY));
+    for(Object s: this.workUnitState.getProperties().keySet()){
+      log.info("BBB ksy " + s + " value " + this.workUnitState.getProperties().getProperty((String)s));
+    }
   }
 
   private String getWorkUnitName() {
@@ -238,6 +242,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
           .valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE).toUpperCase());
     }
 
+    log.info("AAA entity in build func is " + this.entity);
     try {
       this.setTimeOut(
           this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_TIMEOUT, ConfigurationKeys.DEFAULT_CONN_TIMEOUT));
