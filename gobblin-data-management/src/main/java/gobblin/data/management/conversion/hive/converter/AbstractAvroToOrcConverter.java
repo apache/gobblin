@@ -165,7 +165,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
     // Partition dir hint helps create different directory for hourly and daily partition with same timestamp, such as:
     // .. daily_2016-01-01-00 and hourly_2016-01-01-00
-    // This helps existing hourly data from not being delete at the time of roll up, and so Hive queries in flight
+    // This helps existing hourly data from not being deleted at the time of roll up, and so Hive queries in flight
     // .. do not fail
     List<String> partitionDirPrefixHint = getConversionConfig().getPartitionDirPrefixHint();
 
@@ -235,7 +235,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     // TODO: Split this method into two (conversion and publish)
     // Addition to WUS for Staging publish:
     // A. Evolution turned on:
-    //    1. If table does not exists: simply create it
+    //    1. If table does not exists: simply create it (now it should exist)
     //    2. If table exists:
     //      2.1 Evolve table (alter table)
     //      2.2 If snapshot table:
@@ -248,7 +248,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     //          2.3.3 Create partition with location
     //          2.3.4 Drop this staging table and delete directories
     // B. Evolution turned off:
-    //    1. If table does not exists: simply create it
+    //    1. If table does not exists: simply create it (now it should exist)
     //    2. If table exists:
     //      2.1 Do not evolve table
     //      2.2 If snapshot table:
@@ -292,7 +292,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
 
     // Step:
-    // A.2.1: If table exists, evolve table
+    // A.2.1: If table pre-exists (destinationTableMeta would be present), evolve table
     // B.2.1: No-op
     List<String> evolutionDDLs = HiveAvroORCQueryGenerator.generateEvolutionDDL(orcStagingTableName,
         orcTableName,
@@ -313,7 +313,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       // Step:
       // A.2.2.1, B.2.2.1: Delete data in final table directory
       // A.2.2.2, B.2.2.2: Move data from staging to final table directory
-      log.info("Partition directory to move: " + orcStagingDataLocation + " to: " + orcDataLocation);
+      log.info("Snapshot directory to move: " + orcStagingDataLocation + " to: " + orcDataLocation);
       publishDirectories.put(orcStagingDataLocation, orcDataLocation);
 
       // Step:
