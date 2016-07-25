@@ -167,7 +167,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     // .. daily_2016-01-01-00 and hourly_2016-01-01-00
     // This helps existing hourly data from not being deleted at the time of roll up, and so Hive queries in flight
     // .. do not fail
-    List<String> partitionDirPrefixHint = getConversionConfig().getPartitionDirPrefixHint();
+    List<String> partitionDirPrefixHint = getConversionConfig().getSourceDataPathIdentifier();
 
     // Populate optional partition info
     Map<String, String> partitionsDDLInfo = Maps.newHashMap();
