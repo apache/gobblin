@@ -22,11 +22,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.configuration.ConfigurationException;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
-import org.codehaus.jackson.map.DeserializerFactory;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
@@ -118,7 +115,9 @@ public class JobScheduler extends AbstractIdleService {
   // A monitor for changes to job conf files for general FS
   public final PathAlterationMonitor pathAlterationMonitor;
 
+  // A period of time for scheduler to wait until jobs are finished
   private final boolean waitForJobCompletion;
+
 
   public JobScheduler(Properties properties)
       throws Exception {
@@ -391,8 +390,6 @@ public class JobScheduler extends AbstractIdleService {
     LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
     return jobConfigs;
   }
-
-
 
   /**
    * Start the job configuration file monitor using generic file system API.

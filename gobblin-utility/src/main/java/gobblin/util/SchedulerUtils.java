@@ -12,8 +12,6 @@
 
 package gobblin.util;
 
-import com.google.common.base.Predicate;
-import gobblin.util.filesystem.FileStatusEntry;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -44,6 +42,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationMonitor;
 import gobblin.util.filesystem.PathAlterationObserver;
+import gobblin.runtime.util.SimpleGeneralJobTemplate;
 
 
 /**
@@ -143,10 +142,13 @@ public class SchedulerUtils {
     jobProps.putAll(ConfigurationConverter.getProperties(
         new PropertiesConfiguration(new Path("file://", jobConfigPath).toUri().toURL())));
 
+    jobProps = (new SimpleGeneralJobTemplate(ConfigurationKeys.JOB_TEMPLATE_PATH, jobProps)).getResolvedConfig();
+
     jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigPath.toString());
     return jobProps;
   }
 
+  
   /**
    * Add {@link gobblin.util.filesystem.PathAlterationMonitor}s for the given
    * root directory and any nested subdirectories under the root directory to the given
@@ -230,6 +232,10 @@ public class SchedulerUtils {
               Charsets.UTF_8)) {
             propertiesConfiguration.load(inputStreamReader);
             jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
+
+            jobProps =
+                (new SimpleGeneralJobTemplate(ConfigurationKeys.JOB_TEMPLATE_PATH, jobProps)).getResolvedConfig();
+
             jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, configFilePath.toString());
             jobConfigs.add(jobProps);
           }

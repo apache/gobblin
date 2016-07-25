@@ -130,6 +130,14 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_CLEANUP_STAGING_DATA_PER_TASK = true;
   public static final String CLEANUP_STAGING_DATA_BY_INITIALIZER = "cleanup.staging.data.by.initializer";
 
+  /** Optional, for user to specified which template to use, inside .job file */
+  public static final String JOB_TEMPLATE_PATH = "job.template" ;
+
+  /**
+   * Configuration property used only for job configuration file's tempalte, inside .template file
+   */
+  public static final String USER_SPECIFIED_ATTR_LIST = "required.attribute";
+
   /**
    * Configuration properties used internally.
    */
