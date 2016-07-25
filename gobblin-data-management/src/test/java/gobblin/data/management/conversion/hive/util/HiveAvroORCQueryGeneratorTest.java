@@ -236,4 +236,23 @@ public class HiveAvroORCQueryGeneratorTest {
     Assert.assertEquals(HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1",
         Collections.<Map<String, String>>emptyList()), Collections.emptyList());
   }
+
+  @Test
+  public void testCreatePartitionDDL() throws Exception {
+    List<String> ddl = HiveAvroORCQueryGenerator.generateCreatePartitionDDL("db1", "table1", "/tmp",
+        ImmutableMap.of("datepartition", "2016-01-01", "sizepartition", "10"));
+
+    Assert.assertEquals(ddl.size(), 2);
+    Assert.assertEquals(ddl.get(0), "USE db1\n");
+    Assert.assertEquals(ddl.get(1),
+        "ALTER TABLE `table1` ADD IF NOT EXISTS PARTITION (`datepartition`='2016-01-01', `sizepartition`='10') \n"
+            + " LOCATION '/tmp' ");
+  }
+
+  @Test
+  public void testDropTableDDL() throws Exception {
+    String ddl = HiveAvroORCQueryGenerator.generateDropTableDDL("db1", "table1");
+
+    Assert.assertEquals(ddl, "DROP TABLE IF EXISTS `db1`.`table1`");
+  }
 }
