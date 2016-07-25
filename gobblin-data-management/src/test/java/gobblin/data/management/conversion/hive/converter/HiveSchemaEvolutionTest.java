@@ -216,7 +216,7 @@ public class HiveSchemaEvolutionTest {
     Assert.assertEquals(generateEvolutionDDL.size(), 1);
     Assert.assertEquals(generateEvolutionDDL.get(0),
         "ALTER TABLE `hiveDb`.`sourceSchema` ADD COLUMNS (parentFieldRecord__nestedFieldInt int "
-            + "COMMENT 'from flatten_source parentFieldRecord.nestedFieldInt')\n",
+            + "COMMENT 'from flatten_source parentFieldRecord.nestedFieldInt')",
         "Generated evolution DDL did not match for evolution enabled");
 
     // Destination table does not exists
@@ -225,7 +225,7 @@ public class HiveSchemaEvolutionTest {
         .generateEvolutionDDL(orcStagingTableName, orcTableName, Optional.of(hiveDbName), Optional.of(hiveDbName),
             outputSchema, isEvolutionEnabled, hiveColumns, destinationTableMeta);
     // No DDL should be generated, because create table will take care of destination table
-    Assert.assertEquals(generateEvolutionDDL.get(0), "",
+    Assert.assertEquals(generateEvolutionDDL.size(), 0,
         "Generated evolution DDL did not match for evolution enabled");
   }
 
@@ -249,7 +249,7 @@ public class HiveSchemaEvolutionTest {
         .generateEvolutionDDL(orcStagingTableName, orcTableName, Optional.of(hiveDbName), Optional.of(hiveDbName),
             outputSchema, isEvolutionEnabled, hiveColumns, destinationTableMeta);
     // No DDL should be generated, because select based on destination table will selectively project columns
-    Assert.assertEquals(generateEvolutionDDL.get(0), "",
+    Assert.assertEquals(generateEvolutionDDL.size(), 0,
         "Generated evolution DDL did not match for evolution disabled");
 
     // Destination table does not exists
@@ -258,7 +258,7 @@ public class HiveSchemaEvolutionTest {
         .generateEvolutionDDL(orcStagingTableName, orcTableName, Optional.of(hiveDbName), Optional.of(hiveDbName),
             outputSchema, isEvolutionEnabled, hiveColumns, destinationTableMeta);
     // No DDL should be generated, because create table will take care of destination table
-    Assert.assertEquals(generateEvolutionDDL.get(0), "",
+    Assert.assertEquals(generateEvolutionDDL.size(), 0,
         "Generated evolution DDL did not match for evolution disabled");
   }
 
