@@ -141,13 +141,43 @@ public class ConvertibleHiveDataset extends HiveDataset {
     private static final String HIVE_RUNTIME_PROPERTIES_KEY_PREFIX = "hiveRuntime";
 
     /***
-     * Comma separated list of string that should be used as prefix for destination table partition location dir name
-     * .. if present in the location path string of source destination
-     * This helps with rollup situations where hourly partitions roll up to 0th hour for daily but we do not want to
-     * .. to overwrite data so that the queries in flight do not fail; instead the Hive metadata is updated to new
-     * .. directory location
+     * Comma separated list of string that should be used as a prefix for destination partition directory name
+     * ... (if present in the location path string of source partition)
+     *
+     * This is helpful in roll-up / compaction scenarios, where you don't want queries in flight to fail.
+     *
+     * Scenario without this property:
+     * - Source partition: datepartition=2016-01-01-00 with path /foo/bar/hourly/2016/01/01/00 is available for
+     *   processing
+     * - Source partition is processed and published to destination table as: /foo/bar_orc/datepartition=2016-01-01-00
+     *
+     * - Source partition: datepartition=2016-01-01-00 with path /foo/bar/daily/2016/01/01/00 is available again for
+     *   processing (due to roll-up / compaction of hourly data for 2016-01-01 into same partition)
+     * - Source partition is processed and published to destination table as: /foo/bar_orc/datepartition=2016-01-01-00
+     *   (previous data is overwritten and any queries in flight fail)
+     *
+     * Same scenario with this property set to "hourly,daily":
+     * - Source partition: datepartition=2016-01-01-00 with path /foo/bar/hourly/2016/01/01/00 is available for
+     *   processing
+     * - Source partition is processed and published to destination table as: /foo/bar_orc/hourly_datepartition=2016-01-01-00
+     *   (Note: "hourly_" is prefixed to destination partition directory name because source partition path contains
+     *   "hourly" substring)
+     *
+     * - Source partition: datepartition=2016-01-01-00 with path /foo/bar/daily/2016/01/01/00 is available again for
+     *   processing (due to roll-up / compaction of hourly data for 2016-01-01 into same partition)
+     * - Source partition is processed and published to destination table as: /foo/bar_orc/daily_datepartition=2016-01-01-00
+     *   (Note: "daily_" is prefixed to destination partition directory name, because source partition path contains
+     *   "daily" substring)
+     * - Any running queries are not impacted since data is not overwritten and hourly_datepartition=2016-01-01-00
+     *   directory continues to exist
+     *
+     * Notes:
+     * - This however leaves the responsibility of cleanup of previous destination partition directory on retention or
+     *   other such independent module, since in the above case hourly_datepartition=2016-01-01-00 dir will not be deleted
+     * - Directories can still be overwritten if they resolve to same destination partition directory name, such as
+     *   re-processing / backfill of daily partition will overwrite daily_datepartition=2016-01-01-00 directory
      */
-    private static final String PARTITION_DIR_PREFIX_LOCATION_HINT = "partitionDir.prefixLocationHint";
+    private static final String SOURCE_DATA_PATH_IDENTIFIER_KEY = "source.dataPathIdentifier";
 
     private final String destinationFormat;
     private final String destinationTableName;
@@ -159,8 +189,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
     private final Properties hiveRuntimeProperties;
     private final boolean evolutionEnabled;
     private final Optional<Integer> rowLimit;
-    private final Optional<String> hiveVersion;
-    private final List<String> partitionDirPrefixHint;
+    private final List<String> sourceDataPathIdentifier;
 
     private ConversionConfig(Config config, Table table, String destinationFormat) {
 
@@ -183,8 +212,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
           .configToProperties(ConfigUtils.getConfig(config, HIVE_RUNTIME_PROPERTIES_KEY_PREFIX, ConfigFactory.empty()));
       this.evolutionEnabled = ConfigUtils.getBoolean(config, EVOLUTION_ENABLED, false);
       this.rowLimit = Optional.fromNullable(ConfigUtils.getInt(config, ROW_LIMIT_KEY, null));
-      this.hiveVersion = Optional.fromNullable(ConfigUtils.getString(config, HIVE_VERSION_KEY, null));
-      this.partitionDirPrefixHint = ConfigUtils.getStringList(config, PARTITION_DIR_PREFIX_LOCATION_HINT);
+      this.sourceDataPathIdentifier = ConfigUtils.getStringList(config, SOURCE_DATA_PATH_IDENTIFIER_KEY);
     }
   }
 
