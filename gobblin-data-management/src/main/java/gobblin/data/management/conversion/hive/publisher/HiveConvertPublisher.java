@@ -103,7 +103,12 @@ public class HiveConvertPublisher extends DataPublisher {
         directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
 
         wus.setWorkingState(WorkingState.FAILED);
-        new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
+        try {
+          new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
+        } catch (Exception e) {
+          log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
+              + "all clean up comamnds", e);
+        }
       }
     } else {
       for (WorkUnitState wus : states) {
@@ -124,19 +129,22 @@ public class HiveConvertPublisher extends DataPublisher {
         executeQueries(publishQueries);
 
         wus.setWorkingState(WorkingState.COMMITTED);
-        wus.setActualHighWatermark(TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(),
-            LongWatermark.class));
+        wus.setActualHighWatermark(
+            TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(), LongWatermark.class));
 
-        new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
-            .submit();
+        try {
+          new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
+              .submit();
+        } catch (Exception e) {
+          log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
+              + "all clean up commands", e);
+        }
       }
 
     }
     // Execute cleanup commands
     executeQueries(cleanUpQueries);
-    for (String directory : directoriesToDelete) {
-      deleteDirectory(directory);
-    }
+    deleteDirectories(directoriesToDelete);
   }
 
   private void moveDirectory(String sourceDir, String targetDir)
@@ -155,6 +163,12 @@ public class HiveConvertPublisher extends DataPublisher {
     if (!this.fs.rename(new Path(sourceDir), new Path(targetDir))) {
       throw new IOException(
           String.format("Unable to move %s to %s", sourceDir, targetDir));
+    }
+  }
+
+  private void deleteDirectories(List<String> directoriesToDelete) throws IOException {
+    for (String directory : directoriesToDelete) {
+      deleteDirectory(directory);
     }
   }
 
