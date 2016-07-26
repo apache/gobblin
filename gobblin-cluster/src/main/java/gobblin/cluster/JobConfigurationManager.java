@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
@@ -75,8 +76,8 @@ public class JobConfigurationManager extends AbstractIdleService {
       if (jobConfigDir.exists()) {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
         Properties properties = new Properties();
-        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfigDir.getAbsolutePath());
-        List<Properties> jobConfigs = SchedulerUtils.loadJobConfigs(properties);
+        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, jobConfigDir.getAbsolutePath());
+        List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
           postNewJobConfigArrival(config.getProperty(ConfigurationKeys.JOB_NAME_KEY), config);

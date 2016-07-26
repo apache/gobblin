@@ -14,6 +14,7 @@ package gobblin.data.management.conversion.hive.validation;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -30,9 +31,10 @@ import org.joda.time.DateTime;
 
 import azkaban.jobExecutor.AbstractJob;
 
-import com.beust.jcommander.internal.Maps;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -46,6 +48,7 @@ import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
 import gobblin.data.management.conversion.hive.query.HiveValidationQueryGenerator;
 import gobblin.data.management.conversion.hive.source.HiveSource;
 import gobblin.data.management.copy.hive.HiveDataset;
+import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
 import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
@@ -73,6 +76,7 @@ public class ValidationJob extends AbstractJob {
    * ie. the resultant window for validation is: $start_time <= window <= $end_time
    */
   private static final String HIVE_SOURCE_SKIP_RECENT_THAN_DAYS_KEY = "hive.source.skip.recentThanDays";
+  private static final String HIVE_DATASET_CONFIG_AVRO_PREFIX = "hive.conversion.avro";
   private static final String DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS = "3";
   private static final String DEFAULT_HIVE_SOURCE_SKIP_RECENT_THAN_DAYS = "1";
 
@@ -92,6 +96,9 @@ public class ValidationJob extends AbstractJob {
   public ValidationJob(String jobId, Properties props) throws IOException {
     super(jobId, log);
 
+    // Set the conversion config prefix for Avro to ORC
+    props.setProperty(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, HIVE_DATASET_CONFIG_AVRO_PREFIX);
+
     Config config = ConfigFactory.parseProperties(props);
     this.props = props;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), ValidationJob.class);
@@ -107,8 +114,8 @@ public class ValidationJob extends AbstractJob {
     this.skipRecentThanTime = new DateTime().minusDays(skipRecentThanDays).getMillis();
 
     // value for DESTINATION_CONVERSION_FORMATS_KEY can be a TypeSafe list or a comma separated list of string
-    this.destFormats = Sets.newHashSet(
-        ConfigUtils.getStringList(config, ConvertibleHiveDataset.DESTINATION_CONVERSION_FORMATS_KEY));
+    this.destFormats = Sets.newHashSet(ConfigUtils.getStringList(config,
+        HIVE_DATASET_CONFIG_AVRO_PREFIX + "." + ConvertibleHiveDataset.DESTINATION_CONVERSION_FORMATS_KEY));
 
     try {
       this.hiveJdbcConnector = HiveJdbcConnector.newConnectorWithProps(props);
@@ -192,10 +199,10 @@ public class ValidationJob extends AbstractJob {
 
             // Execute validation queries
             log.info(String.format("Going to execute queries: %s for format: %s", validationQueries, format));
-            List<ResultSet> resultSets = this.executeQueries(validationQueries);
+            List<Long> rowCounts = this.executeQueries(validationQueries);
 
             // Validate and populate report
-            validateAndPopulateReport(hiveDataset.getTable().getCompleteName(), updateTime, resultSets);
+            validateAndPopulateReport(hiveDataset.getTable().getCompleteName(), updateTime, rowCounts);
           } else {
             log.info(String.format("No config found for format: %s So skipping table: %s for this format", format,
                 hiveDataset.getTable().getCompleteName()));
@@ -245,10 +252,10 @@ public class ValidationJob extends AbstractJob {
 
               // Execute validation queries
               log.info(String.format("Going to execute queries: %s for format: %s", validationQueries, format));
-              List<ResultSet> resultSets = this.executeQueries(validationQueries);
+              List<Long> rowCounts = this.executeQueries(validationQueries);
 
               // Validate and populate report
-              validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, resultSets);
+              validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, rowCounts);
             } else {
               log.info(String.format("No config found for format: %s So skipping partition: %s for this format", format,
                   sourcePartition.getCompleteName()));
@@ -270,54 +277,67 @@ public class ValidationJob extends AbstractJob {
    * Execute Hive queries using {@link HiveJdbcConnector} and validate results.
    * @param queries Queries to execute.
    */
-  private List<ResultSet> executeQueries(List<String> queries) {
+  private List<Long> executeQueries(List<String> queries) throws IOException {
     if (null == queries || queries.size() == 0) {
       log.warn("No queries specified to be executed");
       return Collections.emptyList();
     }
+    Statement statement = null;
+    List<Long> rowCounts = Lists.newArrayList();
     try {
-       return this.hiveJdbcConnector
-          .executeStatementsWithResult(queries.toArray(new String[queries.size()]));
+      statement = this.hiveJdbcConnector.getConnection().createStatement();
+
+      for (String query : queries) {
+        log.info("Executing query: " + query);
+        ResultSet resultSet = statement.executeQuery(query);
+        if (resultSet.next()) {
+          rowCounts.add(resultSet.getLong(1));
+        }
+      }
+
     } catch (SQLException e) {
       throw new RuntimeException(e);
+    } finally {
+      if (null != statement) {
+        try {
+          statement.close();
+        } catch (SQLException e) {
+          log.warn("Issue in closing SQL statement", e);
+        }
+      }
     }
+
+    return rowCounts;
   }
 
-  private void validateAndPopulateReport(String datasetIdentifier, long conversionInstance, List<ResultSet> resultSets) {
-    if (null == resultSets || resultSets.size() == 0) {
+  private void validateAndPopulateReport(String datasetIdentifier, long conversionInstance, List<Long> rowCounts) {
+    if (null == rowCounts || rowCounts.size() == 0) {
       this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
           "No conversion details found");
       new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_NOOP_SLA_EVENT, props)
           .submit();
       return;
     }
-    try {
-      long rowCountCached = -1;
-      boolean isFirst = true;
-      for (ResultSet resultSet : resultSets) {
-        if (resultSet.next()) {
-          long rowCount = resultSet.getLong(1);
-          if (isFirst) {
-            rowCountCached = rowCount;
-            isFirst = false;
-            continue;
-          }
-          if (rowCount != rowCountCached) {
-            this.failedConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
-                "Row counts did not match across all conversions");
-            new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_FAILED_SLA_EVENT, props)
-                .submit();
-            return;
-          }
-        }
+    long rowCountCached = -1;
+    boolean isFirst = true;
+    for (Long rowCount : rowCounts) {
+      if (isFirst) {
+        rowCountCached = rowCount;
+        isFirst = false;
+        continue;
       }
-      this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
-          "Row counts matched across all conversions");
-      new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_SUCCESSFUL_SLA_EVENT, props)
-          .submit();
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
+      if (rowCount != rowCountCached) {
+        this.failedConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
+            "Row counts did not match across all conversions");
+        new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_FAILED_SLA_EVENT, props)
+            .submit();
+        return;
+      }
     }
+    this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
+        "Row counts matched across all conversions");
+    new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_SUCCESSFUL_SLA_EVENT, props)
+        .submit();
   }
 
   /***

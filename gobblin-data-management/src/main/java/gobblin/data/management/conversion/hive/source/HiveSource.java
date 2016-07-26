@@ -91,6 +91,8 @@ public class HiveSource implements Source {
   public static final String HIVE_SOURCE_DATASET_FINDER_CLASS_KEY = "hive.dataset.finder.class";
   public static final String DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS = HiveDatasetFinder.class.getName();
 
+  public static final String DISTCP_REGISTRATION_GENERATION_TIME_KEY = "registrationGenerationTimeMillis";
+
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   private MetricContext metricContext;
@@ -186,7 +188,8 @@ public class HiveSource implements Source {
   private void createWorkunitsForPartitionedTable(HiveDataset hiveDataset,
       AutoReturnableObject<IMetaStoreClient> client, LongWatermark expectedDatasetHighWatermark) throws IOException {
 
-    List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
+    List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(),
+        Optional.<String>absent());
 
     for (Partition sourcePartition : sourcePartitions) {
 
@@ -233,8 +236,29 @@ public class HiveSource implements Source {
    */
   @VisibleForTesting
   public boolean isOlderThanLookback(Partition partition) {
-    DateTime createTime = new DateTime(TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS));
-    return createTime.isBefore(this.maxLookBackTime);
+    // If create time is set, use it.
+    // .. this is always set if HiveJDBC or Hive mestastore is used to create partition.
+    // .. it might not be set (ie. equals 0) if Thrift API call is used to create partition.
+    if (partition.getTPartition().getCreateTime() > 0) {
+      DateTime createTime = new DateTime(TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS));
+
+      return createTime.isBefore(this.maxLookBackTime);
+    }
+    // Try to use distcp-ng registration generation time if it is available
+    else if (partition.getTPartition().isSetParameters() &&
+        partition.getTPartition().getParameters().containsKey(DISTCP_REGISTRATION_GENERATION_TIME_KEY)) {
+      Long registrationGenerationTime =
+          Long.parseLong(partition.getTPartition().getParameters().get(DISTCP_REGISTRATION_GENERATION_TIME_KEY));
+      DateTime createTime = new DateTime(TimeUnit.MILLISECONDS.convert(registrationGenerationTime, TimeUnit.SECONDS));
+
+      log.info("Did not find createTime in Hive partition, used distcp registration generation time.");
+      return createTime.isBefore(this.maxLookBackTime);
+    }
+
+    // Otherwise safely return true to avoid re-processing
+    log.warn("Did not find createTime in Hive partition or distcp registration generation time. "
+        + "Marking partitions as old for safely skipping processing.");
+    return true;
   }
 
   @Override

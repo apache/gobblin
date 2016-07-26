@@ -65,25 +65,31 @@ public class TimeBasedRetentionPolicyTest {
   public void testISORetentionDuration() throws Exception {
 
     DateTimeUtils.setCurrentMillisFixed(new DateTime(2016, 2, 11, 10, 0, 0, 0).getMillis());
-    // 20 Days
-    verify("P20D",
-        ImmutableList.of(WithDate(new DateTime(2016, 1, 5, 10, 0, 0, 0)), WithDate(new DateTime(2016, 1, 6, 10, 0, 0, 0))),
-        ImmutableList.of(WithDate(new DateTime(2016, 2, 10, 10, 0, 0, 0)), WithDate(new DateTime(2016, 2, 11, 10, 0, 0, 0))));
+    try {
+      // 20 Days
+      verify("P20D",
+          ImmutableList.of(WithDate(new DateTime(2016, 1, 5, 10, 0, 0, 0)), WithDate(new DateTime(2016, 1, 6, 10, 0, 0, 0))),
+          ImmutableList.of(WithDate(new DateTime(2016, 2, 10, 10, 0, 0, 0)), WithDate(new DateTime(2016, 2, 11, 10, 0, 0, 0))));
 
-    // 2 Months
-    verify("P2M",
-        ImmutableList.of(WithDate(new DateTime(2015, 12, 5, 10, 0, 0, 0)), WithDate(new DateTime(2015, 11, 5, 10, 0, 0, 0))),
-        ImmutableList.of(WithDate(new DateTime(2016, 2, 10, 10, 0, 0, 0)), WithDate(new DateTime(2016, 1, 10, 10, 0, 0, 0))));
+      // 2 Months
+      verify("P2M",
+          ImmutableList.of(WithDate(new DateTime(2015, 12, 5, 10, 0, 0, 0)), WithDate(new DateTime(2015, 11, 5, 10, 0, 0, 0))),
+          ImmutableList.of(WithDate(new DateTime(2016, 2, 10, 10, 0, 0, 0)), WithDate(new DateTime(2016, 1, 10, 10, 0, 0, 0))));
 
-    // 2 Years
-    verify("P2Y",
-        ImmutableList.of(WithDate(new DateTime(2014, 1, 5, 10, 0, 0, 0)), WithDate(new DateTime(2013, 1, 5, 10, 0, 0, 0))),
-        ImmutableList.of(WithDate(new DateTime(2016, 2, 10, 10, 0, 0, 0)), WithDate(new DateTime(2015, 2, 10, 10, 0, 0, 0))));
+      // 2 Years
+      verify("P2Y",
+          ImmutableList.of(WithDate(new DateTime(2014, 1, 5, 10, 0, 0, 0)), WithDate(new DateTime(2013, 1, 5, 10, 0, 0, 0))),
+          ImmutableList.of(WithDate(new DateTime(2016, 2, 10, 10, 0, 0, 0)), WithDate(new DateTime(2015, 2, 10, 10, 0, 0, 0))));
 
-    // 20 Hours
-    verify("PT20H",
-        ImmutableList.of(WithDate(new DateTime(2016, 2, 10, 11, 0, 0, 0)), WithDate(new DateTime(2016, 2, 9, 11, 0, 0, 0))),
-        ImmutableList.of(WithDate(new DateTime(2016, 2, 11, 8, 0, 0, 0)), WithDate(new DateTime(2016, 2, 11, 9, 0, 0, 0))));
+      // 20 Hours
+      verify("PT20H",
+          ImmutableList.of(WithDate(new DateTime(2016, 2, 10, 11, 0, 0, 0)), WithDate(new DateTime(2016, 2, 9, 11, 0, 0, 0))),
+          ImmutableList.of(WithDate(new DateTime(2016, 2, 11, 8, 0, 0, 0)), WithDate(new DateTime(2016, 2, 11, 9, 0, 0, 0))));
+    }
+    finally {
+      // Restore time
+      DateTimeUtils.setCurrentMillisSystem();
+    }
 
   }
 

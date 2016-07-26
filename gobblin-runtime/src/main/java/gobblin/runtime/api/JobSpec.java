@@ -90,7 +90,9 @@ public class JobSpec implements Configurable {
         this.configAsProperties = Optional.of(ConfigUtils.configToProperties(this.config.get()));
       }
       if (! this.config.isPresent()) {
-        this.config = Optional.of(ConfigUtils.propertiesToConfig(this.configAsProperties.get()));
+        this.config =
+            Optional.of(ConfigUtils.propertiesToTypedConfig(this.configAsProperties.get(),
+                                                            Optional.<String>absent()));
       }
       if (! this.description.isPresent()) {
         this.description = Optional.of("Gobblin job " + this.uri);

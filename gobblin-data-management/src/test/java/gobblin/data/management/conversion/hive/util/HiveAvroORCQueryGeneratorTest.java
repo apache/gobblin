@@ -211,8 +211,7 @@ public class HiveAvroORCQueryGeneratorTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
             Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta, rowLimit);
 
-    Assert.assertEquals(q.trim(),
-        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "flattenedWithRowLimit.dml"));
+    Assert.assertEquals(q.trim(), ConversionHiveTestUtils.readQueryFromFile(resourceDir, "flattenedWithRowLimit.dml"));
   }
 
   @Test
@@ -223,14 +222,82 @@ public class HiveAvroORCQueryGeneratorTest {
     partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-02", "sizepartition", "20"));
     partitionDMLInfos.add(ImmutableMap.of("datepartition", "2016-01-03", "sizepartition", "30"));
 
-    String ddl = HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1", partitionDMLInfos);
+    List<String> ddl = HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1", partitionDMLInfos);
 
-    Assert.assertEquals(ddl, "USE db1\n"
-        + "ALTER TABLE table1 DROP IF EXISTS  PARTITION (datepartition='2016-01-01',sizepartition='10'), "
+    Assert.assertEquals(ddl.size(), 2);
+    Assert.assertEquals(ddl.get(0), "USE db1 \n");
+    Assert.assertEquals(ddl.get(1),
+          "ALTER TABLE table1 DROP IF EXISTS  PARTITION (datepartition='2016-01-01',sizepartition='10'), "
         + "PARTITION (datepartition='2016-01-02',sizepartition='20'), "
-        + "PARTITION (datepartition='2016-01-03',sizepartition='30')\n");
+        + "PARTITION (datepartition='2016-01-03',sizepartition='30')");
 
     // Check empty partitions
-    Assert.assertEquals(HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1", Collections.<Map<String, String>> emptyList()), "");
+    Assert.assertEquals(HiveAvroORCQueryGenerator.generateDropPartitionsDDL("db1", "table1",
+        Collections.<Map<String, String>>emptyList()), Collections.emptyList());
+  }
+
+  @Test
+  public void testCreatePartitionDDL() throws Exception {
+    List<String> ddl = HiveAvroORCQueryGenerator.generateCreatePartitionDDL("db1", "table1", "/tmp",
+        ImmutableMap.of("datepartition", "2016-01-01", "sizepartition", "10"));
+
+    Assert.assertEquals(ddl.size(), 2);
+    Assert.assertEquals(ddl.get(0), "USE db1\n");
+    Assert.assertEquals(ddl.get(1),
+        "ALTER TABLE `table1` ADD IF NOT EXISTS PARTITION (`datepartition`='2016-01-01', `sizepartition`='10') \n"
+            + " LOCATION '/tmp' ");
+  }
+
+  @Test
+  public void testDropTableDDL() throws Exception {
+    String ddl = HiveAvroORCQueryGenerator.generateDropTableDDL("db1", "table1");
+
+    Assert.assertEquals(ddl, "DROP TABLE IF EXISTS `db1`.`table1`");
+  }
+
+  @Test
+  public void testHiveTypeEscaping() throws Exception {
+    String type = "array<struct<singleItems:array<struct<scoredEntity:struct<id:string,score:float,"
+        + "sourceName:string,sourceModel:string>,scores:struct<fprScore:double,fprUtility:double,"
+        + "calibratedFprUtility:double,sprScore:double,adjustedSprScore:double,sprUtility:double>,"
+        + "sponsoredFlag:string,blendingRequestId:string,forExploration:boolean,d2Resource:string,"
+        + "restliFinder:string,trackingId:binary,aggregation:struct<positionInAggregation:struct<index:int>,"
+        + "typeOfAggregation:string>,decoratedFeedUpdateData:struct<avoData:struct<actorUrn:string,verbType:"
+        + "string,objectUrn:string,objectType:string>,attributedActivityUrn:string,createdTime:bigint,totalLikes:"
+        + "bigint,totalComments:bigint,rootActivity:struct<activityUrn:string,avoData:struct<actorUrn:string,"
+        + "verbType:string,objectUrn:string,objectType:string>>>>>,scores:struct<fprScore:double,fprUtility:double,"
+        + "calibratedFprUtility:double,sprScore:double,adjustedSprScore:double,sprUtility:double>,position:int>>";
+    String expectedEscapedType = "array<struct<`singleItems`:array<struct<`scoredEntity`:struct<`id`:string,"
+        + "`score`:float,`sourceName`:string,`sourceModel`:string>,`scores`:struct<`fprScore`:double,"
+        + "`fprUtility`:double,`calibratedFprUtility`:double,`sprScore`:double,`adjustedSprScore`:double,"
+        + "`sprUtility`:double>,`sponsoredFlag`:string,`blendingRequestId`:string,`forExploration`:boolean,"
+        + "`d2Resource`:string,`restliFinder`:string,`trackingId`:binary,`aggregation`:struct<`positionInAggregation`"
+        + ":struct<`index`:int>,`typeOfAggregation`:string>,`decoratedFeedUpdateData`:struct<`avoData`:"
+        + "struct<`actorUrn`:string,`verbType`:string,`objectUrn`:string,`objectType`:string>,`attributedActivityUrn`"
+        + ":string,`createdTime`:bigint,`totalLikes`:bigint,`totalComments`:bigint,`rootActivity`:struct<`activityUrn`"
+        + ":string,`avoData`:struct<`actorUrn`:string,`verbType`:string,`objectUrn`:string,`objectType`:string>>>>>,"
+        + "`scores`:struct<`fprScore`:double,`fprUtility`:double,`calibratedFprUtility`:double,`sprScore`:double,"
+        + "`adjustedSprScore`:double,`sprUtility`:double>,`position`:int>>";
+    String actualEscapedType = HiveAvroORCQueryGenerator.escapeHiveType(type);
+
+    Assert.assertEquals(actualEscapedType, expectedEscapedType);
+  }
+
+  @Test
+  public void testValidTypeEvolution() throws Exception {
+    // Check a few evolved types
+    Assert.assertTrue(HiveAvroORCQueryGenerator.isTypeEvolved("float", "int"));
+    Assert.assertTrue(HiveAvroORCQueryGenerator.isTypeEvolved("double", "float"));
+    Assert.assertTrue(HiveAvroORCQueryGenerator.isTypeEvolved("string", "varchar"));
+    Assert.assertTrue(HiveAvroORCQueryGenerator.isTypeEvolved("double", "string"));
+
+    // Check if type is same
+    Assert.assertFalse(HiveAvroORCQueryGenerator.isTypeEvolved("int", "int"));
+  }
+
+  @Test (expectedExceptions = RuntimeException.class)
+  public void testInvalidTypeEvolution() throws Exception {
+    // Check for in-compatible types
+    HiveAvroORCQueryGenerator.isTypeEvolved("boolean", "int");
   }
 }

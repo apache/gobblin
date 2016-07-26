@@ -16,6 +16,7 @@ import java.net.URI;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,17 +24,19 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
-import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.conversion.hive.AvroSchemaManager;
+import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
@@ -45,6 +48,7 @@ import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.publisher.DataPublisher;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.util.HadoopUtils;
+import gobblin.util.WriterUtils;
 
 
 /**
@@ -87,53 +91,85 @@ public class HiveConvertPublisher extends DataPublisher {
   @Override
   public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
 
-    String cleanupCommands = StringUtils.EMPTY;
-    boolean isFirst = true;
+    List<String> cleanUpQueries = Lists.newArrayList();
+    List<String> directoriesToDelete = Lists.newArrayList();
+
     if (Iterables.tryFind(states, UNSUCCESSFUL_WORKUNIT).isPresent()) {
       for (WorkUnitState wus : states) {
-        if (isFirst) {
-          // Get cleanup staging table commands
-          cleanupCommands = HiveAvroORCQueryGenerator.deserializeCleanupCommands(wus);
-          isFirst = false;
-        }
+        QueryBasedHivePublishEntity publishEntity = HiveAvroORCQueryGenerator.deserializePublishCommands(wus);
+
+        // Add cleanup commands - to be executed later
+        cleanUpQueries.addAll(publishEntity.getCleanupQueries());
+        directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
+
         wus.setWorkingState(WorkingState.FAILED);
-        new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
+        try {
+          new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
+        } catch (Exception e) {
+          log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
+              + "all clean up comamnds", e);
+        }
       }
     } else {
-      String publishTableCommands = StringUtils.EMPTY;
       for (WorkUnitState wus : states) {
-        if (isFirst) {
-          // Get publish table commands
-          publishTableCommands = HiveAvroORCQueryGenerator.deserializePublishTableCommands(wus);
+        QueryBasedHivePublishEntity publishEntity = HiveAvroORCQueryGenerator.deserializePublishCommands(wus);
 
-          // Execute publish table commands
-          executeQueries(publishTableCommands);
+        // Add cleanup commands - to be executed later
+        cleanUpQueries.addAll(publishEntity.getCleanupQueries());
+        directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
 
-          // Get cleanup staging table commands
-          cleanupCommands = HiveAvroORCQueryGenerator.deserializeCleanupCommands(wus);
-          isFirst = false;
+        // Publish snapshot / partition directories
+        Map<String, String> publishDirectories = publishEntity.getPublishDirectories();
+        for (Map.Entry<String, String> publishDir : publishDirectories.entrySet()) {
+          moveDirectory(publishDir.getKey(), publishDir.getValue());
         }
 
-        // Get directory to delete before publish partition if any
-        String dirToDelete = HiveAvroORCQueryGenerator.deserializeDirToDeleteBeforePartitionPublish(wus);
-
-        // Get publish partition commands if any
-        String publishPartitionCommands = HiveAvroORCQueryGenerator.deserializePublishPartitionCommands(wus);
-
-        // Execute publish partition commands if any
-        deleteDirectory(dirToDelete);
-        executeQueries(publishPartitionCommands);
+        // Register snapshot / partition
+        List<String> publishQueries = publishEntity.getPublishQueries();
+        executeQueries(publishQueries);
 
         wus.setWorkingState(WorkingState.COMMITTED);
-        wus.setActualHighWatermark(TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(),
-            LongWatermark.class));
+        wus.setActualHighWatermark(
+            TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(), LongWatermark.class));
 
-        new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
-            .submit();
+        try {
+          new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
+              .submit();
+        } catch (Exception e) {
+          log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
+              + "all clean up commands", e);
+        }
       }
+
     }
-    // Execute cleanup staging table commands
-    executeQueries(cleanupCommands);
+    // Execute cleanup commands
+    executeQueries(cleanUpQueries);
+    deleteDirectories(directoriesToDelete);
+  }
+
+  private void moveDirectory(String sourceDir, String targetDir)
+      throws IOException {
+    // If targetDir exists, delete it
+    if (this.fs.exists(new Path(targetDir))) {
+      deleteDirectory(targetDir);
+    }
+
+    // Create parent directories of targetDir
+    WriterUtils.mkdirsWithRecursivePermission(this.fs, new Path(targetDir).getParent(),
+        FsPermission.getCachePoolDefault());
+
+    // Move directory
+    log.info("Moving directory: " + sourceDir + " to: " + targetDir);
+    if (!this.fs.rename(new Path(sourceDir), new Path(targetDir))) {
+      throw new IOException(
+          String.format("Unable to move %s to %s", sourceDir, targetDir));
+    }
+  }
+
+  private void deleteDirectories(List<String> directoriesToDelete) throws IOException {
+    for (String directory : directoriesToDelete) {
+      deleteDirectory(directory);
+    }
   }
 
   private void deleteDirectory(String dirToDelete) throws IOException {
@@ -145,13 +181,12 @@ public class HiveConvertPublisher extends DataPublisher {
     this.fs.delete(new Path(dirToDelete), true);
   }
 
-  private void executeQueries(String queries) {
-    if (StringUtils.isBlank(queries)) {
+  private void executeQueries(List<String> queries) {
+    if (null == queries || queries.size() == 0) {
       return;
     }
     try {
-      List<String> queryList = Splitter.on("\n").omitEmptyStrings().trimResults().splitToList(queries);
-      this.hiveJdbcConnector.executeStatements(queryList.toArray(new String[queryList.size()]));
+      this.hiveJdbcConnector.executeStatements(queries.toArray(new String[queries.size()]));
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
