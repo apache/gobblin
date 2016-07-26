@@ -1,5 +1,5 @@
-INSERT OVERWRITE TABLE `testdb.testtable_orc_nested_staging`
+INSERT OVERWRITE TABLE `testdb`.`testtable_orc_nested_staging`
 SELECT
   `parentFieldRecord`,
   `parentFieldInt`
-FROM `testdb.testtable`
+FROM `testdb`.`testtable`

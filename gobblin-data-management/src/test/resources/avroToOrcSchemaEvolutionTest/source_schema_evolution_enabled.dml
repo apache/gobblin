@@ -1,8 +1,8 @@
-INSERT OVERWRITE TABLE `default.sourceSchema_orc` 
+INSERT OVERWRITE TABLE `default`.`sourceSchema_orc` 
 SELECT 
   `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldString`, 
   `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldInt`, 
   `parentFieldRecord`.`nestedFieldString`, 
   `parentFieldRecord`.`nestedFieldInt`, 
   `parentFieldInt` 
- FROM `default.sourceSchema` 
+ FROM `default`.`sourceSchema` 
