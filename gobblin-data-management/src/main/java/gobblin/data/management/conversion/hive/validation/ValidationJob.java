@@ -48,6 +48,7 @@ import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
 import gobblin.data.management.conversion.hive.query.HiveValidationQueryGenerator;
 import gobblin.data.management.conversion.hive.source.HiveSource;
 import gobblin.data.management.copy.hive.HiveDataset;
+import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
 import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
@@ -75,6 +76,7 @@ public class ValidationJob extends AbstractJob {
    * ie. the resultant window for validation is: $start_time <= window <= $end_time
    */
   private static final String HIVE_SOURCE_SKIP_RECENT_THAN_DAYS_KEY = "hive.source.skip.recentThanDays";
+  private static final String HIVE_DATASET_CONFIG_AVRO_PREFIX = "hive.conversion.avro";
   private static final String DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS = "3";
   private static final String DEFAULT_HIVE_SOURCE_SKIP_RECENT_THAN_DAYS = "1";
 
@@ -94,6 +96,9 @@ public class ValidationJob extends AbstractJob {
   public ValidationJob(String jobId, Properties props) throws IOException {
     super(jobId, log);
 
+    // Set the conversion config prefix for Avro to ORC
+    props.setProperty(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, HIVE_DATASET_CONFIG_AVRO_PREFIX);
+
     Config config = ConfigFactory.parseProperties(props);
     this.props = props;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), ValidationJob.class);
@@ -109,8 +114,8 @@ public class ValidationJob extends AbstractJob {
     this.skipRecentThanTime = new DateTime().minusDays(skipRecentThanDays).getMillis();
 
     // value for DESTINATION_CONVERSION_FORMATS_KEY can be a TypeSafe list or a comma separated list of string
-    this.destFormats = Sets.newHashSet(
-        ConfigUtils.getStringList(config, ConvertibleHiveDataset.DESTINATION_CONVERSION_FORMATS_KEY));
+    this.destFormats = Sets.newHashSet(ConfigUtils.getStringList(config,
+        HIVE_DATASET_CONFIG_AVRO_PREFIX + "." + ConvertibleHiveDataset.DESTINATION_CONVERSION_FORMATS_KEY));
 
     try {
       this.hiveJdbcConnector = HiveJdbcConnector.newConnectorWithProps(props);
