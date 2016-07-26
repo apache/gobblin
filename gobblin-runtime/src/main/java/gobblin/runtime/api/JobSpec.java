@@ -48,11 +48,11 @@ public class JobSpec implements Configurable {
   // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
   final Properties configAsProperties;
 
-  public static Builder builer(URI jobSpecUri) {
+  public static Builder builder(URI jobSpecUri) {
     return new Builder(jobSpecUri);
   }
 
-  public static Builder builer(String jobSpecUri) {
+  public static Builder builder(String jobSpecUri) {
     return new Builder(jobSpecUri);
   }
 

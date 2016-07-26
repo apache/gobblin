@@ -41,9 +41,9 @@ public class TestMutableCachingJobCatalog {
     JobCatalogListener l = Mockito.mock(JobCatalogListener.class);
     cachedCat.addListener(l);
 
-    JobSpec js1_1 = JobSpec.builer("test:job1").withVersion("1").build();
-    JobSpec js1_2 = JobSpec.builer("test:job1").withVersion("2").build();
-    JobSpec js1_3 = JobSpec.builer("test:job1").withVersion("3").build();
+    JobSpec js1_1 = JobSpec.builder("test:job1").withVersion("1").build();
+    JobSpec js1_2 = JobSpec.builder("test:job1").withVersion("2").build();
+    JobSpec js1_3 = JobSpec.builder("test:job1").withVersion("3").build();
     URI jsURI = new URI("test:job1");
 
     baseCat.put(js1_1);
