@@ -122,7 +122,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
   /**
    * Get the {@link ConversionConfig} required for building the Avro to ORC conversion query
-   * @return
+   * @return Conversion config
    */
   protected abstract ConversionConfig getConversionConfig();
 
@@ -183,7 +183,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
 
     // Create DDL statement for table
-    Map<String, String> hiveColumns = new HashMap<String, String>();
+    Map<String, String> hiveColumns = new HashMap<>();
     String createStagingTableDDL =
         HiveAvroORCQueryGenerator.generateCreateTableDDL(outputAvroSchema,
             orcStagingTableName,
