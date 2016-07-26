@@ -107,5 +107,17 @@ public class WatermarkBasedCopyableFileFilterTest {
     Assert.assertEquals(previousWatermarks.get("dataset1").isInclude(), true);
     Assert.assertEquals(((StringWatermark) previousWatermarks.get("dataset2").getWatermark()).getValue(), "0");
     Assert.assertEquals(previousWatermarks.get("dataset2").isInclude(), true);
+
+    SourceState sourceStateCommittedFirst = new SourceState(jobState, workUnitStates2);
+    sourceStateCommittedFirst.setProp(WatermarkBasedCopyableFileFilter.WATERMARK_FILTER_POLICY, WatermarkBasedCopyableFileFilter.FILTER_POLICY.COMMITTED_FIRST);
+    WatermarkBasedCopyableFileFilter copyableFileFilterCommittedFirst =
+        new WatermarkBasedCopyableFileFilter(sourceStateCommittedFirst, mockedDataset);
+    Map<String, WatermarkBasedCopyableFileFilter.IncludeExcludeWatermark> previousWatermarksCommittedFirst =
+        copyableFileFilterCommittedFirst.getPreviousWatermarkForFilter(sourceStateCommittedFirst, Optional.of(watermarkGenerator));
+    Assert.assertEquals(previousWatermarksCommittedFirst.keySet(), Sets.newHashSet("dataset1", "dataset2"));
+    Assert.assertEquals(((StringWatermark) previousWatermarksCommittedFirst.get("dataset1").getWatermark()).getValue(), "6");
+    Assert.assertEquals(previousWatermarksCommittedFirst.get("dataset1").isInclude(), false);
+    Assert.assertEquals(((StringWatermark) previousWatermarksCommittedFirst.get("dataset2").getWatermark()).getValue(), "0");
+    Assert.assertEquals(previousWatermarks.get("dataset2").isInclude(), true);
   }
 }
