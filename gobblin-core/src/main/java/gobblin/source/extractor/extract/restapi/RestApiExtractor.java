@@ -75,7 +75,6 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     JsonArray columnArray = new JsonArray();
     String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
     
-    log.info("AAA inputQuery is " + inputQuery);
     List<String> columnListInQuery = null;
     JsonArray array = null;
     if (!Strings.isNullOrEmpty(inputQuery)) {
@@ -97,7 +96,6 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
         throw new SchemaException("Failed to connect.");
       }
       log.debug("Connected successfully.");
-      log.info("AAA Connected successfully.");
       List<Command> cmds = this.getSchemaMetadata(schema, entity);
       CommandOutput<?, ?> response = this.connector.getResponse(cmds);
       array = this.getSchema(response);

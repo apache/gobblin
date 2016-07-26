@@ -87,14 +87,6 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         ? getTableSpecificPropsFromConfigStore(tableNameToEntityMap.keySet(), state)
         : DatasetUtils.getDatasetSpecificProps(tableNameToEntityMap.keySet(), state);
     Map<String, Long> prevWatermarksByTable = getPreviousWatermarksForAllTables(state);
-    
-    for(Map.Entry<String, String> entry: tableNameToEntityMap.entrySet()){
-      log.info("AAA table name is " + entry.getKey());
-    }
-    
-    for(Map.Entry<String, Long> entry: prevWatermarksByTable.entrySet()){
-      log.info("AAA previous table name is " + entry.getKey());
-    }
 
     for (String tableName : Sets.union(tableNameToEntityMap.keySet(), prevWatermarksByTable.keySet())) {
 
@@ -238,31 +230,17 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     boolean commitOnFullSuccess = JobCommitPolicy.getCommitPolicy(state) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
 
     for (WorkUnitState previousWus : state.getPreviousWorkUnitStates()) {
+      String table;
       
-      for(Object o: previousWus.getProperties().keySet()){
-        log.info("CCC key " + o + " value  " + previousWus.getProp((String)o));
+      // current code will use {@link ConfigurationKeys.SOURCE_ENTITY} to defined the table name
+      if(previousWus.getWorkunit().contains(ConfigurationKeys.SOURCE_ENTITY)){
+        table = previousWus.getWorkunit().getProp(ConfigurationKeys.SOURCE_ENTITY); 
       }
-      log.info("CCC 0 " + previousWus.contains(ConfigurationKeys.SOURCE_ENTITY));
-      log.info("CCC 1 " + previousWus.getProperties().contains(ConfigurationKeys.SOURCE_ENTITY));
-      log.info("CCC 2 " + previousWus.getJobState().contains(ConfigurationKeys.SOURCE_ENTITY));
-      log.info("CCC 3 " + previousWus.getExtract().contains(ConfigurationKeys.SOURCE_ENTITY));
-      log.info("CCC 4 " + previousWus.getWorkunit().contains(ConfigurationKeys.SOURCE_ENTITY));
-      
-      String table = previousWus.getExtract().getTable();
-      if(previousWus.getExtract().contains(ConfigurationKeys.SOURCE_ENTITY)){
-        String sourceEntity = previousWus.getExtract().getProp(ConfigurationKeys.SOURCE_ENTITY); 
-        log.warn(String.format("Based on previous Extract, Override table name %s => source entity name %s", table, sourceEntity));;
-        table = sourceEntity;
-      }
-      else if (previousWus.contains(ConfigurationKeys.SOURCE_ENTITY)){
-        String sourceEntity = previousWus.getProp(ConfigurationKeys.SOURCE_ENTITY); 
-        log.warn(String.format("00 Based on previous work unit state, Override table name %s => source entity name %s", table, sourceEntity));;
-        table = sourceEntity;
-      }
-      else if (previousWus.getProperties().contains(ConfigurationKeys.SOURCE_ENTITY)){
-        String sourceEntity = previousWus.getProperties().getProperty(ConfigurationKeys.SOURCE_ENTITY); 
-        log.warn(String.format("11 Based on previous work unit state, Override table name %s => source entity name %s", table, sourceEntity));;
-        table = sourceEntity;
+      // previous format
+      else {
+        table = previousWus.getExtract().getTable();
+        log.warn(String.format("Can not find %s entry in workunit, based on %s to set table name as %s", ConfigurationKeys.SOURCE_ENTITY, 
+            ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, table));
       }
 
       long lowWm = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
