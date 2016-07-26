@@ -19,7 +19,6 @@ import gobblin.source.extractor.exception.RestApiProcessingException;
 import gobblin.source.extractor.utils.Utils;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -74,7 +73,6 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     log.info("Extract Metadata using Rest Api");
     JsonArray columnArray = new JsonArray();
     String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
-    
     List<String> columnListInQuery = null;
     JsonArray array = null;
     if (!Strings.isNullOrEmpty(inputQuery)) {
