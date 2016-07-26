@@ -205,7 +205,9 @@ public class MRJobLauncherTest extends BMNGRunner {
     File outputDir = new File(props.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR));
 
     Assert.assertEquals(FileUtils.listFiles(stagingDir, null, true).size(), 0);
-    Assert.assertEquals(FileUtils.listFiles(outputDir, null, true).size(), 0);
+    if (outputDir.exists()) {
+      Assert.assertEquals(FileUtils.listFiles(outputDir, null, true).size(), 0);
+    }
   }
 
   @Test

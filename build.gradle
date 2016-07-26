@@ -266,7 +266,7 @@ ext.externalDependency = [
   "jsonAssert": "org.skyscreamer:jsonassert:1.3.0",
   "reflections" : "org.reflections:reflections:0.9.10",
   "embeddedProcess": "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.2",
-  "testMysqlServer": "com.wix:wix-embedded-mysql:1.1.0",
+  "testMysqlServer": "com.wix:wix-embedded-mysql:2.0.1",
   "flyway": "org.flywaydb:flyway-core:3.2.1"
 ];
 
