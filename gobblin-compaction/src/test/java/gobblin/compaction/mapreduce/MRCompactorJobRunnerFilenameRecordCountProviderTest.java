@@ -39,7 +39,7 @@ public class MRCompactorJobRunnerFilenameRecordCountProviderTest {
     String originalFilename = "test.123.avro";
     String suffixPattern = Pattern.quote(".late") + "[\\d]*";
 
-    Path testDir = new Path("gobblin-compaction/src/test/resources/compactorFilenameRecordCountProviderTest");
+    Path testDir = new Path("/tmp/compactorFilenameRecordCountProviderTest");
     FileSystem fs = FileSystem.getLocal(new Configuration());
     try {
       if (fs.exists(testDir)) {
