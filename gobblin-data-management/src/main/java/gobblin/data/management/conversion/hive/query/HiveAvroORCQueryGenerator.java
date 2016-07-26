@@ -908,7 +908,7 @@ public class HiveAvroORCQueryGenerator {
         QueryBasedHivePublishEntity.class);
   }
 
-  private static boolean isTypeEvolved(String evolvedType, String destinationType) {
+  public static boolean isTypeEvolved(String evolvedType, String destinationType) {
     if (evolvedType.equalsIgnoreCase(destinationType)) {
       // Same type, not evolved
       return false;
