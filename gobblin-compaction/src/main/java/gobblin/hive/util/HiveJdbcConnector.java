@@ -21,18 +21,15 @@ import java.net.URLClassLoader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Enumeration;
-import java.util.List;
 import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 import gobblin.password.PasswordManager;
 
@@ -251,27 +248,6 @@ public class HiveJdbcConnector implements Closeable {
         this.stmt.execute(statement);
       }
     }
-  }
-
-  /***
-   * Executes the given SQL statements, and return a {@link List} of
-   * {@link ResultSet} objects for each statement executed.
-   *
-   * @param statements SQL statements to be executed.
-   * @return {@link List} of {@link ResultSet} objects that contain the data
-   *         produced by the given queries; never null.
-   * @throws SQLException if any issue in executing any statement.
-   */
-  public List<ResultSet> executeStatementsWithResult(String... statements) throws SQLException {
-    Preconditions.checkNotNull(this.conn, "The Hive connection must be set before any queries can be run");
-
-    List<ResultSet> resultSets = Lists.newArrayList();
-    for (String statement : statements) {
-      LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
-      resultSets.add(this.stmt.executeQuery(statement));
-    }
-
-    return resultSets;
   }
 
   private static String choppedStatement(String statement) {

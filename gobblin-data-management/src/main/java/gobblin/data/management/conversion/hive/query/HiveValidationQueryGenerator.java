@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
@@ -46,7 +47,7 @@ public class HiveValidationQueryGenerator {
 
     // Source and converted destination details
     String sourceDatabase = hiveDataset.getDbAndTable().getDb();
-    String sourceTable = hiveDataset.getDbAndTable().getDb();
+    String sourceTable = hiveDataset.getDbAndTable().getTable();
     String destinationDatabase = conversionConfig.getDestinationDbName();
     String destinationTable = conversionConfig.getDestinationTableName();
 
@@ -54,13 +55,33 @@ public class HiveValidationQueryGenerator {
     List<String> queries = Lists.newArrayList();
 
     if (sourcePartition.isPresent()) {
+      StringBuilder partitionClause = new StringBuilder();
+
+      boolean isFirst = true;
+      String partitionInfo = sourcePartition.get().getName();
+      List<String> pInfo = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionInfo);
+      for (String aPInfo : pInfo) {
+        List<String> pInfoParts = Splitter.on("=").omitEmptyStrings().trimResults().splitToList(aPInfo);
+        if (pInfoParts.size() != 2) {
+          throw new IllegalArgumentException(String
+              .format("Partition details should be of the format " + "partitionName=partitionValue. Recieved: %s",
+                  aPInfo));
+        }
+        if (isFirst) {
+          isFirst = false;
+        } else {
+          partitionClause.append(" and ");
+        }
+        partitionClause.append("`").append(pInfoParts.get(0)).append("`='").append(pInfoParts.get(1)).append("'");
+      }
+
       queries.add(String
-          .format("SELECT count(*) FROM `%s`.`%s` WHERE `%s`;", sourceDatabase, sourceTable, sourcePartition.get().getName()));
-      queries.add(String.format("SELECT count(*) FROM `%s`.`%s` WHERE `%s`;", destinationDatabase, destinationTable,
-          sourcePartition.get().getName()));
+          .format("SELECT count(*) FROM `%s`.`%s` WHERE %s ", sourceDatabase, sourceTable, partitionClause));
+      queries.add(String.format("SELECT count(*) FROM `%s`.`%s` WHERE %s ", destinationDatabase, destinationTable,
+          partitionClause));
     } else {
-      queries.add(String.format("SELECT count(*) FROM `%s`.`%s`; ", sourceDatabase, sourceTable));
-      queries.add(String.format("SELECT count(*) FROM `%s`.`%s`;", destinationDatabase, destinationTable));
+      queries.add(String.format("SELECT count(*) FROM `%s`.`%s` ", sourceDatabase, sourceTable));
+      queries.add(String.format("SELECT count(*) FROM `%s`.`%s` ", destinationDatabase, destinationTable));
     }
 
     return queries;

@@ -14,6 +14,7 @@ package gobblin.data.management.conversion.hive.validation;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -32,6 +33,7 @@ import azkaban.jobExecutor.AbstractJob;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
@@ -192,10 +194,10 @@ public class ValidationJob extends AbstractJob {
 
             // Execute validation queries
             log.info(String.format("Going to execute queries: %s for format: %s", validationQueries, format));
-            List<ResultSet> resultSets = this.executeQueries(validationQueries);
+            List<Long> rowCounts = this.executeQueries(validationQueries);
 
             // Validate and populate report
-            validateAndPopulateReport(hiveDataset.getTable().getCompleteName(), updateTime, resultSets);
+            validateAndPopulateReport(hiveDataset.getTable().getCompleteName(), updateTime, rowCounts);
           } else {
             log.info(String.format("No config found for format: %s So skipping table: %s for this format", format,
                 hiveDataset.getTable().getCompleteName()));
@@ -245,10 +247,10 @@ public class ValidationJob extends AbstractJob {
 
               // Execute validation queries
               log.info(String.format("Going to execute queries: %s for format: %s", validationQueries, format));
-              List<ResultSet> resultSets = this.executeQueries(validationQueries);
+              List<Long> rowCounts = this.executeQueries(validationQueries);
 
               // Validate and populate report
-              validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, resultSets);
+              validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, rowCounts);
             } else {
               log.info(String.format("No config found for format: %s So skipping partition: %s for this format", format,
                   sourcePartition.getCompleteName()));
@@ -270,54 +272,67 @@ public class ValidationJob extends AbstractJob {
    * Execute Hive queries using {@link HiveJdbcConnector} and validate results.
    * @param queries Queries to execute.
    */
-  private List<ResultSet> executeQueries(List<String> queries) {
+  private List<Long> executeQueries(List<String> queries) throws IOException {
     if (null == queries || queries.size() == 0) {
       log.warn("No queries specified to be executed");
       return Collections.emptyList();
     }
+    Statement statement = null;
+    List<Long> rowCounts = Lists.newArrayList();
     try {
-       return this.hiveJdbcConnector
-          .executeStatementsWithResult(queries.toArray(new String[queries.size()]));
+      statement = this.hiveJdbcConnector.getConnection().createStatement();
+
+      for (String query : queries) {
+        log.info("Executing query: " + query);
+        ResultSet resultSet = statement.executeQuery(query);
+        if (resultSet.next()) {
+          rowCounts.add(resultSet.getLong(1));
+        }
+      }
+
     } catch (SQLException e) {
       throw new RuntimeException(e);
+    } finally {
+      if (null != statement) {
+        try {
+          statement.close();
+        } catch (SQLException e) {
+          log.warn("Issue in closing SQL statement", e);
+        }
+      }
     }
+
+    return rowCounts;
   }
 
-  private void validateAndPopulateReport(String datasetIdentifier, long conversionInstance, List<ResultSet> resultSets) {
-    if (null == resultSets || resultSets.size() == 0) {
+  private void validateAndPopulateReport(String datasetIdentifier, long conversionInstance, List<Long> rowCounts) {
+    if (null == rowCounts || rowCounts.size() == 0) {
       this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
           "No conversion details found");
       new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_NOOP_SLA_EVENT, props)
           .submit();
       return;
     }
-    try {
-      long rowCountCached = -1;
-      boolean isFirst = true;
-      for (ResultSet resultSet : resultSets) {
-        if (resultSet.next()) {
-          long rowCount = resultSet.getLong(1);
-          if (isFirst) {
-            rowCountCached = rowCount;
-            isFirst = false;
-            continue;
-          }
-          if (rowCount != rowCountCached) {
-            this.failedConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
-                "Row counts did not match across all conversions");
-            new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_FAILED_SLA_EVENT, props)
-                .submit();
-            return;
-          }
-        }
+    long rowCountCached = -1;
+    boolean isFirst = true;
+    for (Long rowCount : rowCounts) {
+      if (isFirst) {
+        rowCountCached = rowCount;
+        isFirst = false;
+        continue;
       }
-      this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
-          "Row counts matched across all conversions");
-      new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_SUCCESSFUL_SLA_EVENT, props)
-          .submit();
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
+      if (rowCount != rowCountCached) {
+        this.failedConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
+            "Row counts did not match across all conversions");
+        new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_FAILED_SLA_EVENT, props)
+            .submit();
+        return;
+      }
     }
+    this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
+        "Row counts matched across all conversions");
+    new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_SUCCESSFUL_SLA_EVENT, props)
+        .submit();
   }
 
   /***
