@@ -1,4 +1,4 @@
-CREATE EXTERNAL TABLE IF NOT EXISTS `default.testRecordWithinOptionWithinRecordDDL` ( 
+CREATE EXTERNAL TABLE IF NOT EXISTS `default`.`testRecordWithinOptionWithinRecordDDL` ( 
   `parentFieldUnion` struct<`unionRecordMemberFieldLong`:bigint,`unionRecordMemberFieldString`:string> COMMENT 'from flatten_source parentFieldUnion', 
   `parentFieldInt` int COMMENT 'from flatten_source parentFieldInt') 
 ROW FORMAT SERDE 

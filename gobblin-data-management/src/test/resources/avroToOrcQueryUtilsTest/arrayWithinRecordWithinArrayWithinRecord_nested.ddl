@@ -1,4 +1,4 @@
-CREATE EXTERNAL TABLE IF NOT EXISTS `default.testArrayWithinRecordWithinArrayWithinRecordDDL` ( 
+CREATE EXTERNAL TABLE IF NOT EXISTS `default`.`testArrayWithinRecordWithinArrayWithinRecordDDL` ( 
   `parentRecordFieldName` array<struct<`nestedRecordFieldName`:array<string>>> COMMENT 'from flatten_source parentRecordFieldName') 
 ROW FORMAT SERDE 
   'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
