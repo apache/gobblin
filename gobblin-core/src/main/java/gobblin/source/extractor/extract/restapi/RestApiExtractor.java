@@ -79,7 +79,6 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     JsonArray array = null;
     if (!Strings.isNullOrEmpty(inputQuery)) {
       columnListInQuery = Utils.getColumnListFromQuery(inputQuery);
-      log.info("columnList " + columnListInQuery);
     }
 
     String excludedColumns = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXCLUDED_COLUMNS);
