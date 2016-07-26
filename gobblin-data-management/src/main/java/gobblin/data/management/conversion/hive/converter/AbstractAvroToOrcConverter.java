@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -45,6 +46,7 @@ import gobblin.converter.DataConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
+import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
@@ -62,6 +64,11 @@ import gobblin.util.AutoReturnableObject;
  */
 @Slf4j
 public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schema, QueryBasedHiveConversionEntity, QueryBasedHiveConversionEntity> {
+
+  /***
+   * Subdirectory within destination ORC table directory to publish data
+   */
+  private static final String PUBLISHED_TABLE_SUBDIRECTORY = "final";
 
   /**
    * Supported destination ORC formats
@@ -115,7 +122,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
   /**
    * Get the {@link ConversionConfig} required for building the Avro to ORC conversion query
-   * @return
+   * @return Conversion config
    */
   protected abstract ConversionConfig getConversionConfig();
 
@@ -142,14 +149,14 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
     // ORC table name and location
     String orcTableName = getConversionConfig().getDestinationTableName();
-    String orcStagingTableName = getConversionConfig().getDestinationStagingTableName();
+    String orcStagingTableName = getOrcStagingTableName(getConversionConfig().getDestinationStagingTableName());
     String orcTableDatabase = getConversionConfig().getDestinationDbName();
-    String orcDataLocation = getOrcDataLocation(workUnit);
+    String orcDataLocation = getOrcDataLocation();
+    String orcStagingDataLocation = getOrcStagingDataLocation(orcStagingTableName);
     boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
     Pair<Optional<Table>, Optional<List<Partition>>> destinationMeta = getDestinationTableMeta(orcTableDatabase,
         orcTableName, workUnit);
     Optional<Table> destinationTableMeta = destinationMeta.getLeft();
-    Optional<List<Partition>> destinationPartitionsMeta = destinationMeta.getRight();
 
     // Optional
     Optional<List<String>> clusterBy =
@@ -158,7 +165,12 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             : Optional.of(getConversionConfig().getClusterBy());
     Optional<Integer> numBuckets = getConversionConfig().getNumBuckets();
     Optional<Integer> rowLimit = getConversionConfig().getRowLimit();
-    Optional<String> hiveVersion = getConversionConfig().getHiveVersion();
+
+    // Partition dir hint helps create different directory for hourly and daily partition with same timestamp, such as:
+    // .. daily_2016-01-01-00 and hourly_2016-01-01-00
+    // This helps existing hourly data from not being deleted at the time of roll up, and so Hive queries in flight
+    // .. do not fail
+    List<String> sourceDataPathIdentifier = getConversionConfig().getSourceDataPathIdentifier();
 
     // Populate optional partition info
     Map<String, String> partitionsDDLInfo = Maps.newHashMap();
@@ -170,12 +182,12 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       conversionEntity.getQueries().add(String.format("SET %s=%s;", entry.getKey(), entry.getValue()));
     }
 
-    // Create DDL statement
-    Map<String, String> hiveColumns = new HashMap<String, String>();
-    String createTargetTableDDL =
+    // Create DDL statement for table
+    Map<String, String> hiveColumns = new HashMap<>();
+    String createStagingTableDDL =
         HiveAvroORCQueryGenerator.generateCreateTableDDL(outputAvroSchema,
             orcStagingTableName,
-            orcDataLocation,
+            orcStagingDataLocation,
             Optional.of(orcTableDatabase),
             Optional.of(partitionsDDLInfo),
             clusterBy,
@@ -188,11 +200,25 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             isEvolutionEnabled,
             destinationTableMeta,
             hiveColumns);
-    conversionEntity.getQueries().add(createTargetTableDDL);
-    log.debug("Create DDL: " + createTargetTableDDL);
+    conversionEntity.getQueries().add(createStagingTableDDL);
+    log.info("Create staging table DDL: " + createStagingTableDDL);
+
+    // Create DDL statement for partition
+    String orcStagingDataPartitionDirName = getOrcStagingDataPartitionDirName(conversionEntity, sourceDataPathIdentifier);
+    String orcStagingDataPartitionLocation = orcStagingDataLocation + Path.SEPARATOR + orcStagingDataPartitionDirName;
+    if (partitionsDMLInfo.size() > 0) {
+      List<String> createStagingPartitionDDL =
+          HiveAvroORCQueryGenerator.generateCreatePartitionDDL(orcTableDatabase,
+              orcStagingTableName,
+              orcStagingDataPartitionLocation,
+              partitionsDMLInfo);
+
+      conversionEntity.getQueries().addAll(createStagingPartitionDDL);
+      log.info("Create staging partition DDL: " + createStagingPartitionDDL);
+    }
 
     // Create DML statement
-    String insertInORCTableDML =
+    String insertInORCStagingTableDML =
         HiveAvroORCQueryGenerator
             .generateTableMappingDML(conversionEntity.getHiveTable().getAvroSchema(),
                 outputAvroSchema,
@@ -206,97 +232,227 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 isEvolutionEnabled,
                 destinationTableMeta,
                 rowLimit);
-    conversionEntity.getQueries().add(insertInORCTableDML);
-    log.debug("Conversion DML: " + insertInORCTableDML);
+    conversionEntity.getQueries().add(insertInORCStagingTableDML);
+    log.info("Conversion staging DML: " + insertInORCStagingTableDML);
 
+    // TODO: Split this method into two (conversion and publish)
     // Addition to WUS for Staging publish:
     // A. Evolution turned on:
-    //    1. If table does not exists: simply create it
+    //    1. If table does not exists: simply create it (now it should exist)
     //    2. If table exists:
-    //       2.1 Evolve table (alter table)
-    //       2.2 Move partitions from staging to final table
-    //       2.3 Drop staging table
+    //      2.1 Evolve table (alter table)
+    //      2.2 If snapshot table:
+    //          2.2.1 Delete data in final table directory
+    //          2.2.2 Move data from staging to final table directory
+    //          2.2.3 Drop this staging table and delete directories
+    //      2.3 If partitioned table, move partitions from staging to final table; for all partitions:
+    //          2.3.1 Drop if exists partition in final table
+    //          2.3.2 Move partition directory
+    //          2.3.3 Create partition with location
+    //          2.3.4 Drop this staging table and delete directories
     // B. Evolution turned off:
-    //    1. If table does not exists: simply create it
+    //    1. If table does not exists: simply create it (now it should exist)
     //    2. If table exists:
-    //       2.1 Move partitions from staging to final table (staging is already based on un-evolved schema)
-    //       2.2 Drop staging table
+    //      2.1 Do not evolve table
+    //      2.2 If snapshot table:
+    //          2.2.1 Delete data in final table directory
+    //          2.2.2 Move data from staging to final table directory
+    //          2.2.3 Drop this staging table and delete directories
+    //      2.3 If partitioned table, move partitions from staging to final table; for all partitions:
+    //          2.3.1 Drop if exists partition in final table
+    //          2.3.2 Move partition directory
+    //          2.3.3 Create partition with location
+    //          2.3.4 Drop this staging table and delete directories
     // Note: The queries below also serve as compatibility check module before conversion, an incompatible
     //      .. schema throws a Runtime exeption, hence preventing further execution
-    StringBuilder publishTableQueries = new StringBuilder();
-    publishTableQueries.append(HiveAvroORCQueryGenerator
-        .generateEvolutionDDL(orcStagingTableName,
-            orcTableName,
-            Optional.of(orcTableDatabase),
-            Optional.of(orcTableDatabase),
-            outputAvroSchema,
-            isEvolutionEnabled,
-            hiveColumns,
-            destinationTableMeta)).append("\n");
-    publishTableQueries.append(
-        HiveAvroORCQueryGenerator.generatePublishTableDDL(orcStagingTableName,
-            orcTableName,
-            Optional.of(orcTableDatabase),
-            Optional.of(orcTableDatabase),
-            destinationTableMeta)).append("\n");
-    HiveAvroORCQueryGenerator.serializePublishTableCommands(workUnit, publishTableQueries.toString());
-    log.debug("Publish table queries: " + publishTableQueries);
+    QueryBasedHivePublishEntity publishEntity = new QueryBasedHivePublishEntity();
+    List<String> publishQueries = publishEntity.getPublishQueries();
+    Map<String, String> publishDirectories = publishEntity.getPublishDirectories();
+    List<String> cleanupQueries = publishEntity.getCleanupQueries();
+    List<String> cleanupDirectories = publishEntity.getCleanupDirectories();
 
-    Optional<String> dirToDeleteBeforePartitionPublish = HiveAvroORCQueryGenerator
-            .findDirToDeleteBeforePartitionPublish(conversionEntity.getHivePartition(), destinationPartitionsMeta);
-    HiveAvroORCQueryGenerator.serializeDirToDeleteBeforePartitionPublish(workUnit, dirToDeleteBeforePartitionPublish);
-    if (dirToDeleteBeforePartitionPublish.isPresent()) {
-      log.info("Directory to delete before publish partition: " + dirToDeleteBeforePartitionPublish.get());
-    } else {
-      log.info("No pre-existing partition directory to delete before publish partition.");
+    // Step:
+    // A.1, B.1: If table does not exists, simply create it
+    if (!destinationTableMeta.isPresent()) {
+      String createTargetTableDDL =
+          HiveAvroORCQueryGenerator.generateCreateTableDDL(outputAvroSchema,
+              orcTableName,
+              orcDataLocation,
+              Optional.of(orcTableDatabase),
+              Optional.of(partitionsDDLInfo),
+              clusterBy,
+              Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(),
+              numBuckets,
+              Optional.<String>absent(),
+              Optional.<String>absent(),
+              Optional.<String>absent(),
+              Optional.<Map<String, String>>absent(),
+              isEvolutionEnabled,
+              destinationTableMeta,
+              new HashMap<String, String>());
+      publishQueries.add(createTargetTableDDL);
+      log.info("Create final table DDL: " + createTargetTableDDL);
     }
 
-    StringBuilder publishPartitionQueries = new StringBuilder();
-    publishPartitionQueries.append(
-        HiveAvroORCQueryGenerator
-            .generatePublishPartitionDDL(orcStagingTableName,
-                orcTableName,
-                Optional.of(orcTableDatabase),
-                Optional.of(orcTableDatabase),
-                partitionsDMLInfo,
-                destinationTableMeta,
-                hiveVersion)).append("\n");
+    // Step:
+    // A.2.1: If table pre-exists (destinationTableMeta would be present), evolve table
+    // B.2.1: No-op
+    List<String> evolutionDDLs = HiveAvroORCQueryGenerator.generateEvolutionDDL(orcStagingTableName,
+        orcTableName,
+        Optional.of(orcTableDatabase),
+        Optional.of(orcTableDatabase),
+        outputAvroSchema,
+        isEvolutionEnabled,
+        hiveColumns,
+        destinationTableMeta);
+    log.info("Evolve final table DDLs: " + evolutionDDLs);
+    publishQueries.addAll(evolutionDDLs);
+
+
+    if (partitionsDDLInfo.size() == 0) {
+      // Step:
+      // A.2.2, B.2.2: Snapshot table
+
+      // Step:
+      // A.2.2.1, B.2.2.1: Delete data in final table directory
+      // A.2.2.2, B.2.2.2: Move data from staging to final table directory
+      log.info("Snapshot directory to move: " + orcStagingDataLocation + " to: " + orcDataLocation);
+      publishDirectories.put(orcStagingDataLocation, orcDataLocation);
+
+      // Step:
+      // A.2.2.3, B.2.2.3: Drop this staging table and delete directories
+      String dropStagingTableDDL = HiveAvroORCQueryGenerator.generateDropTableDDL(orcTableDatabase, orcStagingTableName);
+
+      log.info("Drop staging table DDL: " + dropStagingTableDDL);
+      cleanupQueries.add(dropStagingTableDDL);
+
+      // Delete: orcStagingDataLocation
+      log.info("Staging table directory to delete: " + orcStagingDataLocation);
+      cleanupDirectories.add(orcStagingDataLocation);
+
+    } else {
+      // Step:
+      // A.2.3, B.2.3: If partitioned table, move partitions from staging to final table; for all partitions:
+
+      // Step:
+      // A.2.3.1, B.2.3.1: Drop if exists partition in final table
+      List<String> dropPartitionsDDL =
+          HiveAvroORCQueryGenerator.generateDropPartitionsDDL(orcTableDatabase,
+              orcTableName,
+              partitionsDMLInfo);
+      log.info("Drop partitions if exist in final table: " + dropPartitionsDDL);
+      publishQueries.addAll(dropPartitionsDDL);
+
+      // Step:
+      // A.2.3.2, B.2.3.2: Move partition directory
+      // Move: orcStagingDataPartitionLocation to: orcFinalDataPartitionLocation
+      String orcFinalDataPartitionLocation = orcDataLocation + Path.SEPARATOR + orcStagingDataPartitionDirName;
+      log.info("Partition directory to move: " + orcStagingDataPartitionLocation + " to: " + orcFinalDataPartitionLocation);
+      publishDirectories.put(orcStagingDataPartitionLocation, orcFinalDataPartitionLocation);
+
+      // Step:
+      // A.2.3.3, B.2.3.3: Create partition with location
+      String orcDataPartitionLocation = orcDataLocation + Path.SEPARATOR + orcStagingDataPartitionDirName;
+      List<String> createFinalPartitionDDL =
+          HiveAvroORCQueryGenerator.generateCreatePartitionDDL(orcTableDatabase,
+              orcTableName,
+              orcDataPartitionLocation,
+              partitionsDMLInfo);
+
+      log.info("Create final partition DDL: " + createFinalPartitionDDL);
+      publishQueries.addAll(createFinalPartitionDDL);
+
+      // Step:
+      // A.2.3.4, B.2.3.4: Drop this staging table and delete directories
+      String dropStagingTableDDL = HiveAvroORCQueryGenerator.generateDropTableDDL(orcTableDatabase, orcStagingTableName);
+
+      log.info("Drop staging table DDL: " + dropStagingTableDDL);
+      cleanupQueries.add(dropStagingTableDDL);
+
+      // Delete: orcStagingDataLocation
+      log.info("Staging table directory to delete: " + orcStagingDataLocation);
+      cleanupDirectories.add(orcStagingDataLocation);
+    }
 
     /*
      * Drop the replaced partitions if any. This is required in case the partition being converted is derived from
      * several other partitions. E.g. Daily partition is a replacement of hourly partitions of the same day. When daily
      * partition is converted to ORC all it's hourly ORC partitions need to be dropped.
      */
-    publishPartitionQueries.append(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(orcTableDatabase,
-        orcTableName, getDropPartitionsDDLInfo(conversionEntity))).append("\n");
+    publishQueries.addAll(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(orcTableDatabase,
+        orcTableName,
+        getDropPartitionsDDLInfo(conversionEntity)));
 
-    HiveAvroORCQueryGenerator.serializePublishPartitionCommands(workUnit, publishPartitionQueries.toString());
-    log.debug("Publish partition queries: " + publishPartitionQueries);
+    HiveAvroORCQueryGenerator.serializePublishCommands(workUnit, publishEntity);
+    log.info("Publish partition entity: " + publishEntity);
 
-    StringBuilder cleanupQueries = new StringBuilder();
-    cleanupQueries.append(HiveAvroORCQueryGenerator.generateCleanupDDL(orcStagingTableName,
-        Optional.of(orcTableDatabase))).append("\n");
-    HiveAvroORCQueryGenerator.serializedCleanupCommands(workUnit, cleanupQueries.toString());
-    log.debug("Cleanup queries: " + cleanupQueries);
 
     log.debug("Conversion Query " + conversionEntity.getQueries());
     return new SingleRecordIterable<>(conversionEntity);
   }
 
+  /***
+   * Get the staging table name for current converter. Each converter creates its own staging table.
+   * @param stagingTableNamePrefix for the staging table for this converter.
+   * @return Staging table name.
+   */
+  private String getOrcStagingTableName(String stagingTableNamePrefix) {
+    int randomNumber = new Random().nextInt(10);
+    String uniqueStagingTableQualifier = String.format("%s%s", System.currentTimeMillis(), randomNumber);
 
-  private String getOrcDataLocation(WorkUnitState workUnit) {
+    return stagingTableNamePrefix + "_" + uniqueStagingTableQualifier;
+  }
+
+  /***
+   * Get the ORC partition directory name of the format: [hourly_][daily_]<partitionSpec1>[partitionSpec ..]
+   * @param conversionEntity Conversion entity.
+   * @param sourceDataPathIdentifier Hints to look in source partition location to prefix the partition dir name
+   *                               such as hourly or daily.
+   * @return Partition directory name.
+   */
+  private String getOrcStagingDataPartitionDirName(QueryBasedHiveConversionEntity conversionEntity,
+      List<String> sourceDataPathIdentifier) {
+
+    if (conversionEntity.getHivePartition().isPresent()) {
+      StringBuilder dirNamePrefix = new StringBuilder();
+      String sourceHivePartitionLocation = conversionEntity.getHivePartition().get().getDataLocation().toString();
+      if (null != sourceDataPathIdentifier && null != sourceHivePartitionLocation) {
+        for (String hint : sourceDataPathIdentifier) {
+          if (sourceHivePartitionLocation.toLowerCase().contains(hint.toLowerCase())) {
+            dirNamePrefix.append(hint.toLowerCase()).append("_");
+          }
+        }
+      }
+
+      return dirNamePrefix + conversionEntity.getHivePartition().get().getName();
+    } else {
+      return StringUtils.EMPTY;
+    }
+  }
+
+  /***
+   * Get the ORC final table location of format: <ORC final table location>/final
+   * @return ORC final table location.
+   */
+  private String getOrcDataLocation() {
     String orcDataLocation = getConversionConfig().getDestinationDataPath();
 
-    // Each job execution further writes to a sub-directory within ORC data directory to support stagin use-case
-    // .. ie for atomic swap
-    if (StringUtils.isNotBlank(workUnit.getJobState().getId())) {
-      orcDataLocation += Path.SEPARATOR + workUnit.getJobState().getId();
-    }
-    return orcDataLocation;
+    return orcDataLocation + Path.SEPARATOR + PUBLISHED_TABLE_SUBDIRECTORY;
+  }
+
+  /***
+   * Get the ORC staging table location of format: <ORC final table location>/<ORC staging table name>
+   * @param orcStagingTableName ORC staging table name.
+   * @return ORC staging table location.
+   */
+  private String getOrcStagingDataLocation(String orcStagingTableName) {
+    String orcDataLocation = getConversionConfig().getDestinationDataPath();
+
+    return orcDataLocation + Path.SEPARATOR + orcStagingTableName;
   }
 
   /**
-   * Parse the {@link #REPLACED_PARTITIONS_KEY} from partition parameters to returns DDLs for all the partitions to be
+   * Parse the {@link #REPLACED_PARTITIONS_HIVE_METASTORE_KEY} from partition parameters to returns DDLs for all the partitions to be
    * dropped.
    */
   @VisibleForTesting

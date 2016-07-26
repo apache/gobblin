@@ -61,20 +61,22 @@ public class JobConfigFileMonitorTest {
     public Integer apply(Void input) {
       return JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs().size();
     }
-
   }
 
   @BeforeClass
   public void setUp()
       throws Exception {
-    this.jobConfigDir = Files.createTempDirectory(
-            String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName())).toString();
+    this.jobConfigDir =
+        Files.createTempDirectory(String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName()))
+            .toString();
+
     FileUtils.forceDeleteOnExit(new File(this.jobConfigDir));
     FileUtils.copyDirectory(new File(JOB_CONFIG_FILE_DIR), new File(jobConfigDir));
 
     Properties properties = new Properties();
     properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfigDir);
+    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, jobConfigDir);
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY, "1000");
     properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
 
@@ -87,8 +89,12 @@ public class JobConfigFileMonitorTest {
   public void testAddNewJobConfigFile()
       throws Exception {
     final Logger log = LoggerFactory.getLogger("testAddNewJobConfigFile");
-    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(7500);
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(15000);
     assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
+
+    /* Set a time gap, to let the monitor recognize the "3-file" status as old status,
+    so that new added file can be discovered */
+    Thread.sleep(1000);
 
     // Create a new job configuration file by making a copy of an existing
     // one and giving a different job name
@@ -121,7 +127,9 @@ public class JobConfigFileMonitorTest {
     jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
-    AssertWithBackoff.create().logger(log).timeoutMs(7500)
+    AssertWithBackoff.create()
+        .logger(log)
+        .timeoutMs(7500)
         .assertEquals(new GetNumScheduledJobs(), 4, "4 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
@@ -145,8 +153,9 @@ public class JobConfigFileMonitorTest {
     jobProps.setProperty(ConfigurationKeys.JOB_DISABLED_KEY, "true");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
-
-    AssertWithBackoff.create().logger(log).timeoutMs(7500)
+    AssertWithBackoff.create()
+        .logger(log)
+        .timeoutMs(7500)
         .assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());

@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.avro.Schema;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -67,17 +68,17 @@ public class HiveAvroToOrcConverterTest {
 
     try (HiveAvroToFlattenedOrcConverter converter = new HiveAvroToFlattenedOrcConverter();) {
 
-      Config config = ConfigFactory.parseMap(ImmutableMap.<String, String> builder()
-          .put("destinationFormats", "flattenedOrc")
-          .put("flattenedOrc.destination.dbName",dbName)
-          .put("flattenedOrc.destination.tableName", tableName + "_orc")
-          .put("flattenedOrc.destination.dataPath","file:" + tableSdLoc + "_orc")
-          .build());
+      Config config = ConfigFactory.parseMap(
+          ImmutableMap.<String, String>builder().put("destinationFormats", "flattenedOrc")
+              .put("flattenedOrc.destination.dbName", dbName)
+              .put("flattenedOrc.destination.tableName", tableName + "_orc")
+              .put("flattenedOrc.destination.dataPath", "file:" + tableSdLoc + "_orc").build());
 
       ConvertibleHiveDataset cd = ConvertibleHiveDatasetTest.createTestConvertibleDataset(config);
 
       List<QueryBasedHiveConversionEntity> conversionEntities =
-          Lists.newArrayList(converter.convertRecord(converter.convertSchema(schema, wus), new QueryBasedHiveConversionEntity(cd, new SchemaAwareHiveTable(table, schema)), wus));
+          Lists.newArrayList(converter.convertRecord(converter.convertSchema(schema, wus),
+              new QueryBasedHiveConversionEntity(cd, new SchemaAwareHiveTable(table, schema)), wus));
 
       Assert.assertEquals(conversionEntities.size(), 1, "Only one query entity should be returned");
 
@@ -86,10 +87,17 @@ public class HiveAvroToOrcConverterTest {
 
       Assert.assertEquals(queries.size(), 2, "One DDL and one DML query should be returned");
 
-      Assert.assertEquals(queries.get(0).trim().replaceAll(" ", ""),
-          ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_flattened.ddl").replaceAll(" ", ""));
-      Assert.assertEquals(queries.get(1).trim().replaceAll(" ", ""),
-          ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_flattened.dml").replaceAll(" ", ""));
+      // Ignoring part before first bracket in DDL and 'select' clause in DML because staging table has
+      // .. a random name component
+      String actualDDLQuery = StringUtils.substringAfter("(", queries.get(0).trim());
+      String actualDMLQuery = StringUtils.substringAfter("SELECT", queries.get(0).trim());
+      String expectedDDLQuery = StringUtils.substringAfter("(",
+          ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_flattened.ddl"));
+      String expectedDMLQuery = StringUtils.substringAfter("SELECT",
+          ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_flattened.dml"));
+
+      Assert.assertEquals(actualDDLQuery, expectedDDLQuery);
+      Assert.assertEquals(actualDMLQuery, expectedDMLQuery);
     }
 
   }
@@ -132,10 +140,17 @@ public class HiveAvroToOrcConverterTest {
 
       Assert.assertEquals(queries.size(), 2, "One DDL and one DML query should be returned");
 
-      Assert.assertEquals(queries.get(0).trim().replaceAll(" ", ""),
-          ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_nested.ddl").replaceAll(" ", ""));
-      Assert.assertEquals(queries.get(1).trim().replaceAll(" ", ""),
-          ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_nested.dml").replaceAll(" ", ""));
+      // Ignoring part before first bracket in DDL and 'select' clause in DML because staging table has
+      // .. a random name component
+      String actualDDLQuery = StringUtils.substringAfter("(", queries.get(0).trim());
+      String actualDMLQuery = StringUtils.substringAfter("SELECT", queries.get(0).trim());
+      String expectedDDLQuery = StringUtils.substringAfter("(",
+          ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_nested.ddl"));
+      String expectedDMLQuery = StringUtils.substringAfter("SELECT",
+          ConversionHiveTestUtils.readQueryFromFile(resourceDir, "recordWithinRecordWithinRecord_nested.dml"));
+
+      Assert.assertEquals(actualDDLQuery, expectedDDLQuery);
+      Assert.assertEquals(actualDMLQuery, expectedDMLQuery);
     }
   }
 
