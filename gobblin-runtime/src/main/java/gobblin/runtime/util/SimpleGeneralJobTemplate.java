@@ -11,36 +11,37 @@
  */
 package gobblin.runtime.util;
 
-import gobblin.util.TemplateUtils;
+import com.typesafe.config.ConfigFactory;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
 
+import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.typesafe.config.Config;
+
 import gobblin.util.SchedulerUtils;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.TemplateUtils;
 
 
 public class SimpleGeneralJobTemplate implements JobTemplate {
   private String templatePath;
-  private Properties userProps;
   private List<String> _userSpecifiedAttributesList;
   private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerUtils.class);
-  Properties configTemplate = new Properties();
+  private Properties configTemplate = new Properties();
 
   /**
    * Initilized the template by retriving the specified template file and obtain some special attributes.
    * @param templatePath
    */
-  public SimpleGeneralJobTemplate(String templatePath, Properties userProps) {
+  public SimpleGeneralJobTemplate(String templatePath) {
     LOGGER.info("Load the job configuration template : " + this.getClass().getName());
     this.templatePath = templatePath;
-    this.userProps = userProps;
 
     try {
       InputStream inputStream = getClass().getResourceAsStream(this.templatePath);
@@ -54,7 +55,7 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
     }
 
     this._userSpecifiedAttributesList =
-        Arrays.asList(configTemplate.getProperty(ConfigurationKeys.USER_SPECIFIED_ATTR_LIST).split(","));
+        Arrays.asList(configTemplate.getProperty(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST).split(","));
   }
 
   /**
@@ -62,8 +63,9 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
    * @return
    */
   @Override
-  public Properties getRawTemplateConfig() {
-    return configTemplate;
+  public Config getRawTemplateConfig() {
+    // Pay attention to
+    return ConfigFactory.parseProperties(configTemplate);
   }
 
   /**
@@ -71,7 +73,7 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
    * @return
    */
   @Override
-  public List<String> getRequiredConfigByUser() {
+  public List<String> getRequiredConfigList() {
     return this._userSpecifiedAttributesList;
   }
 
@@ -80,11 +82,10 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
    * @return
    */
   @Override
-  public Properties getResolvedConfig() {
-    Properties jobPropsWithPotentialTemplate = userProps;
+  public Config getResolvedConfig(Properties userProps) {
+    Config jobPropsWithPotentialTemplate = ConfigFactory.parseProperties(userProps);
     if (userProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      jobPropsWithPotentialTemplate =
-          TemplateUtils.mergeTemplateWithUserCustomizedFile(getRawTemplateConfig(), userProps);
+      jobPropsWithPotentialTemplate = TemplateUtils.mergeTemplateWithUserCustomizedFile(this.configTemplate, userProps);
     }
     return jobPropsWithPotentialTemplate;
   }

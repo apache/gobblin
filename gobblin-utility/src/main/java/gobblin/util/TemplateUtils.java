@@ -11,6 +11,8 @@
  */
 package gobblin.util;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import java.util.Properties;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -20,19 +22,17 @@ public class TemplateUtils {
   /**
    * create a complete property file based on the given template
    */
-  public static Properties mergeTemplateWithUserCustomizedFile(Properties template, Properties userCustomized) {
-    Properties cleanedTemplate;
-    if (template.containsKey(ConfigurationKeys.USER_SPECIFIED_ATTR_LIST)) {
-      template.remove(ConfigurationKeys.USER_SPECIFIED_ATTR_LIST);
+  public static Config mergeTemplateWithUserCustomizedFile(Properties template, Properties userCustomized) {
+    Properties cleanedTemplate = new Properties(template);
+    if (cleanedTemplate.containsKey(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST)) {
+      cleanedTemplate.remove(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST);
     }
-    cleanedTemplate = template;
 
-    Properties cleanedUserCustomized;
-    if (userCustomized.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      userCustomized.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
+    Properties cleanedUserCustomized = new Properties(userCustomized) ;
+    if (cleanedUserCustomized.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+      cleanedUserCustomized.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
     }
-    cleanedUserCustomized = userCustomized;
 
-    return PropertiesUtils.combineProperties(cleanedTemplate, cleanedUserCustomized);
+    return ConfigFactory.parseProperties(PropertiesUtils.combineProperties(cleanedTemplate, cleanedUserCustomized));
   }
 }

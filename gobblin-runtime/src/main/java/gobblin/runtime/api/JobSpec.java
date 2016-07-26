@@ -25,6 +25,7 @@ import gobblin.util.ConfigUtils;
 
 import lombok.Data;
 
+
 /**
  * Defines a Gobblin Job that can be run once, or multiple times. A {@link JobSpec} is
  * {@link Configurable} so it has an associated {@link Config}, along with other mandatory
@@ -73,8 +74,7 @@ public class JobSpec implements Configurable {
       Preconditions.checkNotNull(jobSpecUri);
       try {
         this.uri = new URI(jobSpecUri);
-      }
-      catch (URISyntaxException e) {
+      } catch (URISyntaxException e) {
         throw new RuntimeException("Invalid JobSpec config: " + e, e);
       }
     }
@@ -83,18 +83,17 @@ public class JobSpec implements Configurable {
       Preconditions.checkNotNull(this.uri);
       Preconditions.checkNotNull(this.version);
 
-      if (! this.config.isPresent() && ! this.configAsProperties.isPresent()) {
+      if (!this.config.isPresent() && !this.configAsProperties.isPresent()) {
         this.config = Optional.of(ConfigFactory.empty());
       }
-      if (! this.configAsProperties.isPresent()) {
+      if (!this.configAsProperties.isPresent()) {
         this.configAsProperties = Optional.of(ConfigUtils.configToProperties(this.config.get()));
       }
-      if (! this.config.isPresent()) {
+      if (!this.config.isPresent()) {
         this.config =
-            Optional.of(ConfigUtils.propertiesToTypedConfig(this.configAsProperties.get(),
-                                                            Optional.<String>absent()));
+            Optional.of(ConfigUtils.propertiesToTypedConfig(this.configAsProperties.get(), Optional.<String>absent()));
       }
-      if (! this.description.isPresent()) {
+      if (!this.description.isPresent()) {
         this.description = Optional.of("Gobblin job " + this.uri);
       }
       return new JobSpec(this.uri, this.version, this.description.get(), this.config.get(),

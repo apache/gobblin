@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.util;
 
+import com.typesafe.config.Config;
 import java.util.List;
 import java.util.Properties;
 
@@ -30,17 +31,17 @@ public interface JobTemplate {
    * Retrieve all configuration inside pre-written template.
    * @return
    */
-  Properties getRawTemplateConfig();
+  Config getRawTemplateConfig();
 
   /**
    * Retrieve all configs that are required from user to fill.
    * @return
    */
-  List<String> getRequiredConfigByUser();
+  List<String> getRequiredConfigList();
 
   /**
    * Return the combine configuration of template and user customized attributes.
    * @return
    */
-  Properties getResolvedConfig() ;
+  Config getResolvedConfig(Properties userProps) ;
 }
