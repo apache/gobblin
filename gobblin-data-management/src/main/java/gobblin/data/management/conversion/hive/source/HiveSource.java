@@ -249,7 +249,7 @@ public class HiveSource implements Source {
         partition.getTPartition().getParameters().containsKey(DISTCP_REGISTRATION_GENERATION_TIME_KEY)) {
       Long registrationGenerationTime =
           Long.parseLong(partition.getTPartition().getParameters().get(DISTCP_REGISTRATION_GENERATION_TIME_KEY));
-      DateTime createTime = new DateTime(TimeUnit.MILLISECONDS.convert(registrationGenerationTime, TimeUnit.SECONDS));
+      DateTime createTime = new DateTime(registrationGenerationTime);
 
       log.info("Did not find createTime in Hive partition, used distcp registration generation time.");
       return createTime.isBefore(this.maxLookBackTime);
