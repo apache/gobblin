@@ -10,6 +10,18 @@
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
+// Setup environment
+ext.build_script_dir = "${projectDir.path}/build_script"
+ext.isDefaultEnvironment = !project.hasProperty('overrideBuildEnvironment')
+
+File getEnvironmentScript() {
+  final File env = file(isDefaultEnvironment ? 'defaultEnvironment.gradle' : project.overrideBuildEnvironment)
+  assert env.isFile() : "The environment script [$env] does not exists or is not a file."
+  return env
+}
+
+apply from: environmentScript
+
 buildscript {
   repositories {
     maven {
@@ -34,18 +46,6 @@ idea.project {
   ext.languageLevel = JavaVersion.VERSION_1_7
   languageLevel = JavaVersion.VERSION_1_7
 }
-
-ext.build_script_dir = "${projectDir.path}/build_script"
-ext.isDefaultEnvironment = !project.hasProperty('overrideBuildEnvironment')
-
-File getEnvironmentScript()
-{
-  final File env = file(isDefaultEnvironment ? 'defaultEnvironment.gradle' : project.overrideBuildEnvironment)
-  assert env.isFile() : "The environment script [$env] does not exists or is not a file."
-  return env
-}
-
-apply from: environmentScript
 
 // Maven POM generation is not thread safe, so serialize all the Upload tasks we can use `--parallel`.
 // https://issues.gradle.org/browse/GRADLE-2492

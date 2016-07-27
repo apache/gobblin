@@ -180,7 +180,7 @@ public class HiveAvroORCQueryGenerator {
     StringBuilder ddl = new StringBuilder();
 
     // Create statement
-    ddl.append(String.format("CREATE EXTERNAL TABLE IF NOT EXISTS `%s.%s` ", dbName, tblName));
+    ddl.append(String.format("CREATE EXTERNAL TABLE IF NOT EXISTS `%s`.`%s` ", dbName, tblName));
     // .. open bracket for CREATE
     ddl.append("( \n");
 
@@ -634,9 +634,9 @@ public class HiveAvroORCQueryGenerator {
 
     // Insert query
     if (shouldOverwriteTable) {
-      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s.%s` %n", outputDbName, outputTblName));
+      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s`.`%s` %n", outputDbName, outputTblName));
     } else {
-      dmlQuery.append(String.format("INSERT INTO TABLE `%s.%s` %n", outputDbName, outputTblName));
+      dmlQuery.append(String.format("INSERT INTO TABLE `%s`.`%s` %n", outputDbName, outputTblName));
     }
 
     // Partition details
@@ -736,7 +736,7 @@ public class HiveAvroORCQueryGenerator {
       }
     }
 
-    dmlQuery.append(String.format(" %n FROM `%s.%s` ", inputDbName, inputTblName));
+    dmlQuery.append(String.format(" %n FROM `%s`.`%s` ", inputDbName, inputTblName));
 
     // Partition details
     if (optionalPartitionDMLInfo.isPresent()) {

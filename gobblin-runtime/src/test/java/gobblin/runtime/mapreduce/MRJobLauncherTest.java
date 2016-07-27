@@ -13,8 +13,8 @@
 package gobblin.runtime.mapreduce;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
@@ -54,7 +54,10 @@ public class MRJobLauncherTest extends BMNGRunner {
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     this.launcherProps = new Properties();
-    this.launcherProps.load(new FileReader("gobblin-test/resource/gobblin.mr-test.properties"));
+
+    try (InputStream propsReader = getClass().getClassLoader().getResourceAsStream("gobblin.mr-test.properties")) {
+      this.launcherProps.load(propsReader);
+    }
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
@@ -273,7 +276,9 @@ public class MRJobLauncherTest extends BMNGRunner {
 
   public Properties loadJobProps() throws IOException {
     Properties jobProps = new Properties();
-    jobProps.load(new FileReader("gobblin-test/resource/mr-job-conf/GobblinMRTest.pull"));
+    try (InputStream propsReader = getClass().getClassLoader().getResourceAsStream("mr-job-conf/GobblinMRTest.pull")) {
+      jobProps.load(propsReader);
+    }
     jobProps.putAll(this.launcherProps);
     jobProps.setProperty(JobLauncherTestHelper.SOURCE_FILE_LIST_KEY,
         "gobblin-test/resource/source/test.avro.0," + "gobblin-test/resource/source/test.avro.1,"
