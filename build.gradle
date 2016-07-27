@@ -582,17 +582,20 @@ subprojects {
 allprojects {
   tasks.withType(FindBugs) {
     // Only one findbugs report can be enabled at a time.
-    // We do not enable HTML when xml:withMessages is enabled as it is immutable
-    if (!project.hasProperty("withFindBugsXmlReport") && reports.find { it.name == "xml:withMessages"} == null) {
-      reports {
-        html.enabled = true
-        xml.enabled = false
-      }
-    }
-    else {
+    // There are 3 kinds of reports in gobblin.
+    // 1. xml - when withFindBugsXmlReport is set
+    // 2. xml:withMessages - For Li internal builds
+    // 3. html - otherwise
+    if (project.hasProperty("withFindBugsXmlReport") && reports.find { it.name == "xml:withMessages"} == null) {
       reports {
         html.enabled = false
         xml.enabled = true
+      }
+    }
+    else if (reports.find { it.name == "xml:withMessages"} == null) {
+     reports {
+        html.enabled = true
+        xml.enabled = false
       }
     }
  }
