@@ -16,7 +16,7 @@ import java.net.URI;
 /**
  * An exception thrown when a JobSpec with a given URI is not found.
  */
-public class JobSpecNotFoundException extends RuntimeException {
+public class JobSpecNotFoundException extends Exception {
   private static final long serialVersionUID = 1L;
   private final URI _missingJobSpecURI;
 

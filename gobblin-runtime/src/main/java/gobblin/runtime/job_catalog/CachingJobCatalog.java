@@ -22,6 +22,7 @@ import com.google.common.base.Optional;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.JobSpecNotFoundException;
 
 /**
  * A JobCatalog decorator that caches all JobSpecs in memory.
@@ -47,7 +48,7 @@ public class CachingJobCatalog implements JobCatalog {
 
   /** {@inheritDoc} */
   @Override
-  public JobSpec getJobSpec(URI uri) {
+  public JobSpec getJobSpec(URI uri) throws JobSpecNotFoundException {
     try {
       return _cache.getJobSpec(uri);
     }
@@ -59,13 +60,13 @@ public class CachingJobCatalog implements JobCatalog {
   /** {@inheritDoc} */
   @Override
   public void addListener(JobCatalogListener jobListener) {
-    _fallback.addListener(jobListener);
+    _cache.addListener(jobListener);
   }
 
   /** {@inheritDoc} */
   @Override
   public void removeListener(JobCatalogListener jobListener) {
-    _fallback.removeListener(jobListener);
+    _cache.removeListener(jobListener);
   }
 
   /** Refreshes the cache if the underlying fallback catalog changes. */

@@ -1,4 +1,4 @@
-package gobblin.runtime.std;
+package gobblin.runtime.job_catalog;
 
 import java.net.URI;
 

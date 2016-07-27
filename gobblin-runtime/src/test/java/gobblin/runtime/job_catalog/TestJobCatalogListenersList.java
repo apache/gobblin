@@ -1,4 +1,4 @@
-package gobblin.runtime.std;
+package gobblin.runtime.job_catalog;
 
 import org.mockito.Mockito;
 import org.testng.annotations.Test;

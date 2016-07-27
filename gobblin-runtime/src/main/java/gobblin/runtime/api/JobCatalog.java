@@ -28,7 +28,7 @@ public interface JobCatalog {
    * Get a {@link JobSpec} by uri.
    * @throws JobSpecNotFoundException if no such JobSpec exists
    **/
-  JobSpec getJobSpec(URI uri);
+  JobSpec getJobSpec(URI uri) throws JobSpecNotFoundException;
 
   /**
    * Adds a {@link JobCatalogListener} that will be invoked upon updates on the
