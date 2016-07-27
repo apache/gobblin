@@ -178,6 +178,10 @@ public class ValidationJob extends AbstractJob {
         log.error(String.format("Failed conversion: %s [%s]", failedConverion.getKey(), failedConverion.getValue()));
       }
 
+      if (!failedConversions.isEmpty()) {
+        throw new RuntimeException(String.format("Validation failed for %s conversions. See previous logs for exact validation failures",
+            failedConversions.size()));
+      }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
