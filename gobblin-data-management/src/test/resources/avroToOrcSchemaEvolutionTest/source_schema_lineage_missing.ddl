@@ -1,4 +1,4 @@
-CREATE EXTERNAL TABLE IF NOT EXISTS `default.sourceSchema` ( 
+CREATE EXTERNAL TABLE IF NOT EXISTS `default`.`sourceSchema` ( 
   `parentFieldRecord__nestedFieldRecord__superNestedFieldString` string COMMENT '', 
   `parentFieldRecord__nestedFieldRecord__superNestedFieldInt` int COMMENT '', 
   `parentFieldRecord__nestedFieldString` string COMMENT '', 
