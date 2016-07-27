@@ -24,7 +24,7 @@ source ${script_dir}/test-groups.inc
 
 echo "Starting $0 at " $(date)
 echo "Precompiling tests"
-./gradlew --debug compileTest 2>&1 | grep aws-java-sdk-1.7.4
+./gradlew --debug compileTest 
 echo "================================================"
 find $HOME/.gradle/caches/ -name "aws-java-sdk-1.7.4*" | xargs ls -l
 find $HOME/.gradle/caches/ -name "aws-java-sdk-1.7.4.jar" | xargs -n 1 hexdump -C | tail -300
