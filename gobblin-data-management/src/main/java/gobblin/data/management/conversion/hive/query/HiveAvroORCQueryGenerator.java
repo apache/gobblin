@@ -804,8 +804,9 @@ public class HiveAvroORCQueryGenerator {
           // If evolved column is found, but type is evolved - evolve it
           // .. if incompatible, isTypeEvolved will throw an exception
           if (isTypeEvolved(evolvedColumn.getValue(), destinationField.getType())) {
-            ddl.add(String.format("ALTER TABLE `%s`.`%s` CHANGE COLUMN %s %s %s COMMENT '%s'",
-                finalDbName, finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
+            ddl.add(String.format("USE %s%n", finalDbName));
+            ddl.add(String.format("ALTER TABLE `%s` CHANGE COLUMN %s %s %s COMMENT '%s'",
+                finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
                 destinationField.getComment()));
           }
           found = true;
@@ -818,7 +819,11 @@ public class HiveAvroORCQueryGenerator {
         if (StringUtils.isBlank(flattenSource)) {
           flattenSource = evolvedSchema.getField(evolvedColumn.getKey()).name();
         }
-        ddl.add(String.format("ALTER TABLE `%s`.`%s` ADD COLUMNS (%s %s COMMENT 'from flatten_source %s')", finalDbName,
+        // Note: Hive does not support fully qualified Hive table names such as db.table for ALTER TABLE in v0.13
+        // .. hence specifying 'use dbName' as a precursor to rename
+        // Refer: HIVE-2496
+        ddl.add(String.format("USE %s%n", finalDbName));
+        ddl.add(String.format("ALTER TABLE `%s` ADD COLUMNS (%s %s COMMENT 'from flatten_source %s')",
             finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource));
       }
     }
@@ -857,6 +862,9 @@ public class HiveAvroORCQueryGenerator {
     partitionSpecs.append(") ");
 
     List<String> ddls = Lists.newArrayList();
+    // Note: Hive does not support fully qualified Hive table names such as db.table for ALTER TABLE in v0.13
+    // .. hence specifying 'use dbName' as a precursor to rename
+    // Refer: HIVE-2496
     ddls.add(String.format("USE %s%n", dbName));
     ddls.add(String.format("ALTER TABLE %s DROP IF EXISTS %s", finalTableName, partitionSpecs));
 
