@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.api;
 
+import com.google.common.util.concurrent.Service;
+
 import gobblin.annotation.Alpha;
 
 /**
@@ -18,7 +20,7 @@ import gobblin.annotation.Alpha;
  * {@link JobSpec}s and run them.
  * */
 @Alpha
-public interface GobblinInstanceDriver extends StandardRunControls {
+public interface GobblinInstanceDriver extends Service {
   JobCatalog getJobCatalog();
   JobSpecScheduler getJobScheduler();
   JobExecutionLauncher getJobLauncher();
