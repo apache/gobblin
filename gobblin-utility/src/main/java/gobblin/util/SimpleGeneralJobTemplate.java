@@ -9,24 +9,22 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.runtime.util;
+package gobblin.util;
 
-import com.typesafe.config.ConfigFactory;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
-
 import java.util.Properties;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
-import gobblin.util.SchedulerUtils;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.TemplateUtils;
 
 
 public class SimpleGeneralJobTemplate implements JobTemplate {
@@ -43,15 +41,16 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
     LOGGER.info("Load the job configuration template : " + this.getClass().getName());
     this.templatePath = templatePath;
 
-    try {
-      InputStream inputStream = getClass().getResourceAsStream(this.templatePath);
-      if (inputStream != null) {
-        configTemplate.load(inputStream);
-      } else {
-        throw new FileNotFoundException("Template file " + this.templatePath + " doesn't exist");
+    if (this.templatePath != null && this.templatePath.length() > 0) {
+      try (InputStream inputStream = getClass().getResourceAsStream("/" + this.templatePath)) {
+        if (inputStream != null) {
+          configTemplate.load(inputStream);
+        } else {
+          throw new FileNotFoundException("Template file " + this.templatePath + " doesn't exist");
+        }
+      } catch (IOException e) {
+        throw new RuntimeException("Failure to loading template files into i/o stream");
       }
-    } catch (IOException e) {
-      throw new RuntimeException("Failure to loading template files into i/o stream");
     }
 
     this._userSpecifiedAttributesList =
@@ -78,6 +77,19 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
   }
 
   /**
+   * For backward compatibility
+   * @param userProps
+   * @return
+   */
+  public Properties getResolvedConfigAsProperties(Properties userProps) {
+    Properties jobPropsWithPotentialTemplate = userProps;
+    if (jobPropsWithPotentialTemplate.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+      jobPropsWithPotentialTemplate = TemplateUtils.mergeTemplateWithUserCustomizedFile(this.configTemplate, userProps);
+    }
+    return jobPropsWithPotentialTemplate;
+  }
+
+  /**
    * Return the combine configuration of template and user customized attributes.
    * @return
    */
@@ -85,7 +97,8 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
   public Config getResolvedConfig(Properties userProps) {
     Config jobPropsWithPotentialTemplate = ConfigFactory.parseProperties(userProps);
     if (userProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      jobPropsWithPotentialTemplate = TemplateUtils.mergeTemplateWithUserCustomizedFile(this.configTemplate, userProps);
+      jobPropsWithPotentialTemplate = ConfigFactory.parseProperties(
+          TemplateUtils.mergeTemplateWithUserCustomizedFile(this.configTemplate, userProps));
     }
     return jobPropsWithPotentialTemplate;
   }
