@@ -26,8 +26,5 @@ echo "Starting $0 at " $(date)
 echo "Precompiling tests"
 rm -rf $HOME/.gradle/caches/
 ./gradlew compileTest -Porg.gradle.parallel=false
-echo "================================================"
-find $HOME/.gradle/caches/ -name "aws-java-sdk-1.7.4*" | xargs ls -l
-echo "================================================"
 echo "Running tests for $TEST_GROUP1"
 time ./gradlew test -PskipTestGroup=disabledOnTravis -PrunTestGroups=$TEST_GROUP1 -Dorg.gradle.parallel=false
