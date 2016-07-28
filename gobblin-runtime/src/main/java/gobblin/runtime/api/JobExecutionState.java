@@ -21,7 +21,8 @@ public class JobExecutionState extends JobExecutionStatus {
   final JobSpec jobSpec;
   Map<String, Object> executionMetadata;
 
-  public JobExecutionState(JobSpec jobSpec) {
+  public JobExecutionState(JobSpec jobSpec, JobExecution jobExecution) {
+    super(jobExecution);
     this.jobSpec = jobSpec;
   }
 }
