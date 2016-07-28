@@ -26,11 +26,11 @@ import lombok.Data;
 @Data
 public class JobExecutionUpdatable implements JobExecution {
   /** The URI of the job being executed */
-  final URI jobSpecURI;
+  protected URI jobSpecURI;
   /** The version of the JobSpec being launched */
-  final String jobSpecVersion;
+  protected String jobSpecVersion;
   /** The millisecond timestamp when the job was launched */
-  final long launchTimeMillis;
+  protected long launchTimeMillis;
   /** Unique (for the given JobExecutionLauncher) id for this execution */
-  final String executionId;
+  protected String executionId;
 }

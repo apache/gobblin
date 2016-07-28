@@ -17,7 +17,7 @@ import java.util.Map;
  * @author cbotev
  *
  */
-public class JobExecutionState {
+public class JobExecutionState extends JobExecutionStatus {
   final JobSpec jobSpec;
   Map<String, Object> executionMetadata;
 
