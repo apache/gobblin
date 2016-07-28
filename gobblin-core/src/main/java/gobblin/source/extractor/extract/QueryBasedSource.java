@@ -111,7 +111,12 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       Map<Long, Long> sortedPartitions = Maps.newTreeMap();
       sortedPartitions.putAll(new Partitioner(combinedState).getPartitions(previousWatermark));
 
-      Extract extract = createExtract(tableType, nameSpaceName, tableName);
+      // {@link ConfigurationKeys.EXTRACT_TABLE_NAME_KEY} specify the output path for Extract
+      String outputTableName = state.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY)? 
+          state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY) : tableName;
+          
+      log.info("Create extract output with table name is " + outputTableName);
+      Extract extract = createExtract(tableType, nameSpaceName, outputTableName);
 
       // Setting current time for the full extract
       if (Boolean.valueOf(combinedState.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY))) {
@@ -225,8 +230,18 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     boolean commitOnFullSuccess = JobCommitPolicy.getCommitPolicy(state) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
 
     for (WorkUnitState previousWus : state.getPreviousWorkUnitStates()) {
+      String table;
       
-      String table = previousWus.getExtract().getTable();
+      // current code will use {@link ConfigurationKeys.SOURCE_ENTITY} to defined the table name
+      if(previousWus.getWorkunit().contains(ConfigurationKeys.SOURCE_ENTITY)){
+        table = previousWus.getWorkunit().getProp(ConfigurationKeys.SOURCE_ENTITY); 
+      }
+      // previous format
+      else {
+        table = previousWus.getExtract().getTable();
+        log.warn(String.format("Can not find %s entry in workunit, based on %s to set table name as %s", ConfigurationKeys.SOURCE_ENTITY, 
+            ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, table));
+      }
 
       long lowWm = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
       LongWatermark waterMarkObj = previousWus.getWorkunit().getLowWatermark(LongWatermark.class);
