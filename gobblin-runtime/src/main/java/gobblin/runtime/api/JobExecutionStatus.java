@@ -11,12 +11,23 @@
  */
 package gobblin.runtime.api;
 
-import gobblin.annotation.Alpha;
+import java.util.List;
 
-/**
- * Placeholder
- */
-@Alpha
-public interface JobExecutionLauncher {
-  JobExecution launchJob(JobSpec jobSpec, JobExecutionStateListener listener);
+import gobblin.runtime.JobState;
+
+public class JobExecutionStatus {
+  final JobExecution jobExecution;
+
+  public JobExecutionStatus(JobExecution jobExecution) {
+    this.jobExecution = jobExecution;
+    this.status = JobState.RunningState.PENDING;
+  }
+
+  /** SUBMITTED, STARTED, SUCCEEDED, FAILED */
+  JobState.RunningState status;
+  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
+  String stage;
+
+  transient List<JobExecutionStateListener> changeListeners;
+
 }

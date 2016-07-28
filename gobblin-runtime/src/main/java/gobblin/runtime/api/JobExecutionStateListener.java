@@ -11,12 +11,14 @@
  */
 package gobblin.runtime.api;
 
-import gobblin.annotation.Alpha;
+import gobblin.runtime.JobState;
 
 /**
- * Placeholder
+ * Notification for changes in the execution state
+ *
  */
-@Alpha
-public interface JobExecutionLauncher {
-  JobExecution launchJob(JobSpec jobSpec, JobExecutionStateListener listener);
+public interface JobExecutionStateListener {
+  void onStatusChange(JobExecutionState state, JobState.RunningState previousStatus, JobState.RunningState newStatus);
+  void onStageTransition(JobExecutionState state, String previousStage, String newStage);
+  void onMetadataChange(JobExecutionState state, String key, Object oldValue, Object newValue);
 }

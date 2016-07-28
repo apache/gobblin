@@ -41,7 +41,7 @@
  *  <dt>Job catalog ({@link gobblin.runtime.api.JobCatalog})</dt>
  *  <dd>Maintains the collection of JobSpecs known to a specific Gobblin instance.
  *    <dl>
- *      <dt>JobSpec Monitor ({@link gobblin.runtime.api.JobSpecMonitor})</dt>
+ *      <dt>JobSpec Monitor ({@link gobblin.runtime.api.JobSpecMonitorFactory})</dt>
  *      <dd>Discovers jobs to execute and generates job specs for each one.</dd>
  *    </dl>
  *  </dd>
