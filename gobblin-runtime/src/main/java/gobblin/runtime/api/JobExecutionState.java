@@ -11,11 +11,17 @@
  */
 package gobblin.runtime.api;
 
-import com.google.common.util.concurrent.Service;
+import java.util.Map;
 
 /**
- * Discovers jobs to execute and generates JobSpecs for each one.
+ * @author cbotev
+ *
  */
-public interface JobSpecMonitor extends Service {
+public class JobExecutionState extends JobExecutionStatus {
+  final JobSpec jobSpec;
+  Map<String, Object> executionMetadata;
 
+  public JobExecutionState(JobSpec jobSpec) {
+    this.jobSpec = jobSpec;
+  }
 }
