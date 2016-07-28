@@ -25,10 +25,9 @@ source ${script_dir}/test-groups.inc
 echo "Starting $0 at " $(date)
 echo "Precompiling tests"
 rm -rf $HOME/.gradle/caches/
-./gradlew :gobblin-core:compileTest -Porg.gradle.parallel=false
+./gradlew compileTest -Porg.gradle.parallel=false
 echo "================================================"
 find $HOME/.gradle/caches/ -name "aws-java-sdk-1.7.4*" | xargs ls -l
-find $HOME/.gradle/caches/ -name "aws-java-sdk-1.7.4.jar" | xargs -n 1 hexdump -C | tail -300
 echo "================================================"
 echo "Running tests for $TEST_GROUP1"
 time ./gradlew test -PskipTestGroup=disabledOnTravis -PrunTestGroups=$TEST_GROUP1 -Dorg.gradle.parallel=false
