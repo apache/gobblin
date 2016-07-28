@@ -26,10 +26,7 @@ after_success: ./gradlew coveralls
 after_failure: ./travis/junit-errors-to-stdout.sh
 
 env:
-  - RUN_TEST_GROUP=build
-  - RUN_TEST_GROUP=default
   - RUN_TEST_GROUP=group1
-  - RUN_TEST_GROUP=coverage
 
 jdk:
   - oraclejdk8
