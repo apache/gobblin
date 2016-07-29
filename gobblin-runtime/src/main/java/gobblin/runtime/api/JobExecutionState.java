@@ -11,18 +11,28 @@
  */
 package gobblin.runtime.api;
 
+import java.util.HashMap;
 import java.util.Map;
 
+import lombok.Getter;
+
 /**
- * @author cbotev
+ * TODO
  *
  */
 public class JobExecutionState extends JobExecutionStatus {
-  final JobSpec jobSpec;
+  @Getter final JobSpec jobSpec;
   Map<String, Object> executionMetadata;
 
   public JobExecutionState(JobSpec jobSpec, JobExecution jobExecution) {
     super(jobExecution);
     this.jobSpec = jobSpec;
+    // TODO default implementation
+    this.executionMetadata = new HashMap<>();
   }
+
+  public Map<String, Object> getExecutionMetadata() {
+    return this.executionMetadata;
+  }
+
 }
