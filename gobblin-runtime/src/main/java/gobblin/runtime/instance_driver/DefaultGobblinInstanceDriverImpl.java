@@ -23,7 +23,6 @@ import gobblin.runtime.api.GobblinInstanceDriver;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobExecutionState;
-import gobblin.runtime.api.JobExecutionStateListener;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecMonitorFactory;
 import gobblin.runtime.api.JobSpecScheduler;
@@ -88,7 +87,11 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     }
   }
 
-  class ExecutionStateListener implements JobExecutionStateListener {
+  class ExecutionStateListener extends DefaultJobExecutionStateListenerImpl {
+
+    public ExecutionStateListener() {
+      super(DefaultGobblinInstanceDriverImpl.this._log);
+    }
 
     @Override
     public void onStatusChange(JobExecutionState state, RunningState previousStatus, RunningState newStatus) {

@@ -16,8 +16,9 @@ import gobblin.runtime.JobState;
 import lombok.Getter;
 
 public class JobExecutionStatus {
-  @Getter final JobExecution jobExecution;
+  public static final String UKNOWN_STAGE = "unkown";
 
+  @Getter final JobExecution jobExecution;
   @Getter JobState.RunningState status;
   /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
   @Getter String stage;
@@ -28,6 +29,7 @@ public class JobExecutionStatus {
   public JobExecutionStatus(JobExecution jobExecution) {
     this.jobExecution = jobExecution;
     this.status = JobState.RunningState.PENDING;
+    this.stage = UKNOWN_STAGE;
   }
 
 }
