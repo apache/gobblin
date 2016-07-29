@@ -25,4 +25,7 @@ public interface GobblinInstanceLauncher extends Service {
    * Creates a new Gobblin instance to run Gobblin jobs.
    * @throws IllegalStateException if {@link #isRunning()} is false.*/
   GobblinInstanceDriver getDriver() throws IllegalStateException;
+
+  /** The instance name (for debugging/logging purposes) */
+  String getName();
 }

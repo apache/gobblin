@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.api;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,7 +33,7 @@ public class JobExecutionState extends JobExecutionStatus {
   }
 
   public Map<String, Object> getExecutionMetadata() {
-    return this.executionMetadata;
+    return Collections.unmodifiableMap(this.executionMetadata);
   }
 
 }

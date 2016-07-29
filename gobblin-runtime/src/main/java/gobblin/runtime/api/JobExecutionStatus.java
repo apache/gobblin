@@ -15,13 +15,14 @@ import gobblin.runtime.JobState;
 
 import lombok.Getter;
 
+@Getter
 public class JobExecutionStatus {
   public static final String UKNOWN_STAGE = "unkown";
 
-  @Getter final JobExecution jobExecution;
-  @Getter JobState.RunningState status;
+  final JobExecution jobExecution;
+  JobState.RunningState status;
   /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  @Getter String stage;
+  String stage;
 
   // TODO commented out to avoid FindBugs warning
   // transient List<JobExecutionStateListener> changeListeners;
