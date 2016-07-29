@@ -21,12 +21,15 @@ public class TemplateUtils {
    * create a complete property file based on the given template
    */
   public static Properties mergeTemplateWithUserCustomizedFile(Properties template, Properties userCustomized) {
-    Properties cleanedTemplate = template;
+    Properties cleanedTemplate = new Properties();
+    cleanedTemplate.putAll(template);
+
     if (cleanedTemplate.containsKey(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST)) {
       cleanedTemplate.remove(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST);
     }
 
-    Properties cleanedUserCustomized = userCustomized ;
+    Properties cleanedUserCustomized = new Properties();
+    cleanedUserCustomized.putAll(userCustomized);
     if (cleanedUserCustomized.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
       cleanedUserCustomized.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
     }

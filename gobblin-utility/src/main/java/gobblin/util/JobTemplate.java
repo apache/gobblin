@@ -12,7 +12,7 @@
 package gobblin.util;
 
 import com.typesafe.config.Config;
-import java.util.List;
+import java.util.Collection;
 import java.util.Properties;
 
 /**
@@ -37,7 +37,7 @@ public interface JobTemplate {
    * Retrieve all configs that are required from user to fill.
    * @return
    */
-  List<String> getRequiredConfigList();
+  Collection<String> getRequiredConfigList();
 
   /**
    * Return the combine configuration of template and user customized attributes.

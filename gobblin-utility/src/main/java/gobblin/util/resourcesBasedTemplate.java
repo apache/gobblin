@@ -15,9 +15,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Properties;
 
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,9 +28,9 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.configuration.ConfigurationKeys;
 
 
-public class SimpleGeneralJobTemplate implements JobTemplate {
+public class resourcesBasedTemplate implements JobTemplate {
   private String templatePath;
-  private List<String> _userSpecifiedAttributesList;
+  private Set<String> _userSpecifiedAttributesList;
   private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerUtils.class);
   private Properties configTemplate = new Properties();
 
@@ -37,8 +38,8 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
    * Initilized the template by retriving the specified template file and obtain some special attributes.
    * @param templatePath
    */
-  public SimpleGeneralJobTemplate(String templatePath) {
-    LOGGER.info("Load the job configuration template : " + this.getClass().getName());
+  public resourcesBasedTemplate(String templatePath) {
+    LOGGER.info("Load the job configuration template : " + templatePath);
     this.templatePath = templatePath;
 
     if (this.templatePath != null && this.templatePath.length() > 0) {
@@ -51,10 +52,12 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
       } catch (IOException e) {
         throw new RuntimeException("Failure to loading template files into i/o stream");
       }
+    } else {
+      throw new RuntimeException("Template Path doesn't exist");
     }
 
-    this._userSpecifiedAttributesList =
-        Arrays.asList(configTemplate.getProperty(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST).split(","));
+    this._userSpecifiedAttributesList = new HashSet<String>(
+        Arrays.asList(configTemplate.getProperty(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST).split(",")));
   }
 
   /**
@@ -72,7 +75,7 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
    * @return
    */
   @Override
-  public List<String> getRequiredConfigList() {
+  public Set<String> getRequiredConfigList() {
     return this._userSpecifiedAttributesList;
   }
 
@@ -86,20 +89,22 @@ public class SimpleGeneralJobTemplate implements JobTemplate {
     if (jobPropsWithPotentialTemplate.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
       jobPropsWithPotentialTemplate = TemplateUtils.mergeTemplateWithUserCustomizedFile(this.configTemplate, userProps);
     }
+    // Validate that each of required attributes is provided by user-specific configuration file.
+    for (String aRequiredAttr : _userSpecifiedAttributesList) {
+      if (!jobPropsWithPotentialTemplate.containsKey(aRequiredAttr)) {
+        throw new RuntimeException("Required attributes is not provided for resolution");
+      }
+    }
     return jobPropsWithPotentialTemplate;
   }
 
   /**
    * Return the combine configuration of template and user customized attributes.
+   * Also validate the resolution.
    * @return
    */
   @Override
   public Config getResolvedConfig(Properties userProps) {
-    Config jobPropsWithPotentialTemplate = ConfigFactory.parseProperties(userProps);
-    if (userProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      jobPropsWithPotentialTemplate = ConfigFactory.parseProperties(
-          TemplateUtils.mergeTemplateWithUserCustomizedFile(this.configTemplate, userProps));
-    }
-    return jobPropsWithPotentialTemplate;
+    return ConfigFactory.parseProperties(getResolvedConfigAsProperties(userProps));
   }
 }

@@ -142,7 +142,7 @@ public class SchedulerUtils {
         new PropertiesConfiguration(new Path("file://", jobConfigPath).toUri().toURL())));
 
     if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      jobProps = (new SimpleGeneralJobTemplate(
+      jobProps = (new resourcesBasedTemplate(
           jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
     }
 
@@ -235,7 +235,7 @@ public class SchedulerUtils {
             jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
 
             if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-              jobProps = (new SimpleGeneralJobTemplate(
+              jobProps = (new resourcesBasedTemplate(
                   jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
             }
 

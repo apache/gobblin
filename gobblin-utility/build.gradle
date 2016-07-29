@@ -59,13 +59,6 @@ test {
     workingDir rootProject.rootDir
 }
 
-sourceSets{
-  test {
-    resources {
-      srcDir 'src/resources/templates'
-    }
-  }
-}
 
 
 ext.classification="library"

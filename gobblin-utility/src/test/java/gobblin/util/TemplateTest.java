@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Properties;
 
+import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -62,12 +63,12 @@ public class TemplateTest {
   public void testRequiredAttrList() {
     Properties jobProps = this.userProp;
 
-    List<String> requiredConfigList = (new SimpleGeneralJobTemplate(
+    Set<String> requiredConfigList = (new resourcesBasedTemplate(
         jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getRequiredConfigList();
     Assert.assertEquals(requiredConfigList.size(), 3);
-    Assert.assertEquals(requiredConfigList.get(0), "required0");
-    Assert.assertEquals(requiredConfigList.get(1), "required1");
-    Assert.assertEquals(requiredConfigList.get(2), "required2");
+    Assert.assertTrue( requiredConfigList.contains("required0"));
+    Assert.assertTrue( requiredConfigList.contains("required1"));
+    Assert.assertTrue( requiredConfigList.contains("required2"));
   }
 
   // Testing the resolving of userCustomized attributes and template is correct.
@@ -76,7 +77,7 @@ public class TemplateTest {
       throws IOException {
     Properties jobProps = this.userProp ;
     Assert.assertEquals(jobProps.size(), 3);
-    jobProps = (new SimpleGeneralJobTemplate(
+    jobProps = (new resourcesBasedTemplate(
         jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
     // Remove job.template in userSpecified file and required.attribute in template
     Assert.assertEquals(jobProps.size(), 5);
@@ -84,9 +85,9 @@ public class TemplateTest {
     Properties targetResolvedJobProps = new Properties() ;
     targetResolvedJobProps.setProperty("a", "1");
     targetResolvedJobProps.setProperty("b", "2");
-    targetResolvedJobProps.setProperty("attr1","x");
-    targetResolvedJobProps.setProperty("attr2","y");
-    targetResolvedJobProps.setProperty("attr3","z");
+    targetResolvedJobProps.setProperty("required0","x");
+    targetResolvedJobProps.setProperty("required1","y");
+    targetResolvedJobProps.setProperty("required2","z");
 
     Assert.assertEquals(targetResolvedJobProps, jobProps);
   }
