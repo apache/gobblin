@@ -21,7 +21,6 @@ public class JobExecutionStatus {
 
   final JobExecution jobExecution;
   JobState.RunningState status;
-
   /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
   String stage;
 
