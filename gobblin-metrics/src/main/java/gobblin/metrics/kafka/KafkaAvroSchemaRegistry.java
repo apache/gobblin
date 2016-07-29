@@ -68,7 +68,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
     this.url = props.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
 
     int objPoolSize =
-        Integer.parseInt(props.getProperty(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS, 
+        Integer.parseInt(props.getProperty(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
             "" + ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT));
     LOG.info("Create HttpClient pool with size " + objPoolSize);
 
@@ -138,7 +138,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
 
     return schema;
   }
-  
+
   private HttpClient borrowClient() throws SchemaRegistryException {
     try {
       return this.httpClientPool.borrowObject();

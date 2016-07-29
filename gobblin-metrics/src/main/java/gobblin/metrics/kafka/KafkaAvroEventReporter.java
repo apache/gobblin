@@ -14,6 +14,8 @@ package gobblin.metrics.kafka;
 
 import java.io.IOException;
 
+import org.apache.avro.Schema;
+
 import com.google.common.base.Optional;
 
 import gobblin.metrics.GobblinTrackingEvent;
@@ -32,7 +34,10 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
   protected KafkaAvroEventReporter(Builder<?> builder) throws IOException {
     super(builder);
     if(builder.registry.isPresent()) {
-      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic));
+      Schema schema =
+          new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc"));
+      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic,
+          Optional.of(schema)));
     }
   }
 

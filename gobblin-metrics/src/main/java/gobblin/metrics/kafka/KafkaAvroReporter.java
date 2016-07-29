@@ -23,6 +23,8 @@ import gobblin.util.ConfigUtils;
 import java.io.IOException;
 import java.util.Properties;
 
+import org.apache.avro.Schema;
+
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
@@ -37,7 +39,10 @@ public class KafkaAvroReporter extends KafkaReporter {
   protected KafkaAvroReporter(Builder<?> builder, Config config) throws IOException {
     super(builder, config);
     if (builder.registry.isPresent()) {
-      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic));
+      Schema schema =
+          new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("MetricReport.avsc"));
+      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic,
+          Optional.of(schema)));
     }
   }
 
