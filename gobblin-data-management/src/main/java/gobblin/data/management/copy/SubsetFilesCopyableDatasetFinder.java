@@ -108,12 +108,12 @@ public class SubsetFilesCopyableDatasetFinder extends ConfigurableGlobDatasetFin
       if (result.find()) {
         String id = result.group(1);
         if (idToFileStatuses.containsKey(id)) {
-          log.info("Adding " + fileStatus.getPath() + " to " + id);
+          log.debug("Adding " + fileStatus.getPath() + " to " + id);
           idToFileStatuses.get(id).add(fileStatus);
         } else {
           List<FileStatus> entry = new ArrayList<>();
           entry.add(fileStatus);
-          log.info("Adding " + fileStatus.getPath() + " to " + id);
+          log.debug("Adding " + fileStatus.getPath() + " to " + id);
           idToFileStatuses.put(id, entry);
         }
       }

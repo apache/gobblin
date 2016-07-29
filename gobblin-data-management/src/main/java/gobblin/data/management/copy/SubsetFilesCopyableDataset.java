@@ -79,7 +79,7 @@ public class SubsetFilesCopyableDataset implements CopyableDataset, FileSystemDa
     List<CopyableFile> copyableFiles = Lists.newArrayList();
     for (FileStatus fileStatus : this.files) {
       if (this.shouldAddToCopyableFiles(fileStatus)) {
-        log.info("Adding copyable file " + fileStatus.getPath() + "for " + identifier + " in " + this.rootPath);
+        log.debug("Adding copyable file " + fileStatus.getPath() + "for " + identifier + " in " + this.rootPath);
         Path targetPath = this.getTargetPath(configuration.getPublishDir(), fileStatus.getPath(), this.identifier);
         copyableFiles.add(CopyableFile.fromOriginAndDestination(this.fs, fileStatus, targetPath, configuration)
             .destinationOwnerAndPermission(this.getDestinationOwnerAndPermission()).fileSet(this.fileSet(fileStatus))

@@ -29,6 +29,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.typesafe.config.Config;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -42,6 +43,7 @@ import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.WatermarkSerializerHelper;
+import gobblin.util.ConfigUtils;
 
 
 /**
@@ -51,10 +53,25 @@ import gobblin.source.extractor.WatermarkSerializerHelper;
 public class WatermarkBasedCopyableFileFilter implements CopyableFileFilter {
   private static final int DEFAULT_MAX_CACHE_SIZE = 10;
 
-  private final SourceState sourcestate;
-  private final CopyableDatasetMetadata copyableDatasetMetadata;
+  protected final SourceState sourcestate;
+  protected final CopyableDatasetMetadata copyableDatasetMetadata;
+  protected final Optional<CopyableFileWatermarkGenerator> copyableFileWatermarkGeneratorOptional;
   private final Callable<Map<String, IncludeExcludeWatermark>> callablePrevWatermarkMap;
-  private final Optional<CopyableFileWatermarkGenerator> copyableFileWatermarkGeneratorOptional;
+  private final FILTER_POLICY filterPolicy;
+
+  public static final String WATERMARK_FILTER_POLICY = "WatermarkBasedCopyableFileFilter.filterPolicy";
+
+  /**
+   * Policy for filtering based on watermarks from previous workunitstates:
+   * 1. UNCOMMITTED_FIRST: Uncommitted workunitstates will be considered first.
+   *    The lowest value among all uncommitted workunit states will be used as watermark.
+   * 2. COMMITTED_FIRST: Committed workunitstates will be considered first.
+   *    The highest value among all committed workunit states will be used as watermark.
+   */
+  public enum FILTER_POLICY {
+    UNCOMMITTED_FIRST,
+    COMMITTED_FIRST
+  }
 
   private static final Cache<SourceState, Map<String, IncludeExcludeWatermark>> STATE_TO_PREV_WATERMARK_MAP_CAHCE =
       CacheBuilder.newBuilder().maximumSize(DEFAULT_MAX_CACHE_SIZE).build();
@@ -73,6 +90,10 @@ public class WatermarkBasedCopyableFileFilter implements CopyableFileFilter {
         return getPreviousWatermarkForFilter(sourcestate, copyableFileWatermarkGeneratorOptional);
       }
     };
+    Config conf = ConfigUtils.propertiesToConfig(state.getProperties());
+    this.filterPolicy =
+        conf.hasPath(WATERMARK_FILTER_POLICY) ? FILTER_POLICY.valueOf(conf.getString(WATERMARK_FILTER_POLICY))
+            : FILTER_POLICY.UNCOMMITTED_FIRST;
   }
 
   @Override
@@ -81,8 +102,8 @@ public class WatermarkBasedCopyableFileFilter implements CopyableFileFilter {
     List<CopyableFile> filteredCopyableFiles = new ArrayList<>();
     try {
       for (CopyableFile copyableFile : copyableFiles) {
-        Optional<WatermarkInterval> watermarkIntervalOptional =
-            CopyableFileWatermarkHelper.getCopyableFileWatermark(copyableFile, this.copyableFileWatermarkGeneratorOptional);
+        Optional<WatermarkInterval> watermarkIntervalOptional = CopyableFileWatermarkHelper
+            .getCopyableFileWatermark(copyableFile, this.copyableFileWatermarkGeneratorOptional);
         Map<String, IncludeExcludeWatermark> prevWatermarkMap =
             STATE_TO_PREV_WATERMARK_MAP_CAHCE.get(this.sourcestate, this.callablePrevWatermarkMap);
         String datasetURN = copyableFile.getDatasetAndPartition(this.copyableDatasetMetadata).toString();
@@ -97,7 +118,7 @@ public class WatermarkBasedCopyableFileFilter implements CopyableFileFilter {
     }
   }
 
-  private boolean shouldSkipDueToWatermark(IncludeExcludeWatermark previousWatermark,
+  protected boolean shouldSkipDueToWatermark(IncludeExcludeWatermark previousWatermark,
       Optional<WatermarkInterval> curWatermarkIntervalOptional) {
     if (curWatermarkIntervalOptional.isPresent() && previousWatermark != null) {
       if (previousWatermark.isInclude()) {
@@ -113,52 +134,68 @@ public class WatermarkBasedCopyableFileFilter implements CopyableFileFilter {
   }
 
   /**
-   * Return the mapping from datasetUrn to {@link IncludeExcludeWatermark} based on previous workunitstates.
-   * If all {@link WorkUnitState}s are committed, watermark value will be the highest high watermark among all, and this value should be excluded for next time.
-   * Otherwise, it will be the lowest low watermark among all non-committed {@link WorkUnitState}s, and this value should included for next time.
+   * Return the mapping from datasetUrns to {@link IncludeExcludeWatermark}s based on previous workunitstates.
    */
-  @VisibleForTesting
   protected Map<String, IncludeExcludeWatermark> getPreviousWatermarkForFilter(SourceState state,
       Optional<CopyableFileWatermarkGenerator> watermarkGenerator)
       throws IOException {
-    Class<? extends ComparableWatermark> watermarkClass = watermarkGenerator.get().getWatermarkClass();
     Map<String, Iterable<WorkUnitState>> previousWorkUnitStatesByDatasetUrns =
         state.getPreviousWorkUnitStatesByDatasetUrns();
     Map<String, IncludeExcludeWatermark> previousActualWatermarkByDatasetUrns = new HashMap<>();
     for (Map.Entry<String, Iterable<WorkUnitState>> workUnitStatesPerDatasetURN : previousWorkUnitStatesByDatasetUrns
         .entrySet()) {
-      String datasetURN = workUnitStatesPerDatasetURN.getKey();
-      List<ComparableWatermark> watermarksOfCommittedWus = new ArrayList<>();
-      List<ComparableWatermark> watermarksOfUncommittedWus = new ArrayList<>();
-
-      for (WorkUnitState workUnitState : workUnitStatesPerDatasetURN.getValue()) {
-        if (workUnitState.getWorkingState().equals(WorkUnitState.WorkingState.COMMITTED)) {
-          Watermark curWatermark = WatermarkSerializerHelper
-              .convertJsonToWatermark(workUnitState.getWorkunit().getExpectedHighWatermark(), watermarkClass);
-          if (curWatermark != null) {
-            watermarksOfCommittedWus.add((ComparableWatermark) curWatermark);
-          }
-        } else {
-          Watermark curWatermark = WatermarkSerializerHelper
-              .convertJsonToWatermark(workUnitState.getWorkunit().getLowWatermark(), watermarkClass);
-          if (curWatermark != null) {
-            watermarksOfUncommittedWus.add((ComparableWatermark) curWatermark);
-          }
-        }
-      }
-      Collections.sort(watermarksOfCommittedWus);
-      Collections.sort(watermarksOfUncommittedWus);
-
-      if (!watermarksOfUncommittedWus.isEmpty()) {
-        previousActualWatermarkByDatasetUrns
-            .put(datasetURN, new IncludeExcludeWatermark(watermarksOfUncommittedWus.get(0), true));
-      } else if (!watermarksOfCommittedWus.isEmpty()) {
-        previousActualWatermarkByDatasetUrns.put(datasetURN,
-            new IncludeExcludeWatermark(watermarksOfCommittedWus.get(watermarksOfCommittedWus.size() - 1), false));
+      IncludeExcludeWatermark previousWatermark =
+          this.getPreviousWatermarkPerDataset(workUnitStatesPerDatasetURN.getValue(), watermarkGenerator);
+      if (previousWatermark != null) {
+        previousActualWatermarkByDatasetUrns.put(workUnitStatesPerDatasetURN.getKey(), previousWatermark);
       }
     }
     return previousActualWatermarkByDatasetUrns;
   }
+
+  /**
+   * Return {@link IncludeExcludeWatermark} for each dataset's workunitstates, based on {@link #filterPolicy}.
+   */
+  protected IncludeExcludeWatermark getPreviousWatermarkPerDataset(Iterable<WorkUnitState> workUnitStates,
+      Optional<CopyableFileWatermarkGenerator> watermarkGenerator) {
+    List<ComparableWatermark> watermarksOfCommittedWus = new ArrayList<>();
+    List<ComparableWatermark> watermarksOfUncommittedWus = new ArrayList<>();
+    Class<? extends ComparableWatermark> watermarkClass = watermarkGenerator.get().getWatermarkClass();
+
+    for (WorkUnitState workUnitState : workUnitStates) {
+      if (workUnitState.getWorkingState().equals(WorkUnitState.WorkingState.COMMITTED)) {
+        Watermark curWatermark = WatermarkSerializerHelper
+            .convertJsonToWatermark(workUnitState.getWorkunit().getExpectedHighWatermark(), watermarkClass);
+        if (curWatermark != null) {
+          watermarksOfCommittedWus.add((ComparableWatermark) curWatermark);
+        }
+      } else {
+        Watermark curWatermark = WatermarkSerializerHelper
+            .convertJsonToWatermark(workUnitState.getWorkunit().getLowWatermark(), watermarkClass);
+        if (curWatermark != null) {
+          watermarksOfUncommittedWus.add((ComparableWatermark) curWatermark);
+        }
+      }
+    }
+    Collections.sort(watermarksOfCommittedWus);
+    Collections.sort(watermarksOfUncommittedWus);
+
+    if (this.filterPolicy == FILTER_POLICY.UNCOMMITTED_FIRST) {
+      if (!watermarksOfUncommittedWus.isEmpty()) {
+        return new IncludeExcludeWatermark(watermarksOfUncommittedWus.get(0), true);
+      } else if (!watermarksOfCommittedWus.isEmpty()) {
+        return new IncludeExcludeWatermark(watermarksOfCommittedWus.get(watermarksOfCommittedWus.size() - 1), false);
+      }
+    } else {
+      if (!watermarksOfCommittedWus.isEmpty()) {
+        return new IncludeExcludeWatermark(watermarksOfCommittedWus.get(watermarksOfCommittedWus.size() - 1), false);
+      } else if (!watermarksOfUncommittedWus.isEmpty()) {
+        return new IncludeExcludeWatermark(watermarksOfUncommittedWus.get(0), true);
+      }
+    }
+    return null;
+  }
+
 
   /**
    * Class for watermark with an indicator {@link IncludeExcludeWatermark#include}.
