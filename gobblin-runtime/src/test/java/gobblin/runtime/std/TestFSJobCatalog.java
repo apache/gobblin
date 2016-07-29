@@ -1,5 +1,6 @@
 package gobblin.runtime.std;
 
+import gobblin.runtime.job_catalog.FSJobCatalog;
 import org.testng.annotations.Test;
 
 

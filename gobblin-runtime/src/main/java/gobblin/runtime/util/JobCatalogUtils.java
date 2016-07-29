@@ -1,6 +1,9 @@
 package gobblin.runtime.util;
 
 import gobblin.runtime.api.JobSpec;
+import gobblin.util.filesystem.PathAlterationListener;
+import gobblin.util.filesystem.PathAlterationMonitor;
+import gobblin.util.filesystem.PathAlterationObserver;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -31,7 +34,7 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.SchedulerUtils;
-import gobblin.runtime.std.FSJobCatalog.Action;
+import gobblin.runtime.job_catalog.FSJobCatalog.Action;
 
 
 /**
@@ -283,6 +286,13 @@ public class JobCatalogUtils {
     return persistedJob;
   }
 
+  /**
+   * Combine two approaches of loading job configuration (both single conf. and conf. Folder) together.
+   * @param jobConfDirPath
+   * @param action
+   * @param jobConfigPath
+   * @return
+   */
   public static List<JobSpec> loadJobConfigHelper(Path jobConfDirPath, Action action, Path jobConfigPath) {
     List<JobSpec> jobSpecList = new ArrayList<>();
     try (FileSystem fs = jobConfDirPath.getFileSystem(new Configuration())) {
@@ -316,4 +326,22 @@ public class JobCatalogUtils {
 
     return jobSpecList;
   }
+
+  /**
+   * Add {@link gobblin.util.filesystem.PathAlterationMonitor}s for the given
+   * root directory and any nested subdirectories under the root directory to the given
+   * {@link gobblin.util.filesystem.PathAlterationMonitor}.
+   *
+   * @param monitor a {@link gobblin.util.filesystem.PathAlterationMonitor}
+   * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
+   * @param rootDirPath root directory
+   */
+  public static void addPathAlterationObserver(PathAlterationMonitor monitor, PathAlterationListener listener,
+      Path rootDirPath)
+      throws IOException {
+    PathAlterationObserver observer = new PathAlterationObserver(rootDirPath);
+    observer.addListener(listener);
+    monitor.addObserver(observer);
+  }
+
 }

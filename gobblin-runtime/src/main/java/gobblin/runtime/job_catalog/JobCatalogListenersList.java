@@ -78,8 +78,7 @@ public class JobCatalogListenersList implements JobCatalogListener {
     }
     try {
       callback.invoke(listener);
-    }
-    catch (RuntimeException e) {
+    }catch (RuntimeException e) {
       if (null == callbackMsg) {
         callbackMsg = "callback " + callback + " on " + listener;
       }
@@ -151,6 +150,4 @@ public class JobCatalogListenersList implements JobCatalogListener {
       listener.onUpdateJob(this.param1, this.param2);
     }
   }
-
-
 }

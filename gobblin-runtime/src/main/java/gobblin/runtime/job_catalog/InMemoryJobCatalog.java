@@ -56,11 +56,11 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
 
   /**{@inheritDoc}*/
   @Override
-  public synchronized JobSpec getJobSpec(URI uri) throws JobSpecNotFoundException {
+  public synchronized JobSpec getJobSpec(URI uri)
+      throws JobSpecNotFoundException {
     if (this.jobSpecs.containsKey(uri)) {
       return this.jobSpecs.get(uri);
-    }
-    else {
+    } else {
       throw new JobSpecNotFoundException(uri);
     }
   }
