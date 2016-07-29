@@ -24,7 +24,7 @@ public class JobExecutionStatus {
   /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
   String stage;
 
-  // TODO commented out to avoid FindBugs warning
+  //  TODO commented out to avoid FindBugs warning
   // transient List<JobExecutionStateListener> changeListeners;
 
   public JobExecutionStatus(JobExecution jobExecution) {
