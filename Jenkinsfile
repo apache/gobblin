@@ -14,7 +14,7 @@ node {
             # note: requires Java 8
             export JAVA_HOME="${JAVA_BASE}/jdk1.8.0_74"
             export PATH=$JAVA_HOME/bin:$PATH
-            ./gradlew build -Pversion=${BRANCH_NAME} -PuseHadoop2 -PhadoopVersion=${HADOOP_VERSION}         
+            ./gradlew clean build -Pversion=${BRANCH_NAME} -PuseHadoop2 -PhadoopVersion=${HADOOP_VERSION}         
           '''
 
         stage 'Test'
