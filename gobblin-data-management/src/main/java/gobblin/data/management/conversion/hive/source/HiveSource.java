@@ -133,6 +133,7 @@ public class HiveSource implements Source {
       throw new RuntimeException(e);
     }
 
+    log.info(String.format("Created %s workunits", this.workunits.size()));
     return this.workunits;
   }
 
@@ -251,7 +252,7 @@ public class HiveSource implements Source {
           Long.parseLong(partition.getTPartition().getParameters().get(DISTCP_REGISTRATION_GENERATION_TIME_KEY));
       DateTime createTime = new DateTime(registrationGenerationTime);
 
-      log.info("Did not find createTime in Hive partition, used distcp registration generation time.");
+      log.debug("Did not find createTime in Hive partition, used distcp registration generation time.");
       return createTime.isBefore(this.maxLookBackTime);
     }
 

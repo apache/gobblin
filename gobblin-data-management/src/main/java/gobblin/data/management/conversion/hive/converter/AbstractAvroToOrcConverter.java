@@ -46,8 +46,9 @@ import gobblin.converter.DataConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
-import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
+import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
@@ -137,6 +138,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     Preconditions.checkNotNull(conversionEntity, "Conversion entity must not be null");
     Preconditions.checkNotNull(workUnit, "Workunit state must not be null");
     Preconditions.checkNotNull(conversionEntity.getHiveTable(), "Hive table within conversion entity must not be null");
+
+    EventWorkunitUtils.setBeginDDLBuildTimeMetadata(workUnit, System.currentTimeMillis());
 
     this.hiveDataset = conversionEntity.getConvertibleHiveDataset();
 
@@ -306,6 +309,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         hiveColumns,
         destinationTableMeta);
     log.info("Evolve final table DDLs: " + evolutionDDLs);
+    EventWorkunitUtils.setEvolutionMetadata(workUnit, evolutionDDLs);
+
     publishQueries.addAll(evolutionDDLs);
 
 
@@ -388,6 +393,9 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
 
     log.debug("Conversion Query " + conversionEntity.getQueries());
+
+    EventWorkunitUtils.setEndDDLBuildTimeMetadata(workUnit, System.currentTimeMillis());
+
     return new SingleRecordIterable<>(conversionEntity);
   }
 

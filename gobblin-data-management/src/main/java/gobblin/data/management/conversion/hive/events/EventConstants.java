@@ -11,6 +11,8 @@
  */
 package gobblin.data.management.conversion.hive.events;
 
+import gobblin.metrics.event.sla.SlaEventKeys;
+
 /**
  * Event names and metadata names used by hive conversion.
  */
@@ -33,4 +35,17 @@ public class EventConstants {
   public static final String VALIDATION_SUCCESSFUL_SLA_EVENT = VALIDATION_PREFIX + "ValidationSuccessful";
   public static final String VALIDATION_FAILED_SLA_EVENT = VALIDATION_PREFIX + "ValidationFailed";
   public static final String VALIDATION_NOOP_SLA_EVENT = VALIDATION_PREFIX + "ValidationNoop";
+
+  // Event metadata keys
+  // The final event metadata name will SchemaEvolutionDDLNum as SlaEventSubmitter removes the prefix
+  // SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX
+  public static final String SCHEMA_EVOLUTION_DDLS_NUM = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "SchemaEvolutionDDLNum";
+  public static final String BEGIN_DDL_BUILD_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginDDLBuildTime";
+  public static final String END_DDL_BUILD_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "EndDDLBuildTime";
+  public static final String BEGIN_CONVERSION_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginConversionDDLExecuteTime";
+  public static final String END_CONVERSION_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "EndConversionDDLExecuteTime";
+  public static final String BEGIN_PUBLISH_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginPublishDDLExecuteTime";
+  public static final String END_PUBLISH_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "EndPublishDDLExecuteTime";
+
+  public static final String SOURCE_DATA_LOCATION = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "SourceDataLocation";
 }

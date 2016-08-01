@@ -11,10 +11,13 @@
  */
 package gobblin.data.management.conversion.hive.events;
 
+import java.util.List;
+
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.source.workunit.WorkUnit;
 
@@ -47,5 +50,38 @@ public class EventWorkunitUtils {
     // Time when the workunit was created
     state.setProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY, System.currentTimeMillis());
     state.setProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY, lowWatermark);
+
+    state.setProp(EventConstants.SOURCE_DATA_LOCATION, partition.getDataLocation());
+  }
+
+  /**
+   * Set number of schema evolution DDLs as Sla event metadata
+   */
+  public static void setEvolutionMetadata(State state, List<String> evolutionDDLs) {
+    state.setProp(EventConstants.SCHEMA_EVOLUTION_DDLS_NUM, evolutionDDLs == null ? 0 : evolutionDDLs.size());
+  }
+
+  public static void setBeginDDLBuildTimeMetadata(State state, long time) {
+    state.setProp(EventConstants.BEGIN_DDL_BUILD_TIME, Long.toString(time));
+  }
+
+  public static void setEndDDLBuildTimeMetadata(State state, long time) {
+    state.setProp(EventConstants.END_DDL_BUILD_TIME, Long.toString(time));
+  }
+
+  public static void setBeginConversionDDLExecuteTimeMetadata(State state, long time) {
+    state.setProp(EventConstants.BEGIN_CONVERSION_DDL_EXECUTE_TIME, Long.toString(time));
+  }
+
+  public static void setEndConversionDDLExecuteTimeMetadata(State state, long time) {
+    state.setProp(EventConstants.END_CONVERSION_DDL_EXECUTE_TIME, Long.toString(time));
+  }
+
+  public static void setBeginPublishDDLExecuteTimeMetadata(State state, long time) {
+    state.setProp(EventConstants.BEGIN_PUBLISH_DDL_EXECUTE_TIME, Long.toString(time));
+  }
+
+  public static void setEndPublishDDLExecuteTimeMetadata(State state, long time) {
+    state.setProp(EventConstants.END_PUBLISH_DDL_EXECUTE_TIME, Long.toString(time));
   }
 }
