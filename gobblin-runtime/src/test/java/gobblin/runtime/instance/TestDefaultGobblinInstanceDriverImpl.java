@@ -9,7 +9,7 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.runtime.instance_driver;
+package gobblin.runtime.instance;
 
 import java.util.concurrent.TimeUnit;
 
@@ -23,6 +23,7 @@ import com.google.common.base.Optional;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecScheduler;
+import gobblin.runtime.instance.DefaultGobblinInstanceDriverImpl;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 import gobblin.runtime.std.DefaultJobSpecScheduleImpl;
 

@@ -21,8 +21,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
 import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.Getter;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -61,6 +59,9 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.executors.IteratorExecutor;
+
+import lombok.AccessLevel;
+import lombok.Getter;
 
 
 /**
@@ -110,7 +111,7 @@ public class JobContext {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
-    this.jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    this.jobName = JobState.getJobNameFromProps(jobProps);
     this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)
         : JobLauncherUtils.newJobId(this.jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);

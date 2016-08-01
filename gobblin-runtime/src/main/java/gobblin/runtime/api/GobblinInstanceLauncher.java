@@ -20,12 +20,13 @@ import gobblin.annotation.Alpha;
  *  configurations, instantiates and runs the Gobblin instance driver.
  */
 @Alpha
-public interface GobblinInstanceLauncher extends Service {
+public interface GobblinInstanceLauncher extends Service, Configurable {
   /**
    * Creates a new Gobblin instance to run Gobblin jobs.
    * @throws IllegalStateException if {@link #isRunning()} is false.*/
   GobblinInstanceDriver getDriver() throws IllegalStateException;
 
   /** The instance name (for debugging/logging purposes) */
-  String getName();
+  String getInstanceName();
+
 }

@@ -9,16 +9,8 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.runtime.api;
-
-import com.google.common.base.Optional;
-
-import gobblin.annotation.Alpha;
-
 /**
- * Placeholder
+ * Standard {@link gobblin.runtime.api.JobExecutionLauncher} implementations
+ *
  */
-@Alpha
-public interface JobExecutionLauncher {
-  JobExecutionDriver launchJob(JobSpec jobSpec, Optional<JobExecutionStateListener> listener);
-}
+package gobblin.runtime.job_exec;

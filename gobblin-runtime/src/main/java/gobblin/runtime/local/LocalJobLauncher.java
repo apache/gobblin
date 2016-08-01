@@ -32,7 +32,10 @@ import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
+import gobblin.runtime.api.Configurable;
+import gobblin.runtime.api.JobSpec;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.JobConfigurationUtils;
 import gobblin.util.JobLauncherUtils;
 
 
@@ -73,6 +76,11 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     startCancellationExecutor();
 
     jobLocalSetupTimer.stop();
+  }
+
+  public LocalJobLauncher(Configurable instanceConf, JobSpec jobSpec) throws Exception {
+    this(JobConfigurationUtils.combineSysAndJobProperties(instanceConf.getConfigAsProperties(),
+                                                          jobSpec.getConfigAsProperties()));
   }
 
   @Override

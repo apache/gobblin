@@ -33,13 +33,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
-
 import com.linkedin.data.template.StringMap;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.rest.JobExecutionInfo;
 import gobblin.rest.JobStateEnum;
 import gobblin.rest.LauncherTypeEnum;
@@ -47,7 +47,6 @@ import gobblin.rest.Metric;
 import gobblin.rest.MetricArray;
 import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
-import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
 
@@ -97,6 +96,14 @@ public class JobState extends SourceState {
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);
+  }
+
+  public static String getJobNameFromState(State state) {
+    return state.getProp(ConfigurationKeys.JOB_NAME_KEY);
+  }
+
+  public static String getJobNameFromProps(Properties props) {
+    return props.getProperty(ConfigurationKeys.JOB_NAME_KEY);
   }
 
   /**

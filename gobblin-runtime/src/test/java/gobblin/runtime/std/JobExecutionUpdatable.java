@@ -14,9 +14,12 @@ package gobblin.runtime.std;
 import java.net.URI;
 
 import gobblin.annotation.Alpha;
+import gobblin.runtime.JobState;
 import gobblin.runtime.api.JobExecution;
 import gobblin.runtime.api.JobSpec;
+import gobblin.util.JobLauncherUtils;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
@@ -24,13 +27,21 @@ import lombok.Data;
  */
 @Alpha
 @Data
+@AllArgsConstructor
 public class JobExecutionUpdatable implements JobExecution {
   /** The URI of the job being executed */
-  protected URI jobSpecURI;
+  protected final URI jobSpecURI;
   /** The version of the JobSpec being launched */
-  protected String jobSpecVersion;
+  protected final String jobSpecVersion;
   /** The millisecond timestamp when the job was launched */
-  protected long launchTimeMillis;
+  protected final long launchTimeMillis;
   /** Unique (for the given JobExecutionLauncher) id for this execution */
-  protected String executionId;
+  protected final String executionId;
+
+  public static JobExecutionUpdatable createFromJobSpec(JobSpec jobSpec) {
+    return new JobExecutionUpdatable(jobSpec.getUri(),
+        jobSpec.getVersion(),
+        System.currentTimeMillis(),
+        JobLauncherUtils.newJobId(JobState.getJobNameFromProps(jobSpec.getConfigAsProperties())));
+  }
 }
