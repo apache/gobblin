@@ -56,6 +56,19 @@ public class JobSpec implements Configurable {
     return new Builder(jobSpecUri);
   }
 
+  public String toShortString() {
+    return getUri().toString() + "/" + getVersion();
+  }
+
+  public String toLongString() {
+    return getUri().toString() + "/" + getVersion() + "[" + getDescription() + "]";
+  }
+
+  @Override
+  public String toString() {
+    return toShortString();
+  }
+
   public static class Builder {
     private Optional<Config> config = Optional.absent();
     private Optional<Properties> configAsProperties = Optional.absent();

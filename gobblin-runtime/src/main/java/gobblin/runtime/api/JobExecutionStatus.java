@@ -11,23 +11,26 @@
  */
 package gobblin.runtime.api;
 
-import java.util.List;
-
 import gobblin.runtime.JobState;
 
+import lombok.Getter;
+
+@Getter
 public class JobExecutionStatus {
+  public static final String UKNOWN_STAGE = "unkown";
+
   final JobExecution jobExecution;
-
-  public JobExecutionStatus(JobExecution jobExecution) {
-    this.jobExecution = jobExecution;
-    this.status = JobState.RunningState.PENDING;
-  }
-
-  /** SUBMITTED, STARTED, SUCCEEDED, FAILED */
   JobState.RunningState status;
   /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
   String stage;
 
-  transient List<JobExecutionStateListener> changeListeners;
+  // TODO commented out to avoid FindBugs warning
+  // transient List<JobExecutionStateListener> changeListeners;
+
+  public JobExecutionStatus(JobExecution jobExecution) {
+    this.jobExecution = jobExecution;
+    this.status = JobState.RunningState.PENDING;
+    this.stage = UKNOWN_STAGE;
+  }
 
 }
