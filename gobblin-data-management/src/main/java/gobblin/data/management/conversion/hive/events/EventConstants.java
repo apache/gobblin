@@ -46,6 +46,8 @@ public class EventConstants {
   public static final String END_CONVERSION_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "EndConversionDDLExecuteTime";
   public static final String BEGIN_PUBLISH_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginPublishDDLExecuteTime";
   public static final String END_PUBLISH_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "EndPublishDDLExecuteTime";
+  public static final String WORK_UNIT_CREATE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "WorkunitCreateTime";
+  public static final String BEGIN_GET_WORKUNITS_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginGetWorkunitsTime";
 
   public static final String SOURCE_DATA_LOCATION = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "SourceDataLocation";
 }
