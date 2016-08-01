@@ -12,8 +12,6 @@
 
 package gobblin.util;
 
-import com.google.common.base.Predicate;
-import gobblin.util.filesystem.FileStatusEntry;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -143,6 +141,11 @@ public class SchedulerUtils {
     jobProps.putAll(ConfigurationConverter.getProperties(
         new PropertiesConfiguration(new Path("file://", jobConfigPath).toUri().toURL())));
 
+    if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+      jobProps = (new resourcesBasedTemplate(
+          jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
+    }
+
     jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigPath.toString());
     return jobProps;
   }
@@ -230,6 +233,12 @@ public class SchedulerUtils {
               Charsets.UTF_8)) {
             propertiesConfiguration.load(inputStreamReader);
             jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
+
+            if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+              jobProps = (new resourcesBasedTemplate(
+                  jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
+            }
+
             jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, configFilePath.toString());
             jobConfigs.add(jobProps);
           }

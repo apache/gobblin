@@ -1,0 +1,17 @@
+type=hadoopJava
+job.class=gobblin.azkaban.AzkabanJobLauncher
+
+extract.namespace=gobblin.copy
+data.publisher.type=gobblin.data.management.copy.publisher.CopyDataPublisher
+source.class=gobblin.data.management.copy.CopySource
+
+task.maxretries=0
+workunit.retry.enabled=false
+distcp.persist.dir=/tmp/distcp-persist-dir
+
+
+# Hive related attributes
+hive.dataset.database=default
+
+# Please refer to distcp-ng Runbook for available value for following options.
+required.attribute=writer.builder.class,converter.classes,job.name,job.description,data.publisher.final.dir,gobblin.dataset.profile.class,gobblin.dataset.pattern,hive.dataset.copy.target.table.root,hive.dataset.hive.metastore.uri,hive.dataset.copy.target.metastore.uri,hive.dataset.copy.target.database
