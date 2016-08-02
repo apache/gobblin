@@ -1,4 +1,4 @@
-package gobblin.runtime.std;
+package gobblin.runtime.job_catalog;
 
 import java.net.URI;
 
@@ -7,6 +7,7 @@ import org.testng.annotations.Test;
 
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 
 /** Unit tests for {@link InMemoryJobCatalog} */
 public class TestInMemoryJobCatalog {
@@ -17,10 +18,10 @@ public class TestInMemoryJobCatalog {
 
     JobCatalogListener l = Mockito.mock(JobCatalogListener.class);
 
-    JobSpec js1_1 = JobSpec.builer("test:job1").withVersion("1").build();
-    JobSpec js1_2 = JobSpec.builer("test:job1").withVersion("2").build();
-    JobSpec js1_3 = JobSpec.builer("test:job1").withVersion("3").build();
-    JobSpec js2 = JobSpec.builer("test:job2").withVersion("1").build();
+    JobSpec js1_1 = JobSpec.builder("test:job1").withVersion("1").build();
+    JobSpec js1_2 = JobSpec.builder("test:job1").withVersion("2").build();
+    JobSpec js1_3 = JobSpec.builder("test:job1").withVersion("3").build();
+    JobSpec js2 = JobSpec.builder("test:job2").withVersion("1").build();
 
     cat.put(js1_1);
     cat.addListener(l);

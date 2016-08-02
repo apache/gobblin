@@ -11,11 +11,21 @@
  */
 package gobblin.runtime.api;
 
-import com.google.common.util.concurrent.Service;
+import java.net.URI;
 
 /**
- * Discovers jobs to execute and generates JobSpecs for each one.
+ * An exception thrown when a JobSpec with a given URI is not found.
  */
-public interface JobSpecMonitor extends Service {
+public class JobSpecNotFoundException extends Exception {
+  private static final long serialVersionUID = 1L;
+  private final URI _missingJobSpecURI;
 
+  public JobSpecNotFoundException(URI missingJobSpecURI) {
+    super("No JobSpec with URI " + missingJobSpecURI);
+    _missingJobSpecURI = missingJobSpecURI;
+  }
+
+  public URI getMissingJobSpecURI() {
+    return _missingJobSpecURI;
+  }
 }

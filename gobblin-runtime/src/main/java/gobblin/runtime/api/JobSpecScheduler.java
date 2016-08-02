@@ -11,12 +11,39 @@
  */
 package gobblin.runtime.api;
 
+import java.net.URI;
+import java.util.Map;
+
 import gobblin.annotation.Alpha;
 
 /**
- *  Placeholder
+ *  Early alpha of the scheduler interface which is responsible of deciding when to run next the
+ *  GobblinJob identified by a JobSpec. The scheduler maintains one {@link JobSpecSchedule} per
+ *  JobSpec URI. Which means that scheduling a new version of JobSpec will override the schedule of
+ *  the previous version.
+ *
+ *  The scheduler is fire-and-forget. It is caller's responsibility (typically,
+ *  {@link GobblinInstanceDriver}) to keep track of the outcome of the execution.
  */
 @Alpha
 public interface JobSpecScheduler {
+  /**
+   * Add a Gobblin job for scheduling. If the job is configured appropriately (scheduler-dependent),
+   * it will be executed repeatedly.
+   *
+   * @param   jobSpec     the JobSpec of the job
+   * @param   jobRunnable a runnable that will execute the job
+   */
+  public JobSpecSchedule scheduleJob(JobSpec jobSpec, Runnable jobRunnable);
 
+  /**
+   * Remove a job from scheduling. This will not affect any executions that are currently running.
+   * @param jobSpecURI    the URI of the Gobblin job to unschedule.
+   * */
+  public void unscheduleJob(URI jobSpecURI);
+
+  /** The outstanding job schedules. This is represents a snapshot in time and will not be updated
+   * as new schedules are added/removed.
+   * @return a map with the URIs of the scheduled jobs for keys and the schedules for values */
+  public Map<URI, JobSpecSchedule> getSchedules();
 }

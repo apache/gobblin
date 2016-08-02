@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.api;
 
+import com.google.common.util.concurrent.Service;
+
 import gobblin.annotation.Alpha;
 
 /**
@@ -18,9 +20,12 @@ import gobblin.annotation.Alpha;
  *  configurations, instantiates and runs the Gobblin instance driver.
  */
 @Alpha
-public interface GobblinInstanceLauncher extends StandardRunControls {
+public interface GobblinInstanceLauncher extends Service {
   /**
    * Creates a new Gobblin instance to run Gobblin jobs.
    * @throws IllegalStateException if {@link #isRunning()} is false.*/
   GobblinInstanceDriver getDriver() throws IllegalStateException;
+
+  /** The instance name (for debugging/logging purposes) */
+  String getName();
 }

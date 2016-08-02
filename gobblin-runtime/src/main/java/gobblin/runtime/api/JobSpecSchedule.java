@@ -11,11 +11,17 @@
  */
 package gobblin.runtime.api;
 
-import com.google.common.util.concurrent.Service;
+import com.google.common.base.Optional;
 
 /**
- * Discovers jobs to execute and generates JobSpecs for each one.
+ * The schedule for a job
+ *
  */
-public interface JobSpecMonitor extends Service {
-
+public interface JobSpecSchedule {
+  /** The JobSpec of the Gobblin job to be run */
+  JobSpec getJobSpec();
+  /** The runnable that should be invoked by the scheduler */
+  Runnable getJobRunnable();
+  /** The millisecond timestamp of the next execution of this schedule if any. */
+  Optional<Long> getNextRunTimeMillis();
 }

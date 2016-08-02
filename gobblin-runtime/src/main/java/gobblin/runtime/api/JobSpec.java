@@ -25,6 +25,7 @@ import gobblin.util.ConfigUtils;
 
 import lombok.Data;
 
+
 /**
  * Defines a Gobblin Job that can be run once, or multiple times. A {@link JobSpec} is
  * {@link Configurable} so it has an associated {@link Config}, along with other mandatory
@@ -48,12 +49,25 @@ public class JobSpec implements Configurable {
   // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
   final Properties configAsProperties;
 
-  public static Builder builer(URI jobSpecUri) {
+  public static Builder builder(URI jobSpecUri) {
     return new Builder(jobSpecUri);
   }
 
-  public static Builder builer(String jobSpecUri) {
+  public static Builder builder(String jobSpecUri) {
     return new Builder(jobSpecUri);
+  }
+
+  public String toShortString() {
+    return getUri().toString() + "/" + getVersion();
+  }
+
+  public String toLongString() {
+    return getUri().toString() + "/" + getVersion() + "[" + getDescription() + "]";
+  }
+
+  @Override
+  public String toString() {
+    return toShortString();
   }
 
   public static class Builder {
@@ -73,8 +87,7 @@ public class JobSpec implements Configurable {
       Preconditions.checkNotNull(jobSpecUri);
       try {
         this.uri = new URI(jobSpecUri);
-      }
-      catch (URISyntaxException e) {
+      } catch (URISyntaxException e) {
         throw new RuntimeException("Invalid JobSpec config: " + e, e);
       }
     }
@@ -83,18 +96,17 @@ public class JobSpec implements Configurable {
       Preconditions.checkNotNull(this.uri);
       Preconditions.checkNotNull(this.version);
 
-      if (! this.config.isPresent() && ! this.configAsProperties.isPresent()) {
+      if (!this.config.isPresent() && !this.configAsProperties.isPresent()) {
         this.config = Optional.of(ConfigFactory.empty());
       }
-      if (! this.configAsProperties.isPresent()) {
+      if (!this.configAsProperties.isPresent()) {
         this.configAsProperties = Optional.of(ConfigUtils.configToProperties(this.config.get()));
       }
-      if (! this.config.isPresent()) {
+      if (!this.config.isPresent()) {
         this.config =
-            Optional.of(ConfigUtils.propertiesToTypedConfig(this.configAsProperties.get(),
-                                                            Optional.<String>absent()));
+            Optional.of(ConfigUtils.propertiesToTypedConfig(this.configAsProperties.get(), Optional.<String>absent()));
       }
-      if (! this.description.isPresent()) {
+      if (!this.description.isPresent()) {
         this.description = Optional.of("Gobblin job " + this.uri);
       }
       return new JobSpec(this.uri, this.version, this.description.get(), this.config.get(),

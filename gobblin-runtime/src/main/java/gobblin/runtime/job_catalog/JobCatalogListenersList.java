@@ -1,4 +1,4 @@
-package gobblin.runtime.std;
+package gobblin.runtime.job_catalog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -91,7 +91,7 @@ public class JobCatalogListenersList implements JobCatalogListener {
   }
 
   @RequiredArgsConstructor
-  static abstract class Callback {
+  public static abstract class Callback {
     final protected String methodName;
     final protected JobSpec param1;
     final protected JobSpec param2;
@@ -119,7 +119,7 @@ public class JobCatalogListenersList implements JobCatalogListener {
     }
   }
 
-  static class AddJobCallback extends Callback {
+  public static class AddJobCallback extends Callback {
     public AddJobCallback(JobSpec addedJob) {
       super("onAddJob", addedJob, null);
     }
@@ -130,7 +130,7 @@ public class JobCatalogListenersList implements JobCatalogListener {
     }
   }
 
-  static class DeleteJobCallback extends Callback {
+  public static class DeleteJobCallback extends Callback {
     public DeleteJobCallback(JobSpec deletedJob) {
       super("onDeleteJob", deletedJob, null);
     }
@@ -141,7 +141,7 @@ public class JobCatalogListenersList implements JobCatalogListener {
     }
   }
 
-  static class UpdateJobCallback extends Callback {
+  public static class UpdateJobCallback extends Callback {
     public UpdateJobCallback(JobSpec originalJob, JobSpec updatedJob) {
       super("onUpdateJob", originalJob, updatedJob);
     }
