@@ -39,19 +39,15 @@ public class EventConstants {
   // Event metadata keys
   // The final event metadata name will be SchemaEvolutionDDLNum as SlaEventSubmitter removes the prefix
   // SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX
-  public static final String SCHEMA_EVOLUTION_DDLS_NUM = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "SchemaEvolutionDDLNum";
-  public static final String BEGIN_DDL_BUILD_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginDDLBuildTime";
-  public static final String END_DDL_BUILD_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "EndDDLBuildTime";
-  public static final String BEGIN_CONVERSION_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginConversionDDLExecuteTime";
-  public static final String END_CONVERSION_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "EndConversionDDLExecuteTime";
-  public static final String BEGIN_PUBLISH_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginPublishDDLExecuteTime";
-  public static final String END_PUBLISH_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "EndPublishDDLExecuteTime";
-  public static final String WORK_UNIT_CREATE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "WorkunitCreateTime";
-  public static final String BEGIN_GET_WORKUNITS_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginGetWorkunitsTime";
+  public static final String SCHEMA_EVOLUTION_DDLS_NUM = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "schemaEvolutionDDLNum";
+  public static final String BEGIN_DDL_BUILD_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "beginDDLBuildTime";
+  public static final String END_DDL_BUILD_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "endDDLBuildTime";
+  public static final String BEGIN_CONVERSION_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "beginConversionDDLExecuteTime";
+  public static final String END_CONVERSION_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "endConversionDDLExecuteTime";
+  public static final String BEGIN_PUBLISH_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "beginPublishDDLExecuteTime";
+  public static final String END_PUBLISH_DDL_EXECUTE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "endPublishDDLExecuteTime";
+  public static final String WORK_UNIT_CREATE_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "workunitCreateTime";
+  public static final String BEGIN_GET_WORKUNITS_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "beginGetWorkunitsTime";
 
-  public static final String SOURCE_DATA_LOCATION = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "SourceDataLocation";
-
-  public static void main(String[] args) {
-    System.out.println(Integer.parseInt("4770546"));
-  }
+  public static final String SOURCE_DATA_LOCATION = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "sourceDataLocation";
 }
