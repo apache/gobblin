@@ -1,6 +1,7 @@
 package gobblin.metrics.event.sla;
 
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 
 import lombok.AccessLevel;
@@ -17,6 +18,7 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.event.EventSubmitter;
 
 /**
@@ -42,7 +44,11 @@ public class SlaEventSubmitter {
   /**
    * Construct an {@link SlaEventSubmitter} by extracting Sla event metadata from the properties. See
    * {@link SlaEventKeys} for keys to set in properties
-   *
+   * <p>
+   * The <code>props</code> MUST have required property {@link SlaEventKeys#DATASET_URN_KEY} set.<br>
+   * All properties with prefix {@link SlaEventKeys#EVENT_ADDITIONAL_METADATA_PREFIX} will be automatically added as
+   * event metadata
+   * </p>
    * <p>
    * Use {@link SlaEventSubmitter#builder()} to build an {@link SlaEventSubmitter} directly with event metadata.
    * </p>
@@ -56,6 +62,11 @@ public class SlaEventSubmitter {
     this.eventName = name;
     this.eventSubmitter = submitter;
     this.datasetUrn = props.getProperty(SlaEventKeys.DATASET_URN_KEY);
+    if (props.containsKey(SlaEventKeys.DATASET_URN_KEY)) {
+      this.datasetUrn = props.getProperty(SlaEventKeys.DATASET_URN_KEY);
+    } else {
+      this.datasetUrn = props.getProperty(ConfigurationKeys.DATASET_URN_KEY);
+    }
     this.partition = props.getProperty(SlaEventKeys.PARTITION_KEY);
     this.originTimestamp = props.getProperty(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY);
     this.upstreamTimestamp = props.getProperty(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY);
@@ -64,12 +75,19 @@ public class SlaEventSubmitter {
     this.previousPublishTimestamp = props.getProperty(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY);
     this.dedupeStatus = props.getProperty(SlaEventKeys.DEDUPE_STATUS_KEY);
 
+    this.additionalMetadata = Maps.newHashMap();
+    for (Entry<Object, Object> entry : props.entrySet()) {
+      if (StringUtils.startsWith(entry.getKey().toString(), SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX)) {
+        this.additionalMetadata.put(StringUtils.removeStart(entry.getKey().toString(),
+            SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX), entry.getValue().toString());
+      }
+    }
   }
 
   /**
    * Submit the sla event by calling {@link SlaEventSubmitter#EventSubmitter#submit()}. If
    * {@link SlaEventSubmitter#eventName}, {@link SlaEventSubmitter#eventSubmitter}, {@link SlaEventSubmitter#datasetUrn}
-   * , {@link SlaEventSubmitter#partition} are not available the method is a no-op.
+   * are not available the method is a no-op.
    */
   public void submit() {
     try {
@@ -77,7 +95,6 @@ public class SlaEventSubmitter {
       Preconditions.checkArgument(Predicates.notNull().apply(eventSubmitter), "EventSubmitter needs to be set");
       Preconditions.checkArgument(NOT_NULL_OR_EMPTY_PREDICATE.apply(eventName), "Eventname is required");
       Preconditions.checkArgument(NOT_NULL_OR_EMPTY_PREDICATE.apply(datasetUrn), "DatasetUrn is required");
-      Preconditions.checkArgument(NOT_NULL_OR_EMPTY_PREDICATE.apply(partition), "Partition is required");
 
       eventSubmitter.submit(eventName, buildEventMap());
 

@@ -104,10 +104,12 @@ public class HiveSource implements Source {
   private IterableDatasetFinder<HiveDataset> datasetFinder;
   private List<WorkUnit> workunits;
   private long maxLookBackTime;
+  private long beginGetWorkunitsTime;
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     try {
+      this.beginGetWorkunitsTime = System.currentTimeMillis();
 
       initialize(state);
 
@@ -132,6 +134,8 @@ public class HiveSource implements Source {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+
+    log.info(String.format("Created %s workunits", this.workunits.size()));
 
     return this.workunits;
   }
@@ -171,7 +175,8 @@ public class HiveSource implements Source {
         hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
         hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
 
-        EventWorkunitUtils.setTableSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue());
+        EventWorkunitUtils.setTableSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue(),
+            this.beginGetWorkunitsTime);
         this.workunits.add(hiveWorkUnit);
         log.debug(String.format("Workunit added for table: %s", hiveWorkUnit));
 
@@ -211,7 +216,7 @@ public class HiveSource implements Source {
           hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
 
           EventWorkunitUtils.setPartitionSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), sourcePartition, updateTime,
-              lowWatermark.getValue());
+              lowWatermark.getValue(), this.beginGetWorkunitsTime);
           workunits.add(hiveWorkUnit);
           log.debug(String.format("Workunit added for partition: %s", hiveWorkUnit));
         } else {
@@ -251,7 +256,7 @@ public class HiveSource implements Source {
           Long.parseLong(partition.getTPartition().getParameters().get(DISTCP_REGISTRATION_GENERATION_TIME_KEY));
       DateTime createTime = new DateTime(registrationGenerationTime);
 
-      log.info("Did not find createTime in Hive partition, used distcp registration generation time.");
+      log.debug("Did not find createTime in Hive partition, used distcp registration generation time.");
       return createTime.isBefore(this.maxLookBackTime);
     }
 

@@ -38,6 +38,7 @@ import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.conversion.hive.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 import gobblin.data.management.conversion.hive.events.EventConstants;
+import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
 import gobblin.hive.util.HiveJdbcConnector;
@@ -98,6 +99,7 @@ public class HiveConvertPublisher extends DataPublisher {
       for (WorkUnitState wus : states) {
         QueryBasedHivePublishEntity publishEntity = HiveAvroORCQueryGenerator.deserializePublishCommands(wus);
 
+        EventWorkunitUtils.setBeginPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
         // Add cleanup commands - to be executed later
         cleanUpQueries.addAll(publishEntity.getCleanupQueries());
         directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
@@ -126,7 +128,9 @@ public class HiveConvertPublisher extends DataPublisher {
 
         // Register snapshot / partition
         List<String> publishQueries = publishEntity.getPublishQueries();
+        EventWorkunitUtils.setBeginPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
         executeQueries(publishQueries);
+        EventWorkunitUtils.setEndPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
 
         wus.setWorkingState(WorkingState.COMMITTED);
         wus.setActualHighWatermark(
@@ -142,6 +146,7 @@ public class HiveConvertPublisher extends DataPublisher {
       }
 
     }
+
     // Execute cleanup commands
     executeQueries(cleanUpQueries);
     deleteDirectories(directoriesToDelete);
