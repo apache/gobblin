@@ -143,6 +143,7 @@ public class JobSpec implements Configurable {
    * @return
    */
   public URI getUri() {
-    return this.uri ;
+    return this.uri;
   }
+
 }

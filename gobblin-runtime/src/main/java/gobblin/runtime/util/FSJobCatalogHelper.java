@@ -1,52 +1,75 @@
+/*
+ * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
 package gobblin.runtime.util;
 
-import gobblin.runtime.api.JobSpec;
-import gobblin.util.filesystem.PathAlterationListener;
-import gobblin.util.filesystem.PathAlterationMonitor;
-import gobblin.util.filesystem.PathAlterationObserver;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Properties;
 import java.util.Set;
+import java.util.List;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+import java.io.OutputStream;
+import java.io.BufferedWriter;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import com.typesafe.config.Config;
+import com.google.common.collect.Lists;
+import com.google.common.base.Splitter;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 
+import gobblin.util.ConfigUtils;
+import gobblin.runtime.api.JobSpec;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.SchedulerUtils;
+import gobblin.util.filesystem.PathAlterationListener;
+import gobblin.util.filesystem.PathAlterationDetector;
+import gobblin.util.filesystem.PathAlterationObserver;
 import gobblin.runtime.job_catalog.FSJobCatalog.Action;
 
 
 /**
- * Pretty much the same as ScheudlerUtils.java at current stage.
+ * Pretty much the same as SchedulerUtils.java at current stage.
  * Todo: To completely migrate those parts of code into refactored job launcher.
  */
 
-public class JobCatalogUtils {
-  private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerUtils.class);
+public class FSJobCatalogHelper {
+  private static final Logger LOGGER = LoggerFactory.getLogger(FSJobCatalogHelper.class);
 
   // Extension of properties files
   public static final String JOB_PROPS_FILE_EXTENSION = "properties";
+
+  // Key used in the metadata of JobSpec.
+  private static final String DESCRIPTION_KEY_IN_JOBSPEC = "description";
+  private static final String VERSION_KEY_IN_JOBSPEC = "version";
+  private static final String MERGED_INDICATOR_KEY_IN_JOBSPEC = "merged";
 
   private static final PathFilter PROPERTIES_PATH_FILTER = new PathFilter() {
     @Override
@@ -288,55 +311,63 @@ public class JobCatalogUtils {
 
   /**
    * Combine two approaches of loading job configuration (both single conf. and conf. Folder) together.
-   * @param jobConfDirPath
-   * @param action
-   * @param jobConfigPath
-   * @return
+   * @param jobConfigDirPath The path of root directory where configuration file reside.
+   * @param action Enum type, indicating whether process is applied for a single configuration file,
+   *               or a bunch of for a directory.
+   * @param jobConfigPath The single job configuration file path if loading single configuration file,
+   *                      only used for single configuration file loading therefore use {@link Optional}
+   * @return A list of JobSpec for loading configuration files inside a directory
+   *         One-element List of JobSpec for loading single configuration file, accessed by list.get(0).
    */
-  public static List<JobSpec> loadJobConfigHelper(Path jobConfDirPath, Action action, Path jobConfigPath) {
+  public static List<JobSpec> loadJobConfigHelper(Path jobConfigDirPath, Action action, Optional<Path> jobConfigPath) {
     List<JobSpec> jobSpecList = new ArrayList<>();
-    try (FileSystem fs = jobConfDirPath.getFileSystem(new Configuration())) {
+    try (FileSystem fs = jobConfigDirPath.getFileSystem(new Configuration())) {
       // initialization of target folder.
-      if (fs.exists(jobConfDirPath)) {
-        LOGGER.info("Loading job configurations from " + jobConfDirPath);
+      if (fs.exists(jobConfigDirPath)) {
+        LOGGER.info("Loading job configurations from " + jobConfigDirPath);
         Properties properties = new Properties();
         // Temporarily adding this to make sure backward compatibility.
-        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfDirPath.toString());
-        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, jobConfDirPath.toString());
+        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfigDirPath.toString());
+        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, jobConfigDirPath.toString());
         switch (action) {
-          case SINGLEJOB:
-            jobSpecList = JobCatalogUtils.loadGenericJobConfigs(properties);
-            LOGGER.info("Loaded " + jobSpecList.size() + " job configuration(s)");
-            break;
           case BATCHJOB:
-            jobSpecList.add(JobCatalogUtils.loadGenericJobConfig(properties, jobConfigPath, jobConfDirPath));
-            LOGGER.info("Loaded a job configuration : " + jobConfigPath);
+            LOGGER.info("Loaded " + jobSpecList.size() + " job configuration(s)");
+            jobSpecList = FSJobCatalogHelper.loadGenericJobConfigs(properties);
+            break;
+          case SINGLEJOB:
+            if (jobConfigPath.isPresent()) {
+              LOGGER.info("Loaded a job configuration : " + jobConfigPath.get());
+              jobSpecList.add(
+                  FSJobCatalogHelper.loadGenericJobConfig(properties, jobConfigPath.get(), jobConfigDirPath));
+            } else {
+              throw new RuntimeException(" Loading single job configuration but no Single-File path provided. ");
+            }
             break;
           default:
             break;
         }
       } else {
-        LOGGER.warn("Job configuration directory " + jobConfDirPath + " not found");
+        LOGGER.warn("Job configuration directory " + jobConfigDirPath + " not found");
       }
     } catch (IOException e) {
-      throw new RuntimeException("Failed to get the file system info based on configuration file" + jobConfDirPath);
+      throw new RuntimeException("Failed to get the file system info based on configuration file" + jobConfigDirPath);
     } catch (ConfigurationException e) {
-      throw new RuntimeException("Failed to load job configuration from" + jobConfDirPath);
+      throw new RuntimeException("Failed to load job configuration from" + jobConfigDirPath);
     }
 
     return jobSpecList;
   }
 
   /**
-   * Add {@link gobblin.util.filesystem.PathAlterationMonitor}s for the given
+   * Add {@link PathAlterationDetector}s for the given
    * root directory and any nested subdirectories under the root directory to the given
-   * {@link gobblin.util.filesystem.PathAlterationMonitor}.
+   * {@link PathAlterationDetector}.
    *
-   * @param monitor a {@link gobblin.util.filesystem.PathAlterationMonitor}
+   * @param monitor a {@link PathAlterationDetector}
    * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
    * @param rootDirPath root directory
    */
-  public static void addPathAlterationObserver(PathAlterationMonitor monitor, PathAlterationListener listener,
+  public static void addPathAlterationObserver(PathAlterationDetector monitor, PathAlterationListener listener,
       Path rootDirPath)
       throws IOException {
     PathAlterationObserver observer = new PathAlterationObserver(rootDirPath);
@@ -344,4 +375,91 @@ public class JobCatalogUtils {
     monitor.addObserver(observer);
   }
 
+  /**
+   * On receiving a JobSpec object, materialized it into a real file into non-volatile storage layer.
+   * @param jobSpec a {@link JobSpec}
+   */
+  public static void materializedJobSpec(JobSpec jobSpec)
+      throws IOException {
+    Path path = new Path(jobSpec.getUri());
+    try (FileSystem fs = path.getFileSystem(new Configuration())) {
+      Properties props = ConfigUtils.configToProperties(jobSpec.getConfig());
+
+      // Persist the metadata info as well.
+      props.setProperty(DESCRIPTION_KEY_IN_JOBSPEC, jobSpec.getDescription());
+      props.setProperty(VERSION_KEY_IN_JOBSPEC, jobSpec.getVersion());
+
+      try (OutputStream os = fs.create(path)) {
+        BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(os, Charsets.UTF_8));
+        props.store(bufferedWriter, "The jobSpec with URI[" + jobSpec.getUri() + "] has been materialized.");
+      }
+    }
+  }
+
+  /**
+   * Tranforming a file into JobSpec object, identified by its URI.
+   * @param uri {@link URI} of the target to demateriaze.
+   * @return a {@link JobSpec}
+   */
+  public static JobSpec dematerializeConfigFile(URI uri)
+      throws IOException {
+    Path path = new Path(uri);
+    Config config;
+    Optional<String> description;
+    Optional<String> version;
+
+    try (FileSystem fs = path.getFileSystem(new Configuration())) {
+      if (!fs.exists(path)) {
+        throw new RuntimeException("The requested URI:" + uri + " doesn't exist");
+      }
+      Properties props = new Properties();
+      try (InputStream is = fs.open(path)) {
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));
+        props.load(bufferedReader);
+      }
+      description = Optional.fromNullable(props.getProperty(DESCRIPTION_KEY_IN_JOBSPEC));
+      props.remove(DESCRIPTION_KEY_IN_JOBSPEC);
+
+      version = Optional.fromNullable(props.getProperty(VERSION_KEY_IN_JOBSPEC));
+      props.remove(VERSION_KEY_IN_JOBSPEC);
+
+      config = ConfigUtils.propertiesToConfig(props);
+    }
+
+    return JobSpec.builder(uri)
+        .withConfig(config)
+        .withDescription(description.get())
+        .withVersion(version.get())
+        .build();
+  }
+
+  /**
+   * Add addtional option indicating the jobSpec doesn't need implicitly loaded common properties.
+   * @param jobSpec The origianl {@link JobSpec} created by external FS Monitor
+   * @return Resolved JobSpec.
+   */
+  public static JobSpec markMergedOption(JobSpec jobSpec) {
+    Optional<Properties> properties = Optional.fromNullable(jobSpec.getConfigAsProperties());
+    Config config = jobSpec.getConfig();
+    if (properties.isPresent()) {
+      properties.get().setProperty(MERGED_INDICATOR_KEY_IN_JOBSPEC, "true");
+    }
+    config = ConfigUtils.propertiesToConfig(
+        (Properties) ConfigUtils.configToProperties(config).setProperty(MERGED_INDICATOR_KEY_IN_JOBSPEC, "true"));
+
+    return JobSpec.builder(jobSpec.getUri())
+        .withDescription(jobSpec.getDescription())
+        .withVersion(jobSpec.getVersion())
+        .withConfig(config)
+        .withConfigAsProperties(properties.get())
+        .build();
+  }
+
+  /**
+   * Remove the Job Conf. file, the existance checking happend before this invokation.
+   * @param uri The target file to be deleted
+   */
+  public static synchronized void removeMaterializedJobSpec(URI uri) {
+
+  }
 }

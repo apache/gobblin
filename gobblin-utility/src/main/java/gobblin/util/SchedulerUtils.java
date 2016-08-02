@@ -40,7 +40,7 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.filesystem.PathAlterationListener;
-import gobblin.util.filesystem.PathAlterationMonitor;
+import gobblin.util.filesystem.PathAlterationDetector;
 import gobblin.util.filesystem.PathAlterationObserver;
 
 
@@ -151,15 +151,15 @@ public class SchedulerUtils {
   }
 
   /**
-   * Add {@link gobblin.util.filesystem.PathAlterationMonitor}s for the given
+   * Add {@link PathAlterationDetector}s for the given
    * root directory and any nested subdirectories under the root directory to the given
-   * {@link gobblin.util.filesystem.PathAlterationMonitor}.
+   * {@link PathAlterationDetector}.
    *
-   * @param monitor a {@link gobblin.util.filesystem.PathAlterationMonitor}
+   * @param monitor a {@link PathAlterationDetector}
    * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
    * @param rootDirPath root directory
    */
-  public static void addPathAlterationObserver(PathAlterationMonitor monitor, PathAlterationListener listener,
+  public static void addPathAlterationObserver(PathAlterationDetector monitor, PathAlterationListener listener,
       Path rootDirPath)
       throws IOException {
     PathAlterationObserver observer = new PathAlterationObserver(rootDirPath);
