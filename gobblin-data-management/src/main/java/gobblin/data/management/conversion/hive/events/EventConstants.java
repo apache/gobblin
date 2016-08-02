@@ -37,7 +37,7 @@ public class EventConstants {
   public static final String VALIDATION_NOOP_SLA_EVENT = VALIDATION_PREFIX + "ValidationNoop";
 
   // Event metadata keys
-  // The final event metadata name will SchemaEvolutionDDLNum as SlaEventSubmitter removes the prefix
+  // The final event metadata name will be SchemaEvolutionDDLNum as SlaEventSubmitter removes the prefix
   // SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX
   public static final String SCHEMA_EVOLUTION_DDLS_NUM = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "SchemaEvolutionDDLNum";
   public static final String BEGIN_DDL_BUILD_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginDDLBuildTime";
@@ -50,4 +50,8 @@ public class EventConstants {
   public static final String BEGIN_GET_WORKUNITS_TIME = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "BeginGetWorkunitsTime";
 
   public static final String SOURCE_DATA_LOCATION = SlaEventKeys.EVENT_ADDITIONAL_METADATA_PREFIX + "SourceDataLocation";
+
+  public static void main(String[] args) {
+    System.out.println(Integer.parseInt("4770546"));
+  }
 }
