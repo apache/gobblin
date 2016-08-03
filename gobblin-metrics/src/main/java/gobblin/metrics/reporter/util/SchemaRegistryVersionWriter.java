@@ -42,6 +42,10 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter {
   private final Optional<Schema> schema;
   private final Optional<String> schemaId;
 
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String topic) throws IOException {
+    this(registry, topic, Optional.<Schema>absent());
+  }
+
   public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String topic, Optional<Schema> singleSchema)
       throws IOException{
     this.registry = registry;
