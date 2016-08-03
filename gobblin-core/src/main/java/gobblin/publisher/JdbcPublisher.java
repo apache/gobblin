@@ -44,7 +44,7 @@ import gobblin.writer.commands.JdbcWriterCommandsFactory;
 /**
  * Publishes data into JDBC RDBMS. Expects all the data has been already in staging table.
  */
-public class JdbcPublisher extends DataPublisher {
+public class JdbcPublisher extends SingleTaskDataPublisher {
   public static final String JDBC_PUBLISHER_PREFIX = "jdbc.publisher.";
   public static final String JDBC_PUBLISHER_DATABASE_NAME = JDBC_PUBLISHER_PREFIX + "database_name";
   public static final String JDBC_PUBLISHER_FINAL_TABLE_NAME = JDBC_PUBLISHER_PREFIX + "table_name";
@@ -69,30 +69,10 @@ public class JdbcPublisher extends DataPublisher {
   public JdbcPublisher(State state, JdbcWriterCommandsFactory jdbcWriterCommandsFactory) {
     super(state);
     this.jdbcWriterCommandsFactory = jdbcWriterCommandsFactory;
-    validate(getState());
   }
 
   public JdbcPublisher(State state) {
     this(state, new JdbcWriterCommandsFactory());
-    validate(getState());
-  }
-
-  /**
-   * @param state
-   * @throws IllegalArgumentException If job commit policy is not COMMIT_ON_FULL_SUCCESS or is not on PUBLISH_DATA_AT_JOB_LEVEL
-   */
-  private void validate(State state) {
-    JobCommitPolicy jobCommitPolicy = JobCommitPolicy.getCommitPolicy(this.getState().getProperties());
-    if (JobCommitPolicy.COMMIT_ON_FULL_SUCCESS != jobCommitPolicy) {
-      throw new IllegalArgumentException(this.getClass().getSimpleName()
-          + " won't publish as already commited by task. Job commit policy " + jobCommitPolicy);
-    }
-
-    if (!state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
-        ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL)) {
-      throw new IllegalArgumentException(this.getClass().getSimpleName() + " won't publish as "
-          + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL + " is set as false");
-    }
   }
 
   @VisibleForTesting
@@ -199,5 +179,28 @@ public class JdbcPublisher extends DataPublisher {
   }
 
   @Override
-  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {}
+  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
+    // Nothing to do
+  }
+  
+  @Override
+  public void publishMetadata(WorkUnitState state) throws IOException {
+    // Nothing to do
+  }
+  
+  @Override
+  public void publishData(WorkUnitState state) throws IOException {
+    // Nothing to do
+    JobCommitPolicy jobCommitPolicy = JobCommitPolicy.getCommitPolicy(this.getState().getProperties());
+    if (JobCommitPolicy.COMMIT_ON_FULL_SUCCESS != jobCommitPolicy) {
+      LOG.info(this.getClass().getSimpleName() + " won't publish as already commited by task. Job commit policy "
+          + jobCommitPolicy);
+    }
+
+    if (!state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
+        ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL)) {
+      LOG.info(this.getClass().getSimpleName() + " won't publish as " + ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL
+          + " is set as false");
+    }
+  }
 }
