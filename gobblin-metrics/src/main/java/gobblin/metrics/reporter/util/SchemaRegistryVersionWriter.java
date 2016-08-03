@@ -21,6 +21,7 @@ import org.apache.avro.Schema;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 
@@ -38,15 +39,40 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter {
   private final KafkaAvroSchemaRegistry registry;
   private Map<Schema, String> registrySchemaIds;
   private final String topic;
+  private final Optional<Schema> schema;
+  private final Optional<String> schemaId;
 
-  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String topic) {
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String topic, Optional<Schema> singleSchema)
+      throws IOException{
     this.registry = registry;
     this.registrySchemaIds = Maps.newConcurrentMap();
     this.topic = topic;
+    this.schema = singleSchema;
+    if (this.schema.isPresent()) {
+      try {
+        this.schemaId = Optional.of(this.registry.register(this.schema.get(), this.topic));
+      } catch (SchemaRegistryException e) {
+        throw Throwables.propagate(e);
+      }
+    } else {
+      this.schemaId = Optional.absent();
+    }
   }
 
   @Override
   public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream) throws IOException {
+
+    String schemaId = this.schemaId.isPresent() ? this.schemaId.get() : this.getIdForSchema(schema);
+
+    outputStream.writeByte(KafkaAvroSchemaRegistry.MAGIC_BYTE);
+    try {
+      outputStream.write(Hex.decodeHex(schemaId.toCharArray()));
+    } catch (DecoderException exception) {
+      throw new IOException(exception);
+    }
+  }
+
+  private String getIdForSchema(Schema schema) {
     if (!this.registrySchemaIds.containsKey(schema)) {
       try {
         String schemaId = this.registry.register(schema, this.topic);
@@ -55,12 +81,7 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter {
         throw Throwables.propagate(e);
       }
     }
-    outputStream.writeByte(KafkaAvroSchemaRegistry.MAGIC_BYTE);
-    try {
-      outputStream.write(Hex.decodeHex(this.registrySchemaIds.get(schema).toCharArray()));
-    } catch (DecoderException exception) {
-      throw new IOException(exception);
-    }
+    return this.registrySchemaIds.get(schema);
   }
 
   @Override
