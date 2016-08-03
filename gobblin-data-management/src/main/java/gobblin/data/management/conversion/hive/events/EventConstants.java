@@ -32,9 +32,9 @@ public class EventConstants {
   //Event names
   public static final String VALIDATION_SETUP_EVENT = VALIDATION_PREFIX + "Setup";
   public static final String VALIDATION_FIND_HIVE_TABLES_EVENT = VALIDATION_PREFIX + "FindHiveTables";
-  public static final String VALIDATION_SUCCESSFUL_SLA_EVENT = VALIDATION_PREFIX + "ValidationSuccessful";
-  public static final String VALIDATION_FAILED_SLA_EVENT = VALIDATION_PREFIX + "ValidationFailed";
-  public static final String VALIDATION_NOOP_SLA_EVENT = VALIDATION_PREFIX + "ValidationNoop";
+  public static final String VALIDATION_SUCCESSFUL_EVENT = VALIDATION_PREFIX + "ValidationSuccessful";
+  public static final String VALIDATION_FAILED_EVENT = VALIDATION_PREFIX + "ValidationFailed";
+  public static final String VALIDATION_NOOP_EVENT = VALIDATION_PREFIX + "ValidationNoop";
 
   // Event metadata keys
   // The final event metadata name will be SchemaEvolutionDDLNum as SlaEventSubmitter removes the prefix
