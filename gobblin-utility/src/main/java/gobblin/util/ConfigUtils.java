@@ -54,6 +54,17 @@ public class ConfigUtils {
   }
 
   /**
+   * @return the subconfig under key "key" if it exists, otherwise returns an empty config.
+   */
+  public static Config getConfigOrEmpty(Config config, String key) {
+    if (config.hasPath(key)) {
+      return config.getConfig(key);
+    } else {
+      return ConfigFactory.empty();
+    }
+  }
+
+  /**
    * Convert a given {@link Config} to a {@link State} instance.
    *
    * @param config the given {@link Config} instance
