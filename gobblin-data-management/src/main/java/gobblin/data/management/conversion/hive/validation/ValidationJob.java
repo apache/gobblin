@@ -23,6 +23,11 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -35,12 +40,14 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
+import org.slf4j.LoggerFactory;
 
 import azkaban.jobExecutor.AbstractJob;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -63,9 +70,9 @@ import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.util.AutoReturnableObject;
 import gobblin.util.ConfigUtils;
+import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 
 
@@ -89,6 +96,9 @@ public class ValidationJob extends AbstractJob {
   private static final String DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS = "3";
   private static final String DEFAULT_HIVE_SOURCE_SKIP_RECENT_THAN_DAYS = "1";
 
+  private static final String MAX_THREAD_COUNT = "validation.maxThreadCount";
+  private static final String DEFAULT_MAX_THREAD_COUNT = "50";
+
   private final Properties props;
   private final MetricContext metricContext;
   private final EventSubmitter eventSubmitter;
@@ -97,12 +107,14 @@ public class ValidationJob extends AbstractJob {
   private final long maxLookBackTime;
   private final long skipRecentThanTime;
   private final Set<String> destFormats;
-  private final HiveJdbcConnector hiveJdbcConnector;
   private final FileSystem fs;
+  private final ExecutorService exec;
+  private final List<Future<Void>> futures;
 
   private Map<String, String> successfulConversions;
   private Map<String, String> failedConversions;
   private Map<String, String> warnConversions;
+
 
   public ValidationJob(String jobId, Properties props) throws IOException {
     super(jobId, log);
@@ -129,11 +141,10 @@ public class ValidationJob extends AbstractJob {
     this.destFormats = Sets.newHashSet(ConfigUtils.getStringList(config,
         HIVE_DATASET_CONFIG_AVRO_PREFIX + "." + ConvertibleHiveDataset.DESTINATION_CONVERSION_FORMATS_KEY));
 
-    try {
-      this.hiveJdbcConnector = HiveJdbcConnector.newConnectorWithProps(props);
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
-    }
+    int maxThreadCount = Integer.parseInt(props.getProperty(MAX_THREAD_COUNT, DEFAULT_MAX_THREAD_COUNT));
+    this.exec = Executors.newFixedThreadPool(maxThreadCount, ExecutorsUtils.newThreadFactory(Optional.of(LoggerFactory.getLogger(ValidationJob.class)),
+        Optional.of("getValidationOutputFromHive")));
+    this.futures = Lists.newArrayList();
     EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.VALIDATION_SETUP_EVENT);
   }
 
@@ -142,9 +153,9 @@ public class ValidationJob extends AbstractJob {
       throws Exception {
     try {
       // Validation results
-      this.successfulConversions = Maps.newHashMap();
-      this.failedConversions = Maps.newHashMap();
-      this.warnConversions = Maps.newHashMap();
+      this.successfulConversions = Maps.newConcurrentMap();
+      this.failedConversions = Maps.newConcurrentMap();
+      this.warnConversions = Maps.newConcurrentMap();
 
       // Find datasets to validate
       Iterator<HiveDataset> iterator = this.datasetFinder.getDatasetsIterator();
@@ -161,6 +172,23 @@ public class ValidationJob extends AbstractJob {
           } else {
             processNonPartitionedTable(hiveDataset);
           }
+        }
+      }
+
+      // Wait for all validation queries to finish
+      log.info(String.format("Waiting for %d futures to complete", this.futures.size()));
+
+      this.exec.shutdown();
+      this.exec.awaitTermination(4, TimeUnit.HOURS);
+
+      boolean oneFutureFailure = false;
+      // Check if there were any exceptions
+      for (Future<Void> future : this.futures) {
+        try {
+          future.get();
+        } catch (Throwable t){
+          log.error("getValidationOutputFromHive failed", t);
+          oneFutureFailure = true;
         }
       }
 
@@ -181,6 +209,9 @@ public class ValidationJob extends AbstractJob {
       if (!failedConversions.isEmpty()) {
         throw new RuntimeException(String.format("Validation failed for %s conversions. See previous logs for exact validation failures",
             failedConversions.size()));
+      }
+      if (oneFutureFailure) {
+        throw new RuntimeException("At least one hive ddl failed. Check previous logs");
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -248,9 +279,9 @@ public class ValidationJob extends AbstractJob {
         sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String>absent());
 
     // Validate each partition
-    for (Partition sourcePartition : sourcePartitions) {
+    for (final Partition sourcePartition : sourcePartitions) {
       try {
-        long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
+        final long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
         if (shouldValidate(updateTime, this.maxLookBackTime, this.skipRecentThanTime)) {
           log.info(String.format("Validating partition: %s", sourcePartition));
 
@@ -261,27 +292,35 @@ public class ValidationJob extends AbstractJob {
               ConvertibleHiveDataset.ConversionConfig conversionConfig = conversionConfigOptional.get();
 
               // Generate validation queries
-              List<String> validationQueries = HiveValidationQueryGenerator
+              final List<String> validationQueries = HiveValidationQueryGenerator
                   .generateValidationQueries(hiveDataset, Optional.of(sourcePartition), conversionConfig);
 
               // Execute validation queries
               log.info(String.format("Going to execute queries: %s for format: %s", validationQueries, format));
-              List<Long> rowCounts = this.getValidationOutputFromHive(validationQueries);
 
-              // Validate and populate report
-              validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, rowCounts);
+
+              this.futures.add(this.exec.submit(new Callable<Void> () {
+                @Override
+                public Void call() throws Exception {
+                  List<Long> rowCounts = ValidationJob.this.getValidationOutputFromHive(validationQueries);
+                  // Validate and populate report
+                  validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, rowCounts);
+                  return null;
+                }
+              }));
+
             } else {
               log.info(String.format("No config found for format: %s So skipping partition: %s for this format", format,
                   sourcePartition.getCompleteName()));
             }
           }
         } else {
-          log.info(String.format("Not validating partition: %s as updateTime: %s is not in range of max look back: %s "
+          log.debug(String.format("Not validating partition: %s as updateTime: %s is not in range of max look back: %s "
                   + "and skip recent than: %s",
               sourcePartition.getCompleteName(), updateTime, this.maxLookBackTime, this.skipRecentThanTime));
         }
       } catch (UpdateNotFoundException e) {
-        log.info(String.format("Not validating partition: %s as update time was not found. %s",
+        log.warn(String.format("Not validating partition: %s as update time was not found. %s",
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
@@ -301,7 +340,8 @@ public class ValidationJob extends AbstractJob {
     Closer closer = Closer.create();
 
     try {
-      statement = this.hiveJdbcConnector.getConnection().createStatement();
+      HiveJdbcConnector hiveJdbcConnector = HiveJdbcConnector.newConnectorWithProps(props);
+      statement = hiveJdbcConnector.getConnection().createStatement();
 
       for (String query : queries) {
         log.info("Executing query: " + query);
@@ -352,6 +392,7 @@ public class ValidationJob extends AbstractJob {
     Closer closer = Closer.create();
 
     try {
+      HiveJdbcConnector hiveJdbcConnector = closer.register(HiveJdbcConnector.newConnectorWithProps(props));
       for (String query : queries) {
         String hiveOutput = "hiveConversionValidationOutput_" + UUID.randomUUID().toString();
         Path hiveTempDir = new Path("/tmp" + Path.SEPARATOR + hiveOutput);
@@ -359,7 +400,7 @@ public class ValidationJob extends AbstractJob {
         log.info("Executing query: " + query);
         try {
 
-          this.hiveJdbcConnector.executeStatements("SET hive.exec.compress.output=false", query);
+          hiveJdbcConnector.executeStatements("SET hive.exec.compress.output=false", query);
 
           FileStatus[] files = this.fs.listStatus(hiveTempDir);
           if (files.length > 0) {
@@ -404,8 +445,7 @@ public class ValidationJob extends AbstractJob {
     if (null == rowCounts || rowCounts.size() == 0) {
       this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
           "No conversion details found");
-      new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_NOOP_SLA_EVENT, props)
-          .submit();
+      this.eventSubmitter.submit(EventConstants.VALIDATION_NOOP_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
       return;
     }
     long rowCountCached = -1;
@@ -421,19 +461,18 @@ public class ValidationJob extends AbstractJob {
         if (rowCount == 0) {
           this.warnConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
               "Row counts found 0, may be the conversion is delayed.");
-          new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_NOOP_SLA_EVENT, props).submit();
+          this.eventSubmitter.submit(EventConstants.VALIDATION_NOOP_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
         } else {
           this.failedConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
               "Row counts did not match across all conversions");
-          new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_FAILED_SLA_EVENT, props).submit();
+          this.eventSubmitter.submit(EventConstants.VALIDATION_FAILED_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
         }
         return;
       }
     }
     this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
         "Row counts matched across all conversions");
-    new SlaEventSubmitter(this.eventSubmitter, EventConstants.VALIDATION_SUCCESSFUL_SLA_EVENT, props)
-        .submit();
+    this.eventSubmitter.submit(EventConstants.VALIDATION_SUCCESSFUL_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
   }
 
   /***
