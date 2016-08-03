@@ -137,7 +137,8 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override
     public void run() {
-       _jobLauncher.launchJob(_jobSpec, new JobExecutionListener());
+       _jobLauncher.launchJob(_jobSpec);
+       // new JobExecutionListener();
     }
   }
 

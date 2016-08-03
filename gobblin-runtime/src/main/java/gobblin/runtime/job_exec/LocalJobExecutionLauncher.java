@@ -19,7 +19,6 @@ import com.google.common.base.Optional;
 import gobblin.runtime.api.GobblinInstanceDriver;
 import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionLauncher;
-import gobblin.runtime.api.JobExecutionStateListener;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.std.JobExecutionUpdatable;
 
@@ -38,7 +37,7 @@ public class LocalJobExecutionLauncher implements JobExecutionLauncher {
 
   /** {@inheritDoc} */
   @Override
-  public JobExecutionDriver launchJob(JobSpec jobSpec, JobExecutionStateListener listener) {
+  public JobExecutionDriver launchJob(JobSpec jobSpec) {
     JobExecutionUpdatable jobExec = JobExecutionUpdatable.createFromJobSpec(jobSpec);
     return null;
   }

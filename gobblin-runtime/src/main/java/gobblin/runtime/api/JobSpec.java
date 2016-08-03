@@ -15,12 +15,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.annotation.Alpha;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.runtime.JobState;
 import gobblin.util.ConfigUtils;
 
 import lombok.Data;
@@ -57,6 +60,32 @@ public class JobSpec implements Configurable {
     return new Builder(jobSpecUri);
   }
 
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /** Creates a builder for the JobSpec based on values in a job properties config. */
+  public static Builder builder(URI catalogURI, Properties jobProps) {
+    String name = JobState.getJobNameFromProps(jobProps);
+    String group = JobState.getJobGroupFromProps(jobProps);
+    if (null == group) {
+      group = "default";
+    }
+    try {
+      URI jobURI = new URI(catalogURI.getScheme(), catalogURI.getAuthority(),
+          "/" + group + "/" + name, null);
+      Builder builder = new Builder(jobURI).withConfigAsProperties(jobProps);
+      String descr = JobState.getJobDescriptionFromProps(jobProps);
+      if (null != descr) {
+        builder.withDescription(descr);
+      }
+
+      return builder;
+    } catch (URISyntaxException e) {
+      throw new RuntimeException("Unable to create a JobSpec URI: " + e, e);
+    }
+  }
+
   public String toShortString() {
     return getUri().toString() + "/" + getVersion();
   }
@@ -70,53 +99,119 @@ public class JobSpec implements Configurable {
     return toShortString();
   }
 
+  /**
+   * Builder for {@link JobSpec}s.
+   * <p> Defaults/conventions:
+   * <ul>
+   *  <li> Default jobCatalogURI is {@link #DEFAULT_JOB_CATALOG_SCHEME}:
+   *  <li> Convention for JobSpec URI: <jobCatalogURI>/config.get({@link ConfigurationKeys#JOB_GROUP_KEY})/config.get({@link ConfigurationKeys#JOB_NAME_KEY})
+   *  <li> Convention for Description: config.get({@link ConfigurationKeys#JOB_DESCRIPTION_KEY})
+   *  <li> Default version: 1
+   * </ul>
+   */
   public static class Builder {
+    public static final String DEFAULT_JOB_CATALOG_SCHEME = "gobblin-job";
+    @VisibleForTesting
     private Optional<Config> config = Optional.absent();
     private Optional<Properties> configAsProperties = Optional.absent();
-    private URI uri;
+    private Optional<URI> uri;
     private String version = "1";
     private Optional<String> description = Optional.absent();
+    private Optional<URI> jobCatalogURI = Optional.absent();
 
     public Builder(URI jobSpecUri) {
       Preconditions.checkNotNull(jobSpecUri);
-      this.uri = jobSpecUri;
+      this.uri = Optional.of(jobSpecUri);
     }
 
     public Builder(String jobSpecUri) {
       Preconditions.checkNotNull(jobSpecUri);
       Preconditions.checkNotNull(jobSpecUri);
       try {
-        this.uri = new URI(jobSpecUri);
-      } catch (URISyntaxException e) {
+        this.uri = Optional.of(new URI(jobSpecUri));
+      }
+      catch (URISyntaxException e) {
         throw new RuntimeException("Invalid JobSpec config: " + e, e);
       }
+    }
+
+    public Builder() {
+      this.uri = Optional.absent();
     }
 
     public JobSpec build() {
       Preconditions.checkNotNull(this.uri);
       Preconditions.checkNotNull(this.version);
-
-      if (!this.config.isPresent() && !this.configAsProperties.isPresent()) {
-        this.config = Optional.of(ConfigFactory.empty());
-      }
-      if (!this.configAsProperties.isPresent()) {
-        this.configAsProperties = Optional.of(ConfigUtils.configToProperties(this.config.get()));
-      }
-      if (!this.config.isPresent()) {
-        this.config =
-            Optional.of(ConfigUtils.propertiesToTypedConfig(this.configAsProperties.get(), Optional.<String>absent()));
-      }
-      if (!this.description.isPresent()) {
-        this.description = Optional.of("Gobblin job " + this.uri);
-      }
-      return new JobSpec(this.uri, this.version, this.description.get(), this.config.get(),
-          this.configAsProperties.get());
+      return new JobSpec(getURI(), getVersion(), getDescription(), getConfig(),
+                         getConfigAsProperties());
     }
+
+    /** The scheme and authority of the job catalog URI are used to generate JobSpec URIs from
+     * job configs. */
+    public Builder withJobCatalogURI(URI jobCatalogURI) {
+      this.jobCatalogURI = Optional.of(jobCatalogURI);
+      return this;
+    }
+
+    public Builder withJobCatalogURI(String jobCatalogURI) {
+      try {
+        this.jobCatalogURI = Optional.of(new URI(jobCatalogURI));
+      } catch (URISyntaxException e) {
+        throw new RuntimeException("Unable to set job catalog URI: " + e, e);
+      }
+      return this;
+    }
+
+    public URI getDefaultJobCatalogURI() {
+      try {
+        return new URI(DEFAULT_JOB_CATALOG_SCHEME, null, "/", null, null);
+      } catch (URISyntaxException e) {
+        // should not happen
+        throw new Error("Unexpected exception: " + e, e);
+      }
+    }
+
+    public URI getJobCatalogURI() {
+      if (! this.jobCatalogURI.isPresent()) {
+        this.jobCatalogURI = Optional.of(getDefaultJobCatalogURI());
+      }
+      return this.jobCatalogURI.get();
+    }
+
+    public URI getDefaultURI() {
+      URI jobCatalogURI = getJobCatalogURI();
+      Config jobCfg = getConfig();
+      String name = jobCfg.hasPath(ConfigurationKeys.JOB_NAME_KEY) ?
+          jobCfg.getString(ConfigurationKeys.JOB_NAME_KEY) :
+          "default";
+      String group = jobCfg.hasPath(ConfigurationKeys.JOB_GROUP_KEY) ?
+          jobCfg.getString(ConfigurationKeys.JOB_GROUP_KEY) :
+          "default";
+      try {
+        return new URI(jobCatalogURI.getScheme(), jobCatalogURI.getAuthority(),
+                       "/" + group + "/" + name, null, null);
+      } catch (URISyntaxException e) {
+        throw new RuntimeException("Unable to create default JobSpec URI:" + e, e);
+      }
+    }
+
+    public URI getURI() {
+      if (! this.uri.isPresent()) {
+        this.uri = Optional.of(getDefaultURI());
+      }
+
+      return this.uri.get();
+    }
+
 
     public Builder withVersion(String version) {
       Preconditions.checkNotNull(version);
       this.version = version;
       return this;
+    }
+
+    public String getVersion() {
+      return this.version;
     }
 
     public Builder withDescription(String jobDescription) {
@@ -125,10 +220,45 @@ public class JobSpec implements Configurable {
       return this;
     }
 
+    public String getDefaultDescription() {
+      Config jobConf = getConfig();
+      return jobConf.hasPath(ConfigurationKeys.JOB_DESCRIPTION_KEY) ?
+          jobConf.getString(ConfigurationKeys.JOB_DESCRIPTION_KEY) :
+          "Gobblin job " + getURI();
+    }
+
+    public String getDescription() {
+      if (! this.description.isPresent()) {
+        this.description = Optional.of(getDefaultDescription());
+      }
+      return this.description.get();
+    }
+
+    public Config getDefaultConfig() {
+      return ConfigFactory.empty();
+    }
+
+    public Config getConfig() {
+      if (!this.config.isPresent()) {
+        this.config = this.configAsProperties.isPresent() ?
+            Optional.of(ConfigUtils.propertiesToTypedConfig(this.configAsProperties.get(),
+                                                            Optional.<String>absent())) :
+            Optional.of(getDefaultConfig());
+      }
+      return this.config.get();
+    }
+
     public Builder withConfig(Config jobConfig) {
       Preconditions.checkNotNull(jobConfig);
       this.config = Optional.of(jobConfig);
       return this;
+    }
+
+    public Properties getConfigAsProperties() {
+      if (!this.configAsProperties.isPresent()) {
+        this.configAsProperties = Optional.of(ConfigUtils.configToProperties(this.config.get()));
+      }
+      return this.configAsProperties.get();
     }
 
     public Builder withConfigAsProperties(Properties jobConfig) {

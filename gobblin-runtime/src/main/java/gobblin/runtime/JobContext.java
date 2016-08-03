@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -452,6 +453,15 @@ public class JobContext {
     boolean jobDataPublisherSpecified =
         !Strings.isNullOrEmpty(state.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE));
     return jobCommitPolicyIsFull || publishDataAtJobLevel || jobDataPublisherSpecified;
+  }
+
+  @Override
+  public String toString() {
+    return Objects.toStringHelper(JobContext.class.getSimpleName())
+        .add("jobName", getJobName())
+        .add("jobId", getJobId())
+        .add("jobState", getJobState())
+        .toString();
   }
 
 }

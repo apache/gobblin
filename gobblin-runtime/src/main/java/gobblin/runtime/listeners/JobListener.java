@@ -13,6 +13,7 @@
 package gobblin.runtime.listeners;
 
 import gobblin.runtime.JobContext;
+import gobblin.source.workunit.WorkUnit;
 
 /**
  * An interface for classes used for callback on job state changes.
@@ -20,14 +21,14 @@ import gobblin.runtime.JobContext;
 public interface JobListener {
 
   /**
-   * Called when a job is prepared.
+   * Called when a job is to be prepared, i.e. before determining the {@link WorkUnit}s.
    *
    * @param jobContext a {@link JobContext} object
    */
   void onJobPrepare(JobContext jobContext) throws Exception;
 
   /**
-   * Called when a job is started.
+   * Called when a job is started, i.e. before the {@link WorkUnit}s are executed.
    *
    * @param jobContext a {@link JobContext} object
    */

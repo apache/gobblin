@@ -49,6 +49,8 @@ import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
+import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -64,11 +66,19 @@ public class JobState extends SourceState {
    * in terms of naming.
    */
   public enum RunningState {
+    /** Pending creation of {@link WorkUnit}s. */
     PENDING,
+    /** Starting the execution of {@link WorkUnit}s. */
     RUNNING,
+    /** All {@link WorkUnit}s have finished successfully or the job commit policy is
+     * {@link JobCommitPolicy#COMMIT_ON_PARTIAL_SUCCESS} */
     SUCCESSFUL,
+    /** Job state has been committed */
     COMMITTED,
+    /** At least one {@link WorkUnit}s has failed for a job with job commit policy
+     *  {@link JobCommitPolicy#COMMIT_ON_FULL_SUCCESS}. */
     FAILED,
+    /** The execution of the job was cancelled. */
     CANCELLED
   }
 
@@ -104,6 +114,22 @@ public class JobState extends SourceState {
 
   public static String getJobNameFromProps(Properties props) {
     return props.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+  }
+
+  public static String getJobGroupFromState(State state) {
+    return state.getProp(ConfigurationKeys.JOB_GROUP_KEY);
+  }
+
+  public static String getJobGroupFromProps(Properties props) {
+    return props.getProperty(ConfigurationKeys.JOB_GROUP_KEY);
+  }
+
+  public static String getJobDescriptionFromProps(State state) {
+    return state.getProp(ConfigurationKeys.JOB_DESCRIPTION_KEY);
+  }
+
+  public static String getJobDescriptionFromProps(Properties props) {
+    return props.getProperty(ConfigurationKeys.JOB_DESCRIPTION_KEY);
   }
 
   /**

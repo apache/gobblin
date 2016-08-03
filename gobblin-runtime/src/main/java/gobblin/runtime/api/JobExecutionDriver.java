@@ -11,12 +11,16 @@
  */
 package gobblin.runtime.api;
 
-import gobblin.annotation.Alpha;
+import com.google.common.util.concurrent.Service;
 
 /**
- * Placeholder
+ * Defines an implementation which knows how to run a GobblinJob and keep track of the progress.
  */
-@Alpha
-public interface JobExecutionLauncher {
-  JobExecutionDriver launchJob(JobSpec jobSpec);
+public interface JobExecutionDriver extends Service {
+  /** The job execution ID */
+  JobExecution getJobExecution();
+  /** The job execution status */
+  JobExecutionStatus getJobExecutionStatus();
+  //void registerStateListener(JobExecutionStateListener listener);
+  //void unregisterStateListener(JobExecutionStateListener listener);
 }
