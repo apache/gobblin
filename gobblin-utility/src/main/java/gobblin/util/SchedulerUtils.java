@@ -101,6 +101,7 @@ public class SchedulerUtils {
     // loading the common properties file here since it will be loaded below anyway
     getCommonProperties(commonPropsList, jobConfigPathDir, commonPropsPath.getParent().getParent());
     // Add the framework configuration properties to the end
+    // Example framework configuration property is JOB_CONFIG_FILE_GENERAL_PATH_KEY.
     commonPropsList.add(properties);
 
     Properties commonProps = new Properties();
@@ -168,7 +169,13 @@ public class SchedulerUtils {
   }
 
   /**
-   * Recursively load job configuration files under given URI of directory of config files folder
+   *
+   * @param jobConfigs
+   * @param rootProps Contains all ancestor's .properties file contents and gobblin framework properties.
+   * @param jobConfigFileExtensions
+   * @param configDirPath The configuration file root directory path
+   * @throws ConfigurationException
+   * @throws IOException
    */
   private static void loadGenericJobConfigsRecursive(List<Properties> jobConfigs, Properties rootProps,
       Set<String> jobConfigFileExtensions, Path configDirPath)
@@ -261,6 +268,14 @@ public class SchedulerUtils {
     }));
   }
 
+  /**
+   * For a specific job configuration file, from the folder it resides, collect all .properties file in commonPropsList.
+   * @param commonPropsList The propList to be filled
+   * @param jobConfigPathDir The job configuration path directory path.
+   * @param configPathParent The target configuration file's parent directory path.
+   * @throws ConfigurationException
+   * @throws IOException
+   */
   private static void getCommonProperties(List<Properties> commonPropsList, Path jobConfigPathDir,
       Path configPathParent)
       throws ConfigurationException, IOException {

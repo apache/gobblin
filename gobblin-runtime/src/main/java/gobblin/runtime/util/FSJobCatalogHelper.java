@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.util;
 
+import gobblin.util.resourcesBasedTemplate;
 import java.net.URI;
 import java.util.Set;
 import java.util.List;
@@ -70,6 +71,7 @@ public class FSJobCatalogHelper {
   private static final String DESCRIPTION_KEY_IN_JOBSPEC = "description";
   private static final String VERSION_KEY_IN_JOBSPEC = "version";
   private static final String MERGED_INDICATOR_KEY_IN_JOBSPEC = "merged";
+  private static final String MATERIALIZED_FILE_EXT = ".pull" ;
 
   private static final PathFilter PROPERTIES_PATH_FILTER = new PathFilter() {
     @Override
@@ -90,12 +92,13 @@ public class FSJobCatalogHelper {
    * Load job configuration from job configuration files stored in general file system,
    * located by Path
    * @param properties Gobblin framework configuration properties
+   *                   A good examplfied option of this is JOB_CONFIG_FILE_GENERAL_PATH_KEY
    * @return a list of job configurations in the form of {@link java.util.Properties}
    */
   public static List<JobSpec> loadGenericJobConfigs(Properties properties)
       throws ConfigurationException, IOException {
     List<JobSpec> jobConfigs = Lists.newArrayList();
-    loadGenericJobConfigsRecursive(jobConfigs, properties, getJobConfigurationFileExtensions(properties),
+    loadGenericJobConfigsRecursive(jobConfigs, properties, properties, getJobConfigurationFileExtensions(properties),
         new Path(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)));
     return jobConfigs;
   }
@@ -111,9 +114,11 @@ public class FSJobCatalogHelper {
   public static List<JobSpec> loadGenericJobConfigs(Properties properties, Path commonPropsPath, Path jobConfigPathDir)
       throws ConfigurationException, IOException {
     List<Properties> commonPropsList = Lists.newArrayList();
+
     // Start from the parent of parent of the changed common properties file to avoid
     // loading the common properties file here since it will be loaded below anyway
     getCommonProperties(commonPropsList, jobConfigPathDir, commonPropsPath.getParent().getParent());
+
     // Add the framework configuration properties to the end
     commonPropsList.add(properties);
 
@@ -125,7 +130,7 @@ public class FSJobCatalogHelper {
 
     List<JobSpec> jobConfigs = Lists.newArrayList();
     // The common properties file will be loaded here
-    loadGenericJobConfigsRecursive(jobConfigs, commonProps, getJobConfigurationFileExtensions(properties),
+    loadGenericJobConfigsRecursive(jobConfigs, commonProps, properties, getJobConfigurationFileExtensions(properties),
         commonPropsPath.getParent());
     return jobConfigs;
   }
@@ -141,7 +146,14 @@ public class FSJobCatalogHelper {
   public static JobSpec loadGenericJobConfig(Properties properties, Path jobConfigPath, Path jobConfigPathDir)
       throws ConfigurationException, IOException {
     List<Properties> commonPropsList = Lists.newArrayList();
-    getCommonProperties(commonPropsList, jobConfigPathDir, jobConfigPath.getParent());
+
+    // Attemptively load the jobConfig in target path, to see it contains MERGED_INDICATOR_KEY_IN_JOBSPEC option.
+    Properties tmpJobPros = new Properties();
+    tmpJobPros.putAll(ConfigurationConverter.getProperties(
+        new PropertiesConfiguration(new Path("file://", jobConfigPath).toUri().toURL())));
+    if (!tmpJobPros.containsKey(MERGED_INDICATOR_KEY_IN_JOBSPEC)) {
+      getCommonProperties(commonPropsList, jobConfigPathDir, jobConfigPath.getParent());
+    }
     // Add the framework configuration properties to the end
     commonPropsList.add(properties);
 
@@ -155,21 +167,31 @@ public class FSJobCatalogHelper {
     jobProps.putAll(ConfigurationConverter.getProperties(
         new PropertiesConfiguration(new Path("file://", jobConfigPath).toUri().toURL())));
 
+    if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+      jobProps = (new resourcesBasedTemplate(
+          jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
+    }
+
     jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigPath.toString());
 
     // Create a JobSpec instance based on the info known.
-    FileStatus configFileStatus = jobConfigPath.getFileSystem(new Configuration()).getFileStatus(jobConfigPath);
-    JobSpec.Builder builder = new JobSpec.Builder(jobConfigPath.toUri()).withConfigAsProperties(jobProps)
-        .withVersion(configFileStatus.getModificationTime() + "")
-        .withDescription("Single job" + jobConfigPath + "loaded ");
-    return builder.build();
+    return jobSpecConverter(jobProps, jobConfigPath.toUri());
   }
 
   /**
    * Recursively load job configuration files under given URI of directory of config files folder
+   * @param jobConfigs The target JobSpec List to be filled
+   * @param rootProps The collected .properties file from ancestor directory.
+   * @param frameworkProps The fundamental framwork properties.
+   *                       even for those JobSpec submitted thru  {@link gobblin.runtime.api.JobSpecMonitor} Monitor,
+   *                       this is still required and necessary.
+   * @param jobConfigFileExtensions
+   * @param configDirPath
+   * @throws ConfigurationException
+   * @throws IOException
    */
   private static void loadGenericJobConfigsRecursive(List<JobSpec> jobConfigs, Properties rootProps,
-      Set<String> jobConfigFileExtensions, Path configDirPath)
+      Properties frameworkProps, Set<String> jobConfigFileExtensions, Path configDirPath)
       throws ConfigurationException, IOException {
 
     Configuration conf = new Configuration();
@@ -187,7 +209,6 @@ public class FSJobCatalogHelper {
         }
 
         // Load the properties, which may overwrite the same properties defined in the parent or ancestor directories.
-        // Open the inputStream, construct a reader and send to the loader for constructing propertiesConfiguration.
         PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
         Path uniqueConfigFilePath = propertiesFilesStatus[0].getPath();
         try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(uniqueConfigFilePath),
@@ -208,35 +229,56 @@ public class FSJobCatalogHelper {
         if (nonPropFile.isDirectory()) {
           Properties rootPropsCopy = new Properties();
           rootPropsCopy.putAll(rootProps);
-          loadGenericJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, configFilePath);
+          loadGenericJobConfigsRecursive(jobConfigs, rootPropsCopy, frameworkProps, jobConfigFileExtensions,
+              configFilePath);
         } else {
+          // Unsupported extension
           if (!jobConfigFileExtensions.contains(
               configFilePath.getName().substring(configFilePath.getName().lastIndexOf('.') + 1).toLowerCase())) {
             LOGGER.warn("Skipped file " + configFilePath + " that has an unsupported extension");
             continue;
           }
 
+          // Deal with .done file, skip them.
           Path doneFilePath = configFilePath.suffix(".done");
           if (filesystem.exists(doneFilePath)) {
             LOGGER.info("Skipped job configuration file " + doneFilePath + " for which a .done file exists");
             continue;
           }
 
+          // Only for those configuration files submitted by creating files in filesystem,
+          // Put all parent/ancestor properties first.
+          // For those submitted through external FSJobSpecMonitor, the loading of .properties file is unnecessary.
+          // First attemptively load the target jobConfig, to see if there's MERGED_INDICATOR_KEY_IN_JOBSPEC contained.
+          // This attemptive props is necessay as we need to make sure the common .properties is loaded firstly,
+          // followed with user-specified option
+          Properties attemptiveProps = new Properties();
+          PropertiesConfiguration attemptivePropConfig = new PropertiesConfiguration();
+          try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(configFilePath),
+              Charsets.UTF_8)) {
+            attemptivePropConfig.load(inputStreamReader);
+            attemptiveProps.putAll(ConfigurationConverter.getProperties(attemptivePropConfig));
+          }
+
           Properties jobProps = new Properties();
-          // Put all parent/ancestor properties first
-          jobProps.putAll(rootProps);
+          if (attemptiveProps.containsKey(MERGED_INDICATOR_KEY_IN_JOBSPEC) && attemptiveProps.getProperty(
+              MERGED_INDICATOR_KEY_IN_JOBSPEC).equals("true")) {
+            jobProps.putAll(frameworkProps);
+          } else {
+            jobProps.putAll(rootProps);
+          }
+
           // Then load the job configuration properties defined in the job configuration file
           PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
           try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(configFilePath),
               Charsets.UTF_8)) {
+
             propertiesConfiguration.load(inputStreamReader);
             jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
             jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, configFilePath.toString());
 
-            // create a new JobSpec instance
-            JobSpec.Builder jobSpecBuilder = new JobSpec.Builder(configFilePath.toUri());
-            JobSpec jobSpec = jobSpecBuilder.build();
-            jobConfigs.add(jobSpec);
+            // Building and inserting the JobSpec accordingly.
+            jobConfigs.add(jobSpecConverter(jobProps, configFilePath.toUri()));
           }
         }
       }
@@ -257,19 +299,28 @@ public class FSJobCatalogHelper {
     }));
   }
 
-  private static void getCommonProperties(List<Properties> commonPropsList, Path jobConfigPathDir, Path dirPath)
+  /**
+   * For a specific job configuration file, from the folder it resides, collect all .properties file in commonPropsList.
+   * @param commonPropsList The propList to be filled
+   * @param jobConfigPathDir The job configuration path directory path.
+   * @param configPathParent The target configuration file's parent directory path.
+   * @throws ConfigurationException
+   * @throws IOException
+   */
+  private static void getCommonProperties(List<Properties> commonPropsList, Path jobConfigPathDir,
+      Path configPathParent)
       throws ConfigurationException, IOException {
     Configuration conf = new Configuration();
     try (FileSystem fileSystem = jobConfigPathDir.getFileSystem(conf)) {
       // Make sure the given starting directory is under the job configuration file directory
       Preconditions.checkArgument(
-          dirPath.toUri().normalize().getPath().startsWith(jobConfigPathDir.toUri().normalize().getPath()),
-          String.format("%s is not an ancestor directory of %s", jobConfigPathDir, dirPath));
+          configPathParent.toUri().normalize().getPath().startsWith(jobConfigPathDir.toUri().normalize().getPath()),
+          String.format("%s is not an ancestor directory of %s", jobConfigPathDir, configPathParent));
 
       // Traversal backward until the parent of the root job configuration file directory is reached
-      while (!dirPath.equals(jobConfigPathDir.getParent())) {
+      while (!configPathParent.equals(jobConfigPathDir.getParent())) {
         // Get the properties file that ends with .properties if any
-        FileStatus[] propertiesFilesStatus = fileSystem.listStatus(dirPath, PROPERTIES_PATH_FILTER);
+        FileStatus[] propertiesFilesStatus = fileSystem.listStatus(configPathParent, PROPERTIES_PATH_FILTER);
         ArrayList<String> propertiesFilesList = new ArrayList<>();
         for (FileStatus propertiesFileStatus : propertiesFilesStatus) {
           propertiesFilesList.add(propertiesFileStatus.getPath().getName());
@@ -279,13 +330,13 @@ public class FSJobCatalogHelper {
         if (propertiesFiles.length > 0) {
           // There should be a single properties file in each directory (or sub directory)
           if (propertiesFiles.length != 1) {
-            throw new RuntimeException("Found more than one .properties file in directory: " + dirPath);
+            throw new RuntimeException("Found more than one .properties file in directory: " + configPathParent);
           }
           commonPropsList.add(ConfigurationConverter.getProperties(
-              new PropertiesConfiguration((new Path(dirPath, propertiesFiles[0])).toUri().toURL())));
+              new PropertiesConfiguration((new Path(configPathParent, propertiesFiles[0])).toUri().toURL())));
         }
 
-        dirPath = dirPath.getParent();
+        configPathParent = configPathParent.getParent();
       }
     }
   }
@@ -377,11 +428,12 @@ public class FSJobCatalogHelper {
 
   /**
    * On receiving a JobSpec object, materialized it into a real file into non-volatile storage layer.
+   * The materialized file should be with the extension MATERIALIZED_FILE_EXT
    * @param jobSpec a {@link JobSpec}
    */
-  public static void materializedJobSpec(JobSpec jobSpec)
+  public static void materializedJobSpec(JobSpec jobSpec)         
       throws IOException {
-    Path path = new Path(jobSpec.getUri());
+    Path path = new Path(jobSpec.getUri() + MATERIALIZED_FILE_EXT);
     try (FileSystem fs = path.getFileSystem(new Configuration())) {
       Properties props = ConfigUtils.configToProperties(jobSpec.getConfig());
 
@@ -398,35 +450,57 @@ public class FSJobCatalogHelper {
 
   /**
    * Tranforming a file into JobSpec object, identified by its URI.
+   * This function is most used for testing usage, working with materialized method.
    * @param uri {@link URI} of the target to demateriaze.
    * @return a {@link JobSpec}
    */
   public static JobSpec dematerializeConfigFile(URI uri)
       throws IOException {
     Path path = new Path(uri);
-    Config config;
-    Optional<String> description;
-    Optional<String> version;
+    Properties props = new Properties();
 
     try (FileSystem fs = path.getFileSystem(new Configuration())) {
       if (!fs.exists(path)) {
         throw new RuntimeException("The requested URI:" + uri + " doesn't exist");
       }
-      Properties props = new Properties();
       try (InputStream is = fs.open(path)) {
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));
         props.load(bufferedReader);
       }
-      description = Optional.fromNullable(props.getProperty(DESCRIPTION_KEY_IN_JOBSPEC));
-      props.remove(DESCRIPTION_KEY_IN_JOBSPEC);
+    }
+    return jobSpecConverter(props, uri);
+  }
 
-      version = Optional.fromNullable(props.getProperty(VERSION_KEY_IN_JOBSPEC));
-      props.remove(VERSION_KEY_IN_JOBSPEC);
-
-      config = ConfigUtils.propertiesToConfig(props);
+  /**
+   * Convert a raw jobProp that loaded from configuration file into JobSpec Object.
+   * May remove some metadata inside, if the configuration file is originally
+   * materialized from a JobSpec.
+   *
+   * @param rawProp The properties object that directly loaded from configuration file.
+   * @param uri The uri of target job configuration file.
+   * @return
+   */
+  public static JobSpec jobSpecConverter(Properties rawProp, URI uri) {
+    Optional<String> description;
+    Optional<String> version;
+    Config config;
+    if (rawProp != null) {
+      // No exception thrown when the property not existed.
+      description = Optional.fromNullable(rawProp.getProperty(DESCRIPTION_KEY_IN_JOBSPEC));
+      if (description.isPresent()) {
+        rawProp.remove(DESCRIPTION_KEY_IN_JOBSPEC);
+      }
+      version = Optional.fromNullable(rawProp.getProperty(VERSION_KEY_IN_JOBSPEC));
+      if (version.isPresent()) {
+        rawProp.remove(VERSION_KEY_IN_JOBSPEC);
+      }
+      config = ConfigUtils.propertiesToConfig(rawProp);
+    } else {
+      throw new RuntimeException("The null properties Object is being processed, error in loading");
     }
 
     return JobSpec.builder(uri)
+        .withConfigAsProperties(rawProp)
         .withConfig(config)
         .withDescription(description.get())
         .withVersion(version.get())
@@ -453,13 +527,5 @@ public class FSJobCatalogHelper {
         .withConfig(config)
         .withConfigAsProperties(properties.get())
         .build();
-  }
-
-  /**
-   * Remove the Job Conf. file, the existance checking happend before this invokation.
-   * @param uri The target file to be deleted
-   */
-  public static synchronized void removeMaterializedJobSpec(URI uri) {
-
   }
 }

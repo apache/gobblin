@@ -158,13 +158,13 @@ public class FSJobCatalog implements MutableJobCatalog {
     Preconditions.checkNotNull(jobSpec);
     try {
       if (fs.exists(new Path(jobSpec.getUri()))) {
-        LOGGER.info("The job with URI[" + jobSpec.getUri() + "] has been added before");
-        // TODO:remove old one and create new one
-      } else {
-        // TODO:create new one and not notify the monitor
+        LOGGER.info("The job with URI[" + jobSpec.getUri() + "] has been added before, will cover the original one.");
+        fs.delete(new Path(jobSpec.getUri()), false);
       }
+      // Adding the merged Option and materialized the JobSpec.
+      FSJobCatalogHelper.materializedJobSpec(FSJobCatalogHelper.markMergedOption(jobSpec));
     } catch (IOException e) {
-      throw new RuntimeException(e.getMessage());
+      throw new RuntimeException("When persisting a new JobSpec, issues unexpected happen:" + e.getMessage());
     }
   }
 
@@ -178,12 +178,12 @@ public class FSJobCatalog implements MutableJobCatalog {
     Preconditions.checkNotNull(uri);
     try {
       if (fs.exists(new Path(uri))) {
-        FSJobCatalogHelper.removeMaterializedJobSpec(uri);
+        fs.delete(new Path(uri), false);
       } else {
         LOGGER.info("No file with URI:" + uri + " is found. Deletion failed.");
       }
     } catch (IOException e) {
-      throw new RuntimeException(e.getMessage());
+      throw new RuntimeException("When removing a JobConf. file, issues unexpected happen:" + e.getMessage());
     }
   }
 
@@ -200,6 +200,8 @@ public class FSJobCatalog implements MutableJobCatalog {
    * Detector replaced monitor specially for file system,
    * as it is stateful storage system, which might result in monitoring loop.
    * Note that here the entity for monitoring is job conf. file instead of JobSpec Object.
+   * todo: Look at the original PathAlterationListenerAdaptorForMonitor, here it seems not distinguish
+   * todo: between the type of file that detected changed.
    */
   private void startGenericFSJobConfigDetector()
       throws Exception {
