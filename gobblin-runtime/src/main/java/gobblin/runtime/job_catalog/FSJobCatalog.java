@@ -25,6 +25,7 @@ import org.apache.hadoop.conf.Configuration;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
+import gobblin.util.PathUtils;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
@@ -42,7 +43,6 @@ import gobblin.runtime.job_catalog.JobCatalogListenersList.DeleteJobCallback;
  * This implementation has no support for caching.
  */
 public class FSJobCatalog implements MutableJobCatalog {
-  //  public Path jobConfDirPath;
   public final Properties jobConfig;
 
   /**
@@ -51,15 +51,11 @@ public class FSJobCatalog implements MutableJobCatalog {
    */
   private final JobCatalogListenersList listeners;
   private static final Logger LOGGER = LoggerFactory.getLogger(FSJobCatalog.class);
+  /**
+   * The root configuration directory path.
+   */
   private final Path jobConfDirPath;
 
-  /**
-   * The URI, as the identifier of a JobSpec object contains
-   * The Scheme and Authority are shared by all URI
-   * Format convention for parsing by URI object: [scheme:][//authority][path][?query][#fragment]
-   */
-  public String URIScheme;
-  public String URIauthority;
 
   // A monitor for changes to job conf files for general FS
   // This embedded monitor is monitoring job configuration files instead of JobSpec Object.
@@ -86,9 +82,6 @@ public class FSJobCatalog implements MutableJobCatalog {
     this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
     this.fs = this.jobConfDirPath.getFileSystem(new Configuration());
 
-    this.URIScheme = jobConfDirPath.toUri().getScheme();
-    this.URIauthority = jobConfDirPath.toUri().getAuthority();
-
     long pollingInterval = Long.parseLong(
         this.jobConfig.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
@@ -99,17 +92,6 @@ public class FSJobCatalog implements MutableJobCatalog {
     startGenericFSJobConfigDetector();
   }
 
-  /**
-   * Both two methods are used for monitor to assemble a valid URI with relative path,
-   * common only with the filename itself.
-   * @return
-   */
-  public String getURIScheme() {
-    return this.URIScheme;
-  }
-  public String getURIauthority() {
-    return this.URIauthority;
-  }
 
   /**
    * return the root path of the configuration file folder
@@ -134,7 +116,7 @@ public class FSJobCatalog implements MutableJobCatalog {
    * Fetch single job file based on its URI,
    * return null requested URI not existed
    * requires null checking
-   * @param uri
+   * @param uri The relative Path to the target job configuration.
    * @return
    */
   @Override
@@ -182,17 +164,19 @@ public class FSJobCatalog implements MutableJobCatalog {
    * The method will materialized the jobSpec into real file.
    *
    * @param jobSpec The target JobSpec Object to be materialized.
+   *                Noted that the URI return by getUri is a relative path.
    */
   @Override
   public synchronized void put(JobSpec jobSpec) {
     Preconditions.checkNotNull(jobSpec);
     try {
-      if (fs.exists(new Path(jobSpec.getUri()))) {
-        LOGGER.info("The job with URI[" + jobSpec.getUri() + "] has been added before, will cover the original one.");
-        fs.delete(new Path(jobSpec.getUri()), false);
+      if (fs.exists(new Path(this.jobConfDirPath, jobSpec.getUri().toString()))) {
+        LOGGER.info("The job with URI[" + new Path(this.jobConfDirPath, jobSpec.getUri().toString())
+            + "] has been added before, will cover the original one.");
+        fs.delete(new Path(this.jobConfDirPath, jobSpec.getUri().toString()), false);
       }
-      // Adding the merged Option and materialized the JobSpec.
-      FSJobCatalogHelper.materializedJobSpec(jobSpec);
+
+      FSJobCatalogHelper.materializedJobSpec(this.jobConfDirPath, jobSpec);
     } catch (IOException e) {
       throw new RuntimeException("When persisting a new JobSpec, issues unexpected happen:" + e.getMessage());
     }
@@ -201,12 +185,14 @@ public class FSJobCatalog implements MutableJobCatalog {
   /**
    * Allow user to programmatically delete a new JobSpec.
    * This method is designed to be reentrant.
-   * @param uri
+   * @param userSpecifiedURI The relative Path that specified by user, need to make it into complete path.
    */
   @Override
-  public synchronized void remove(URI uri) {
-    Preconditions.checkNotNull(uri);
+  public synchronized void remove(URI userSpecifiedURI) {
     try {
+      URI uri = new Path(this.jobConfDirPath, userSpecifiedURI.toString()).toUri();
+      Preconditions.checkNotNull(uri);
+
       if (fs.exists(new Path(uri))) {
         fs.delete(new Path(uri), false);
       } else {
@@ -217,13 +203,10 @@ public class FSJobCatalog implements MutableJobCatalog {
     }
   }
 
-
   /**
    * Detector replaced monitor specially for file system,
    * as it is stateful storage system, which might result in monitoring loop.
    * Note that here the entity for monitoring is job conf. file instead of JobSpec Object.
-   * todo: Look at the original PathAlterationListenerAdaptorForMonitor, here it seems not distinguish
-   * todo: between the type of file that detected changed.
    */
   private void startGenericFSJobConfigDetector()
       throws Exception {
@@ -232,22 +215,27 @@ public class FSJobCatalog implements MutableJobCatalog {
     this.pathAlterationDetector.start();
   }
 
+  /**
+   * It is InMemoryJobCatalog's responsibility to inform the gobblin instance driver about the file change.
+   * Here it is internal detector's responsibility.
+   */
   private class FSPathAlterationListenerAdaptor extends PathAlterationListenerAdaptor {
-    Path jobConfigFileDirPath;
+    Path jobConfDirPath;
 
-    FSPathAlterationListenerAdaptor(Path jobConfigFileDirPath) {
-      this.jobConfigFileDirPath = jobConfigFileDirPath;
+    FSPathAlterationListenerAdaptor(Path jobConfDirPath) {
+      this.jobConfDirPath = jobConfDirPath;
     }
 
     /**
      * Transform the event triggered by file creation into JobSpec Creation for Driver (One of the JobCatalogListener )
      * Create a new JobSpec object and notify each of member inside JobCatalogListenersList
-     * @param path
+     * @param rawPath This could be complete path to the newly-created configuration file.
      */
     @Override
-    public void onFileCreate(Path path) {
-      JobSpec newJobSpec =
-          FSJobCatalogHelper.loadJobConfigHelper(jobConfDirPath, Action.SINGLEJOB, Optional.of(path)).get(0);
+    public void onFileCreate(Path rawPath) {
+      Path relativePath = PathUtils.relativizePath(rawPath, this.jobConfDirPath);
+      JobSpec newJobSpec = FSJobCatalogHelper.loadJobConfigHelper(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
+          Optional.of(relativePath)).get(0);
       AddJobCallback addJobCallback = new AddJobCallback(newJobSpec);
       listeners.callbackAllListeners(addJobCallback);
     }
@@ -255,12 +243,14 @@ public class FSJobCatalog implements MutableJobCatalog {
     /**
      * In the call to {@link UpdateJobCallback}, it is hard to retrieve oldJobSpec without caching layer suppport.
      * Here simply passed the null.
-     * @param path
+     * @param rawPath This could be the complete path to the newly-changed configuration file.
      */
     @Override
-    public void onFileChange(Path path) {
+    public void onFileChange(Path rawPath) {
+      Path relativePath = PathUtils.relativizePath(rawPath, this.jobConfDirPath);
       JobSpec updatedJobSpec =
-          FSJobCatalogHelper.loadJobConfigHelper(jobConfDirPath, Action.SINGLEJOB, Optional.of(path)).get(0);
+          FSJobCatalogHelper.loadJobConfigHelper(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
+              Optional.of(relativePath)).get(0);
       UpdateJobCallback updateJobCallback = new UpdateJobCallback(null, updatedJobSpec);
       listeners.callbackAllListeners(updateJobCallback);
     }
@@ -268,11 +258,11 @@ public class FSJobCatalog implements MutableJobCatalog {
     /**
      * For already deleted job configuration file, the only identifier is path
      * it doesn't make sense to loadJobConfig Here.
-     * @param path
+     * @param rawPath This could be the complete path to the newly-deleted configuration file.
      */
     @Override
-    public void onFileDelete(Path path) {
-      JobSpec deletedJobSpec = JobSpec.builder(path.toUri()).build();
+    public void onFileDelete(Path rawPath) {
+      JobSpec deletedJobSpec = JobSpec.builder(rawPath.toUri()).build();
       DeleteJobCallback deleteJobCallback = new DeleteJobCallback(deletedJobSpec);
       listeners.callbackAllListeners(deleteJobCallback);
     }

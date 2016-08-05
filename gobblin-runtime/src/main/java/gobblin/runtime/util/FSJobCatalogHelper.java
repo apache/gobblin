@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.util;
 
+import gobblin.util.PathUtils;
 import java.net.URI;
 import java.util.Set;
 import java.util.List;
@@ -56,7 +57,7 @@ import gobblin.runtime.job_catalog.FSJobCatalog.Action;
 
 /**
  * Pretty much the same as SchedulerUtils.java at current stage.
- * Todo: To completely migrate those parts of code into refactored job launcher.
+ * Todo: To completely migrate those parts of code into refactored job launcher & scheduler .
  */
 
 public class FSJobCatalogHelper {
@@ -71,7 +72,7 @@ public class FSJobCatalogHelper {
    * located by Path
    * @param properties Gobblin framework configuration properties
    *                   A good examplfied option of this is JOB_CONFIG_FILE_GENERAL_PATH_KEY
-   * @return a list of job configurations in the form of {@link java.util.Properties}
+   * @return a list of job configurations in the form of {@link JobSpec}
    */
   public static List<JobSpec> loadGenericJobConfigs(Properties properties)
       throws ConfigurationException, IOException {
@@ -85,29 +86,33 @@ public class FSJobCatalogHelper {
    * Load a given job configuration file from a general file system.
    *
    * @param frameworkProps Gobblin framework configuration properties
-   * @param jobConfigPath job configuration file to be loaded
-   * @return a job configuration in the form of {@link java.util.Properties}
+   * @param jobConfigRelativePath job configuration file to be loaded
+   * @param jobConfigDirPath The root job configuration directory path
+   * @return a single job configuration in the form of {@link JobSpec}
    */
-  public static JobSpec loadGenericJobConfig(Properties frameworkProps, Path jobConfigPath)
+  public static JobSpec loadGenericJobConfig(Properties frameworkProps, Path jobConfigRelativePath,
+      Path jobConfigDirPath)
       throws ConfigurationException, IOException {
 
     // Add the framework configuration properties to the end
     Properties jobProps = new Properties();
     jobProps.putAll(frameworkProps);
 
+    // Assemble the complete path in target file system first.
     // Then load the job configuration properties defined in the job configuration file
     jobProps.putAll(ConfigurationConverter.getProperties(
-        new PropertiesConfiguration(new Path("file://", jobConfigPath).toUri().toURL())));
+        new PropertiesConfiguration(new Path(jobConfigDirPath, jobConfigRelativePath).toUri().toURL())));
 
     if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
       jobProps = (new resourcesBasedTemplate(
           jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
     }
 
-    jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigPath.toString());
+    jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigRelativePath.toString());
 
     // Create a JobSpec instance based on the info known.
-    return jobSpecConverter(jobProps, jobConfigPath.toUri());
+    // Noted that jobConfigPath is the
+    return jobSpecConverter(jobProps, jobConfigRelativePath.toUri());
   }
 
   /**
@@ -118,7 +123,7 @@ public class FSJobCatalogHelper {
    *                       even for those JobSpec submitted thru  {@link gobblin.runtime.api.JobSpecMonitor} Monitor,
    *                       this is still required and necessary.
    * @param jobConfigFileExtensions The set of extension that is accepted.
-   * @param configDirPath
+   * @param configDirPath The root directory for job configuration files.
    * @throws ConfigurationException
    * @throws IOException
    */
@@ -224,7 +229,8 @@ public class FSJobCatalogHelper {
    * @param jobConfigDirPath The path of root directory where configuration file reside.
    * @param action Enum type, indicating whether process is applied for a single configuration file,
    *               or a bunch of for a directory.
-   * @param jobConfigPath The single job configuration file path if loading single configuration file,
+   * @param jobConfigPath The single job configuration file path(Relative Path)
+   *                      if loading single configuration file,
    *                      only used for single configuration file loading therefore use {@link Optional}
    * @return A list of JobSpec for loading configuration files inside a directory
    *         One-element List of JobSpec for loading single configuration file, accessed by list.get(0).
@@ -248,7 +254,7 @@ public class FSJobCatalogHelper {
             if (jobConfigPath.isPresent()) {
               LOGGER.info("Loaded a job configuration : " + jobConfigPath.get());
               jobSpecList.add(
-                  FSJobCatalogHelper.loadGenericJobConfig(properties, jobConfigPath.get()));
+                  FSJobCatalogHelper.loadGenericJobConfig(properties, jobConfigPath.get(), jobConfigDirPath));
             } else {
               throw new RuntimeException(" Loading single job configuration but no Single-File path provided. ");
             }
@@ -287,12 +293,12 @@ public class FSJobCatalogHelper {
 
   /**
    * On receiving a JobSpec object, materialized it into a real file into non-volatile storage layer.
-   * The materialized file should be with the extension MATERIALIZED_FILE_EXT
+   * @param jobConfDirPath The configuration root directory path.
    * @param jobSpec a {@link JobSpec}
    */
-  public static void materializedJobSpec(JobSpec jobSpec)
+  public static void materializedJobSpec(Path jobConfDirPath, JobSpec jobSpec)
       throws IOException {
-    Path path = new Path(jobSpec.getUri());
+    Path path = new Path(jobConfDirPath, jobSpec.getUri().toString());
     try (FileSystem fs = path.getFileSystem(new Configuration())) {
       Properties props = ConfigUtils.configToProperties(jobSpec.getConfig());
 
@@ -302,32 +308,33 @@ public class FSJobCatalogHelper {
 
       try (OutputStream os = fs.create(path)) {
         BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(os, Charsets.UTF_8));
-        props.store(bufferedWriter, "The jobSpec with URI[" + jobSpec.getUri() + "] has been materialized.");
+        props.store(bufferedWriter, "The jobSpec with URI[" + new Path(jobConfDirPath, jobSpec.getUri().toString())
+            + "] has been materialized.");
       }
     }
   }
 
   /**
-   * Tranforming a file into JobSpec object, identified by its URI.
+   * Transforming a file into JobSpec object, identified by its URI.
    * This function is most used for testing usage, working with materialized method.
-   * @param uri {@link URI} of the target to demateriaze.
+   * @param userSpecifiedURI {@link URI} of the target to demateriaze. It is relative path.
    * @return a {@link JobSpec}
    */
-  public static JobSpec dematerializeConfigFile(URI uri)
+  public static JobSpec dematerializeConfigFile(Path jobConfDirPath, URI userSpecifiedURI)
       throws IOException {
-    Path path = new Path(uri);
+    Path path = new Path(jobConfDirPath, userSpecifiedURI.toString());
     Properties props = new Properties();
 
     try (FileSystem fs = path.getFileSystem(new Configuration())) {
       if (!fs.exists(path)) {
-        throw new RuntimeException("The requested URI:" + uri + " doesn't exist");
+        throw new RuntimeException("The requested URI:" + userSpecifiedURI + " doesn't exist");
       }
       try (InputStream is = fs.open(path)) {
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));
         props.load(bufferedReader);
       }
     }
-    return jobSpecConverter(props, uri);
+    return jobSpecConverter(props, userSpecifiedURI);
   }
 
   /**
@@ -337,6 +344,7 @@ public class FSJobCatalogHelper {
    *
    * @param rawProp The properties object that directly loaded from configuration file.
    * @param jobConfigURI The uri of target job configuration file.
+   *                     Relative path to the root Configuration folder.
    * @return
    */
   public static JobSpec jobSpecConverter(Properties rawProp, URI jobConfigURI) {
@@ -365,5 +373,4 @@ public class FSJobCatalogHelper {
         .withVersion(version.get())
         .build();
   }
-
 }

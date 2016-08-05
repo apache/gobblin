@@ -1,21 +1,35 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.runtime.job_catalog;
 
 import java.net.URI;
-
+import java.util.Properties;
 import org.mockito.Mockito;
-import org.testng.annotations.Test;
 
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
+import org.testng.annotations.Test;
 
 
-/** Unit tests for {@link InMemoryJobCatalog} */
-public class TestInMemoryJobCatalog {
-
+/**
+ * Test interaction between (Mutable)FsJobCatalog and its listeners.
+ * Inherit the testing routine for InMemoryJobCatalog.
+ */
+public class TestFSJobCatalog {
   @Test
   public void testCallbacks()
       throws Exception {
-    InMemoryJobCatalog cat = new InMemoryJobCatalog();
+    FSJobCatalog cat = new FSJobCatalog(new Properties());
 
     JobCatalogListener l = Mockito.mock(JobCatalogListener.class);
 
@@ -33,6 +47,9 @@ public class TestInMemoryJobCatalog {
     cat.remove(new URI("test:dummy_job"));
     cat.removeListener(l);
     cat.remove(js1_3.getUri());
+
+    // Sleep long enough for the internal detector to react.
+    Thread.sleep(2000);
 
     Mockito.verify(l).onAddJob(Mockito.eq(js1_1));
     Mockito.verify(l).onUpdateJob(Mockito.eq(js1_1), Mockito.eq(js1_2));
