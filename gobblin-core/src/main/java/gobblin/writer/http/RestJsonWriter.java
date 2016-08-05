@@ -29,7 +29,7 @@ import com.google.gson.JsonObject;
  */
 public class RestJsonWriter extends HttpWriter<RestEntry<JsonObject>> {
 
-  public RestJsonWriter(RestJsonWriterBuilder builder) {
+  public RestJsonWriter(AbstractHttpWriterBuilder builder) {
     super(builder);
   }
 

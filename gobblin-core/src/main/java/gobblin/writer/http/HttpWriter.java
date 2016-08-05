@@ -26,7 +26,7 @@ import com.google.common.base.Optional;
  * Writes via RESTful API that accepts plain text as a body
  */
 public class HttpWriter<D> extends AbstractHttpWriter<D> {
-  public HttpWriter(HttpWriterBuilder builder) {
+  public HttpWriter(AbstractHttpWriterBuilder builder) {
     super(builder);
   }
 
