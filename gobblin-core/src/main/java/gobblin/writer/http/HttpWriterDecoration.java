@@ -1,12 +1,20 @@
-/**
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
  */
 package gobblin.writer.http;
 
 import java.io.IOException;
+import java.net.URI;
 
-import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 
 import com.google.common.base.Optional;
@@ -19,13 +27,13 @@ import com.google.common.util.concurrent.ListenableFuture;
 public interface HttpWriterDecoration<D> {
 
   /** An extension point to select the HTTP server to connect to. */
-  HttpHost chooseServerHost();
+  URI chooseServerHost();
 
   /**
    * A callback triggered before attempting to connect to a new host. Subclasses can override this
    * method to customize the connect logic.
    * For example, they can implement OAuth authentication.*/
-  void onConnect(HttpHost serverHost) throws IOException;
+  void onConnect(URI serverHost) throws IOException;
 
   /**
    * A callback that allows the subclasses to customize the construction of an HTTP request based on
@@ -35,8 +43,9 @@ public interface HttpWriterDecoration<D> {
    * @param request     the current request object; if absent the implementation is responsible of
    *                    allocating a new object
    * @return the current request object; if absent no further processing will happen
+   *
    */
-  Optional<HttpUriRequest> onNewRecord(D record, Optional<HttpUriRequest> request);
+  Optional<HttpUriRequest> onNewRecord(D record);
 
   /**
    * An extension point to send the actual request to the remote server.
@@ -44,19 +53,20 @@ public interface HttpWriterDecoration<D> {
    * @return a future that allows access to the response. Response may be retrieved synchronously or
    *         asynchronously.
    */
-  ListenableFuture<HttpResponse> sendRequest(HttpUriRequest request) throws IOException ;
+  ListenableFuture<CloseableHttpResponse> sendRequest(HttpUriRequest request) throws IOException ;
 
   /**
    * Customize the waiting for an HTTP response. Can add timeout logic.
    * @param responseFuture  the future object of the last sent request
    */
-  void waitForResponse(ListenableFuture<HttpResponse> responseFuture);
+  CloseableHttpResponse waitForResponse(ListenableFuture<CloseableHttpResponse> responseFuture);
 
   /**
    * Processes the response
+   * @param response
    * @throws  IOException if there was a problem reading the response
    * @throws  UnexpectedResponseException if the response was unexpected
    */
-  void processResponse(HttpResponse response) throws IOException, UnexpectedResponseException;
+  void processResponse(CloseableHttpResponse response) throws IOException, UnexpectedResponseException;
 
 }

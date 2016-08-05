@@ -1,12 +1,20 @@
-/**
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
  */
 package gobblin.writer.http;
 
 import java.io.IOException;
+import java.net.URI;
 
-import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 
 import com.google.common.base.Optional;
@@ -32,32 +40,32 @@ public abstract class HttpWriterDecorator<D> implements HttpWriterDecoration<D> 
   }
 
   @Override
-  public HttpHost chooseServerHost() {
+  public URI chooseServerHost() {
     return getFallback().chooseServerHost();
   }
 
   @Override
-  public void onConnect(HttpHost serverHost) throws IOException {
+  public void onConnect(URI serverHost) throws IOException {
     getFallback().onConnect(serverHost);
   }
 
   @Override
-  public Optional<HttpUriRequest> onNewRecord(D record, Optional<HttpUriRequest> request) {
-    return getFallback().onNewRecord(record, request);
+  public Optional<HttpUriRequest> onNewRecord(D record) {
+    return getFallback().onNewRecord(record);
   }
 
   @Override
-  public ListenableFuture<HttpResponse> sendRequest(HttpUriRequest request) throws IOException {
+  public ListenableFuture<CloseableHttpResponse> sendRequest(HttpUriRequest request) throws IOException {
     return getFallback().sendRequest(request);
   }
 
   @Override
-  public void waitForResponse(ListenableFuture<HttpResponse> responseFuture) {
-    getFallback().waitForResponse(responseFuture);
+  public CloseableHttpResponse waitForResponse(ListenableFuture<CloseableHttpResponse> responseFuture) {
+    return getFallback().waitForResponse(responseFuture);
   }
 
   @Override
-  public void processResponse(HttpResponse response) throws IOException, UnexpectedResponseException {
+  public void processResponse(CloseableHttpResponse response) throws IOException, UnexpectedResponseException {
     getFallback().processResponse(response);
   }
 
