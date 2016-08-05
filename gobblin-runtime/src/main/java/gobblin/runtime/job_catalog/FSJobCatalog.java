@@ -53,6 +53,14 @@ public class FSJobCatalog implements MutableJobCatalog {
   private static final Logger LOGGER = LoggerFactory.getLogger(FSJobCatalog.class);
   private final Path jobConfDirPath;
 
+  /**
+   * The URI, as the identifier of a JobSpec object contains
+   * The Scheme and Authority are shared by all URI
+   * Format convention for parsing by URI object: [scheme:][//authority][path][?query][#fragment]
+   */
+  public String URIScheme;
+  public String URIauthority;
+
   // A monitor for changes to job conf files for general FS
   // This embedded monitor is monitoring job configuration files instead of JobSpec Object.
   public final PathAlterationDetector pathAlterationDetector;
@@ -78,6 +86,9 @@ public class FSJobCatalog implements MutableJobCatalog {
     this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
     this.fs = this.jobConfDirPath.getFileSystem(new Configuration());
 
+    this.URIScheme = jobConfDirPath.toUri().getScheme();
+    this.URIauthority = jobConfDirPath.toUri().getAuthority();
+
     long pollingInterval = Long.parseLong(
         this.jobConfig.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
@@ -86,6 +97,28 @@ public class FSJobCatalog implements MutableJobCatalog {
     // Start the monitor immediately the FSJobCatalog is created so that
     // all newly-created file will be reported.
     startGenericFSJobConfigDetector();
+  }
+
+  /**
+   * Both two methods are used for monitor to assemble a valid URI with relative path,
+   * common only with the filename itself.
+   * @return
+   */
+  public String getURIScheme() {
+    return this.URIScheme;
+  }
+  public String getURIauthority() {
+    return this.URIauthority;
+  }
+
+  /**
+   * return the root path of the configuration file folder
+   * The example complete path given a jobSpec is:
+   * [getPath()]/jobSpec.getURI.getRawPath()
+   * @return
+   */
+  public Path getPath() {
+    return this.jobConfDirPath;
   }
 
   /**
@@ -147,11 +180,8 @@ public class FSJobCatalog implements MutableJobCatalog {
   /**
    * Allow user to programmatically add a new JobSpec.
    * The method will materialized the jobSpec into real file.
-   *  For the put method, it is necessary to be:
-   *  (1). Reentrant
-   *  (2). Capable to add additional option in JobSpec indicating that,
-   *      there’s no implicit loading of folder-dependent properties required.
-   * @param jobSpec
+   *
+   * @param jobSpec The target JobSpec Object to be materialized.
    */
   @Override
   public synchronized void put(JobSpec jobSpec) {
@@ -162,7 +192,7 @@ public class FSJobCatalog implements MutableJobCatalog {
         fs.delete(new Path(jobSpec.getUri()), false);
       }
       // Adding the merged Option and materialized the JobSpec.
-      FSJobCatalogHelper.materializedJobSpec(FSJobCatalogHelper.markMergedOption(jobSpec));
+      FSJobCatalogHelper.materializedJobSpec(jobSpec);
     } catch (IOException e) {
       throw new RuntimeException("When persisting a new JobSpec, issues unexpected happen:" + e.getMessage());
     }
@@ -187,14 +217,6 @@ public class FSJobCatalog implements MutableJobCatalog {
     }
   }
 
-  /**
-   * return the path that it controls.
-   * @return
-   */
-
-  public Path getPath() {
-    return this.jobConfDirPath;
-  }
 
   /**
    * Detector replaced monitor specially for file system,

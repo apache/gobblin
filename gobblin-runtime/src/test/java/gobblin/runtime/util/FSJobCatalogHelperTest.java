@@ -23,6 +23,7 @@ import org.testng.annotations.Test;
 
 /**
  * The testing routine is create a jobSpec( Simulated as the result of external JobSpecMonitor)
+ * persist it, reload it from file system, and compare with the original JobSpec.
  *
  */
 
