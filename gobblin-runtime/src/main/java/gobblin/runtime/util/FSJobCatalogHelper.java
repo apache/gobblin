@@ -317,12 +317,13 @@ public class FSJobCatalogHelper {
   /**
    * Transforming a file into JobSpec object, identified by its URI.
    * This function is most used for testing usage, working with materialized method.
-   * @param userSpecifiedURI {@link URI} of the target to demateriaze. It is relative path.
+   * @param userSpecifiedURI {@link URI} of the target to de-materiaze. It is relative path.
    * @return a {@link JobSpec}
    */
   public static JobSpec dematerializeConfigFile(Path jobConfDirPath, URI userSpecifiedURI)
       throws IOException {
     Path path = new Path(jobConfDirPath, userSpecifiedURI.toString());
+
     Properties props = new Properties();
 
     try (FileSystem fs = path.getFileSystem(new Configuration())) {
