@@ -28,7 +28,7 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.configuration.ConfigurationKeys;
 
 
-public class ResourcesBasedTemplate implements JobTemplate {
+public class ResourceBasedTemplate implements JobTemplate {
   private String templatePath;
   private Set<String> _userSpecifiedAttributesList;
   private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerUtils.class);
@@ -38,7 +38,7 @@ public class ResourcesBasedTemplate implements JobTemplate {
    * Initilized the template by retriving the specified template file and obtain some special attributes.
    * @param templatePath
    */
-  public ResourcesBasedTemplate(String templatePath) {
+  public ResourceBasedTemplate(String templatePath) {
     LOGGER.info("Load the job configuration template : " + templatePath);
     this.templatePath = templatePath;
 
