@@ -27,7 +27,7 @@ import org.apache.avro.Schema;
  *   schema information that may help downstream services to parse the record.
  * </p>
  */
-public interface SchemaVersionWriter {
+public interface SchemaVersionWriter<S> {
 
   /**
    * Write schema information to {@link java.io.DataOutputStream}.
@@ -44,6 +44,6 @@ public interface SchemaVersionWriter {
    * @return Schema information.
    * @throws IOException
    */
-  public Object readSchemaVersioningInformation(DataInputStream inputStream) throws IOException;
+  public S readSchemaVersioningInformation(DataInputStream inputStream) throws IOException;
 
 }

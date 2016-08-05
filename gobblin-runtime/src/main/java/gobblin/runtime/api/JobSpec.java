@@ -51,6 +51,8 @@ public class JobSpec implements Configurable {
   // Note that this property is not strictly necessary as it can be generated from the typesafe
   // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
   final Properties configAsProperties;
+  /** URI of {@link gobblin.util.JobTemplate} to use. */
+  final Optional<URI> templateURI;
 
   public static Builder builder(URI jobSpecUri) {
     return new Builder(jobSpecUri);
@@ -118,6 +120,7 @@ public class JobSpec implements Configurable {
     private String version = "1";
     private Optional<String> description = Optional.absent();
     private Optional<URI> jobCatalogURI = Optional.absent();
+    private Optional<URI> templateURI = Optional.absent();
 
     public Builder(URI jobSpecUri) {
       Preconditions.checkNotNull(jobSpecUri);
@@ -143,7 +146,7 @@ public class JobSpec implements Configurable {
       Preconditions.checkNotNull(this.uri);
       Preconditions.checkNotNull(this.version);
       return new JobSpec(getURI(), getVersion(), getDescription(), getConfig(),
-                         getConfigAsProperties());
+                         getConfigAsProperties(), getTemplateURI());
     }
 
     /** The scheme and authority of the job catalog URI are used to generate JobSpec URIs from
@@ -264,6 +267,16 @@ public class JobSpec implements Configurable {
     public Builder withConfigAsProperties(Properties jobConfig) {
       Preconditions.checkNotNull(jobConfig);
       this.configAsProperties = Optional.of(jobConfig);
+      return this;
+    }
+
+    public Optional<URI> getTemplateURI() {
+      return this.templateURI;
+    }
+
+    public Builder withTemplate(URI templateURI) {
+      Preconditions.checkNotNull(templateURI);
+      this.templateURI = Optional.of(templateURI);
       return this;
     }
   }

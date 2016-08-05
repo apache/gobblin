@@ -12,11 +12,14 @@
 
 package gobblin.runtime.kafka;
 
+import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.runtime.job_monitor.MockKafkaStream;
@@ -24,11 +27,22 @@ import gobblin.runtime.job_monitor.MockKafkaStream;
 
 public class HighLevelConsumerTest {
 
+  public static Config getSimpleConfig(Optional<String> prefix) {
+    Properties properties = new Properties();
+    properties.put(getConfigKey(prefix, "zookeeper.connect"), "zookeeper");
+
+    return ConfigFactory.parseProperties(properties);
+  }
+
+  private static String getConfigKey(Optional<String> prefix, String key) {
+    return prefix.isPresent() ? prefix.get() + "." + key : key;
+  }
+
   @Test
   public void test() throws Exception {
 
     MockKafkaStream mockKafkaStream = new MockKafkaStream(5);
-    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(ConfigFactory.empty(), 5, mockKafkaStream);
+    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(getSimpleConfig(Optional.<String>absent()), 5, mockKafkaStream);
 
     consumer.startAsync();
     consumer.awaitRunning();

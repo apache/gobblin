@@ -25,6 +25,7 @@ import gobblin.runtime.job_monitor.MockKafkaStream;
 import gobblin.testing.AssertWithBackoff;
 
 import javax.annotation.Nullable;
+import kafka.consumer.ConsumerConfig;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
@@ -65,7 +66,7 @@ class MockedHighLevelConsumer extends HighLevelConsumer<byte[], byte[]> {
   }
 
   @Override
-  protected ConsumerConnector createConsumerConnector(Config config) {
+  protected ConsumerConnector createConsumerConnector() {
     return Mockito.mock(ConsumerConnector.class);
   }
 

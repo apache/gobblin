@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 
+import com.codahale.metrics.Counter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 
@@ -23,6 +25,7 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecMonitor;
 import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.kafka.HighLevelConsumer;
+import gobblin.runtime.metrics.RuntimeMetrics;
 import gobblin.util.ConfigUtils;
 import gobblin.util.Either;
 
@@ -40,6 +43,8 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_JOB_MONITOR_PREFIX = "jobSpecMonitor.kafka";
 
   private final MutableJobCatalog jobCatalog;
+  private Counter newSpecs;
+  private Counter remmovedSpecs;
 
   /**
    * @return A collection of either {@link JobSpec}s to add/update or {@link URI}s to remove from the catalog,
@@ -54,13 +59,35 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   }
 
   @Override
+  protected void createMetrics() {
+    super.createMetrics();
+    this.newSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_NEW_SPECS);
+    this.remmovedSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_REMOVED_SPECS);
+  }
+
+  @VisibleForTesting
+  @Override
+  protected void buildMetricsContextAndMetrics() {
+    super.buildMetricsContextAndMetrics();
+  }
+
+  @VisibleForTesting
+  @Override
+  protected void shutdownMetrics()
+      throws IOException {
+    super.shutdownMetrics();
+  }
+
+  @Override
   protected void processMessage(MessageAndMetadata<byte[], byte[]> message) {
     try {
       Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.message());
       for (Either<JobSpec, URI> parsedMessage : parsedCollection) {
         if (parsedMessage instanceof Either.Left) {
+          this.newSpecs.inc();
           this.jobCatalog.put(((Either.Left<JobSpec, URI>) parsedMessage).getLeft());
         } else if (parsedMessage instanceof Either.Right) {
+          this.remmovedSpecs.inc();
           this.jobCatalog.remove(((Either.Right<JobSpec, URI>) parsedMessage).getRight());
         }
       }
