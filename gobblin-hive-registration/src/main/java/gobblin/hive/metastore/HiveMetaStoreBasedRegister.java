@@ -24,6 +24,7 @@ import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.yarn.webapp.hamlet.HamletSpec;
 import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
@@ -163,9 +164,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         client.get().getPartition(table.getDbName(), table.getTableName(), partition.getValues());
         return false;
       } catch (NoSuchObjectException e) {
-        Partition actualPartition = HiveMetaStoreUtils.getPartition(partition);
-        actualPartition.setCreateTime(Ints.checkedCast(DateTime.now().getMillis() / 1000));
-        client.get().alter_partition(table.getDbName(), table.getTableName(), actualPartition);
+        client.get().alter_partition(table.getDbName(), table.getTableName(),
+            getPartitionWithCreateTimeNow(HiveMetaStoreUtils.getPartition(partition)));
         HiveMetaStoreEventHelper.submitSuccessfulPartitionAdd(this.eventSubmitter, table, partition);
         return true;
       }
@@ -184,9 +184,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       if (client.tableExists(table.getDbName(), table.getTableName())) {
         return false;
       }
-      Table actualTable = table.deepCopy();
-      actualTable.setCreateTime(Ints.checkedCast(DateTime.now().getMillis() / 1000));
-      client.createTable(actualTable);
+      client.createTable(getTableWithCreateTimeNow(table));
       log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
       HiveMetaStoreEventHelper.submitSuccessfulTableCreation(this.eventSubmitter, hiveTable);
       return true;
@@ -203,15 +201,13 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     String tableName = table.getTableName();
     try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
       try {
-        Table actualTable = table.deepCopy();
-        actualTable.setCreateTime(Ints.checkedCast(DateTime.now().getMillis() / 1000));
-        client.createTable(actualTable);
+        client.createTable(getTableWithCreateTimeNow(table));
         log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
       } catch (TException e) {
         try {
           HiveTable existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
           if (needToUpdateTable(existingTable, spec.getTable())) {
-            client.alter_table(dbName, tableName, table);
+            client.alter_table(dbName, tableName, getTableWithCreateTime(table, existingTable));
             log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
           }
         } catch (TException e2) {
@@ -287,9 +283,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         this.locks.getPartitionLock(table.getDbName(), table.getTableName(), partition.getValues())) {
 
       try {
-        Partition actualPartition = partition.deepCopy();
-        actualPartition.setCreateTime(Ints.checkedCast(DateTime.now().getMillis() / 1000));
-        client.add_partition(actualPartition);
+        client.add_partition(getPartitionWithCreateTimeNow(partition));
         log.info(String.format("Added partition %s to table %s with location %s", stringifyPartition(partition),
             table.getTableName(), partition.getSd().getLocation()));
       } catch (TException e) {
@@ -298,7 +292,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
               .getHivePartition(client.getPartition(table.getDbName(), table.getTableName(), partition.getValues()));
 
           if (needToUpdatePartition(existingPartition, spec.getPartition().get())) {
-            client.alter_partition(table.getDbName(), table.getTableName(), partition);
+            client.alter_partition(table.getDbName(), table.getTableName(), getPartitionWithCreateTime(partition, existingPartition));
             log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(partition),
                 table.getTableName(), partition.getSd().getLocation()));
           } else {
@@ -353,7 +347,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       if (!client.get().tableExists(table.getDbName(), table.getTableName())) {
         throw new IOException("Table " + table.getTableName() + " in db " + table.getDbName() + " does not exist");
       }
-      client.get().alter_table(table.getDbName(), table.getTableName(), HiveMetaStoreUtils.getTable(table));
+      client.get().alter_table(table.getDbName(), table.getTableName(),
+          getTableWithCreateTimeNow(HiveMetaStoreUtils.getTable(table)));
       HiveMetaStoreEventHelper.submitSuccessfulTableAlter(eventSubmitter, table);
     } catch (TException e) {
       HiveMetaStoreEventHelper.submitFailedTableAlter(eventSubmitter, table, e);
@@ -364,13 +359,56 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   @Override
   public void alterPartition(HiveTable table, HivePartition partition) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
-      client.get().alter_partition(table.getDbName(), table.getTableName(), HiveMetaStoreUtils.getPartition(partition));
+      client.get().alter_partition(table.getDbName(), table.getTableName(),
+          getPartitionWithCreateTimeNow(HiveMetaStoreUtils.getPartition(partition)));
       HiveMetaStoreEventHelper.submitSuccessfulPartitionAlter(eventSubmitter, table, partition);
     } catch (TException e) {
       HiveMetaStoreEventHelper.submitFailedPartitionAlter(eventSubmitter, table, partition, e);
       throw new IOException(String.format("Unable to alter partition %s in table %s in db %s", partition.getValues(),
           table.getTableName(), table.getDbName()), e);
     }
+  }
+
+  private Partition getPartitionWithCreateTimeNow(Partition partition) {
+    return getPartitionWithCreateTime(partition, Ints.checkedCast(DateTime.now().getMillis() / 1000));
+  }
+
+  private Partition getPartitionWithCreateTime(Partition partition, HivePartition referencePartition) {
+    return getPartitionWithCreateTime(partition,
+        Ints.checkedCast(referencePartition.getCreateTime().or(DateTime.now().getMillis() / 1000)));
+  }
+
+  /**
+   * Sets create time if not already set.
+   */
+  private Partition getPartitionWithCreateTime(Partition partition, int createTime) {
+    if (partition.isSetCreateTime() && partition.getCreateTime() > 0) {
+      return partition;
+    }
+    Partition actualPartition = partition.deepCopy();
+    actualPartition.setCreateTime(createTime);
+    return actualPartition;
+  }
+
+  private Table getTableWithCreateTimeNow(Table table) {
+    return gettableWithCreateTime(table, Ints.checkedCast(DateTime.now().getMillis() / 1000));
+  }
+
+  private Table getTableWithCreateTime(Table table, HiveTable referenceTable) {
+    return gettableWithCreateTime(table,
+        Ints.checkedCast(referenceTable.getCreateTime().or(DateTime.now().getMillis() / 1000)));
+  }
+
+  /**
+   * Sets create time if not already set.
+   */
+  private Table gettableWithCreateTime(Table table, int createTime) {
+    if (table.isSetCreateTime() && table.getCreateTime() > 0) {
+      return table;
+    }
+    Table actualtable = table.deepCopy();
+    actualtable.setCreateTime(createTime);
+    return actualtable;
   }
 
 }
