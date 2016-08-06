@@ -25,6 +25,7 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
@@ -71,9 +72,10 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
           log.info(String.format("Instantiated datasetfinder %s ", jobProps.getProperty(datasetFinderClassKey())));
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
             | ClassNotFoundException e) {
-          log.warn(
+          log.error(
               String.format("Retention ignored could not instantiate datasetfinder %s.",
                   jobProps.getProperty(datasetFinderClassKey())), e);
+          Throwables.propagate(e);
         }
       } else {
         ConfigClient client = ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY);
@@ -92,15 +94,16 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
                 datasetClassConfig.getString(datasetFinderClassKey()), importedBy));
           } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
               | InvocationTargetException | NoSuchMethodException | SecurityException | ClassNotFoundException e) {
-            log.warn(String.format("Retention ignored for %s. Could not instantiate datasetfinder %s.", importedBy,
+            log.error(String.format("Retention ignored for %s. Could not instantiate datasetfinder %s.", importedBy,
                 datasetClassConfig.getString(datasetFinderClassKey())), e);
+            Throwables.propagate(e);
           }
         }
       }
 
     } catch (IllegalArgumentException | VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException
         | ConfigStoreCreationException | URISyntaxException e) {
-      throw new RuntimeException(e);
+      Throwables.propagate(e);
     }
   }
 
