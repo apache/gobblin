@@ -63,7 +63,7 @@ public class TemplateTest {
   public void testRequiredAttrList() {
     Properties jobProps = this.userProp;
 
-    Set<String> requiredConfigList = (new resourcesBasedTemplate(
+    Set<String> requiredConfigList = (new ResourcesBasedTemplate(
         jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getRequiredConfigList();
     Assert.assertEquals(requiredConfigList.size(), 3);
     Assert.assertTrue( requiredConfigList.contains("required0"));
@@ -77,7 +77,7 @@ public class TemplateTest {
       throws IOException {
     Properties jobProps = this.userProp ;
     Assert.assertEquals(jobProps.size(), 3);
-    jobProps = (new resourcesBasedTemplate(
+    jobProps = (new ResourcesBasedTemplate(
         jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
     // Remove job.template in userSpecified file and required.attribute in template
     Assert.assertEquals(jobProps.size(), 5);
