@@ -38,7 +38,7 @@ public class LocalJobExecutionLauncher implements JobExecutionLauncher {
   /** {@inheritDoc} */
   @Override
   public JobExecutionDriver launchJob(JobSpec jobSpec) {
-    JobExecutionUpdatable jobExec = JobExecutionUpdatable.createFromJobSpec(jobSpec);
+	// TODO Add impl
     return null;
   }
 
