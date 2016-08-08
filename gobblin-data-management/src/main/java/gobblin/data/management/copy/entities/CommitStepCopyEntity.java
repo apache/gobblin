@@ -33,7 +33,7 @@ public class CommitStepCopyEntity extends CopyEntity {
   @Getter
   private final int priority;
 
-  public CommitStepCopyEntity(String fileSet, Map<String, Object> additionalMetadata, CommitStep step, int priority) {
+  public CommitStepCopyEntity(String fileSet, Map<String, String> additionalMetadata, CommitStep step, int priority) {
     super(fileSet, additionalMetadata);
     this.step = step;
     this.priority = priority;
