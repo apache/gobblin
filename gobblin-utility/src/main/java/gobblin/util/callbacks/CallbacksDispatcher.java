@@ -92,12 +92,25 @@ public class CallbacksDispatcher<L> {
   public Logger getLog() {
     return _log;
   }
+  public <R> CallbackResults<L, R> execCallbacks(CallbackFactory<L, R> callbackFactory, L listener)
+         throws InterruptedException {
+    Preconditions.checkNotNull(listener);
+    List<L> listenerList = new ArrayList<>(1);
+    listenerList.add(listener);
+
+    return execCallbacks(callbackFactory, listenerList);
+  }
 
   public <R> CallbackResults<L, R> execCallbacks(CallbackFactory<L, R> callbackFactory)
          throws InterruptedException {
     Preconditions.checkNotNull(callbackFactory);
     List<L> listeners = getListeners();
 
+    return execCallbacks(callbackFactory, listeners);
+  }
+
+  private <R> CallbackResults<L, R> execCallbacks(CallbackFactory<L, R> callbackFactory, List<L> listeners)
+      throws InterruptedException {
     List<Callable<R>> callbacks = new ArrayList<>(listeners.size());
     for (L listener: listeners) {
       Function<L, R> callback = callbackFactory.createCallbackRunnable();
@@ -114,7 +127,7 @@ public class CallbacksDispatcher<L> {
         res.cancellations.put(listener, cr);
       }
       else if (cr.hasFailed()) {
-        _log.error("Callback error: " + callbacks.get(i) + " on " + listener);
+        _log.error("Callback error: " + callbacks.get(i) + " on " + listener + ":" + cr.getError());
         res.failures.put(listener, cr);
       }
       else {

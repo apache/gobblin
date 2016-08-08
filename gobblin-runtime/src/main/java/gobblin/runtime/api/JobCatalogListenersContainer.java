@@ -11,22 +11,21 @@
  */
 package gobblin.runtime.api;
 
-import java.net.URI;
-import java.util.Collection;
-
-import gobblin.annotation.Alpha;
-
 /**
- * A catalog of all the {@link JobSpec}s a Gobblin instance is currently aware of.
+ * Manages a collection of {@link JobCatalogListener}s .
  */
-@Alpha
-public interface JobCatalog extends JobCatalogListenersContainer {
-  /** Returns an immutable {@link Collection} of {@link JobSpec}s that are known to the catalog. */
-  Collection<JobSpec> getJobs();
+public interface JobCatalogListenersContainer {
 
   /**
-   * Get a {@link JobSpec} by uri.
-   * @throws JobSpecNotFoundException if no such JobSpec exists
-   **/
-  JobSpec getJobSpec(URI uri) throws JobSpecNotFoundException;
+   * Adds a {@link JobCatalogListener} that will be invoked upon updates on the
+   * {@link JobCatalog}. Upon registration {@link JobCatalogListener#onAddJob(JobSpec)} will be
+   * invoked for all pre-existing jobs in the JobCatalog.
+   */
+  void addListener(JobCatalogListener jobListener);
+
+  /**
+   * Removes the specified listener. No-op if not registered.
+   */
+  void removeListener(JobCatalogListener jobListener);
+
 }

@@ -63,10 +63,11 @@ public class JobExecutionStateListeners
 
   /** {@inheritDoc} */
   @Override
-  public void onStatusChange(JobExecutionState state, RunningState previousStatus, RunningState newStatus) {
+  public void onStatusChange(JobExecutionState state, RunningState previousStatus,
+                              RunningState newStatus) {
     try {
-      _dispatcher.execCallbacks(new StatusChangeCallbackFactory(state, previousStatus,
-          newStatus));
+      _dispatcher.execCallbacks(new JobExecutionStateCallbackFactory(
+            new StatusChangeCallback(state, previousStatus, newStatus)));
     } catch (InterruptedException e) {
       _dispatcher.getLog().warn("onStatusChange interrupted.");
     }
@@ -76,7 +77,8 @@ public class JobExecutionStateListeners
   @Override
   public void onStageTransition(JobExecutionState state, String previousStage, String newStage) {
     try {
-      _dispatcher.execCallbacks(new StageTransitionCallbackFactory(state, previousStage, newStage));
+      _dispatcher.execCallbacks(new JobExecutionStateCallbackFactory(
+            new StageTransitionCallback(state, previousStage, newStage)));
     } catch (InterruptedException e) {
       _dispatcher.getLog().warn("onStageTransition interrupted.");
     }
@@ -86,7 +88,8 @@ public class JobExecutionStateListeners
   @Override
   public void onMetadataChange(JobExecutionState state, String key, Object oldValue, Object newValue) {
     try {
-      _dispatcher.execCallbacks(new MetadataChangeCallbackFactory(state, key, oldValue, newValue));
+      _dispatcher.execCallbacks(new JobExecutionStateCallbackFactory(
+            new MetadataChangeCallback(state, key, oldValue, newValue)));
     } catch (InterruptedException e) {
       _dispatcher.getLog().warn("onMetadataChange interrupted.");
     }
@@ -116,14 +119,12 @@ public class JobExecutionStateListeners
     }
   }
 
-  protected static class StatusChangeCallbackFactory
+  protected static class JobExecutionStateCallbackFactory
             implements CallbackFactory<JobExecutionStateListener, Void> {
     private final Function<JobExecutionStateListener, Void> _callback;
 
-    public StatusChangeCallbackFactory(final JobExecutionState state,
-                                       final RunningState previousStatus,
-                                       final RunningState newStatus) {
-      _callback = new StatusChangeCallback(state, previousStatus, newStatus);
+    public JobExecutionStateCallbackFactory(Function<JobExecutionStateListener, Void> callback) {
+      _callback = callback;
     }
 
     @Override public Function<JobExecutionStateListener, Void> createCallbackRunnable() {
@@ -157,20 +158,6 @@ public class JobExecutionStateListeners
 
   }
 
-  protected static class StageTransitionCallbackFactory
-            implements CallbackFactory<JobExecutionStateListener, Void> {
-    private final Function<JobExecutionStateListener, Void> _callback;
-
-    public StageTransitionCallbackFactory(final JobExecutionState state, final String previousStage,
-                                          final String newStage) {
-      _callback = new StageTransitionCallback(state, previousStage, newStage);
-    }
-
-    @Override public Function<JobExecutionStateListener, Void> createCallbackRunnable() {
-      return _callback;
-    }
-  }
-
   protected static class MetadataChangeCallback extends Callback<JobExecutionStateListener, Void> {
     private final JobExecutionState state;
     private final String key;
@@ -197,20 +184,6 @@ public class JobExecutionStateListeners
       return null;
     }
 
-  }
-
-  protected static class MetadataChangeCallbackFactory
-            implements CallbackFactory<JobExecutionStateListener, Void> {
-    private final Function<JobExecutionStateListener, Void> _callback;
-
-    public MetadataChangeCallbackFactory(final JobExecutionState state, final String key,
-                                         final Object oldValue, final Object newValue) {
-      _callback = new MetadataChangeCallback(state, key, oldValue, newValue);
-    }
-
-    @Override public Function<JobExecutionStateListener, Void> createCallbackRunnable() {
-      return _callback;
-    }
   }
 
 }
