@@ -15,6 +15,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.google.common.base.Objects;
+
 import lombok.Getter;
 
 /**
@@ -34,6 +36,13 @@ public class JobExecutionState extends JobExecutionStatus {
 
   public Map<String, Object> getExecutionMetadata() {
     return Collections.unmodifiableMap(this.executionMetadata);
+  }
+
+  @Override
+  public String toString() {
+    return Objects.toStringHelper(JobExecutionState.class.getSimpleName())
+            .add("jobSpec", this.jobSpec)
+            .toString();
   }
 
 }

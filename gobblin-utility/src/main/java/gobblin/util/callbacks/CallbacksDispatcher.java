@@ -31,7 +31,6 @@ import gobblin.util.ExecutorsUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 
 /**
  * A helper to dispatch callbacks to a set of listeners.
@@ -39,7 +38,7 @@ import lombok.Getter;
  *              provide useful logging
  */
 public class CallbacksDispatcher<L> {
-  @Getter private final Logger _log;
+  private final Logger _log;
   private final List<L> _listeners = new ArrayList<>();
   private final ExecutorService _execService;
 
@@ -88,6 +87,10 @@ public class CallbacksDispatcher<L> {
 
     _log.info("Removing listener:" + listener);
     _listeners.remove(listener);
+  }
+
+  public Logger getLog() {
+    return _log;
   }
 
   public <R> CallbackResults<L, R> execCallbacks(CallbackFactory<L, R> callbackFactory)
