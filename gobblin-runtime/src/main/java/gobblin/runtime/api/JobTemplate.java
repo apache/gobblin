@@ -9,11 +9,15 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.util;
+
+package gobblin.runtime.api;
 
 import com.typesafe.config.Config;
 
 import java.util.Collection;
+
+
+import gobblin.runtime.Spec;
 
 
 /**
@@ -26,25 +30,25 @@ import java.util.Collection;
  * </p>
  *
  */
-public interface JobTemplate {
+public interface JobTemplate extends Spec {
 
   /**
    * Retrieve all configuration inside pre-written template.
    * @return
    */
-  Config getRawTemplateConfig();
+  Config getRawTemplateConfig() throws SpecNotFoundException, TemplateException;
 
   /**
    * Retrieve all configs that are required from user to fill.
    * @return
    */
-  Collection<String> getRequiredConfigList();
+  Collection<String> getRequiredConfigList() throws SpecNotFoundException, TemplateException;
 
   /**
    * Return the combine configuration of template and user customized attributes.
    * @return
    */
-  Config getResolvedConfig(Config userProps) throws TemplateException;
+  Config getResolvedConfig(Config userProps) throws SpecNotFoundException, TemplateException;
 
   class TemplateException extends Exception {
     public TemplateException(String message, Throwable cause) {

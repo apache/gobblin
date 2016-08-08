@@ -14,8 +14,10 @@ package gobblin.util;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.util.Collection;
 import java.util.Properties;
 
 import java.util.Set;
@@ -29,6 +31,11 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
+import gobblin.runtime.template.HOCONInputStreamJobTemplate;
+import gobblin.runtime.template.ResourceBasedJobTemplate;
+
+
 /**
  * Testing the functions for reading template merging template with user-specified attributes.
  * 1. Reading the template configuration, testing size or something
@@ -67,8 +74,9 @@ public class TemplateTest {
   public void testRequiredAttrList() throws Exception {
     Properties jobProps = this.userProp;
 
-    Set<String> requiredConfigList = (new ResourceBasedTemplate(
-        jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getRequiredConfigList();
+    Collection<String> requiredConfigList = ResourceBasedJobTemplate.forURI(new URI(
+        jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH)), new PackagedTemplatesJobCatalogDecorator())
+        .getRequiredConfigList();
     Assert.assertEquals(requiredConfigList.size(), 3);
     Assert.assertTrue( requiredConfigList.contains("required0"));
     Assert.assertTrue( requiredConfigList.contains("required1"));
@@ -81,8 +89,9 @@ public class TemplateTest {
       throws Exception {
     Config jobProps = ConfigFactory.parseProperties(this.userProp);
     Assert.assertEquals(ConfigUtils.configToProperties(jobProps).size(), 6);
-    jobProps = (new ResourceBasedTemplate(
-        jobProps.getString(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfig(jobProps);
+    jobProps = ResourceBasedJobTemplate.forResourcePath(jobProps.getString(ConfigurationKeys.JOB_TEMPLATE_PATH),
+        new PackagedTemplatesJobCatalogDecorator())
+        .getResolvedConfig(jobProps);
     // Remove job.template in userSpecified file and gobblin.template.required_attributes in template
     Assert.assertEquals(ConfigUtils.configToProperties(jobProps).size(), 8);
 

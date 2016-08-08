@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -9,15 +9,17 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.runtime.api;
+
+package gobblin.runtime;
 
 import java.net.URI;
 
+
 /**
- * An exception thrown when a JobSpec with a given URI is not found.
+ * A basic interface for an object with a {@link URI}, version, and description.
  */
-public class JobSpecNotFoundException extends SpecNotFoundException {
-  public JobSpecNotFoundException(URI missingJobSpecURI) {
-    super(missingJobSpecURI);
-  }
+public interface Spec {
+  URI getUri();
+  String getVersion();
+  String getDescription();
 }

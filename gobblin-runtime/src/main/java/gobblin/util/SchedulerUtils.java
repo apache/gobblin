@@ -13,6 +13,8 @@
 package gobblin.util;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
@@ -33,6 +35,10 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.runtime.api.JobTemplate;
+import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
+import gobblin.runtime.template.ResourceBasedJobTemplate;
 import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationDetector;
 import gobblin.util.filesystem.PathAlterationObserver;
@@ -159,14 +165,16 @@ public class SchedulerUtils {
   private static Properties resolveTemplate(Properties jobProps) throws IOException {
     try {
       if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-        Properties resolvedProps = ConfigUtils.configToProperties((new ResourceBasedTemplate(jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfig(
-            ConfigFactory.parseProperties(jobProps)));
+        Properties resolvedProps = ConfigUtils.configToProperties((ResourceBasedJobTemplate
+            .forResourcePath(jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH),
+                new PackagedTemplatesJobCatalogDecorator()))
+            .getResolvedConfig(ConfigFactory.parseProperties(jobProps)));
         return resolvedProps;
       } else {
         return jobProps;
       }
-    } catch (JobTemplate.TemplateException te) {
-      throw new IOException(te);
+    } catch (JobTemplate.TemplateException | SpecNotFoundException | URISyntaxException exc) {
+      throw new IOException(exc);
     }
   }
 }
