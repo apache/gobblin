@@ -167,7 +167,7 @@ public class HiveSource implements Source {
 
       LongWatermark lowWatermark = this.watermarker.getPreviousHighWatermark(hiveDataset.getTable());
 
-      if (shouldCreateWorkunit(updateTime, lowWatermark)) {
+      if (shouldCreateWorkunit(hiveDataset.getTable().getTTable().getCreateTime(), updateTime, lowWatermark)) {
 
         log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
 
@@ -206,7 +206,8 @@ public class HiveSource implements Source {
 
       try {
         long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
-        if (shouldCreateWorkunit(updateTime, lowWatermark)) {
+
+        if (shouldCreateWorkunit(sourcePartition, lowWatermark)) {
           log.debug(String.format("Processing partition: %s", sourcePartition));
 
           HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
@@ -218,7 +219,8 @@ public class HiveSource implements Source {
           EventWorkunitUtils.setPartitionSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), sourcePartition, updateTime,
               lowWatermark.getValue(), this.beginGetWorkunitsTime);
           workunits.add(hiveWorkUnit);
-          log.debug(String.format("Workunit added for partition: %s", hiveWorkUnit));
+          log.info(String.format("Creating workunit for partition %s as updateTime %s is greater than low watermark %s",
+              sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
         } else {
           // If watermark tracking at a partition level is necessary, create a dummy workunit for this partition here.
           log.info(String.format(
@@ -232,8 +234,33 @@ public class HiveSource implements Source {
     }
   }
 
-  protected boolean shouldCreateWorkunit(long updateTime, LongWatermark lowWatermark) {
-    return new DateTime(updateTime).isAfter(lowWatermark.getValue());
+  protected boolean shouldCreateWorkunit(Partition sourcePartition, LongWatermark lowWatermark) throws UpdateNotFoundException {
+    long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
+    long createTime = getCreateTime(sourcePartition);
+    return shouldCreateWorkunit(createTime, updateTime, lowWatermark);
+  }
+
+  /**
+   * Check if workunit needs to be created. Returns <code>true</code> If either the <code>createTime</code> or the
+   * <code>updateTime</code> is greater than the <code>lowWatermark</code>
+   */
+  protected boolean shouldCreateWorkunit(long createTime, long updateTime, LongWatermark lowWatermark) {
+    /*
+     * [2016-08-08]
+     * Need to check both updateTime and createTime.
+     *
+     * Distcp ng published data with an older modified time. In Distcp-ng, the modified time of data on HDFS is the time
+     * when data was created in staging and not final publish path, hence this time difference between HDFS mod time and
+     * hive registration time can be in the order of minutes. This may lead to missing updates by the Avro to ORC job.
+     * E.g. Let's say table level watermark for a dataset is 1:30 from the previous run.
+     * Now distcp-np published data for a partition at 1:33 with an HDFS modTime of 1:27.
+     * The watermark is 1:30 and the update is at 1:27 hence a workunit is not created for this partition.
+     *
+     * Summary -
+     * - Check for update time is required when new files are added to existing partitions
+     * - Check for create time is required when a new partition is created both in hive and HDFS
+     */
+    return new DateTime(updateTime).isAfter(lowWatermark.getValue()) || new DateTime(createTime).isAfter(createTime);
   }
 
   /**
@@ -241,29 +268,26 @@ public class HiveSource implements Source {
    */
   @VisibleForTesting
   public boolean isOlderThanLookback(Partition partition) {
+    return new DateTime(getCreateTime(partition)).isBefore(this.maxLookBackTime);
+  }
+
+  @VisibleForTesting
+  public static long getCreateTime(Partition partition) {
     // If create time is set, use it.
     // .. this is always set if HiveJDBC or Hive mestastore is used to create partition.
     // .. it might not be set (ie. equals 0) if Thrift API call is used to create partition.
     if (partition.getTPartition().getCreateTime() > 0) {
-      DateTime createTime = new DateTime(TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS));
-
-      return createTime.isBefore(this.maxLookBackTime);
+      return TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS);
     }
     // Try to use distcp-ng registration generation time if it is available
-    else if (partition.getTPartition().isSetParameters() &&
-        partition.getTPartition().getParameters().containsKey(DISTCP_REGISTRATION_GENERATION_TIME_KEY)) {
-      Long registrationGenerationTime =
-          Long.parseLong(partition.getTPartition().getParameters().get(DISTCP_REGISTRATION_GENERATION_TIME_KEY));
-      DateTime createTime = new DateTime(registrationGenerationTime);
+    else if (partition.getTPartition().isSetParameters() && partition.getTPartition().getParameters().containsKey(DISTCP_REGISTRATION_GENERATION_TIME_KEY)) {
 
       log.debug("Did not find createTime in Hive partition, used distcp registration generation time.");
-      return createTime.isBefore(this.maxLookBackTime);
+      return Long.parseLong(partition.getTPartition().getParameters().get(DISTCP_REGISTRATION_GENERATION_TIME_KEY));
+    } else {
+      throw new IllegalStateException(String.format("Could not find create time in hive metastore for partition %s",
+          partition.getCompleteName()));
     }
-
-    // Otherwise safely return true to avoid re-processing
-    log.warn("Did not find createTime in Hive partition or distcp registration generation time. "
-        + "Marking partitions as old for safely skipping processing.");
-    return true;
   }
 
   @Override
