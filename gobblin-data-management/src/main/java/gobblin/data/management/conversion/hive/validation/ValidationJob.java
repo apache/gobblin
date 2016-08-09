@@ -31,14 +31,18 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.log4j.Logger;
+import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +51,7 @@ import azkaban.jobExecutor.AbstractJob;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -66,6 +71,7 @@ import gobblin.data.management.conversion.hive.source.HiveSource;
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
+import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
@@ -107,6 +113,7 @@ public class ValidationJob extends AbstractJob {
   private final long maxLookBackTime;
   private final long skipRecentThanTime;
   private final Set<String> destFormats;
+  private final HiveMetastoreClientPool pool;
   private final FileSystem fs;
   private final ExecutorService exec;
   private final List<Future<Void>> futures;
@@ -114,7 +121,8 @@ public class ValidationJob extends AbstractJob {
   private Map<String, String> successfulConversions;
   private Map<String, String> failedConversions;
   private Map<String, String> warnConversions;
-
+  private Map<String, String> dataValidationFailed;
+  private Map<String, String> dataValidationSuccessful;
 
   public ValidationJob(String jobId, Properties props) throws IOException {
     super(jobId, log);
@@ -130,32 +138,34 @@ public class ValidationJob extends AbstractJob {
     this.datasetFinder = new ConvertibleHiveDatasetFinder(getSourceFs(), props, this.eventSubmitter);
     this.fs = FileSystem.get(new Configuration());
 
-    int maxLookBackDays = Integer.parseInt(props.getProperty(HiveSource.HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY,
-        DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS));
-    int skipRecentThanDays = Integer.parseInt(props.getProperty(HIVE_SOURCE_SKIP_RECENT_THAN_DAYS_KEY,
-        DEFAULT_HIVE_SOURCE_SKIP_RECENT_THAN_DAYS));
+    int maxLookBackDays = Integer.parseInt(props.getProperty(HiveSource.HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS));
+    int skipRecentThanDays = Integer.parseInt(props.getProperty(HIVE_SOURCE_SKIP_RECENT_THAN_DAYS_KEY, DEFAULT_HIVE_SOURCE_SKIP_RECENT_THAN_DAYS));
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
     this.skipRecentThanTime = new DateTime().minusDays(skipRecentThanDays).getMillis();
 
     // value for DESTINATION_CONVERSION_FORMATS_KEY can be a TypeSafe list or a comma separated list of string
-    this.destFormats = Sets.newHashSet(ConfigUtils.getStringList(config,
-        HIVE_DATASET_CONFIG_AVRO_PREFIX + "." + ConvertibleHiveDataset.DESTINATION_CONVERSION_FORMATS_KEY));
+    this.destFormats =
+        Sets.newHashSet(ConfigUtils.getStringList(config, HIVE_DATASET_CONFIG_AVRO_PREFIX + "." + ConvertibleHiveDataset.DESTINATION_CONVERSION_FORMATS_KEY));
 
     int maxThreadCount = Integer.parseInt(props.getProperty(MAX_THREAD_COUNT, DEFAULT_MAX_THREAD_COUNT));
-    this.exec = Executors.newFixedThreadPool(maxThreadCount, ExecutorsUtils.newThreadFactory(Optional.of(LoggerFactory.getLogger(ValidationJob.class)),
-        Optional.of("getValidationOutputFromHive")));
+    this.exec =
+        Executors.newFixedThreadPool(maxThreadCount,
+            ExecutorsUtils.newThreadFactory(Optional.of(LoggerFactory.getLogger(ValidationJob.class)), Optional.of("getValidationOutputFromHive")));
     this.futures = Lists.newArrayList();
     EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.VALIDATION_SETUP_EVENT);
+
+    this.pool = HiveMetastoreClientPool.get(props, Optional.fromNullable(props.getProperty(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
   }
 
   @Override
-  public void run()
-      throws Exception {
+  public void run() throws Exception {
     try {
       // Validation results
       this.successfulConversions = Maps.newConcurrentMap();
       this.failedConversions = Maps.newConcurrentMap();
       this.warnConversions = Maps.newConcurrentMap();
+      this.dataValidationFailed = Maps.newConcurrentMap();
+      this.dataValidationSuccessful = Maps.newConcurrentMap();
 
       // Find datasets to validate
       Iterator<HiveDataset> iterator = this.datasetFinder.getDatasetsIterator();
@@ -186,7 +196,7 @@ public class ValidationJob extends AbstractJob {
       for (Future<Void> future : this.futures) {
         try {
           future.get();
-        } catch (Throwable t){
+        } catch (Throwable t) {
           log.error("getValidationOutputFromHive failed", t);
           oneFutureFailure = true;
         }
@@ -196,8 +206,7 @@ public class ValidationJob extends AbstractJob {
       // Validation results are consolidated into the successfulConversions and failedConversions
       // These are then converted into log lines in the Azkaban logs as done below
       for (Map.Entry<String, String> successfulConversion : this.successfulConversions.entrySet()) {
-        log.info(String.format("Successful conversion: %s [%s]", successfulConversion.getKey(),
-            successfulConversion.getValue()));
+        log.info(String.format("Successful conversion: %s [%s]", successfulConversion.getKey(), successfulConversion.getValue()));
       }
       for (Map.Entry<String, String> successfulConversion : this.warnConversions.entrySet()) {
         log.warn(String.format("No conversion found for: %s [%s]", successfulConversion.getKey(), successfulConversion.getValue()));
@@ -206,15 +215,24 @@ public class ValidationJob extends AbstractJob {
         log.error(String.format("Failed conversion: %s [%s]", failedConverion.getKey(), failedConverion.getValue()));
       }
 
-      if (!failedConversions.isEmpty()) {
+      for (Map.Entry<String, String> success : this.dataValidationSuccessful.entrySet()) {
+        log.info(String.format("Data validation successful: %s [%s]", success.getKey(), success.getValue()));
+      }
+
+      for (Map.Entry<String, String> failed : this.dataValidationFailed.entrySet()) {
+        log.error(String.format("Data validation failed: %s [%s]", failed.getKey(), failed.getValue()));
+      }
+
+      if (!this.failedConversions.isEmpty() || !this.dataValidationFailed.isEmpty()) {
         throw new RuntimeException(String.format("Validation failed for %s conversions. See previous logs for exact validation failures",
             failedConversions.size()));
       }
       if (oneFutureFailure) {
         throw new RuntimeException("At least one hive ddl failed. Check previous logs");
       }
+
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      Throwables.propagate(e);
     }
   }
 
@@ -224,43 +242,51 @@ public class ValidationJob extends AbstractJob {
    * @param hiveDataset {@link ConvertibleHiveDataset} containing {@link Table} info.
    * @throws IOException Issue in validating {@link HiveDataset}
    */
-  private void processNonPartitionedTable(ConvertibleHiveDataset hiveDataset)
-      throws IOException {
+  private void processNonPartitionedTable(final ConvertibleHiveDataset hiveDataset) throws IOException {
     try {
       // Validate table
-      long updateTime = this.updateProvider.getUpdateTime(hiveDataset.getTable());
-      if (shouldValidate(updateTime, this.maxLookBackTime, this.skipRecentThanTime)) {
-        log.debug(String.format("Validating table: %s", hiveDataset.getTable()));
+      final long updateTime = this.updateProvider.getUpdateTime(hiveDataset.getTable());
 
-        for (String format : this.destFormats) {
-          Optional<ConvertibleHiveDataset.ConversionConfig> conversionConfigOptional =
-              hiveDataset.getConversionConfigForFormat(format);
-          if (conversionConfigOptional.isPresent()) {
-            ConvertibleHiveDataset.ConversionConfig conversionConfig = conversionConfigOptional.get();
+      log.info(String.format("Validating table: %s", hiveDataset.getTable()));
 
-            // Generate validation queries
-            List<String> validationQueries = HiveValidationQueryGenerator
-                .generateValidationQueries(hiveDataset, Optional.<Partition>absent(), conversionConfig);
+      for (final String format : this.destFormats) {
+        Optional<ConvertibleHiveDataset.ConversionConfig> conversionConfigOptional = hiveDataset.getConversionConfigForFormat(format);
+        if (conversionConfigOptional.isPresent()) {
+          ConvertibleHiveDataset.ConversionConfig conversionConfig = conversionConfigOptional.get();
+          String orcTableName = conversionConfig.getDestinationTableName();
+          String orcTableDatabase = conversionConfig.getDestinationDbName();
+          Pair<Optional<org.apache.hadoop.hive.metastore.api.Table>, Optional<List<Partition>>> destinationMeta =
+              getDestinationTableMeta(orcTableDatabase, orcTableName, this.props);
 
-            // Execute validation queries
-            log.info(String.format("Going to execute queries: %s for format: %s", validationQueries, format));
-            List<Long> rowCounts = this.getValidationOutputFromHive(validationQueries);
+          // Generate validation queries
+          final List<String> validationQueries =
+              HiveValidationQueryGenerator.generateCountValidationQueries(hiveDataset, Optional.<Partition> absent(), conversionConfig);
+          final List<String> dataValidationQueries =
+              Lists.newArrayList(HiveValidationQueryGenerator.generateDataValidationQuery(hiveDataset.getTable().getTableName(), hiveDataset.getTable()
+                  .getDbName(), destinationMeta.getKey().get(), Optional.<Partition> absent()));
 
-            // Validate and populate report
-            validateAndPopulateReport(hiveDataset.getTable().getCompleteName(), updateTime, rowCounts);
-          } else {
-            log.info(String.format("No config found for format: %s So skipping table: %s for this format", format,
-                hiveDataset.getTable().getCompleteName()));
-          }
+          this.futures.add(this.exec.submit(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+
+              // Execute validation queries
+              log.debug(String.format("Going to execute queries: %s for format: %s", validationQueries, format));
+              List<Long> rowCounts = ValidationJob.this.getValidationOutputFromHive(validationQueries);
+              log.debug(String.format("Going to execute queries: %s for format: %s", dataValidationQueries, format));
+              List<Long> rowDataValidatedCount = ValidationJob.this.getValidationOutputFromHive(dataValidationQueries);
+              // Validate and populate report
+              validateAndPopulateReport(hiveDataset.getTable().getCompleteName(), updateTime, rowCounts, rowDataValidatedCount.get(0));
+
+              return null;
+            }
+          }));
+        } else {
+          log.warn(String.format("No config found for format: %s So skipping table: %s for this format", format, hiveDataset.getTable().getCompleteName()));
         }
-      } else {
-        log.info(String.format("Not validating table: %s as updateTime: %s is not in range of max look back: %s "
-                + "and skip recent than: %s", hiveDataset.getTable().getCompleteName(), updateTime,
-            this.maxLookBackTime, this.skipRecentThanTime));
       }
+
     } catch (UpdateNotFoundException e) {
-      log.info(String.format("Not validating table: %s as update time was not found. %s", hiveDataset.getTable()
-          .getCompleteName(), e.getMessage()));
+      log.warn(String.format("Not validating table: %s as update time was not found. %s", hiveDataset.getTable().getCompleteName(), e.getMessage()));
     }
   }
 
@@ -271,57 +297,66 @@ public class ValidationJob extends AbstractJob {
    * @param client {@link IMetaStoreClient} to query Hive.
    * @throws IOException Issue in validating {@link HiveDataset}
    */
-  private void processPartitionedTable(ConvertibleHiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client)
-      throws IOException {
+  private void processPartitionedTable(ConvertibleHiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
 
     // Get partitions for the table
-    List<Partition>
-        sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String>absent());
+    List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
 
-    // Validate each partition
-    for (final Partition sourcePartition : sourcePartitions) {
-      try {
-        final long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
-        if (shouldValidate(updateTime, this.maxLookBackTime, this.skipRecentThanTime)) {
-          log.info(String.format("Validating partition: %s", sourcePartition));
+    for (final String format : this.destFormats) {
+      Optional<ConvertibleHiveDataset.ConversionConfig> conversionConfigOptional = hiveDataset.getConversionConfigForFormat(format);
 
-          for (String format : this.destFormats) {
-            Optional<ConvertibleHiveDataset.ConversionConfig> conversionConfigOptional =
-                hiveDataset.getConversionConfigForFormat(format);
-            if (conversionConfigOptional.isPresent()) {
-              ConvertibleHiveDataset.ConversionConfig conversionConfig = conversionConfigOptional.get();
+      if (conversionConfigOptional.isPresent()) {
+
+        // Get conversion config
+        ConvertibleHiveDataset.ConversionConfig conversionConfig = conversionConfigOptional.get();
+        String orcTableName = conversionConfig.getDestinationTableName();
+        String orcTableDatabase = conversionConfig.getDestinationDbName();
+        Pair<Optional<org.apache.hadoop.hive.metastore.api.Table>, Optional<List<Partition>>> destinationMeta =
+            getDestinationTableMeta(orcTableDatabase, orcTableName, this.props);
+
+        // Validate each partition
+        for (final Partition sourcePartition : sourcePartitions) {
+          try {
+            final long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
+            if (shouldValidate(sourcePartition)) {
+              log.info(String.format("Validating partition: %s", sourcePartition.getCompleteName()));
 
               // Generate validation queries
-              final List<String> validationQueries = HiveValidationQueryGenerator
-                  .generateValidationQueries(hiveDataset, Optional.of(sourcePartition), conversionConfig);
+              final List<String> countValidationQueries =
+                  HiveValidationQueryGenerator.generateCountValidationQueries(hiveDataset, Optional.of(sourcePartition), conversionConfig);
+              final List<String> dataValidationQueries =
+                  Lists.newArrayList(HiveValidationQueryGenerator.generateDataValidationQuery(hiveDataset.getTable().getTableName(), hiveDataset.getTable()
+                      .getDbName(), destinationMeta.getKey().get(), Optional.of(sourcePartition)));
 
-              // Execute validation queries
-              log.info(String.format("Going to execute queries: %s for format: %s", validationQueries, format));
-
-
-              this.futures.add(this.exec.submit(new Callable<Void> () {
+              this.futures.add(this.exec.submit(new Callable<Void>() {
                 @Override
                 public Void call() throws Exception {
-                  List<Long> rowCounts = ValidationJob.this.getValidationOutputFromHive(validationQueries);
+
+                  // Execute validation queries
+                  log.debug(String.format("Going to execute count validation queries queries: %s for format: %s "
+                      + "and partition %s", countValidationQueries, format, sourcePartition.getCompleteName()));
+                  List<Long> rowCounts = ValidationJob.this.getValidationOutputFromHive(countValidationQueries);
+                  log.debug(String.format("Going to execute data validation queries: %s for format: %s and partition %s",
+                      dataValidationQueries, format, sourcePartition.getCompleteName()));
+                  List<Long> rowDataValidatedCount = ValidationJob.this.getValidationOutputFromHive(dataValidationQueries);
+
                   // Validate and populate report
-                  validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, rowCounts);
+                  validateAndPopulateReport(sourcePartition.getCompleteName(), updateTime, rowCounts, rowDataValidatedCount.get(0));
+
                   return null;
                 }
               }));
 
             } else {
-              log.info(String.format("No config found for format: %s So skipping partition: %s for this format", format,
-                  sourcePartition.getCompleteName()));
+              log.debug(String.format("Not validating partition: %s as updateTime: %s is not in range of max look back: %s " + "and skip recent than: %s",
+                  sourcePartition.getCompleteName(), updateTime, this.maxLookBackTime, this.skipRecentThanTime));
             }
+          } catch (UpdateNotFoundException e) {
+            log.warn(String.format("Not validating partition: %s as update time was not found. %s", sourcePartition.getCompleteName(), e.getMessage()));
           }
-        } else {
-          log.debug(String.format("Not validating partition: %s as updateTime: %s is not in range of max look back: %s "
-                  + "and skip recent than: %s",
-              sourcePartition.getCompleteName(), updateTime, this.maxLookBackTime, this.skipRecentThanTime));
         }
-      } catch (UpdateNotFoundException e) {
-        log.warn(String.format("Not validating partition: %s as update time was not found. %s",
-            sourcePartition.getCompleteName(), e.getMessage()));
+      } else {
+        log.info(String.format("No conversion config found for format %s. Ignoring data validation", format));
       }
     }
   }
@@ -330,6 +365,7 @@ public class ValidationJob extends AbstractJob {
    * Execute Hive queries using {@link HiveJdbcConnector} and validate results.
    * @param queries Queries to execute.
    */
+  @SuppressWarnings("unused")
   private List<Long> getValidationOutputFromHiveJdbc(List<String> queries) throws IOException {
     if (null == queries || queries.size() == 0) {
       log.warn("No queries specified to be executed");
@@ -380,9 +416,9 @@ public class ValidationJob extends AbstractJob {
    * Execute Hive queries using {@link HiveJdbcConnector} and validate results.
    * @param queries Queries to execute.
    */
-  @edu.umd.cs.findbugs.annotations.SuppressWarnings(value = "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE",
-      justification = "Temporary fix")
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings(value = "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE", justification = "Temporary fix")
   private List<Long> getValidationOutputFromHive(List<String> queries) throws IOException {
+
     if (null == queries || queries.size() == 0) {
       log.warn("No queries specified to be executed");
       return Collections.emptyList();
@@ -423,7 +459,7 @@ public class ValidationJob extends AbstractJob {
           }
         } finally {
           if (this.fs.exists(hiveTempDir)) {
-            log.info("Deleting temp dir: " + hiveTempDir);
+            log.debug("Deleting temp dir: " + hiveTempDir);
             this.fs.delete(hiveTempDir, true);
           }
         }
@@ -441,10 +477,9 @@ public class ValidationJob extends AbstractJob {
     return rowCounts;
   }
 
-  private void validateAndPopulateReport(String datasetIdentifier, long conversionInstance, List<Long> rowCounts) {
+  private void validateAndPopulateReport(String datasetIdentifier, long conversionInstance, List<Long> rowCounts, Long rowDataValidatedCount) {
     if (null == rowCounts || rowCounts.size() == 0) {
-      this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
-          "No conversion details found");
+      this.warnConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance), "No conversion details found");
       this.eventSubmitter.submit(EventConstants.VALIDATION_NOOP_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
       return;
     }
@@ -457,6 +492,8 @@ public class ValidationJob extends AbstractJob {
         isFirst = false;
         continue;
       }
+
+      // Row count validation
       if (rowCount != rowCountCached) {
         if (rowCount == 0) {
           this.warnConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
@@ -464,30 +501,25 @@ public class ValidationJob extends AbstractJob {
           this.eventSubmitter.submit(EventConstants.VALIDATION_NOOP_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
         } else {
           this.failedConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
-              "Row counts did not match across all conversions");
+              String.format("Row counts did not match across all conversions. Row count expected: %d, Row count got: %d", rowCountCached, rowCount));
           this.eventSubmitter.submit(EventConstants.VALIDATION_FAILED_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
+          return;
         }
-        return;
+      } else {
+        this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
+            String.format("Row counts matched across all conversions. Row count expected: %d, Row count got: %d", rowCountCached, rowCount));
+        this.eventSubmitter.submit(EventConstants.VALIDATION_SUCCESSFUL_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
       }
     }
-    this.successfulConversions.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
-        "Row counts matched across all conversions");
-    this.eventSubmitter.submit(EventConstants.VALIDATION_SUCCESSFUL_EVENT, ImmutableMap.of("datasetUrn", datasetIdentifier));
-  }
 
-  /***
-   * Determine if the {@link Table} or {@link Partition} should be validated by checking if its last update time
-   * lies between maxLookBackTime and skipRecentThanTime window.
-   * @param updateTime Update line in milis for the {@link Table} or partition.
-   * @param maxLookBackTime Maximum look back time in millis.
-   * @param skipRecentThanTime Skip recent than time in millis.
-   * @return If {@link Table} or {@link Partition} should be validated.
-   */
-  @VisibleForTesting
-  public static boolean shouldValidate(long updateTime, long maxLookBackTime, long skipRecentThanTime) {
-    DateTime updateDateTime = new DateTime(updateTime);
-    return updateDateTime.isAfter(maxLookBackTime)
-        && updateDateTime.isBefore(skipRecentThanTime);
+    // Data count validation
+    if (rowCountCached == rowDataValidatedCount) {
+      this.dataValidationSuccessful.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
+          "Common rows matched expected value. Expected: " + rowCountCached + " Found: " + rowDataValidatedCount);
+    } else {
+      this.dataValidationFailed.put(String.format("Dataset: %s Instance: %s", datasetIdentifier, conversionInstance),
+          "Common rows did not match expected value. Expected: " + rowCountCached + " Found: " + rowDataValidatedCount);
+    }
   }
 
   /***
@@ -497,5 +529,39 @@ public class ValidationJob extends AbstractJob {
    */
   private static FileSystem getSourceFs() throws IOException {
     return FileSystem.get(HadoopUtils.newConfiguration());
+  }
+
+  /**
+   * Determine if the {@link Table} or {@link Partition} should be validated by checking if its create time
+   * lies between maxLookBackTime and skipRecentThanTime window.
+   */
+  private boolean shouldValidate(Partition partition) {
+    long createTime = HiveSource.getCreateTime(partition);
+    return new DateTime(createTime).isAfter(this.maxLookBackTime) && new DateTime(createTime).isBefore(this.skipRecentThanTime);
+  }
+
+  private Pair<Optional<org.apache.hadoop.hive.metastore.api.Table>, Optional<List<Partition>>> getDestinationTableMeta(String dbName, String tableName,
+      Properties props) {
+
+    Optional<org.apache.hadoop.hive.metastore.api.Table> table = Optional.absent();
+    Optional<List<Partition>> partitions = Optional.absent();
+
+    try {
+      try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
+        table = Optional.of(client.get().getTable(dbName, tableName));
+        if (table.isPresent()) {
+          org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
+          if (HiveUtils.isPartitioned(qlTable)) {
+            partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String> absent()));
+          }
+        }
+      }
+    } catch (NoSuchObjectException e) {
+      return ImmutablePair.of(table, partitions);
+    } catch (IOException | TException e) {
+      throw new RuntimeException("Could not fetch destination table metadata", e);
+    }
+
+    return ImmutablePair.of(table, partitions);
   }
 }
