@@ -11,10 +11,11 @@
  */
 package gobblin.runtime.job_catalog;
 
+import gobblin.runtime.api.JobSpecNotFoundException;
 import java.net.URI;
 import java.util.List;
-import java.util.Properties;
 import java.io.IOException;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +62,7 @@ public class FSJobCatalog implements MutableJobCatalog {
   public final PathAlterationDetector pathAlterationDetector;
   private final FileSystem fs;
 
-  public Optional<PathAlterationObserver> _observerOptional;
+  public final PathAlterationObserver _observer;
 
   /**
    * SINGLEJOB means load job configuration for single job.
@@ -78,24 +79,13 @@ public class FSJobCatalog implements MutableJobCatalog {
    */
   public FSJobCatalog(Properties jobConfig)
       throws Exception {
-    this.jobConfig = jobConfig;
-    this.jobConfDirPath = new Path(jobConfig.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
-    this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
-    this.fs = this.jobConfDirPath.getFileSystem(new Configuration());
-
-    long pollingInterval = Long.parseLong(
-        this.jobConfig.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
-            Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
-    this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
-    this._observerOptional = Optional.absent();
-
-    // Start the monitor immediately the FSJobCatalog is created so that
-    // all newly-created file will be reported.
-    startGenericFSJobConfigDetector();
+    this(jobConfig, null);
+    /* Automatically shceudle the checkAndNotify method using detector's threadpool, in general usage. */
+    this.pathAlterationDetector.start();
   }
 
   /**
-   * Used for testing purpose, when the Observer is neccessay to be exposed so that
+   * The expose of observer is used for testing purpose, so that
    * the checkAndNotify method can be revoked manually, instead of waiting for
    * the scheduling timing.
    * @param jobConfig The same as general constructor.
@@ -104,12 +94,25 @@ public class FSJobCatalog implements MutableJobCatalog {
    */
   public FSJobCatalog(Properties jobConfig, PathAlterationObserver observer)
       throws Exception {
-    this(jobConfig);
-    this._observerOptional = Optional.of(observer);
+    this.jobConfig = jobConfig;
+
+    Preconditions.checkArgument(jobConfig.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+    this.jobConfDirPath = new Path(jobConfig.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+
+    this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
+    this.fs = this.jobConfDirPath.getFileSystem(new Configuration());
+
+    long pollingInterval = Long.parseLong(
+        this.jobConfig.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
+            Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
+    this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
+
+    this._observer = observer;
+    Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(this._observer);
 
     FSPathAlterationListenerAdaptor configFilelistener = new FSPathAlterationListenerAdaptor(this.jobConfDirPath);
-    FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener,
-        _observerOptional, this.jobConfDirPath);
+    FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener, observerOptional,
+        this.jobConfDirPath);
   }
 
   /**
@@ -139,14 +142,13 @@ public class FSJobCatalog implements MutableJobCatalog {
    * @return
    */
   @Override
-  public synchronized JobSpec getJobSpec(URI uri) {
+  public synchronized JobSpec getJobSpec(URI uri) throws JobSpecNotFoundException {
     Path targetJobSpecPath = new Path(uri);
 
     List<JobSpec> resultJobSpecList =
         FSJobCatalogHelper.loadJobConfigHelper(this.jobConfDirPath, Action.SINGLEJOB, Optional.of(targetJobSpecPath));
     if (resultJobSpecList == null || resultJobSpecList.size() == 0) {
-      LOGGER.warn("No JobSpec with URI:" + uri + " is found.");
-      return null;
+      throw new JobSpecNotFoundException(uri);
     } else {
       return resultJobSpecList.get(0);
     }
@@ -190,14 +192,13 @@ public class FSJobCatalog implements MutableJobCatalog {
     Preconditions.checkNotNull(jobSpec);
     try {
       String tmpStr = jobSpec.getUri().toString();
-      Path tmpPath = new Path(this.jobConfDirPath, tmpStr);
+      Path tmpPath = PathUtils.mergePaths(this.jobConfDirPath, new Path(jobSpec.getUri().toString()));
       if (fs.exists(tmpPath)) {
-        LOGGER.info("The job with URI[" + new Path(this.jobConfDirPath, jobSpec.getUri().toString())
+        LOGGER.info("The job with URI[" + tmpPath
             + "] has been added before, will cover the original one.");
-        JobSpec oldSpec =  FSJobCatalogHelper.loadJobConfigHelper(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
+        JobSpec oldSpec = FSJobCatalogHelper.loadJobConfigHelper(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
             Optional.of(new Path(tmpStr))).get(0);
-        fs.delete(new Path(this.jobConfDirPath, jobSpec.getUri().toString()), false);
-        LOGGER.info("The old job deleted.");
+        fs.delete(tmpPath, false);
 
         // The checkAndNotify method cannot file update's implementation using deletion first creation followed,
         // since each creation will invoke refresh() method that update the modification time.
@@ -205,7 +206,7 @@ public class FSJobCatalog implements MutableJobCatalog {
         this.listeners.onUpdateJob(oldSpec, jobSpec);
       }
 
-      FSJobCatalogHelper.materializedJobSpec(this.jobConfDirPath, jobSpec);
+      FSJobCatalogHelper.materializeJobSpec(this.jobConfDirPath, jobSpec);
     } catch (IOException e) {
       throw new RuntimeException("When persisting a new JobSpec, unexpected issues happen:" + e.getMessage());
     }
@@ -226,24 +227,11 @@ public class FSJobCatalog implements MutableJobCatalog {
       if (fs.exists(new Path(uri))) {
         fs.delete(new Path(uri), false);
       } else {
-        LOGGER.info("No file with URI:" + uri + " is found. Deletion failed.");
+        LOGGER.warn("No file with URI:" + uri + " is found. Deletion failed.");
       }
     } catch (IOException e) {
       throw new RuntimeException("When removing a JobConf. file, issues unexpected happen:" + e.getMessage());
     }
-  }
-
-  /**
-   * Detector replaced monitor specially for file system,
-   * as it is stateful storage system, which might result in monitoring loop.
-   * Note that here the entity for monitoring is job conf. file instead of JobSpec Object.
-   */
-  private void startGenericFSJobConfigDetector()
-      throws Exception {
-    FSPathAlterationListenerAdaptor configFilelistener = new FSPathAlterationListenerAdaptor(this.jobConfDirPath);
-    FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener,
-         _observerOptional, this.jobConfDirPath);
-    this.pathAlterationDetector.start();
   }
 
   /**

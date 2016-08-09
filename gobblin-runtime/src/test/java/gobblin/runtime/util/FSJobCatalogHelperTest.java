@@ -258,7 +258,7 @@ public class FSJobCatalogHelperTest {
    */
   @Test(dependsOnMethods = {"testPathAlterationObserver"})
   public void testPersistingJobSpec()
-      throws URISyntaxException, IOException {
+      throws URISyntaxException, IOException, ConfigurationException {
     URI relativePathOfTestPull = new URI("test.pull");
     File targetFile = new File(this.jobConfigDir, relativePathOfTestPull.toString());
     Assert.assertFalse(targetFile.isDirectory());
@@ -279,13 +279,14 @@ public class FSJobCatalogHelperTest {
         .withConfigAsProperties(testProps)
         .build();
 
-    FSJobCatalogHelper.materializedJobSpec(new Path(this.jobConfigDir.toURI()), js_1);
+    FSJobCatalogHelper.materializeJobSpec(new Path(this.jobConfigDir.toURI()), js_1);
 
     Assert.assertTrue(targetFile.exists());
     Assert.assertTrue(targetFile.isFile());
 
     JobSpec js_1_loaded =
-        FSJobCatalogHelper.dematerializeConfigFile(new Path(this.jobConfigDir.toURI()), relativePathOfTestPull);
+        FSJobCatalogHelper.loadGenericJobConfig(new Properties(), new Path(relativePathOfTestPull.toString()),
+            new Path(this.jobConfigDir.toURI()), false);
 
     Assert.assertEquals(js_1, js_1_loaded);
 
@@ -293,13 +294,14 @@ public class FSJobCatalogHelperTest {
      * incomplate jobSpec materialization.
      */
     JobSpec js_2 = JobSpec.builder(relativePathOfTestPull).build();
-    FSJobCatalogHelper.materializedJobSpec(new Path(this.jobConfigDir.toURI()), js_2);
+    FSJobCatalogHelper.materializeJobSpec(new Path(this.jobConfigDir.toURI()), js_2);
 
     Assert.assertTrue(targetFile.exists());
     Assert.assertTrue(targetFile.isFile());
 
     JobSpec js_2_loaded =
-        FSJobCatalogHelper.dematerializeConfigFile(new Path(this.jobConfigDir.toURI()), relativePathOfTestPull);
+        FSJobCatalogHelper.loadGenericJobConfig(new Properties(), new Path(relativePathOfTestPull.toString()),
+            new Path(this.jobConfigDir.toURI()), false);
 
     Assert.assertEquals(js_2, js_2_loaded);
   }

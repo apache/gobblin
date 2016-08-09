@@ -14,7 +14,6 @@ package gobblin.runtime.util;
 import java.net.URI;
 import java.util.Set;
 import java.util.List;
-import java.util.HashMap;
 import java.util.ArrayList;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +25,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.URISyntaxException;
 
+import org.apache.hadoop.fs.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.fs.Path;
@@ -66,6 +66,26 @@ public class FSJobCatalogHelper {
   // Key used in the metadata of JobSpec.
   private static final String DESCRIPTION_KEY_IN_JOBSPEC = "description";
   private static final String VERSION_KEY_IN_JOBSPEC = "version";
+  // Extension of properties files
+  public static final String JOB_PROPS_FILE_EXTENSION = "properties";
+
+  /**
+   * For backward compatibility, to ignore *.properties files.
+   */
+  private static final PathFilter PROPERTIES_PATH_FILTER = new PathFilter() {
+    @Override
+    public boolean accept(Path path) {
+      String fileExtension = path.getName().substring(path.getName().lastIndexOf('.') + 1);
+      return fileExtension.equalsIgnoreCase(JOB_PROPS_FILE_EXTENSION);
+    }
+  };
+
+  private static final PathFilter NON_PROPERTIES_PATH_FILTER = new PathFilter() {
+    @Override
+    public boolean accept(Path path) {
+      return !PROPERTIES_PATH_FILTER.accept(path);
+    }
+  };
 
   /**
    * Load job configuration from job configuration files stored in general file system,
@@ -85,35 +105,56 @@ public class FSJobCatalogHelper {
   /**
    * Load a given job configuration file from a general file system.
    *
+   * @param frameworkProps
+   * @param jobConfigRelativePath
+   * @param jobConfigDirPath
+   * @return a single job configuration in the form of {@link JobSpec}
+   */
+
+  /**
+   *
    * @param frameworkProps Gobblin framework configuration properties
    * @param jobConfigRelativePath job configuration file to be loaded
    * @param jobConfigDirPath The root job configuration directory path
-   * @return a single job configuration in the form of {@link JobSpec}
+   * @param augmentEnabled For general usage we need to add framworkProps as well as provide resourcesBased template
+   *                       For testing of de-materialization, these are not necessary.
+   * @return
+   * @throws ConfigurationException
+   * @throws IOException
    */
   public static JobSpec loadGenericJobConfig(Properties frameworkProps, Path jobConfigRelativePath,
-      Path jobConfigDirPath)
+      Path jobConfigDirPath, boolean augmentEnabled)
       throws ConfigurationException, IOException {
     // Add the framework configuration properties to the end
     Properties jobProps = new Properties();
-    jobProps.putAll(frameworkProps);
+    if (augmentEnabled) {
+      jobProps.putAll(frameworkProps);
+    }
 
     // Assemble the complete path in target file system first.
     // Then load the job configuration properties defined in the job configuration file
     Path completePath = new Path(jobConfigDirPath, jobConfigRelativePath);
 
     try (FileSystem fs = completePath.getFileSystem(new Configuration())) {
+      if (!fs.exists(completePath)) {
+        throw new RuntimeException("The requested URI:" + jobConfigRelativePath + " doesn't exist");
+      }
       try (InputStream is = fs.open(completePath)) {
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));
         jobProps.load(bufferedReader);
+        bufferedReader.close();
       }
     }
 
-    if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      jobProps = (new ResourceBasedTemplate(
-          jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
-    }
+    // For all the non-test usages, this augmentEnabled is True.
+    if (augmentEnabled) {
+      if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+        jobProps = (new ResourceBasedTemplate(
+            jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
+      }
 
-    jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigRelativePath.toString());
+      jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigRelativePath.toString());
+    }
 
     // Create a JobSpec instance based on the info known.
     // Noted that jobConfigPath is the
@@ -145,7 +186,8 @@ public class FSJobCatalogHelper {
       }
 
       // Get all files's status
-      FileStatus[] nonPropFiles = filesystem.listStatus(configDirPath);
+      // Ignore all the .properties files.
+      FileStatus[] nonPropFiles = filesystem.listStatus(configDirPath, NON_PROPERTIES_PATH_FILTER);
       if (nonPropFiles == null || nonPropFiles.length == 0) {
         return;
       }
@@ -164,7 +206,8 @@ public class FSJobCatalogHelper {
             continue;
           }
 
-          // Deal with .done file, skip them.
+          // Deal with .done file, skip them
+          // (Legacy, supposed to be no .done file in this folder for this version).
           Path doneFilePath = configFilePath.suffix(".done");
           if (filesystem.exists(doneFilePath)) {
             LOGGER.info("Skipped job configuration file " + doneFilePath + " for which a .done file exists");
@@ -194,7 +237,7 @@ public class FSJobCatalogHelper {
             try {
               jobConfigs.add(jobSpecConverter(jobProps, new URI(configFilePath.getName())));
             } catch (URISyntaxException e) {
-              throw new RuntimeException("that");
+              throw new RuntimeException(e.getMessage());
             }
           }
         }
@@ -214,25 +257,6 @@ public class FSJobCatalogHelper {
         return null != input ? input.toLowerCase() : "";
       }
     }));
-  }
-
-  /**
-   * To convert a JobSpec list into a HashMap with URI as the primary key.
-   * Prepared to cache implementation.
-   * @param jobSpecList
-   * @return
-   */
-  public static HashMap<URI, JobSpec> jobSpecListToMap(List<JobSpec> jobSpecList) {
-    HashMap<URI, JobSpec> persistedJob = new HashMap<>();
-    if (jobSpecList == null || jobSpecList.size() == 0) {
-      return persistedJob;
-    } else {
-
-      for (JobSpec aJobSpec : jobSpecList) {
-        persistedJob.put(aJobSpec.getUri(), aJobSpec);
-      }
-    }
-    return persistedJob;
   }
 
   /**
@@ -265,7 +289,7 @@ public class FSJobCatalogHelper {
             if (jobConfigPath.isPresent()) {
               LOGGER.info("Loaded a job configuration : " + jobConfigPath.get());
               jobSpecList.add(
-                  FSJobCatalogHelper.loadGenericJobConfig(properties, jobConfigPath.get(), jobConfigDirPath));
+                  FSJobCatalogHelper.loadGenericJobConfig(properties, jobConfigPath.get(), jobConfigDirPath, true));
             } else {
               throw new RuntimeException(" Loading single job configuration but no Single-File path provided. ");
             }
@@ -285,25 +309,27 @@ public class FSJobCatalogHelper {
   }
 
   /**
-   * Add {@link PathAlterationDetector}s for the given
+   * Create and attach {@link PathAlterationDetector}s for the given
    * root directory and any nested subdirectories under the root directory to the given
    * {@link PathAlterationDetector}.
-   *
-   * @param monitor a {@link PathAlterationDetector}
+   * @param detector  a {@link PathAlterationDetector}
    * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
+   * @param observerOptional Optional observer object. For testing routine, this has been initialized by user.
+   *                         But for general usage, the observer object is created inside this method.
    * @param rootDirPath root directory
+   * @throws IOException
    */
-  public static void addPathAlterationObserver(PathAlterationDetector monitor, PathAlterationListener listener,
+  public static void addPathAlterationObserver(PathAlterationDetector detector, PathAlterationListener listener,
       Optional<PathAlterationObserver> observerOptional, Path rootDirPath)
       throws IOException {
     PathAlterationObserver observer;
-    if (!observerOptional.isPresent()) {
-      observer = new PathAlterationObserver(rootDirPath);
-    } else {
+    if (observerOptional.isPresent()) {
       observer = observerOptional.get();
+    } else {
+      observer = new PathAlterationObserver(rootDirPath);
     }
     observer.addListener(listener);
-    monitor.addObserver(observer);
+    detector.addObserver(observer);
   }
 
   /**
@@ -311,7 +337,7 @@ public class FSJobCatalogHelper {
    * @param jobConfDirPath The configuration root directory path.
    * @param jobSpec a {@link JobSpec}
    */
-  public static void materializedJobSpec(Path jobConfDirPath, JobSpec jobSpec)
+  public static void materializeJobSpec(Path jobConfDirPath, JobSpec jobSpec)
       throws IOException {
     Path path = new Path(jobConfDirPath, jobSpec.getUri().toString());
     try (FileSystem fs = path.getFileSystem(new Configuration())) {
@@ -324,32 +350,9 @@ public class FSJobCatalogHelper {
       try (OutputStream os = fs.create(path)) {
         BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(os, Charsets.UTF_8));
         props.store(bufferedWriter, "");
+        bufferedWriter.close();
       }
     }
-  }
-
-  /**
-   * Transforming a file into JobSpec object, identified by its URI.
-   * This function is most used for testing usage, working with materialized method.
-   * @param userSpecifiedURI {@link URI} of the target to de-materiaze. It is relative path.
-   * @return a {@link JobSpec}
-   */
-  public static JobSpec dematerializeConfigFile(Path jobConfDirPath, URI userSpecifiedURI)
-      throws IOException {
-    Path path = new Path(jobConfDirPath, userSpecifiedURI.toString());
-
-    Properties props = new Properties();
-
-    try (FileSystem fs = path.getFileSystem(new Configuration())) {
-      if (!fs.exists(path)) {
-        throw new RuntimeException("The requested URI:" + userSpecifiedURI + " doesn't exist");
-      }
-      try (InputStream is = fs.open(path)) {
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));
-        props.load(bufferedReader);
-      }
-    }
-    return jobSpecConverter(props, userSpecifiedURI);
   }
 
   /**
@@ -364,21 +367,21 @@ public class FSJobCatalogHelper {
    */
   public static JobSpec jobSpecConverter(Properties rawProp, URI jobConfigURI) {
     Optional<String> description = Optional.absent();
-    Optional<String> version = Optional.absent();
-    Config config = null;
+    Optional<Config> config;
+    Optional<Properties> optionalProp;
+    String version = "";
 
     if (rawProp != null) {
+      version = rawProp.getProperty(VERSION_KEY_IN_JOBSPEC);
+
       // To ensure the transparency of JobCatalog, need to remove the addtional
       // options that added through the materialization process.
+      rawProp.remove(VERSION_KEY_IN_JOBSPEC);
 
       // No exception thrown when the property not existed.
       description = Optional.fromNullable(rawProp.getProperty(DESCRIPTION_KEY_IN_JOBSPEC));
       if (description.isPresent()) {
         rawProp.remove(DESCRIPTION_KEY_IN_JOBSPEC);
-      }
-      version = Optional.fromNullable(rawProp.getProperty(VERSION_KEY_IN_JOBSPEC));
-      if (version.isPresent()) {
-        rawProp.remove(VERSION_KEY_IN_JOBSPEC);
       }
       if (rawProp.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY)) {
         rawProp.remove(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY);
@@ -389,14 +392,16 @@ public class FSJobCatalogHelper {
       if (rawProp.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
         rawProp.remove(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY);
       }
-      config = ConfigUtils.propertiesToConfig(rawProp);
     }
+    optionalProp = Optional.fromNullable(rawProp);
+    config = Optional.fromNullable(ConfigUtils.propertiesToConfig(rawProp));
 
+    // The builder has null-checker. Leave the checking there.
     return JobSpec.builder(jobConfigURI)
-        .withConfigAsProperties(rawProp)
-        .withConfig(config)
+        .withConfigAsProperties(optionalProp.get())
+        .withConfig(config.get())
         .withDescription(description.get())
-        .withVersion(version.get())
+        .withVersion(version)
         .build();
   }
 }
