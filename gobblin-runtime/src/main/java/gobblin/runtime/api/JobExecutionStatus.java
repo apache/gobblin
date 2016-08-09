@@ -13,26 +13,11 @@ package gobblin.runtime.api;
 
 import gobblin.runtime.JobState;
 
-import lombok.Getter;
-import lombok.Setter;
-
-@Getter
-@Setter
-public class JobExecutionStatus {
+public interface JobExecutionStatus {
   public static final String UKNOWN_STAGE = "unkown";
 
-  private final JobExecution jobExecution;
-  private JobState.RunningState status;
+  JobExecution getJobExecution();
+  JobState.RunningState getRunningState();
   /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  private String stage;
-
-  //  TODO commented out to avoid FindBugs warning
-  // transient List<JobExecutionStateListener> changeListeners;
-
-  public JobExecutionStatus(JobExecution jobExecution) {
-    this.jobExecution = jobExecution;
-    this.status = JobState.RunningState.PENDING;
-    this.stage = UKNOWN_STAGE;
-  }
-
+  String getStage();
 }

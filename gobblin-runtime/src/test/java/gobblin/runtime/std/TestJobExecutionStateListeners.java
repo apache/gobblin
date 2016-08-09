@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
+
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobExecutionStateListener;
@@ -40,18 +42,20 @@ public class TestJobExecutionStateListeners {
 
     listeners.registerStateListener(l1);
 
-    JobExecutionState state = new JobExecutionState(js1, je1);
-    state.setStatus(RunningState.RUNNING);
-    listeners.onStatusChange(state, RunningState.PENDING, RunningState.RUNNING);
+    JobExecutionState state =
+        new JobExecutionState(js1, je1, Optional.<JobExecutionStateListener>of(listeners));
+    state.setRunningState(RunningState.PENDING);
+    state.setRunningState(RunningState.RUNNING);
 
     listeners.registerStateListener(l2);
     listeners.registerStateListener(l3);
     state.setStage("Stage1");
-    listeners.onStageTransition(state, JobExecutionState.UKNOWN_STAGE, "Stage1");
 
     listeners.unregisterStateListener(l2);
     listeners.onMetadataChange(state, "key", "oldValue", "newValue");
 
+    Mockito.verify(l1).onStatusChange(Mockito.eq(state),
+        Mockito.eq((RunningState)null), Mockito.eq(RunningState.PENDING));
     Mockito.verify(l1).onStatusChange(Mockito.eq(state),
         Mockito.eq(RunningState.PENDING), Mockito.eq(RunningState.RUNNING));
     Mockito.verify(l1).onStageTransition(Mockito.eq(state),

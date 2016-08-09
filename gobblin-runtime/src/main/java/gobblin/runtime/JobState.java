@@ -64,6 +64,18 @@ public class JobState extends SourceState {
    * An enumeration of possible job states, which are identical to
    * {@link gobblin.configuration.WorkUnitState.WorkingState}
    * in terms of naming.
+   *
+   * <p> Status state diagram:
+   * <ul>
+   *    <li> null => PENDING
+   *    <li> PENDING => RUNNING
+   *    <li> PENDING => CANCELLED
+   *    <li> RUNNING => CANCELLED
+   *    <li> RUNNING => SUCCESSFUL
+   *    <li> RUNNING => FAILED
+   *    <li> SUCCESSFUL => COMMITTED
+   *    <li> SUCCESSFUL => CANCELLED  (cancelled before committing)
+   * </ul>
    */
   public enum RunningState {
     /** Pending creation of {@link WorkUnit}s. */

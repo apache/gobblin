@@ -5,19 +5,23 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobContext;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
-import gobblin.runtime.JobState;
+import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.JobExecution;
 import gobblin.runtime.api.JobExecutionDriver;
+import gobblin.runtime.api.JobExecutionState;
+import gobblin.runtime.api.JobExecutionStateListener;
 import gobblin.runtime.api.JobExecutionStatus;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.listeners.AbstractJobListener;
+import gobblin.runtime.std.JobExecutionStateListeners;
 import gobblin.runtime.std.JobExecutionUpdatable;
 
 /**
@@ -30,7 +34,8 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
   private final JobLauncher _legacyLauncher;
   private final JobSpec _jobSpec;
   private final JobExecutionUpdatable _jobExec;
-  private final JobExecutionStatus _jobStatus;
+  private final JobExecutionState _jobState;
+  private final JobExecutionStateListeners _callbackDispatcher;
   private JobContext _jobContext;
 
   /**
@@ -53,7 +58,9 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     _sysConfig = sysConfig;
     _jobSpec = jobSpec;
     _jobExec = JobExecutionUpdatable.createFromJobSpec(jobSpec);
-    _jobStatus = new JobExecutionStatus(_jobExec);
+    _callbackDispatcher = new JobExecutionStateListeners(_log);
+    _jobState = new JobExecutionState(_jobSpec, _jobExec,
+                                      Optional.<JobExecutionStateListener>of(_callbackDispatcher));
     _legacyLauncher =
         createLauncher(jobLauncherType.isPresent() ?
                       Optional.of(jobLauncherType.get().toString()) :
@@ -83,7 +90,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
 
   @Override
   public JobExecutionStatus getJobExecutionStatus() {
-    return _jobStatus;
+    return _jobState;
   }
 
   @Override
@@ -127,35 +134,58 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     public void onJobPrepare(JobContext jobContext) throws Exception {
       super.onJobPrepare(jobContext);
       _jobContext = jobContext;
-      _jobStatus.setStatus(JobState.RunningState.PENDING);
+      _jobState.switchToPending();;
     }
 
     @Override
     public void onJobStart(JobContext jobContext) throws Exception {
       super.onJobStart(jobContext);
-      _jobStatus.setStatus(jobContext.getJobState().getState());
+      _jobState.switchToRunning();
     }
 
     @Override
     public void onJobCompletion(JobContext jobContext) throws Exception {
+      Preconditions.checkArgument(jobContext.getJobState().getState() == RunningState.SUCCESSFUL
+          || jobContext.getJobState().getState() == RunningState.COMMITTED
+          || jobContext.getJobState().getState() == RunningState.FAILED,
+          "Unexpected state: " + jobContext.getJobState().getState() + " in " + jobContext);
       super.onJobCompletion(jobContext);
-      _jobStatus.setStatus(jobContext.getJobState().getState());
+      if (jobContext.getJobState().getState() == RunningState.FAILED) {
+        _jobState.switchToFailed();
+      }
+      else {
+        _jobState.switchToSuccessful();
+      }
     }
 
     @Override
     public void onJobCancellation(JobContext jobContext) throws Exception {
       super.onJobCancellation(jobContext);
-      _jobStatus.setStatus(JobState.RunningState.CANCELLED);
+      _jobState.switchToCancelled();
     }
 
-    // FIXME CRITICAL Currently, we can't detect that the transition RUNNING -> SUCCESSFUL as
+    // FIXME Currently, we can't detect that the transition RUNNING -> SUCCESSFUL as
     // there is no notification. That transition happens internally in JobContext.
 
   }
 
-  @VisibleForTesting
-  JobLauncher getLegacyLauncher() {
+  @VisibleForTesting JobLauncher getLegacyLauncher() {
     return _legacyLauncher;
+  }
+
+  /** {@inheritDoc} */
+  @Override public void registerStateListener(JobExecutionStateListener listener) {
+    _callbackDispatcher.registerStateListener(listener);
+  }
+
+  /** {@inheritDoc} */
+  @Override public void unregisterStateListener(JobExecutionStateListener listener) {
+    _callbackDispatcher.unregisterStateListener(listener);
+  }
+
+  /** {@inheritDoc} */
+  @Override public JobExecutionState getJobExecutionState() {
+    return _jobState;
   }
 
 }

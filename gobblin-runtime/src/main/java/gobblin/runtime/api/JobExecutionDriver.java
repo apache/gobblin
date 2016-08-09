@@ -16,11 +16,11 @@ import com.google.common.util.concurrent.Service;
 /**
  * Defines an implementation which knows how to run a GobblinJob and keep track of the progress.
  */
-public interface JobExecutionDriver extends Service {
+public interface JobExecutionDriver extends Service, JobExecutionStateListenerContainer {
   /** The job execution ID */
   JobExecution getJobExecution();
   /** The job execution status */
   JobExecutionStatus getJobExecutionStatus();
-  //void registerStateListener(JobExecutionStateListener listener);
-  //void unregisterStateListener(JobExecutionStateListener listener);
+  /** The job execution state */
+  JobExecutionState getJobExecutionState();
 }
