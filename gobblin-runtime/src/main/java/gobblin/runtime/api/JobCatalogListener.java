@@ -11,7 +11,10 @@
  */
 package gobblin.runtime.api;
 
+import com.google.common.base.Objects;
+
 import gobblin.annotation.Alpha;
+import gobblin.util.callbacks.Callback;
 
 /**
  *  A listener for changes to the {@link JobSpec}s of a {@link JobCatalog}.
@@ -31,4 +34,51 @@ public interface JobCatalogListener {
    * Invoked when the contents of a JobSpec gets updated in the catalog.
    */
   public void onUpdateJob(JobSpec originalJob, JobSpec updatedJob);
+
+  /** A standard implementation of onAddJob as a functional object */
+  public static class AddJobCallback extends Callback<JobCatalogListener, Void> {
+    private final JobSpec _addedJob;
+    public AddJobCallback(JobSpec addedJob) {
+      super(Objects.toStringHelper("onAddJob").add("addedJob", addedJob).toString());
+      _addedJob = addedJob;
+    }
+
+    @Override public Void apply(JobCatalogListener listener) {
+      listener.onAddJob(_addedJob);
+      return null;
+    }
+  }
+
+  /** A standard implementation of onDeleteJob as a functional object */
+  public static class DeleteJobCallback extends Callback<JobCatalogListener, Void> {
+    private final JobSpec _deletedJob;
+
+    public DeleteJobCallback(JobSpec deletedJob) {
+      super(Objects.toStringHelper("onDeleteJob").add("deletedJob", deletedJob).toString());
+      _deletedJob = deletedJob;
+    }
+
+    @Override public Void apply(JobCatalogListener listener) {
+      listener.onDeleteJob(_deletedJob);
+      return null;
+    }
+  }
+
+  public static class UpdateJobCallback extends Callback<JobCatalogListener, Void> {
+    private final JobSpec _originalJob;
+    private final JobSpec _updatedJob;
+    public UpdateJobCallback(JobSpec originalJob, JobSpec updatedJob) {
+      super(Objects.toStringHelper("onUpdateJob").add("originalJob", originalJob)
+                   .add("updatedJob", updatedJob).toString());
+      _originalJob = originalJob;
+      _updatedJob = updatedJob;
+    }
+
+    @Override
+    public Void apply(JobCatalogListener listener) {
+      listener.onUpdateJob(_originalJob, _updatedJob);
+      return null;
+    }
+  }
+
 }

@@ -24,10 +24,10 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import gobblin.runtime.api.JobCatalogListener;
+import gobblin.runtime.api.JobCatalogListener.AddJobCallback;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.job_catalog.JobCatalogListenersList.AddJobCallback;
 
 /**
  * Simple implementation of a Gobblin job catalog that stores all JobSpecs in memory. No persistence

@@ -58,7 +58,7 @@ public class TestCallbacksDispatcher {
     disp1.addListener(l2);
     disp1.addListener(l3);
 
-    final VoidCallbackFactory voidCallback = new VoidCallbackFactory();
+    final VoidCallback voidCallback = new VoidCallback();
     CallbacksDispatcher.CallbackResults<MyListener, Void> voidRes = disp1.execCallbacks(voidCallback);
     Assert.assertEquals(voidRes.getSuccesses().size(), 2);
     Assert.assertEquals(voidRes.getFailures().size(), 1);
@@ -78,9 +78,9 @@ public class TestCallbacksDispatcher {
     Mockito.when(l2.booleanCallback(Mockito.eq(2))).thenReturn(true);
 
 
-    final VoidCallbackFactory voidCallback = new VoidCallbackFactory();
-    final BoolCallbackFactory boolCallback1 = new BoolCallbackFactory(1);
-    final BoolCallbackFactory boolCallback2 = new BoolCallbackFactory(2);
+    final VoidCallback voidCallback = new VoidCallback();
+    final BoolCallback boolCallback1 = new BoolCallback(1);
+    final BoolCallback boolCallback2 = new BoolCallback(2);
 
     Assert.assertEquals(disp.getListeners().size(), 0);
     CallbacksDispatcher.CallbackResults<MyListener, Void> voidRes = disp.execCallbacks(voidCallback);
@@ -130,30 +130,19 @@ public class TestCallbacksDispatcher {
     boolean booleanCallback(int param);
   }
 
-  private static class VoidCallbackFactory implements CallbackFactory<MyListener, Void> {
-    @Override
-    public Function<MyListener, Void> createCallbackRunnable() {
-      return new Function<TestCallbacksDispatcher.MyListener, Void>() {
-
-        @Override public Void apply(MyListener input) {
-          input.voidCallback();
-          return null;
-        }
-      };
+  private static class VoidCallback implements Function<MyListener, Void> {
+    @Override public Void apply(MyListener input) {
+      input.voidCallback();
+      return null;
     }
   }
 
   @AllArgsConstructor
-  private static class BoolCallbackFactory implements CallbackFactory<MyListener, Boolean> {
+  private static class BoolCallback implements Function<MyListener, Boolean> {
     private final int param;
 
-    @Override
-    public Function<MyListener, Boolean> createCallbackRunnable() {
-      return new Function<TestCallbacksDispatcher.MyListener, Boolean>() {
-        @Override public Boolean apply(MyListener input) {
-          return input.booleanCallback(param);
-        }
-      };
+    @Override public Boolean apply(MyListener input) {
+      return input.booleanCallback(param);
     }
   }
 

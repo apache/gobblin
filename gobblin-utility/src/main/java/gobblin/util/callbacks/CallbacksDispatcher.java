@@ -33,7 +33,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
- * A helper to dispatch callbacks to a set of listeners.
+ * A helper to dispatch callbacks to a set of listeners. The CallbacksDispatcher is responsible for
+ * managing the list if listeners which implement a common interface L. Invocation happens through
+ * the {@link #execCallbacks(CallbackFactory) method.
+ *
  * @param L     the listener type; it is strongly advised that the class implements toString() to
  *              provide useful logging
  */
@@ -92,28 +95,27 @@ public class CallbacksDispatcher<L> {
   public Logger getLog() {
     return _log;
   }
-  public <R> CallbackResults<L, R> execCallbacks(CallbackFactory<L, R> callbackFactory, L listener)
+  public <R> CallbackResults<L, R> execCallbacks(Function<L, R> callback, L listener)
          throws InterruptedException {
     Preconditions.checkNotNull(listener);
     List<L> listenerList = new ArrayList<>(1);
     listenerList.add(listener);
 
-    return execCallbacks(callbackFactory, listenerList);
+    return execCallbacks(callback, listenerList);
   }
 
-  public <R> CallbackResults<L, R> execCallbacks(CallbackFactory<L, R> callbackFactory)
+  public <R> CallbackResults<L, R> execCallbacks(Function<L, R> callback)
          throws InterruptedException {
-    Preconditions.checkNotNull(callbackFactory);
+    Preconditions.checkNotNull(callback);
     List<L> listeners = getListeners();
 
-    return execCallbacks(callbackFactory, listeners);
+    return execCallbacks(callback, listeners);
   }
 
-  private <R> CallbackResults<L, R> execCallbacks(CallbackFactory<L, R> callbackFactory, List<L> listeners)
+  private <R> CallbackResults<L, R> execCallbacks(Function<L, R> callback, List<L> listeners)
       throws InterruptedException {
     List<Callable<R>> callbacks = new ArrayList<>(listeners.size());
     for (L listener: listeners) {
-      Function<L, R> callback = callbackFactory.createCallbackRunnable();
       callbacks.add(new CallbackCallable<>(callback, listener));
     }
 

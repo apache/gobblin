@@ -15,16 +15,12 @@ import java.util.concurrent.ExecutorService;
 
 import org.slf4j.Logger;
 
-import com.google.common.base.Function;
-import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobExecutionStateListener;
 import gobblin.runtime.api.JobExecutionStateListenerContainer;
-import gobblin.util.callbacks.Callback;
-import gobblin.util.callbacks.CallbackFactory;
 import gobblin.util.callbacks.CallbacksDispatcher;
 
 /**
@@ -66,8 +62,7 @@ public class JobExecutionStateListeners
   public void onStatusChange(JobExecutionState state, RunningState previousStatus,
                               RunningState newStatus) {
     try {
-      _dispatcher.execCallbacks(new JobExecutionStateCallbackFactory(
-            new StatusChangeCallback(state, previousStatus, newStatus)));
+      _dispatcher.execCallbacks(new StatusChangeCallback(state, previousStatus, newStatus));
     } catch (InterruptedException e) {
       _dispatcher.getLog().warn("onStatusChange interrupted.");
     }
@@ -77,8 +72,7 @@ public class JobExecutionStateListeners
   @Override
   public void onStageTransition(JobExecutionState state, String previousStage, String newStage) {
     try {
-      _dispatcher.execCallbacks(new JobExecutionStateCallbackFactory(
-            new StageTransitionCallback(state, previousStage, newStage)));
+      _dispatcher.execCallbacks(new StageTransitionCallback(state, previousStage, newStage));
     } catch (InterruptedException e) {
       _dispatcher.getLog().warn("onStageTransition interrupted.");
     }
@@ -88,102 +82,10 @@ public class JobExecutionStateListeners
   @Override
   public void onMetadataChange(JobExecutionState state, String key, Object oldValue, Object newValue) {
     try {
-      _dispatcher.execCallbacks(new JobExecutionStateCallbackFactory(
-            new MetadataChangeCallback(state, key, oldValue, newValue)));
+      _dispatcher.execCallbacks(new MetadataChangeCallback(state, key, oldValue, newValue));
     } catch (InterruptedException e) {
       _dispatcher.getLog().warn("onMetadataChange interrupted.");
     }
-  }
-
-  protected static class StatusChangeCallback extends Callback<JobExecutionStateListener, Void> {
-    private final JobExecutionState state;
-    private final RunningState previousStatus;
-    private final RunningState newStatus;
-
-    public StatusChangeCallback(final JobExecutionState state,
-                                final RunningState previousStatus,
-                                final RunningState newStatus) {
-      super(Objects.toStringHelper("onStatusChange")
-                   .add("state", state)
-                   .add("previousStatus", previousStatus)
-                   .add("newStatus", newStatus)
-                   .toString());
-      this.state = state;
-      this.previousStatus = previousStatus;
-      this.newStatus = newStatus;
-    }
-
-    @Override public Void apply(JobExecutionStateListener input) {
-      input.onStatusChange(this.state, this.previousStatus, this.newStatus);
-      return null;
-    }
-  }
-
-  protected static class JobExecutionStateCallbackFactory
-            implements CallbackFactory<JobExecutionStateListener, Void> {
-    private final Function<JobExecutionStateListener, Void> _callback;
-
-    public JobExecutionStateCallbackFactory(Function<JobExecutionStateListener, Void> callback) {
-      _callback = callback;
-    }
-
-    @Override public Function<JobExecutionStateListener, Void> createCallbackRunnable() {
-      return _callback;
-    }
-  }
-
-  protected static class StageTransitionCallback extends
-            Callback<JobExecutionStateListener, Void> {
-    private final JobExecutionState state;
-    private final String previousStage;
-    private final String newStage;
-
-    public StageTransitionCallback(final JobExecutionState state, final String previousStage,
-                                   final String newStage) {
-      super(Objects.toStringHelper("onStageTransition")
-                   .add("state", state)
-                   .add("previousStage", previousStage)
-                   .add("newStage", newStage)
-                   .toString());
-      this.state = state;
-      this.previousStage = previousStage;
-      this.newStage = newStage;
-    }
-
-    @Override
-    public Void apply(JobExecutionStateListener input) {
-      input.onStageTransition(this.state, this.previousStage, this.newStage);
-      return null;
-    }
-
-  }
-
-  protected static class MetadataChangeCallback extends Callback<JobExecutionStateListener, Void> {
-    private final JobExecutionState state;
-    private final String key;
-    private final Object oldValue;
-    private final Object newValue;
-
-    public MetadataChangeCallback(final JobExecutionState state, final String key,
-                                  final Object oldValue, final Object newValue) {
-      super(Objects.toStringHelper("onMetadataChange")
-                   .add("state", state)
-                   .add("key", key)
-                   .add("oldValue", oldValue)
-                   .add("newValue", newValue)
-                   .toString());
-      this.state = state;
-      this.key = key;
-      this.oldValue = oldValue;
-      this.newValue = newValue;
-    }
-
-    @Override
-    public Void apply(JobExecutionStateListener input) {
-      input.onMetadataChange(state, key, oldValue, newValue);
-      return null;
-    }
-
   }
 
 }
