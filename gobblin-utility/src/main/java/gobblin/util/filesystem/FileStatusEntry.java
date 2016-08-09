@@ -43,6 +43,7 @@ public class FileStatusEntry extends FileStatus {
         try {
           Optional<FileStatus> newStatus = Optional.of(fs.getFileStatus(path));
           this.exists = newStatus.isPresent();
+
           return (oldStatus.isPresent() != this._fileStatus.isPresent()
               || oldStatus.get().getModificationTime() != newStatus.get().getModificationTime()
               || oldStatus.get().isDirectory() != newStatus.get().isDirectory() || oldStatus.get().getLen() != newStatus

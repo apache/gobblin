@@ -201,7 +201,6 @@ public class FSJobCatalogHelperTest {
     Properties jobProps =
         SchedulerUtils.loadGenericJobConfig(properties, jobConfigPath, new Path(this.jobConfigDir.getAbsolutePath()));
 
-
     Assert.assertEquals(jobProps.stringPropertyNames().size(), 5);
     Assert.assertTrue(jobProps.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || jobProps.containsKey(
         ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
@@ -264,6 +263,9 @@ public class FSJobCatalogHelperTest {
     File targetFile = new File(this.jobConfigDir, relativePathOfTestPull.toString());
     Assert.assertFalse(targetFile.isDirectory());
 
+    /**
+     * Complate jobSpec materialization.
+     */
     Properties testProps = new Properties();
     testProps.setProperty("a", "1");
     testProps.setProperty("b", "2");
@@ -286,6 +288,20 @@ public class FSJobCatalogHelperTest {
         FSJobCatalogHelper.dematerializeConfigFile(new Path(this.jobConfigDir.toURI()), relativePathOfTestPull);
 
     Assert.assertEquals(js_1, js_1_loaded);
+
+    /**
+     * incomplate jobSpec materialization.
+     */
+    JobSpec js_2 = JobSpec.builder(relativePathOfTestPull).build();
+    FSJobCatalogHelper.materializedJobSpec(new Path(this.jobConfigDir.toURI()), js_2);
+
+    Assert.assertTrue(targetFile.exists());
+    Assert.assertTrue(targetFile.isFile());
+
+    JobSpec js_2_loaded =
+        FSJobCatalogHelper.dematerializeConfigFile(new Path(this.jobConfigDir.toURI()), relativePathOfTestPull);
+
+    Assert.assertEquals(js_2, js_2_loaded);
   }
 
   @AfterClass

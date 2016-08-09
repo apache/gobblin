@@ -31,10 +31,10 @@ import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.util.FSJobCatalogHelper;
+import gobblin.util.filesystem.PathAlterationObserver;
 import gobblin.util.filesystem.PathAlterationDetector;
 import gobblin.util.filesystem.PathAlterationListenerAdaptor;
 import gobblin.runtime.job_catalog.JobCatalogListenersList.AddJobCallback;
-import gobblin.runtime.job_catalog.JobCatalogListenersList.UpdateJobCallback;
 import gobblin.runtime.job_catalog.JobCatalogListenersList.DeleteJobCallback;
 
 
@@ -56,11 +56,12 @@ public class FSJobCatalog implements MutableJobCatalog {
    */
   private final Path jobConfDirPath;
 
-
   // A monitor for changes to job conf files for general FS
   // This embedded monitor is monitoring job configuration files instead of JobSpec Object.
   public final PathAlterationDetector pathAlterationDetector;
   private final FileSystem fs;
+
+  public Optional<PathAlterationObserver> _observerOptional;
 
   /**
    * SINGLEJOB means load job configuration for single job.
@@ -86,12 +87,30 @@ public class FSJobCatalog implements MutableJobCatalog {
         this.jobConfig.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
     this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
+    this._observerOptional = Optional.absent();
 
     // Start the monitor immediately the FSJobCatalog is created so that
     // all newly-created file will be reported.
     startGenericFSJobConfigDetector();
   }
 
+  /**
+   * Used for testing purpose, when the Observer is neccessay to be exposed so that
+   * the checkAndNotify method can be revoked manually, instead of waiting for
+   * the scheduling timing.
+   * @param jobConfig The same as general constructor.
+   * @param observer The user-initialized observer.
+   * @throws Exception
+   */
+  public FSJobCatalog(Properties jobConfig, PathAlterationObserver observer)
+      throws Exception {
+    this(jobConfig);
+    this._observerOptional = Optional.of(observer);
+
+    FSPathAlterationListenerAdaptor configFilelistener = new FSPathAlterationListenerAdaptor(this.jobConfDirPath);
+    FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener,
+        _observerOptional, this.jobConfDirPath);
+  }
 
   /**
    * return the root path of the configuration file folder
@@ -170,15 +189,25 @@ public class FSJobCatalog implements MutableJobCatalog {
   public synchronized void put(JobSpec jobSpec) {
     Preconditions.checkNotNull(jobSpec);
     try {
-      if (fs.exists(new Path(this.jobConfDirPath, jobSpec.getUri().toString()))) {
+      String tmpStr = jobSpec.getUri().toString();
+      Path tmpPath = new Path(this.jobConfDirPath, tmpStr);
+      if (fs.exists(tmpPath)) {
         LOGGER.info("The job with URI[" + new Path(this.jobConfDirPath, jobSpec.getUri().toString())
             + "] has been added before, will cover the original one.");
+        JobSpec oldSpec =  FSJobCatalogHelper.loadJobConfigHelper(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
+            Optional.of(new Path(tmpStr))).get(0);
         fs.delete(new Path(this.jobConfDirPath, jobSpec.getUri().toString()), false);
+        LOGGER.info("The old job deleted.");
+
+        // The checkAndNotify method cannot file update's implementation using deletion first creation followed,
+        // since each creation will invoke refresh() method that update the modification time.
+        // Here notify the gobblin Instance driver directly instead of letting the detector to notify.
+        this.listeners.onUpdateJob(oldSpec, jobSpec);
       }
 
       FSJobCatalogHelper.materializedJobSpec(this.jobConfDirPath, jobSpec);
     } catch (IOException e) {
-      throw new RuntimeException("When persisting a new JobSpec, issues unexpected happen:" + e.getMessage());
+      throw new RuntimeException("When persisting a new JobSpec, unexpected issues happen:" + e.getMessage());
     }
   }
 
@@ -190,7 +219,8 @@ public class FSJobCatalog implements MutableJobCatalog {
   @Override
   public synchronized void remove(URI userSpecifiedURI) {
     try {
-      URI uri = new Path(this.jobConfDirPath, userSpecifiedURI.toString()).toUri();
+      Path tmpPath = new Path(this.jobConfDirPath, userSpecifiedURI.toString());
+      URI uri = tmpPath.toUri();
       Preconditions.checkNotNull(uri);
 
       if (fs.exists(new Path(uri))) {
@@ -211,7 +241,8 @@ public class FSJobCatalog implements MutableJobCatalog {
   private void startGenericFSJobConfigDetector()
       throws Exception {
     FSPathAlterationListenerAdaptor configFilelistener = new FSPathAlterationListenerAdaptor(this.jobConfDirPath);
-    FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener, this.jobConfDirPath);
+    FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener,
+         _observerOptional, this.jobConfDirPath);
     this.pathAlterationDetector.start();
   }
 
@@ -219,7 +250,7 @@ public class FSJobCatalog implements MutableJobCatalog {
    * It is InMemoryJobCatalog's responsibility to inform the gobblin instance driver about the file change.
    * Here it is internal detector's responsibility.
    */
-  private class FSPathAlterationListenerAdaptor extends PathAlterationListenerAdaptor {
+  public class FSPathAlterationListenerAdaptor extends PathAlterationListenerAdaptor {
     Path jobConfDirPath;
 
     FSPathAlterationListenerAdaptor(Path jobConfDirPath) {
@@ -241,28 +272,15 @@ public class FSJobCatalog implements MutableJobCatalog {
     }
 
     /**
-     * In the call to {@link UpdateJobCallback}, it is hard to retrieve oldJobSpec without caching layer suppport.
-     * Here simply passed the null.
-     * @param rawPath This could be the complete path to the newly-changed configuration file.
-     */
-    @Override
-    public void onFileChange(Path rawPath) {
-      Path relativePath = PathUtils.relativizePath(rawPath, this.jobConfDirPath);
-      JobSpec updatedJobSpec =
-          FSJobCatalogHelper.loadJobConfigHelper(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
-              Optional.of(relativePath)).get(0);
-      UpdateJobCallback updateJobCallback = new UpdateJobCallback(null, updatedJobSpec);
-      listeners.callbackAllListeners(updateJobCallback);
-    }
-
-    /**
      * For already deleted job configuration file, the only identifier is path
      * it doesn't make sense to loadJobConfig Here.
      * @param rawPath This could be the complete path to the newly-deleted configuration file.
      */
     @Override
     public void onFileDelete(Path rawPath) {
-      JobSpec deletedJobSpec = JobSpec.builder(rawPath.toUri()).build();
+      Path relativePath = PathUtils.relativizePath(rawPath, this.jobConfDirPath);
+      JobSpec deletedJobSpec = new JobSpec.Builder(relativePath.toUri()).build();
+
       DeleteJobCallback deleteJobCallback = new DeleteJobCallback(deletedJobSpec);
       listeners.callbackAllListeners(deleteJobCallback);
     }

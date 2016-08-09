@@ -11,7 +11,6 @@
  */
 package gobblin.runtime.util;
 
-import gobblin.util.PathUtils;
 import java.net.URI;
 import java.util.Set;
 import java.util.List;
@@ -25,6 +24,7 @@ import java.io.BufferedWriter;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.URISyntaxException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +47,7 @@ import com.google.common.collect.ImmutableSet;
 
 import gobblin.util.ConfigUtils;
 import gobblin.runtime.api.JobSpec;
-import gobblin.util.resourcesBasedTemplate;
+import gobblin.util.ResourceBasedTemplate;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationDetector;
@@ -93,18 +93,23 @@ public class FSJobCatalogHelper {
   public static JobSpec loadGenericJobConfig(Properties frameworkProps, Path jobConfigRelativePath,
       Path jobConfigDirPath)
       throws ConfigurationException, IOException {
-
     // Add the framework configuration properties to the end
     Properties jobProps = new Properties();
     jobProps.putAll(frameworkProps);
 
     // Assemble the complete path in target file system first.
     // Then load the job configuration properties defined in the job configuration file
-    jobProps.putAll(ConfigurationConverter.getProperties(
-        new PropertiesConfiguration(new Path(jobConfigDirPath, jobConfigRelativePath).toUri().toURL())));
+    Path completePath = new Path(jobConfigDirPath, jobConfigRelativePath);
+
+    try (FileSystem fs = completePath.getFileSystem(new Configuration())) {
+      try (InputStream is = fs.open(completePath)) {
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(is, Charsets.UTF_8));
+        jobProps.load(bufferedReader);
+      }
+    }
 
     if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      jobProps = (new resourcesBasedTemplate(
+      jobProps = (new ResourceBasedTemplate(
           jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
     }
 
@@ -112,6 +117,7 @@ public class FSJobCatalogHelper {
 
     // Create a JobSpec instance based on the info known.
     // Noted that jobConfigPath is the
+
     return jobSpecConverter(jobProps, jobConfigRelativePath.toUri());
   }
 
@@ -179,12 +185,17 @@ public class FSJobCatalogHelper {
 
             // Get template there's any corresponded.
             if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-              jobProps = (new resourcesBasedTemplate(
+              jobProps = (new ResourceBasedTemplate(
                   jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
             }
 
             // Building and inserting the JobSpec accordingly.
-            jobConfigs.add(jobSpecConverter(jobProps, configFilePath.toUri()));
+            // Keep the URI(identifier as the relative path. )
+            try {
+              jobConfigs.add(jobSpecConverter(jobProps, new URI(configFilePath.getName())));
+            } catch (URISyntaxException e) {
+              throw new RuntimeException("that");
+            }
           }
         }
       }
@@ -270,7 +281,6 @@ public class FSJobCatalogHelper {
     } catch (ConfigurationException e) {
       throw new RuntimeException("Failed to load job configuration from" + jobConfigDirPath);
     }
-
     return jobSpecList;
   }
 
@@ -284,9 +294,14 @@ public class FSJobCatalogHelper {
    * @param rootDirPath root directory
    */
   public static void addPathAlterationObserver(PathAlterationDetector monitor, PathAlterationListener listener,
-      Path rootDirPath)
+      Optional<PathAlterationObserver> observerOptional, Path rootDirPath)
       throws IOException {
-    PathAlterationObserver observer = new PathAlterationObserver(rootDirPath);
+    PathAlterationObserver observer;
+    if (!observerOptional.isPresent()) {
+      observer = new PathAlterationObserver(rootDirPath);
+    } else {
+      observer = observerOptional.get();
+    }
     observer.addListener(listener);
     monitor.addObserver(observer);
   }
@@ -308,8 +323,7 @@ public class FSJobCatalogHelper {
 
       try (OutputStream os = fs.create(path)) {
         BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(os, Charsets.UTF_8));
-        props.store(bufferedWriter, "The jobSpec with URI[" + new Path(jobConfDirPath, jobSpec.getUri().toString())
-            + "] has been materialized.");
+        props.store(bufferedWriter, "");
       }
     }
   }
@@ -349,10 +363,14 @@ public class FSJobCatalogHelper {
    * @return
    */
   public static JobSpec jobSpecConverter(Properties rawProp, URI jobConfigURI) {
-    Optional<String> description;
-    Optional<String> version;
-    Config config;
+    Optional<String> description = Optional.absent();
+    Optional<String> version = Optional.absent();
+    Config config = null;
+
     if (rawProp != null) {
+      // To ensure the transparency of JobCatalog, need to remove the addtional
+      // options that added through the materialization process.
+
       // No exception thrown when the property not existed.
       description = Optional.fromNullable(rawProp.getProperty(DESCRIPTION_KEY_IN_JOBSPEC));
       if (description.isPresent()) {
@@ -362,9 +380,16 @@ public class FSJobCatalogHelper {
       if (version.isPresent()) {
         rawProp.remove(VERSION_KEY_IN_JOBSPEC);
       }
+      if (rawProp.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY)) {
+        rawProp.remove(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY);
+      }
+      if (rawProp.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
+        rawProp.remove(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY);
+      }
+      if (rawProp.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
+        rawProp.remove(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY);
+      }
       config = ConfigUtils.propertiesToConfig(rawProp);
-    } else {
-      throw new RuntimeException("The null properties Object is being processed, error in loading");
     }
 
     return JobSpec.builder(jobConfigURI)
