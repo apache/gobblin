@@ -18,7 +18,7 @@ writer.partitioner.class=gobblin.example.wikipedia.WikipediaPartitioner
 
 data.publisher.type=gobblin.publisher.BaseDataPublisher
 
-required.attribute=source.page.titles
+gobblin.template.required_attributes=source.page.titles
 
 # An exmaple for user to specify this attributes:
 # source.page.titles=NASA,LinkedIn,Parris_Cues,Barbara_Corcoran

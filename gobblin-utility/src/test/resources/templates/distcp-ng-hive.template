@@ -14,4 +14,4 @@ distcp.persist.dir=/tmp/distcp-persist-dir
 hive.dataset.database=default
 
 # Please refer to distcp-ng Runbook for available value for following options.
-required.attribute=writer.builder.class,converter.classes,job.name,job.description,data.publisher.final.dir,gobblin.dataset.profile.class,gobblin.dataset.pattern,hive.dataset.copy.target.table.root,hive.dataset.hive.metastore.uri,hive.dataset.copy.target.metastore.uri,hive.dataset.copy.target.database
+gobblin.template.required_attributes=writer.builder.class,converter.classes,job.name,job.description,data.publisher.final.dir,gobblin.dataset.profile.class,gobblin.dataset.pattern,hive.dataset.copy.target.table.root,hive.dataset.hive.metastore.uri,hive.dataset.copy.target.metastore.uri,hive.dataset.copy.target.database
