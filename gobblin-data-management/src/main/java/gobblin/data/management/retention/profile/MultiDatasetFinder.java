@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
@@ -37,6 +38,7 @@ import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.api.VersionDoesNotExistException;
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -86,10 +88,9 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
           Config datasetClassConfig = client.getConfig(importedBy);
 
           try {
-            this.datasetFinders
-                .add((DatasetsFinder) ConstructorUtils.invokeConstructor(
-                    Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), fs, jobProps,
-                    datasetClassConfig));
+            this.datasetFinders.add((DatasetsFinder) GobblinConstructorUtils.invokeFirstConstructor(
+                Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), ImmutableList.of(fs, jobProps,
+                    datasetClassConfig), ImmutableList.of(fs, jobProps)));
             log.info(String.format("Instantiated datasetfinder %s for %s.",
                 datasetClassConfig.getString(datasetFinderClassKey()), importedBy));
           } catch (InstantiationException | IllegalAccessException | IllegalArgumentException

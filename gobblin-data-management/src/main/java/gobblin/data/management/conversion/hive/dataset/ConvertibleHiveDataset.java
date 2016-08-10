@@ -84,8 +84,11 @@ public class ConvertibleHiveDataset extends HiveDataset {
     super(fs, clientPool, table, config);
 
     Preconditions.checkArgument(config.hasPath(DESTINATION_CONVERSION_FORMATS_KEY), String.format(
-        "Atleast one destination format should be specified at %s. If you do not intend to convert this dataset set %s to true",
-        DESTINATION_CONVERSION_FORMATS_KEY, HiveDatasetFinder.HIVE_DATASET_IS_BLACKLISTED_KEY));
+        "Atleast one destination format should be specified at %s.%s. If you do not intend to convert this dataset set %s.%s to true",
+        super.properties.getProperty(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, ""),
+        DESTINATION_CONVERSION_FORMATS_KEY,
+        super.properties.getProperty(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, ""),
+        HiveDatasetFinder.HIVE_DATASET_IS_BLACKLISTED_KEY));
 
     // value for DESTINATION_CONVERSION_FORMATS_KEY can be a TypeSafe list or a comma separated list of string
     this.destFormats = Sets.newHashSet(ConfigUtils.getStringList(config, DESTINATION_CONVERSION_FORMATS_KEY));
