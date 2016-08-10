@@ -270,7 +270,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
     // Config store enabled
     if (this.configStoreUri.isPresent()) {
-      datasetConfig = this.configClient.getConfig(this.configStoreUri.get() + HiveConfigClientUtils.getDatasetUri(dbAndTable));
+      datasetConfig = this.configClient.getConfig(this.configStoreUri.get() + Path.SEPARATOR + HiveConfigClientUtils.getDatasetUri(dbAndTable));
 
     // If config store is not enabled use job config
     } else {
