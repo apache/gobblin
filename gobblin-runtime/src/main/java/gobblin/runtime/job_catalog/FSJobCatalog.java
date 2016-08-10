@@ -191,24 +191,26 @@ public class FSJobCatalog implements MutableJobCatalog {
   public synchronized void put(JobSpec jobSpec) {
     Preconditions.checkNotNull(jobSpec);
     try {
-      String tmpStr = jobSpec.getUri().toString();
+      String srcFileName = jobSpec.getUri().toString();
       Path tmpPath = PathUtils.mergePaths(this.jobConfDirPath, new Path(jobSpec.getUri().toString()));
       if (fs.exists(tmpPath)) {
         LOGGER.info("The job with URI[" + tmpPath
             + "] has been added before, will cover the original one.");
         JobSpec oldSpec = FSJobCatalogHelper.loadJobConfigHelper(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
-            Optional.of(new Path(tmpStr))).get(0);
-        fs.delete(tmpPath, false);
+            Optional.of(new Path(srcFileName))).get(0);
+        FSJobCatalogHelper.updateExistedConfigFile(new Path(srcFileName), this.jobConfDirPath, jobSpec);
 
         // The checkAndNotify method cannot file update's implementation using deletion first creation followed,
         // since each creation will invoke refresh() method that update the modification time.
         // Here notify the gobblin Instance driver directly instead of letting the detector to notify.
         this.listeners.onUpdateJob(oldSpec, jobSpec);
+      } else {
+        FSJobCatalogHelper.materializeJobSpec(this.jobConfDirPath, jobSpec);
       }
-
-      FSJobCatalogHelper.materializeJobSpec(this.jobConfDirPath, jobSpec);
     } catch (IOException e) {
       throw new RuntimeException("When persisting a new JobSpec, unexpected issues happen:" + e.getMessage());
+    } catch (JobSpecNotFoundException e) {
+      throw new RuntimeException("When replacing a existed JobSpec, unexpected issue happen:" + e.getMessage());
     }
   }
 

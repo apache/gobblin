@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.util;
 
+import gobblin.runtime.api.JobSpecNotFoundException;
+import gobblin.util.PathUtils;
 import java.net.URI;
 import java.util.Set;
 import java.util.List;
@@ -25,6 +27,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.URISyntaxException;
 
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -351,6 +354,47 @@ public class FSJobCatalogHelper {
         BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(os, Charsets.UTF_8));
         props.store(bufferedWriter, "");
         bufferedWriter.close();
+      }
+    }
+  }
+
+  /**
+   * Used for shadow copying in the process of updating a existing job configuration file,
+   * which requires deletion of the pre-existed copy of file and create a new one with the same name.
+   * Steps:
+   *  Create a new one in /tmp.
+   *  Safely deletion of old one.
+   *  copy the newly createad configuration file to jobConfigDir.
+   *  Delete the shadow file.
+   *
+   * @param srcFileName The target file to be replaced,
+   *               Noted that only the file name is provided, to guarantee in /tmp they are flat.
+   */
+  public static void updateExistedConfigFile(Path srcFileName, Path jobConfigDirPath, JobSpec jobSpec)
+      throws IOException, JobSpecNotFoundException {
+    Path shadowDirectoryPath = new Path("/tmp");
+    Configuration conf = new Configuration();
+    try (FileSystem shadow_fs = shadowDirectoryPath.getFileSystem(conf)) {
+      Path shadowFilePath = PathUtils.mergePaths(shadowDirectoryPath, srcFileName);
+      System.err.println("[updateExistedConfigFile]: " + shadowFilePath);
+      /* If previously existed, should delete anyway */
+      if (shadow_fs.exists(shadowFilePath)) {
+        shadow_fs.delete(shadowFilePath, false);
+      }
+      /*Write new file in /tmp folder*/
+      materializeJobSpec(shadowDirectoryPath, jobSpec);
+
+      /* Delete oldSpec and replace it with new one. */
+      try (FileSystem configFs = jobConfigDirPath.getFileSystem(conf)) {
+        Path toBeReplacedPath = new Path(jobConfigDirPath, jobSpec.getUri().toString());
+
+        synchronized (new Object()) {
+          if (!configFs.exists(toBeReplacedPath)) {
+            throw new JobSpecNotFoundException(jobSpec.getUri());
+          }
+          configFs.delete(toBeReplacedPath, false);
+          FileUtil.copy(shadow_fs, shadowFilePath, configFs, toBeReplacedPath, true, true, conf);
+        }
       }
     }
   }
