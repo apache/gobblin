@@ -11,13 +11,21 @@
  */
 package gobblin.runtime.api;
 
-import gobblin.runtime.JobState;
+/**
+ * Manages a collection of {@link JobCatalogListener}s .
+ */
+public interface JobCatalogListenersContainer {
 
-public interface JobExecutionStatus {
-  public static final String UKNOWN_STAGE = "unkown";
+  /**
+   * Adds a {@link JobCatalogListener} that will be invoked upon updates on the
+   * {@link JobCatalog}. Upon registration {@link JobCatalogListener#onAddJob(JobSpec)} will be
+   * invoked for all pre-existing jobs in the JobCatalog.
+   */
+  void addListener(JobCatalogListener jobListener);
 
-  JobExecution getJobExecution();
-  JobState.RunningState getRunningState();
-  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  String getStage();
+  /**
+   * Removes the specified listener. No-op if not registered.
+   */
+  void removeListener(JobCatalogListener jobListener);
+
 }

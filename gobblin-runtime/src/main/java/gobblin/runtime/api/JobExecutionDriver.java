@@ -11,13 +11,16 @@
  */
 package gobblin.runtime.api;
 
-import gobblin.runtime.JobState;
+import com.google.common.util.concurrent.Service;
 
-public interface JobExecutionStatus {
-  public static final String UKNOWN_STAGE = "unkown";
-
+/**
+ * Defines an implementation which knows how to run a GobblinJob and keep track of the progress.
+ */
+public interface JobExecutionDriver extends Service, JobExecutionStateListenerContainer {
+  /** The job execution ID */
   JobExecution getJobExecution();
-  JobState.RunningState getRunningState();
-  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  String getStage();
+  /** The job execution status */
+  JobExecutionStatus getJobExecutionStatus();
+  /** The job execution state */
+  JobExecutionState getJobExecutionState();
 }

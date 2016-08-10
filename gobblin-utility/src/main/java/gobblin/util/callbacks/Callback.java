@@ -9,15 +9,22 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.runtime.api;
+package gobblin.util.callbacks;
 
-import gobblin.runtime.JobState;
+import com.google.common.base.Function;
 
-public interface JobExecutionStatus {
-  public static final String UKNOWN_STAGE = "unkown";
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-  JobExecution getJobExecution();
-  JobState.RunningState getRunningState();
-  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  String getStage();
+/**
+ * A helper class to wrap a function and provide a name for logging purposes
+ */
+@Getter
+@AllArgsConstructor
+public abstract class Callback<L, R> implements Function<L, R> {
+  private final String name;
+
+  @Override public String toString() {
+    return this.name;
+  }
 }

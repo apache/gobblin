@@ -11,13 +11,13 @@
  */
 package gobblin.runtime.api;
 
-import gobblin.runtime.JobState;
+import gobblin.annotation.Alpha;
 
-public interface JobExecutionStatus {
-  public static final String UKNOWN_STAGE = "unkown";
-
-  JobExecution getJobExecution();
-  JobState.RunningState getRunningState();
-  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  String getStage();
+/**
+ * Defines an interface for managing a collection of {@JobExecutionStateListener}s
+ */
+@Alpha
+public interface JobExecutionStateListenerContainer {
+  void registerStateListener(JobExecutionStateListener listener);
+  void unregisterStateListener(JobExecutionStateListener listener);
 }

@@ -9,15 +9,8 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.runtime.api;
-
-import gobblin.runtime.JobState;
-
-public interface JobExecutionStatus {
-  public static final String UKNOWN_STAGE = "unkown";
-
-  JobExecution getJobExecution();
-  JobState.RunningState getRunningState();
-  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  String getStage();
-}
+/**
+ * Standard {@link gobblin.runtime.api.JobExecutionLauncher} implementations
+ *
+ */
+package gobblin.runtime.job_exec;
