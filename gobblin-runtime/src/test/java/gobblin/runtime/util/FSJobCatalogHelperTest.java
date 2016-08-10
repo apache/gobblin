@@ -12,8 +12,7 @@
 
 package gobblin.runtime.util;
 
-import gobblin.runtime.api.JobSpec;
-import gobblin.util.ConfigUtils;
+
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -35,12 +34,16 @@ import org.apache.commons.configuration.ConfigurationException;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.google.common.collect.Sets;
+import com.beust.jcommander.internal.Lists;
+import com.google.common.base.Optional;
 
-import gobblin.util.SchedulerUtils;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.filesystem.PathAlterationDetector;
 import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationListenerAdaptor;
+import gobblin.runtime.api.JobSpec;
+import gobblin.util.ConfigUtils;
+import gobblin.util.filesystem.PathAlterationObserver;
 
 
 /**
@@ -111,20 +114,24 @@ public class FSJobCatalogHelperTest {
     jobProps4.store(new FileWriter(new File(this.subDir2, "test21.PULL")), "");
   }
 
+  // This test doesn't delete framework attributes and
   @Test
   public void testloadGenericJobConfigs()
       throws ConfigurationException, IOException {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
-    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
-
+    List<JobSpec> jobSpecs = FSJobCatalogLoadingHelper.loadGenericJobConfigs(properties);
+    List<Properties> jobConfigs = convertJobSpecList2PropList(jobSpecs);
     Assert.assertEquals(jobConfigs.size(), 4);
 
     // test-job-conf-dir/test1/test11/test111.pull
     Properties jobProps1 = getJobConfigForFile(jobConfigs, "test111.pull");
-    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 5);
-    Assert.assertTrue(jobProps1.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || jobProps1.containsKey(
-        ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+
+    //5 is consisting of three attributes, plus ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY
+    // which is on purpose to keep
+    // plus ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, which is not necessary to convert into JobSpec
+    // but keep it here to avoid NullPointer exception and validation purpose for testing.
+    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 4);
     Assert.assertTrue(jobProps1.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
     Assert.assertEquals(jobProps1.getProperty("k1"), "d1");
     Assert.assertEquals(jobProps1.getProperty("k8"), "a8");
@@ -132,9 +139,7 @@ public class FSJobCatalogHelperTest {
 
     // test-job-conf-dir/test1/test11.pull
     Properties jobProps2 = getJobConfigForFile(jobConfigs, "test11.pull");
-    Assert.assertEquals(jobProps2.stringPropertyNames().size(), 5);
-    Assert.assertTrue(jobProps2.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || jobProps1.containsKey(
-        ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+    Assert.assertEquals(jobProps2.stringPropertyNames().size(), 4);
     Assert.assertTrue(jobProps2.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
     Assert.assertEquals(jobProps2.getProperty("k1"), "c1");
     Assert.assertEquals(jobProps2.getProperty("k3"), "b3");
@@ -142,78 +147,39 @@ public class FSJobCatalogHelperTest {
 
     // test-job-conf-dir/test1/test12.PULL
     Properties jobProps3 = getJobConfigForFile(jobConfigs, "test12.PULL");
-    Assert.assertEquals(jobProps3.stringPropertyNames().size(), 3);
-    Assert.assertTrue(jobProps3.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || jobProps1.containsKey(
-        ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+    Assert.assertEquals(jobProps3.stringPropertyNames().size(), 2);
     Assert.assertTrue(jobProps3.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
     Assert.assertEquals(jobProps3.getProperty("k7"), "a7");
 
     // test-job-conf-dir/test2/test21.PULL
     Properties jobProps4 = getJobConfigForFile(jobConfigs, "test21.PULL");
-    Assert.assertEquals(jobProps4.stringPropertyNames().size(), 3);
-    Assert.assertTrue(jobProps4.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || jobProps1.containsKey(
-        ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+    Assert.assertEquals(jobProps4.stringPropertyNames().size(), 2);
     Assert.assertTrue(jobProps4.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
     Assert.assertEquals(jobProps4.getProperty("k5"), "b5");
   }
 
+
   @Test(dependsOnMethods = {"testloadGenericJobConfigs"})
-  public void testLoadGenericJobConfigsWithDoneFile()
-      throws ConfigurationException, IOException {
-
-    // Create a .done file for test21.pull so it should not be loaded
-    Files.copy(new File(this.subDir2, "test21.PULL"), new File(this.subDir2, "test21.PULL.done"));
-
-    Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
-    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
-
-    Assert.assertEquals(jobConfigs.size(), 3);
-
-    // test-job-conf-dir/test1/test11/test111.pull
-    Properties jobProps1 = getJobConfigForFile(jobConfigs, "test111.pull");
-    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 5);
-    Assert.assertEquals(jobProps1.getProperty("k1"), "d1");
-    Assert.assertEquals(jobProps1.getProperty("k8"), "a8");
-    Assert.assertEquals(jobProps1.getProperty("k9"), "a8");
-
-    // test-job-conf-dir/test1/test11.pull
-    Properties jobProps2 = getJobConfigForFile(jobConfigs, "test11.pull");
-    Assert.assertEquals(jobProps2.stringPropertyNames().size(), 5);
-    Assert.assertEquals(jobProps2.getProperty("k1"), "c1");
-    Assert.assertEquals(jobProps2.getProperty("k3"), "b3");
-    Assert.assertEquals(jobProps2.getProperty("k6"), "a6");
-
-    // test-job-conf-dir/test1/test12.PULL
-    Properties jobProps3 = getJobConfigForFile(jobConfigs, "test12.PULL");
-    Assert.assertEquals(jobProps3.stringPropertyNames().size(), 3);
-    Assert.assertEquals(jobProps3.getProperty("k7"), "a7");
-
-    Assert.assertNull(getJobConfigForFile(jobConfigs, "test21.PULL"));
-  }
-
-  @Test
   public void testloadGenericJobConfig()
       throws ConfigurationException, IOException {
     Path jobConfigPath = new Path(this.subDir11.getAbsolutePath(), "test111.pull");
+
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
-    Properties jobProps =
-        SchedulerUtils.loadGenericJobConfig(properties, jobConfigPath, new Path(this.jobConfigDir.getAbsolutePath()));
+    Properties jobProps = ConfigUtils.configToProperties(
+        FSJobCatalogLoadingHelper.loadGenericJobConfig(properties, jobConfigPath,
+            new Path(this.jobConfigDir.getAbsolutePath()), false).getConfig());
 
-    Assert.assertEquals(jobProps.stringPropertyNames().size(), 5);
-    Assert.assertTrue(jobProps.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || jobProps.containsKey(
-        ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
-    Assert.assertTrue(jobProps.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
+    Assert.assertEquals(jobProps.stringPropertyNames().size(), 3);
     Assert.assertEquals(jobProps.getProperty("k1"), "d1");
     Assert.assertEquals(jobProps.getProperty("k8"), "a8");
     Assert.assertEquals(jobProps.getProperty("k9"), "a8");
   }
 
-  @Test(dependsOnMethods = {"testLoadGenericJobConfigsWithDoneFile", "testloadGenericJobConfig"})
+  @Test(dependsOnMethods = {"testloadGenericJobConfig"})
   public void testPathAlterationObserver()
       throws Exception {
-    PathAlterationDetector monitor = new PathAlterationDetector(1000);
+    PathAlterationDetector detector = new PathAlterationDetector(1000);
     final Set<Path> fileAltered = Sets.newHashSet();
     final Semaphore semaphore = new Semaphore(0);
     PathAlterationListener listener = new PathAlterationListenerAdaptor() {
@@ -231,9 +197,10 @@ public class FSJobCatalogHelperTest {
       }
     };
 
-    SchedulerUtils.addPathAlterationObserver(monitor, listener, new Path(this.jobConfigDir.getPath()));
+    FSJobCatalogLoadingHelper.addPathAlterationObserver(detector, listener, Optional.<PathAlterationObserver>absent(),
+        new Path(this.jobConfigDir.getPath()));
     try {
-      monitor.start();
+      detector.start();
       // Give the monitor some time to start
       Thread.sleep(1000);
 
@@ -249,7 +216,7 @@ public class FSJobCatalogHelperTest {
       Assert.assertTrue(fileAltered.contains(new Path("file:" + jobConfigFile)));
       Assert.assertTrue(fileAltered.contains(new Path("file:" + newJobConfigFile)));
     } finally {
-      monitor.stop();
+      detector.stop();
     }
   }
 
@@ -279,13 +246,13 @@ public class FSJobCatalogHelperTest {
         .withConfigAsProperties(testProps)
         .build();
 
-    FSJobCatalogHelper.materializeJobSpec(new Path(this.jobConfigDir.toURI()), js_1);
+    FSJobCatalogJobSpecHelper.materializeJobSpec(new Path(this.jobConfigDir.toURI()), js_1);
 
     Assert.assertTrue(targetFile.exists());
     Assert.assertTrue(targetFile.isFile());
 
     JobSpec js_1_loaded =
-        FSJobCatalogHelper.loadGenericJobConfig(new Properties(), new Path(relativePathOfTestPull.toString()),
+        FSJobCatalogLoadingHelper.loadGenericJobConfig(new Properties(), new Path(relativePathOfTestPull.toString()),
             new Path(this.jobConfigDir.toURI()), false);
 
     Assert.assertEquals(js_1, js_1_loaded);
@@ -294,13 +261,13 @@ public class FSJobCatalogHelperTest {
      * incomplate jobSpec materialization.
      */
     JobSpec js_2 = JobSpec.builder(relativePathOfTestPull).build();
-    FSJobCatalogHelper.materializeJobSpec(new Path(this.jobConfigDir.toURI()), js_2);
+    FSJobCatalogJobSpecHelper.materializeJobSpec(new Path(this.jobConfigDir.toURI()), js_2);
 
     Assert.assertTrue(targetFile.exists());
     Assert.assertTrue(targetFile.isFile());
 
     JobSpec js_2_loaded =
-        FSJobCatalogHelper.loadGenericJobConfig(new Properties(), new Path(relativePathOfTestPull.toString()),
+        FSJobCatalogLoadingHelper.loadGenericJobConfig(new Properties(), new Path(relativePathOfTestPull.toString()),
             new Path(this.jobConfigDir.toURI()), false);
 
     Assert.assertEquals(js_2, js_2_loaded);
@@ -322,4 +289,27 @@ public class FSJobCatalogHelperTest {
     }
     return null;
   }
+
+  /**
+   * Suppose in the testing routine, each JobSpec will at least have either config or properties.
+   * @param jobConfigs
+   * @return
+   */
+  private List<Properties> convertJobSpecList2PropList(List<JobSpec> jobConfigs) {
+    List<Properties> result = Lists.newArrayList();
+    for (JobSpec js : jobConfigs) {
+      Properties propToBeAdded;
+      if (js.getConfigAsProperties() != null) {
+        propToBeAdded = js.getConfigAsProperties();
+      } else {
+        propToBeAdded= ConfigUtils.configToProperties(js.getConfig());
+      }
+
+      // For the testing purpose, added it back when doing the comparison.
+      propToBeAdded.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,js.getUri().toString() );
+      result.add(propToBeAdded);
+    }
+    return result;
+  }
+
 }

@@ -118,6 +118,7 @@ public class SchedulerUtilsTest {
 
     // test-job-conf-dir/test1/test11/test111.pull
     Properties jobProps1 = getJobConfigForFile(jobConfigs, "test111.pull");
+    printAttributeName(jobProps1, 121);
     Assert.assertEquals(jobProps1.stringPropertyNames().size(), 7);
     Assert.assertTrue(jobProps1.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || jobProps1.containsKey(
         ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
@@ -321,6 +322,17 @@ public class SchedulerUtilsTest {
       }
     }
     return null;
+  }
+
+  /**
+   * Only for print the attributes name for loaded job configuration files.
+   * For inspection purpose.
+   */
+  private void printAttributeName(Properties jobProps, int position ) {
+    System.err.println("The position inside of test file is : " + position );
+    for ( String key : jobProps.stringPropertyNames() ) {
+      System.err.println("Key:" + key + "  Value:" + jobProps.getProperty(key));
+    }
   }
 }
 

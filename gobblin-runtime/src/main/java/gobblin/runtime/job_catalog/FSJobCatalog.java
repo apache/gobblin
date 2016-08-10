@@ -11,7 +11,6 @@
  */
 package gobblin.runtime.job_catalog;
 
-import gobblin.runtime.api.JobSpecNotFoundException;
 import java.net.URI;
 import java.util.List;
 import java.io.IOException;
@@ -31,7 +30,9 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.util.FSJobCatalogHelper;
+import gobblin.runtime.api.JobSpecNotFoundException;
+import gobblin.runtime.util.FSJobCatalogJobSpecHelper;
+import gobblin.runtime.util.FSJobCatalogLoadingHelper;
 import gobblin.util.filesystem.PathAlterationObserver;
 import gobblin.util.filesystem.PathAlterationDetector;
 import gobblin.util.filesystem.PathAlterationListenerAdaptor;
@@ -111,7 +112,7 @@ public class FSJobCatalog implements MutableJobCatalog {
     Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(this._observer);
 
     FSPathAlterationListenerAdaptor configFilelistener = new FSPathAlterationListenerAdaptor(this.jobConfDirPath);
-    FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener, observerOptional,
+    FSJobCatalogLoadingHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener, observerOptional,
         this.jobConfDirPath);
   }
 
@@ -131,7 +132,7 @@ public class FSJobCatalog implements MutableJobCatalog {
    */
   @Override
   public synchronized List<JobSpec> getJobs() {
-    return FSJobCatalogHelper.loadJobConfigHelper(this.jobConfDirPath, Action.BATCHJOB, Optional.<Path>absent());
+    return FSJobCatalogLoadingHelper.loadJobConfig(this.jobConfDirPath, Action.BATCHJOB, Optional.<Path>absent());
   }
 
   /**
@@ -146,7 +147,7 @@ public class FSJobCatalog implements MutableJobCatalog {
     Path targetJobSpecPath = new Path(uri);
 
     List<JobSpec> resultJobSpecList =
-        FSJobCatalogHelper.loadJobConfigHelper(this.jobConfDirPath, Action.SINGLEJOB, Optional.of(targetJobSpecPath));
+        FSJobCatalogLoadingHelper.loadJobConfig(this.jobConfDirPath, Action.SINGLEJOB, Optional.of(targetJobSpecPath));
     if (resultJobSpecList == null || resultJobSpecList.size() == 0) {
       throw new JobSpecNotFoundException(uri);
     } else {
@@ -196,16 +197,16 @@ public class FSJobCatalog implements MutableJobCatalog {
       if (fs.exists(tmpPath)) {
         LOGGER.info("The job with URI[" + tmpPath
             + "] has been added before, will cover the original one.");
-        JobSpec oldSpec = FSJobCatalogHelper.loadJobConfigHelper(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
+        JobSpec oldSpec = FSJobCatalogLoadingHelper.loadJobConfig(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
             Optional.of(new Path(srcFileName))).get(0);
-        FSJobCatalogHelper.updateExistedConfigFile(new Path(srcFileName), this.jobConfDirPath, jobSpec);
+        FSJobCatalogJobSpecHelper.updateExistedConfigFile(new Path(srcFileName), this.jobConfDirPath, jobSpec);
 
         // The checkAndNotify method cannot file update's implementation using deletion first creation followed,
         // since each creation will invoke refresh() method that update the modification time.
         // Here notify the gobblin Instance driver directly instead of letting the detector to notify.
         this.listeners.onUpdateJob(oldSpec, jobSpec);
       } else {
-        FSJobCatalogHelper.materializeJobSpec(this.jobConfDirPath, jobSpec);
+        FSJobCatalogJobSpecHelper.materializeJobSpec(this.jobConfDirPath, jobSpec);
       }
     } catch (IOException e) {
       throw new RuntimeException("When persisting a new JobSpec, unexpected issues happen:" + e.getMessage());
@@ -255,7 +256,7 @@ public class FSJobCatalog implements MutableJobCatalog {
     @Override
     public void onFileCreate(Path rawPath) {
       Path relativePath = PathUtils.relativizePath(rawPath, this.jobConfDirPath);
-      JobSpec newJobSpec = FSJobCatalogHelper.loadJobConfigHelper(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
+      JobSpec newJobSpec = FSJobCatalogLoadingHelper.loadJobConfig(FSJobCatalog.this.jobConfDirPath, Action.SINGLEJOB,
           Optional.of(relativePath)).get(0);
       AddJobCallback addJobCallback = new AddJobCallback(newJobSpec);
       listeners.callbackAllListeners(addJobCallback);

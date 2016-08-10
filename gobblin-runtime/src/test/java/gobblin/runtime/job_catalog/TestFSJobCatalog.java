@@ -93,5 +93,5 @@ public class TestFSJobCatalog {
     observer.checkAndNotify("6");
     Mockito.verifyNoMoreInteractions(l);
   }
-  
+
 }

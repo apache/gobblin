@@ -196,7 +196,6 @@ public class SchedulerUtils {
         }
 
         // Load the properties, which may overwrite the same properties defined in the parent or ancestor directories.
-        // Open the inputStream, construct a reader and send to the loader for constructing propertiesConfiguration.
         PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
         Path uniqueConfigFilePath = propertiesFilesStatus[0].getPath();
         try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(uniqueConfigFilePath),
@@ -205,7 +204,6 @@ public class SchedulerUtils {
           rootProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
         }
       }
-
       // Get all non-properties files
       FileStatus[] nonPropFiles = filesystem.listStatus(configDirPath, NON_PROPERTIES_PATH_FILTER);
       if (nonPropFiles == null || nonPropFiles.length == 0) {
@@ -271,7 +269,7 @@ public class SchedulerUtils {
   /**
    * For a specific job configuration file, from the folder it resides, collect all .properties file in commonPropsList.
    * @param commonPropsList The propList to be filled
-   * @param jobConfigPathDir The job configuration path directory path.
+   * @param jobConfigPathDir The job configuration directory path.
    * @param configPathParent The target configuration file's parent directory path.
    * @throws ConfigurationException
    * @throws IOException
