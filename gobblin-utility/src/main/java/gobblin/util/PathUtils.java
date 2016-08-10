@@ -31,7 +31,7 @@ public class PathUtils {
   public static final Pattern GLOB_TOKENS = Pattern.compile("[,\\?\\*\\[\\{]");
 
   public static Path mergePaths(Path path1, Path path2) {
-    String path2Str = path2.toUri().getPath();
+    String path2Str = "/"+path2.toUri().getPath();
     return new Path(path1.toUri().getScheme(), path1.toUri().getAuthority(), path1.toUri().getPath() + path2Str);
   }
 

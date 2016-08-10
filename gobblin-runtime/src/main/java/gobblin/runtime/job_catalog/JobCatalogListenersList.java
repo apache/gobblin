@@ -15,6 +15,7 @@ import gobblin.runtime.api.JobSpec;
 
 import lombok.RequiredArgsConstructor;
 
+
 /** A helper class to manage a list of {@link JobCatalogListener}s for a
  * {@link JobCatalog}. It will dispatch the callbacks to each listener sequentially.*/
 public class JobCatalogListenersList implements JobCatalogListener {
@@ -65,7 +66,7 @@ public class JobCatalogListenersList implements JobCatalogListener {
   }
 
   public void callbackAllListeners(Callback callback) {
-    for (JobCatalogListener listener: _listeners) {
+    for (JobCatalogListener listener : _listeners) {
       callbackOneListener(callback, listener);
     }
   }
@@ -78,8 +79,7 @@ public class JobCatalogListenersList implements JobCatalogListener {
     }
     try {
       callback.invoke(listener);
-    }
-    catch (RuntimeException e) {
+    } catch (RuntimeException e) {
       if (null == callbackMsg) {
         callbackMsg = "callback " + callback + " on " + listener;
       }
@@ -151,6 +151,4 @@ public class JobCatalogListenersList implements JobCatalogListener {
       listener.onUpdateJob(this.param1, this.param2);
     }
   }
-
-
 }

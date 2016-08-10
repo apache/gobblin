@@ -22,8 +22,8 @@ import gobblin.util.ExecutorsUtils;
  * thread to periodically check the monitored file in thread pool.
  */
 
-public final class PathAlterationMonitor implements Runnable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(PathAlterationMonitor.class);
+public final class PathAlterationDetector implements Runnable {
+  private static final Logger LOGGER = LoggerFactory.getLogger(PathAlterationDetector.class);
   private final long interval;
   private volatile boolean running = false;
   private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1,
@@ -34,11 +34,11 @@ public final class PathAlterationMonitor implements Runnable {
   // Parameter for the running the Monitor periodically.
   private int initialDelay = 0;
 
-  public PathAlterationMonitor() {
+  public PathAlterationDetector() {
     this(3000);
   }
 
-  public PathAlterationMonitor(final long interval) {
+  public PathAlterationDetector(final long interval) {
     this.interval = interval;
   }
 
@@ -134,7 +134,7 @@ public final class PathAlterationMonitor implements Runnable {
   public void run() {
     for (final PathAlterationObserver observer : observers) {
       try {
-        observer.checkAndNotify();
+        observer.checkAndNotify("");
       } catch (IOException e) {
         e.printStackTrace();
       }

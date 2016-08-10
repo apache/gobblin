@@ -62,7 +62,7 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.SchedulerUtils;
 import gobblin.util.filesystem.PathAlterationListener;
-import gobblin.util.filesystem.PathAlterationMonitor;
+import gobblin.util.filesystem.PathAlterationDetector;
 
 
 /**
@@ -113,7 +113,7 @@ public class JobScheduler extends AbstractIdleService {
   public final Set<String> jobConfigFileExtensions;
 
   // A monitor for changes to job conf files for general FS
-  public final PathAlterationMonitor pathAlterationMonitor;
+  public final PathAlterationDetector _pathAlterationDetector;
 
   // A period of time for scheduler to wait until jobs are finished
   private final boolean waitForJobCompletion;
@@ -137,7 +137,7 @@ public class JobScheduler extends AbstractIdleService {
     long pollingInterval = Long.parseLong(
         this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
-    this.pathAlterationMonitor = new PathAlterationMonitor(pollingInterval);
+    this._pathAlterationDetector = new PathAlterationDetector(pollingInterval);
 
     this.waitForJobCompletion = Boolean.parseBoolean(
         this.properties.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
@@ -175,7 +175,7 @@ public class JobScheduler extends AbstractIdleService {
 
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY) || this.properties.containsKey(
         ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
-      this.pathAlterationMonitor.stop(1000);
+      this._pathAlterationDetector.stop(1000);
     }
 
     try {
@@ -419,8 +419,8 @@ public class JobScheduler extends AbstractIdleService {
         new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
 
     PathAlterationListener listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath, this);
-    SchedulerUtils.addPathAlterationObserver(this.pathAlterationMonitor, listener, jobConfigFileDirPath);
-    this.pathAlterationMonitor.start();
+    SchedulerUtils.addPathAlterationObserver(this._pathAlterationDetector, listener, jobConfigFileDirPath);
+    this._pathAlterationDetector.start();
   }
 
   /**
