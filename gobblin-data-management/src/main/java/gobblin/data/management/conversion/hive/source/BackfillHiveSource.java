@@ -46,7 +46,7 @@ public class BackfillHiveSource extends HiveAvroToOrcSource {
   private Set<String> partitionsWhitelist;
 
   @VisibleForTesting
-  public void initialize(SourceState state) {
+  public void initBackfillHiveSource(SourceState state) {
     this.partitionsWhitelist =
         Sets.newHashSet(Splitter.on(",").omitEmptyStrings().trimResults().split(state.getProp(BACKFILL_SOURCE_PARTITION_WHITELIST_KEY,
             StringUtils.EMPTY)));
@@ -54,7 +54,7 @@ public class BackfillHiveSource extends HiveAvroToOrcSource {
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
-    initialize(state);
+    initBackfillHiveSource(state);
     return super.getWorkunits(state);
   }
 
