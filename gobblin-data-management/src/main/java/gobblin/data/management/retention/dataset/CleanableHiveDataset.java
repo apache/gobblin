@@ -32,13 +32,14 @@ import org.apache.thrift.TException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigRenderOptions;
 
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.policy.SelectBeforeTimeBasedPolicy;
 import gobblin.data.management.policy.VersionSelectionPolicy;
 import gobblin.data.management.version.HiveDatasetVersion;
-import gobblin.data.management.version.finder.DatePartitionHiveVersionFinder;
 import gobblin.data.management.version.finder.AbstractHiveDatasetVersionFinder;
+import gobblin.data.management.version.finder.DatePartitionHiveVersionFinder;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.util.AutoReturnableObject;
 import gobblin.util.ConfigUtils;
@@ -77,20 +78,26 @@ public class CleanableHiveDataset extends HiveDataset implements CleanableDatase
   private final boolean shouldDeleteData;
   private final FsCleanableHelper fsCleanableHelper;
 
-  public CleanableHiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties jobProps, Config datasetConfig) throws IOException {
+  public CleanableHiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties jobProps,
+      Config datasetConfig) throws IOException {
     super(fs, clientPool, table, jobProps, datasetConfig);
 
     try {
       this.hiveSelectionPolicy =
-          (VersionSelectionPolicy) GobblinConstructorUtils.invokeFirstConstructor(
-              Class.forName(ConfigUtils.getString(datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS)),
-              ImmutableList.<Object> of(datasetConfig, jobProps), ImmutableList.<Object> of(datasetConfig), ImmutableList.<Object> of(jobProps));
+          (VersionSelectionPolicy) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(ConfigUtils.getString(
+              datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS)), ImmutableList.<Object> of(
+              datasetConfig, jobProps), ImmutableList.<Object> of(datasetConfig), ImmutableList.<Object> of(jobProps));
+
+      log.info(String.format("Configured selection policy %s for dataset:%s with config %s",
+          ConfigUtils.getString(datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS),
+          datasetURN(), datasetConfig.root().render(ConfigRenderOptions.concise())));
 
       this.hiveDatasetVersionFinder =
-          (AbstractHiveDatasetVersionFinder) GobblinConstructorUtils.invokeFirstConstructor(
-              Class.forName(ConfigUtils.getString(datasetConfig, VERSION_FINDER_CLASS_KEY, DEFAULT_VERSION_FINDER_CLASS)),
-              ImmutableList.<Object> of(this.fs, datasetConfig), ImmutableList.<Object> of(this.fs, jobProps));
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
+          (AbstractHiveDatasetVersionFinder) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(ConfigUtils
+              .getString(datasetConfig, VERSION_FINDER_CLASS_KEY, DEFAULT_VERSION_FINDER_CLASS)), ImmutableList
+              .<Object> of(this.fs, datasetConfig), ImmutableList.<Object> of(this.fs, jobProps));
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
       log.error("Failed to instantiate CleanableHiveDataset", e);
       throw new IllegalArgumentException(e);
     }
@@ -121,6 +128,9 @@ public class CleanableHiveDataset extends HiveDataset implements CleanableDatase
     Collections.sort(versions, Collections.reverseOrder());
 
     Collection<HiveDatasetVersion> deletableVersions = this.hiveSelectionPolicy.listSelectedVersions(versions);
+
+    log.info(String.format("Cleaning dataset %s .Will drop %s out of %s partitions.", datasetURN(), deletableVersions.size(),
+        versions.size()));
 
     List<Exception> exceptions = Lists.newArrayList();
     Set<Path> possiblyEmptyDirectories = new HashSet<>();
