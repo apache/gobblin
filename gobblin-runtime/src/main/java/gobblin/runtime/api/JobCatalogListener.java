@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.api;
 
+import java.net.URI;
+
 import com.google.common.base.Objects;
 
 import gobblin.annotation.Alpha;
@@ -28,7 +30,7 @@ public interface JobCatalogListener {
   /**
    * Invoked when a JobSpec gets removed from the catalog.
    */
-  public void onDeleteJob(JobSpec deletedJob);
+  public void onDeleteJob(URI deletedJobURI, String deletedJobVersion);
 
   /**
    * Invoked when the contents of a JobSpec gets updated in the catalog.
@@ -51,15 +53,20 @@ public interface JobCatalogListener {
 
   /** A standard implementation of onDeleteJob as a functional object */
   public static class DeleteJobCallback extends Callback<JobCatalogListener, Void> {
-    private final JobSpec _deletedJob;
+    private final URI _deletedJobURI;
+    private final String _deletedJobVersion;
 
-    public DeleteJobCallback(JobSpec deletedJob) {
-      super(Objects.toStringHelper("onDeleteJob").add("deletedJob", deletedJob).toString());
-      _deletedJob = deletedJob;
+    public DeleteJobCallback(URI deletedJobURI, String deletedJobVersion) {
+      super(Objects.toStringHelper("onDeleteJob")
+                   .add("deletedJobURI", deletedJobURI)
+                   .add("deletedJobVersion", deletedJobVersion)
+                   .toString());
+      _deletedJobURI = deletedJobURI;
+      _deletedJobVersion = deletedJobVersion;
     }
 
     @Override public Void apply(JobCatalogListener listener) {
-      listener.onDeleteJob(_deletedJob);
+      listener.onDeleteJob(_deletedJobURI, _deletedJobVersion);
       return null;
     }
   }

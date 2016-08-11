@@ -36,7 +36,7 @@ public class TestInMemoryJobCatalog {
     Mockito.verify(l).onUpdateJob(Mockito.eq(js1_2));
     Mockito.verify(l).onAddJob(Mockito.eq(js2));
     Mockito.verify(l).onUpdateJob(Mockito.eq(js1_3));
-    Mockito.verify(l).onDeleteJob(Mockito.eq(js2));
+    Mockito.verify(l).onDeleteJob(Mockito.eq(js2.getUri()), Mockito.eq(js2.getVersion()));
 
     Mockito.verifyNoMoreInteractions(l);
 }

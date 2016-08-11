@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.instance;
 
+import java.net.URI;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -189,9 +190,9 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
       _jobScheduler.scheduleJob(addedJob, new JobSpecRunnable(addedJob));
     }
 
-    @Override public void onDeleteJob(JobSpec deletedJob) {
-      super.onDeleteJob(deletedJob);
-      _jobScheduler.unscheduleJob(deletedJob.getUri());
+    @Override public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
+      super.onDeleteJob(deletedJobURI, deletedJobVersion);
+      _jobScheduler.unscheduleJob(deletedJobURI);
     }
 
     @Override public void onUpdateJob(JobSpec updatedJob) {

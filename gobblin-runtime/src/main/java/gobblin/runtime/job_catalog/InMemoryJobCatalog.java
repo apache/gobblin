@@ -99,7 +99,7 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
     Preconditions.checkNotNull(uri);
     JobSpec jobSpec = this.jobSpecs.remove(uri);
     if (null != jobSpec) {
-      this.listeners.onDeleteJob(jobSpec);
+      this.listeners.onDeleteJob(jobSpec.getUri(), jobSpec.getVersion());
     }
   }
 

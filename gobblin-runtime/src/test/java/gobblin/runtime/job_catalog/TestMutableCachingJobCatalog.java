@@ -82,7 +82,7 @@ public class TestMutableCachingJobCatalog {
 
     Mockito.verify(l).onAddJob(Mockito.eq(js1_1));
     Mockito.verify(l).onUpdateJob(Mockito.eq(js1_2));
-    Mockito.verify(l).onDeleteJob(Mockito.eq(js1_2));
+    Mockito.verify(l).onDeleteJob(Mockito.eq(js1_2.getUri()), Mockito.eq(js1_2.getVersion()));
 
     Mockito.verifyNoMoreInteractions(l);
   }

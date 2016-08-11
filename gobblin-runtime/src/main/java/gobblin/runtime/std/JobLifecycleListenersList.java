@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.std;
 
+import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -59,10 +60,10 @@ public class JobLifecycleListenersList implements JobLifecycleListener, JobLifec
 
   /** {@inheritDoc} */
   @Override
-  public void onDeleteJob(JobSpec deletedJob) {
-    Preconditions.checkNotNull(deletedJob);
+  public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
+    Preconditions.checkNotNull(deletedJobURI);
     try {
-      _dispatcher.execCallbacks(new DeleteJobCallback(deletedJob));
+      _dispatcher.execCallbacks(new DeleteJobCallback(deletedJobURI, deletedJobVersion));
     } catch (InterruptedException e) {
       _dispatcher.getLog().warn("onDeleteJob interrupted.");
     }

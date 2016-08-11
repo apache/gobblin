@@ -78,8 +78,8 @@ public class CachingJobCatalog implements JobCatalog {
     }
 
     @Override
-    public void onDeleteJob(JobSpec deletedJob) {
-      _cache.remove(deletedJob.getUri());
+    public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
+      _cache.remove(deletedJobURI);
     }
 
     @Override

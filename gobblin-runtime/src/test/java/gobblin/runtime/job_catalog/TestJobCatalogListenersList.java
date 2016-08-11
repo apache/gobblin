@@ -18,7 +18,8 @@ public class TestJobCatalogListenersList {
     JobSpec js2 = JobSpec.builder("test:job2").build();
 
     JobCatalogListener l1 = Mockito.mock(JobCatalogListener.class);
-    Mockito.doThrow(new RuntimeException("injected l1 failure")).when(l1).onDeleteJob(Mockito.eq(js2));
+    Mockito.doThrow(new RuntimeException("injected l1 failure")).when(l1)
+        .onDeleteJob(Mockito.eq(js2.getUri()), Mockito.eq(js2.getVersion()));
 
     JobCatalogListener l2 = Mockito.mock(JobCatalogListener.class);
     Mockito.doThrow(new RuntimeException("injected l2 failure")).when(l2).onUpdateJob(Mockito.eq(js1_2));
@@ -33,22 +34,22 @@ public class TestJobCatalogListenersList {
     ll.onAddJob(js1_1);
     ll.onAddJob(js2);
     ll.onUpdateJob(js1_2);
-    ll.onDeleteJob(js2);
+    ll.onDeleteJob(js2.getUri(), js2.getVersion());
 
     Mockito.verify(l1).onAddJob(Mockito.eq(js1_1));
     Mockito.verify(l1).onAddJob(Mockito.eq(js2));
     Mockito.verify(l1).onUpdateJob(Mockito.eq(js1_2));
-    Mockito.verify(l1).onDeleteJob(Mockito.eq(js2));
+    Mockito.verify(l1).onDeleteJob(Mockito.eq(js2.getUri()), Mockito.eq(js2.getVersion()));
 
     Mockito.verify(l2).onAddJob(Mockito.eq(js1_1));
     Mockito.verify(l2).onAddJob(Mockito.eq(js2));
     Mockito.verify(l2).onUpdateJob(Mockito.eq(js1_2));
-    Mockito.verify(l2).onDeleteJob(Mockito.eq(js2));
+    Mockito.verify(l2).onDeleteJob(Mockito.eq(js2.getUri()), Mockito.eq(js2.getVersion()));
 
     Mockito.verify(l3).onAddJob(Mockito.eq(js1_1));
     Mockito.verify(l3).onAddJob(Mockito.eq(js2));
     Mockito.verify(l3).onUpdateJob(Mockito.eq(js1_2));
-    Mockito.verify(l3).onDeleteJob(Mockito.eq(js2));
+    Mockito.verify(l3).onDeleteJob(Mockito.eq(js2.getUri()), Mockito.eq(js2.getVersion()));
 
 
     Mockito.verifyNoMoreInteractions(l1, l2, l3);

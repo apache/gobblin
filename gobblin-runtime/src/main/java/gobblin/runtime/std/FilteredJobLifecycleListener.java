@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.std;
 
+import java.net.URI;
+
 import com.google.common.base.Predicate;
 
 import gobblin.runtime.JobState.RunningState;
@@ -37,10 +39,15 @@ public class FilteredJobLifecycleListener implements JobLifecycleListener {
     }
   }
 
-  /** {@inheritDoc} */
-  @Override public void onDeleteJob(JobSpec deletedJob) {
-    if (this.filter.apply(deletedJob)) {
-      this.delegate.onDeleteJob(deletedJob);
+  /**
+   * {@inheritDoc}
+   *
+   *  NOTE: For this callback only conditions on the URI and version will be used.
+   * */
+  @Override public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
+    JobSpec fakeJobSpec = JobSpec.builder(deletedJobURI).withVersion(deletedJobVersion).build();
+    if (this.filter.apply(fakeJobSpec)) {
+      this.delegate.onDeleteJob(deletedJobURI, deletedJobVersion);
     }
   }
 
