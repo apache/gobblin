@@ -15,4 +15,4 @@ workunit.retry.enabled=false
 distcp.persist.dir=/tmp/distcp-persist-dir
 
 # Please refer to distcp-ng Runbook for available value for following options.
-required.attribute=data.publisher.final.dir,gobblin.dataset.pattern
+gobblin.template.required_attributes=data.publisher.final.dir,gobblin.dataset.pattern

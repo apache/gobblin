@@ -25,6 +25,7 @@ import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecScheduler;
+import gobblin.runtime.instance.DefaultGobblinInstanceDriverImpl;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.DefaultJobSpecScheduleImpl;

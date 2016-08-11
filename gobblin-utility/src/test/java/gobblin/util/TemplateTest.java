@@ -78,7 +78,7 @@ public class TemplateTest {
     Assert.assertEquals(jobProps.size(), 3);
     jobProps = (new ResourceBasedTemplate(
         jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
-    // Remove job.template in userSpecified file and required.attribute in template
+    // Remove job.template in userSpecified file and gobblin.template.required_attributes in template
     Assert.assertEquals(jobProps.size(), 5);
 
     Properties targetResolvedJobProps = new Properties() ;
