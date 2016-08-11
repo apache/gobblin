@@ -52,6 +52,7 @@ public class TestJobCatalogListenersList {
     Mockito.verify(l3).onDeleteJob(Mockito.eq(js2.getUri()), Mockito.eq(js2.getVersion()));
 
     Mockito.verifyNoMoreInteractions(l1, l2, l3);
+
   }
 
 }
