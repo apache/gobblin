@@ -186,6 +186,10 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
     boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
     // Reschedule the job with the new job configuration
     jobScheduler.scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
+    LOG.info("[JobScheduler]"
+        + ""
+        + ""
+        + "The new job " + jobName + " is rescheduled.");
   }
 
   /**
@@ -203,7 +207,6 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
         return false;
       }
     }
-
     return true;
   }
 }
