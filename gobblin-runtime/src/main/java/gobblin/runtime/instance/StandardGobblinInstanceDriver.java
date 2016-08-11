@@ -41,18 +41,20 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
   protected StandardGobblinInstanceDriver(Configurable sysConfig, JobCatalog jobCatalog,
       JobSpecScheduler jobScheduler, JobExecutionLauncher jobLauncher, Optional<Logger> log) {
     super(sysConfig, jobCatalog, jobScheduler, jobLauncher, log);
-  }
-
-  @Override
-  protected void startUp() throws Exception {
-    getLog().info("Starting driver ...");
     List<Service> componentServices = new ArrayList<>();
     checkComponentService(getJobCatalog(), componentServices);
     checkComponentService(getJobScheduler(), componentServices);
     checkComponentService(getJobLauncher(), componentServices);
     if (componentServices.size() > 0) {
-      getLog().info("Starting subservices");
       _subservices = new ServiceManager(componentServices);
+    }
+  }
+
+  @Override
+  protected void startUp() throws Exception {
+    getLog().info("Starting driver ...");
+    if (null != _subservices) {
+      getLog().info("Starting subservices");
       _subservices.startAsync();
       _subservices.awaitHealthy(getInstanceCfg().getStartTimeoutMs(), TimeUnit.MILLISECONDS);
       getLog().info("All subservices have been started.");

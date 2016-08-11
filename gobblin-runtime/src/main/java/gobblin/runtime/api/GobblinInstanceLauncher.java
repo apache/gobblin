@@ -59,7 +59,8 @@ public interface GobblinInstanceLauncher extends Service, Configurable {
     }
 
     public static Config getDefaultConfig() {
-      return ConfigFactory.parseResources(RESOURCE_NAME).withFallback(ConfigFactory.load());
+      return ConfigFactory.parseResources(GobblinInstanceLauncher.class,
+          GobblinInstanceLauncher.class.getSimpleName() + ".conf").withFallback(ConfigFactory.load());
     }
 
     public static ConfigAccessor createFromGlobalConfig(Config cfg) {
