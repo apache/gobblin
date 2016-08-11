@@ -7,20 +7,25 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobContext;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
+import gobblin.runtime.JobLauncherFactory.JobLauncherType;
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.Configurable;
+import gobblin.runtime.api.GobblinInstanceDriver;
 import gobblin.runtime.api.JobExecution;
 import gobblin.runtime.api.JobExecutionDriver;
+import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobExecutionStateListener;
 import gobblin.runtime.api.JobExecutionStatus;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.listeners.AbstractJobListener;
+import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.JobExecutionStateListeners;
 import gobblin.runtime.std.JobExecutionUpdatable;
 
@@ -96,7 +101,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
   @Override
   protected void startUp() throws Exception {
     _log.info("Starting " + getClass().getSimpleName());
-    _legacyLauncher.launchJob(new MyJobListener());
+    _legacyLauncher.launchJob(new JobListenerToJobStateBridge());
   }
 
   @Override
@@ -108,7 +113,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
         case RUNNING: {
           // We have to pass another listener instance as launcher does not store the listener used
           // in launchJob()
-          _legacyLauncher.cancelJob(new MyJobListener());
+          _legacyLauncher.cancelJob(new JobListenerToJobStateBridge());
           break;
         }
         case SUCCESSFUL:
@@ -124,9 +129,9 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     _legacyLauncher.close();
   }
 
-  class MyJobListener extends AbstractJobListener {
+  class JobListenerToJobStateBridge extends AbstractJobListener {
 
-    public MyJobListener() {
+    public JobListenerToJobStateBridge() {
       super(Optional.of(JobLauncherExecutionDriver.this._log));
     }
 
@@ -134,7 +139,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     public void onJobPrepare(JobContext jobContext) throws Exception {
       super.onJobPrepare(jobContext);
       _jobContext = jobContext;
-      _jobState.switchToPending();;
+      _jobState.switchToPending();
     }
 
     @Override
@@ -188,4 +193,88 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     return _jobState;
   }
 
+  /**
+   * Creates a new instance of {@link JobLauncherExecutionDriver}.
+   *
+   * <p>Conventions
+   * <ul>
+   *  <li>If no jobLauncherType is specified, one will be determined by the JobSpec
+   *  (see {@link JobLauncherFactory).
+   *  <li> Convention for sysConfig: use the sysConfig of the gobblinInstance if specified,
+   *       otherwise use empty config.
+   *  <li> Convention for log: use gobblinInstance logger plus "." + jobSpec if specified, otherwise
+   *       use JobExecutionDriver class name plus "." + jobSpec
+   * </ul>
+   */
+  public static class Launcher implements JobExecutionLauncher {
+    private Optional<JobLauncherType> _jobLauncherType = Optional.absent();
+    private Optional<Configurable> _sysConfig = Optional.absent();
+    private Optional<GobblinInstanceDriver> _gobblinInstance = Optional.absent();
+    private Optional<Logger> _log = Optional.absent();
+
+    /** Leave unchanged for */
+    public Launcher withJobLauncherType(JobLauncherType jobLauncherType) {
+      Preconditions.checkNotNull(jobLauncherType);
+      _jobLauncherType = Optional.of(jobLauncherType);
+      return this;
+    }
+
+    public Optional<JobLauncherType> getJobLauncherType() {
+      return _jobLauncherType;
+    }
+
+    /** System-wide settings */
+    public Configurable getDefaultSysConfig() {
+      return _gobblinInstance.isPresent() ?
+          _gobblinInstance.get().getSysConfig() :
+          DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
+    }
+
+    public Configurable getSysConfig() {
+      if (!_sysConfig.isPresent()) {
+        _sysConfig = Optional.of(getDefaultSysConfig());
+      }
+      return _sysConfig.get();
+    }
+
+    public Launcher withSysConfig(Configurable sysConfig) {
+      _sysConfig = Optional.of(sysConfig);
+      return this;
+    }
+
+    /** Parent Gobblin instance */
+    public Launcher withGobblinInstance(GobblinInstanceDriver gobblinInstance) {
+      _gobblinInstance = Optional.of(gobblinInstance);
+      return this;
+    }
+
+    public Optional<GobblinInstanceDriver> getGobblinInstance() {
+      return _gobblinInstance;
+    }
+
+    public Logger getDefaultLog(JobSpec jobSpec) {
+      return getGobblinInstance().isPresent() ?
+          getJobLogger(getGobblinInstance().get().getLog(), jobSpec) :
+          getJobLogger(LoggerFactory.getLogger(JobLauncherExecutionDriver.class), jobSpec);
+    }
+
+    public Logger getLog(JobSpec jobSpec) {
+      if (!_log.isPresent()) {
+        _log = Optional.of(getDefaultLog(jobSpec));
+      }
+      return _log.get();
+    }
+
+    private static Logger getJobLogger(Logger parentLog, JobSpec jobSpec) {
+      return LoggerFactory.getLogger(parentLog.getName() + "." + jobSpec.toShortString());
+    }
+
+    @Override
+    public JobExecutionDriver launchJob(JobSpec jobSpec) {
+      Preconditions.checkNotNull(jobSpec);
+      return new JobLauncherExecutionDriver(getSysConfig(), jobSpec, _jobLauncherType,
+          Optional.of(getLog(jobSpec)));
+    }
+
+  }
 }

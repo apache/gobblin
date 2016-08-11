@@ -19,8 +19,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.runtime.JobState.RunningState;
+import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceDriver;
+import gobblin.runtime.api.GobblinInstanceLauncher.ConfigAccessor;
 import gobblin.runtime.api.JobCatalog;
+import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobSpec;
@@ -39,52 +42,67 @@ import gobblin.runtime.std.DefaultJobExecutionStateListenerImpl;
 public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
        implements GobblinInstanceDriver {
   protected final Logger _log;
+  protected final Configurable _sysConfig;
   protected final JobCatalog _jobCatalog;
   protected final JobSpecScheduler _jobScheduler;
   protected final JobExecutionLauncher _jobLauncher;
+  protected final ConfigAccessor _instanceCfg;
   protected JobSpecListener _jobSpecListener;
 
-  public DefaultGobblinInstanceDriverImpl(JobCatalog jobCatalog, JobSpecScheduler jobScheduler,
+
+  public DefaultGobblinInstanceDriverImpl(Configurable sysConfig, JobCatalog jobCatalog, JobSpecScheduler jobScheduler,
       JobExecutionLauncher jobLauncher, Optional<Logger> log) {
     Preconditions.checkNotNull(jobCatalog);
     Preconditions.checkNotNull(jobScheduler);
     Preconditions.checkNotNull(jobLauncher);
+    Preconditions.checkNotNull(sysConfig);
 
     _jobCatalog = jobCatalog;
     _jobScheduler = jobScheduler;
     _jobLauncher = jobLauncher;
+    _sysConfig = sysConfig;
+    _instanceCfg = ConfigAccessor.createFromGlobalConfig(_sysConfig.getConfig());
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
   }
 
   /** {@inheritDoc} */
-  @Override
-  public JobCatalog getJobCatalog() {
+  @Override public JobCatalog getJobCatalog() {
     return _jobCatalog;
   }
 
   /** {@inheritDoc} */
-  @Override
-  public JobSpecScheduler getJobScheduler() {
+  @Override public JobSpecScheduler getJobScheduler() {
     return _jobScheduler;
   }
 
   /** {@inheritDoc} */
-  @Override
-  public JobExecutionLauncher getJobLauncher() {
+  @Override public JobExecutionLauncher getJobLauncher() {
     return _jobLauncher;
   }
 
-  @Override
-  protected void startUp() throws Exception {
-    _jobSpecListener = new JobSpecListener();
-    _jobCatalog.addListener(_jobSpecListener);
+  /** {@inheritDoc} */
+  @Override public Configurable getSysConfig() {
+    return _sysConfig;
   }
 
-  @Override
-  protected void shutDown() throws Exception {
+  /** {@inheritDoc} */
+  @Override public Logger getLog() {
+    return _log;
+  }
+
+  @Override protected void startUp() throws Exception {
+    getLog().info("Default driver: starting ...");
+    _jobSpecListener = new JobSpecListener();
+    _jobCatalog.addListener(_jobSpecListener);
+    getLog().info("Default driver: started.");
+  }
+
+  @Override protected void shutDown() throws Exception {
+    getLog().info("Default driver: shuttind down ...");
     if (null != _jobSpecListener) {
       _jobCatalog.removeListener(_jobSpecListener);
     }
+    getLog().info("Default driver: shut down.");
   }
 
   class ExecutionStateListener extends DefaultJobExecutionStateListenerImpl {
@@ -137,8 +155,9 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override
     public void run() {
-       _jobLauncher.launchJob(_jobSpec);
-       // new JobExecutionListener();
+       JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
+       driver.registerStateListener(new JobExecutionListener());
+       driver.startAsync();
     }
   }
 
@@ -169,6 +188,10 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
       _jobScheduler.scheduleJob(updatedJob, new JobSpecRunnable(updatedJob));
     }
 
+  }
+
+  ConfigAccessor getInstanceCfg() {
+    return _instanceCfg;
   }
 
 }
