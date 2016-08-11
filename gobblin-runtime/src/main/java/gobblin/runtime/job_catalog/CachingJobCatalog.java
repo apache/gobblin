@@ -83,7 +83,7 @@ public class CachingJobCatalog implements JobCatalog {
     }
 
     @Override
-    public void onUpdateJob(JobSpec originalJob, JobSpec updatedJob) {
+    public void onUpdateJob(JobSpec updatedJob) {
       _cache.put(updatedJob);
     }
 

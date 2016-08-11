@@ -57,10 +57,9 @@ public class DefaultJobCatalogListenerImpl implements JobCatalogListener {
   }
 
   /** {@inheritDoc} */
-  @Override public void onUpdateJob(JobSpec originalJob, JobSpec updatedJob) {
+  @Override public void onUpdateJob(JobSpec updatedJob) {
     if (_log.isPresent()) {
-      _log.get().info("JobSpec changed: " + originalJob.toShortString() + " --> " +
-             updatedJob.toShortString());
+      _log.get().info("JobSpec changed: " + updatedJob.toShortString());
     }
   }
 

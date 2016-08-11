@@ -95,7 +95,7 @@ public class CallbacksDispatcher<L> {
   public Logger getLog() {
     return _log;
   }
-  public <R> CallbackResults<L, R> execCallbacks(Function<L, R> callback, L listener)
+  public <R> CallbackResults<L, R> execCallbacks(Function<? super L, R> callback, L listener)
          throws InterruptedException {
     Preconditions.checkNotNull(listener);
     List<L> listenerList = new ArrayList<>(1);
@@ -104,7 +104,7 @@ public class CallbacksDispatcher<L> {
     return execCallbacks(callback, listenerList);
   }
 
-  public <R> CallbackResults<L, R> execCallbacks(Function<L, R> callback)
+  public <R> CallbackResults<L, R> execCallbacks(Function<? super L, R> callback)
          throws InterruptedException {
     Preconditions.checkNotNull(callback);
     List<L> listeners = getListeners();
@@ -112,7 +112,8 @@ public class CallbacksDispatcher<L> {
     return execCallbacks(callback, listeners);
   }
 
-  private <R> CallbackResults<L, R> execCallbacks(Function<L, R> callback, List<L> listeners)
+  private <R> CallbackResults<L, R> execCallbacks(Function<? super L, R> callback,
+                                                          List<L> listeners)
       throws InterruptedException {
     List<Callable<R>> callbacks = new ArrayList<>(listeners.size());
     for (L listener: listeners) {
@@ -142,7 +143,7 @@ public class CallbacksDispatcher<L> {
 
   @AllArgsConstructor
   public class CallbackCallable<R> implements Callable<R> {
-    final Function<L, R> _callback;
+    final Function<? super L, R> _callback;
     final L _listener;
 
     @Override public R call() throws Exception {

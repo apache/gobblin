@@ -33,7 +33,7 @@ public interface JobCatalogListener {
   /**
    * Invoked when the contents of a JobSpec gets updated in the catalog.
    */
-  public void onUpdateJob(JobSpec originalJob, JobSpec updatedJob);
+  public void onUpdateJob(JobSpec updatedJob);
 
   /** A standard implementation of onAddJob as a functional object */
   public static class AddJobCallback extends Callback<JobCatalogListener, Void> {
@@ -65,18 +65,16 @@ public interface JobCatalogListener {
   }
 
   public static class UpdateJobCallback extends Callback<JobCatalogListener, Void> {
-    private final JobSpec _originalJob;
     private final JobSpec _updatedJob;
-    public UpdateJobCallback(JobSpec originalJob, JobSpec updatedJob) {
-      super(Objects.toStringHelper("onUpdateJob").add("originalJob", originalJob)
+    public UpdateJobCallback(JobSpec updatedJob) {
+      super(Objects.toStringHelper("onUpdateJob")
                    .add("updatedJob", updatedJob).toString());
-      _originalJob = originalJob;
       _updatedJob = updatedJob;
     }
 
     @Override
     public Void apply(JobCatalogListener listener) {
-      listener.onUpdateJob(_originalJob, _updatedJob);
+      listener.onUpdateJob(_updatedJob);
       return null;
     }
   }

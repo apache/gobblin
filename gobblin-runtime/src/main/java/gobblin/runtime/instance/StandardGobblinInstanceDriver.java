@@ -72,8 +72,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
 
   }
 
-  @Override
-  protected void shutDown() throws Exception {
+  @Override protected void shutDown() throws Exception {
     getLog().info("Shutting down driver ...");
     super.shutDown();
     if (null != _subservices) {
@@ -180,6 +179,11 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return _jobCatalog.get();
     }
 
+    public Builder withJobCatalog(JobCatalog jobCatalog) {
+      _jobCatalog = Optional.of(jobCatalog);
+      return this;
+    }
+
     public JobSpecScheduler getDefaultJobScheduler() {
       return new ImmediateJobSpecScheduler(Optional.of(getLog()));
     }
@@ -191,7 +195,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return _jobScheduler.get();
     }
 
-    public Builder setJobScheduler(JobSpecScheduler jobScheduler) {
+    public Builder withJobScheduler(JobSpecScheduler jobScheduler) {
       _jobScheduler = Optional.of(jobScheduler);
       return this;
     }
@@ -207,7 +211,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return _jobLauncher.get();
     }
 
-    public Builder setJobLauncher(JobExecutionLauncher jobLauncher) {
+    public Builder withJobLauncher(JobExecutionLauncher jobLauncher) {
       _jobLauncher = Optional.of(jobLauncher);
       return this;
     }

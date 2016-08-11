@@ -67,11 +67,10 @@ public class JobCatalogListenersList implements JobCatalogListener, JobCatalogLi
   }
 
   @Override
-  public synchronized void onUpdateJob(JobSpec originalJob, JobSpec updatedJob) {
-    Preconditions.checkNotNull(originalJob);
+  public synchronized void onUpdateJob(JobSpec updatedJob) {
     Preconditions.checkNotNull(updatedJob);
     try {
-      _disp.execCallbacks(new UpdateJobCallback(originalJob, updatedJob));
+      _disp.execCallbacks(new UpdateJobCallback(updatedJob));
     } catch (InterruptedException e) {
       getLog().warn("onUpdateJob interrupted.");
     }

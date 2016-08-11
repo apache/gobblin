@@ -90,7 +90,7 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
       this.listeners.onAddJob(jobSpec);
     }
     else {
-      this.listeners.onUpdateJob(oldSpec, jobSpec);
+      this.listeners.onUpdateJob(jobSpec);
     }
   }
 
