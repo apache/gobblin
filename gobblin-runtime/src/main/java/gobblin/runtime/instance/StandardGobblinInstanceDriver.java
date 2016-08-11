@@ -11,6 +11,9 @@
  */
 package gobblin.runtime.instance;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -18,19 +21,50 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.Service;
+import com.google.common.util.concurrent.ServiceManager;
+import com.typesafe.config.ConfigFactory;
 
+import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceLauncher;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobSpecScheduler;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
+import gobblin.runtime.job_exec.JobLauncherExecutionDriver;
 import gobblin.runtime.scheduler.ImmediateJobSpecScheduler;
+import gobblin.runtime.std.DefaultConfigurableImpl;
 
 public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverImpl {
+  private ServiceManager _subservices;
 
-  protected StandardGobblinInstanceDriver(JobCatalog jobCatalog, JobSpecScheduler jobScheduler,
-      JobExecutionLauncher jobLauncher, Optional<Logger> log) {
-    super(jobCatalog, jobScheduler, jobLauncher, log);
+  protected StandardGobblinInstanceDriver(Configurable sysConfig, JobCatalog jobCatalog,
+      JobSpecScheduler jobScheduler, JobExecutionLauncher jobLauncher, Optional<Logger> log) {
+    super(sysConfig, jobCatalog, jobScheduler, jobLauncher, log);
+  }
+
+  @Override
+  protected void startUp() throws Exception {
+    List<Service> componentServices = new ArrayList<>();
+    checkComponentService(getJobCatalog(), componentServices);
+    _subservices = new ServiceManager(componentServices);
+    _subservices.startAsync();
+    _subservices.awaitHealthy(getInstanceCfg().getStartTimeoutMs(), TimeUnit.MILLISECONDS);
+    super.startUp();
+  }
+
+  private void checkComponentService(Object component, List<Service> componentServices) {
+    if (component instanceof Service) {
+      componentServices.add((Service)component);
+    }
+
+  }
+
+  @Override
+  protected void shutDown() throws Exception {
+    super.shutDown();
+    _subservices.stopAsync();
+    _subservices.awaitStopped(getInstanceCfg().getShutdownTimeoutMs(), TimeUnit.MILLISECONDS);
   }
 
   /**
@@ -146,8 +180,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     }
 
     public JobExecutionLauncher getDefaultJobLauncher() {
-      // FIXME
-      return null;
+      return new JobLauncherExecutionDriver.Launcher();
     }
 
     public JobExecutionLauncher getJobLauncher() {
@@ -163,8 +196,10 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     }
 
     public StandardGobblinInstanceDriver build() {
-      return new StandardGobblinInstanceDriver(getJobCatalog(), getJobScheduler(), getJobLauncher(),
-                                               Optional.of(getLog()));
+      Configurable sysConfig = _instanceLauncher.isPresent() ? _instanceLauncher.get() :
+          DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
+      return new StandardGobblinInstanceDriver(sysConfig, getJobCatalog(), getJobScheduler(),
+             getJobLauncher(), Optional.of(getLog()));
     }
   }
 

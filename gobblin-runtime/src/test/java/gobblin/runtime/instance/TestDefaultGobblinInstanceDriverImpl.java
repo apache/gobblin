@@ -19,12 +19,14 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.ConfigFactory;
 
+import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecScheduler;
-import gobblin.runtime.instance.DefaultGobblinInstanceDriverImpl;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
+import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.DefaultJobSpecScheduleImpl;
 
 /**
@@ -40,9 +42,11 @@ public class TestDefaultGobblinInstanceDriverImpl {
 
     JobSpecScheduler scheduler = Mockito.mock(JobSpecScheduler.class);
     JobExecutionLauncher jobLauncher = Mockito.mock(JobExecutionLauncher.class);
+    Configurable sysConfig = DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
 
     DefaultGobblinInstanceDriverImpl driver =
-        new DefaultGobblinInstanceDriverImpl(jobCatalog, scheduler, jobLauncher, loggerOpt);
+        new DefaultGobblinInstanceDriverImpl(sysConfig, jobCatalog, scheduler, jobLauncher,
+            loggerOpt);
 
     JobSpec js1_1 = JobSpec.builder("test.job1").withVersion("1").build();
     JobSpec js1_2 = JobSpec.builder("test.job1").withVersion("2").build();

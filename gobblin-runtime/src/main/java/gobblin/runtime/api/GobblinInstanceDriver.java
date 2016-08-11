@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.api;
 
+import org.slf4j.Logger;
+
 import com.google.common.util.concurrent.Service;
 
 import gobblin.annotation.Alpha;
@@ -24,4 +26,6 @@ public interface GobblinInstanceDriver extends Service {
   JobCatalog getJobCatalog();
   JobSpecScheduler getJobScheduler();
   JobExecutionLauncher getJobLauncher();
+  Logger getLog();
+  Configurable getSysConfig();
 }

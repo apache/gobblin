@@ -80,6 +80,10 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
     _driver.shutDown();
   }
 
+  public static Builder builder() {
+    return new Builder();
+  }
+
   public static class Builder {
     final static AtomicInteger INSTANCE_COUNT = new AtomicInteger(1);
 
@@ -122,7 +126,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
       return this;
     }
 
-    public StandardGobblinInstanceDriver.Builder getDriver() {
+    public StandardGobblinInstanceDriver.Builder driver() {
       return _driver;
     }
 
@@ -138,18 +142,18 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
       return _instanceConfig.get();
     }
 
-    public Builder setInstanceConfig(Config instanceConfig) {
+    public Builder withInstanceConfig(Config instanceConfig) {
       _instanceConfig = Optional.of(DefaultConfigurableImpl.createFromConfig(instanceConfig));
       return this;
     }
 
-    public Builder setInstanceConfig(Properties instanceConfig) {
+    public Builder withInstanceConfig(Properties instanceConfig) {
       _instanceConfig = Optional.of(DefaultConfigurableImpl.createFromProperties(instanceConfig));
       return this;
     }
 
     public StandardGobblinInstanceLauncher build() {
-      return new StandardGobblinInstanceLauncher(getInstanceName(), getInstanceConfig(), getDriver());
+      return new StandardGobblinInstanceLauncher(getInstanceName(), getInstanceConfig(), driver());
     }
 
   }
