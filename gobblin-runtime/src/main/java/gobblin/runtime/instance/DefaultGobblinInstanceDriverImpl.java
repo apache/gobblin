@@ -91,14 +91,18 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   }
 
   @Override protected void startUp() throws Exception {
+    getLog().info("Default driver: starting ...");
     _jobSpecListener = new JobSpecListener();
     _jobCatalog.addListener(_jobSpecListener);
+    getLog().info("Default driver: started.");
   }
 
   @Override protected void shutDown() throws Exception {
+    getLog().info("Default driver: shuttind down ...");
     if (null != _jobSpecListener) {
       _jobCatalog.removeListener(_jobSpecListener);
     }
+    getLog().info("Default driver: shut down.");
   }
 
   class ExecutionStateListener extends DefaultJobExecutionStateListenerImpl {

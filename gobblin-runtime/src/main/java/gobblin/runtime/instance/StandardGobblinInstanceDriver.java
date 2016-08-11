@@ -45,11 +45,21 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
 
   @Override
   protected void startUp() throws Exception {
+    getLog().info("Starting driver ...");
     List<Service> componentServices = new ArrayList<>();
     checkComponentService(getJobCatalog(), componentServices);
-    _subservices = new ServiceManager(componentServices);
-    _subservices.startAsync();
-    _subservices.awaitHealthy(getInstanceCfg().getStartTimeoutMs(), TimeUnit.MILLISECONDS);
+    checkComponentService(getJobScheduler(), componentServices);
+    checkComponentService(getJobLauncher(), componentServices);
+    if (componentServices.size() > 0) {
+      getLog().info("Starting subservices");
+      _subservices = new ServiceManager(componentServices);
+      _subservices.startAsync();
+      _subservices.awaitHealthy(getInstanceCfg().getStartTimeoutMs(), TimeUnit.MILLISECONDS);
+      getLog().info("All subservices have been started.");
+    }
+    else {
+      getLog().info("No subservices found.");
+    }
     super.startUp();
   }
 
@@ -62,9 +72,14 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
 
   @Override
   protected void shutDown() throws Exception {
+    getLog().info("Shutting down driver ...");
     super.shutDown();
-    _subservices.stopAsync();
-    _subservices.awaitStopped(getInstanceCfg().getShutdownTimeoutMs(), TimeUnit.MILLISECONDS);
+    if (null != _subservices) {
+      getLog().info("Shutting down subservices ...");
+      _subservices.stopAsync();
+      _subservices.awaitStopped(getInstanceCfg().getShutdownTimeoutMs(), TimeUnit.MILLISECONDS);
+      getLog().info("All subservices have been shutdown.");
+    }
   }
 
   /**

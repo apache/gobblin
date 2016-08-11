@@ -38,6 +38,7 @@ public interface GobblinInstanceLauncher extends Service, Configurable {
   public static class ConfigAccessor {
     static final String RESOURCE_NAME =
         GobblinInstanceLauncher.class.getPackage().getName().replaceAll("[.]", "/")
+        + "/"
         + GobblinInstanceLauncher.class.getSimpleName()
         + ".conf";
     /** The namespace for all config options */
@@ -52,7 +53,7 @@ public interface GobblinInstanceLauncher extends Service, Configurable {
 
     /** Config accessor from a no namespaced typesafe config. */
     public ConfigAccessor(Config cfg) {
-      Config effectiveCfg = cfg.withFallback(getDefaultConfig());
+      Config effectiveCfg = cfg.withFallback(getDefaultConfig().getConfig(CONFIG_PREFIX));
       this.startTimeoutMs = effectiveCfg.getLong(START_TIMEOUT_MS);
       this.shutdownTimeoutMs = effectiveCfg.getLong(SHUTDOWN_TIMEOUT_MS);
     }
@@ -62,7 +63,9 @@ public interface GobblinInstanceLauncher extends Service, Configurable {
     }
 
     public static ConfigAccessor createFromGlobalConfig(Config cfg) {
-      return new ConfigAccessor(cfg.getConfig(CONFIG_PREFIX));
+      Config localCfg = cfg.hasPath(CONFIG_PREFIX) ? cfg.getConfig(CONFIG_PREFIX) :
+        ConfigFactory.empty();
+      return new ConfigAccessor(localCfg);
     }
   }
 }
