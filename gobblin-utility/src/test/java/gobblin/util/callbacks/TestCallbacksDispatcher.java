@@ -59,7 +59,8 @@ public class TestCallbacksDispatcher {
     disp1.addListener(l3);
 
     final VoidCallback voidCallback = new VoidCallback();
-    CallbacksDispatcher.CallbackResults<MyListener, Void> voidRes = disp1.execCallbacks(voidCallback);
+    CallbacksDispatcher.CallbackResults<MyListener, Void> voidRes =
+        disp1.execCallbacks(voidCallback);
     Assert.assertEquals(voidRes.getSuccesses().size(), 2);
     Assert.assertEquals(voidRes.getFailures().size(), 1);
     Assert.assertEquals(voidRes.getCancellations().size(), 0);

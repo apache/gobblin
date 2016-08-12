@@ -1,5 +1,6 @@
 package gobblin.runtime.job_catalog;
 
+import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -57,21 +58,21 @@ public class JobCatalogListenersList implements JobCatalogListener, JobCatalogLi
   }
 
   @Override
-  public synchronized void onDeleteJob(JobSpec deletedJob) {
-    Preconditions.checkNotNull(deletedJob);
+  public synchronized void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
+    Preconditions.checkNotNull(deletedJobURI);
+
     try {
-      _disp.execCallbacks(new DeleteJobCallback(deletedJob));
+      _disp.execCallbacks(new DeleteJobCallback(deletedJobURI, deletedJobVersion));
     } catch (InterruptedException e) {
       getLog().warn("onDeleteJob interrupted.");
     }
   }
 
   @Override
-  public synchronized void onUpdateJob(JobSpec originalJob, JobSpec updatedJob) {
-    Preconditions.checkNotNull(originalJob);
+  public synchronized void onUpdateJob(JobSpec updatedJob) {
     Preconditions.checkNotNull(updatedJob);
     try {
-      _disp.execCallbacks(new UpdateJobCallback(originalJob, updatedJob));
+      _disp.execCallbacks(new UpdateJobCallback(updatedJob));
     } catch (InterruptedException e) {
       getLog().warn("onUpdateJob interrupted.");
     }

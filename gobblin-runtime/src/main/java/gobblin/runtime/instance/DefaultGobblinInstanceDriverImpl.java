@@ -11,6 +11,9 @@
  */
 package gobblin.runtime.instance;
 
+import java.net.URI;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,11 +29,14 @@ import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobExecutionState;
+import gobblin.runtime.api.JobLifecycleListener;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecMonitorFactory;
 import gobblin.runtime.api.JobSpecScheduler;
+import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.std.DefaultJobCatalogListenerImpl;
 import gobblin.runtime.std.DefaultJobExecutionStateListenerImpl;
+import gobblin.runtime.std.JobLifecycleListenersList;
 
 /**
  * A default implementation of {@link GobblinInstanceDriver}. It accepts already instantiated
@@ -47,8 +53,8 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   protected final JobSpecScheduler _jobScheduler;
   protected final JobExecutionLauncher _jobLauncher;
   protected final ConfigAccessor _instanceCfg;
+  protected final JobLifecycleListenersList _dispatcher;
   protected JobSpecListener _jobSpecListener;
-
 
   public DefaultGobblinInstanceDriverImpl(Configurable sysConfig, JobCatalog jobCatalog, JobSpecScheduler jobScheduler,
       JobExecutionLauncher jobLauncher, Optional<Logger> log) {
@@ -63,11 +69,17 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     _sysConfig = sysConfig;
     _instanceCfg = ConfigAccessor.createFromGlobalConfig(_sysConfig.getConfig());
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
+    _dispatcher = new JobLifecycleListenersList(_log);
   }
 
   /** {@inheritDoc} */
   @Override public JobCatalog getJobCatalog() {
     return _jobCatalog;
+  }
+
+  /** {@inheritDoc} */
+  @Override public MutableJobCatalog getMutableJobCatalog() {
+    return (MutableJobCatalog)_jobCatalog;
   }
 
   /** {@inheritDoc} */
@@ -178,13 +190,13 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
       _jobScheduler.scheduleJob(addedJob, new JobSpecRunnable(addedJob));
     }
 
-    @Override public void onDeleteJob(JobSpec deletedJob) {
-      super.onDeleteJob(deletedJob);
-      _jobScheduler.unscheduleJob(deletedJob.getUri());
+    @Override public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
+      super.onDeleteJob(deletedJobURI, deletedJobVersion);
+      _jobScheduler.unscheduleJob(deletedJobURI);
     }
 
-    @Override public void onUpdateJob(JobSpec originalJob, JobSpec updatedJob) {
-      super.onUpdateJob(originalJob, updatedJob);
+    @Override public void onUpdateJob(JobSpec updatedJob) {
+      super.onUpdateJob(updatedJob);
       _jobScheduler.scheduleJob(updatedJob, new JobSpecRunnable(updatedJob));
     }
 
@@ -192,6 +204,21 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
   ConfigAccessor getInstanceCfg() {
     return _instanceCfg;
+  }
+
+  @Override
+  public void registerJobLifecycleListener(JobLifecycleListener listener) {
+    _dispatcher.registerJobLifecycleListener(listener);
+  }
+
+  @Override
+  public void unregisterJobLifecycleListener(JobLifecycleListener listener) {
+    _dispatcher.unregisterJobLifecycleListener(listener);
+  }
+
+  @Override
+  public List<JobLifecycleListener> getJobLifecycleListeners() {
+    return _dispatcher.getJobLifecycleListeners();
   }
 
 }

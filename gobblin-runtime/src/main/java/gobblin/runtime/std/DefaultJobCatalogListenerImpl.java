@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.std;
 
+import java.net.URI;
+
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
@@ -50,17 +52,16 @@ public class DefaultJobCatalogListenerImpl implements JobCatalogListener {
   }
 
   /** {@inheritDoc} */
-  @Override public void onDeleteJob(JobSpec deletedJob) {
+  @Override public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
     if (_log.isPresent()) {
-      _log.get().info("JobSpec deleted: " + deletedJob.toShortString());
+      _log.get().info("JobSpec deleted: " + deletedJobURI + "/" + deletedJobVersion);
     }
   }
 
   /** {@inheritDoc} */
-  @Override public void onUpdateJob(JobSpec originalJob, JobSpec updatedJob) {
+  @Override public void onUpdateJob(JobSpec updatedJob) {
     if (_log.isPresent()) {
-      _log.get().info("JobSpec changed: " + originalJob.toShortString() + " --> " +
-             updatedJob.toShortString());
+      _log.get().info("JobSpec changed: " + updatedJob.toShortString());
     }
   }
 

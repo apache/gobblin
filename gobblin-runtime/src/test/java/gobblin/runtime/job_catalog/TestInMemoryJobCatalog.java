@@ -7,7 +7,6 @@ import org.testng.annotations.Test;
 
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 
 /** Unit tests for {@link InMemoryJobCatalog} */
 public class TestInMemoryJobCatalog {
@@ -34,10 +33,10 @@ public class TestInMemoryJobCatalog {
     cat.remove(js1_3.getUri());
 
     Mockito.verify(l).onAddJob(Mockito.eq(js1_1));
-    Mockito.verify(l).onUpdateJob(Mockito.eq(js1_1), Mockito.eq(js1_2));
+    Mockito.verify(l).onUpdateJob(Mockito.eq(js1_2));
     Mockito.verify(l).onAddJob(Mockito.eq(js2));
-    Mockito.verify(l).onUpdateJob(Mockito.eq(js1_2), Mockito.eq(js1_3));
-    Mockito.verify(l).onDeleteJob(Mockito.eq(js2));
+    Mockito.verify(l).onUpdateJob(Mockito.eq(js1_3));
+    Mockito.verify(l).onDeleteJob(Mockito.eq(js2.getUri()), Mockito.eq(js2.getVersion()));
 
     Mockito.verifyNoMoreInteractions(l);
 }
