@@ -53,7 +53,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   protected final JobSpecScheduler _jobScheduler;
   protected final JobExecutionLauncher _jobLauncher;
   protected final ConfigAccessor _instanceCfg;
-  protected final JobLifecycleListenersList _dispatcher;
+  protected final JobLifecycleListenersList _callbacksDispatcher;
   protected JobSpecListener _jobSpecListener;
 
   public DefaultGobblinInstanceDriverImpl(Configurable sysConfig, JobCatalog jobCatalog, JobSpecScheduler jobScheduler,
@@ -69,7 +69,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     _sysConfig = sysConfig;
     _instanceCfg = ConfigAccessor.createFromGlobalConfig(_sysConfig.getConfig());
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-    _dispatcher = new JobLifecycleListenersList(_log);
+    _callbacksDispatcher = new JobLifecycleListenersList(_jobCatalog, _jobScheduler, _log);
   }
 
   /** {@inheritDoc} */
@@ -117,42 +117,33 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     getLog().info("Default driver: shut down.");
   }
 
-  class ExecutionStateListener extends DefaultJobExecutionStateListenerImpl {
-
-    public ExecutionStateListener() {
-      super(DefaultGobblinInstanceDriverImpl.this._log);
-    }
-
-    @Override
-    public void onStatusChange(JobExecutionState state, RunningState previousStatus, RunningState newStatus) {
-      // TODO Auto-generated method stub
-
-    }
-
-    @Override
-    public void onStageTransition(JobExecutionState state, String previousStage, String newStage) {
-      // TODO Auto-generated method stub
-
-    }
-
-    @Override
-    public void onMetadataChange(JobExecutionState state, String key, Object oldValue, Object newValue) {
-      // TODO Auto-generated method stub
-
-    }
-
-  }
-
   /** Keeps track of a job execution */
-  class JobExecutionListener extends DefaultJobExecutionStateListenerImpl {
+  class JobStateTracker extends DefaultJobExecutionStateListenerImpl {
 
-    public JobExecutionListener() {
+    public JobStateTracker() {
       super(LoggerFactory.getLogger(DefaultGobblinInstanceDriverImpl.this._log.getName() +
                                   "_jobExecutionListener"));
     }
 
     @Override public String toString() {
       return _log.get().getName();
+    }
+
+    @Override public void onStatusChange(JobExecutionState state, RunningState previousStatus, RunningState newStatus) {
+      super.onStatusChange(state, previousStatus, newStatus);
+      _callbacksDispatcher.onStatusChange(state, previousStatus, newStatus);
+    }
+
+    @Override
+    public void onStageTransition(JobExecutionState state, String previousStage, String newStage) {
+      super.onStageTransition(state, previousStage, newStage);
+      _callbacksDispatcher.onStageTransition(state, previousStage, newStage);
+    }
+
+    @Override
+    public void onMetadataChange(JobExecutionState state, String key, Object oldValue, Object newValue) {
+      super.onMetadataChange(state, key, oldValue, newValue);
+      _callbacksDispatcher.onMetadataChange(state, key, oldValue, newValue);
     }
 
   }
@@ -168,14 +159,14 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     @Override
     public void run() {
        JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
-       driver.registerStateListener(new JobExecutionListener());
+       _callbacksDispatcher.onJobLaunch(driver);
+       driver.registerStateListener(new JobStateTracker());
        driver.startAsync();
     }
   }
 
   /** Listens to changes in the Job catalog and schedules/un-schedules jobs. */
-  class JobSpecListener extends DefaultJobCatalogListenerImpl {
-
+  protected class JobSpecListener extends DefaultJobCatalogListenerImpl {
     public JobSpecListener() {
       super(LoggerFactory.getLogger(DefaultGobblinInstanceDriverImpl.this._log.getName() +
                                   "_jobSpecListener"));
@@ -199,7 +190,6 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
       super.onUpdateJob(updatedJob);
       _jobScheduler.scheduleJob(updatedJob, new JobSpecRunnable(updatedJob));
     }
-
   }
 
   ConfigAccessor getInstanceCfg() {
@@ -208,17 +198,22 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
   @Override
   public void registerJobLifecycleListener(JobLifecycleListener listener) {
-    _dispatcher.registerJobLifecycleListener(listener);
+    _callbacksDispatcher.registerJobLifecycleListener(listener);
   }
 
   @Override
   public void unregisterJobLifecycleListener(JobLifecycleListener listener) {
-    _dispatcher.unregisterJobLifecycleListener(listener);
+    _callbacksDispatcher.unregisterJobLifecycleListener(listener);
   }
 
   @Override
   public List<JobLifecycleListener> getJobLifecycleListeners() {
-    return _dispatcher.getJobLifecycleListeners();
+    return _callbacksDispatcher.getJobLifecycleListeners();
+  }
+
+  @Override
+  public void registerWeakJobLifecycleListener(JobLifecycleListener listener) {
+    _callbacksDispatcher.registerWeakJobLifecycleListener(listener);
   }
 
 }

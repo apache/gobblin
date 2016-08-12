@@ -89,4 +89,9 @@ public class CachingJobCatalog implements JobCatalog {
 
   }
 
+  @Override
+  public void registerWeakJobCatalogListener(JobCatalogListener jobListener) {
+    _cache.registerWeakJobCatalogListener(jobListener);
+  }
+
 }

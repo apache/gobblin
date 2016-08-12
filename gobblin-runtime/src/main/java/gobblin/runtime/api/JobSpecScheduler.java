@@ -26,7 +26,7 @@ import gobblin.annotation.Alpha;
  *  {@link GobblinInstanceDriver}) to keep track of the outcome of the execution.
  */
 @Alpha
-public interface JobSpecScheduler {
+public interface JobSpecScheduler extends JobSpecSchedulerListenersContainer {
   /**
    * Add a Gobblin job for scheduling. If the job is configured appropriately (scheduler-dependent),
    * it will be executed repeatedly.
@@ -35,6 +35,14 @@ public interface JobSpecScheduler {
    * @param   jobRunnable a runnable that will execute the job
    */
   public JobSpecSchedule scheduleJob(JobSpec jobSpec, Runnable jobRunnable);
+
+  /**
+   * Add a Gobblin job for scheduling. Job is guaranteed to run only once.
+   *
+   * @param   jobSpec     the JobSpec of the job
+   * @param   jobRunnable a runnable that will execute the job
+   */
+  public JobSpecSchedule scheduleOnce(JobSpec jobSpec, Runnable jobRunnable);
 
   /**
    * Remove a job from scheduling. This will not affect any executions that are currently running.

@@ -16,9 +16,11 @@ import java.net.URI;
 import com.google.common.base.Predicate;
 
 import gobblin.runtime.JobState.RunningState;
+import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobLifecycleListener;
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.JobSpecSchedule;
 
 import lombok.AllArgsConstructor;
 
@@ -73,11 +75,36 @@ public class FilteredJobLifecycleListener implements JobLifecycleListener {
   }
 
   /** {@inheritDoc} */
-  @Override
-  public void onMetadataChange(JobExecutionState state, String key, Object oldValue, Object newValue) {
+  @Override public void onMetadataChange(JobExecutionState state, String key, Object oldValue,
+                                         Object newValue) {
     if (this.filter.apply(state.getJobSpec())) {
       this.delegate.onMetadataChange(state, key, oldValue, newValue);
     }
+  }
+
+  @Override public void onJobScheduled(JobSpecSchedule jobSchedule) {
+    if (this.filter.apply(jobSchedule.getJobSpec())) {
+      this.delegate.onJobScheduled(jobSchedule);
+    }
+  }
+
+  @Override public void onJobUnscheduled(JobSpecSchedule jobSchedule) {
+    if (this.filter.apply(jobSchedule.getJobSpec())) {
+      this.delegate.onJobUnscheduled(jobSchedule);
+    }
+  }
+
+  @Override public void onJobTriggered(JobSpecSchedule jobSchedule) {
+    if (this.filter.apply(jobSchedule.getJobSpec())) {
+      this.delegate.onJobTriggered(jobSchedule);
+    }
+  }
+
+  @Override public void onJobLaunch(JobExecutionDriver jobDriver) {
+    if (this.filter.apply(jobDriver.getJobExecutionState().getJobSpec())) {
+      this.delegate.onJobLaunch(jobDriver);
+    }
+
   }
 
 }

@@ -11,8 +11,10 @@
  */
 package gobblin.util.callbacks;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -43,6 +45,7 @@ import lombok.Data;
 public class CallbacksDispatcher<L> {
   private final Logger _log;
   private final List<L> _listeners = new ArrayList<>();
+  private final List<WeakReference<L>> _autoListeners = new ArrayList<>();
   private final ExecutorService _execService;
 
   /**
@@ -56,9 +59,12 @@ public class CallbacksDispatcher<L> {
     Preconditions.checkNotNull(log);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-    _execService = execService.isPresent() ? execService.get() :
-        Executors.newSingleThreadExecutor(
-            ExecutorsUtils.newThreadFactory(Optional.of(_log), Optional.of(_log.getName() + "-%d")));
+    _execService = execService.isPresent() ? execService.get() : getDefaultExecutor(_log);
+  }
+
+  public static ExecutorService getDefaultExecutor(Logger log) {
+    return Executors.newSingleThreadExecutor(
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of(log.getName() + "-%d")));
   }
 
   public CallbacksDispatcher() {
@@ -75,7 +81,23 @@ public class CallbacksDispatcher<L> {
 
   public synchronized List<L> getListeners() {
     // Clone to protect against adding/removing listeners while running callbacks
-    return new ArrayList<>(_listeners);
+    ArrayList<L> res = new ArrayList<>(_listeners);
+
+    // Scan any auto listeners
+    Iterator<WeakReference<L>> autoIter = _autoListeners.iterator();
+    while (autoIter.hasNext()) {
+      WeakReference<L> ref = autoIter.next();
+      L listener = ref.get();
+      if (null != listener) {
+        res.add(listener);
+      }
+      else {
+        _log.info("Removing a weak listener:" + ref);
+        autoIter.remove();
+      }
+    }
+
+    return res;
   }
 
   public synchronized void addListener(L listener) {
@@ -83,6 +105,18 @@ public class CallbacksDispatcher<L> {
 
     _log.info("Adding listener:" + listener);
     _listeners.add(listener);
+  }
+
+  /**
+   * Only weak references are stored for weak listeners. They will be removed from the dispatcher
+   * automatically, once the listener objects are GCed. Note that weak listeners cannot be removed
+   * explicitly. */
+  public synchronized void addWeakListener(L listener) {
+    Preconditions.checkNotNull(listener);
+
+    WeakReference<L> ref = new WeakReference<>(listener);
+    _log.info("Adding a weak listener " + listener + " with reference " + ref);
+    _autoListeners.add(ref);
   }
 
   public synchronized void removeListener(L listener) {

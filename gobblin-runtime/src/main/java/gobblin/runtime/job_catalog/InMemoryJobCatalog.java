@@ -103,4 +103,9 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
     }
   }
 
+  @Override
+  public void registerWeakJobCatalogListener(JobCatalogListener jobListener) {
+    this.listeners.registerWeakJobCatalogListener(jobListener);
+  }
+
 }

@@ -18,6 +18,14 @@ import java.util.List;
  */
 public interface JobLifecycleListenersContainer {
   void registerJobLifecycleListener(JobLifecycleListener listener);
+  /**
+   * Like {@link #registerJobLifecycleListener(JobLifecycleListener)} but it will create a weak
+   * reference. The implementation will automatically remove the listener registration once the
+   * listener object gets GCed.
+   *
+   * <p>Note that weak listeners cannot be removed using {@link #unregisterJobLifecycleListener(JobLifecycleListener)}.
+   */
+  void registerWeakJobLifecycleListener(JobLifecycleListener listener);
   void unregisterJobLifecycleListener(JobLifecycleListener listener);
   List<JobLifecycleListener> getJobLifecycleListeners();
 }

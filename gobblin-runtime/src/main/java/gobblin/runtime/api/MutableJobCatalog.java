@@ -24,7 +24,8 @@ import gobblin.annotation.Alpha;
 public interface MutableJobCatalog extends JobCatalog {
   /**
    * Registers a new JobSpec. If a JobSpec with the same {@link JobSpec#getUri()} exists,
-   * it will be replaced. */
+   * it will be replaced.
+   * */
   public void put(JobSpec jobSpec);
 
   /**

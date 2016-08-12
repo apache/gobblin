@@ -277,4 +277,9 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     }
 
   }
+
+  @Override
+  public void registerWeakStateListener(JobExecutionStateListener listener) {
+    _callbackDispatcher.registerWeakStateListener(listener);
+  }
 }
