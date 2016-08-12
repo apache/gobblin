@@ -18,7 +18,6 @@ import gobblin.util.SchedulerUtils;
 import gobblin.util.filesystem.PathAlterationListenerAdaptor;
 
 
-
 /**
  * Inner subclass of PathAlterationListenerAdaptor for implementation of Listen's methods,
  * avoiding anonymous class
@@ -28,11 +27,11 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
   private static final Logger LOG = LoggerFactory.getLogger(JobScheduler.class);
 
   Path jobConfigFileDirPath;
-  JobScheduler jobScheduler ;
+  JobScheduler jobScheduler;
 
   PathAlterationListenerAdaptorForMonitor(Path jobConfigFileDirPath, JobScheduler jobScheduler) {
     this.jobConfigFileDirPath = jobConfigFileDirPath;
-    this.jobScheduler = jobScheduler ;
+    this.jobScheduler = jobScheduler;
   }
 
   public void loadNewJobConfigAndHandleNewJob(Path path, JobScheduler.Action action) {
@@ -80,7 +79,8 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
               boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
               customizedInfoAction = "schedule";
               customizedInfoResult = "creation or equivalent action";
-              jobScheduler.scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
+              jobScheduler.scheduleJob(jobProps,
+                  runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
               break;
             case RESCHEDULE:
               customizedInfoAction = "reschedule";
@@ -97,14 +97,14 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
               break;
           }
         } catch (JobException je) {
-          LOG.error("Failed to " + customizedInfoAction + " job reloaded from job configuration file "
-              + jobProps.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), je);
+          LOG.error(
+              "Failed to " + customizedInfoAction + " job reloaded from job configuration file " + jobProps.getProperty(
+                  ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), je);
         }
       }
     } catch (ConfigurationException | IOException e) {
       LOG.error(
-          "Failed to reload job configuration files affected by " + customizedInfoResult + " to " + path.toString(),
-          e);
+          "Failed to reload job configuration files affected by " + customizedInfoResult + " to " + path.toString(), e);
     }
   }
 
@@ -124,7 +124,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
       LOG.info("Detected cration to common properties file" + path.toString());
       // New .properties file founded with some new attributes, reschedule jobs.
       loadNewCommonConfigAndHandleNewJob(path, JobScheduler.Action.RESCHEDULE);
-      return ;
+      return;
     }
     if (!jobScheduler.jobConfigFileExtensions.contains(fileExtension)) {
       return;
@@ -186,6 +186,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
     boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
     // Reschedule the job with the new job configuration
     jobScheduler.scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
+    LOG.debug("[JobScheduler]" + "" + "" + "The new job " + jobName + " is rescheduled.");
   }
 
   /**
@@ -203,7 +204,6 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
         return false;
       }
     }
-
     return true;
   }
 }
