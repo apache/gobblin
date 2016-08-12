@@ -103,4 +103,9 @@ public class ImmediateJobSpecScheduler implements JobSpecScheduler {
     }
   }
 
+  @Override
+  public void registerWeakJobSpecSchedulerListener(JobSpecSchedulerListener listener) {
+    _callbacksDispatcher.registerWeakJobSpecSchedulerListener(listener);
+  }
+
 }
