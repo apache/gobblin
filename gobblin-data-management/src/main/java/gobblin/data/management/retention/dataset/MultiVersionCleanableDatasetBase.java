@@ -24,6 +24,7 @@ import lombok.Getter;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
@@ -138,6 +139,8 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   @Deprecated
   protected final ProxiedTrash trash;
 
+  @Getter
+  @VisibleForTesting
   protected final boolean isDatasetBlacklisted;
 
   private final FsCleanableHelper fsCleanableHelper;
@@ -179,8 +182,11 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   }
 
   public MultiVersionCleanableDatasetBase(final FileSystem fs, final Properties props, Logger log) throws IOException {
-    this(fs, props, ConfigFactory
-        .parseMap(ImmutableMap.<String, String> of(IS_DATASET_BLACKLISTED_KEY, IS_DATASET_BLACKLISTED_DEFAULT)), log);
+    // This constructor is used by retention jobs configured through job configs and do not use dataset configs from config store.
+    // IS_DATASET_BLACKLISTED_KEY is only available with dataset config. Hence set IS_DATASET_BLACKLISTED_KEY to default
+    // ...false for jobs running with job configs
+    this(fs, props, ConfigFactory.parseMap(ImmutableMap.<String, String> of(IS_DATASET_BLACKLISTED_KEY,
+        IS_DATASET_BLACKLISTED_DEFAULT)), log);
   }
 
   /**
