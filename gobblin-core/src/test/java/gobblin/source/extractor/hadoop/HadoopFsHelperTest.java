@@ -25,14 +25,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class AvroFsHelperTest {
+public class HadoopFsHelperTest {
 
   @Test(expectedExceptions = IllegalArgumentException.class)
   public void testConnectFailsWithS3URLWithoutAWSCredentials() throws FileBasedHelperException {
     Configuration conf = new Configuration(); // plain conf, no S3 credentials
     SourceState sourceState = new SourceState();
     sourceState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "s3://support.elasticmapreduce/spark/install-spark/");
-    AvroFsHelper fsHelper = new AvroFsHelper(sourceState, conf);
+    HadoopFsHelper fsHelper = new HadoopFsHelper(sourceState, conf);
     fsHelper.connect();
   }
 
@@ -42,7 +42,7 @@ public class AvroFsHelperTest {
     URL rootUrl = getClass().getResource("/source/");
     String rootPath = rootUrl.toString();
     sourceState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, rootPath);
-    AvroFsHelper fsHelper = new AvroFsHelper(sourceState);
+    HadoopFsHelper fsHelper = new HadoopFsHelper(sourceState);
 
     fsHelper.connect();
     URL url = getClass().getResource("/source/simple.tsv");
@@ -58,7 +58,7 @@ public class AvroFsHelperTest {
     URL rootUrl = getClass().getResource("/source/");
     String rootPath = rootUrl.toString();
     sourceState.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, rootPath);
-    AvroFsHelper fsHelper = new AvroFsHelper(sourceState);
+    HadoopFsHelper fsHelper = new HadoopFsHelper(sourceState);
 
     fsHelper.connect();
     URL url = getClass().getResource("/source/simple.tsv.gz");
