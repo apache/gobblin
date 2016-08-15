@@ -46,8 +46,9 @@ public class ConfigUtils {
    */
   public static Properties configToProperties(Config config) {
     Properties properties = new Properties();
-    for (Map.Entry<String, ConfigValue> entry : config.entrySet()) {
-      properties.setProperty(entry.getKey(), config.getString(entry.getKey()));
+    Config resolvedConfig = config.resolve();
+    for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
+      properties.setProperty(entry.getKey(), resolvedConfig.getString(entry.getKey()));
     }
 
     return properties;
