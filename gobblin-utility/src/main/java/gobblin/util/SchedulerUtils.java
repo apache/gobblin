@@ -177,8 +177,6 @@ public class SchedulerUtils {
       Set<String> jobConfigFileExtensions, Path configDirPath)
       throws ConfigurationException, IOException {
 
-    Configuration conf = new Configuration();
-//    try (FileSystem filesystem = configDirPath.getFileSystem(conf)) {
     FileSystem filesystem = FileSystem.get(new Configuration());
     if (!filesystem.exists(configDirPath)) {
       throw new RuntimeException(
@@ -267,7 +265,6 @@ public class SchedulerUtils {
   private static void getCommonProperties(List<Properties> commonPropsList, Path jobConfigPathDir,
       Path configPathParent)
       throws ConfigurationException, IOException {
-    Configuration conf = new Configuration();
     FileSystem fileSystem = FileSystem.get(new Configuration());
     // Make sure the given starting directory is under the job configuration file directory
     Preconditions.checkArgument(
@@ -275,8 +272,6 @@ public class SchedulerUtils {
         String.format("%s is not an ancestor directory of %s", jobConfigPathDir, configPathParent));
 
     // Traversal backward until the parent of the root job configuration file directory is reached
-    // Pay attention that the path Object will have a "file:/" as the prefix, so for comparison requirement
-    // that prefix need to be addressed.
     while (!PathUtils.compareWithoutSchemeAndAuthority(configPathParent, jobConfigPathDir.getParent())) {
 
       // Get the properties file that ends with .properties if any
@@ -297,9 +292,13 @@ public class SchedulerUtils {
           throw new RuntimeException("Found more than one .properties file in directory: " + configPathParent);
         }
 
-        // TODO: Remove this hard coded thing. Might result in bugs here.
-        commonPropsList.add(ConfigurationConverter.getProperties(new PropertiesConfiguration(
-            (new Path((new Path("file://", configPathParent)), propertiesFiles[0])).toUri().toURL())));
+        FileSystem filesystem = FileSystem.get(new Configuration());
+        PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
+        try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(new Path(configPathParent, propertiesFiles[0])),
+            Charsets.UTF_8)) {
+          propertiesConfiguration.load(inputStreamReader);
+          commonPropsList.add(ConfigurationConverter.getProperties(propertiesConfiguration));
+        }
       }
       configPathParent = configPathParent.getParent();
     }
