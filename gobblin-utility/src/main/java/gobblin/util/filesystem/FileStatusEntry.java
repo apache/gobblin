@@ -37,29 +37,28 @@ public class FileStatusEntry extends FileStatus {
 
   public boolean refresh(final Path path)
       throws IOException {
-    try (FileSystem fs = path.getFileSystem(new Configuration())) {
-      if (_fileStatus.isPresent()) {
-        Optional<FileStatus> oldStatus = this._fileStatus;
-        try {
-          Optional<FileStatus> newStatus = Optional.of(fs.getFileStatus(path));
-          this.exists = newStatus.isPresent();
-          return (oldStatus.isPresent() != this._fileStatus.isPresent()
-              || oldStatus.get().getModificationTime() != newStatus.get().getModificationTime()
-              || oldStatus.get().isDirectory() != newStatus.get().isDirectory() || oldStatus.get().getLen() != newStatus
-              .get()
-              .getLen());
-        } catch (FileNotFoundException e) {
-          _fileStatus = Optional.absent();
-          this.exists = false;
-          return true;
-        }
+    FileSystem fs = FileSystem.get(new Configuration());
+    if (_fileStatus.isPresent()) {
+      Optional<FileStatus> oldStatus = this._fileStatus;
+      try {
+        Optional<FileStatus> newStatus = Optional.of(fs.getFileStatus(path));
+        this.exists = newStatus.isPresent();
+        return (oldStatus.isPresent() != this._fileStatus.isPresent()
+            || oldStatus.get().getModificationTime() != newStatus.get().getModificationTime()
+            || oldStatus.get().isDirectory() != newStatus.get().isDirectory() || oldStatus.get().getLen() != newStatus
+            .get()
+            .getLen());
+      } catch (FileNotFoundException e) {
+        _fileStatus = Optional.absent();
+        this.exists = false;
+        return true;
+      }
+    } else {
+      if (path.getFileSystem(new Configuration()).exists(path)) {
+        _fileStatus = Optional.of(fs.getFileStatus(path));
+        return true;
       } else {
-        if (path.getFileSystem(new Configuration()).exists(path)) {
-          _fileStatus = Optional.of(fs.getFileStatus(path));
-          return true;
-        } else {
-          return false;
-        }
+        return false;
       }
     }
   }

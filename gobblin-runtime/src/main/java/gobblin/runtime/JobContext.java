@@ -189,6 +189,7 @@ public class JobContext {
 
     Preconditions.checkState(this.jobState.contains(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_DIR));
 
+    // TODO: Filesystem should not be in try-with-resource block
     try (FileSystem fs = FileSystem.get(URI.create(this.jobState
         .getProp(FsCommitSequenceStore.GOBBLIN_RUNTIME_COMMIT_SEQUENCE_STORE_FS_URI, ConfigurationKeys.LOCAL_FS_URI)),
         HadoopUtils.getConfFromState(this.jobState))) {

@@ -137,18 +137,18 @@ public class SchedulerUtils {
       jobProps.putAll(commonProps);
     }
 
-    try (FileSystem filesystem = jobConfigPath.getFileSystem(new Configuration())) {
-      PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
-      try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(jobConfigPath),
-          Charsets.UTF_8)) {
-        propertiesConfiguration.load(inputStreamReader);
-        jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
-      }
+    FileSystem filesystem = FileSystem.get(new Configuration());
+    PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
+    try (
+        InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(jobConfigPath), Charsets.UTF_8)) {
+      propertiesConfiguration.load(inputStreamReader);
+      jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
+    }
 
-      if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-        jobProps = (new ResourceBasedTemplate(
-            jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
-      }
+    if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+      jobProps = (new ResourceBasedTemplate(
+          jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
+    }
     jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, jobConfigPath.toString());
     return jobProps;
   }
@@ -178,73 +178,73 @@ public class SchedulerUtils {
       throws ConfigurationException, IOException {
 
     Configuration conf = new Configuration();
-    try (FileSystem filesystem = configDirPath.getFileSystem(conf)) {
-      if (!filesystem.exists(configDirPath)) {
-        throw new RuntimeException(
-            "The specified job configurations directory was not found: " + configDirPath.toString());
+//    try (FileSystem filesystem = configDirPath.getFileSystem(conf)) {
+    FileSystem filesystem = FileSystem.get(new Configuration());
+    if (!filesystem.exists(configDirPath)) {
+      throw new RuntimeException(
+          "The specified job configurations directory was not found: " + configDirPath.toString());
+    }
+
+    FileStatus[] propertiesFilesStatus = filesystem.listStatus(configDirPath, PROPERTIES_PATH_FILTER);
+    if (propertiesFilesStatus != null && propertiesFilesStatus.length > 0) {
+      // There should be a single properties file in each directory (or sub directory)
+      if (propertiesFilesStatus.length != 1) {
+        throw new RuntimeException("Found more than one .properties file in directory: " + configDirPath);
       }
 
-      FileStatus[] propertiesFilesStatus = filesystem.listStatus(configDirPath, PROPERTIES_PATH_FILTER);
-      if (propertiesFilesStatus != null && propertiesFilesStatus.length > 0) {
-        // There should be a single properties file in each directory (or sub directory)
-        if (propertiesFilesStatus.length != 1) {
-          throw new RuntimeException("Found more than one .properties file in directory: " + configDirPath);
+      // Load the properties, which may overwrite the same properties defined in the parent or ancestor directories.
+      // Open the inputStream, construct a reader and send to the loader for constructing propertiesConfiguration.
+      PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
+      Path uniqueConfigFilePath = propertiesFilesStatus[0].getPath();
+      try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(uniqueConfigFilePath),
+          Charsets.UTF_8)) {
+        propertiesConfiguration.load(inputStreamReader);
+        rootProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
+      }
+    }
+
+    // Get all non-properties files
+    FileStatus[] nonPropFiles = filesystem.listStatus(configDirPath, NON_PROPERTIES_PATH_FILTER);
+    if (nonPropFiles == null || nonPropFiles.length == 0) {
+      return;
+    }
+
+    for (FileStatus nonPropFile : nonPropFiles) {
+      Path configFilePath = nonPropFile.getPath();
+      if (nonPropFile.isDirectory()) {
+        Properties rootPropsCopy = new Properties();
+        rootPropsCopy.putAll(rootProps);
+        loadGenericJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, configFilePath);
+      } else {
+        if (!jobConfigFileExtensions.contains(
+            configFilePath.getName().substring(configFilePath.getName().lastIndexOf('.') + 1).toLowerCase())) {
+          LOGGER.warn("Skipped file " + configFilePath + " that has an unsupported extension");
+          continue;
         }
 
-        // Load the properties, which may overwrite the same properties defined in the parent or ancestor directories.
-        // Open the inputStream, construct a reader and send to the loader for constructing propertiesConfiguration.
+        Path doneFilePath = configFilePath.suffix(".done");
+        if (filesystem.exists(doneFilePath)) {
+          LOGGER.info("Skipped job configuration file " + doneFilePath + " for which a .done file exists");
+          continue;
+        }
+
+        Properties jobProps = new Properties();
+        // Put all parent/ancestor properties first
+        jobProps.putAll(rootProps);
+        // Then load the job configuration properties defined in the job configuration file
         PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
-        Path uniqueConfigFilePath = propertiesFilesStatus[0].getPath();
-        try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(uniqueConfigFilePath),
+        try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(configFilePath),
             Charsets.UTF_8)) {
           propertiesConfiguration.load(inputStreamReader);
-          rootProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
-        }
-      }
+          jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
 
-      // Get all non-properties files
-      FileStatus[] nonPropFiles = filesystem.listStatus(configDirPath, NON_PROPERTIES_PATH_FILTER);
-      if (nonPropFiles == null || nonPropFiles.length == 0) {
-        return;
-      }
-
-      for (FileStatus nonPropFile : nonPropFiles) {
-        Path configFilePath = nonPropFile.getPath();
-        if (nonPropFile.isDirectory()) {
-          Properties rootPropsCopy = new Properties();
-          rootPropsCopy.putAll(rootProps);
-          loadGenericJobConfigsRecursive(jobConfigs, rootPropsCopy, jobConfigFileExtensions, configFilePath);
-        } else {
-          if (!jobConfigFileExtensions.contains(
-              configFilePath.getName().substring(configFilePath.getName().lastIndexOf('.') + 1).toLowerCase())) {
-            LOGGER.warn("Skipped file " + configFilePath + " that has an unsupported extension");
-            continue;
+          if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+            jobProps = (new ResourceBasedTemplate(
+                jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
           }
 
-          Path doneFilePath = configFilePath.suffix(".done");
-          if (filesystem.exists(doneFilePath)) {
-            LOGGER.info("Skipped job configuration file " + doneFilePath + " for which a .done file exists");
-            continue;
-          }
-
-          Properties jobProps = new Properties();
-          // Put all parent/ancestor properties first
-          jobProps.putAll(rootProps);
-          // Then load the job configuration properties defined in the job configuration file
-          PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
-          try (InputStreamReader inputStreamReader = new InputStreamReader(filesystem.open(configFilePath),
-              Charsets.UTF_8)) {
-            propertiesConfiguration.load(inputStreamReader);
-            jobProps.putAll(ConfigurationConverter.getProperties(propertiesConfiguration));
-
-            if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-              jobProps = (new ResourceBasedTemplate(
-                  jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
-            }
-
-            jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, configFilePath.toString());
-            jobConfigs.add(jobProps);
-          }
+          jobProps.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, configFilePath.toString());
+          jobConfigs.add(jobProps);
         }
       }
     }
@@ -268,40 +268,40 @@ public class SchedulerUtils {
       Path configPathParent)
       throws ConfigurationException, IOException {
     Configuration conf = new Configuration();
-    try (FileSystem fileSystem = jobConfigPathDir.getFileSystem(conf)) {
-      // Make sure the given starting directory is under the job configuration file directory
-      Preconditions.checkArgument(
-          configPathParent.toUri().normalize().getPath().startsWith(jobConfigPathDir.toUri().normalize().getPath()),
-          String.format("%s is not an ancestor directory of %s", jobConfigPathDir, configPathParent));
+    FileSystem fileSystem = FileSystem.get(new Configuration());
+    // Make sure the given starting directory is under the job configuration file directory
+    Preconditions.checkArgument(
+        configPathParent.toUri().normalize().getPath().startsWith(jobConfigPathDir.toUri().normalize().getPath()),
+        String.format("%s is not an ancestor directory of %s", jobConfigPathDir, configPathParent));
 
-      // Traversal backward until the parent of the root job configuration file directory is reached
-      // Pay attention that the path Object will have a "file:/" as the prefix, so for comparison requirement
-      // that prefix need to be addressed.
-      while (!PathUtils.compareWithoutSchemeAndAuthority(configPathParent, jobConfigPathDir.getParent())) {
+    // Traversal backward until the parent of the root job configuration file directory is reached
+    // Pay attention that the path Object will have a "file:/" as the prefix, so for comparison requirement
+    // that prefix need to be addressed.
+    while (!PathUtils.compareWithoutSchemeAndAuthority(configPathParent, jobConfigPathDir.getParent())) {
 
-        // Get the properties file that ends with .properties if any
-        FileStatus[] propertiesFilesStatus = fileSystem.listStatus(configPathParent, PROPERTIES_PATH_FILTER);
-        ArrayList<String> propertiesFilesList = new ArrayList<>();
+      // Get the properties file that ends with .properties if any
+      FileStatus[] propertiesFilesStatus = fileSystem.listStatus(configPathParent, PROPERTIES_PATH_FILTER);
+      ArrayList<String> propertiesFilesList = new ArrayList<>();
 
-        if (propertiesFilesStatus != null && propertiesFilesStatus.length > 0) {
-          for (FileStatus propertiesFileStatus : propertiesFilesStatus) {
-            propertiesFilesList.add(propertiesFileStatus.getPath().getName());
-          }
+      if (propertiesFilesStatus != null && propertiesFilesStatus.length > 0) {
+        for (FileStatus propertiesFileStatus : propertiesFilesStatus) {
+          propertiesFilesList.add(propertiesFileStatus.getPath().getName());
         }
-
-        String[] propertiesFiles = propertiesFilesList.toArray(new String[propertiesFilesList.size()]);
-
-        if (propertiesFiles != null && propertiesFiles.length > 0) {
-          // There should be a single properties file in each directory (or sub directory)
-          if (propertiesFiles.length != 1) {
-            throw new RuntimeException("Found more than one .properties file in directory: " + configPathParent);
-          }
-
-          commonPropsList.add(ConfigurationConverter.getProperties(new PropertiesConfiguration(
-              (new Path((new Path("file://", configPathParent)), propertiesFiles[0])).toUri().toURL())));
-        }
-        configPathParent = configPathParent.getParent();
       }
+
+      String[] propertiesFiles = propertiesFilesList.toArray(new String[propertiesFilesList.size()]);
+
+      if (propertiesFiles != null && propertiesFiles.length > 0) {
+        // There should be a single properties file in each directory (or sub directory)
+        if (propertiesFiles.length != 1) {
+          throw new RuntimeException("Found more than one .properties file in directory: " + configPathParent);
+        }
+
+        // TODO: Remove this hard coded thing. Might result in bugs here.
+        commonPropsList.add(ConfigurationConverter.getProperties(new PropertiesConfiguration(
+            (new Path((new Path("file://", configPathParent)), propertiesFiles[0])).toUri().toURL())));
+      }
+      configPathParent = configPathParent.getParent();
     }
   }
 }
