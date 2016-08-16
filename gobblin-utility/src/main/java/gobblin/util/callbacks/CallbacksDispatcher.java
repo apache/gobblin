@@ -11,12 +11,11 @@
  */
 package gobblin.util.callbacks;
 
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,7 +44,7 @@ import lombok.Data;
 public class CallbacksDispatcher<L> {
   private final Logger _log;
   private final List<L> _listeners = new ArrayList<>();
-  private final List<WeakReference<L>> _autoListeners = new ArrayList<>();
+  private final WeakHashMap<L, Void> _autoListeners = new WeakHashMap<>();
   private final ExecutorService _execService;
 
   /**
@@ -84,17 +83,8 @@ public class CallbacksDispatcher<L> {
     ArrayList<L> res = new ArrayList<>(_listeners);
 
     // Scan any auto listeners
-    Iterator<WeakReference<L>> autoIter = _autoListeners.iterator();
-    while (autoIter.hasNext()) {
-      WeakReference<L> ref = autoIter.next();
-      L listener = ref.get();
-      if (null != listener) {
-        res.add(listener);
-      }
-      else {
-        _log.info("Removing a weak listener:" + ref);
-        autoIter.remove();
-      }
+    for (Map.Entry<L, Void> entry: _autoListeners.entrySet()) {
+      res.add(entry.getKey());
     }
 
     return res;
@@ -114,9 +104,8 @@ public class CallbacksDispatcher<L> {
   public synchronized void addWeakListener(L listener) {
     Preconditions.checkNotNull(listener);
 
-    WeakReference<L> ref = new WeakReference<>(listener);
-    _log.info("Adding a weak listener " + listener + " with reference " + ref);
-    _autoListeners.add(ref);
+    _log.info("Adding a weak listener " + listener);
+    _autoListeners.put(listener, null);
   }
 
   public synchronized void removeListener(L listener) {
