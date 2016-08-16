@@ -20,6 +20,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.annotation.Nonnull;
+
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -38,7 +40,7 @@ public class JobExecutionState implements JobExecutionStatus {
   public static final String UKNOWN_STAGE = "unkown";
   public final static Predicate<JobExecutionState> EXECUTION_DONE_PREDICATE =
       new Predicate<JobExecutionState>() {
-        @Override public boolean apply(JobExecutionState state) {
+        @Override public boolean apply(@Nonnull JobExecutionState state) {
           return null != state.getRunningState() && state.getRunningState().isDone();
         }
         @Override public String toString() {
