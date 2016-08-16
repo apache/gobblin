@@ -23,6 +23,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 
 import gobblin.runtime.JobState;
 import gobblin.runtime.JobState.RunningState;
@@ -35,6 +36,15 @@ import lombok.Getter;
  */
 public class JobExecutionState implements JobExecutionStatus {
   public static final String UKNOWN_STAGE = "unkown";
+  public final static Predicate<JobExecutionState> EXECUTION_DONE_PREDICATE =
+      new Predicate<JobExecutionState>() {
+        @Override public boolean apply(JobExecutionState state) {
+          return null != state.getRunningState() && state.getRunningState().isDone();
+        }
+        @Override public String toString() {
+          return "runningState().isDone()";
+        }
+      };
 
   @Getter private final JobExecution jobExecution;
   private final Optional<JobExecutionStateListener> listener;
@@ -195,12 +205,18 @@ public class JobExecutionState implements JobExecutionStatus {
 
   // This must be called only when holding changeLock
   private void doRunningStateChange(RunningState newState) {
-    RunningState oldState = this.runningState;
-    this.runningState = newState;;
-    if (this.listener.isPresent()) {
-      this.listener.get().onStatusChange(this, oldState, this.runningState);
+    this.changeLock.lock();
+    try {
+      RunningState oldState = this.runningState;
+      this.runningState = newState;;
+      if (this.listener.isPresent()) {
+        this.listener.get().onStatusChange(this, oldState, this.runningState);
+      }
+      this.runningStateChanged.signalAll();
     }
-    this.runningStateChanged.signalAll();
+    finally {
+      this.changeLock.unlock();
+    }
   }
 
   public void setStage(String newStage) {
@@ -232,30 +248,33 @@ public class JobExecutionState implements JobExecutionStatus {
   }
 
   public void awaitForDone(long timeoutMs) throws InterruptedException, TimeoutException {
-    Preconditions.checkArgument(timeoutMs >= 0);
-    if (0 == timeoutMs) {
-      timeoutMs = Long.MAX_VALUE;
-    }
-
-    long startTimeMs = System.currentTimeMillis();
-    long millisRemaining = timeoutMs;
-    this.changeLock.lock();
-    try {
-      while ((null == this.runningState || !this.runningState.isDone()) && millisRemaining > 0) {
-        this.runningStateChanged.await(millisRemaining, TimeUnit.MILLISECONDS);
-        millisRemaining = timeoutMs - (System.currentTimeMillis() - startTimeMs);
-      }
-
-      if (null == this.runningState || !this.runningState.isDone()) {
-        throw new TimeoutException("Timeout waiting for done.");
-      }
-    }
-    finally {
-      this.changeLock.unlock();
-    }
+    awaitForStatePredicate(EXECUTION_DONE_PREDICATE, timeoutMs);
   }
 
-  public void awaitForState(RunningState targetState, long timeoutMs)
+  public void awaitForState(final RunningState targetState, long timeoutMs)
+         throws InterruptedException, TimeoutException {
+    awaitForStatePredicate(new Predicate<JobExecutionState>() {
+      @Override public boolean apply(JobExecutionState state) {
+        return null != state.getRunningState() && state.getRunningState().equals(targetState);
+      }
+      @Override public String toString() {
+        return "runningState == " + targetState;
+      }
+    }, timeoutMs);
+  }
+
+  /**
+   * Waits till a predicate on {@link #getRunningState()} becomes true or timeout is reached.
+   *
+   * @param predicate               the predicate to evaluate. Note that even though the predicate
+   *                                is applied on the entire object, it will be evaluated only when
+   *                                the running state changes.
+   * @param timeoutMs               the number of milliseconds to wait for the predicate to become
+   *                                true; 0 means wait forever.
+   * @throws InterruptedException   if the waiting was interrupted
+   * @throws TimeoutException       if we reached the timeout before the predicate was satisfied.
+   */
+  public void awaitForStatePredicate(Predicate<JobExecutionState> predicate, long timeoutMs)
          throws InterruptedException, TimeoutException {
     Preconditions.checkArgument(timeoutMs >= 0);
     if (0 == timeoutMs) {
@@ -266,13 +285,16 @@ public class JobExecutionState implements JobExecutionStatus {
     long millisRemaining = timeoutMs;
     this.changeLock.lock();
     try {
-      while ((null == this.runningState || !this.runningState.equals(targetState)) && millisRemaining > 0) {
-        this.runningStateChanged.await(millisRemaining, TimeUnit.MILLISECONDS);
+      while (!predicate.apply(this) && millisRemaining > 0) {
+        if (!this.runningStateChanged.await(millisRemaining, TimeUnit.MILLISECONDS)) {
+          // Not necessary but shuts up FindBugs RV_RETURN_VALUE_IGNORED_BAD_PRACTICE
+          break;
+        }
         millisRemaining = timeoutMs - (System.currentTimeMillis() - startTimeMs);
       }
 
-      if (null == this.runningState || !this.runningState.equals(targetState)) {
-        throw new TimeoutException("Timeout waiting for state: " + targetState);
+      if (!predicate.apply(this)) {
+        throw new TimeoutException("Timeout waiting for state predicate: " + predicate);
       }
     }
     finally {
