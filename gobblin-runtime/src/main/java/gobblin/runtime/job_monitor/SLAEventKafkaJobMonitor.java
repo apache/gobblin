@@ -90,25 +90,25 @@ public class SLAEventKafkaJobMonitor extends KafkaAvroJobMonitor<GobblinTracking
     /**
      * Create a {@link SLAEventKafkaJobMonitor} from an input {@link Config}. Useful for multiple monitors, where
      * the configuration of each monitor is scoped.
-     * @param limitedScopeConfig The sub-{@link Config} for this monitor without any namespacing (e.g. the key for
+     * @param localScopeConfig The sub-{@link Config} for this monitor without any namespacing (e.g. the key for
      *                           topic should simply be "topic").
      * @throws IOException
      */
-    public JobSpecMonitor forConfig(Config limitedScopeConfig, MutableJobCatalog jobCatalog) throws IOException {
+    public JobSpecMonitor forConfig(Config localScopeConfig, MutableJobCatalog jobCatalog) throws IOException {
 
-      Preconditions.checkArgument(limitedScopeConfig.hasPath(TEMPLATE_KEY));
-      Preconditions.checkArgument(limitedScopeConfig.hasPath(TOPIC_KEY));
+      Preconditions.checkArgument(localScopeConfig.hasPath(TEMPLATE_KEY));
+      Preconditions.checkArgument(localScopeConfig.hasPath(TOPIC_KEY));
 
-      String topic = limitedScopeConfig.getString(TOPIC_KEY);
+      String topic = localScopeConfig.getString(TOPIC_KEY);
 
       URI baseUri;
       try {
-        baseUri = new URI(limitedScopeConfig.getString(BASE_URI_KEY));
+        baseUri = new URI(localScopeConfig.getString(BASE_URI_KEY));
       } catch (URISyntaxException use) {
-        throw new IOException("Invalid base URI " + limitedScopeConfig.getString(BASE_URI_KEY), use);
+        throw new IOException("Invalid base URI " + localScopeConfig.getString(BASE_URI_KEY), use);
       }
 
-      String templateURIString = limitedScopeConfig.getString(TEMPLATE_KEY);
+      String templateURIString = localScopeConfig.getString(TEMPLATE_KEY);
       URI template;
       try {
         template = new URI(templateURIString);
@@ -117,8 +117,8 @@ public class SLAEventKafkaJobMonitor extends KafkaAvroJobMonitor<GobblinTracking
       }
 
       ImmutableMap.Builder<String, String> mapBuilder = ImmutableMap.builder();
-      if (limitedScopeConfig.hasPath(EXTRACT_KEYS)) {
-        Config extractKeys = limitedScopeConfig.getConfig(EXTRACT_KEYS);
+      if (localScopeConfig.hasPath(EXTRACT_KEYS)) {
+        Config extractKeys = localScopeConfig.getConfig(EXTRACT_KEYS);
         for (Map.Entry<String, ConfigValue> entry : extractKeys.entrySet()) {
           Object unwrappedValue = entry.getValue().unwrapped();
           if (unwrappedValue instanceof String) {
@@ -128,22 +128,22 @@ public class SLAEventKafkaJobMonitor extends KafkaAvroJobMonitor<GobblinTracking
       }
       Map<String, String> extractKeys = mapBuilder.build();
 
-      Optional<Pattern> urnFilter = limitedScopeConfig.hasPath(DATASET_URN_FILTER_KEY)
-          ? Optional.of(Pattern.compile(limitedScopeConfig.getString(DATASET_URN_FILTER_KEY)))
+      Optional<Pattern> urnFilter = localScopeConfig.hasPath(DATASET_URN_FILTER_KEY)
+          ? Optional.of(Pattern.compile(localScopeConfig.getString(DATASET_URN_FILTER_KEY)))
           : Optional.<Pattern>absent();
-      Optional<Pattern> nameFilter = limitedScopeConfig.hasPath(EVENT_NAME_FILTER_KEY)
-          ? Optional.of(Pattern.compile(limitedScopeConfig.getString(EVENT_NAME_FILTER_KEY)))
+      Optional<Pattern> nameFilter = localScopeConfig.hasPath(EVENT_NAME_FILTER_KEY)
+          ? Optional.of(Pattern.compile(localScopeConfig.getString(EVENT_NAME_FILTER_KEY)))
           : Optional.<Pattern>absent();
 
       SchemaVersionWriter versionWriter;
       try {
         versionWriter = (SchemaVersionWriter) GobblinConstructorUtils.
-            invokeLongestConstructor(Class.forName(limitedScopeConfig.getString(SCHEMA_VERSION_READER_CLASS)), limitedScopeConfig);
+            invokeLongestConstructor(Class.forName(localScopeConfig.getString(SCHEMA_VERSION_READER_CLASS)), localScopeConfig);
       } catch (ReflectiveOperationException roe) {
-        throw new IOException(roe);
+        throw new IllegalArgumentException(roe);
       }
 
-      return new SLAEventKafkaJobMonitor(topic, jobCatalog, baseUri, limitedScopeConfig, versionWriter,
+      return new SLAEventKafkaJobMonitor(topic, jobCatalog, baseUri, localScopeConfig, versionWriter,
           urnFilter, nameFilter, template, extractKeys);
     }
   }

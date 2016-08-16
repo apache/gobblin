@@ -47,7 +47,7 @@ public class SLAEventKafkaJobMonitorTest {
   }
 
   @Test
-  public void test() throws Exception {
+  public void testParseJobSpec() throws Exception {
 
     SLAEventKafkaJobMonitor monitor =
         new SLAEventKafkaJobMonitor("topic", null, new URI("/base/URI"),

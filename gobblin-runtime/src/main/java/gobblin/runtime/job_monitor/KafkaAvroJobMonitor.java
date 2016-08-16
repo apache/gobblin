@@ -51,9 +51,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
 
-  private final BinaryDecoder decoder;
   private final Schema schema;
-  private final SpecificDatumReader<T> reader;
+  private final ThreadLocal<BinaryDecoder> decoder;
+  private final ThreadLocal<SpecificDatumReader<T>> reader;
   @Getter
   private final SchemaVersionWriter<?> versionWriter;
 
@@ -64,10 +64,20 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
       SchemaVersionWriter<?> versionWriter) {
     super(topic, catalog, config);
 
-    InputStream dummyInputStream = new ByteArrayInputStream(new byte[0]);
-    this.decoder = DecoderFactory.get().binaryDecoder(dummyInputStream, null);
     this.schema = schema;
-    this.reader = new SpecificDatumReader<>(schema);
+    this.decoder = new ThreadLocal<BinaryDecoder>() {
+      @Override
+      protected BinaryDecoder initialValue() {
+        InputStream dummyInputStream = new ByteArrayInputStream(new byte[0]);
+        return DecoderFactory.get().binaryDecoder(dummyInputStream, null);
+      }
+    };
+    this.reader = new ThreadLocal<SpecificDatumReader<T>>() {
+      @Override
+      protected SpecificDatumReader<T> initialValue() {
+        return new SpecificDatumReader<>(KafkaAvroJobMonitor.this.schema);
+      }
+    };
     this.versionWriter = versionWriter;
   }
 
@@ -92,9 +102,9 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
     InputStream is = new ByteArrayInputStream(message);
     this.versionWriter.readSchemaVersioningInformation(new DataInputStream(is));
 
-    Decoder decoder = DecoderFactory.get().binaryDecoder(is, this.decoder);
+    Decoder decoder = DecoderFactory.get().binaryDecoder(is, this.decoder.get());
     try {
-      T decodedMessage = this.reader.read(null, decoder);
+      T decodedMessage = this.reader.get().read(null, decoder);
       return parseJobSpec(decodedMessage);
     } catch (AvroRuntimeException | IOException exc) {
       this.messageParseFailures.mark();

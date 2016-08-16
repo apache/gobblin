@@ -26,6 +26,9 @@ import org.apache.avro.Schema;
  *   This class is used for prefixing serialized Avro {@link org.apache.avro.generic.GenericData.Record} with
  *   schema information that may help downstream services to parse the record.
  * </p>
+ *
+ * @param <S> the type of the schema version that can be recovered from {@link java.io.InputStream}s,
+ *           i.e. the return type of {@link #readSchemaVersioningInformation(DataInputStream)}
  */
 public interface SchemaVersionWriter<S> {
 
