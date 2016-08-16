@@ -87,4 +87,9 @@ public class JobCatalogListenersList implements JobCatalogListener, JobCatalogLi
     }
   }
 
+  @Override
+  public void registerWeakJobCatalogListener(JobCatalogListener jobListener) {
+    _disp.addWeakListener(jobListener);
+  }
+
 }

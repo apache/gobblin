@@ -91,7 +91,23 @@ public class JobState extends SourceState {
      *  {@link JobCommitPolicy#COMMIT_ON_FULL_SUCCESS}. */
     FAILED,
     /** The execution of the job was cancelled. */
-    CANCELLED
+    CANCELLED;
+
+    public boolean isCancelled() {
+      return this.equals(CANCELLED);
+    }
+
+    public boolean isDone() {
+      return this.equals(COMMITTED) || this.equals(FAILED) || this.equals(CANCELLED);
+    }
+
+    public boolean isSuccess() {
+      return this.equals(COMMITTED);
+    }
+
+    public boolean isFailure() {
+      return this.equals(FAILED);
+    }
   }
 
   private String jobName;

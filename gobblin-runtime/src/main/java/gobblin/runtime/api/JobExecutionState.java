@@ -14,10 +14,18 @@ package gobblin.runtime.api;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+import javax.annotation.Nonnull;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 
 import gobblin.runtime.JobState;
 import gobblin.runtime.JobState.RunningState;
@@ -30,14 +38,27 @@ import lombok.Getter;
  */
 public class JobExecutionState implements JobExecutionStatus {
   public static final String UKNOWN_STAGE = "unkown";
+  public final static Predicate<JobExecutionState> EXECUTION_DONE_PREDICATE =
+      new Predicate<JobExecutionState>() {
+        @Override public boolean apply(@Nonnull JobExecutionState state) {
+          return null != state.getRunningState() && state.getRunningState().isDone();
+        }
+        @Override public String toString() {
+          return "runningState().isDone()";
+        }
+      };
 
   @Getter private final JobExecution jobExecution;
   private final Optional<JobExecutionStateListener> listener;
-  @Getter private JobState.RunningState runningState;
-  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
-  @Getter private String stage;
   @Getter final JobSpec jobSpec;
-  Map<String, Object> executionMetadata;
+  // We use a lock instead of synchronized so that we can add different conditional variables if
+  // needed.
+  private final Lock changeLock = new ReentrantLock();
+  private final Condition runningStateChanged = changeLock.newCondition();
+  private JobState.RunningState runningState;
+  /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
+  private String stage;
+  private Map<String, Object> executionMetadata;
 
   public JobExecutionState(JobSpec jobSpec, JobExecution jobExecution,
                            Optional<JobExecutionStateListener> listener) {
@@ -51,17 +72,50 @@ public class JobExecutionState implements JobExecutionStatus {
   }
 
   public Map<String, Object> getExecutionMetadata() {
-    return Collections.unmodifiableMap(this.executionMetadata);
+    this.changeLock.lock();
+    try {
+      return Collections.unmodifiableMap(this.executionMetadata);
+    }
+    finally {
+      this.changeLock.unlock();
+    }
+  }
+
+  @Override public String toString() {
+    this.changeLock.lock();
+    try {
+      return Objects.toStringHelper(JobExecutionState.class.getSimpleName())
+              .add("jobExecution", this.jobExecution)
+              .add("runningState", this.runningState)
+              .add("stage", this.stage)
+              .toString();
+    }
+    finally {
+      this.changeLock.unlock();
+    }
+  }
+
+  @Override public JobState.RunningState getRunningState() {
+    this.changeLock.lock();
+    try {
+      return this.runningState;
+    }
+    finally {
+      this.changeLock.unlock();
+    }
   }
 
   @Override
-  public String toString() {
-    return Objects.toStringHelper(JobExecutionState.class.getSimpleName())
-            .add("jobExecution", this.jobExecution)
-            .add("runningState", this.runningState)
-            .add("stage", this.stage)
-            .toString();
+  public String getStage() {
+    this.changeLock.lock();
+    try {
+      return this.stage;
+    }
+    finally {
+      this.changeLock.unlock();
+    }
   }
+
 
   public void setRunningState(JobState.RunningState runningState) {
     switch (runningState){
@@ -76,63 +130,177 @@ public class JobExecutionState implements JobExecutionStatus {
   }
 
   public void switchToPending() {
-    Preconditions.checkState(null == this.runningState, "unexpected state:" + this.runningState);
-    doRunningStateChange(RunningState.PENDING);
+    this.changeLock.lock();
+    try {
+      Preconditions.checkState(null == this.runningState, "unexpected state:" + this.runningState);
+      doRunningStateChange(RunningState.PENDING);
+    }
+    finally {
+      this.changeLock.unlock();
+    }
   }
 
   public void switchToRunning() {
-    Preconditions.checkState(RunningState.PENDING == this.runningState,
-        "unexpected state:" + this.runningState);
-    doRunningStateChange(RunningState.RUNNING);
+    this.changeLock.lock();
+    try {
+      Preconditions.checkState(RunningState.PENDING == this.runningState,
+          "unexpected state:" + this.runningState);
+      doRunningStateChange(RunningState.RUNNING);
+    }
+    finally {
+      this.changeLock.unlock();
+    }
   }
 
   public void switchToSuccessful() {
-    Preconditions.checkState(RunningState.RUNNING == this.runningState,
-        "unexpected state:" + this.runningState);
-    doRunningStateChange(RunningState.SUCCESSFUL);
+    this.changeLock.lock();
+    try {
+      Preconditions.checkState(RunningState.RUNNING == this.runningState,
+          "unexpected state:" + this.runningState);
+      doRunningStateChange(RunningState.SUCCESSFUL);
+    }
+    finally {
+      this.changeLock.unlock();
+    }
   }
 
   public void switchToFailed() {
-    Preconditions.checkState(RunningState.RUNNING == this.runningState,
-        "unexpected state:" + this.runningState);
-    doRunningStateChange(RunningState.FAILED);
+    this.changeLock.lock();
+    try {
+      Preconditions.checkState(RunningState.PENDING == this.runningState // error during initialization
+          || RunningState.RUNNING == this.runningState // error during execution
+          || RunningState.SUCCESSFUL == this.runningState // error during commit
+          ,
+          "unexpected state:" + this.runningState);
+      doRunningStateChange(RunningState.FAILED);
+    }
+    finally {
+      this.changeLock.unlock();
+    }
   }
 
   public void switchToCommitted() {
-    Preconditions.checkState(RunningState.SUCCESSFUL == this.runningState,
-        "unexpected state:" + this.runningState);
-    doRunningStateChange(RunningState.COMMITTED);
+    this.changeLock.lock();
+    try {
+      Preconditions.checkState(RunningState.SUCCESSFUL == this.runningState,
+          "unexpected state:" + this.runningState);
+      doRunningStateChange(RunningState.COMMITTED);
+    }
+    finally {
+      this.changeLock.unlock();
+    }
   }
 
   public void switchToCancelled() {
-    Preconditions.checkState(RunningState.PENDING == this.runningState
-        || RunningState.RUNNING == this.runningState
-        || RunningState.SUCCESSFUL == this.runningState,
-        "unexpected state:" + this.runningState);
-    doRunningStateChange(RunningState.CANCELLED);
+    this.changeLock.lock();
+    try {
+      Preconditions.checkState(RunningState.PENDING == this.runningState
+          || RunningState.RUNNING == this.runningState
+          || RunningState.SUCCESSFUL == this.runningState,
+          "unexpected state:" + this.runningState);
+      doRunningStateChange(RunningState.CANCELLED);
+    }
+    finally {
+      this.changeLock.unlock();
+    }
   }
 
+  // This must be called only when holding changeLock
   private void doRunningStateChange(RunningState newState) {
-    RunningState oldState = this.runningState;
-    this.runningState = newState;;
-    if (this.listener.isPresent()) {
-      this.listener.get().onStatusChange(this, oldState, this.runningState);
+    this.changeLock.lock();
+    try {
+      RunningState oldState = this.runningState;
+      this.runningState = newState;;
+      if (this.listener.isPresent()) {
+        this.listener.get().onStatusChange(this, oldState, this.runningState);
+      }
+      this.runningStateChanged.signalAll();
+    }
+    finally {
+      this.changeLock.unlock();
     }
   }
 
   public void setStage(String newStage) {
-    String oldStage = this.stage;
-    this.stage = newStage;
-    if (this.listener.isPresent()) {
-      this.listener.get().onStageTransition(this, oldStage, this.stage);
+    this.changeLock.lock();
+    try {
+      String oldStage = this.stage;
+      this.stage = newStage;
+      if (this.listener.isPresent()) {
+        this.listener.get().onStageTransition(this, oldStage, this.stage);
+      }
+    }
+    finally {
+      this.changeLock.unlock();
     }
   }
 
   public void setMedatata(String key, Object value) {
-    Object oldValue = this.executionMetadata.get(key);
-    this.executionMetadata.put(key, value);
-    if (this.listener.isPresent()) {
-      this.listener.get().onMetadataChange(this, key, oldValue, value);
+    this.changeLock.lock();
+    try {
+      Object oldValue = this.executionMetadata.get(key);
+      this.executionMetadata.put(key, value);
+      if (this.listener.isPresent()) {
+        this.listener.get().onMetadataChange(this, key, oldValue, value);
+      }
+    }
+    finally {
+      this.changeLock.unlock();
+    }
+  }
+
+  public void awaitForDone(long timeoutMs) throws InterruptedException, TimeoutException {
+    awaitForStatePredicate(EXECUTION_DONE_PREDICATE, timeoutMs);
+  }
+
+  public void awaitForState(final RunningState targetState, long timeoutMs)
+         throws InterruptedException, TimeoutException {
+    awaitForStatePredicate(new Predicate<JobExecutionState>() {
+      @Override public boolean apply(JobExecutionState state) {
+        return null != state.getRunningState() && state.getRunningState().equals(targetState);
+      }
+      @Override public String toString() {
+        return "runningState == " + targetState;
+      }
+    }, timeoutMs);
+  }
+
+  /**
+   * Waits till a predicate on {@link #getRunningState()} becomes true or timeout is reached.
+   *
+   * @param predicate               the predicate to evaluate. Note that even though the predicate
+   *                                is applied on the entire object, it will be evaluated only when
+   *                                the running state changes.
+   * @param timeoutMs               the number of milliseconds to wait for the predicate to become
+   *                                true; 0 means wait forever.
+   * @throws InterruptedException   if the waiting was interrupted
+   * @throws TimeoutException       if we reached the timeout before the predicate was satisfied.
+   */
+  public void awaitForStatePredicate(Predicate<JobExecutionState> predicate, long timeoutMs)
+         throws InterruptedException, TimeoutException {
+    Preconditions.checkArgument(timeoutMs >= 0);
+    if (0 == timeoutMs) {
+      timeoutMs = Long.MAX_VALUE;
+    }
+
+    long startTimeMs = System.currentTimeMillis();
+    long millisRemaining = timeoutMs;
+    this.changeLock.lock();
+    try {
+      while (!predicate.apply(this) && millisRemaining > 0) {
+        if (!this.runningStateChanged.await(millisRemaining, TimeUnit.MILLISECONDS)) {
+          // Not necessary but shuts up FindBugs RV_RETURN_VALUE_IGNORED_BAD_PRACTICE
+          break;
+        }
+        millisRemaining = timeoutMs - (System.currentTimeMillis() - startTimeMs);
+      }
+
+      if (!predicate.apply(this)) {
+        throw new TimeoutException("Timeout waiting for state predicate: " + predicate);
+      }
+    }
+    finally {
+      this.changeLock.unlock();
     }
   }
 

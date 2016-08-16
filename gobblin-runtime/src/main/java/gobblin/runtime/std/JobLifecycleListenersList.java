@@ -11,79 +11,80 @@
  */
 package gobblin.runtime.std;
 
-import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 
 import gobblin.runtime.JobState.RunningState;
+import gobblin.runtime.api.JobCatalogListenersContainer;
+import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionState;
+import gobblin.runtime.api.JobExecutionStateListener.MetadataChangeCallback;
+import gobblin.runtime.api.JobExecutionStateListener.StageTransitionCallback;
+import gobblin.runtime.api.JobExecutionStateListener.StatusChangeCallback;
 import gobblin.runtime.api.JobLifecycleListener;
 import gobblin.runtime.api.JobLifecycleListenersContainer;
-import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.JobSpecSchedulerListenersContainer;
 import gobblin.util.callbacks.CallbacksDispatcher;
 
 /**
  * A default implementation to manage a list of {@link JobLifecycleListener}
  *
  */
-public class JobLifecycleListenersList implements JobLifecycleListener, JobLifecycleListenersContainer {
+public class JobLifecycleListenersList implements JobLifecycleListenersContainer {
   private final CallbacksDispatcher<JobLifecycleListener> _dispatcher;
+  private final JobCatalogListenersContainer _jobCatalogDelegate;
+  private final JobSpecSchedulerListenersContainer _jobSchedulerDelegate;
 
-  public JobLifecycleListenersList(Optional<ExecutorService> execService,
-                                    Optional<Logger> log) {
+  public JobLifecycleListenersList(JobCatalogListenersContainer jobCatalogDelegate,
+                                   JobSpecSchedulerListenersContainer jobSchedulerDelegate,
+                                   Optional<ExecutorService> execService,
+                                   Optional<Logger> log) {
     _dispatcher = new CallbacksDispatcher<>(execService, log);
+    _jobCatalogDelegate = jobCatalogDelegate;
+    _jobSchedulerDelegate = jobSchedulerDelegate;
   }
 
-  public JobLifecycleListenersList(Logger log) {
-    _dispatcher = new CallbacksDispatcher<>(log);
+  public JobLifecycleListenersList(JobCatalogListenersContainer jobCatalogDelegate,
+                                   JobSpecSchedulerListenersContainer jobSchedulerDelegate,
+                                   Logger log) {
+    this(jobCatalogDelegate, jobSchedulerDelegate,
+        Optional.<ExecutorService>absent(), Optional.of(log));
   }
 
-  public JobLifecycleListenersList() {
-    _dispatcher = new CallbacksDispatcher<>();
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public void onAddJob(JobSpec addedJob) {
-    Preconditions.checkNotNull(addedJob);
-    try {
-      _dispatcher.execCallbacks(new AddJobCallback(addedJob));
-    } catch (InterruptedException e) {
-      _dispatcher.getLog().warn("onAddJob interrupted.");
-    }
+  public JobLifecycleListenersList(JobCatalogListenersContainer jobCatalogDelegate,
+      JobSpecSchedulerListenersContainer jobSchedulerDelegate) {
+    this(jobCatalogDelegate, jobSchedulerDelegate,
+         Optional.<ExecutorService>absent(), Optional.<Logger>absent());
   }
 
   /** {@inheritDoc} */
   @Override
-  public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
-    Preconditions.checkNotNull(deletedJobURI);
-    try {
-      _dispatcher.execCallbacks(new DeleteJobCallback(deletedJobURI, deletedJobVersion));
-    } catch (InterruptedException e) {
-      _dispatcher.getLog().warn("onDeleteJob interrupted.");
-    }
+  public void registerJobLifecycleListener(JobLifecycleListener listener) {
+    _dispatcher.addListener(listener);
+    _jobCatalogDelegate.addListener(listener);
+    _jobSchedulerDelegate.registerJobSpecSchedulerListener(listener);
   }
 
   /** {@inheritDoc} */
   @Override
-  public void onUpdateJob(JobSpec updatedJob) {
-    Preconditions.checkNotNull(updatedJob);
-    try {
-      _dispatcher.execCallbacks(new UpdateJobCallback(updatedJob));
-    } catch (InterruptedException e) {
-      _dispatcher.getLog().warn("onUpdateJob interrupted.");
-    }
+  public void unregisterJobLifecycleListener(JobLifecycleListener listener) {
+    _jobSchedulerDelegate.unregisterJobSpecSchedulerListener(listener);
+    _jobCatalogDelegate.removeListener(listener);
+    _dispatcher.removeListener(listener);
   }
 
   /** {@inheritDoc} */
   @Override
+  public List<JobLifecycleListener> getJobLifecycleListeners() {
+    return _dispatcher.getListeners();
+  }
+
   public void onStatusChange(JobExecutionState state, RunningState previousStatus,
-      RunningState newStatus) {
+                              RunningState newStatus) {
     try {
       _dispatcher.execCallbacks(new StatusChangeCallback(state, previousStatus, newStatus));
     } catch (InterruptedException e) {
@@ -91,8 +92,6 @@ public class JobLifecycleListenersList implements JobLifecycleListener, JobLifec
     }
   }
 
-  /** {@inheritDoc} */
-  @Override
   public void onStageTransition(JobExecutionState state, String previousStage, String newStage) {
     try {
       _dispatcher.execCallbacks(new StageTransitionCallback(state, previousStage, newStage));
@@ -101,8 +100,6 @@ public class JobLifecycleListenersList implements JobLifecycleListener, JobLifec
     }
   }
 
-  /** {@inheritDoc} */
-  @Override
   public void onMetadataChange(JobExecutionState state, String key, Object oldValue, Object newValue) {
     try {
       _dispatcher.execCallbacks(new MetadataChangeCallback(state, key, oldValue, newValue));
@@ -111,22 +108,17 @@ public class JobLifecycleListenersList implements JobLifecycleListener, JobLifec
     }
   }
 
-  /** {@inheritDoc} */
-  @Override
-  public void registerJobLifecycleListener(JobLifecycleListener listener) {
-    _dispatcher.addListener(listener);
+  public void onJobLaunch(JobExecutionDriver driver) {
+    try {
+      _dispatcher.execCallbacks(new JobLifecycleListener.JobLaunchCallback(driver));
+    } catch (InterruptedException e) {
+      _dispatcher.getLog().warn("onJobLaunch interrupted.");
+    }
   }
 
-  /** {@inheritDoc} */
   @Override
-  public void unregisterJobLifecycleListener(JobLifecycleListener listener) {
-    _dispatcher.removeListener(listener);
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public List<JobLifecycleListener> getJobLifecycleListeners() {
-    return _dispatcher.getListeners();
+  public void registerWeakJobLifecycleListener(JobLifecycleListener listener) {
+    _dispatcher.addWeakListener(listener);
   }
 
 }

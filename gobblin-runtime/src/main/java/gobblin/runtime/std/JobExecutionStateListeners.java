@@ -88,4 +88,9 @@ public class JobExecutionStateListeners
     }
   }
 
+  @Override
+  public void registerWeakStateListener(JobExecutionStateListener listener) {
+    _dispatcher.addWeakListener(listener);
+  }
+
 }

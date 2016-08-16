@@ -11,12 +11,35 @@
  */
 package gobblin.runtime.api;
 
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
+
 import gobblin.annotation.Alpha;
+import gobblin.util.callbacks.Callback;
 
 /**
  * A listener that can track the full lifecycle of a job: from the registering of the jobspec to
  * completion of any of the job executions.
  */
 @Alpha
-public interface JobLifecycleListener extends JobCatalogListener, JobExecutionStateListener {
+public interface JobLifecycleListener
+        extends JobCatalogListener, JobSpecSchedulerListener, JobExecutionStateListener {
+  /** Called before the job driver gets started. */
+  void onJobLaunch(JobExecutionDriver jobDriver);
+
+  public static class JobLaunchCallback extends Callback<JobLifecycleListener, Void> {
+    private final JobExecutionDriver _jobDriver;
+
+    public JobLaunchCallback(JobExecutionDriver jobDriver) {
+      super(Objects.toStringHelper("onJobLaunch").add("jobDriver", jobDriver).toString());
+      Preconditions.checkNotNull(jobDriver);
+      _jobDriver = jobDriver;
+    }
+
+    @Override public Void apply(JobLifecycleListener listener) {
+      listener.onJobLaunch(_jobDriver);
+      return null;
+    }
+
+  }
 }

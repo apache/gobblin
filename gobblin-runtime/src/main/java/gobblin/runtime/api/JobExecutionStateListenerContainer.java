@@ -19,5 +19,12 @@ import gobblin.annotation.Alpha;
 @Alpha
 public interface JobExecutionStateListenerContainer {
   void registerStateListener(JobExecutionStateListener listener);
+  /** Like {@link #registerStateListener(JobExecutionStateListener)} but it will create a weak
+   * reference. The implementation will automatically remove the listener registration once the
+   * listener object gets GCed.
+   *
+   * <p>Note that weak listeners cannot be removed using {@link #unregisterStateListener(JobExecutionStateListener)}.
+   **/
+  void registerWeakStateListener(JobExecutionStateListener listener);
   void unregisterStateListener(JobExecutionStateListener listener);
 }

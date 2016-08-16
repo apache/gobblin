@@ -18,9 +18,11 @@ import org.slf4j.Logger;
 import com.google.common.base.Optional;
 
 import gobblin.runtime.JobState.RunningState;
+import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobLifecycleListener;
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.JobSpecSchedule;
 
 /**
  * Default NOOP implementation for {@link JobLifecycleListener}. It can log the callbacks. Other
@@ -89,6 +91,30 @@ public class DefaultJobLifecycleListenerImpl implements JobLifecycleListener {
     if (_log.isPresent()) {
       _log.get().info("JobExection metadata change for " + state.getJobSpec().toShortString() +
                       key + ": '" + oldValue + "' --> '" + newValue + "'");
+    }
+  }
+
+  @Override public void onJobScheduled(JobSpecSchedule jobSchedule) {
+    if (_log.isPresent()) {
+      _log.get().info("job scheduled: " + jobSchedule);
+    }
+  }
+
+  @Override public void onJobUnscheduled(JobSpecSchedule jobSchedule) {
+    if (_log.isPresent()) {
+      _log.get().info("job unscheduled: " + jobSchedule);
+    }
+  }
+
+  @Override public void onJobTriggered(JobSpecSchedule jobSchedule) {
+    if (_log.isPresent()) {
+      _log.get().info("job triggered: " + jobSchedule);
+    }
+  }
+
+  @Override public void onJobLaunch(JobExecutionDriver jobDriver) {
+    if (_log.isPresent()) {
+      _log.get().info("job launched: " + jobDriver);
     }
   }
 
