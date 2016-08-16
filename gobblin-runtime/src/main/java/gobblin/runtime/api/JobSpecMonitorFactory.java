@@ -11,6 +11,9 @@
  */
 package gobblin.runtime.api;
 
+import java.io.IOException;
+
+
 /**
  * A fact
  */
@@ -22,6 +25,6 @@ public interface JobSpecMonitorFactory {
    *                          used to access the environment for configuration
    * @param  jobCatalog       the job catalog to be notified for JobSpec operations.
    */
-  JobSpecMonitor forJobCatalog(GobblinInstanceDriver instanceDriver, MutableJobCatalog jobCatalog);
+  JobSpecMonitor forJobCatalog(GobblinInstanceDriver instanceDriver, MutableJobCatalog jobCatalog) throws IOException;
 
 }

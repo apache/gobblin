@@ -125,7 +125,7 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
   }
 
   @Override
-  protected ConsumerConnector createConsumerConnector(Config config) {
+  protected ConsumerConnector createConsumerConnector() {
     return Mockito.mock(ConsumerConnector.class);
   }
 

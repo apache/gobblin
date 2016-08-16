@@ -79,6 +79,13 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
   }
 
   /**
+   * Returns the length of schema ids in this schema registry in bytes.
+   */
+  public int getSchemaIdLengthByte() {
+    return SCHEMA_ID_LENGTH_BYTE;
+  }
+
+  /**
    * Get schema from schema registry by key
    *
    * @param key Schema key
