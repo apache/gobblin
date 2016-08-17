@@ -265,6 +265,31 @@ public class SchedulerUtilsTest {
     }
   }
 
+  @Test
+  public void testTemplateLoad() throws Exception {
+    Path path = new Path(getClass().getClassLoader().getResource("schedulerUtilsTest").getFile());
+
+    Properties pullFile =
+        SchedulerUtils.loadGenericJobConfig(new Properties(), new Path(path, "templated.pull"), path);
+
+    Assert.assertEquals(pullFile.getProperty("gobblin.dataset.pattern"), "pattern");
+    Assert.assertEquals(pullFile.getProperty("job.name"), "GobblinDatabaseCopyTest");
+
+    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(new Properties(), new Path(path, "templated.pull"), path);
+    Properties pullFile2 = getJobConfigForFile(jobConfigs, "templated.pull");
+
+    Assert.assertEquals(pullFile2.getProperty("gobblin.dataset.pattern"), "pattern");
+    Assert.assertEquals(pullFile2.getProperty("job.name"), "GobblinDatabaseCopyTest");
+
+    Properties props = new Properties();
+    props.put(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, path.toString());
+    List<Properties> jobConfigs3 = SchedulerUtils.loadGenericJobConfigs(props);
+    Properties pullFile3 = getJobConfigForFile(jobConfigs3, "templated.pull");
+
+    Assert.assertEquals(pullFile3.getProperty("gobblin.dataset.pattern"), "pattern");
+    Assert.assertEquals(pullFile3.getProperty("job.name"), "GobblinDatabaseCopyTest");
+  }
+
   @AfterClass
   public void tearDown()
       throws IOException {
