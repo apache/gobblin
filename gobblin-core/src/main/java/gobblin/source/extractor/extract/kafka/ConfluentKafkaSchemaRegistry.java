@@ -48,6 +48,11 @@ public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, S
   public static final String CONFLUENT_MAX_SCHEMAS_PER_SUBJECT =
       "kafka.schema_registry.confluent.max_schemas_per_subject";
 
+  public static final String CONFLUENT_SCHEMA_NAME_SUFFIX = "kafka.schema_registry.confluent.schema.name.suffix";
+  
+  // Default suffix of the topic name to register / retrieve from the registry
+  private static final String CONFLUENT_SCHEMA_DEFAULT_NAME_SUFFIX = "-value";
+  
   @Getter
   private final SchemaRegistryClient schemaRegistryClient;
 
@@ -74,7 +79,8 @@ public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, S
   @Override
   public Schema getLatestSchemaByTopic(String topic) throws SchemaRegistryException {
     try {
-      return new Schema.Parser().parse(this.schemaRegistryClient.getLatestSchemaMetadata(topic).getSchema());
+      String schemaName = topic + props.getProperty(CONFLUENT_SCHEMA_NAME_SUFFIX, CONFLUENT_SCHEMA_DEFAULT_NAME_SUFFIX);
+      return new Schema.Parser().parse(this.schemaRegistryClient.getLatestSchemaMetadata(schemaName).getSchema());
     } catch (IOException | RestClientException e) {
       throw new SchemaRegistryException(e);
     }
@@ -88,7 +94,8 @@ public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, S
   @Override
   public Integer register(Schema schema, String name) throws SchemaRegistryException {
     try {
-      return this.schemaRegistryClient.register(name, schema);
+      String schemaName = name + props.getProperty(CONFLUENT_SCHEMA_NAME_SUFFIX, CONFLUENT_SCHEMA_DEFAULT_NAME_SUFFIX);
+      return this.schemaRegistryClient.register(schemaName, schema);
     } catch (IOException | RestClientException e) {
       throw new SchemaRegistryException(e);
     }
