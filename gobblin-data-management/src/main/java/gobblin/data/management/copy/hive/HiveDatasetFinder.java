@@ -13,21 +13,26 @@
 package gobblin.data.management.copy.hive;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
+import javax.annotation.Nonnull;
+
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Table;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -81,6 +86,12 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   public static final String HIVE_DATASET_IS_BLACKLISTED_KEY = "is.blacklisted";
   private static final boolean DEFAULT_HIVE_DATASET_IS_BLACKLISTED_KEY = false;
 
+  /**
+   * This is an optional key.
+   * The fully qualified name of a {@link Function} class which returns the relative uri of a dataset in the config store
+   */
+  public static final String CONFIG_STORE_DATASET_URI_BUILDER_CLASS = "gobblin.config.management.datasetUriBuilderClass";
+
   // Event names
   private static final String DATASET_FOUND = "DatasetFound";
   private static final String DATASET_ERROR = "DatasetError";
@@ -93,6 +104,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   private final Optional<EventSubmitter> eventSubmitter;
 
   protected final Optional<String> configStoreUri;
+  protected final Function<DbAndTable, String> configStoreDatasetUriBuilder;
 
   protected final String datasetConfigPrefix;
   protected final ConfigClient configClient;
@@ -120,6 +132,9 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     this(fs, properties, clientPool, eventSubmitter, ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY));
   }
 
+  @SuppressWarnings("unchecked")
+  //SupressWarning justification : CONFIG_STORE_DATASET_URI_BUILDER_CLASS must be of type Function<DbAndTable, String>.
+  //It is safe to throw RuntimeException otherwise
   protected HiveDatasetFinder(FileSystem fs, Properties properties, HiveMetastoreClientPool clientPool,
       EventSubmitter eventSubmitter, ConfigClient configClient) throws IOException {
 
@@ -145,8 +160,16 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
         Optional.of(properties.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI)) : Optional.<String>absent();
     this.datasetConfigPrefix = properties.getProperty(HIVE_DATASET_CONFIG_PREFIX_KEY, DEFAULT_HIVE_DATASET_CONIFG_PREFIX);
     this.configClient = configClient;
+    try {
+      this.configStoreDatasetUriBuilder =
+          properties.containsKey(CONFIG_STORE_DATASET_URI_BUILDER_CLASS) ? (Function<DbAndTable, String>) ConstructorUtils
+              .invokeConstructor(Class.forName(properties.getProperty(CONFIG_STORE_DATASET_URI_BUILDER_CLASS)))
+              : DEFAULT_CONFIG_STORE_DATASET_URI_BUILDER;
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
     this.jobConfig = ConfigUtils.propertiesToConfig(properties);
-
   }
 
   protected static HiveMetastoreClientPool createClientPool(Properties properties) throws IOException {
@@ -270,7 +293,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
     // Config store enabled
     if (this.configStoreUri.isPresent()) {
-      datasetConfig = this.configClient.getConfig(this.configStoreUri.get() + Path.SEPARATOR + HiveConfigClientUtils.getDatasetUri(dbAndTable));
+      datasetConfig = this.configClient.getConfig(this.configStoreUri.get() + Path.SEPARATOR
+              + this.configStoreDatasetUriBuilder.apply(dbAndTable));
 
     // If config store is not enabled use job config
     } else {
@@ -281,4 +305,12 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
         this.datasetConfigPrefix, ConfigFactory.empty());
   }
 
+  private static final Function<DbAndTable, String> DEFAULT_CONFIG_STORE_DATASET_URI_BUILDER =
+      new Function<HiveDatasetFinder.DbAndTable, String>() {
+
+        @Override
+        public String apply(@Nonnull DbAndTable dbAndTable) {
+          return HiveConfigClientUtils.getDatasetUri(dbAndTable);
+        }
+      };
 }
