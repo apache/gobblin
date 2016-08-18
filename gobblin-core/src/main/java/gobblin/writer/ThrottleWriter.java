@@ -11,12 +11,6 @@
  */
 package gobblin.writer;
 
-import gobblin.util.limiter.Limiter;
-import gobblin.util.limiter.RateBasedLimiter;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +20,14 @@ import org.slf4j.LoggerFactory;
 import com.codahale.metrics.Timer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+
+import gobblin.util.limiter.Limiter;
+import gobblin.util.limiter.RateBasedLimiter;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
 
 /**
  * Throttle writer follows decorator pattern that throttles inner writer by either QPS or by bytes.
@@ -33,9 +35,9 @@ import com.google.common.base.Optional;
  */
 public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
   private static final Logger LOG = LoggerFactory.getLogger(ThrottleWriter.class);
-  public static final String WRITER_THROTTLE_TYPE_KEY = "writer.throttle_type";
-  public static final String WRITER_LIMIT_RATE_LIMIT_KEY = "writer.throttle_rate";
-  public static final String WRITES_THROTTLED_TIMER = "gobblin.writer.throttled.time";
+  public static final String WRITER_THROTTLE_TYPE_KEY = "gobblin.writer.throttle_type";
+  public static final String WRITER_LIMIT_RATE_LIMIT_KEY = "gobblin.writer.throttle_rate";
+  public static final String WRITES_THROTTLED_TIMER = "gobblin.writer.throttled_time";
 
   private static final String LOCAL_JOB_LAUNCHER_TYPE = "LOCAL";
 
@@ -43,12 +45,18 @@ public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
     QPS,
     Bytes
   }
+
+  private final State state;
   private final DataWriter<D> writer;
   private final Limiter limiter;
   private final ThrottleType type;
   private final Optional<Timer> throttledTimer;
 
   public ThrottleWriter(DataWriter<D> writer, State state) {
+    Preconditions.checkNotNull(writer, "DataWriter is required.");
+    Preconditions.checkNotNull(state, "State is required.");
+
+    this.state = state;
     this.writer = writer;
     this.type = ThrottleType.valueOf(state.getProp(WRITER_THROTTLE_TYPE_KEY));
     int rateLimit = computeRateLimit(state);
@@ -119,7 +127,7 @@ public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
         }
       }
     } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+      throw new IOException("Failed while acquiring permits.",e);
     }
   }
 
@@ -172,6 +180,6 @@ public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
     if (writer instanceof Retriable) {
       return ((Retriable) writer).getRetryerBuilder();
     }
-    return RetryWriter.getDefaultRetryBuilder();
+    return RetryWriter.createRetryBuilder(state);
   }
 }

@@ -13,10 +13,7 @@ package gobblin.writer.http;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URL;
-
-import gobblin.converter.http.RestEntry;
-import gobblin.writer.NonTransientException;
+import java.net.URISyntaxException;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -34,6 +31,7 @@ import org.apache.oltu.oauth2.client.request.OAuthClientRequest;
 import org.apache.oltu.oauth2.client.response.OAuthJSONAccessTokenResponse;
 import org.apache.oltu.oauth2.common.OAuth;
 import org.apache.oltu.oauth2.common.exception.OAuthProblemException;
+import org.apache.oltu.oauth2.common.exception.OAuthSystemException;
 import org.apache.oltu.oauth2.common.message.types.GrantType;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -43,6 +41,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
+import gobblin.converter.http.RestEntry;
+import gobblin.writer.exception.NonTransientException;
 
 /**
  * Writes to Salesforce via RESTful API, supporting INSERT_ONLY_NOT_EXIST, and UPSERT.
@@ -137,8 +138,10 @@ public class SalesforceRestWriter extends RestJsonWriter {
       setCurServerHost(new URI(response.getParam("instance_url")));
     } catch (OAuthProblemException e) {
       throw new NonTransientException("Error while authenticating with Oauth2", e);
-    } catch (Exception e) {
+    } catch (OAuthSystemException e) {
       throw new RuntimeException("Failed getting access token", e);
+    } catch (URISyntaxException e) {
+      throw new RuntimeException("Failed due to invalid instance url", e);
     }
   }
 
@@ -168,7 +171,7 @@ public class SalesforceRestWriter extends RestJsonWriter {
       }
 
       payload = newPayloadForBatch();
-      builder = RequestBuilder.post().setUri(combineUrl(getCurServerHost(), batchResourcePath.get()));
+      builder = RequestBuilder.post().setUri(combineUrl(getCurServerHost(), batchResourcePath));
     } else {
       switch (operation) {
         case INSERT_ONLY_NOT_EXIST:
@@ -186,14 +189,6 @@ public class SalesforceRestWriter extends RestJsonWriter {
     return Optional.of(newRequest(builder, payload));
   }
 
-  private URI combineUrl(URI uri, String resourcePath) {
-    try {
-      return new URL(getCurServerHost().toURL(), resourcePath).toURI();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   /**
    * Create batch subrequest. For more detail @link https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/requests_composite_batch.htm
    *
@@ -201,8 +196,9 @@ public class SalesforceRestWriter extends RestJsonWriter {
    * @return
    */
   private JsonObject newSubrequest(RestEntry<JsonObject> record) {
+    Preconditions.checkArgument(record.getResourcePath().isPresent(), "Resource path is not defined");
     JsonObject subReq = new JsonObject();
-    subReq.addProperty("url", Preconditions.checkNotNull(record.getResourcePath(), "Resource path is not defined"));
+    subReq.addProperty("url", record.getResourcePath().get());
     subReq.add("richInput", record.getRestEntryVal());
 
     switch (operation) {
@@ -251,7 +247,7 @@ public class SalesforceRestWriter extends RestJsonWriter {
 
       if (batchRecords.isPresent() && batchRecords.get().size() > 0) {
         getLog().info("Flusing remaining subrequest of batch. # of subrequests: " + batchRecords.get().size());
-        curRequest = Optional.of(newRequest(RequestBuilder.post().setUri(combineUrl(getCurServerHost(), batchResourcePath.get())),
+        curRequest = Optional.of(newRequest(RequestBuilder.post().setUri(combineUrl(getCurServerHost(), batchResourcePath)),
                                                 newPayloadForBatch()));
         super.writeImpl(null);
       }
@@ -294,7 +290,8 @@ public class SalesforceRestWriter extends RestJsonWriter {
     }
   }
 
-  private void processSingleRequestResponse(CloseableHttpResponse response) throws IOException, UnexpectedResponseException {
+  private void processSingleRequestResponse(CloseableHttpResponse response) throws IOException,
+      UnexpectedResponseException {
     int statusCode = response.getStatusLine().getStatusCode();
     if (statusCode < 400) {
       return;
@@ -302,22 +299,16 @@ public class SalesforceRestWriter extends RestJsonWriter {
     String entityStr = EntityUtils.toString(response.getEntity());
     if (statusCode == 400
         && Operation.INSERT_ONLY_NOT_EXIST.equals(operation)
-        && response.getEntity() != null
-        && response.getEntity().getContent() != null) { //Ignore if it's duplicate entry error code
-      try {
-        JsonArray jsonArray = new JsonParser().parse(entityStr).getAsJsonArray();
+        && entityStr != null) { //Ignore if it's duplicate entry error code
 
-        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
-        JsonElement val = jsonObject.get("errorCode");
-        if (val != null && val.getAsString().equals(DUPLICATE_VALUE_ERR_CODE)) {
-          return;
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Unexpected response format. Response entity: " + entityStr, e);
+      JsonArray jsonArray = new JsonParser().parse(entityStr).getAsJsonArray();
+      JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+      if (isDuplicate(jsonObject, statusCode)) {
+        return;
       }
     }
-
-    throw new RuntimeException("Failed due to " + entityStr + " (Detail: " + ToStringBuilder.reflectionToString(response, ToStringStyle.SHORT_PREFIX_STYLE) + " )");
+    throw new RuntimeException("Failed due to " + entityStr + " (Detail: "
+        + ToStringBuilder.reflectionToString(response, ToStringStyle.SHORT_PREFIX_STYLE) + " )");
   }
 
   /**
@@ -326,40 +317,43 @@ public class SalesforceRestWriter extends RestJsonWriter {
    * @throws IOException
    * @throws UnexpectedResponseException
    */
-  private void processBatchRequestResponse(CloseableHttpResponse response) throws IOException, UnexpectedResponseException {
+  private void processBatchRequestResponse(CloseableHttpResponse response) throws IOException,
+      UnexpectedResponseException {
     String entityStr = EntityUtils.toString(response.getEntity());
     int statusCode = response.getStatusLine().getStatusCode();
     if (statusCode >= 400) {
-      throw new RuntimeException("Failed due to " + entityStr + " (Detail: " + ToStringBuilder.reflectionToString(response, ToStringStyle.SHORT_PREFIX_STYLE) + " )");
+      throw new RuntimeException("Failed due to " + entityStr + " (Detail: "
+          + ToStringBuilder.reflectionToString(response, ToStringStyle.SHORT_PREFIX_STYLE) + " )");
     }
 
-    try {
-      JsonObject jsonBody = new JsonParser().parse(entityStr).getAsJsonObject();
-      if (!jsonBody.get("hasErrors").getAsBoolean()) {
-        return;
-      }
+    JsonObject jsonBody = new JsonParser().parse(entityStr).getAsJsonObject();
+    if (!jsonBody.get("hasErrors").getAsBoolean()) {
+      return;
+    }
 
-      JsonArray results = jsonBody.get("results").getAsJsonArray();
-      for (JsonElement jsonElem : results) {
-        JsonObject json = jsonElem.getAsJsonObject();
-        int subStatusCode = json.get("statusCode").getAsInt();
-        if (subStatusCode < 400) {
-          continue;
-        }
-
+    JsonArray results = jsonBody.get("results").getAsJsonArray();
+    for (JsonElement jsonElem : results) {
+      JsonObject json = jsonElem.getAsJsonObject();
+      int subStatusCode = json.get("statusCode").getAsInt();
+      if (subStatusCode < 400) {
+        continue;
+      } else if (subStatusCode == 400
+                 && Operation.INSERT_ONLY_NOT_EXIST.equals(operation)) {
         JsonElement resultJsonElem = json.get("result");
         Preconditions.checkNotNull(resultJsonElem, "Error response should contain result property");
         JsonObject resultJsonObject = resultJsonElem.getAsJsonArray().get(0).getAsJsonObject();
-        if (subStatusCode == 400
-           && Operation.INSERT_ONLY_NOT_EXIST.equals(operation)
-           && resultJsonObject.get("errorCode").getAsString().equals(DUPLICATE_VALUE_ERR_CODE)) {
+        if (isDuplicate(resultJsonObject, subStatusCode)) {
           continue;
         }
-        throw new RuntimeException("Failed due to " + jsonBody + " (Detail: " + ToStringBuilder.reflectionToString(response, ToStringStyle.SHORT_PREFIX_STYLE) + " )");
       }
-    } catch (Exception e) {
-      throw new RuntimeException("Unexpected batch response format. Response entity: " + entityStr, e);
+      throw new RuntimeException("Failed due to " + jsonBody + " (Detail: "
+          + ToStringBuilder.reflectionToString(response, ToStringStyle.SHORT_PREFIX_STYLE) + " )");
     }
+  }
+
+  private boolean isDuplicate(JsonObject responseJsonObject, int statusCode) {
+    return Operation.INSERT_ONLY_NOT_EXIST.equals(operation)
+           && responseJsonObject.get("errorCode").getAsString().equals(DUPLICATE_VALUE_ERR_CODE);
   }
 
   /**

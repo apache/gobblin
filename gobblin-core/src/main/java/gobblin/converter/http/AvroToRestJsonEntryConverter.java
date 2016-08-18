@@ -36,7 +36,9 @@ import gobblin.converter.SingleRecordIterable;
  * 2. JSON schema is still under development and there is no widely accepted JSON Schema.
  */
 public class AvroToRestJsonEntryConverter extends Converter<Schema, Void, GenericRecord, RestEntry<JsonObject>> {
+  //Resource template ( e.g: /sobject/account/${account_id} )
   static final String CONVERTER_AVRO_REST_ENTRY_RESOURCE_KEY = "converter.avro.rest.resource_key";
+  //JSON conversion template @see convertRecord
   static final String CONVERTER_AVRO_REST_JSON_ENTRY_TEMPLATE = "converter.avro.rest.json_hocon_template";
 
   private final JsonParser parser = new JsonParser();
@@ -47,7 +49,7 @@ public class AvroToRestJsonEntryConverter extends Converter<Schema, Void, Generi
   }
 
   /**
-   * Use resource key and rest json entry as a template and fill in template using Avro as a reference.
+   * Use resource key(Optional) and rest json entry as a template and fill in template using Avro as a reference.
    * e.g:
    *  Rest JSON entry HOCON template:
    *    AccountId=${sf_account_id},Member_Id__c=${member_id}
@@ -58,6 +60,17 @@ public class AvroToRestJsonEntryConverter extends Converter<Schema, Void, Generi
    *    {"AccountId":"0016000000UiCYHAA3","Member_Id__c":296458833}
    *
    *  As it's template based approach, it can produce nested JSON structure even Avro is flat (or vice versa).
+   *
+   * e.g:
+   *  Rest resource template:
+   *    /sobject/account/memberId/${member_id}
+   *  Avro:
+   *    {"sf_account_id":{"string":"0016000000UiCYHAA3"},"member_id":{"long":296458833}}
+   *  Converted resource:
+   *    /sobject/account/memberId/296458833
+   *
+   *  Converted resource will be used to form end point.
+   *    http://www.server.com:9090/sobject/account/memberId/296458833
    *
    * {@inheritDoc}
    * @see gobblin.converter.Converter#convertRecord(java.lang.Object, java.lang.Object, gobblin.configuration.WorkUnitState)

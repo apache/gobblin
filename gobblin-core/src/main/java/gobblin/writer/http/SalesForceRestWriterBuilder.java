@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import lombok.Getter;
+import lombok.AccessLevel;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -37,6 +38,7 @@ import gobblin.writer.http.SalesforceRestWriter.Operation;
  * Builder class that builds SalesForceRestWriter where it takes connection related parameter and type of operation along with the parameters
  * derived from AbstractHttpWriterBuilder
  */
+@Getter
 public class SalesForceRestWriterBuilder extends AbstractHttpWriterBuilder<Void, RestEntry<JsonObject>, SalesForceRestWriterBuilder>{
   private static final Logger LOG = LoggerFactory.getLogger(SalesForceRestWriterBuilder.class);
 
@@ -62,15 +64,15 @@ public class SalesForceRestWriterBuilder extends AbstractHttpWriterBuilder<Void,
     FALLBACK = ConfigFactory.parseMap(configMap);
   }
 
-  @Getter private String clientId;
-  @Getter private String clientSecret;
-  @Getter private String userId;
-  @Getter private String password;
-  @Getter private String securityToken;
-  @Getter private Operation operation;
-  @Getter private int batchSize;
-  @Getter private Optional<String> batchResourcePath = Optional.absent();
-  private boolean initializedFromConfig = false;
+  private String clientId;
+  private String clientSecret;
+  private String userId;
+  private String password;
+  private String securityToken;
+  private Operation operation;
+  private int batchSize;
+  private Optional<String> batchResourcePath = Optional.absent();
+  @Getter(AccessLevel.NONE) private boolean initializedFromConfig = false;
 
   @Override
   public SalesForceRestWriterBuilder fromConfig(Config config) {

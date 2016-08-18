@@ -37,6 +37,7 @@ import gobblin.configuration.State;
 import gobblin.writer.Destination;
 import gobblin.writer.FluentDataWriterBuilder;
 
+@Getter
 public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWriterBuilder<S, D, B>>
     extends FluentDataWriterBuilder<S, D, B> {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractHttpWriterBuilder.class);
@@ -66,14 +67,14 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
     FALLBACK = ConfigFactory.parseMap(configMap);
   }
 
-  @Getter private State state;
-  @Getter private HttpClientBuilder httpClientBuilder =
+  private State state;
+  private HttpClientBuilder httpClientBuilder =
       HttpClientBuilder.create().disableCookieManagement().useSystemProperties();
 
-  @Getter private HttpClientConnectionManager httpConnManager;
-  @Getter private long reqTimeOut;
-  @Getter private Optional<Logger> logger = Optional.absent();
-  @Getter private Optional<URI> svcEndpoint = Optional.absent();
+  private HttpClientConnectionManager httpConnManager;
+  private long reqTimeOut;
+  private Optional<Logger> logger = Optional.absent();
+  private Optional<URI> svcEndpoint = Optional.absent();
 
   /**
    * For backward compatibility on how Fork creates writer, invoke fromState when it's called writeTo method.
@@ -126,7 +127,7 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
       default:
         throw new IllegalArgumentException(connMgrStr + " is not supported");
     }
-    LOG.info("Using " + httpConnManager);
+    LOG.info("Using " + httpConnManager.getClass().getSimpleName());
     return typedSelf();
   }
 

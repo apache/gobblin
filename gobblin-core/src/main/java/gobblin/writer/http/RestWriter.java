@@ -11,8 +11,6 @@
  */
 package gobblin.writer.http;
 
-import java.net.URL;
-
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -34,15 +32,11 @@ public class RestWriter extends HttpWriter<RestEntry<String>> {
 
   @Override
   public Optional<HttpUriRequest> onNewRecord(RestEntry<String> record) {
-    try {
-      HttpUriRequest uriRequest = RequestBuilder.post()
-          .addHeader(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN.getMimeType())
-          .setUri(new URL(getCurServerHost().toURL(), record.getResourcePath()).toURI())
-          .setEntity(new StringEntity(record.getRestEntryVal(), ContentType.TEXT_PLAIN.toString()))
-          .build();
-      return Optional.of(uriRequest);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    HttpUriRequest uriRequest = RequestBuilder.post()
+        .addHeader(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN.getMimeType())
+        .setUri(combineUrl(getCurServerHost(), record.getResourcePath()))
+        .setEntity(new StringEntity(record.getRestEntryVal(), ContentType.TEXT_PLAIN.toString()))
+        .build();
+    return Optional.of(uriRequest);
   }
 }

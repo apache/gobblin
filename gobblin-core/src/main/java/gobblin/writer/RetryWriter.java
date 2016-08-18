@@ -14,9 +14,11 @@ package gobblin.writer;
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.writer.exception.NonTransientException;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -24,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
 import com.github.rholder.retry.Attempt;
+import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.RetryListener;
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
@@ -38,11 +41,14 @@ import com.google.common.base.Predicate;
  */
 public class RetryWriter<D> implements DataWriter<D> {
   private static final Logger LOG = LoggerFactory.getLogger(RetryWriter.class);
-  public static final String FAILED_RETRY_WRITES_METER = "gobblin.writer.failed.retry.writes";
+  public static final String RETRY_CONF_PREFIX = "gobblin.writer.retry.";
+  public static final String FAILED_RETRY_WRITES_METER = RETRY_CONF_PREFIX + "failed_writes";
+  public static final String RETRY_MULTIPLIER = RETRY_CONF_PREFIX + "multiplier";
+  public static final String RETRY_MAX_WAIT_MS_PER_INTERVAL = RETRY_CONF_PREFIX + "max_wait_ms_per_interval";
+  public static final String RETRY_MAX_ATTEMPTS = RETRY_CONF_PREFIX + "max_attempts";
 
   private final DataWriter<D> writer;
   private final Retryer<Void> retryer;
-  private boolean isFailure = false;
 
   public RetryWriter(DataWriter<D> writer, State state) {
     this.writer = writer;
@@ -64,7 +70,7 @@ public class RetryWriter<D> implements DataWriter<D> {
     if (writer instanceof Retriable) {
       builder = ((Retriable) writer).getRetryerBuilder();
     } else {
-      builder = getDefaultRetryBuilder();
+      builder = createRetryBuilder(state);
     }
 
     if (GobblinMetrics.isEnabled(state)) {
@@ -99,20 +105,11 @@ public class RetryWriter<D> implements DataWriter<D> {
       }
     };
 
-    try {
-      this.retryer.wrap(writeCall).call();
-    } catch (Exception e) {
-      isFailure = true;
-      throw new RuntimeException(e);
-    }
+    callWithRetry(writeCall);
   }
 
   @Override
   public void commit() throws IOException {
-    if (isFailure) {
-      throw new RuntimeException();
-    }
-
     Callable<Void> commitCall = new Callable<Void>() {
       @Override
       public Void call() throws Exception {
@@ -121,10 +118,14 @@ public class RetryWriter<D> implements DataWriter<D> {
       }
     };
 
+    callWithRetry(commitCall);
+  }
+
+  private void callWithRetry(Callable<Void> callable) throws IOException {
     try {
-      this.retryer.wrap(commitCall).call();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+      this.retryer.wrap(callable).call();
+    } catch (ExecutionException | RetryException e) {
+      throw new IOException(e);
     }
   }
 
@@ -146,7 +147,7 @@ public class RetryWriter<D> implements DataWriter<D> {
   /**
    * @return RetryerBuilder that retries on all exceptions except NonTransientException with exponential back off
    */
-  public static RetryerBuilder<Void> getDefaultRetryBuilder() {
+  public static RetryerBuilder<Void> createRetryBuilder(State state) {
     Predicate<Throwable> transients = new Predicate<Throwable>() {
       @Override
       public boolean apply(Throwable t) {
@@ -154,9 +155,12 @@ public class RetryWriter<D> implements DataWriter<D> {
       }
     };
 
+    long multiplier = state.getPropAsLong(RETRY_MULTIPLIER, 500L);
+    long maxWaitMsPerInterval = state.getPropAsLong(RETRY_MAX_WAIT_MS_PER_INTERVAL, 10000);
+    int maxAttempts = state.getPropAsInt(RETRY_MAX_ATTEMPTS, 5);
     return RetryerBuilder.<Void> newBuilder()
         .retryIfException(transients)
-        .withWaitStrategy(WaitStrategies.exponentialWait(500, 10, TimeUnit.SECONDS)) //1, 2, 4, 8, 16 seconds delay
-        .withStopStrategy(StopStrategies.stopAfterAttempt(5)); //Total 5 attempts and fail.
+        .withWaitStrategy(WaitStrategies.exponentialWait(multiplier, maxWaitMsPerInterval, TimeUnit.MILLISECONDS)) //1, 2, 4, 8, 16 seconds delay
+        .withStopStrategy(StopStrategies.stopAfterAttempt(maxAttempts)); //Total 5 attempts and fail.
   }
 }

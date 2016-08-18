@@ -11,28 +11,20 @@
  */
 package gobblin.converter.http;
 
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import com.google.common.base.Optional;
+
+import lombok.Data;
 
 /**
  * Rest Entry that hold resource path and resource value.
  */
-@ToString
-@EqualsAndHashCode
+@Data
 public class RestEntry<T> {
-  private final String resourcePath;
+  private final Optional<String> resourcePath;
   private final T restEntryVal;
 
   public RestEntry(String resourcePath, T restEntryVal) {
-    this.resourcePath = resourcePath;
+    this.resourcePath = Optional.fromNullable(resourcePath);
     this.restEntryVal = restEntryVal;
-  }
-
-  public String getResourcePath() {
-    return resourcePath;
-  }
-
-  public T getRestEntryVal() {
-    return restEntryVal;
   }
 }

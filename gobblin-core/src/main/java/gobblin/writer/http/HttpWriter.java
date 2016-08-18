@@ -12,7 +12,10 @@
 package gobblin.writer.http;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -49,6 +52,18 @@ public class HttpWriter<D> extends AbstractHttpWriter<D> {
       return Optional.of(uriRequest);
     } catch (Exception e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  URI combineUrl(URI uri, Optional<String> resourcePath) {
+    if (!resourcePath.isPresent()) {
+      return uri;
+    }
+
+    try {
+      return new URL(getCurServerHost().toURL(), resourcePath.get()).toURI();
+    } catch (MalformedURLException | URISyntaxException e) {
+      throw new RuntimeException("Failed combining URL", e);
     }
   }
 }

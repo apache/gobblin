@@ -11,15 +11,16 @@
  */
 package gobblin.writer;
 
-import gobblin.configuration.State;
-
 import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.configuration.State;
+
 /**
  * The purpose of this class is to add more feature to DataWriter such as retry or throttle.
+ * Note that RetryWriter will be always applied.
  */
 public class DataWriterWrapperBuilder<D> extends DataWriterBuilder<Void, D> {
   private static final Logger LOG = LoggerFactory.getLogger(DataWriterWrapperBuilder.class);
@@ -41,7 +42,8 @@ public class DataWriterWrapperBuilder<D> extends DataWriterBuilder<Void, D> {
   public DataWriter<D> build() throws IOException {
 
     DataWriter<D> wrapped = writer;
-    if (state.contains(ThrottleWriter.WRITER_LIMIT_RATE_LIMIT_KEY) && state.contains(ThrottleWriter.WRITER_THROTTLE_TYPE_KEY)) {
+    if (state.contains(ThrottleWriter.WRITER_LIMIT_RATE_LIMIT_KEY)
+        && state.contains(ThrottleWriter.WRITER_THROTTLE_TYPE_KEY)) {
       wrapped = new ThrottleWriter<>(wrapped, state);
     }
     wrapped = new RetryWriter<>(wrapped, state);

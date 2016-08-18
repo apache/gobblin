@@ -16,6 +16,7 @@ import static org.mockito.Mockito.*;
 import java.io.IOException;
 
 import gobblin.configuration.State;
+import gobblin.writer.exception.NonTransientException;
 
 import org.junit.Assert;
 import org.testng.annotations.Test;
