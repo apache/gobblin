@@ -352,8 +352,9 @@ public class SalesforceRestWriter extends RestJsonWriter {
   }
 
   private boolean isDuplicate(JsonObject responseJsonObject, int statusCode) {
-    return Operation.INSERT_ONLY_NOT_EXIST.equals(operation)
-           && responseJsonObject.get("errorCode").getAsString().equals(DUPLICATE_VALUE_ERR_CODE);
+    return statusCode == 400
+           && Operation.INSERT_ONLY_NOT_EXIST.equals(operation)
+           && DUPLICATE_VALUE_ERR_CODE.equals(responseJsonObject.get("errorCode").getAsString());
   }
 
   /**
