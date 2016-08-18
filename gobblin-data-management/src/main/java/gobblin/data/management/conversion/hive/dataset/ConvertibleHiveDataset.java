@@ -18,6 +18,7 @@ import java.util.Set;
 
 import lombok.Getter;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -32,6 +33,7 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.util.ClustersNames;
 import gobblin.util.ConfigUtils;
 
 
@@ -55,6 +57,7 @@ import gobblin.util.ConfigUtils;
  * </p>
  */
 @ToString
+@Slf4j
 public class ConvertibleHiveDataset extends HiveDataset {
 
   public static final String DESTINATION_CONVERSION_FORMATS_KEY = "destinationFormats";
@@ -83,15 +86,17 @@ public class ConvertibleHiveDataset extends HiveDataset {
   public ConvertibleHiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Config config) {
     super(fs, clientPool, table, config);
 
-    Preconditions.checkArgument(config.hasPath(DESTINATION_CONVERSION_FORMATS_KEY), String.format(
-        "Atleast one destination format should be specified at %s.%s. If you do not intend to convert this dataset set %s.%s to true",
-        super.properties.getProperty(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, ""),
-        DESTINATION_CONVERSION_FORMATS_KEY,
-        super.properties.getProperty(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, ""),
-        HiveDatasetFinder.HIVE_DATASET_IS_BLACKLISTED_KEY));
-
     // value for DESTINATION_CONVERSION_FORMATS_KEY can be a TypeSafe list or a comma separated list of string
-    this.destFormats = Sets.newHashSet(ConfigUtils.getStringList(config, DESTINATION_CONVERSION_FORMATS_KEY));
+    // Load cluster specific destinationFormats if specified
+    if (config.hasPath(ClustersNames.getInstance().getClusterName() + "." + DESTINATION_CONVERSION_FORMATS_KEY)) {
+      this.destFormats =
+          Sets.newHashSet(ConfigUtils.getStringList(config, ClustersNames.getInstance().getClusterName() + "."
+              + DESTINATION_CONVERSION_FORMATS_KEY));
+    }
+    // Use global destinationFormats otherwise
+    else {
+      this.destFormats = Sets.newHashSet(ConfigUtils.getStringList(config, DESTINATION_CONVERSION_FORMATS_KEY));
+    }
 
     // For each format create ConversionConfig and store it in a Map<format,conversionConfig>
     this.destConversionConfigs = Maps.newHashMap();
@@ -99,9 +104,11 @@ public class ConvertibleHiveDataset extends HiveDataset {
     for (String format : this.destFormats) {
       if (config.hasPath(format)) {
         this.destConversionConfigs.put(format, new ConversionConfig(config.getConfig(format), table, format));
-
       }
     }
+
+    log.info("Dataset {} - Destination formats {}, found configs for formats {}", this.datasetURN(), this.destFormats,
+        this.destConversionConfigs.keySet());
   }
 
   /**
