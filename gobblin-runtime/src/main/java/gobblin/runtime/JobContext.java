@@ -112,6 +112,8 @@ public class JobContext {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
+    logger.info(jobProps.toString());
+
     this.jobName = JobState.getJobNameFromProps(jobProps);
     this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)
         : JobLauncherUtils.newJobId(this.jobName);

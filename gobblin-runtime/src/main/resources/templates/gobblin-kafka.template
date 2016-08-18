@@ -1,7 +1,8 @@
-job.name=GobblinKafkaQuickStart
+gobblin.template.required_attributes=topics,job.name
+
 job.group=GobblinKafka
 job.description=Gobblin quick start job for Kafka
-job.lock.enabled=false
+job.lock.enabled=true
 
 kafka.brokers=localhost:9092
 
@@ -17,11 +18,6 @@ data.publisher.type=gobblin.publisher.BaseDataPublisher
 
 mr.job.max.mappers=1
 
-metrics.reporting.file.enabled=true
-metrics.log.dir=${env:GOBBLIN_WORK_DIR}/metrics
-metrics.reporting.file.suffix=txt
+bootstrap.with.offset=latest
 
-bootstrap.with.offset=earliest
-
-#What topic to pull from consumer.
-gobblin.template.required_attributes=topic.whitelist
+topic.whitelist=${topics}
