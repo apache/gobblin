@@ -51,11 +51,13 @@ public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, S
   public static final String CONFLUENT_SCHEMA_NAME_SUFFIX = "kafka.schema_registry.confluent.schema.name.suffix";
   
   // Default suffix of the topic name to register / retrieve from the registry
-  private static final String CONFLUENT_SCHEMA_DEFAULT_NAME_SUFFIX = "-value";
+  private static final String DEFAULT_CONFLUENT_SCHEMA_NAME_SUFFIX = "-value";
   
   @Getter
   private final SchemaRegistryClient schemaRegistryClient;
 
+  private final String schemaNameSuffix;
+  
   public ConfluentKafkaSchemaRegistry(Properties props) {
     this(props, new CachedSchemaRegistryClient(props.getProperty(KAFKA_SCHEMA_REGISTRY_URL),
         Integer.parseInt(props.getProperty(CONFLUENT_MAX_SCHEMAS_PER_SUBJECT, String.valueOf(Integer.MAX_VALUE)))));
@@ -65,6 +67,7 @@ public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, S
   ConfluentKafkaSchemaRegistry(Properties props, SchemaRegistryClient schemaRegistryClient) {
     super(props);
     this.schemaRegistryClient = schemaRegistryClient;
+    this.schemaNameSuffix = props.getProperty(CONFLUENT_SCHEMA_NAME_SUFFIX, DEFAULT_CONFLUENT_SCHEMA_NAME_SUFFIX);
   }
 
   @Override
@@ -79,7 +82,7 @@ public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, S
   @Override
   public Schema getLatestSchemaByTopic(String topic) throws SchemaRegistryException {
     try {
-      String schemaName = topic + props.getProperty(CONFLUENT_SCHEMA_NAME_SUFFIX, CONFLUENT_SCHEMA_DEFAULT_NAME_SUFFIX);
+      String schemaName = topic + this.schemaNameSuffix;
       return new Schema.Parser().parse(this.schemaRegistryClient.getLatestSchemaMetadata(schemaName).getSchema());
     } catch (IOException | RestClientException e) {
       throw new SchemaRegistryException(e);
@@ -94,7 +97,7 @@ public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, S
   @Override
   public Integer register(Schema schema, String name) throws SchemaRegistryException {
     try {
-      String schemaName = name + props.getProperty(CONFLUENT_SCHEMA_NAME_SUFFIX, CONFLUENT_SCHEMA_DEFAULT_NAME_SUFFIX);
+      String schemaName = name + this.schemaNameSuffix;
       return this.schemaRegistryClient.register(schemaName, schema);
     } catch (IOException | RestClientException e) {
       throw new SchemaRegistryException(e);
