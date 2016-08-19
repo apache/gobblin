@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
-import com.google.common.util.concurrent.Service;
 
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.Configurable;
@@ -33,7 +32,6 @@ import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobLifecycleListener;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecMonitorFactory;
-import gobblin.runtime.api.JobSpecSchedule;
 import gobblin.runtime.api.JobSpecScheduler;
 import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.std.DefaultJobCatalogListenerImpl;
@@ -121,14 +119,10 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
   /** Keeps track of a job execution */
   class JobStateTracker extends DefaultJobExecutionStateListenerImpl {
-    private final boolean _needsReschedule;
-    private final JobSpec _jobSpec;
 
-    public JobStateTracker(JobSpec jobSpec, boolean needsReschedule) {
+    public JobStateTracker() {
       super(LoggerFactory.getLogger(DefaultGobblinInstanceDriverImpl.this._log.getName() +
                                   "_jobExecutionListener"));
-      _needsReschedule = needsReschedule;
-      _jobSpec = jobSpec;
     }
 
     @Override public String toString() {
@@ -138,19 +132,6 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     @Override public void onStatusChange(JobExecutionState state, RunningState previousStatus, RunningState newStatus) {
       super.onStatusChange(state, previousStatus, newStatus);
       _callbacksDispatcher.onStatusChange(state, previousStatus, newStatus);
-
-      switch (newStatus) {
-        case CANCELLED:
-        case COMMITTED:
-        case FAILED: {
-          if (_needsReschedule && state() == Service.State.RUNNING ) {
-            getJobScheduler().scheduleJob(_jobSpec, new JobSpecRunnable(_jobSpec));
-          }
-          break;
-        }
-         default:
-           // NO-OP
-      }
     }
 
     @Override
@@ -177,22 +158,9 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override
     public void run() {
-      if (state() != Service.State.RUNNING) {
-        _log.warn("Not running. Ignoring run request for " + _jobSpec);
-        return;
-      }
-
        JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
-
-       boolean needsReschedule = false;
-       JobSpecSchedule nextSchedule = _jobScheduler.getSchedules().get(_jobSpec.getUri());
-       if (null != nextSchedule && nextSchedule.getNextRunTimeMillis().isPresent() &&
-           nextSchedule.getNextRunTimeMillis().get() > 0) {
-         _jobScheduler.unscheduleJob(_jobSpec.getUri());
-         needsReschedule = true;
-       }
        _callbacksDispatcher.onJobLaunch(driver);
-       driver.registerStateListener(new JobStateTracker(_jobSpec, needsReschedule));
+       driver.registerStateListener(new JobStateTracker());
        driver.startAsync();
     }
   }
@@ -210,10 +178,6 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override public void onAddJob(JobSpec addedJob) {
       super.onAddJob(addedJob);
-      if (state() != Service.State.RUNNING) {
-        _log.get().warn("Not running. Ignoring job schedule request for " + addedJob);
-        return;
-      }
       _jobScheduler.scheduleJob(addedJob, new JobSpecRunnable(addedJob));
     }
 
@@ -224,10 +188,6 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override public void onUpdateJob(JobSpec updatedJob) {
       super.onUpdateJob(updatedJob);
-      if (state() != Service.State.RUNNING) {
-        _log.get().warn("Not running. Ignoring job schedule request for " + updatedJob);
-        return;
-      }
       _jobScheduler.scheduleJob(updatedJob, new JobSpecRunnable(updatedJob));
     }
   }

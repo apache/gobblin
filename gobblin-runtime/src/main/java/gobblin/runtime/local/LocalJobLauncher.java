@@ -145,7 +145,6 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   }
 
   @Override
-  //FIXME this implementation is incorrect. It marks tasks as done without canceling them.
   protected void executeCancellation() {
     if (this.countDownLatch != null) {
       while (this.countDownLatch.getCount() > 0) {
