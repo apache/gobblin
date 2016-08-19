@@ -25,7 +25,7 @@ import gobblin.util.callbacks.Callback;
 public interface JobCatalogListener {
   /** Invoked when a new JobSpec is added to the catalog and for all pre-existing jobs on registration
    * of the listener.*/
-  public void onAddJob(JobSpec addedJob);
+  void onAddJob(JobSpec addedJob);
 
   /**
    * Invoked when a JobSpec gets removed from the catalog.

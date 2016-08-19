@@ -32,6 +32,9 @@ public class PathUtils {
 
   public static Path mergePaths(Path path1, Path path2) {
     String path2Str = path2.toUri().getPath();
+    if (!path2Str.startsWith("/")) {
+      path2Str = "/" + path2Str;
+    }
     return new Path(path1.toUri().getScheme(), path1.toUri().getAuthority(), path1.toUri().getPath() + path2Str);
   }
 

@@ -92,5 +92,4 @@ public class TestJobSpec {
     JobSpec js5 = b.build();
     Assert.assertEquals(js5.getUri(), new URI("my-jobs:/myGroup/myJob"));
   }
-
 }
