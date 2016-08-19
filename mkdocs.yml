@@ -27,9 +27,11 @@ pages:
         - Configuration Glossary: user-guide/Configuration-Properties-Glossary.md
         - Partitioned Writers: user-guide/Partitioned-Writers.md
         - Monitoring: user-guide/Monitoring.md
+        - Template: user-guide/Gobblin-template.md
         - Schedulers: user-guide/Gobblin-Schedulers.md
         - Job Execution History Store: user-guide/Job-Execution-History-Store.md
         - Building Gobblin: user-guide/Building-Gobblin.md
+        - Generic Configuration Loading: user-guide/Gobblin-genericLoad.md
         - JDBC Writer: user-guide/Gobblin-JDBC-Writer.md
         - Hive Registration: user-guide/Hive-Registration.md
         - Config Management : user-guide/Config-Management.md
