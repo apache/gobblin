@@ -13,6 +13,8 @@ package gobblin.runtime.api;
 
 import com.google.common.base.Preconditions;
 
+import gobblin.runtime.JobState.RunningState;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,20 +25,32 @@ import lombok.Getter;
 @AllArgsConstructor(access=AccessLevel.PROTECTED)
 @Getter
 public class JobExecutionResult {
+  private final RunningState finalState;
   private final Throwable errorCause;
-  private final boolean cancelled;
   // TODO add TaskExecutionResults
 
+  public boolean isCancelled() {
+    return RunningState.CANCELLED == getFinalState();
+  }
+
+  public boolean isSuccessful() {
+    return RunningState.COMMITTED == getFinalState();
+  }
+
+  public boolean isFailed() {
+    return RunningState.FAILED == getFinalState();
+  }
+
   public static JobExecutionResult createSuccessResult() {
-    return new JobExecutionResult(null, false);
+    return new JobExecutionResult(RunningState.COMMITTED, null);
   }
 
   public static JobExecutionResult createFailureResult(Throwable cause) {
-    return new JobExecutionResult(cause, false);
+    return new JobExecutionResult(RunningState.FAILED, cause);
   }
 
   public static JobExecutionResult createCancelledResult() {
-    return new JobExecutionResult(null, true);
+    return new JobExecutionResult(RunningState.CANCELLED, null);
   }
 
   public JobExecutionResult createFromState(JobExecutionState state) {
