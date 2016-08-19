@@ -256,7 +256,8 @@ public class WriterUtils {
           throw new IOException("No token found for user " + user);
         }
         return ProxiedFileSystemCache.fromToken().userNameToken(token.get())
-            .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri).build();
+            .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri)
+            .conf(HadoopUtils.newConfiguration()).build();
       } catch (ExecutionException e) {
         throw new IOException(e);
       }

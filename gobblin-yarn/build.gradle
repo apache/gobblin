@@ -14,6 +14,7 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-admin")
   compile project(":gobblin-api")
+  compile project(":gobblin-cluster")
   compile project(":gobblin-core")
   compile project(":gobblin-metrics")
   compile project(":gobblin-metastore")
@@ -46,6 +47,7 @@ dependencies {
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
 
+  testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
 
   testCompile externalDependency.testng

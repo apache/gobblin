@@ -43,7 +43,7 @@ public class CopyableFileTest {
             new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
             Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission.getDefault())),
             "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps
-            .<String, Object>newHashMap());
+            .<String, String>newHashMap());
 
     String s = CopyEntity.serialize(copyableFile);
     CopyEntity de = CopyEntity.deserialize(s);
@@ -58,7 +58,7 @@ public class CopyableFileTest {
         new CopyableFile(null, null, new OwnerAndPermission("owner", "group",
             FsPermission.getDefault()), Lists.newArrayList(new OwnerAndPermission(null, "group2", FsPermission
             .getDefault())), "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0,
-            Maps.<String, Object>newHashMap());
+            Maps.<String, String>newHashMap());
 
     String serialized = CopyEntity.serialize(copyableFile);
     CopyEntity deserialized = CopyEntity.deserialize(serialized);

@@ -42,6 +42,7 @@ public class AvroToJdbcEntryConverterTest {
 
   @Test
   public void testDateConversion() throws IOException, SchemaConversionException, SQLException {
+    final String db = "db";
     final String table = "users";
     Map<String, JdbcType> dateColums = new HashMap<>();
     dateColums.put("date_of_birth", JdbcType.DATE);
@@ -49,7 +50,7 @@ public class AvroToJdbcEntryConverterTest {
     dateColums.put("created", JdbcType.TIMESTAMP);
 
     JdbcWriterCommands mockWriterCommands = mock(JdbcWriterCommands.class);
-    when(mockWriterCommands.retrieveDateColumns(table)).thenReturn(dateColums);
+    when(mockWriterCommands.retrieveDateColumns(db, table)).thenReturn(dateColums);
 
     JdbcWriterCommandsFactory factory = mock(JdbcWriterCommandsFactory.class);
     when(factory.newInstance(any(State.class), any(Connection.class))).thenReturn(mockWriterCommands);
@@ -85,9 +86,10 @@ public class AvroToJdbcEntryConverterTest {
     Map<String, JdbcType> dateColums = new HashMap<>();
     dateColums.put("last_updated", JdbcType.TIMESTAMP);
 
+    final String db = "db";
     final String table = "users";
     JdbcWriterCommands mockWriterCommands = mock(JdbcWriterCommands.class);
-    when(mockWriterCommands.retrieveDateColumns(table)).thenReturn(dateColums);
+    when(mockWriterCommands.retrieveDateColumns(db, table)).thenReturn(dateColums);
 
     JdbcWriterCommandsFactory factory = mock(JdbcWriterCommandsFactory.class);
     when(factory.newInstance(any(State.class), any(Connection.class))).thenReturn(mockWriterCommands);

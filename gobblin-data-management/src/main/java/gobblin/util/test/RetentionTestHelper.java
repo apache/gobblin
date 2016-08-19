@@ -24,6 +24,8 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -33,29 +35,36 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.DatasetCleaner;
 import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.dataset.CleanableDatasetBase;
-import gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder;
 import gobblin.data.management.retention.profile.MultiCleanableDatasetFinder;
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
 import gobblin.util.PathUtils;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 /**
  * Helper methods for Retention integration tests
  */
 public class RetentionTestHelper {
 
-  /**
-  *
-  * Does gobblin retention for test data. {@link DatasetCleaner} which does retention in production can not be directly called as we need to resolve some
-  * runtime properties like ${testNameTempPath}. This directory contains all the setup data created for a test by {@link RetentionTestDataGenerator#setup()}.
-  * It is unique for each test.
-  * The default {@link ConfigClient} used by {@link DatasetCleaner} connects to config store configs. We need to provide a
-  * mock {@link ConfigClient} since the configs are in classpath and not on config store.
-  *
-  * @param retentionConfigClasspathResource this is the same jobProps/config files used while running a real retention job
-  * @param testNameTempPath temp path for this test where test data is generated
-  */
- public static void clean(FileSystem fs, Path retentionConfigClasspathResource, Path testNameTempPath) throws Exception {
+ /**
+ *
+ * Does gobblin retention for test data. {@link DatasetCleaner} which does retention in production can not be directly called as we need to resolve some
+ * runtime properties like ${testNameTempPath}. This directory contains all the setup data created for a test by {@link RetentionTestDataGenerator#setup()}.
+ * It is unique for each test.
+ * The default {@link ConfigClient} used by {@link DatasetCleaner} connects to config store configs. We need to provide a
+ * mock {@link ConfigClient} since the configs are in classpath and not on config store.
+ *
+ * @param retentionConfigClasspathResource this is the same jobProps/config files used while running a real retention job
+ * @param testNameTempPath temp path for this test where test data is generated
+ */
+ public static void clean(FileSystem fs, Path retentionConfigClasspathResource, Optional<Path> additionalJobPropsClasspathResource, Path testNameTempPath) throws Exception {
+
+   Properties additionalJobProps = new Properties();
+   if (additionalJobPropsClasspathResource.isPresent()) {
+     try (final InputStream stream = RetentionTestHelper.class.getClassLoader().getResourceAsStream(additionalJobPropsClasspathResource.get().toString())) {
+       additionalJobProps.load(stream);
+     }
+   }
 
    if (retentionConfigClasspathResource.getName().endsWith(".job")) {
 
@@ -66,6 +75,7 @@ public class RetentionTestHelper {
          jobProps.put(entry.getKey(), StringUtils.replace((String)entry.getValue(), "${testNameTempPath}", testNameTempPath.toString()));
        }
      }
+
      MultiCleanableDatasetFinder finder = new MultiCleanableDatasetFinder(fs, jobProps);
      for (Dataset dataset : finder.findDatasets()) {
        ((CleanableDataset)dataset).clean();
@@ -80,14 +90,24 @@ public class RetentionTestHelper {
      jobProps.setProperty(CleanableDatasetBase.SKIP_TRASH_KEY, Boolean.toString(true));
      jobProps.setProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI, "dummy");
 
-     @SuppressWarnings("unchecked")
-     DatasetsFinder<CleanableDataset> finder =
-         (DatasetsFinder<CleanableDataset>) ConstructorUtils.invokeConstructor(
-             Class.forName(testConfig.getString(MultiCleanableDatasetFinder.DATASET_FINDER_CLASS_KEY)),
-             new Object[] { fs, jobProps, testConfig, client });
+     jobProps.putAll(additionalJobProps);
+
+      @SuppressWarnings("unchecked")
+      DatasetsFinder<CleanableDataset> finder =
+          (DatasetsFinder<CleanableDataset>) GobblinConstructorUtils.invokeFirstConstructor(
+              Class.forName(testConfig.getString(MultiCleanableDatasetFinder.DATASET_FINDER_CLASS_KEY)), ImmutableList.of(fs, jobProps, testConfig, client),
+              ImmutableList.of(fs, jobProps, client));
+
      for (CleanableDataset dataset : finder.findDatasets()) {
        dataset.clean();
      }
    }
  }
+
+
+ public static void clean(FileSystem fs, Path retentionConfigClasspathResource, Path testNameTempPath) throws Exception {
+   clean(fs, retentionConfigClasspathResource, Optional.<Path>absent(), testNameTempPath);
+ }
+
 }
+

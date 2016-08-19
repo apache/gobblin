@@ -82,7 +82,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       tableNameToEntityMap.put(Utils.escapeSpecialCharacters(entity, ConfigurationKeys.ESCAPE_CHARS_IN_TABLE_NAME, "_"),
           entity);
     }
-
+    
     Map<String, State> tableSpecificPropsMap = shouldObtainTablePropsFromConfigStore(state)
         ? getTableSpecificPropsFromConfigStore(tableNameToEntityMap.keySet(), state)
         : DatasetUtils.getDatasetSpecificProps(tableNameToEntityMap.keySet(), state);
@@ -111,7 +111,12 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       Map<Long, Long> sortedPartitions = Maps.newTreeMap();
       sortedPartitions.putAll(new Partitioner(combinedState).getPartitions(previousWatermark));
 
-      Extract extract = createExtract(tableType, nameSpaceName, tableName);
+      // {@link ConfigurationKeys.EXTRACT_TABLE_NAME_KEY} specify the output path for Extract
+      String outputTableName = state.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY)? 
+          state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY) : tableName;
+          
+      log.info("Create extract output with table name is " + outputTableName);
+      Extract extract = createExtract(tableType, nameSpaceName, outputTableName);
 
       // Setting current time for the full extract
       if (Boolean.valueOf(combinedState.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY))) {
@@ -211,6 +216,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   @Override
   public void shutdown(SourceState state) {}
 
+  
   /**
    * For each table, if job commit policy is to commit on full success, and the table has failed tasks in the
    * previous run, return the lowest low watermark among all previous {@code WorkUnitState}s of the table.
@@ -224,16 +230,50 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     boolean commitOnFullSuccess = JobCommitPolicy.getCommitPolicy(state) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
 
     for (WorkUnitState previousWus : state.getPreviousWorkUnitStates()) {
-      String table = previousWus.getExtract().getTable();
+      String table;
+      
+      // current code will use {@link ConfigurationKeys.SOURCE_ENTITY} to defined the table name
+      if(previousWus.getWorkunit().contains(ConfigurationKeys.SOURCE_ENTITY)){
+        table = previousWus.getWorkunit().getProp(ConfigurationKeys.SOURCE_ENTITY); 
+      }
+      // previous format
+      else {
+        table = previousWus.getExtract().getTable();
+        log.warn(String.format("Can not find %s entry in workunit, based on %s to set table name as %s", ConfigurationKeys.SOURCE_ENTITY, 
+            ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, table));
+      }
 
-      long lowWm = previousWus.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
+      long lowWm = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+      LongWatermark waterMarkObj = previousWus.getWorkunit().getLowWatermark(LongWatermark.class);
+      // new job state file(version 0.2.1270) , water mark format:
+      // "watermark.interval.value": "{\"low.watermark.to.json\":{\"value\":20160101000000},\"expected.watermark.to.json\":{\"value\":20160715230234}}",
+      if(waterMarkObj != null){
+        lowWm = waterMarkObj.getValue();
+      }
+      // job state file(version 0.2.805)
+      // "workunit.low.water.mark": "20160711000000",
+      // "workunit.state.runtime.high.water.mark": "20160716140338",
+      else if(previousWus.getProperties().containsKey(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY)){
+        lowWm = Long.parseLong(previousWus.getProperties().getProperty(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY));
+        log.warn("can not find low water mark in json format, getting value from " + ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY + " low water mark " + lowWm);
+      }
+
       if (!prevLowWatermarksByTable.containsKey(table)) {
         prevLowWatermarksByTable.put(table, lowWm);
       } else {
         prevLowWatermarksByTable.put(table, Math.min(prevLowWatermarksByTable.get(table), lowWm));
       }
 
-      long highWm = previousWus.getActualHighWatermark(LongWatermark.class).getValue();
+      long highWm = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+      waterMarkObj = previousWus.getActualHighWatermark(LongWatermark.class);
+      if(waterMarkObj != null){
+        highWm = waterMarkObj.getValue();
+      }
+      else if(previousWus.getProperties().containsKey(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK)){
+        highWm = Long.parseLong(previousWus.getProperties().getProperty(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK));
+        log.warn("can not find high water mark in json format, getting value from " + ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK + " high water mark " + highWm);
+      }
+      
       if (!prevActualHighWatermarksByTable.containsKey(table)) {
         prevActualHighWatermarksByTable.put(table, highWm);
       } else {

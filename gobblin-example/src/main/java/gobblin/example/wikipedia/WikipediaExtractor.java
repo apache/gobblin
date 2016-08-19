@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
-
 
 /**
  * An implementation of {@link Extractor} for the Wikipedia example.
@@ -70,6 +70,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
 
   private static final Gson GSON = new Gson();
 
+  private final WorkUnitState workUnitState;
   private final WorkUnit workUnit;
   private final WikiResponseReader reader;
   private final int revisionsCnt;
@@ -123,11 +124,14 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
   }
 
   public WikipediaExtractor(WorkUnitState workUnitState) throws IOException {
+    LOG.info("WorkUnitState received: " + workUnitState);
+
+    this.workUnitState = workUnitState;
     this.workUnit = workUnitState.getWorkunit();
-    this.rootUrl = this.workUnit.getProp(WIKIPEDIA_API_ROOTURL);
-    this.schema = this.workUnit.getProp(WIKIPEDIA_AVRO_SCHEMA);
-    this.requestedTitles = new LinkedList<>(SPLITTER.splitToList(this.workUnit.getProp(SOURCE_PAGE_TITLES)));
-    this.revisionsCnt = Integer.parseInt(this.workUnit.getProp(SOURCE_REVISIONS_CNT));
+    this.rootUrl = readProp(WIKIPEDIA_API_ROOTURL, workUnitState);
+    this.schema = readProp(WIKIPEDIA_AVRO_SCHEMA, workUnitState);
+    this.requestedTitles = new LinkedList<>(SPLITTER.splitToList(readProp(SOURCE_PAGE_TITLES, workUnitState)));
+    this.revisionsCnt = Integer.parseInt(readProp(SOURCE_REVISIONS_CNT, workUnitState));
     this.numRequestedTitles = this.requestedTitles.size();
 
     if (this.requestedTitles.isEmpty()) {
@@ -138,6 +142,24 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
     }
 
     this.reader = new WikiResponseReader();
+  }
+
+  private String readProp(String key, WorkUnitState workUnitState) {
+    String value = workUnitState.getWorkunit().getProp(key);
+    if (StringUtils.isBlank(value)) {
+      value = workUnitState.getProp(key);
+    }
+    if (StringUtils.isBlank(value)) {
+      value = workUnitState.getJobState().getProp(key);
+    }
+
+    return value;
+  }
+
+  private boolean isPropPresent(String key, WorkUnitState workUnitState) {
+    return workUnitState.contains(key)
+        || workUnitState.getWorkunit().contains(key)
+        || workUnitState.getJobState().contains(key);
   }
 
   private Queue<JsonElement> retrievePageRevisions(String pageTitle) throws IOException {
@@ -225,13 +247,13 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
   private HttpURLConnection getHttpConnection(String urlStr) throws IOException {
     URL url = new URL(urlStr);
     Proxy proxy = Proxy.NO_PROXY;
-    if (this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL)
-        && this.workUnit.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)) {
-      LOG.info("Use proxy host: " + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
-      LOG.info("Use proxy port: " + this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
+    if (isPropPresent(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL, this.workUnitState)
+        && isPropPresent(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, this.workUnitState)) {
+      LOG.info("Use proxy host: " + readProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL, this.workUnitState));
+      LOG.info("Use proxy port: " + readProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, this.workUnitState));
       InetSocketAddress proxyAddress =
-          new InetSocketAddress(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
-              Integer.parseInt(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT)));
+          new InetSocketAddress(readProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL, this.workUnitState),
+              Integer.parseInt(readProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, this.workUnitState)));
       proxy = new Proxy(Proxy.Type.HTTP, proxyAddress);
     }
     return (HttpURLConnection) url.openConnection(proxy);

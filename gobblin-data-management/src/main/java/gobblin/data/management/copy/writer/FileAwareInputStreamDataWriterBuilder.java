@@ -44,7 +44,7 @@ public class FileAwareInputStreamDataWriterBuilder extends DataWriterBuilder<Str
    * contain job_id. This is to make sure uncleaned data from previous execution does not corrupt final published data
    * produced by this execution.
    */
-  public static void setJobSpecificOutputPaths(State state) {
+  public synchronized static void setJobSpecificOutputPaths(State state) {
 
     // Other tasks may have set this already
     if (!StringUtils.containsIgnoreCase(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR),

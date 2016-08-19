@@ -23,7 +23,7 @@ import gobblin.commit.CommitStep;
  */
 public class PostPublishStep extends CommitStepCopyEntity {
 
-  public PostPublishStep(String fileSet, Map<String, Object> additionalMetadata, CommitStep step, int priority) {
+  public PostPublishStep(String fileSet, Map<String, String> additionalMetadata, CommitStep step, int priority) {
     super(fileSet, additionalMetadata, step, priority);
   }
 

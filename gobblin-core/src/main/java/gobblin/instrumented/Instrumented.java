@@ -40,6 +40,7 @@ import com.google.common.io.Closer;
 import gobblin.Constructs;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.converter.Converter;
 import gobblin.fork.ForkOperator;
@@ -71,7 +72,7 @@ import gobblin.writer.DataWriter;
  */
 public class Instrumented implements Instrumentable, Closeable {
 
-  public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
+  public static final String METRIC_CONTEXT_NAME_KEY = ConfigurationKeys.METRIC_CONTEXT_NAME_KEY;
   public static final Random RAND = new Random();
 
   private final boolean instrumentationEnabled;

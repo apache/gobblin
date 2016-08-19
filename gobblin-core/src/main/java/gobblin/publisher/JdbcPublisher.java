@@ -148,7 +148,7 @@ public class JdbcPublisher extends DataPublisher {
             ForkOperatorUtils.getPropertyNameForBranch(JDBC_PUBLISHER_REPLACE_FINAL_TABLE, branches, i), false)
             && !emptiedDestTables.contains(destinationTable)) {
           LOG.info("Deleting table " + destinationTable);
-          commands.deleteAll(destinationTable);
+          commands.deleteAll(databaseName, destinationTable);
           emptiedDestTables.add(destinationTable);
         }
 

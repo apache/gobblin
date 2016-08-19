@@ -12,15 +12,20 @@
 
 package gobblin.util;
 
+import java.util.Map;
 import java.util.Properties;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
 
 public class ConfigUtilsTest {
 
@@ -59,5 +64,27 @@ public class ConfigUtilsTest {
     Assert.assertTrue(ConfigUtils.hasNonEmptyPath(ConfigFactory.parseMap(ImmutableMap.of("key1", "value1")), "key1"));
     Assert.assertFalse(ConfigUtils.hasNonEmptyPath(ConfigFactory.parseMap(ImmutableMap.of("key2", "value1")), "key1"));
     Assert.assertFalse(ConfigUtils.hasNonEmptyPath(ConfigFactory.parseMap(ImmutableMap.of("key1", "")), "key1"));
+  }
+
+  @Test
+  public void testGetStringList() throws Exception {
+
+    // Comma separated
+    Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(ImmutableMap.of("key1", "value1,value2")), "key1"),
+        ImmutableList.of("value1", "value2"));
+
+    // Type safe list
+    Assert.assertEquals(
+        ConfigUtils.getStringList(ConfigFactory.empty().withValue("key1", ConfigValueFactory.fromIterable(ImmutableList.of("value1", "value2"))), "key1"),
+        ImmutableList.of("value1", "value2"));
+
+    // Empty list if path does not exist
+    Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(ImmutableMap.of("key1", "value1,value2")), "key2"), ImmutableList.of());
+
+    // Empty list of path is null
+    Map<String,String> configMap = Maps.newHashMap();
+    configMap.put("key1", null);
+    Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(configMap), "key1"), ImmutableList.of());
+
   }
 }

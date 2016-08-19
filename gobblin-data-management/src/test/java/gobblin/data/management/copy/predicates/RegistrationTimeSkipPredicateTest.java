@@ -19,12 +19,12 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import org.mockito.Mockito;
 
-import com.beust.jcommander.internal.Maps;
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyContext;

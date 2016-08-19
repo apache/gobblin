@@ -140,7 +140,7 @@ public class ConcurrentBoundedWorkUnitListTest {
 
     return new CopyableFile(origin, targetPath, new OwnerAndPermission(null, null, null),
         Lists.<OwnerAndPermission>newArrayList(), null, PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps
-        .<String, Object>newHashMap());
+        .<String, String>newHashMap());
 
   }
 

@@ -1,0 +1,3 @@
+job.template=templates/distcp-ng.template
+data.publisher.final.dir=some_dir
+gobblin.dataset.pattern=pattern

@@ -25,6 +25,8 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
@@ -36,6 +38,7 @@ import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.api.VersionDoesNotExistException;
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -71,9 +74,10 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
           log.info(String.format("Instantiated datasetfinder %s ", jobProps.getProperty(datasetFinderClassKey())));
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
             | ClassNotFoundException e) {
-          log.warn(
+          log.error(
               String.format("Retention ignored could not instantiate datasetfinder %s.",
                   jobProps.getProperty(datasetFinderClassKey())), e);
+          Throwables.propagate(e);
         }
       } else {
         ConfigClient client = ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY);
@@ -84,23 +88,23 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
           Config datasetClassConfig = client.getConfig(importedBy);
 
           try {
-            this.datasetFinders
-                .add((DatasetsFinder) ConstructorUtils.invokeConstructor(
-                    Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), fs, jobProps,
-                    datasetClassConfig));
+            this.datasetFinders.add((DatasetsFinder) GobblinConstructorUtils.invokeFirstConstructor(
+                Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), ImmutableList.of(fs, jobProps,
+                    datasetClassConfig), ImmutableList.of(fs, jobProps)));
             log.info(String.format("Instantiated datasetfinder %s for %s.",
                 datasetClassConfig.getString(datasetFinderClassKey()), importedBy));
           } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
               | InvocationTargetException | NoSuchMethodException | SecurityException | ClassNotFoundException e) {
-            log.warn(String.format("Retention ignored for %s. Could not instantiate datasetfinder %s.", importedBy,
+            log.error(String.format("Retention ignored for %s. Could not instantiate datasetfinder %s.", importedBy,
                 datasetClassConfig.getString(datasetFinderClassKey())), e);
+            Throwables.propagate(e);
           }
         }
       }
 
     } catch (IllegalArgumentException | VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException
         | ConfigStoreCreationException | URISyntaxException e) {
-      throw new RuntimeException(e);
+      Throwables.propagate(e);
     }
   }
 

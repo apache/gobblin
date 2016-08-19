@@ -30,7 +30,7 @@ public interface JdbcWriterCommands extends JdbcBufferedInserter {
    * @param targetTableName
    * @throws SQLException
    */
-  public void createTableStructure(String fromStructure, String targetTableName) throws SQLException;
+  public void createTableStructure(String databaseName, String fromStructure, String targetTableName) throws SQLException;
 
   /**
    * Check if table is empty.
@@ -38,36 +38,37 @@ public interface JdbcWriterCommands extends JdbcBufferedInserter {
    * @return
    * @throws SQLException
    */
-  public boolean isEmpty(String table) throws SQLException;
+  public boolean isEmpty(String database, String table) throws SQLException;
 
   /**
    * Truncates table. Most RDBMS cannot be rollback from this operation.
    * @param table table name to be truncated.
    * @throws SQLException
    */
-  public void truncate(String table) throws SQLException;
+  public void truncate(String database, String table) throws SQLException;
 
   /**
    * Deletes all contents from the table. This method can be rollback if not committed.
    * @param table
    * @throws SQLException
    */
-  public void deleteAll(String table) throws SQLException;
+  public void deleteAll(String database, String table) throws SQLException;
 
   /**
    * Drops the table.
    * @param table
    * @throws SQLException
    */
-  public void drop(String table) throws SQLException;
+  public void drop(String database, String table) throws SQLException;
 
   /**
    * Retrieves date related column such as Date, Time, DateTime, Timestamp etc.
+   * @param database
    * @param table
    * @return Map of column name and JdbcType that is date related.
    * @throws SQLException
    */
-  public Map<String, JdbcType> retrieveDateColumns(String table) throws SQLException;
+  public Map<String, JdbcType> retrieveDateColumns(String database, String table) throws SQLException;
 
   /**
    * Copy all the contents from one table to another. Both table should be in same structure.

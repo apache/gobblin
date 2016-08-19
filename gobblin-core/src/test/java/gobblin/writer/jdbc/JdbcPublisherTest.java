@@ -83,7 +83,7 @@ public class JdbcPublisherTest {
     inOrder.verify(conn, times(1)).commit();
     inOrder.verify(conn, times(1)).close();
 
-    verify(commands, never()).deleteAll(destinationTable);
+    verify(commands, never()).deleteAll(database, destinationTable);
   }
 
   public void testPublishReplaceOutput() throws IOException, SQLException {
@@ -93,7 +93,7 @@ public class JdbcPublisherTest {
     InOrder inOrder = inOrder(conn, commands, workUnitState);
 
     inOrder.verify(conn, times(1)).setAutoCommit(false);
-    inOrder.verify(commands, times(1)).deleteAll(destinationTable);
+    inOrder.verify(commands, times(1)).deleteAll(database, destinationTable);
     inOrder.verify(commands, times(1)).copyTable(database, stagingTable, destinationTable);
     inOrder.verify(workUnitState, times(1)).setWorkingState(WorkUnitState.WorkingState.COMMITTED);
     inOrder.verify(conn, times(1)).commit();
@@ -119,7 +119,7 @@ public class JdbcPublisherTest {
     inOrder.verify(conn, times(1)).close();
 
     verify(conn, never()).commit();
-    verify(commands, never()).deleteAll(destinationTable);
+    verify(commands, never()).deleteAll(database, destinationTable);
     verify(workUnitState, never()).setWorkingState(any(WorkUnitState.WorkingState.class));
   }
 }

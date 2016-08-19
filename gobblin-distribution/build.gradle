@@ -38,7 +38,9 @@ dependencies {
   compile project(":gobblin-rest-service:gobblin-rest-server")
   compile project(":gobblin-config-management:gobblin-config-client")
   compile project(":gobblin-config-management:gobblin-config-core")
+  compile project(':gobblin-cluster')
   compile project(':gobblin-yarn')
+  compile project(':gobblin-aws')
 }
 
 task buildDistributionTar(type: Tar, overwrite: true) {

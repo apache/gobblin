@@ -44,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   public static final String USE_ALL_OBJECTS = "use.all.objects";
-  public static final boolean DEFAULT_USE_ALL_OBJECTS = true;
+  public static final boolean DEFAULT_USE_ALL_OBJECTS = false;
 
   @Override
   public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {

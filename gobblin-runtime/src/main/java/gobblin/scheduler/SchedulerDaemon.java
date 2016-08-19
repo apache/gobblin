@@ -33,7 +33,7 @@ public class SchedulerDaemon extends ServiceBasedAppLauncher {
     this(PropertiesUtils.combineProperties(defaultProperties, customProperties));
   }
 
-  private SchedulerDaemon(Properties properties) throws Exception {
+  public SchedulerDaemon(Properties properties) throws Exception {
     super(properties, getAppName(properties));
     addService(new JobScheduler(properties));
   }

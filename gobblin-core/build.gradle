@@ -42,11 +42,13 @@ dependencies {
   compile externalDependency.kafka
   compile externalDependency.kafkaClient
   compile externalDependency.scala
-  compile externalDependency.mockito
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
   compile externalDependency.guavaretrying
   compile externalDependency.findBugsAnnotations
+  compile externalDependency.confluentSchemaRegistryClient
+  compile externalDependency.confluentAvroSerializer
+  compile externalDependency.confluentJsonSerializer
   compile externalDependency.oltu
 
   runtime externalDependency.protobuf
@@ -57,6 +59,7 @@ dependencies {
   testCompile externalDependency.jhyde
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.testng
+  testCompile externalDependency.mockito
   testCompile externalDependency.mockRunnerJdbc
   testCompile externalDependency.httpcore
   testCompile externalDependency.httpclient

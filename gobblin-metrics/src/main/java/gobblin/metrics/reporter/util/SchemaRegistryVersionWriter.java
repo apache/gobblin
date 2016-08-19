@@ -21,11 +21,14 @@ import org.apache.avro.Schema;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
 
 import gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import gobblin.metrics.kafka.SchemaRegistryException;
+import gobblin.util.ConfigUtils;
 
 
 /**
@@ -33,41 +36,89 @@ import gobblin.metrics.kafka.SchemaRegistryException;
  * {@link gobblin.metrics.kafka.KafkaAvroSchemaRegistry} to get Schema version identifier and write it to
  * {@link java.io.DataOutputStream}.
  */
-public class SchemaRegistryVersionWriter implements SchemaVersionWriter {
+public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> {
 
   private final KafkaAvroSchemaRegistry registry;
   private Map<Schema, String> registrySchemaIds;
-  private final String topic;
+  private final Optional<String> overrideName;
+  private final Optional<Schema> schema;
+  private final Optional<String> schemaId;
+  private final int schemaIdLengthBytes;
 
-  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String topic) {
+  public SchemaRegistryVersionWriter(Config config) throws IOException {
+    this(new KafkaAvroSchemaRegistry(ConfigUtils.configToProperties(config)), Optional.<String>absent(), Optional.<Schema>absent());
+  }
+
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String overrideName, Optional<Schema> singleSchema)
+      throws IOException {
+    this(registry, Optional.of(overrideName), singleSchema);
+  }
+
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, Optional<String> overrideName, Optional<Schema> singleSchema)
+      throws IOException {
     this.registry = registry;
     this.registrySchemaIds = Maps.newConcurrentMap();
-    this.topic = topic;
+    this.overrideName = overrideName;
+    this.schema = singleSchema;
+    this.schemaIdLengthBytes = registry.getSchemaIdLengthByte();
+    if (this.schema.isPresent()) {
+      try {
+        this.schemaId = this.overrideName.isPresent()
+            ? Optional.of(this.registry.register(this.schema.get(), this.overrideName.get()))
+            : Optional.of(this.registry.register(this.schema.get()));
+      } catch (SchemaRegistryException e) {
+        throw Throwables.propagate(e);
+      }
+    } else {
+      this.schemaId = Optional.absent();
+    }
   }
 
   @Override
   public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream) throws IOException {
-    if (!this.registrySchemaIds.containsKey(schema)) {
-      try {
-        String schemaId = this.registry.register(schema, this.topic);
-        this.registrySchemaIds.put(schema, schemaId);
-      } catch (SchemaRegistryException e) {
-        throw Throwables.propagate(e);
-      }
-    }
+
+    String schemaId = this.schemaId.isPresent() ? this.schemaId.get() : this.getIdForSchema(schema);
+
     outputStream.writeByte(KafkaAvroSchemaRegistry.MAGIC_BYTE);
     try {
-      outputStream.write(Hex.decodeHex(this.registrySchemaIds.get(schema).toCharArray()));
+      outputStream.write(Hex.decodeHex(schemaId.toCharArray()));
     } catch (DecoderException exception) {
       throw new IOException(exception);
     }
   }
 
+  private String getIdForSchema(Schema schema) {
+    if (!this.registrySchemaIds.containsKey(schema)) {
+      try {
+        String schemaId = this.overrideName.isPresent()
+            ? this.registry.register(schema, this.overrideName.get())
+            : this.registry.register(schema);
+        this.registrySchemaIds.put(schema, schemaId);
+      } catch (SchemaRegistryException e) {
+        throw Throwables.propagate(e);
+      }
+    }
+    return this.registrySchemaIds.get(schema);
+  }
+
   @Override
-  public Object readSchemaVersioningInformation(DataInputStream inputStream) throws IOException {
+  public Schema readSchemaVersioningInformation(DataInputStream inputStream) throws IOException {
     if (inputStream.readByte() != KafkaAvroSchemaRegistry.MAGIC_BYTE) {
       throw new IOException("MAGIC_BYTE not found in Avro message.");
     }
-    throw new UnsupportedOperationException("readSchemaVersioningInformation not implemented for schema registry.");
+
+    byte[] byteKey = new byte[schemaIdLengthBytes];
+    int bytesRead = inputStream.read(byteKey, 0, schemaIdLengthBytes);
+    if (bytesRead != schemaIdLengthBytes) {
+      throw new IOException(String.format("Could not read enough bytes for schema id. Expected: %d, found: %d.",
+          schemaIdLengthBytes, bytesRead));
+    }
+    String hexKey = Hex.encodeHexString(byteKey);
+
+    try {
+      return this.registry.getSchemaByKey(hexKey);
+    } catch (SchemaRegistryException sre) {
+      throw new IOException("Failed to retrieve schema for key " + hexKey, sre);
+    }
   }
 }

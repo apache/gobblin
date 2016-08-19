@@ -34,14 +34,14 @@ import com.google.common.collect.ImmutableMap;
 public class MySqlWriterCommands implements JdbcWriterCommands {
   private static final Logger LOG = LoggerFactory.getLogger(MySqlWriterCommands.class);
 
-  private static final String CREATE_TABLE_SQL_FORMAT = "CREATE TABLE %s SELECT * FROM %s WHERE 1=2";
-  private static final String SELECT_SQL_FORMAT = "SELECT COUNT(*) FROM %s";
-  private static final String TRUNCATE_TABLE_FORMAT = "TRUNCATE TABLE %s";
-  private static final String DROP_TABLE_SQL_FORMAT = "DROP TABLE %s";
+  private static final String CREATE_TABLE_SQL_FORMAT = "CREATE TABLE %s.%s SELECT * FROM %s.%s WHERE 1=2";
+  private static final String SELECT_SQL_FORMAT = "SELECT COUNT(*) FROM %s.%s";
+  private static final String TRUNCATE_TABLE_FORMAT = "TRUNCATE TABLE %s.%s";
+  private static final String DROP_TABLE_SQL_FORMAT = "DROP TABLE %s.%s";
   private static final String INFORMATION_SCHEMA_SELECT_SQL_PSTMT =
-      "SELECT column_name, column_type FROM information_schema.columns where table_name = ?";
+      "SELECT column_name, column_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ?";
   private static final String COPY_INSERT_STATEMENT_FORMAT = "INSERT INTO %s.%s SELECT * FROM %s.%s";
-  private static final String DELETE_STATEMENT_FORMAT = "DELETE FROM %s";
+  private static final String DELETE_STATEMENT_FORMAT = "DELETE FROM %s.%s";
 
   private final JdbcBufferedInserter jdbcBufferedWriter;
   private final Connection conn;
@@ -62,14 +62,15 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   }
 
   @Override
-  public void createTableStructure(String fromStructure, String targetTableName) throws SQLException {
-    String sql = String.format(CREATE_TABLE_SQL_FORMAT, targetTableName, fromStructure);
+  public void createTableStructure(String databaseName, String fromStructure, String targetTableName) throws SQLException {
+    String sql = String.format(CREATE_TABLE_SQL_FORMAT, databaseName, targetTableName,
+                                                        databaseName, fromStructure);
     execute(sql);
   }
 
   @Override
-  public boolean isEmpty(String table) throws SQLException {
-    String sql = String.format(SELECT_SQL_FORMAT, table);
+  public boolean isEmpty(String database, String table) throws SQLException {
+    String sql = String.format(SELECT_SQL_FORMAT, database, table);
     try (PreparedStatement pstmt = this.conn.prepareStatement(sql); ResultSet resultSet = pstmt.executeQuery();) {
       if (!resultSet.first()) {
         throw new RuntimeException("Should have received at least one row from SQL " + pstmt);
@@ -79,21 +80,21 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   }
 
   @Override
-  public void truncate(String table) throws SQLException {
-    String sql = String.format(TRUNCATE_TABLE_FORMAT, table);
+  public void truncate(String database, String table) throws SQLException {
+    String sql = String.format(TRUNCATE_TABLE_FORMAT, database, table);
     execute(sql);
   }
 
   @Override
-  public void deleteAll(String table) throws SQLException {
-    String deleteSql = String.format(DELETE_STATEMENT_FORMAT, table);
+  public void deleteAll(String database, String table) throws SQLException {
+    String deleteSql = String.format(DELETE_STATEMENT_FORMAT, database, table);
     execute(deleteSql);
   }
 
   @Override
-  public void drop(String table) throws SQLException {
+  public void drop(String database, String table) throws SQLException {
     LOG.info("Dropping table " + table);
-    String sql = String.format(DROP_TABLE_SQL_FORMAT, table);
+    String sql = String.format(DROP_TABLE_SQL_FORMAT, database, table);
     execute(sql);
   }
 
@@ -103,13 +104,18 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
    * @see gobblin.writer.commands.JdbcWriterCommands#retrieveDateColumns(java.sql.Connection, java.lang.String)
    */
   @Override
-  public Map<String, JdbcType> retrieveDateColumns(String table) throws SQLException {
-    Map<String, JdbcType> targetDataTypes = ImmutableMap.<String, JdbcType> builder().put("DATE", JdbcType.DATE)
-        .put("DATETIME", JdbcType.TIME).put("TIME", JdbcType.TIME).put("TIMESTAMP", JdbcType.TIMESTAMP).build();
+  public Map<String, JdbcType> retrieveDateColumns(String database, String table) throws SQLException {
+    Map<String, JdbcType> targetDataTypes = ImmutableMap.<String, JdbcType> builder()
+                                                        .put("DATE", JdbcType.DATE)
+                                                        .put("DATETIME", JdbcType.TIMESTAMP)
+                                                        .put("TIME", JdbcType.TIME)
+                                                        .put("TIMESTAMP", JdbcType.TIMESTAMP)
+                                                        .build();
 
     ImmutableMap.Builder<String, JdbcType> dateColumnsBuilder = ImmutableMap.builder();
     try (PreparedStatement pstmt = this.conn.prepareStatement(INFORMATION_SCHEMA_SELECT_SQL_PSTMT)) {
-      pstmt.setString(1, table);
+      pstmt.setString(1, database);
+      pstmt.setString(2, table);
       LOG.info("Retrieving column type information from SQL: " + pstmt);
       try (ResultSet rs = pstmt.executeQuery()) {
         if (!rs.first()) {

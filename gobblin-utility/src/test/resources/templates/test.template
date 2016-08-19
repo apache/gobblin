@@ -1,0 +1,4 @@
+gobblin.template.required_attributes=required0,required1,required2
+required0=x
+required1=y
+required2=z

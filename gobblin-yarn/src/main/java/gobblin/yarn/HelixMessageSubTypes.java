@@ -25,11 +25,6 @@ public enum HelixMessageSubTypes {
   APPLICATION_MASTER_SHUTDOWN,
 
   /**
-   * This type is for messages sent when the {@link GobblinWorkUnitRunner}s are to be shutdown.
-   */
-  WORK_UNIT_RUNNER_SHUTDOWN,
-
-  /**
    * This type is for messages sent when the file storing the delegation token has been updated.
    */
   TOKEN_FILE_UPDATED

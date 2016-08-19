@@ -16,8 +16,10 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import com.google.common.base.Throwables;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Throwables;
 
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
@@ -34,6 +36,7 @@ import gobblin.util.Decorator;
  * @author Yinan Li
  */
 public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
+  private static final Logger LOG = LoggerFactory.getLogger(SourceDecorator.class);
 
   private final Source<S, D> source;
   private final String jobId;
@@ -42,7 +45,7 @@ public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
   public SourceDecorator(Source<S, D> source, String jobId, Logger logger) {
     this.source = source;
     this.jobId = jobId;
-    this.logger = logger;
+    this.logger = null != logger ? logger : LOG;
   }
 
   @Override

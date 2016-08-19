@@ -93,6 +93,9 @@ public class HiveMetaStoreUtils {
     HiveTable hiveTable = new HiveTable.Builder().withDbName(table.getDbName()).withTableName(table.getTableName())
         .withPartitionKeys(getColumns(table.getPartitionKeys())).withProps(tableProps).withStorageProps(storageProps)
         .withSerdeProps(serDeProps).build();
+    if (table.getCreateTime() > 0) {
+      hiveTable.setCreateTime(table.getCreateTime());
+    }
     if (table.getSd().getCols() != null) {
       hiveTable.setColumns(getColumns(table.getSd().getCols()));
     }
@@ -112,7 +115,9 @@ public class HiveMetaStoreUtils {
     partition.setTableName(hivePartition.getTableName());
     partition.setValues(hivePartition.getValues());
     partition.setParameters(getParameters(props));
-    if (props.contains(HiveConstants.CREATE_TIME)) {
+    if (hivePartition.getCreateTime().isPresent()) {
+      partition.setCreateTime(Ints.checkedCast(hivePartition.getCreateTime().get()));
+    } else if (props.contains(HiveConstants.CREATE_TIME)) {
       partition.setCreateTime(props.getPropAsInt(HiveConstants.CREATE_TIME));
     }
     if (props.contains(HiveConstants.LAST_ACCESS_TIME)) {
@@ -132,6 +137,9 @@ public class HiveMetaStoreUtils {
     HivePartition hivePartition = new HivePartition.Builder().withDbName(partition.getDbName())
         .withTableName(partition.getTableName()).withPartitionValues(partition.getValues()).withProps(partitionProps)
         .withStorageProps(storageProps).withSerdeProps(serDeProps).build();
+    if (partition.getCreateTime() > 0) {
+      hivePartition.setCreateTime(partition.getCreateTime());
+    }
     if (partition.getSd().getCols() != null) {
       hivePartition.setColumns(getColumns(partition.getSd().getCols()));
     }
