@@ -12,27 +12,34 @@
 package gobblin.data.management.conversion.hive.watermarker;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import com.google.common.base.Predicates;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 
 import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.extract.LongWatermark;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
  * A {@link HiveSourceWatermarker} that manages {@link Watermark} at a per {@link Table} basis.
- * One {@link Watermark} per table exists.
- * All {@link Partition}s of a {@link Table} have the same {@link Watermark}.
+ * <ul>
+ * <li>One {@link Watermark} per table exists.
+ * <li>All {@link Partition}s of a {@link Table} have the same {@link Watermark}.
+ * <li>The time at which the job processed a {@link Table} for workunit creation is used as {@link Watermark}
+ * </ul>
+ *
  */
 public class TableLevelWatermarker implements HiveSourceWatermarker {
   public static final Gson GSON = new Gson();
@@ -40,25 +47,30 @@ public class TableLevelWatermarker implements HiveSourceWatermarker {
   // Table complete name db@tb - list of previous workunitState
   private Map<String, LongWatermark> tableWatermarks;
 
-  public TableLevelWatermarker(SourceState state) {
+  public TableLevelWatermarker(State state) {
     this.tableWatermarks = Maps.newHashMap();
-    SourceState sourceState = state;
 
-    for (Map.Entry<String, Iterable<WorkUnitState>> datasetWorkUnitStates : sourceState
-        .getPreviousWorkUnitStatesByDatasetUrns().entrySet()) {
+    // Load previous watermarks in case of sourceState
+    if (state instanceof SourceState) {
+      SourceState sourceState = (SourceState)state;
+      for (Map.Entry<String, Iterable<WorkUnitState>> datasetWorkUnitStates : sourceState
+          .getPreviousWorkUnitStatesByDatasetUrns().entrySet()) {
 
-      LongWatermark tableWatermark = Collections.min(Lists.newArrayList(
-          Iterables.transform(datasetWorkUnitStates.getValue(), new Function<WorkUnitState, LongWatermark>() {
-            @Override
-            public LongWatermark apply(WorkUnitState w) {
-              return GSON.fromJson(w.getActualHighWatermark(), LongWatermark.class);
-            }
-          })));
+        // Use the minimum of all previous watermarks for this dataset
+        List<LongWatermark> previousWatermarks = FluentIterable.from(datasetWorkUnitStates.getValue())
+        .filter(Predicates.not(PartitionLevelWatermarker.WATERMARK_WORKUNIT_PREDICATE))
+        .transform(new Function<WorkUnitState, LongWatermark>() {
+          @Override
+          public LongWatermark apply(WorkUnitState w) {
+            return w.getActualHighWatermark(LongWatermark.class);
+          }
+        }).toList();
 
-      this.tableWatermarks.put(datasetWorkUnitStates.getKey(), tableWatermark);
-
+        if (!previousWatermarks.isEmpty()) {
+          this.tableWatermarks.put(datasetWorkUnitStates.getKey(), Collections.min(previousWatermarks));
+        }
+      }
     }
-
   }
 
   @Override
@@ -72,5 +84,40 @@ public class TableLevelWatermarker implements HiveSourceWatermarker {
   @Override
   public LongWatermark getPreviousHighWatermark(Partition partition) {
     return getPreviousHighWatermark(partition.getTable());
+  }
+
+  @Override
+  public void onTableProcessBegin(Table table, long tableProcessTime) {}
+
+  @Override
+  public void onPartitionProcessBegin(Partition partition, long partitionProcessTime, long partitionUpdateTime) {}
+
+  @Override
+  public void onGetWorkunitsEnd(List<WorkUnit> workunits) {}
+
+  @Override
+  public LongWatermark getExpectedHighWatermark(Table table, long tableProcessTime) {
+    return new LongWatermark(tableProcessTime);
+  }
+
+  @Override
+  public LongWatermark getExpectedHighWatermark(Partition partition, long tableProcessTime, long partitionProcessTime) {
+    return getExpectedHighWatermark(partition.getTable(), tableProcessTime);
+  }
+
+  @Override
+  public void setActualHighWatermark(WorkUnitState wus) {
+    wus.setActualHighWatermark(wus.getWorkunit().getExpectedHighWatermark(LongWatermark.class));
+  }
+
+  /**
+   * Factory to create a {@link TableLevelWatermarker}
+   */
+  public static class Factory implements HiveSourceWatermarkerFactory {
+
+    @Override
+    public TableLevelWatermarker createFromState(State state) {
+      return new TableLevelWatermarker(state);
+    }
   }
 }

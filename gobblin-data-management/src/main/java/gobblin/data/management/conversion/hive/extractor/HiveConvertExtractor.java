@@ -14,7 +14,10 @@ package gobblin.data.management.conversion.hive.extractor;
 import java.io.IOException;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.avro.Schema;
+import org.apache.avro.Schema.Type;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -25,6 +28,7 @@ import org.apache.thrift.TException;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
@@ -32,6 +36,7 @@ import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversion
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
 import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
+import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.source.extractor.DataRecordException;
@@ -51,11 +56,17 @@ import gobblin.util.AutoReturnableObject;
  * to get the corresponding hive {@link org.apache.hadoop.hive.ql.metadata.Table} and hive {@link org.apache.hadoop.hive.ql.metadata.Partition}
  * </p>
  */
+@Slf4j
 public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveConversionEntity> {
 
   private List<QueryBasedHiveConversionEntity> conversionEntities = Lists.newArrayList();
 
   public HiveConvertExtractor(WorkUnitState state, FileSystem fs) throws IOException, TException, HiveException {
+
+    if (Boolean.valueOf(state.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
+      log.info("Ignoring Watermark workunit for {}", state.getProp(ConfigurationKeys.DATASET_URN_KEY));
+      return;
+    }
 
     HiveWorkUnit hiveWokUnit = new HiveWorkUnit(state.getWorkunit());
 
@@ -94,7 +105,7 @@ public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveCon
   @Override
   public Schema getSchema() throws IOException {
     if (this.conversionEntities.isEmpty()) {
-      return null;
+      return Schema.create(Type.NULL);
     }
 
     QueryBasedHiveConversionEntity conversionEntity = this.conversionEntities.get(0);

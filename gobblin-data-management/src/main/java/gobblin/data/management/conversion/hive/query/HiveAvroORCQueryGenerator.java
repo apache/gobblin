@@ -912,8 +912,10 @@ public class HiveAvroORCQueryGenerator {
    * @return Publish table entity.
    */
   public static QueryBasedHivePublishEntity deserializePublishCommands(State state) {
-    return GSON.fromJson(state.getProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_TABLE_COMMANDS),
-        QueryBasedHivePublishEntity.class);
+    QueryBasedHivePublishEntity queryBasedHivePublishEntity =
+        GSON.fromJson(state.getProp(HiveAvroORCQueryGenerator.SERIALIZED_PUBLISH_TABLE_COMMANDS),
+            QueryBasedHivePublishEntity.class);
+    return queryBasedHivePublishEntity == null ? new QueryBasedHivePublishEntity() : queryBasedHivePublishEntity;
   }
 
   public static boolean isTypeEvolved(String evolvedType, String destinationType) {

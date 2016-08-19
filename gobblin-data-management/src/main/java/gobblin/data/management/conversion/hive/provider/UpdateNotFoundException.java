@@ -14,7 +14,7 @@ package gobblin.data.management.conversion.hive.provider;
 /**
  * An exception when {@link HiveUnitUpdateProvider} can not find updates
  */
-public class UpdateNotFoundException extends Exception {
+public class UpdateNotFoundException extends RuntimeException {
 
   private static final long serialVersionUID = -3750962295968867238L;
 

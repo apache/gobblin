@@ -18,6 +18,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
@@ -26,10 +28,12 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -40,16 +44,20 @@ import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEnt
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
-import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
+import gobblin.data.management.conversion.hive.source.HiveSource;
+import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
+import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
+import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarkerFactory;
+import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
 import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.publisher.DataPublisher;
-import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -63,6 +71,7 @@ public class HiveConvertPublisher extends DataPublisher {
   private MetricContext metricContext;
   private EventSubmitter eventSubmitter;
   private final FileSystem fs;
+  private final HiveSourceWatermarker watermarker;
 
   public HiveConvertPublisher(State state) throws IOException {
     super(state);
@@ -83,6 +92,11 @@ public class HiveConvertPublisher extends DataPublisher {
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
+
+    this.watermarker =
+        GobblinConstructorUtils.invokeConstructor(
+            HiveSourceWatermarkerFactory.class, state.getProp(HiveSource.HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY,
+                HiveSource.DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS)).createFromState(state);
   }
 
   @Override
@@ -113,28 +127,36 @@ public class HiveConvertPublisher extends DataPublisher {
         }
       }
     } else {
-      for (WorkUnitState wus : states) {
+      for (WorkUnitState wus : PARTITION_PUBLISH_ORDERING.sortedCopy(states)) {
         QueryBasedHivePublishEntity publishEntity = HiveAvroORCQueryGenerator.deserializePublishCommands(wus);
 
         // Add cleanup commands - to be executed later
-        cleanUpQueries.addAll(publishEntity.getCleanupQueries());
-        directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
-
-        // Publish snapshot / partition directories
-        Map<String, String> publishDirectories = publishEntity.getPublishDirectories();
-        for (Map.Entry<String, String> publishDir : publishDirectories.entrySet()) {
-          moveDirectory(publishDir.getKey(), publishDir.getValue());
+        if (publishEntity.getCleanupQueries() != null) {
+          cleanUpQueries.addAll(publishEntity.getCleanupQueries());
         }
 
-        // Register snapshot / partition
-        List<String> publishQueries = publishEntity.getPublishQueries();
-        EventWorkunitUtils.setBeginPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
-        executeQueries(publishQueries);
-        EventWorkunitUtils.setEndPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
+        if (publishEntity.getCleanupDirectories() != null) {
+          directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
+        }
+
+        if (publishEntity.getPublishDirectories() != null) {
+          // Publish snapshot / partition directories
+          Map<String, String> publishDirectories = publishEntity.getPublishDirectories();
+          for (Map.Entry<String, String> publishDir : publishDirectories.entrySet()) {
+            moveDirectory(publishDir.getKey(), publishDir.getValue());
+          }
+        }
+
+        if (publishEntity.getPublishQueries() != null) {
+          // Register snapshot / partition
+          List<String> publishQueries = publishEntity.getPublishQueries();
+          EventWorkunitUtils.setBeginPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
+          executeQueries(publishQueries);
+          EventWorkunitUtils.setEndPublishDDLExecuteTimeMetadata(wus, System.currentTimeMillis());
+        }
 
         wus.setWorkingState(WorkingState.COMMITTED);
-        wus.setActualHighWatermark(
-            TableLevelWatermarker.GSON.fromJson(wus.getWorkunit().getExpectedHighWatermark(), LongWatermark.class));
+        this.watermarker.setActualHighWatermark(wus);
 
         try {
           new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
@@ -152,8 +174,7 @@ public class HiveConvertPublisher extends DataPublisher {
     deleteDirectories(directoriesToDelete);
   }
 
-  private void moveDirectory(String sourceDir, String targetDir)
-      throws IOException {
+  private void moveDirectory(String sourceDir, String targetDir) throws IOException {
     // If targetDir exists, delete it
     if (this.fs.exists(new Path(targetDir))) {
       deleteDirectory(targetDir);
@@ -166,8 +187,7 @@ public class HiveConvertPublisher extends DataPublisher {
     // Move directory
     log.info("Moving directory: " + sourceDir + " to: " + targetDir);
     if (!this.fs.rename(new Path(sourceDir), new Path(targetDir))) {
-      throw new IOException(
-          String.format("Unable to move %s to %s", sourceDir, targetDir));
+      throw new IOException(String.format("Unable to move %s to %s", sourceDir, targetDir));
     }
   }
 
@@ -213,4 +233,18 @@ public class HiveConvertPublisher extends DataPublisher {
       return null == input || !WorkingState.SUCCESSFUL.equals(input.getWorkingState());
     }
   };
+
+  /**
+   * Publish workunits in lexicographic order of partition names.
+   * If a workunit is a noop workunit then {@link HiveWorkUnit#getPartitionName()}
+   * would be absent. This can happen while using {@link PartitionLevelWatermarker} where it creates a dummy workunit
+   * for all watermarks. It is safe to always publish this dummy workunit at the end as we do not want to update the
+   * ActualHighWatermark till all other partitions are successfully published. Hence we use nullsLast ordering.
+   */
+  private static final Ordering<WorkUnitState> PARTITION_PUBLISH_ORDERING = Ordering.natural().nullsLast()
+      .onResultOf(new Function<WorkUnitState, String>() {
+        public String apply(@Nonnull WorkUnitState wus) {
+          return new HiveWorkUnit(wus.getWorkunit()).getPartitionName().orNull();
+        }
+      });
 }
