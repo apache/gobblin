@@ -65,6 +65,7 @@ import gobblin.metrics.Tag;
 import gobblin.runtime.app.ApplicationException;
 import gobblin.runtime.app.ApplicationLauncher;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
+import gobblin.scheduler.SchedulerService;
 import gobblin.util.ConfigUtils;
 import gobblin.util.logs.Log4jConfigurationHelper;
 import gobblin.util.reflection.GobblinConstructorUtils;
@@ -134,8 +135,11 @@ public class GobblinClusterManager implements ApplicationLauncher {
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get() :
         GobblinClusterUtils.getAppWorkDirPath(this.fs, clusterName, applicationId);
 
+    SchedulerService schedulerService = new SchedulerService(properties);
+    this.applicationLauncher.addService(schedulerService);
     this.applicationLauncher
-        .addService(buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId)));
+        .addService(buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
+            schedulerService));
     this.applicationLauncher.addService(buildJobConfigurationManager(config));
   }
 
@@ -208,10 +212,11 @@ public class GobblinClusterManager implements ApplicationLauncher {
    * Build the {@link GobblinHelixJobScheduler} for the Application Master.
    */
   private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
-      List<? extends Tag<?>> metadataTags)
+      List<? extends Tag<?>> metadataTags, SchedulerService schedulerService)
       throws Exception {
     Properties properties = ConfigUtils.configToProperties(config);
-    return new GobblinHelixJobScheduler(properties, this.helixManager, this.eventBus, appWorkDir, metadataTags);
+    return new GobblinHelixJobScheduler(properties, this.helixManager, this.eventBus, appWorkDir, metadataTags,
+        schedulerService);
   }
 
   /**

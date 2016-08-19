@@ -27,7 +27,10 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class ResourceBasedTemplate implements JobTemplate {
   private String templatePath;
   private Set<String> _userSpecifiedAttributesList;

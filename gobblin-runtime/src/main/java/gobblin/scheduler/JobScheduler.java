@@ -98,7 +98,7 @@ public class JobScheduler extends AbstractIdleService {
   public final Properties properties;
 
   // A Quartz scheduler
-  private final Scheduler scheduler;
+  private final SchedulerService scheduler;
 
   // A thread pool executor for running jobs without schedules
   protected final ExecutorService jobExecutor;
@@ -119,10 +119,10 @@ public class JobScheduler extends AbstractIdleService {
   private final boolean waitForJobCompletion;
 
 
-  public JobScheduler(Properties properties)
+  public JobScheduler(Properties properties, SchedulerService scheduler)
       throws Exception {
     this.properties = properties;
-    this.scheduler = new StdSchedulerFactory().getScheduler();
+    this.scheduler = scheduler;
 
     this.jobExecutor = Executors.newFixedThreadPool(Integer.parseInt(
         properties.getProperty(ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY,
@@ -148,7 +148,6 @@ public class JobScheduler extends AbstractIdleService {
   protected void startUp()
       throws Exception {
     LOG.info("Starting the job scheduler");
-    this.scheduler.start();
 
     // Note: This should not be mandatory, gobblin-cluster modes have their own job configuration managers
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
@@ -178,11 +177,7 @@ public class JobScheduler extends AbstractIdleService {
       this.pathAlterationMonitor.stop(1000);
     }
 
-    try {
-      ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
-    } finally {
-      this.scheduler.shutdown(this.waitForJobCompletion);
-    }
+    ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
   }
 
   /**
@@ -266,7 +261,7 @@ public class JobScheduler extends AbstractIdleService {
 
     try {
       // Schedule the Quartz job with a trigger built from the job configuration
-      this.scheduler.scheduleJob(job, getTrigger(job.getKey(), jobProps));
+      this.scheduler.getScheduler().scheduleJob(job, getTrigger(job.getKey(), jobProps));
     } catch (SchedulerException se) {
       LOG.error("Failed to schedule job " + jobName, se);
       throw new JobException("Failed to schedule job " + jobName, se);
@@ -285,7 +280,7 @@ public class JobScheduler extends AbstractIdleService {
       throws JobException {
     if (this.scheduledJobs.containsKey(jobName)) {
       try {
-        this.scheduler.deleteJob(this.scheduledJobs.remove(jobName));
+        this.scheduler.getScheduler().deleteJob(this.scheduledJobs.remove(jobName));
       } catch (SchedulerException se) {
         LOG.error("Failed to unschedule and delete job " + jobName, se);
         throw new JobException("Failed to unschedule and delete job " + jobName, se);
@@ -353,7 +348,7 @@ public class JobScheduler extends AbstractIdleService {
       closer.register(jobLauncher).launchJob(jobListener);
       boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
       if (runOnce && this.scheduledJobs.containsKey(jobName)) {
-        this.scheduler.deleteJob(this.scheduledJobs.remove(jobName));
+        this.scheduler.getScheduler().deleteJob(this.scheduledJobs.remove(jobName));
       }
     } catch (Throwable t) {
       throw new JobException("Failed to launch and run job " + jobName, t);
