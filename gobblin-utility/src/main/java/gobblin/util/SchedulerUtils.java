@@ -67,7 +67,7 @@ public class SchedulerUtils {
 
     List<Properties> jobConfigs = Lists.newArrayList();
     for (Config config : configs) {
-      jobConfigs.add(ConfigUtils.configToProperties(config));
+      jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config)));
     }
 
     return jobConfigs;
@@ -93,7 +93,7 @@ public class SchedulerUtils {
 
     List<Properties> jobConfigs = Lists.newArrayList();
     for (Config config : configs) {
-      jobConfigs.add(ConfigUtils.configToProperties(config));
+      jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config)));
     }
 
     return jobConfigs;
@@ -115,7 +115,7 @@ public class SchedulerUtils {
             getJobConfigurationFileExtensions(properties), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
 
     Config config = loader.loadPullFile(jobConfigPath, ConfigFactory.parseProperties(properties), true);
-    return ConfigUtils.configToProperties(config);
+    return resolveTemplate(ConfigUtils.configToProperties(config));
   }
 
   /**
@@ -147,5 +147,14 @@ public class SchedulerUtils {
         return null != input ? input.toLowerCase() : "";
       }
     }));
+  }
+
+  private static Properties resolveTemplate(Properties jobProps) {
+    if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+      return  (new ResourceBasedTemplate(jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH)))
+          .getResolvedConfigAsProperties(jobProps);
+    } else {
+      return jobProps;
+    }
   }
 }

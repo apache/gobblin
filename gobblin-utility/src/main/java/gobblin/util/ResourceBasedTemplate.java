@@ -43,7 +43,7 @@ public class ResourceBasedTemplate implements JobTemplate {
     this.templatePath = templatePath;
 
     if (this.templatePath != null && this.templatePath.length() > 0) {
-      try (InputStream inputStream = getClass().getResourceAsStream("/" + this.templatePath)) {
+      try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(this.templatePath)) {
         if (inputStream != null) {
           configTemplate.load(inputStream);
         } else {
