@@ -23,14 +23,14 @@ import org.apache.avro.Schema;
  * Implementation of {@link gobblin.metrics.reporter.util.SchemaVersionWriter} that does not write anything to
  * {@link java.io.DataOutputStream}.
  */
-public class NoopSchemaVersionWriter implements SchemaVersionWriter {
+public class NoopSchemaVersionWriter implements SchemaVersionWriter<Void> {
   @Override
   public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream)
       throws IOException {
   }
 
   @Override
-  public Object readSchemaVersioningInformation(DataInputStream inputStream)
+  public Void readSchemaVersioningInformation(DataInputStream inputStream)
       throws IOException {
     return null;
   }

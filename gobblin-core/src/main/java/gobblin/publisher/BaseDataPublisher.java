@@ -20,7 +20,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import gobblin.util.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -70,6 +72,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final int numBranches;
   protected final List<FileSystem> writerFileSystemByBranches;
   protected final List<FileSystem> publisherFileSystemByBranches;
+  protected final List<FileSystem> metaDataWriterFileSystemByBranches;
   protected final List<Optional<String>> publisherFinalDirOwnerGroupsByBranches;
   protected final List<FsPermission> permissions;
   protected final Closer closer;
@@ -92,6 +95,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
     this.writerFileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.publisherFileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
+    this.metaDataWriterFileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.publisherFinalDirOwnerGroupsByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.permissions = Lists.newArrayListWithCapacity(this.numBranches);
 
@@ -105,6 +109,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       URI publisherUri = URI.create(this.getState().getProp(ForkOperatorUtils.getPropertyNameForBranch(
           ConfigurationKeys.DATA_PUBLISHER_FILE_SYSTEM_URI, this.numBranches, i), writerUri.toString()));
       this.publisherFileSystemByBranches.add(FileSystem.get(publisherUri, conf));
+      this.metaDataWriterFileSystemByBranches.add(FileSystem.get(publisherUri, conf));
 
       // The group(s) will be applied to the final publisher output directory(ies)
       this.publisherFinalDirOwnerGroupsByBranches.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
@@ -336,12 +341,52 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
   @Override
   public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
-    // Nothing to do
+        for (WorkUnitState workUnitState : states) {
+        publishMetadata(workUnitState);
+    }
   }
 
   @Override
   public void publishMetadata(WorkUnitState state) throws IOException {
-    // Nothing to do
-  }
+    String metadataValue = state.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_STR);
+    if (metadataValue == null) {
+      //Nothing to write
+      return;
+    }
 
+    if (state.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR) == null) {
+      LOG.error("Missing metadata output directory path : "  + ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR 
+                + " in the config");
+      return;
+    }
+
+    //Write for each branch
+    for (int branchId = 0; branchId < this.numBranches; branchId++) {
+      FileSystem fs = this.metaDataWriterFileSystemByBranches.get(branchId);
+
+      String filePrefix = state.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_FILE);
+      String fileName = ForkOperatorUtils.getPropertyNameForBranch(filePrefix, this.numBranches, branchId);
+      String metaDataOutputDirStr = state.getProp(ConfigurationKeys.DATA_PUBLISHER_METADATA_OUTPUT_DIR);
+
+      Path metaDataOutputPath = new Path(metaDataOutputDirStr);
+      try {
+        if (!fs.exists(metaDataOutputPath)) {
+          WriterUtils.mkdirsWithRecursivePermission(fs, metaDataOutputPath, this.permissions.get(branchId));
+        }
+
+        Path metaFilepath = new Path(metaDataOutputDirStr, fileName);
+
+        //Delete the file if metadata already exists
+        if (fs.exists(metaFilepath)) {
+          HadoopUtils.deletePath(fs, metaFilepath, false);
+        }
+
+        try (FSDataOutputStream outputStream = this.closer.register(fs.create(metaFilepath))) {
+          outputStream.write(metadataValue.getBytes("UTF-8"));
+        }
+      } catch (IOException e) {
+        LOG.error("metadata file is not generated: " + e, e);
+      }
+    }
+  }
 }

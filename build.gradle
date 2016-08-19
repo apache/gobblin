@@ -10,6 +10,18 @@
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
+// Setup environment
+ext.build_script_dir = "${projectDir.path}/build_script"
+ext.isDefaultEnvironment = !project.hasProperty('overrideBuildEnvironment')
+
+File getEnvironmentScript() {
+  final File env = file(isDefaultEnvironment ? 'defaultEnvironment.gradle' : project.overrideBuildEnvironment)
+  assert env.isFile() : "The environment script [$env] does not exists or is not a file."
+  return env
+}
+
+apply from: environmentScript
+
 buildscript {
   repositories {
     maven {
@@ -34,18 +46,6 @@ idea.project {
   ext.languageLevel = JavaVersion.VERSION_1_7
   languageLevel = JavaVersion.VERSION_1_7
 }
-
-ext.build_script_dir = "${projectDir.path}/build_script"
-ext.isDefaultEnvironment = !project.hasProperty('overrideBuildEnvironment')
-
-File getEnvironmentScript()
-{
-  final File env = file(isDefaultEnvironment ? 'defaultEnvironment.gradle' : project.overrideBuildEnvironment)
-  assert env.isFile() : "The environment script [$env] does not exists or is not a file."
-  return env
-}
-
-apply from: environmentScript
 
 // Maven POM generation is not thread safe, so serialize all the Upload tasks we can use `--parallel`.
 // https://issues.gradle.org/browse/GRADLE-2492
@@ -266,7 +266,7 @@ ext.externalDependency = [
   "jsonAssert": "org.skyscreamer:jsonassert:1.3.0",
   "reflections" : "org.reflections:reflections:0.9.10",
   "embeddedProcess": "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.2",
-  "testMysqlServer": "com.wix:wix-embedded-mysql:1.1.0",
+  "testMysqlServer": "com.wix:wix-embedded-mysql:2.0.1",
   "flyway": "org.flywaydb:flyway-core:3.2.1"
 ];
 
@@ -581,11 +581,19 @@ subprojects {
 
 allprojects {
   tasks.withType(FindBugs) {
-
     // Only one findbugs report can be enabled at a time.
-    // We do not enable HTML when xml:withMessages is enabled as it is immutable
-    if (reports.find { it.name == "xml:withMessages"} == null) {
+    // There are 3 kinds of reports in gobblin.
+    // 1. xml - when withFindBugsXmlReport is set
+    // 2. xml:withMessages - For Li internal builds
+    // 3. html - otherwise
+    if (project.hasProperty("withFindBugsXmlReport") && reports.find { it.name == "xml:withMessages"} == null) {
       reports {
+        html.enabled = false
+        xml.enabled = true
+      }
+    }
+    else if (reports.find { it.name == "xml:withMessages"} == null) {
+     reports {
         html.enabled = true
         xml.enabled = false
       }

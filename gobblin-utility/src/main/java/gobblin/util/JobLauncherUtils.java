@@ -56,8 +56,8 @@ public class JobLauncherUtils {
   public static String newJobId(String jobName) {
     // Job ID in the form of job_<job_id_suffix>
     // <job_id_suffix> is in the form of <job_name>_<current_timestamp>
-    String jobIdSuffix = String.format("%s_%d", jobName, System.currentTimeMillis());
-    return "job_" + jobIdSuffix;
+    String jobId = String.format("job_%s_%d", jobName, System.currentTimeMillis());
+    return jobId;
   }
 
   /**

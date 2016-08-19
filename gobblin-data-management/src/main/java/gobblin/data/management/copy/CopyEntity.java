@@ -56,7 +56,7 @@ public class CopyEntity implements HasGuid {
   private String fileSet;
   /** Contains arbitrary metadata usable by converters and/or publisher. */
   @Singular(value = "metadata")
-  private Map<String, Object> additionalMetadata;
+  private Map<String, String> additionalMetadata;
 
   @Override
   public Guid guid() throws IOException {

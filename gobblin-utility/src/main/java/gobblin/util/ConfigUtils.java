@@ -46,11 +46,23 @@ public class ConfigUtils {
    */
   public static Properties configToProperties(Config config) {
     Properties properties = new Properties();
-    for (Map.Entry<String, ConfigValue> entry : config.entrySet()) {
-      properties.setProperty(entry.getKey(), config.getString(entry.getKey()));
+    Config resolvedConfig = config.resolve();
+    for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
+      properties.setProperty(entry.getKey(), resolvedConfig.getString(entry.getKey()));
     }
 
     return properties;
+  }
+
+  /**
+   * @return the subconfig under key "key" if it exists, otherwise returns an empty config.
+   */
+  public static Config getConfigOrEmpty(Config config, String key) {
+    if (config.hasPath(key)) {
+      return config.getConfig(key);
+    } else {
+      return ConfigFactory.empty();
+    }
   }
 
   /**

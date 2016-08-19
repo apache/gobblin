@@ -177,6 +177,7 @@ public class RetentionTestDataGenerator {
   }
 
   public void cleanup() throws IOException {
+    DateTimeUtils.setCurrentMillisSystem();
     if (this.fs.exists(testTempDirPath)) {
       if (!this.fs.delete(testTempDirPath, true)) {
         throw new IOException("Failed to clean up path " + this.testTempDirPath);

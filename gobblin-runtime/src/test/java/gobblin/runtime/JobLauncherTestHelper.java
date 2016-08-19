@@ -34,7 +34,6 @@ import gobblin.source.workunit.WorkUnit;
 import gobblin.test.TestExtractor;
 import gobblin.test.TestSource;
 import gobblin.util.JobLauncherUtils;
-import gobblin.util.limiter.DefaultLimiterFactory;
 
 
 /**
@@ -328,7 +327,7 @@ public class JobLauncherTestHelper {
 
     @Override
     public String readRecord(@Deprecated String reuse) throws IOException {
-      throw new IOException();
+      throw new IOException("Injected failure");
     }
   }
 

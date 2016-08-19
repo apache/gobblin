@@ -46,8 +46,9 @@ import gobblin.converter.DataConversionException;
 import gobblin.converter.SingleRecordIterable;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
-import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
+import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
@@ -64,6 +65,11 @@ import gobblin.util.AutoReturnableObject;
  */
 @Slf4j
 public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schema, QueryBasedHiveConversionEntity, QueryBasedHiveConversionEntity> {
+
+  /***
+   * Subdirectory within destination ORC table directory to publish data
+   */
+  private static final String PUBLISHED_TABLE_SUBDIRECTORY = "final";
 
   /**
    * Supported destination ORC formats
@@ -117,7 +123,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
   /**
    * Get the {@link ConversionConfig} required for building the Avro to ORC conversion query
-   * @return
+   * @return Conversion config
    */
   protected abstract ConversionConfig getConversionConfig();
 
@@ -133,6 +139,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     Preconditions.checkNotNull(workUnit, "Workunit state must not be null");
     Preconditions.checkNotNull(conversionEntity.getHiveTable(), "Hive table within conversion entity must not be null");
 
+    EventWorkunitUtils.setBeginDDLBuildTimeMetadata(workUnit, System.currentTimeMillis());
+
     this.hiveDataset = conversionEntity.getConvertibleHiveDataset();
 
     if (!hasConversionConfig()) {
@@ -141,12 +149,10 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
     // Avro table name and location
     String avroTableName = conversionEntity.getHiveTable().getTableName();
-    int randomNumber = new Random().nextInt(10);
-    String uniqueStagingTableQualifier = String.format("%s%s", System.currentTimeMillis(), randomNumber);
 
     // ORC table name and location
     String orcTableName = getConversionConfig().getDestinationTableName();
-    String orcStagingTableName = getConversionConfig().getDestinationStagingTableName() + "_" + uniqueStagingTableQualifier;
+    String orcStagingTableName = getOrcStagingTableName(getConversionConfig().getDestinationStagingTableName());
     String orcTableDatabase = getConversionConfig().getDestinationDbName();
     String orcDataLocation = getOrcDataLocation();
     String orcStagingDataLocation = getOrcStagingDataLocation(orcStagingTableName);
@@ -167,7 +173,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     // .. daily_2016-01-01-00 and hourly_2016-01-01-00
     // This helps existing hourly data from not being deleted at the time of roll up, and so Hive queries in flight
     // .. do not fail
-    List<String> partitionDirPrefixHint = getConversionConfig().getPartitionDirPrefixHint();
+    List<String> sourceDataPathIdentifier = getConversionConfig().getSourceDataPathIdentifier();
 
     // Populate optional partition info
     Map<String, String> partitionsDDLInfo = Maps.newHashMap();
@@ -180,7 +186,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
 
     // Create DDL statement for table
-    Map<String, String> hiveColumns = new HashMap<String, String>();
+    Map<String, String> hiveColumns = new HashMap<>();
     String createStagingTableDDL =
         HiveAvroORCQueryGenerator.generateCreateTableDDL(outputAvroSchema,
             orcStagingTableName,
@@ -201,7 +207,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     log.info("Create staging table DDL: " + createStagingTableDDL);
 
     // Create DDL statement for partition
-    String orcStagingDataPartitionDirName = getOrcStagingDataPartitionDirName(conversionEntity, partitionDirPrefixHint);
+    String orcStagingDataPartitionDirName = getOrcStagingDataPartitionDirName(conversionEntity, sourceDataPathIdentifier);
     String orcStagingDataPartitionLocation = orcStagingDataLocation + Path.SEPARATOR + orcStagingDataPartitionDirName;
     if (partitionsDMLInfo.size() > 0) {
       List<String> createStagingPartitionDDL =
@@ -303,6 +309,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         hiveColumns,
         destinationTableMeta);
     log.info("Evolve final table DDLs: " + evolutionDDLs);
+    EventWorkunitUtils.setEvolutionMetadata(workUnit, evolutionDDLs);
+
     publishQueries.addAll(evolutionDDLs);
 
 
@@ -385,24 +393,39 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
 
     log.debug("Conversion Query " + conversionEntity.getQueries());
+
+    EventWorkunitUtils.setEndDDLBuildTimeMetadata(workUnit, System.currentTimeMillis());
+
     return new SingleRecordIterable<>(conversionEntity);
+  }
+
+  /***
+   * Get the staging table name for current converter. Each converter creates its own staging table.
+   * @param stagingTableNamePrefix for the staging table for this converter.
+   * @return Staging table name.
+   */
+  private String getOrcStagingTableName(String stagingTableNamePrefix) {
+    int randomNumber = new Random().nextInt(10);
+    String uniqueStagingTableQualifier = String.format("%s%s", System.currentTimeMillis(), randomNumber);
+
+    return stagingTableNamePrefix + "_" + uniqueStagingTableQualifier;
   }
 
   /***
    * Get the ORC partition directory name of the format: [hourly_][daily_]<partitionSpec1>[partitionSpec ..]
    * @param conversionEntity Conversion entity.
-   * @param partitionDirPrefixHint Hints to look in source partition location to prefix the partition dir name
+   * @param sourceDataPathIdentifier Hints to look in source partition location to prefix the partition dir name
    *                               such as hourly or daily.
    * @return Partition directory name.
    */
   private String getOrcStagingDataPartitionDirName(QueryBasedHiveConversionEntity conversionEntity,
-      List<String> partitionDirPrefixHint) {
+      List<String> sourceDataPathIdentifier) {
 
     if (conversionEntity.getHivePartition().isPresent()) {
       StringBuilder dirNamePrefix = new StringBuilder();
       String sourceHivePartitionLocation = conversionEntity.getHivePartition().get().getDataLocation().toString();
-      if (null != partitionDirPrefixHint && null != sourceHivePartitionLocation) {
-        for (String hint : partitionDirPrefixHint) {
+      if (null != sourceDataPathIdentifier && null != sourceHivePartitionLocation) {
+        for (String hint : sourceDataPathIdentifier) {
           if (sourceHivePartitionLocation.toLowerCase().contains(hint.toLowerCase())) {
             dirNamePrefix.append(hint.toLowerCase()).append("_");
           }
@@ -422,7 +445,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   private String getOrcDataLocation() {
     String orcDataLocation = getConversionConfig().getDestinationDataPath();
 
-    return orcDataLocation + Path.SEPARATOR + "final";
+    return orcDataLocation + Path.SEPARATOR + PUBLISHED_TABLE_SUBDIRECTORY;
   }
 
   /***
@@ -437,7 +460,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   }
 
   /**
-   * Parse the {@link #REPLACED_PARTITIONS_KEY} from partition parameters to returns DDLs for all the partitions to be
+   * Parse the {@link #REPLACED_PARTITIONS_HIVE_METASTORE_KEY} from partition parameters to returns DDLs for all the partitions to be
    * dropped.
    */
   @VisibleForTesting

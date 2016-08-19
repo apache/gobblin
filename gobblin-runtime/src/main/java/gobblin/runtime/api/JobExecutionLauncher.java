@@ -18,5 +18,5 @@ import gobblin.annotation.Alpha;
  */
 @Alpha
 public interface JobExecutionLauncher {
-
+  JobExecutionDriver launchJob(JobSpec jobSpec);
 }

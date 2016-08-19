@@ -12,6 +12,8 @@
 package gobblin.data.management.conversion.hive.provider;
 
 import java.io.IOException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
 import lombok.AllArgsConstructor;
 
@@ -19,6 +21,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 import gobblin.hive.HivePartition;
 import gobblin.hive.HiveTable;
@@ -30,7 +35,10 @@ import gobblin.hive.HiveTable;
 @AllArgsConstructor
 public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
 
-  private FileSystem fs;
+  private final FileSystem fs;
+
+  // Cache modification times of data location to reduce the number of HDFS calls
+  private static final Cache<Path, Long> PATH_TO_MOD_TIME_CACHE = CacheBuilder.newBuilder().maximumSize(2000).build();
 
   /**
    * Get the update time of a {@link Partition}
@@ -67,11 +75,20 @@ public class HdfsBasedUpdateProvider implements HiveUnitUpdateProvider {
     }
   }
 
-  private long getUpdateTime(Path path) throws IOException, UpdateNotFoundException {
+  private long getUpdateTime(final Path path) throws IOException, UpdateNotFoundException {
 
-    if (this.fs.exists(path)) {
-      return this.fs.getFileStatus(path).getModificationTime();
+    try {
+      return PATH_TO_MOD_TIME_CACHE.get(path, new Callable<Long>() {
+        @Override
+        public Long call() throws Exception {
+          if (HdfsBasedUpdateProvider.this.fs.exists(path)) {
+            return HdfsBasedUpdateProvider.this.fs.getFileStatus(path).getModificationTime();
+          }
+          throw new UpdateNotFoundException(String.format("Data file does not exist at path %s", path));
+        }
+      });
+    } catch (ExecutionException e) {
+      throw new IOException(e);
     }
-    throw new UpdateNotFoundException(String.format("Data file does not exist at path %s", path));
   }
 }

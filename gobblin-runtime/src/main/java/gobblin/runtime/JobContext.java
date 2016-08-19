@@ -21,8 +21,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
 import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.Getter;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -32,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -61,6 +60,9 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.executors.IteratorExecutor;
+
+import lombok.AccessLevel;
+import lombok.Getter;
 
 
 /**
@@ -110,7 +112,7 @@ public class JobContext {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
-    this.jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    this.jobName = JobState.getJobNameFromProps(jobProps);
     this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)
         : JobLauncherUtils.newJobId(this.jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);
@@ -451,6 +453,15 @@ public class JobContext {
     boolean jobDataPublisherSpecified =
         !Strings.isNullOrEmpty(state.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE));
     return jobCommitPolicyIsFull || publishDataAtJobLevel || jobDataPublisherSpecified;
+  }
+
+  @Override
+  public String toString() {
+    return Objects.toStringHelper(JobContext.class.getSimpleName())
+        .add("jobName", getJobName())
+        .add("jobId", getJobId())
+        .add("jobState", getJobState())
+        .toString();
   }
 
 }

@@ -213,9 +213,9 @@ public class HiveSchemaEvolutionTest {
     List<String> generateEvolutionDDL = HiveAvroORCQueryGenerator
         .generateEvolutionDDL(orcStagingTableName, orcTableName, Optional.of(hiveDbName), Optional.of(hiveDbName),
             outputSchema, isEvolutionEnabled, hiveColumns, destinationTableMeta);
-    Assert.assertEquals(generateEvolutionDDL.size(), 1);
-    Assert.assertEquals(generateEvolutionDDL.get(0),
-        "ALTER TABLE `hiveDb`.`sourceSchema` ADD COLUMNS (parentFieldRecord__nestedFieldInt int "
+    Assert.assertEquals(generateEvolutionDDL.size(), 2);
+    Assert.assertEquals(generateEvolutionDDL.get(1),
+        "ALTER TABLE `sourceSchema` ADD COLUMNS (parentFieldRecord__nestedFieldInt int "
             + "COMMENT 'from flatten_source parentFieldRecord.nestedFieldInt')",
         "Generated evolution DDL did not match for evolution enabled");
 

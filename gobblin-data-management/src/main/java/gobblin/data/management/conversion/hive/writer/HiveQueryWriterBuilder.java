@@ -29,7 +29,8 @@ public class HiveQueryWriterBuilder extends DataWriterBuilder<Schema, QueryBased
   @Override
   public DataWriter<QueryBasedHiveConversionEntity> build() throws IOException {
     try {
-      return new HiveQueryExecutionWriter(HiveJdbcConnector.newConnectorWithProps(this.destination.getProperties().getProperties()));
+      return new HiveQueryExecutionWriter(HiveJdbcConnector.newConnectorWithProps(this.destination.getProperties().getProperties()),
+          this.destination.getProperties());
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }

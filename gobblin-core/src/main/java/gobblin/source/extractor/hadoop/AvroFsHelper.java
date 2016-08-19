@@ -47,35 +47,6 @@ public class AvroFsHelper extends HadoopFsHelper implements SizeAwareFileBasedHe
     super(state, configuration);
   }
 
-  @Override
-  public void close() throws FileBasedHelperException {
-
-  }
-
-  /**
-   * Returns an {@link InputStream} to the specified file.
-   * <p>
-   * Note: It is the caller's responsibility to close the returned {@link InputStream}.
-   * </p>
-   *
-   * @param path The path to the file to open.
-   * @return An {@link InputStream} for the specified file.
-   * @throws FileBasedHelperException if there is a problem opening the {@link InputStream} for the specified file.
-   */
-  @Override
-  public InputStream getFileStream(String path) throws FileBasedHelperException {
-    try {
-      Path p = new Path(path);
-      InputStream in = this.getFileSystem().open(p);
-      // Account for compressed files (e.g. gzip).
-      // https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/input/WholeTextFileRecordReader.scala
-      CompressionCodecFactory factory = new CompressionCodecFactory(this.getFileSystem().getConf());
-      CompressionCodec codec = factory.getCodec(p);
-      return (codec == null) ? in : codec.createInputStream(in);
-    } catch (IOException e) {
-      throw new FileBasedHelperException("Cannot open file " + path + " due to " + e.getMessage(), e);
-    }
-  }
 
   public Schema getAvroSchema(String file) throws FileBasedHelperException {
     DataFileReader<GenericRecord> dfr = null;

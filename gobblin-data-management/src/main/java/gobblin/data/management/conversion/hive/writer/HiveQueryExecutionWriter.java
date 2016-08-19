@@ -17,7 +17,9 @@ import java.util.List;
 
 import lombok.AllArgsConstructor;
 
+import gobblin.configuration.State;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
+import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.writer.DataWriter;
 
@@ -29,12 +31,15 @@ import gobblin.writer.DataWriter;
 public class HiveQueryExecutionWriter implements DataWriter<QueryBasedHiveConversionEntity> {
 
   private final HiveJdbcConnector hiveJdbcConnector;
+  private final State workUnit;
 
   @Override
   public void write(QueryBasedHiveConversionEntity hiveConversionEntity) throws IOException {
     try {
       List<String> conversionQueries = hiveConversionEntity.getQueries();
+      EventWorkunitUtils.setBeginConversionDDLExecuteTimeMetadata(this.workUnit, System.currentTimeMillis());
       this.hiveJdbcConnector.executeStatements(conversionQueries.toArray(new String[conversionQueries.size()]));
+      EventWorkunitUtils.setEndConversionDDLExecuteTimeMetadata(this.workUnit, System.currentTimeMillis());
     } catch (SQLException e) {
       throw new IOException(e);
     }

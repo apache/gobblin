@@ -12,6 +12,10 @@
 
 package gobblin.runtime.listeners;
 
+import org.slf4j.Logger;
+
+import com.google.common.base.Optional;
+
 import gobblin.runtime.JobContext;
 
 
@@ -22,29 +26,52 @@ import gobblin.runtime.JobContext;
  * @author Joel Baranick
  */
 public abstract class AbstractJobListener implements JobListener {
+  private final Optional<Logger> _log;
+
+  public AbstractJobListener(Optional<Logger> log) {
+    _log = log;
+  }
+
+  public AbstractJobListener() {
+    this(Optional.<Logger>absent());
+  }
 
   @Override
   public void onJobPrepare(JobContext jobContext) throws Exception {
-    // Nothing to do
+    if (_log.isPresent()) {
+      _log.get().info("jobPrepare: " + jobContext);
+    }
   }
 
   @Override
   public void onJobStart(JobContext jobContext) throws Exception {
-    // Nothing to do
+    if (_log.isPresent()) {
+      _log.get().info("jobStart: " + jobContext);
+    }
   }
 
   @Override
   public void onJobCompletion(JobContext jobContext) throws Exception {
-    // Nothing to do
+    if (_log.isPresent()) {
+      _log.get().info("jobCompletion: " + jobContext);
+    }
   }
 
   @Override
   public void onJobCancellation(JobContext jobContext) throws Exception {
-    // Nothing to do
+    if (_log.isPresent()) {
+      _log.get().info("jobCancellation: " + jobContext);
+    }
   }
 
   @Override
   public void onJobFailure(JobContext jobContext) throws Exception {
-    // Nothing to do
+    if (_log.isPresent()) {
+      _log.get().info("jobFailure: " + jobContext);
+    }
+  }
+
+  protected Optional<Logger> getLog() {
+    return _log;
   }
 }

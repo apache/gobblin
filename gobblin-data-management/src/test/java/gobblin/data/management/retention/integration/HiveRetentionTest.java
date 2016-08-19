@@ -19,7 +19,6 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -110,6 +109,8 @@ public class HiveRetentionTest {
     Assert.assertTrue(this.fs.exists(new Path(pRetained2.getSd().getLocation())));
     Assert.assertFalse(this.fs.exists(new Path(pDeleted1.getSd().getLocation())));
     Assert.assertFalse(this.fs.exists(new Path(pDeleted2.getSd().getLocation())));
+
+    DateTimeUtils.setCurrentMillisSystem();
   }
 
 

@@ -11,16 +11,62 @@
  */
 package gobblin.runtime.api;
 
+import com.google.common.util.concurrent.Service;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import gobblin.annotation.Alpha;
+
+import lombok.Getter;
 
 /**
  * Main class instantiated by the JVM or running framework. Reads application level
  *  configurations, instantiates and runs the Gobblin instance driver.
  */
 @Alpha
-public interface GobblinInstanceLauncher extends StandardRunControls {
+public interface GobblinInstanceLauncher extends Service, Configurable {
   /**
    * Creates a new Gobblin instance to run Gobblin jobs.
    * @throws IllegalStateException if {@link #isRunning()} is false.*/
   GobblinInstanceDriver getDriver() throws IllegalStateException;
+
+  /** The instance name (for debugging/logging purposes) */
+  String getInstanceName();
+
+  // Standard configuration for Gobblin instances
+  @Getter
+  public static class ConfigAccessor {
+    static final String RESOURCE_NAME =
+        GobblinInstanceLauncher.class.getPackage().getName().replaceAll("[.]", "/")
+        + "/"
+        + GobblinInstanceLauncher.class.getSimpleName()
+        + ".conf";
+    /** The namespace for all config options */
+    static final String CONFIG_PREFIX = "gobblin.instance";
+    /** The time to wait for gobblin instance components to start in milliseconds. */
+    static final String START_TIMEOUT_MS = "startTimeoutMs";
+    /** The time wait for Gobblin components to shutdown in milliseconds. */
+    static final String SHUTDOWN_TIMEOUT_MS = "shutdownTimeoutMs";
+
+    private final long startTimeoutMs;
+    private final long shutdownTimeoutMs;
+
+    /** Config accessor from a no namespaced typesafe config. */
+    public ConfigAccessor(Config cfg) {
+      Config effectiveCfg = cfg.withFallback(getDefaultConfig().getConfig(CONFIG_PREFIX));
+      this.startTimeoutMs = effectiveCfg.getLong(START_TIMEOUT_MS);
+      this.shutdownTimeoutMs = effectiveCfg.getLong(SHUTDOWN_TIMEOUT_MS);
+    }
+
+    public static Config getDefaultConfig() {
+      return ConfigFactory.parseResources(GobblinInstanceLauncher.class,
+          GobblinInstanceLauncher.class.getSimpleName() + ".conf").withFallback(ConfigFactory.load());
+    }
+
+    public static ConfigAccessor createFromGlobalConfig(Config cfg) {
+      Config localCfg = cfg.hasPath(CONFIG_PREFIX) ? cfg.getConfig(CONFIG_PREFIX) :
+        ConfigFactory.empty();
+      return new ConfigAccessor(localCfg);
+    }
+  }
 }

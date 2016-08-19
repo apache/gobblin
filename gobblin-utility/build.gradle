@@ -35,7 +35,9 @@ dependencies {
   compile externalDependency.commonsPool
   compile externalDependency.hadoopClientCommon
   compile externalDependency.avroMapredH2
-  
+  compile externalDependency.commonsLang3
+  compile externalDependency.gson
+
   runtime externalDependency.hadoopCommon
   runtime externalDependency.hadoopClientCore
   runtime externalDependency.hadoopHdfs
@@ -56,6 +58,8 @@ configurations {
 test {
     workingDir rootProject.rootDir
 }
+
+
 
 ext.classification="library"
 

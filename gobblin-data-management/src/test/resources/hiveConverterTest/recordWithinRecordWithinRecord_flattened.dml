@@ -1,8 +1,8 @@
-INSERT OVERWRITE TABLE `testdb.testtable_orc_staging`
+INSERT OVERWRITE TABLE `testdb`.`testtable_orc_staging`
 SELECT
   `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldString`,
   `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldInt`,
   `parentFieldRecord`.`nestedFieldString`,
   `parentFieldRecord`.`nestedFieldInt`,
   `parentFieldInt`
-FROM `testdb.testtable`
+FROM `testdb`.`testtable`

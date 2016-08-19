@@ -238,6 +238,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
           .valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE).toUpperCase());
     }
 
+    log.info("Source Entity is " + this.entity);
     try {
       this.setTimeOut(
           this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_TIMEOUT, ConfigurationKeys.DEFAULT_CONN_TIMEOUT));

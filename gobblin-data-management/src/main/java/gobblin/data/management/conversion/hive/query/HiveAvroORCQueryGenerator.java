@@ -180,7 +180,7 @@ public class HiveAvroORCQueryGenerator {
     StringBuilder ddl = new StringBuilder();
 
     // Create statement
-    ddl.append(String.format("CREATE EXTERNAL TABLE IF NOT EXISTS `%s.%s` ", dbName, tblName));
+    ddl.append(String.format("CREATE EXTERNAL TABLE IF NOT EXISTS `%s`.`%s` ", dbName, tblName));
     // .. open bracket for CREATE
     ddl.append("( \n");
 
@@ -634,9 +634,9 @@ public class HiveAvroORCQueryGenerator {
 
     // Insert query
     if (shouldOverwriteTable) {
-      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s.%s` %n", outputDbName, outputTblName));
+      dmlQuery.append(String.format("INSERT OVERWRITE TABLE `%s`.`%s` %n", outputDbName, outputTblName));
     } else {
-      dmlQuery.append(String.format("INSERT INTO TABLE `%s.%s` %n", outputDbName, outputTblName));
+      dmlQuery.append(String.format("INSERT INTO TABLE `%s`.`%s` %n", outputDbName, outputTblName));
     }
 
     // Partition details
@@ -736,7 +736,7 @@ public class HiveAvroORCQueryGenerator {
       }
     }
 
-    dmlQuery.append(String.format(" %n FROM `%s.%s` ", inputDbName, inputTblName));
+    dmlQuery.append(String.format(" %n FROM `%s`.`%s` ", inputDbName, inputTblName));
 
     // Partition details
     if (optionalPartitionDMLInfo.isPresent()) {
@@ -804,8 +804,9 @@ public class HiveAvroORCQueryGenerator {
           // If evolved column is found, but type is evolved - evolve it
           // .. if incompatible, isTypeEvolved will throw an exception
           if (isTypeEvolved(evolvedColumn.getValue(), destinationField.getType())) {
-            ddl.add(String.format("ALTER TABLE `%s`.`%s` CHANGE COLUMN %s %s %s COMMENT '%s'",
-                finalDbName, finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
+            ddl.add(String.format("USE %s%n", finalDbName));
+            ddl.add(String.format("ALTER TABLE `%s` CHANGE COLUMN %s %s %s COMMENT '%s'",
+                finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
                 destinationField.getComment()));
           }
           found = true;
@@ -818,7 +819,11 @@ public class HiveAvroORCQueryGenerator {
         if (StringUtils.isBlank(flattenSource)) {
           flattenSource = evolvedSchema.getField(evolvedColumn.getKey()).name();
         }
-        ddl.add(String.format("ALTER TABLE `%s`.`%s` ADD COLUMNS (%s %s COMMENT 'from flatten_source %s')", finalDbName,
+        // Note: Hive does not support fully qualified Hive table names such as db.table for ALTER TABLE in v0.13
+        // .. hence specifying 'use dbName' as a precursor to rename
+        // Refer: HIVE-2496
+        ddl.add(String.format("USE %s%n", finalDbName));
+        ddl.add(String.format("ALTER TABLE `%s` ADD COLUMNS (%s %s COMMENT 'from flatten_source %s')",
             finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource));
       }
     }
@@ -857,6 +862,9 @@ public class HiveAvroORCQueryGenerator {
     partitionSpecs.append(") ");
 
     List<String> ddls = Lists.newArrayList();
+    // Note: Hive does not support fully qualified Hive table names such as db.table for ALTER TABLE in v0.13
+    // .. hence specifying 'use dbName' as a precursor to rename
+    // Refer: HIVE-2496
     ddls.add(String.format("USE %s%n", dbName));
     ddls.add(String.format("ALTER TABLE %s DROP IF EXISTS %s", finalTableName, partitionSpecs));
 
@@ -908,7 +916,7 @@ public class HiveAvroORCQueryGenerator {
         QueryBasedHivePublishEntity.class);
   }
 
-  private static boolean isTypeEvolved(String evolvedType, String destinationType) {
+  public static boolean isTypeEvolved(String evolvedType, String destinationType) {
     if (evolvedType.equalsIgnoreCase(destinationType)) {
       // Same type, not evolved
       return false;

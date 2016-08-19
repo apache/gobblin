@@ -106,6 +106,7 @@ public class AWSJobConfigurationManagerTest {
     // Wikipedia1.zip has only 1 conf file, so we should only receive that
     Assert.assertEquals(this.receivedJobConfigs.size(), 1);
     Assert.assertEquals(this.receivedJobConfigs.get(0).getProperty(JOB_NAME_KEY), JOB_FIRST_NAME);
+
   }
 
   @Test(dependsOnMethods = "testBootUpNewJobConfigs")

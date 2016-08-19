@@ -1,4 +1,4 @@
-CREATE EXTERNAL TABLE IF NOT EXISTS `default.testRecordWithinRecordWithinRecordDDL` ( 
+CREATE EXTERNAL TABLE IF NOT EXISTS `default`.`testRecordWithinRecordWithinRecordDDL` ( 
   `parentFieldRecord` struct<`nestedFieldRecord`:struct<`superNestedFieldString`:string,`superNestedFieldInt`:int>,`nestedFieldString`:string,`nestedFieldInt`:int> COMMENT 'from flatten_source parentFieldRecord', 
   `parentFieldInt` int COMMENT 'from flatten_source parentFieldInt') 
 ROW FORMAT SERDE 

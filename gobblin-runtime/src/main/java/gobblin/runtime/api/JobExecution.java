@@ -15,16 +15,17 @@ import java.net.URI;
 
 import gobblin.annotation.Alpha;
 
-import lombok.Data;
-
 /**
  * Identifies a specific execution of a {@link JobSpec}
  */
 @Alpha
-@Data
-public class JobExecution {
-  final URI jobSpecURI;
-  final String jobSpecVersion;
-  final long startTimeMillis;
-  final String executionId;
+public interface JobExecution {
+  /** The URI of the job being executed */
+  URI getJobSpecURI();
+  /** The version of the JobSpec being launched */
+  String getJobSpecVersion();
+  /** The millisecond timestamp when the job was launched */
+  long getLaunchTimeMillis();
+  /** Unique (for the given JobExecutionLauncher) id for this execution */
+  String getExecutionId();
 }

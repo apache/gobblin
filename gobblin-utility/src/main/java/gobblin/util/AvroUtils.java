@@ -43,6 +43,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -212,6 +214,11 @@ public class AvroUtils {
 
   public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite)
       throws IOException {
+    writeSchemaToFile(schema, filePath, fs, overwrite, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ));
+  }
+
+  public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite, FsPermission perm)
+    throws IOException {
     if (!overwrite) {
       Preconditions.checkState(!fs.exists(filePath), filePath + " already exists");
     } else {
@@ -221,6 +228,7 @@ public class AvroUtils {
     try (DataOutputStream dos = fs.create(filePath)) {
       dos.writeChars(schema.toString());
     }
+    fs.setPermission(filePath, perm);
   }
 
   /**

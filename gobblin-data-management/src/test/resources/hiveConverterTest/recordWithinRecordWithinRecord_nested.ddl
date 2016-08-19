@@ -1,4 +1,4 @@
-CREATE EXTERNAL TABLE IF NOT EXISTS `testdb.testtable_orc_nested_staging` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `testdb`.`testtable_orc_nested_staging` (
   `parentFieldRecord` struct<`nestedFieldRecord`:struct<`superNestedFieldString`:string,`superNestedFieldInt`:int>,`nestedFieldString`:string,`nestedFieldInt`:int> COMMENT 'from flatten_source parentFieldRecord',
   `parentFieldInt` int COMMENT 'from flatten_source parentFieldInt')
 ROW FORMAT SERDE

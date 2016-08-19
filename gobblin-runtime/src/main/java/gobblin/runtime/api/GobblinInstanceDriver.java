@@ -11,6 +11,10 @@
  */
 package gobblin.runtime.api;
 
+import org.slf4j.Logger;
+
+import com.google.common.util.concurrent.Service;
+
 import gobblin.annotation.Alpha;
 
 /**
@@ -18,8 +22,16 @@ import gobblin.annotation.Alpha;
  * {@link JobSpec}s and run them.
  * */
 @Alpha
-public interface GobblinInstanceDriver extends StandardRunControls {
+public interface GobblinInstanceDriver extends Service, JobLifecycleListenersContainer {
   JobCatalog getJobCatalog();
+  /**
+   * Returns a mutable instance of the job catalog
+   * (if it implements the {@link MutableJobCatalog} interface). Implementation will throw
+   * ClassCastException if the current catalog is not mutable.
+   */
+  MutableJobCatalog getMutableJobCatalog();
   JobSpecScheduler getJobScheduler();
   JobExecutionLauncher getJobLauncher();
+  Logger getLog();
+  Configurable getSysConfig();
 }

@@ -11,7 +11,20 @@
  */
 package gobblin.data.management.conversion.hive.source;
 
+import java.util.List;
+import java.util.Set;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.hive.ql.metadata.Partition;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Sets;
+
+import gobblin.configuration.SourceState;
 import gobblin.source.extractor.extract.LongWatermark;
+import gobblin.source.workunit.WorkUnit;
+
 
 /**
  * A {@link HiveSource} used to create workunits without a watermark check.
@@ -19,8 +32,46 @@ import gobblin.source.extractor.extract.LongWatermark;
  */
 public class BackfillHiveSource extends HiveAvroToOrcSource {
 
+  /**
+   * A comma separated list of {@link Partition#getCompleteName()}s that need backfill.
+   * If not set, all partitions will be backfilled
+   * <p>
+   * E.g. service@logEvent@datepartition=2016-08-04-00,service@logEvent@datepartition=2016-08-05-00
+   * </p>
+   *
+   */
+  @VisibleForTesting
+  public static final String BACKFILL_SOURCE_PARTITION_WHITELIST_KEY = "hive.backfillSource.partitions.whitelist";
+
+  private Set<String> partitionsWhitelist;
+
+  @VisibleForTesting
+  public void initBackfillHiveSource(SourceState state) {
+    this.partitionsWhitelist =
+        Sets.newHashSet(Splitter.on(",").omitEmptyStrings().trimResults().split(state.getProp(BACKFILL_SOURCE_PARTITION_WHITELIST_KEY,
+            StringUtils.EMPTY)));
+  }
+
   @Override
-  public boolean shouldCreateWorkunit(long updateTime, LongWatermark lowWatermark) {
+  public List<WorkUnit> getWorkunits(SourceState state) {
+    initBackfillHiveSource(state);
+    return super.getWorkunits(state);
+  }
+
+  // Non partitioned tables
+  @Override
+  public boolean shouldCreateWorkunit(long createTime, long updateTime, LongWatermark lowWatermark) {
+    return true;
+  }
+
+  //Partitioned tables
+  @Override
+  public boolean shouldCreateWorkunit(Partition sourcePartition, LongWatermark lowWatermark) {
+    // If a whitelist is provided only create workunits for those partitions
+    if (!this.partitionsWhitelist.isEmpty()) {
+      return this.partitionsWhitelist.contains(sourcePartition.getCompleteName());
+    }
+    // If no whitelist is set, all partitions of a dataset are backfilled
     return true;
   }
 }

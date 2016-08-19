@@ -18,15 +18,15 @@ import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder.DbAndTable;
 
 /**
- * Utility methods to for a {@link HiveDataset} to communicate with {@link ConfigClient}
+ * Utility methods for a {@link HiveDataset} to communicate with {@link ConfigClient}
  */
 public class HiveConfigClientUtils {
 
-  private static final String HIVE_DATASETS_CONFIG_PREFIX = "hive/";
+  private static final String HIVE_DATASETS_CONFIG_PREFIX = "hive" + Path.SEPARATOR;
 
   /**
    * Get the dataset uri for a hive db and table. The uri is relative to the store uri .
-   * @param dbAndTable
+   * @param dbAndTable the hive db and table for which a config client uri needs to be built
    */
   public static String getDatasetUri(DbAndTable dbAndTable) {
     return HIVE_DATASETS_CONFIG_PREFIX + dbAndTable.getDb() + Path.SEPARATOR + dbAndTable.getTable();

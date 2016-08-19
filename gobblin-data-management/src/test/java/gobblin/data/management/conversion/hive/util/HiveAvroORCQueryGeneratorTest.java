@@ -211,8 +211,7 @@ public class HiveAvroORCQueryGeneratorTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<Boolean>absent(),
             Optional.<Boolean>absent(), isEvolutionEnabled, destinationTableMeta, rowLimit);
 
-    Assert.assertEquals(q.trim(),
-        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "flattenedWithRowLimit.dml"));
+    Assert.assertEquals(q.trim(), ConversionHiveTestUtils.readQueryFromFile(resourceDir, "flattenedWithRowLimit.dml"));
   }
 
   @Test
@@ -282,5 +281,23 @@ public class HiveAvroORCQueryGeneratorTest {
     String actualEscapedType = HiveAvroORCQueryGenerator.escapeHiveType(type);
 
     Assert.assertEquals(actualEscapedType, expectedEscapedType);
+  }
+
+  @Test
+  public void testValidTypeEvolution() throws Exception {
+    // Check a few evolved types
+    Assert.assertTrue(HiveAvroORCQueryGenerator.isTypeEvolved("float", "int"));
+    Assert.assertTrue(HiveAvroORCQueryGenerator.isTypeEvolved("double", "float"));
+    Assert.assertTrue(HiveAvroORCQueryGenerator.isTypeEvolved("string", "varchar"));
+    Assert.assertTrue(HiveAvroORCQueryGenerator.isTypeEvolved("double", "string"));
+
+    // Check if type is same
+    Assert.assertFalse(HiveAvroORCQueryGenerator.isTypeEvolved("int", "int"));
+  }
+
+  @Test (expectedExceptions = RuntimeException.class)
+  public void testInvalidTypeEvolution() throws Exception {
+    // Check for in-compatible types
+    HiveAvroORCQueryGenerator.isTypeEvolved("boolean", "int");
   }
 }

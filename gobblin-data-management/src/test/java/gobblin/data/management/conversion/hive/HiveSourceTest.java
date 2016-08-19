@@ -12,6 +12,7 @@
 package gobblin.data.management.conversion.hive;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
@@ -24,6 +25,7 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -32,6 +34,7 @@ import gobblin.data.management.ConversionHiveTestUtils;
 import gobblin.data.management.conversion.hive.source.HiveSource;
 import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+
 
 @Test(groups = {"gobblin.data.management.conversion"})
 public class HiveSourceTest {
@@ -115,8 +118,8 @@ public class HiveSourceTest {
 
     Table table1 = this.hiveMetastoreTestUtils.getLocalMetastoreClient().getTable(dbName, tableName1);
 
-    previousWorkUnitStates.add(ConversionHiveTestUtils.createWus(dbName, tableName1,
-        TimeUnit.MILLISECONDS.convert(table1.getCreateTime(), TimeUnit.SECONDS)));
+    previousWorkUnitStates.add(ConversionHiveTestUtils
+        .createWus(dbName, tableName1, TimeUnit.MILLISECONDS.convert(table1.getCreateTime(), TimeUnit.SECONDS)));
 
     SourceState testState = new SourceState(getTestState(dbName), previousWorkUnitStates);
 
@@ -137,7 +140,8 @@ public class HiveSourceTest {
     long currentTime = System.currentTimeMillis();
     long partitionCreateTime = new DateTime(currentTime).minusDays(35).getMillis();
 
-    org.apache.hadoop.hive.ql.metadata.Partition partition = this.hiveMetastoreTestUtils.createDummyPartition(partitionCreateTime);
+    org.apache.hadoop.hive.ql.metadata.Partition partition = this.hiveMetastoreTestUtils.createDummyPartition(
+        partitionCreateTime);
 
     SourceState testState = getTestState("testDb6");
     HiveSource source = new HiveSource();
@@ -157,6 +161,26 @@ public class HiveSourceTest {
     org.apache.hadoop.hive.ql.metadata.Partition partition = this.hiveMetastoreTestUtils.createDummyPartition(partitionCreateTime);
 
     SourceState testState = getTestState("testDb7");
+    HiveSource source = new HiveSource();
+    source.initialize(testState);
+
+    boolean isOlderThanLookback = source.isOlderThanLookback(partition);
+
+    Assert.assertEquals(isOlderThanLookback, false, "Should create workunits newer than lookback");
+  }
+
+  @Test
+  public void testIsOlderThanLookbackForDistcpGenerationTime() throws Exception {
+
+    long currentTime = System.currentTimeMillis();
+    long partitionCreateTime = new DateTime(currentTime).minusDays(25).getMillis();
+    Map<String, String> parameters = Maps.newHashMap();
+    parameters.put(HiveSource.DISTCP_REGISTRATION_GENERATION_TIME_KEY, partitionCreateTime + "");
+
+    org.apache.hadoop.hive.ql.metadata.Partition partition = this.hiveMetastoreTestUtils.createDummyPartition(0);
+    partition.getTPartition().setParameters(parameters);
+
+    SourceState testState = getTestState("testDb6");
     HiveSource source = new HiveSource();
     source.initialize(testState);
 

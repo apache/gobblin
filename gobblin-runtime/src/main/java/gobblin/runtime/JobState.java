@@ -33,13 +33,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
-
 import com.linkedin.data.template.StringMap;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.rest.JobExecutionInfo;
 import gobblin.rest.JobStateEnum;
 import gobblin.rest.LauncherTypeEnum;
@@ -47,9 +47,10 @@ import gobblin.rest.Metric;
 import gobblin.rest.MetricArray;
 import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
-import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
+import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -63,14 +64,50 @@ public class JobState extends SourceState {
    * An enumeration of possible job states, which are identical to
    * {@link gobblin.configuration.WorkUnitState.WorkingState}
    * in terms of naming.
+   *
+   * <p> Status state diagram:
+   * <ul>
+   *    <li> null => PENDING
+   *    <li> PENDING => RUNNING
+   *    <li> PENDING => CANCELLED
+   *    <li> RUNNING => CANCELLED
+   *    <li> RUNNING => SUCCESSFUL
+   *    <li> RUNNING => FAILED
+   *    <li> SUCCESSFUL => COMMITTED
+   *    <li> SUCCESSFUL => CANCELLED  (cancelled before committing)
+   * </ul>
    */
   public enum RunningState {
+    /** Pending creation of {@link WorkUnit}s. */
     PENDING,
+    /** Starting the execution of {@link WorkUnit}s. */
     RUNNING,
+    /** All {@link WorkUnit}s have finished successfully or the job commit policy is
+     * {@link JobCommitPolicy#COMMIT_ON_PARTIAL_SUCCESS} */
     SUCCESSFUL,
+    /** Job state has been committed */
     COMMITTED,
+    /** At least one {@link WorkUnit}s has failed for a job with job commit policy
+     *  {@link JobCommitPolicy#COMMIT_ON_FULL_SUCCESS}. */
     FAILED,
-    CANCELLED
+    /** The execution of the job was cancelled. */
+    CANCELLED;
+
+    public boolean isCancelled() {
+      return this.equals(CANCELLED);
+    }
+
+    public boolean isDone() {
+      return this.equals(COMMITTED) || this.equals(FAILED) || this.equals(CANCELLED);
+    }
+
+    public boolean isSuccess() {
+      return this.equals(COMMITTED);
+    }
+
+    public boolean isFailure() {
+      return this.equals(FAILED);
+    }
   }
 
   private String jobName;
@@ -97,6 +134,30 @@ public class JobState extends SourceState {
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);
+  }
+
+  public static String getJobNameFromState(State state) {
+    return state.getProp(ConfigurationKeys.JOB_NAME_KEY);
+  }
+
+  public static String getJobNameFromProps(Properties props) {
+    return props.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+  }
+
+  public static String getJobGroupFromState(State state) {
+    return state.getProp(ConfigurationKeys.JOB_GROUP_KEY);
+  }
+
+  public static String getJobGroupFromProps(Properties props) {
+    return props.getProperty(ConfigurationKeys.JOB_GROUP_KEY);
+  }
+
+  public static String getJobDescriptionFromProps(State state) {
+    return state.getProp(ConfigurationKeys.JOB_DESCRIPTION_KEY);
+  }
+
+  public static String getJobDescriptionFromProps(Properties props) {
+    return props.getProperty(ConfigurationKeys.JOB_DESCRIPTION_KEY);
   }
 
   /**

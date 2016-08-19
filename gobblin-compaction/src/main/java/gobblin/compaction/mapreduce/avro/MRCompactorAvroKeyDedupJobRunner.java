@@ -38,6 +38,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -124,7 +125,8 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
    * If compaction.dedup.key=custom, it reads the schema from compaction.avro.key.schema.loc.
    * If the read fails, or if the custom key schema is incompatible with topicSchema, option "key" will be used.
    */
-  private Schema getKeySchema(Job job, Schema topicSchema) throws IOException {
+  @VisibleForTesting
+  Schema getKeySchema(Job job, Schema topicSchema) throws IOException {
     Schema keySchema = null;
     DedupKeyOption dedupKeyOption = getDedupKeyOption();
     if (dedupKeyOption == DedupKeyOption.ALL) {
