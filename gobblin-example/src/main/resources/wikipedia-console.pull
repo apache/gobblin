@@ -13,7 +13,7 @@ converter.classes=gobblin.example.wikipedia.WikipediaConverter
 
 extract.namespace=gobblin.example.wikipedia
 
+#No partitioner as console writer doesn't work with a partitioner
 writer.builder.class=gobblin.writer.ConsoleWriterBuilder
-writer.partitioner.class=gobblin.example.wikipedia.WikipediaPartitioner
 
 data.publisher.type=gobblin.publisher.NoopPublisher
