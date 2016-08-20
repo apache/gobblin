@@ -58,6 +58,20 @@ public class ConfluentKafkaSchemaRegistryTest {
     Properties properties = new Properties();
     properties.setProperty(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL, TEST_URL);
 
+    doTestRegisterAndGetLatest(properties);
+  }
+  
+  @Test
+  public void testRegisterAndGetLatestCustomSuffix() throws SchemaRegistryException {
+    Properties properties = new Properties();
+    properties.setProperty(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL, TEST_URL);
+    properties.setProperty(ConfluentKafkaSchemaRegistry.CONFLUENT_SCHEMA_NAME_SUFFIX, "-key");
+
+    doTestRegisterAndGetLatest(properties);
+  }
+  
+  private void doTestRegisterAndGetLatest(Properties properties) throws SchemaRegistryException {
+
     SchemaRegistryClient schemaRegistryClient = new MockSchemaRegistryClient();
     KafkaSchemaRegistry<Integer, Schema> kafkaSchemaRegistry =
         new ConfluentKafkaSchemaRegistry(properties, schemaRegistryClient);
