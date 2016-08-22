@@ -110,7 +110,7 @@ public class ProxiedFileSystemWrapper {
       @Override
       public Void run() throws IOException {
         LOG.debug("Now performing file system operations as :" + UserGroupInformation.getCurrentUser());
-        proxiedFs = FileSystem.get(fsURI, conf);
+        proxiedFs = FileSystem.newInstance(fsURI, conf);
         return null;
       }
     });
