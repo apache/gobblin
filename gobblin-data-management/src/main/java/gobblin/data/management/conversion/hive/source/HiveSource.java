@@ -42,7 +42,8 @@ import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 import gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
 import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
-import gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker;
+import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarkerFactory;
+import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
@@ -86,12 +87,14 @@ import gobblin.util.reflection.GobblinConstructorUtils;
 public class HiveSource implements Source {
 
   public static final String HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY = "hive.source.maximum.lookbackDays";
-  public static final int DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS = 30;
+  public static final int DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS = 3;
 
   public static final String HIVE_SOURCE_DATASET_FINDER_CLASS_KEY = "hive.dataset.finder.class";
   public static final String DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS = HiveDatasetFinder.class.getName();
 
   public static final String DISTCP_REGISTRATION_GENERATION_TIME_KEY = "registrationGenerationTimeMillis";
+  public static final String HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY = "hive.source.watermarker.factoryClass";
+  public static final String DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS = PartitionLevelWatermarker.Factory.class.getName();
 
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
@@ -120,14 +123,13 @@ public class HiveSource implements Source {
         HiveDataset hiveDataset = iterator.next();
         try (AutoReturnableObject<IMetaStoreClient> client = hiveDataset.getClientPool().getClient()) {
 
-          LongWatermark expectedDatasetHighWatermark = new LongWatermark(new DateTime().getMillis());
           log.debug(String.format("Processing dataset: %s", hiveDataset));
 
           // Create workunits for partitions
           if (HiveUtils.isPartitioned(hiveDataset.getTable())) {
-            createWorkunitsForPartitionedTable(hiveDataset, client, expectedDatasetHighWatermark);
+            createWorkunitsForPartitionedTable(hiveDataset, client);
           } else {
-            createWorkunitForNonPartitionedTable(hiveDataset, expectedDatasetHighWatermark);
+            createWorkunitForNonPartitionedTable(hiveDataset);
           }
         }
       }
@@ -135,7 +137,12 @@ public class HiveSource implements Source {
       throw new RuntimeException(e);
     }
 
-    log.info(String.format("Created %s workunits", this.workunits.size()));
+    int realWorkunits = this.workunits.size();
+
+    this.watermarker.onGetWorkunitsEnd(this.workunits);
+
+    log.info(String.format("Created %s real workunits and %s watermark workunits", realWorkunits,
+        (this.workunits.size() - realWorkunits)));
 
     return this.workunits;
   }
@@ -149,7 +156,11 @@ public class HiveSource implements Source {
     this.avroSchemaManager = new AvroSchemaManager(getSourceFs(), state);
     this.workunits = Lists.newArrayList();
 
-    this.watermarker = new TableLevelWatermarker(state);
+    this.watermarker =
+        GobblinConstructorUtils.invokeConstructor(HiveSourceWatermarkerFactory.class,
+            state.getProp(HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY, DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS))
+            .createFromState(state);
+
     EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.CONVERSION_SETUP_EVENT);
     this.datasetFinder = GobblinConstructorUtils.invokeConstructor(HiveDatasetFinder.class,
         state.getProp(HIVE_SOURCE_DATASET_FINDER_CLASS_KEY, DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS), getSourceFs(), state.getProperties(),
@@ -159,18 +170,23 @@ public class HiveSource implements Source {
   }
 
 
-  private void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset, LongWatermark expectedDatasetHighWatermark)
-      throws IOException {
+  private void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset) throws IOException {
     // Create workunits for tables
     try {
+
+      long tableProcessTime = new DateTime().getMillis();
+
       long updateTime = this.updateProvider.getUpdateTime(hiveDataset.getTable());
+
+      this.watermarker.onTableProcessBegin(hiveDataset.getTable(), tableProcessTime);
 
       LongWatermark lowWatermark = this.watermarker.getPreviousHighWatermark(hiveDataset.getTable());
 
       if (shouldCreateWorkunit(hiveDataset.getTable().getTTable().getCreateTime(), updateTime, lowWatermark)) {
 
         log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
-
+        LongWatermark expectedDatasetHighWatermark =
+            this.watermarker.getExpectedHighWatermark(hiveDataset.getTable(), tableProcessTime);
         HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
         hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
         hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
@@ -181,17 +197,19 @@ public class HiveSource implements Source {
         log.debug(String.format("Workunit added for table: %s", hiveWorkUnit));
 
       } else {
-        log.info(String.format("Not creating workunit for table %s as updateTime %s is lesser than low watermark %s",
+        log.info(String.format("Not creating workunit for table %s as updateTime %s is not greater than low watermark %s",
             hiveDataset.getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
       }
     } catch (UpdateNotFoundException e) {
-      log.info(String.format("Not Creating workunit for %s as update time was not found. %s", hiveDataset.getTable()
+      log.error(String.format("Not Creating workunit for %s as update time was not found. %s", hiveDataset.getTable()
           .getCompleteName(), e.getMessage()));
     }
   }
 
-  private void createWorkunitsForPartitionedTable(HiveDataset hiveDataset,
-      AutoReturnableObject<IMetaStoreClient> client, LongWatermark expectedDatasetHighWatermark) throws IOException {
+  private void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
+
+    long tableProcessTime = new DateTime().getMillis();
+    this.watermarker.onTableProcessBegin(hiveDataset.getTable(), tableProcessTime);
 
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(),
         Optional.<String>absent());
@@ -210,11 +228,17 @@ public class HiveSource implements Source {
         if (shouldCreateWorkunit(sourcePartition, lowWatermark)) {
           log.debug(String.format("Processing partition: %s", sourcePartition));
 
+          long partitionProcessTime = new DateTime().getMillis();
+          this.watermarker.onPartitionProcessBegin(sourcePartition, partitionProcessTime, updateTime);
+
+          LongWatermark expectedPartitionHighWatermark = this.watermarker.getExpectedHighWatermark(sourcePartition,
+              tableProcessTime, partitionProcessTime);
+
           HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
           hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
           hiveWorkUnit.setPartitionSchemaUrl(this.avroSchemaManager.getSchemaUrl(sourcePartition));
           hiveWorkUnit.setPartitionName(sourcePartition.getName());
-          hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedDatasetHighWatermark));
+          hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedPartitionHighWatermark));
 
           EventWorkunitUtils.setPartitionSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), sourcePartition, updateTime,
               lowWatermark.getValue(), this.beginGetWorkunitsTime);
@@ -228,7 +252,7 @@ public class HiveSource implements Source {
               sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
         }
       } catch (UpdateNotFoundException e) {
-        log.info(String.format("Not Creating workunit for %s as update time was not found. %s",
+        log.error(String.format("Not Creating workunit for %s as update time was not found. %s",
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
