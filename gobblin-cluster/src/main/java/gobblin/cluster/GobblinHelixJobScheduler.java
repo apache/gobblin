@@ -34,6 +34,7 @@ import gobblin.runtime.JobLauncher;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.scheduler.JobScheduler;
 import gobblin.cluster.event.NewJobConfigArrivalEvent;
+import gobblin.scheduler.SchedulerService;
 
 
 /**
@@ -58,8 +59,8 @@ public class GobblinHelixJobScheduler extends JobScheduler {
   private final List<? extends Tag<?>> metadataTags;
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
-      Path appWorkDir, List<? extends Tag<?>> metadataTags) throws Exception {
-    super(properties);
+      Path appWorkDir, List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
+    super(properties, schedulerService);
     this.properties = properties;
     this.helixManager = helixManager;
     this.eventBus = eventBus;

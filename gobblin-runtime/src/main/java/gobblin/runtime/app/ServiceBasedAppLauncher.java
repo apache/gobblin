@@ -123,6 +123,20 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
     this.hasStarted = true;
 
     this.serviceManager = new ServiceManager(this.services);
+    // A listener that shutdowns the application if any service fails.
+    this.serviceManager.addListener(new ServiceManager.Listener() {
+      @Override
+      public void failure(Service service) {
+        super.failure(service);
+        LOG.error(String.format("Service %s has failed.", service.getClass().getSimpleName()), service.failureCause());
+        try {
+          service.stopAsync();
+          ServiceBasedAppLauncher.this.stop();
+        } catch (ApplicationException ae) {
+          LOG.error("Could not shutdown services gracefully. This may cause the application to hang.");
+        }
+      }
+    });
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override

@@ -80,7 +80,7 @@ public class JobConfigFileMonitorTest {
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY, "1000");
     properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
 
-    this.jobScheduler = new JobScheduler(properties);
+    this.jobScheduler = new JobScheduler(properties, new SchedulerService(new Properties()));
     this.serviceManager = new ServiceManager(Lists.newArrayList(this.jobScheduler));
     this.serviceManager.startAsync();
   }
