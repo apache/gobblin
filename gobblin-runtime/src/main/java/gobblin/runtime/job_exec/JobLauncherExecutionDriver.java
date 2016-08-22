@@ -1,5 +1,8 @@
 package gobblin.runtime.job_exec;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +14,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobContext;
+import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.JobLauncherFactory.JobLauncherType;
@@ -20,6 +24,7 @@ import gobblin.runtime.api.GobblinInstanceDriver;
 import gobblin.runtime.api.JobExecution;
 import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionLauncher;
+import gobblin.runtime.api.JobExecutionResult;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobExecutionStateListener;
 import gobblin.runtime.api.JobExecutionStatus;
@@ -113,7 +118,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
         case RUNNING: {
           // We have to pass another listener instance as launcher does not store the listener used
           // in launchJob()
-          _legacyLauncher.cancelJob(new JobListenerToJobStateBridge());
+          cancel(false);
           break;
         }
         case SUCCESSFUL:
@@ -128,6 +133,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
 
     _legacyLauncher.close();
   }
+
 
   class JobListenerToJobStateBridge extends AbstractJobListener {
 
@@ -269,8 +275,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
       return LoggerFactory.getLogger(parentLog.getName() + "." + jobSpec.toShortString());
     }
 
-    @Override
-    public JobExecutionDriver launchJob(JobSpec jobSpec) {
+    @Override public JobExecutionDriver launchJob(JobSpec jobSpec) {
       Preconditions.checkNotNull(jobSpec);
       return new JobLauncherExecutionDriver(getSysConfig(), jobSpec, _jobLauncherType,
           Optional.of(getLog(jobSpec)));
@@ -278,8 +283,57 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
 
   }
 
-  @Override
-  public void registerWeakStateListener(JobExecutionStateListener listener) {
+  @Override public void registerWeakStateListener(JobExecutionStateListener listener) {
     _callbackDispatcher.registerWeakStateListener(listener);
+  }
+
+  @Override public boolean isDone() {
+    RunningState runState = getJobExecutionStatus().getRunningState();
+    return runState.isDone();
+  }
+
+  @Override public boolean cancel(boolean mayInterruptIfRunning) {
+    // FIXME there is a race condition here as the job may complete successfully before we
+    // call cancelJob() below. There isn't an easy way to fix that right now.
+
+    RunningState runState = getJobExecutionStatus().getRunningState();
+    if (runState.isCancelled()) {
+      return true;
+    }
+    else if (runState.isDone()) {
+      return false;
+    }
+    try {
+      // No special processing of callbacks necessary
+      _legacyLauncher.cancelJob(new AbstractJobListener(){});
+    } catch (JobException e) {
+      throw new RuntimeException("Unable to cancel job " + _jobSpec + ": " + e, e);
+    }
+    return true;
+  }
+
+  @Override public boolean isCancelled() {
+    return getJobExecutionStatus().getRunningState().isCancelled();
+  }
+
+  @Override public JobExecutionResult get() throws InterruptedException {
+    try {
+      return get(0, TimeUnit.MILLISECONDS);
+    } catch (TimeoutException e) {
+      throw new Error("This should never happen.");
+    }
+  }
+
+  @Override
+  public JobExecutionResult get(long timeout, TimeUnit unit)
+         throws InterruptedException, TimeoutException {
+    Preconditions.checkNotNull(unit);
+    if (0 == timeout) {
+      timeout = Long.MAX_VALUE;
+      unit = TimeUnit.SECONDS;
+    }
+    getJobExecutionState().awaitForDone(unit.toMillis(timeout));
+
+    return null;
   }
 }

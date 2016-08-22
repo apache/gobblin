@@ -119,6 +119,8 @@ public class JobLifecycleListenersList implements JobLifecycleListenersContainer
   @Override
   public void registerWeakJobLifecycleListener(JobLifecycleListener listener) {
     _dispatcher.addWeakListener(listener);
+    _jobCatalogDelegate.registerWeakJobCatalogListener(listener);
+    _jobSchedulerDelegate.registerWeakJobSpecSchedulerListener(listener);
   }
 
 }

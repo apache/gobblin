@@ -37,7 +37,7 @@ public interface JobSpecScheduler extends JobSpecSchedulerListenersContainer {
   public JobSpecSchedule scheduleJob(JobSpec jobSpec, Runnable jobRunnable);
 
   /**
-   * Add a Gobblin job for scheduling. Job is guaranteed to run only once.
+   * Add a Gobblin job for scheduling. Job is guaranteed to run only once regardless of job outcome.
    *
    * @param   jobSpec     the JobSpec of the job
    * @param   jobRunnable a runnable that will execute the job
