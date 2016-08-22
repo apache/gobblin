@@ -12,13 +12,9 @@
 
 package gobblin.runtime.mapreduce;
 
-import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
@@ -143,7 +139,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.fs = buildFileSystem(jobProps, this.conf);
 
     this.mrJobDir =
-        new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobContext.getJobName());
+        new Path(
+            new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobContext.getJobName()),
+            this.jobContext.getJobId());
     if (this.fs.exists(this.mrJobDir)) {
       LOG.warn("Job working directory already exists for job " + this.jobContext.getJobName());
       this.fs.delete(this.mrJobDir, true);
@@ -299,7 +297,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // The job is mapper-only
     this.job.setNumReduceTasks(0);
 
-    this.job.setInputFormatClass(NLineInputFormat.class);
+    this.job.setInputFormatClass(GobblinWorkUnitsInputFormat.class);
     this.job.setOutputFormatClass(GobblinOutputFormat.class);
     this.job.setMapOutputKeyClass(NullWritable.class);
     this.job.setMapOutputValueClass(NullWritable.class);
@@ -310,8 +308,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // Job input path is where input work unit files are stored
 
     // Prepare job input
-    Path jobInputFile = prepareJobInput(workUnits);
-    FileInputFormat.addInputPath(this.job, jobInputFile);
+    prepareJobInput(workUnits);
+    FileInputFormat.addInputPath(this.job, this.jobInputPath);
 
     // Job output path is where serialized task states are stored
     FileOutputFormat.setOutputPath(this.job, this.jobOutputPath);
@@ -427,19 +425,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Prepare the job input.
    * @throws IOException
    */
-  private Path prepareJobInput(List<WorkUnit> workUnits)
+  private void prepareJobInput(List<WorkUnit> workUnits)
       throws IOException {
-    // The job input is a file named after the job ID listing all work unit file paths
-    Path jobInputFile = new Path(this.jobInputPath, this.jobContext.getJobId() + WORK_UNIT_LIST_FILE_EXTENSION);
-
     Closer closer = Closer.create();
     try {
       ParallelRunner parallelRunner = closer.register(new ParallelRunner(this.parallelRunnerThreads, this.fs));
-
-      // Open the job input file
-      OutputStream os = closer.register(this.fs.create(jobInputFile));
-      Writer osw = closer.register(new OutputStreamWriter(os, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
-      Writer bw = closer.register(new BufferedWriter(osw));
 
       int multiTaskIdSequence = 0;
       // Serialize each work unit into a file named after the task ID
@@ -453,11 +443,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
           workUnitFileName = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + WORK_UNIT_FILE_EXTENSION;
         }
         Path workUnitFile = new Path(this.jobInputPath, workUnitFileName);
+        LOG.debug("Writing work unit file " + workUnitFileName);
 
         parallelRunner.serializeToFile(workUnit, workUnitFile);
 
         // Append the work unit file path to the job input file
-        bw.write(workUnitFile.toUri().getPath() + "\n");
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);
@@ -465,7 +455,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
       closer.close();
     }
 
-    return jobInputFile;
   }
 
   /**
