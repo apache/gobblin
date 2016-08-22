@@ -31,9 +31,12 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.net.HostAndPort;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.ConfigUtils;
 import gobblin.util.DatasetFilterUtils;
 import kafka.api.PartitionFetchInfo;
 import kafka.api.PartitionOffsetRequestInfo;
@@ -71,6 +74,7 @@ public class KafkaWrapper implements Closeable {
   private static class Builder {
     private boolean useNewKafkaAPI = DEFAULT_USE_NEW_KAFKA_API;
     private List<String> brokers = Lists.newArrayList();
+    private Config config = ConfigFactory.empty();
 
     private Builder withNewKafkaAPI() {
       this.useNewKafkaAPI = true;
@@ -86,6 +90,11 @@ public class KafkaWrapper implements Closeable {
       return this;
     }
 
+    private Builder withConfig(Config config) {
+      this.config = config;
+      return this;
+    }
+
     private KafkaWrapper build() {
       Preconditions.checkArgument(!this.brokers.isEmpty(), "Need to specify at least one Kafka broker.");
       return new KafkaWrapper(this);
@@ -95,7 +104,7 @@ public class KafkaWrapper implements Closeable {
   private KafkaWrapper(Builder builder) {
     this.useNewKafkaAPI = builder.useNewKafkaAPI;
     this.brokers = builder.brokers;
-    this.kafkaAPI = getKafkaAPI();
+    this.kafkaAPI = getKafkaAPI(builder.config);
   }
 
   /**
@@ -112,7 +121,10 @@ public class KafkaWrapper implements Closeable {
     if (state.getPropAsBoolean(USE_NEW_KAFKA_API, DEFAULT_USE_NEW_KAFKA_API)) {
       builder = builder.withNewKafkaAPI();
     }
-    return builder.withBrokers(state.getPropAsList(ConfigurationKeys.KAFKA_BROKERS)).build();
+    Config config = ConfigUtils.propertiesToConfig(state.getProperties());
+    return builder.withBrokers(state.getPropAsList(ConfigurationKeys.KAFKA_BROKERS))
+        .withConfig(config)
+        .build();
   }
 
   public List<String> getBrokers() {
@@ -135,11 +147,11 @@ public class KafkaWrapper implements Closeable {
     return this.kafkaAPI.fetchNextMessageBuffer(partition, nextOffset, maxOffset);
   }
 
-  private KafkaAPI getKafkaAPI() {
+  private KafkaAPI getKafkaAPI(Config config) {
     if (this.useNewKafkaAPI) {
-      return new KafkaNewAPI();
+      return new KafkaNewAPI(config);
     }
-    return new KafkaOldAPI();
+    return new KafkaOldAPI(config);
   }
 
   @Override
@@ -148,6 +160,10 @@ public class KafkaWrapper implements Closeable {
   }
 
   private abstract class KafkaAPI implements Closeable {
+
+    protected KafkaAPI(Config config) {
+    }
+
     protected abstract List<KafkaTopic> getFilteredTopics(List<Pattern> blacklist, List<Pattern> whitelist);
 
     protected abstract long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException;
@@ -162,15 +178,55 @@ public class KafkaWrapper implements Closeable {
    * Wrapper for the old low-level Scala-based Kafka API.
    */
   private class KafkaOldAPI extends KafkaAPI {
-    private static final int DEFAULT_KAFKA_TIMEOUT_VALUE = 30000;
-    private static final int DEFAULT_KAFKA_BUFFER_SIZE = 1024 * 1024;
-    private static final String DEFAULT_KAFKA_CLIENT_NAME = "kafka-old-api";
-    private static final int DEFAULT_KAFKA_FETCH_REQUEST_CORRELATION_ID = -1;
-    private static final int DEFAULT_KAFKA_FETCH_REQUEST_MIN_BYTES = 1024;
-    private static final int NUM_TRIES_FETCH_TOPIC = 3;
-    private static final int NUM_TRIES_FETCH_OFFSET = 3;
+    public static final String CONFIG_PREFIX = "source.kafka.";
+    public static final String CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE = CONFIG_PREFIX + "socketTimeoutMillis";
+    public static final int CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE_DEFAULT = 30000; // 30 seconds
+    public static final String CONFIG_KAFKA_BUFFER_SIZE_BYTES = CONFIG_PREFIX + "bufferSizeBytes";
+    public static final int CONFIG_KAFKA_BUFFER_SIZE_BYTES_DEFAULT = 1024*1024; // 1MB
+    public static final String CONFIG_KAFKA_CLIENT_NAME = CONFIG_PREFIX + "clientName";
+    public static final String CONFIG_KAFKA_CLIENT_NAME_DEFAULT = "gobblin-kafka";
+    public static final String CONFIG_KAFKA_FETCH_REQUEST_CORRELATION_ID = CONFIG_PREFIX + "fetchCorrelationId";
+    private static final int CONFIG_KAFKA_FETCH_REQUEST_CORRELATION_ID_DEFAULT = -1;
+    public static final String CONFIG_KAFKA_FETCH_TIMEOUT_VALUE = CONFIG_PREFIX + "fetchTimeoutMillis";
+    public static final int CONFIG_KAFKA_FETCH_TIMEOUT_VALUE_DEFAULT = 1000; // 1 second
+    public static final String CONFIG_KAFKA_FETCH_REQUEST_MIN_BYTES = CONFIG_PREFIX + "fetchMinBytes";
+    private static final int CONFIG_KAFKA_FETCH_REQUEST_MIN_BYTES_DEFAULT = 1024;
+    public static final String CONFIG_KAFKA_FETCH_TOPIC_NUM_TRIES = CONFIG_PREFIX + "fetchTopicNumTries";
+    private static final int CONFIG_KAFKA_FETCH_TOPIC_NUM_TRIES_DEFAULT = 3;
+    public static final String CONFIG_KAFKA_FETCH_OFFSET_NUM_TRIES = CONFIG_PREFIX + "fetchOffsetNumTries";
+    private static final int CONFIG_KAFKA_FETCH_OFFSET_NUM_TRIES_DEFAULT = 3;
+
+    private final int socketTimeoutMillis;
+    private final int bufferSize;
+    private final String clientName;
+    private final int fetchCorrelationId;
+    private final int fetchTimeoutMillis;
+    private final int fetchMinBytes;
+    private final int fetchTopicRetries;
+    private final int fetchOffsetRetries;
 
     private final ConcurrentMap<String, SimpleConsumer> activeConsumers = Maps.newConcurrentMap();
+
+    protected KafkaOldAPI(Config config) {
+      super(config);
+      socketTimeoutMillis = ConfigUtils.getInt(config, CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE,
+          CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE_DEFAULT);
+      bufferSize = ConfigUtils.getInt(config, CONFIG_KAFKA_BUFFER_SIZE_BYTES, CONFIG_KAFKA_BUFFER_SIZE_BYTES_DEFAULT);
+      clientName = ConfigUtils.getString(config, CONFIG_KAFKA_CLIENT_NAME, CONFIG_KAFKA_CLIENT_NAME_DEFAULT);
+      fetchCorrelationId = ConfigUtils.getInt(config, CONFIG_KAFKA_FETCH_REQUEST_CORRELATION_ID,
+          CONFIG_KAFKA_FETCH_REQUEST_CORRELATION_ID_DEFAULT);
+      fetchTimeoutMillis = ConfigUtils.getInt(config, CONFIG_KAFKA_FETCH_TIMEOUT_VALUE,
+          CONFIG_KAFKA_FETCH_TIMEOUT_VALUE_DEFAULT);
+      fetchMinBytes = ConfigUtils.getInt(config, CONFIG_KAFKA_FETCH_REQUEST_MIN_BYTES,
+          CONFIG_KAFKA_FETCH_REQUEST_MIN_BYTES_DEFAULT);
+      fetchTopicRetries = ConfigUtils.getInt(config, CONFIG_KAFKA_FETCH_TOPIC_NUM_TRIES,
+          CONFIG_KAFKA_FETCH_TOPIC_NUM_TRIES_DEFAULT);
+      fetchOffsetRetries = ConfigUtils.getInt(config, CONFIG_KAFKA_FETCH_OFFSET_NUM_TRIES,
+          CONFIG_KAFKA_FETCH_OFFSET_NUM_TRIES_DEFAULT);
+      Preconditions.checkArgument((this.fetchTimeoutMillis < this.socketTimeoutMillis),
+          "Kafka Source configuration error: FetchTimeout " + this.fetchTimeoutMillis +
+              " must be smaller than SocketTimeout " + this.socketTimeoutMillis);
+    }
 
     @Override
     public List<KafkaTopic> getFilteredTopics(List<Pattern> blacklist, List<Pattern> whitelist) {
@@ -241,7 +297,7 @@ public class KafkaWrapper implements Closeable {
       SimpleConsumer consumer = null;
       try {
         consumer = getSimpleConsumer(broker);
-        for (int i = 0; i < NUM_TRIES_FETCH_TOPIC; i++) {
+        for (int i = 0; i < this.fetchTopicRetries; i++) {
           try {
             return consumer.send(new TopicMetadataRequest(Arrays.asList(selectedTopics))).topicsMetadata();
           } catch (Exception e) {
@@ -280,8 +336,7 @@ public class KafkaWrapper implements Closeable {
     }
 
     private SimpleConsumer createSimpleConsumer(String host, int port) {
-      return new SimpleConsumer(host, port, DEFAULT_KAFKA_TIMEOUT_VALUE, DEFAULT_KAFKA_BUFFER_SIZE,
-          DEFAULT_KAFKA_CLIENT_NAME);
+      return new SimpleConsumer(host, port, this.socketTimeoutMillis, this.bufferSize, this.clientName);
     }
 
     @Override
@@ -304,10 +359,10 @@ public class KafkaWrapper implements Closeable {
         Map<TopicAndPartition, PartitionOffsetRequestInfo> offsetRequestInfo)
         throws KafkaOffsetRetrievalFailureException {
       SimpleConsumer consumer = this.getSimpleConsumer(partition.getLeader().getHostAndPort());
-      for (int i = 0; i < NUM_TRIES_FETCH_OFFSET; i++) {
+      for (int i = 0; i < this.fetchOffsetRetries; i++) {
         try {
           OffsetResponse offsetResponse = consumer.getOffsetsBefore(new OffsetRequest(offsetRequestInfo,
-              kafka.api.OffsetRequest.CurrentVersion(), DEFAULT_KAFKA_CLIENT_NAME));
+              kafka.api.OffsetRequest.CurrentVersion(), this.clientName));
           if (offsetResponse.hasError()) {
             throw new RuntimeException(
                 "offsetReponse has error: " + offsetResponse.errorCode(partition.getTopicName(), partition.getId()));
@@ -316,7 +371,7 @@ public class KafkaWrapper implements Closeable {
         } catch (Exception e) {
           LOG.warn(
               String.format("Fetching offset for partition %s has failed %d time(s). Reason: %s", partition, i + 1, e));
-          if (i < NUM_TRIES_FETCH_OFFSET - 1) {
+          if (i < this.fetchOffsetRetries - 1) {
             try {
               Thread.sleep((long) ((i + Math.random()) * 1000));
             } catch (InterruptedException e2) {
@@ -405,11 +460,11 @@ public class KafkaWrapper implements Closeable {
 
     private FetchRequest createFetchRequest(KafkaPartition partition, long nextOffset) {
       TopicAndPartition topicAndPartition = new TopicAndPartition(partition.getTopicName(), partition.getId());
-      PartitionFetchInfo partitionFetchInfo = new PartitionFetchInfo(nextOffset, DEFAULT_KAFKA_BUFFER_SIZE);
+      PartitionFetchInfo partitionFetchInfo = new PartitionFetchInfo(nextOffset, this.bufferSize);
       Map<TopicAndPartition, PartitionFetchInfo> fetchInfo =
           Collections.singletonMap(topicAndPartition, partitionFetchInfo);
-      return new FetchRequest(DEFAULT_KAFKA_FETCH_REQUEST_CORRELATION_ID, DEFAULT_KAFKA_CLIENT_NAME,
-          DEFAULT_KAFKA_TIMEOUT_VALUE, DEFAULT_KAFKA_FETCH_REQUEST_MIN_BYTES, fetchInfo);
+      return new FetchRequest(this.fetchCorrelationId, this.clientName,
+          this.fetchTimeoutMillis, this.fetchMinBytes, fetchInfo);
     }
 
     @Override
@@ -437,6 +492,10 @@ public class KafkaWrapper implements Closeable {
    * Wrapper for the new Kafka API.
    */
   private class KafkaNewAPI extends KafkaAPI {
+
+    protected KafkaNewAPI(Config config) {
+      super(config);
+    }
 
     @Override
     public List<KafkaTopic> getFilteredTopics(List<Pattern> blacklist, List<Pattern> whitelist) {
