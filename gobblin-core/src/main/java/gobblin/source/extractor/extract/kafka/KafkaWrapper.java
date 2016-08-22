@@ -61,10 +61,6 @@ import kafka.message.MessageAndOffset;
  */
 public class KafkaWrapper implements Closeable {
 
-
-
-
-
   private static final Logger LOG = LoggerFactory.getLogger(KafkaWrapper.class);
 
   private static final String USE_NEW_KAFKA_API = "use.new.kafka.api";
