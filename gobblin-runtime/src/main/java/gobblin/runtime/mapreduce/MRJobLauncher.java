@@ -182,6 +182,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         cleanUpWorkingDirectory();
       } finally {
         super.close();
+        fs.close();
       }
     }
   }
