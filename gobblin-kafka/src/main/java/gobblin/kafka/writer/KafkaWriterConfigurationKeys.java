@@ -16,10 +16,19 @@ package gobblin.kafka.writer;
  * Configuration keys for a KafkaWriter.
  */
 public class KafkaWriterConfigurationKeys {
-    public static final String KAFKA_TOPIC = "writer.kafka.topic";
+  public static final String KAFKA_TOPIC = "writer.kafka.topic";
   /**
    * Kafka producer configurations will be passed through as is as long as they are prefixed
    * by the PREFIX specified below.
    */
   public static final String KAFKA_PRODUCER_CONFIG_PREFIX = "writer.kafka.producerConfig.";
+  static final String KAFKA_WRITER_PRODUCER_CLASS = "writer.kafka.producerClass";
+  static final String KEY_SERIALIZER_CONFIG = "key.serializer";
+  static final String DEFAULT_KEY_SERIALIZER = "org.apache.kafka.common.serialization.StringSerializer";
+  static final String VALUE_SERIALIZER_CONFIG = "value.serializer";
+  static final String DEFAULT_VALUE_SERIALIZER = "org.apache.kafka.common.serialization.ByteArraySerializer";
+  static final String COMMIT_TIMEOUT_MILLIS_CONFIG = "commitTimeoutMillis";
+  static final long COMMIT_TIMEOUT_MILLIS_DEFAULT = 60000; // 1 minute
+  static final String CLIENT_ID_CONFIG = "client.id";
+  static final String CLIENT_ID_DEFAULT = "gobblin";
 }

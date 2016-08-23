@@ -12,16 +12,13 @@
 
 package gobblin.kafka.tool;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -44,7 +41,6 @@ import gobblin.kafka.schemareg.KafkaSchemaRegistry;
 import gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
 import gobblin.kafka.serialize.LiAvroDeserializer;
 import gobblin.kafka.serialize.MD5Digest;
-import gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 
 
 /**
@@ -59,7 +55,7 @@ public class SimpleKafkaConsumer {
   private final ConsumerIterator<byte[], byte[]> iterator;
   private final String topic;
   private final KafkaSchemaRegistry<MD5Digest, Schema> schemaRegistry;
-  private final Deserializer<GenericRecord> deserializer;
+  private final Deserializer deserializer;
 
   public SimpleKafkaConsumer(Properties props, KafkaCheckpoint checkpoint)
   {
@@ -69,10 +65,17 @@ public class SimpleKafkaConsumer {
 
     schemaRegistry = KafkaSchemaRegistryFactory.getSchemaRegistry(props);
     deserializer = new LiAvroDeserializer(schemaRegistry);
+    /** TODO: Make Confluent schema registry integration configurable
+     * HashMap<String, String> avroSerDeConfig = new HashMap<>();
+     * avroSerDeConfig.put("schema.registry.url", "http://localhost:8081");
+     * deserializer = new io.confluent.kafka.serializers.KafkaAvroDeserializer();
+     * deserializer.configure(avroSerDeConfig, false);
+     *
+     **/
 
     Properties consumeProps = new Properties();
     consumeProps.put("zookeeper.connect", zkConnect);
-    consumeProps.put("group.id", "testConsumer2");
+    consumeProps.put("group.id", "gobblin-tool-" + System.nanoTime());
     consumeProps.put("zookeeper.session.timeout.ms", "10000");
     consumeProps.put("zookeeper.sync.time.ms", "10000");
     consumeProps.put("auto.commit.interval.ms", "10000");
@@ -170,7 +173,8 @@ public class SimpleKafkaConsumer {
         messagePlusMeta = iterator.next();
         if (messagePlusMeta!=null) {
           byte[] payload = messagePlusMeta.message();
-          GenericRecord record = deserializer.deserialize(topic, payload);
+          System.out.println("Got a message of size " + payload.length + " bytes");
+          GenericRecord record = (GenericRecord) deserializer.deserialize(topic, payload);
           System.out.println(record.toString());
           checkpoint.update(messagePlusMeta.partition(), messagePlusMeta.offset());
         }
