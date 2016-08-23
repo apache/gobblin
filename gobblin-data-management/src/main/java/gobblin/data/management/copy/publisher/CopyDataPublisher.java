@@ -24,20 +24,16 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
-
-import javax.annotation.Nullable;
-import lombok.extern.slf4j.Slf4j;
 
 import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
@@ -47,15 +43,16 @@ import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.data.management.copy.recovery.RecoveryHelper;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
-import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
-import gobblin.publisher.UnpublishedHandling;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.publisher.DataPublisher;
+import gobblin.publisher.UnpublishedHandling;
 import gobblin.util.HadoopUtils;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -207,6 +204,15 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
           datasetUpstreamTimestamp = copyableFile.getUpstreamTimestamp();
         }
       }
+    }
+
+    // if there are no valid values for datasetOriginTimestamp and datasetUpstreamTimestamp, use
+    // something more readable
+    if (Long.MAX_VALUE == datasetOriginTimestamp) {
+      datasetOriginTimestamp = 0;
+    }
+    if (Long.MAX_VALUE == datasetUpstreamTimestamp) {
+      datasetUpstreamTimestamp = 0;
     }
 
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(this.eventSubmitter, datasetAndPartition,
