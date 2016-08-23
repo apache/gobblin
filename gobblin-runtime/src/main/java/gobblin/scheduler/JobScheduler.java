@@ -20,6 +20,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.hadoop.fs.Path;
@@ -148,6 +150,12 @@ public class JobScheduler extends AbstractIdleService {
   protected void startUp()
       throws Exception {
     LOG.info("Starting the job scheduler");
+
+    try {
+      this.scheduler.awaitRunning(1, TimeUnit.SECONDS);
+    } catch (TimeoutException | IllegalStateException exc) {
+      throw new IllegalStateException("Scheduler service is not running.");
+    }
 
     // Note: This should not be mandatory, gobblin-cluster modes have their own job configuration managers
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {

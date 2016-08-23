@@ -25,6 +25,9 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import gobblin.configuration.ConfigurationKeys;
 /**
  * Testing the functions for reading template merging template with user-specified attributes.
@@ -35,7 +38,6 @@ import gobblin.configuration.ConfigurationKeys;
 public class TemplateTest {
 
   // For template inside resource folder.
-  private File userCustomizedFile;
   private File jobConfigDir;
   private Properties userProp ;
 
@@ -51,7 +53,10 @@ public class TemplateTest {
     //User specified file content:
     this.userProp = new Properties();
     userProp.setProperty("a", "1");
-    userProp.setProperty("b", "2");
+    userProp.setProperty("templated0", "2");
+    userProp.setProperty("required0", "r0");
+    userProp.setProperty("required1", "r1");
+    userProp.setProperty("required2", "r2");
     userProp.setProperty("job.template", "templates/test.template");
 
     // User specified file's name : /[jobConfigDirName]/user.attr
@@ -74,21 +79,24 @@ public class TemplateTest {
   @Test
   public void testResolvingConfig()
       throws IOException {
-    Properties jobProps = this.userProp ;
-    Assert.assertEquals(jobProps.size(), 3);
+    Config jobProps = ConfigFactory.parseProperties(this.userProp);
+    Assert.assertEquals(ConfigUtils.configToProperties(jobProps).size(), 6);
     jobProps = (new ResourceBasedTemplate(
-        jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
+        jobProps.getString(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfig(jobProps);
     // Remove job.template in userSpecified file and gobblin.template.required_attributes in template
-    Assert.assertEquals(jobProps.size(), 5);
+    Assert.assertEquals(ConfigUtils.configToProperties(jobProps).size(), 8);
 
     Properties targetResolvedJobProps = new Properties() ;
     targetResolvedJobProps.setProperty("a", "1");
-    targetResolvedJobProps.setProperty("b", "2");
-    targetResolvedJobProps.setProperty("required0","x");
-    targetResolvedJobProps.setProperty("required1","y");
-    targetResolvedJobProps.setProperty("required2","z");
+    targetResolvedJobProps.setProperty("templated0", "2");
+    targetResolvedJobProps.setProperty("templated1", "y");
+    targetResolvedJobProps.setProperty("required0","r0");
+    targetResolvedJobProps.setProperty("required1","r1");
+    targetResolvedJobProps.setProperty("required2","r2");
+    targetResolvedJobProps.setProperty(ConfigurationKeys.JOB_TEMPLATE_PATH, "templates/test.template");
+    targetResolvedJobProps.setProperty(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST, "required0,required1,required2");
 
-    Assert.assertEquals(targetResolvedJobProps, jobProps);
+    Assert.assertEquals(targetResolvedJobProps, ConfigUtils.configToProperties(jobProps));
   }
 
   @AfterClass

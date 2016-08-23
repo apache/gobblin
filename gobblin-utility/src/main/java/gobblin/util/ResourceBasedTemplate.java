@@ -11,17 +11,17 @@
  */
 package gobblin.util;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
+import java.io.InputStreamReader;
 import java.util.HashSet;
-import java.util.Properties;
-
 import java.util.Set;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Charsets;
+import com.google.common.base.Splitter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -35,10 +35,10 @@ public class ResourceBasedTemplate implements JobTemplate {
   private String templatePath;
   private Set<String> _userSpecifiedAttributesList;
   private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerUtils.class);
-  private Properties configTemplate = new Properties();
+  private final Config config;
 
   /**
-   * Initilized the template by retriving the specified template file and obtain some special attributes.
+   * Initilized the template by retrieving the specified template file and obtain some special attributes.
    * @param templatePath
    */
   public ResourceBasedTemplate(String templatePath) {
@@ -46,21 +46,18 @@ public class ResourceBasedTemplate implements JobTemplate {
     this.templatePath = templatePath;
 
     if (this.templatePath != null && this.templatePath.length() > 0) {
-      try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(this.templatePath)) {
-        if (inputStream != null) {
-          configTemplate.load(inputStream);
-        } else {
-          throw new FileNotFoundException("Template file " + this.templatePath + " doesn't exist");
-        }
+      try (InputStream inputStream = getClass().getResourceAsStream("/" + this.templatePath);
+        InputStreamReader reader = new InputStreamReader(inputStream, Charsets.UTF_8)) {
+        Config tmpConfig = ConfigFactory.parseReader(reader);
+        this._userSpecifiedAttributesList = new HashSet<>(Splitter.on(",").omitEmptyStrings().
+            splitToList(tmpConfig.getString(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST)));
+        this.config = tmpConfig.root().toConfig();
       } catch (IOException e) {
         throw new RuntimeException("Failure to loading template files into i/o stream");
       }
     } else {
       throw new RuntimeException("Template Path doesn't exist");
     }
-
-    this._userSpecifiedAttributesList = new HashSet<String>(
-        Arrays.asList(configTemplate.getProperty(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST).split(",")));
   }
 
   /**
@@ -70,7 +67,7 @@ public class ResourceBasedTemplate implements JobTemplate {
   @Override
   public Config getRawTemplateConfig() {
     // Pay attention to
-    return ConfigFactory.parseProperties(configTemplate);
+    return this.config;
   }
 
   /**
@@ -83,31 +80,17 @@ public class ResourceBasedTemplate implements JobTemplate {
   }
 
   /**
-   * For backward compatibility
-   * @param userProps
-   * @return
-   */
-  public Properties getResolvedConfigAsProperties(Properties userProps) {
-    Properties jobPropsWithPotentialTemplate = userProps;
-    if (jobPropsWithPotentialTemplate.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      jobPropsWithPotentialTemplate = TemplateUtils.mergeTemplateWithUserCustomizedFile(this.configTemplate, userProps);
-    }
-    // Validate that each of required attributes is provided by user-specific configuration file.
-    for (String aRequiredAttr : _userSpecifiedAttributesList) {
-      if (!jobPropsWithPotentialTemplate.containsKey(aRequiredAttr)) {
-        throw new RuntimeException("Required attributes is not provided for resolution");
-      }
-    }
-    return jobPropsWithPotentialTemplate;
-  }
-
-  /**
    * Return the combine configuration of template and user customized attributes.
    * Also validate the resolution.
    * @return
    */
   @Override
-  public Config getResolvedConfig(Properties userProps) {
-    return ConfigFactory.parseProperties(getResolvedConfigAsProperties(userProps));
+  public Config getResolvedConfig(Config userProps) throws IOException {
+    for (String required : this.getRequiredConfigList()) {
+      if (!userProps.hasPath(required)) {
+        throw new IOException(String.format("Missing required property %s for template %s.", required, this.templatePath));
+      }
+    }
+    return userProps.withFallback(this.config).resolve();
   }
 }
