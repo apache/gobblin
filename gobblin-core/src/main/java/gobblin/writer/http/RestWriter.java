@@ -35,7 +35,7 @@ public class RestWriter extends HttpWriter<RestEntry<String>> {
     HttpUriRequest uriRequest = RequestBuilder.post()
         .addHeader(HttpHeaders.CONTENT_TYPE, ContentType.TEXT_PLAIN.getMimeType())
         .setUri(combineUrl(getCurServerHost(), record.getResourcePath()))
-        .setEntity(new StringEntity(record.getRestEntryVal(), ContentType.TEXT_PLAIN.toString()))
+        .setEntity(new StringEntity(record.getRestEntryVal(), ContentType.TEXT_PLAIN))
         .build();
     return Optional.of(uriRequest);
   }

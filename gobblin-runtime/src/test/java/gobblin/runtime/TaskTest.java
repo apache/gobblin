@@ -12,7 +12,7 @@
 
 package gobblin.runtime;
 
-import static org.mockito.Mockito.any;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -22,21 +22,21 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.common.base.Optional;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.fork.IdentityForkOperator;
 import gobblin.publisher.TaskPublisher;
+import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
+import gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
-import gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 
 
 /**
@@ -93,7 +93,7 @@ public class TaskTest {
    * An implementation of {@link Extractor} that throws an {@link IOException} during the invocation of
    * {@link #readRecord(Object)}.
    */
-  private static class FailOnceExtractor implements Extractor {
+  private static class FailOnceExtractor implements Extractor<Object, Object> {
 
     private static final AtomicBoolean HAS_FAILED = new AtomicBoolean();
 
@@ -106,7 +106,7 @@ public class TaskTest {
     public Object readRecord(@Deprecated Object reuse) throws DataRecordException, IOException {
       if (!HAS_FAILED.get()) {
         HAS_FAILED.set(true);
-        throw new IOException();
+        throw new IOException("Injected failure");
       }
       return null;
     }

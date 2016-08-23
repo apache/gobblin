@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.util.Properties;
 import java.util.Set;
@@ -25,7 +26,6 @@ import java.util.concurrent.TimeoutException;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -64,8 +64,7 @@ public class JobConfigFileMonitorTest {
   }
 
   @BeforeClass
-  public void setUp()
-      throws Exception {
+  public void setUp() throws Exception {
     this.jobConfigDir =
         Files.createTempDirectory(String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName()))
             .toString();
@@ -74,20 +73,22 @@ public class JobConfigFileMonitorTest {
     FileUtils.copyDirectory(new File(JOB_CONFIG_FILE_DIR), new File(jobConfigDir));
 
     Properties properties = new Properties();
-    properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
+    try (Reader schedulerPropsReader = new FileReader("gobblin-test/resource/gobblin.test.properties")) {
+      properties.load(schedulerPropsReader);
+    }
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, jobConfigDir);
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, jobConfigDir);
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY, "1000");
     properties.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
 
-    this.jobScheduler = new JobScheduler(properties, new SchedulerService(new Properties()));
-    this.serviceManager = new ServiceManager(Lists.newArrayList(this.jobScheduler));
+    SchedulerService quartzService = new SchedulerService(new Properties());
+    this.jobScheduler = new JobScheduler(properties, quartzService);
+    this.serviceManager = new ServiceManager(Lists.newArrayList(quartzService, this.jobScheduler));
     this.serviceManager.startAsync();
   }
 
   @Test
-  public void testAddNewJobConfigFile()
-      throws Exception {
+  public void testAddNewJobConfigFile() throws Exception {
     final Logger log = LoggerFactory.getLogger("testAddNewJobConfigFile");
     AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(15000);
     assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
