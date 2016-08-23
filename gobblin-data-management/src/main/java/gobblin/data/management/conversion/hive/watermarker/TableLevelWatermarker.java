@@ -15,6 +15,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
@@ -41,6 +43,7 @@ import gobblin.source.workunit.WorkUnit;
  * </ul>
  *
  */
+@Slf4j
 public class TableLevelWatermarker implements HiveSourceWatermarker {
   public static final Gson GSON = new Gson();
 
@@ -70,6 +73,7 @@ public class TableLevelWatermarker implements HiveSourceWatermarker {
           this.tableWatermarks.put(datasetWorkUnitStates.getKey(), Collections.min(previousWatermarks));
         }
       }
+      log.info("Loaded table watermarks from previous state " + this.tableWatermarks);
     }
   }
 

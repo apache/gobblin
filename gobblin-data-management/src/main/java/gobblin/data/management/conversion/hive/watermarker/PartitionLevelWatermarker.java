@@ -157,7 +157,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
         }
       }
 
-      log.info("Loaded watermarks from previous state " + this.previousWatermarks);
+      log.info("Loaded partition watermarks from previous state " + this.previousWatermarks);
 
       for (String tableKey : this.previousWatermarks.keySet()) {
         this.expectedHighWatermarks.setPartitionWatermarks(tableKey,
