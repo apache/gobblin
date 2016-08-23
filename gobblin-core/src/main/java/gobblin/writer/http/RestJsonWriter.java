@@ -11,8 +11,6 @@
  */
 package gobblin.writer.http;
 
-import gobblin.converter.http.RestEntry;
-
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -21,6 +19,8 @@ import org.apache.http.entity.StringEntity;
 
 import com.google.common.base.Optional;
 import com.google.gson.JsonObject;
+
+import gobblin.converter.http.RestEntry;
 
 /**
  * Writes via Restful API that accepts JSON as a body
@@ -36,7 +36,7 @@ public class RestJsonWriter extends HttpWriter<RestEntry<JsonObject>> {
     HttpUriRequest uriRequest = RequestBuilder.post()
         .addHeader(HttpHeaders.CONTENT_TYPE, ContentType.APPLICATION_JSON.getMimeType())
         .setUri(combineUrl(getCurServerHost(), record.getResourcePath()))
-        .setEntity(new StringEntity(record.getRestEntryVal().toString(), ContentType.APPLICATION_JSON.toString()))
+        .setEntity(new StringEntity(record.getRestEntryVal().toString(), ContentType.APPLICATION_JSON))
         .build();
     return Optional.of(uriRequest);
   }
