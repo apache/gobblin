@@ -39,6 +39,7 @@ pages:
         - FAQs: user-guide/FAQs.md
     - Gobblin Adaptors:
         - Gobblin Distcp: adaptors/Gobblin-Distcp.md
+        - Hive Avro-To-Orc Converter: adaptors/Hive-Avro-To-ORC-Converter.md
     - Case Studies:
         - Kafka-HDFS Ingestion: case-studies/Kafka-HDFS-Ingestion.md
         - Publishing Data to S3: case-studies/Publishing-Data-to-S3.md
