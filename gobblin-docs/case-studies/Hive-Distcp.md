@@ -71,6 +71,7 @@ This specifies where copied files should be placed. There are a few options on h
 ## Conflicting table and partitions treatment
 
 If distcp-ng finds that a partition or table it needs to create already exists it will determine whether the existing table / partition is identical to what it would register (e.g. compare schema, location, etc.). If not, it will use a policy to determine how to proceed. The policy is specified using the key `hive.dataset.existing.entity.conflict.policy` and can take the following values:
+
 * ABORT: the conflicting table will not be copied (default)
 * REPLACE_PARTITIONS: replace any conflicting partitions, but not tables
 * REPLACE_TABLES: replace any conflicting tables
@@ -78,6 +79,7 @@ If distcp-ng finds that a partition or table it needs to create already exists i
 ## Deregistering tables / partitions
 
 Sometimes distcp-ng must deregister a table / partition, for example if it doesn't exist in the source, or if it must be replaced. In this case, distcp-ng offers options on what to do with the files under the deregistered partition. Set this policy using the key `hive.dataset.copy.deregister.fileDeleteMethod` which can take the following values:
+
 * NO_DELETE: do not delete the files (default)
 * INPUT_FORMAT: use the table / partition input format to infer which files are actually used by that table / partition, and delete only those files.
 * RECURSIVE: delete the entire directory in the table / partition location.
@@ -85,6 +87,7 @@ Sometimes distcp-ng must deregister a table / partition, for example if it doesn
 ## Finding copy files
 
 To specify the files that distcp will copy for each table / partition, use the key `hive.dataset.copy.location.listing.method` which can take the values:
+
 * INPUT_FORMAT: use the table / partition input format to infer which files are actually used by that table / partition. (default)
 * RECURSIVE: copy all files under the directory in the table / partition location recursively.
 If the recursive method is used, user can additionally specify `hive.dataset.copy.locations.listing.skipHiddenPaths`, which, if true, will not copy any hidden files.
@@ -92,10 +95,12 @@ If the recursive method is used, user can additionally specify `hive.dataset.cop
 ## Partition Filter
 
 A partition filter can be applied when copying partitioned tables. Filters can only be applied to text partition columns. To speficy a partition filter use the key `hive.dataset.copy.partition.filter.generator`.
+
 * `gobblin.data.management.copy.hive.filter.LookbackPartitionFilterGenerator`: Filters date-representing partitions by a lookback (i.e. only copy recent partitions). Use the keys `hive.dataset.partition.filter.datetime.column`, `hive.dataset.partition.filter.datetime.lookback`, and `hive.dataset.partition.filter.datetime.format` to configure the filter.
 
 ## Fast partition skip predicate
 
 A predicate that operates on partitions can be provided to distcp-ng to allow it to quickly skip partitions without having to list all of the source and target files and do a diff on those sets (a costly operation). To set this predicate, provide the class name of the predicate with the key `hive.dataset.copy.fast.partition.skip.predicate`. Currently only one such predicate exists:
+
 * `RegistrationTimeSkipPredicate`: This predicate compares the Hive partition attribute `registrationGenerationTimeMillis` in the target with the modification time of the partition directory in the source. The partition is skipped unless the directory was modified more recently than the registrationGenerationTime. The attribute `registrationGenerationTimeMillis` is an attribute set by distcp-ng representing (for all practical purposes) the time at which the distcp-ng job that registered that table started.
 
