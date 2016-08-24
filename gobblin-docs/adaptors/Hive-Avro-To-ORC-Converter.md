@@ -12,17 +12,19 @@ Gobblin provides ready to use adapters for converting data in [Avro](http://avro
 * Gobblin Avro to ORC job leverages [Hive](http://hive.apache.org/) for the conversion. Meaning, Gobblin does not read the Avro data record by record and convert each one of them to ORC, instead Gobblin executes hive queries to perform the conversion. This means that Avro data MUST be registred in hive for the converison to be possible. Below is a sample query.
 
 <b>Example Conversion DDL</b>
-<pre>
-INSERT OVERWRITE TABLE `db_name_orc`.`table_orc`
-PARTITION (`year`='2016')
-SELECT
-`header`.`id`,
-`header`.`time`,
-... (more columns to select)
-...
-...
-FROM `db_name_avro`.`table_avro` WHERE `year`='2016';
-</pre>
+
+```
+INSERT OVERWRITE TABLE db_name_orc.table_orc
+  PARTITION (year='2016')
+          SELECT
+              header.id,
+              header.time,
+              ... (more columns to select)
+              ...
+              ...
+FROM db_name_avro.table_avro WHERE year='2016';
+
+```
 
 * Since Hive takes care of scaling the number of mappers/reducers required to perform the conversion, Gobblin does not run this job in MR mode. It runs in standalone mode.
 * Each workunit converts a hive partition or a hive table (non partitioned tables).
@@ -74,200 +76,196 @@ By default publishing happens per dataset (dataset = table in this context). If 
 
 These are some of the job config properties used by `KafkaSource` and `KafkaExtractor`.
 
-<table>
-<tr>
-<th>Configuration key</th>
-<th>Description</th>
-<th>Example value</th>
-</tr>
-<tr>
-<td>
-<p>hive.dataset.whitelist</p>
-</td>
-<td >Avro hive databases, tables to be converted</td>
-<td >
-<ol>
-<li >db1 -&gt; any table under db1 passes.</li>
-<li >db1.table1 -&gt; only db1.table1 passes.</li>
-<li>db1.table* -&gt; any table under db1 whose name satisfies the pattern table* passes.</li>
-<li>db* -&gt; all tables from all databases whose names satisfy the pattern db* pass.</li>
-<li>db*.table* -&gt; db and table must satisfy the patterns db* and table* respectively</li>
-<li>db1.table1,db2.table2 -&gt; combine expressions for different databases with comma.</li>
-<li>db1.table1|table2 -&gt; combine expressions for same database with &quot;|&quot;.</li>
-</ol>
-</td>
-</tr>
-<tr>
-<td >hive.dataset.blacklist</td>
-<td >Avro hive databases, tables not to converted</td>
-<td >
-<p >Same as hive.dataset.whitelist examples</p>
-</td>
-</tr>
-<tr>
-<td >
-<p >gobblin.runtime.root.dir</p>
-</td>
-<td >
-<p >Root dir for <span class="s1">gobblin</span> state store, staging, output etc.</p>
-</td>
-<td >
-<p >/jobs/user/avroToOrc</p>
-</td>
-</tr>
-<tr>
-<td colspan="1" >
-<p >hive.source.maximum.lookbackDays</p>
-</td>
-<td colspan="1" >
-<p>Partitions older than this value will not be processed. The default value is set to 3.</p>
-<p>So if an Avro partition older than 3 days gets modified, the job will not convert the new changes.</p>
-</td>
-<td colspan="1" >3</td>
-</tr>
-<tr>
-<td colspan="1" >
-<p >hive.source.watermarker.class</p>
-</td>
-<td colspan="1" >
-The type of watermark to use. Watermark can be per partition or per table. The default is
-<p ><span class="s1">gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker</span></p>
-</td>
-<td colspan="1" >
-<p><span>gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker</span></p>
-<p><span><span>gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker</span></span></p>
-</td>
-</tr>
-<tr>
-<td colspan="1" >
-<p >taskexecutor.threadpool.size</p>
-</td>
-<td colspan="1" >
-<p>Maximum number of parallel conversion hive queries to run. This is the standard gobblin property to control the number of parallel tasks (threads).</p>
-<p>This is set to a default of 50 because each task queries the hive metastore. So this property also limits the number of parallel metastore connections</p>
-</td>
-<td colspan="1" >50</td>
-</tr>
-<tr>
-</tr>
-<tr>
-<td>
-hive.conversion.avro.flattenedOrc.destination.dbName
-</td>
-<td>Name of the ORC database</td>
-<td>
-<p>$DB is the Avro database name.</p>
-<p>E.g. If avro database name is tracking, $DB will be resolved at runtime to tracking.</p>
-<ul>
-<li>Setting the value to &quot;$DB_column&quot; will result in a ORC table name of tracking_column</li>
-</ul>
-</td>
-</tr>
-<tr>
-<td >
-hive.conversion.avro.flattenedOrc.destination.tableName
-</td>
-<td > Name of the ORC table</td>
-<td >
-<p>$TABLE is the Avro table name.</p>
-<p>E.g. If avro table name is LogEvent, $TABLE will be resolved at runtime to LogEvent.</p>
-<ul>
-<li>Setting the value of this property to <span>&quot;$TABLE&quot; will cause the ORC table name to be same as Avro table name.</span></li>
-<li><span>Setting the value to <span>&quot;$TABLE_orc&quot; will result in a ORC table name of LogEvent_orc</span></span></li>
-</ul>
-</td>
-</tr>
-<tr>
-<td>
-hive.conversion.avro.flattenedOrc.destination.dataPath
-</td>
-<td>Location on HDFS where ORC data is published</td>
-<td>/events_orc/$DB/$TABLE</td>
-</tr>
-<tr>
-<td >
-hive.conversion.avro.flattenedOrc.evolution.enabled
-</td>
-<td >Decides if schema evolution is enabled</td>
-<td >true/false</td>
-</tr>
-<tr>
-<td >
-hive.conversion.avro.flattenedOrc.hiveRuntime.*
-</td>
-<td >
-<p>Additional hive properties to be set while executing the conversion DDL.</p>
-<p>Prefix any hive standard properties with this key</p>
-</td>
-<td >
-hive.conversion.avro.flattenedOrc.hiveRuntime.mapred.map.tasks=10
-</td>
-</tr>
-<tr>
-<td>
-hive.conversion.avro.destinationFormats
-</td>
-<td>A comma separated list of destination formats. Currently supports nestedOrc and flattenedOrc</td>
-<td>flattenedOrc,nestedOrc</td>
-</tr>
-</tbody>
+<table style="table-layout: fixed; width: 150%">
+  <col width="40%">
+  <col width="50%">
+  <col width="60%">
+   <tr>
+      <th>Configuration key</th>
+      <th>Description</th>
+      <th>Example value</th>
+   </tr>
+   <tr>
+      <td style="word-wrap: break-word">
+         <p>hive.dataset.whitelist</p>
+      </td>
+      <td style="word-wrap: break-word">Avro hive databases, tables to be converted</td>
+      <td style="word-wrap: break-word">
+         <ol>
+            <li >db1 -&gt; any table under db1 passes.</li>
+            <li >db1.table1 -&gt; only db1.table1 passes.</li>
+            <li>db1.table* -&gt; any table under db1 whose name satisfies the pattern table* passes.</li>
+            <li>db* -&gt; all tables from all databases whose names satisfy the pattern db* pass.</li>
+            <li>db*.table* -&gt; db and table must satisfy the patterns db* and table* respectively</li>
+            <li>db1.table1,db2.table2 -&gt; combine expressions for different databases with comma.</li>
+            <li>db1.table1|table2 -&gt; combine expressions for same database with &quot;|&quot;.</li>
+         </ol>
+      </td>
+   </tr>
+   <tr>
+      <td style="word-wrap: break-word">hive.dataset.blacklist</td>
+      <td style="word-wrap: break-word">Avro hive databases, tables not to converted</td>
+      <td style="word-wrap: break-word">
+         <p >Same as hive.dataset.whitelist examples</p>
+      </td>
+   </tr>
+   <tr>
+      <td style="word-wrap: break-word">
+         <p >gobblin.runtime.root.dir</p>
+      </td>
+      <td style="word-wrap: break-word">
+         <p >Root dir for <span class="s1">gobblin</span> state store, staging, output etc.</p>
+      </td>
+      <td style="word-wrap: break-word">
+         <p >/jobs/user/avroToOrc</p>
+      </td>
+   </tr>
+   <tr>
+      <td style="word-wrap: break-word">
+         <p >hive.source.maximum.lookbackDays</p>
+      </td>
+      <td style="word-wrap: break-word">
+         <p>Partitions older than this value will not be processed. The default value is set to 3.</p>
+         <p>So if an Avro partition older than 3 days gets modified, the job will not convert the new changes.</p>
+      </td>
+      <td style="word-wrap: break-word">3</td>
+   </tr>
+   <tr>
+      <td style="word-wrap: break-word">
+         <p >hive.source.watermarker.class</p>
+      </td>
+      <td style="word-wrap: break-word">
+         The type of watermark to use. Watermark can be per partition or per table. The default is
+         <p ><span class="s1">gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker</span></p>
+      </td>
+      <td style="word-wrap: break-word">
+         <p><span>gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker</span></p>
+         <p><span><span>gobblin.data.management.conversion.hive.watermarker.TableLevelWatermarker</span></span></p>
+      </td>
+   </tr>
+   <tr>
+      <td style="word-wrap: break-word">
+         <p >taskexecutor.threadpool.size</p>
+      </td>
+      <td style="word-wrap: break-word">
+         <p>Maximum number of parallel conversion hive queries to run. This is the standard gobblin property to control the number of parallel tasks (threads).</p>
+         <p>This is set to a default of 50 because each task queries the hive metastore. So this property also limits the number of parallel metastore connections</p>
+      </td>
+      <td style="word-wrap: break-word">50</td>
+   </tr>
+   <tr>
+      </tr>
+      <tr>
+         <td style="word-wrap: break-word">
+            hive.conversion.avro.flattenedOrc.destination.dbName
+         </td>
+         <td style="word-wrap: break-word">Name of the ORC database</td>
+         <td style="word-wrap: break-word">
+            <p>$DB is the Avro database name.</p>
+            <p>E.g. If avro database name is tracking, $DB will be resolved at runtime to tracking.</p>
+            <ul>
+               <li>Setting the value to &quot;$DB_column&quot; will result in a ORC table name of tracking_column</li>
+            </ul>
+         </td>
+      </tr>
+      <tr>
+         <td style="word-wrap: break-word">
+            hive.conversion.avro.flattenedOrc.destination.tableName
+         </td>
+         <td style="word-wrap: break-word"> Name of the ORC table</td>
+         <td style="word-wrap: break-word">
+            <p>$TABLE is the Avro table name.</p>
+            <p>E.g. If avro table name is LogEvent, $TABLE will be resolved at runtime to LogEvent.</p>
+            <ul>
+               <li>Setting the value of this property to <span>&quot;$TABLE&quot; will cause the ORC table name to be same as Avro table name.</span></li>
+               <li><span>Setting the value to <span>&quot;$TABLE_orc&quot; will result in a ORC table name of LogEvent_orc</span></span></li>
+            </ul>
+         </td>
+      </tr>
+      <tr>
+         <td style="word-wrap: break-word">
+            hive.conversion.avro.flattenedOrc.destination.dataPath
+         </td>
+         <td style="word-wrap: break-word">Location on HDFS where ORC data is published</td>
+         <td style="word-wrap: break-word">/events_orc/$DB/$TABLE</td>
+      </tr>
+      <tr>
+         <td style="word-wrap: break-word">
+            hive.conversion.avro.flattenedOrc.evolution.enabled
+         </td>
+         <td style="word-wrap: break-word">Decides if schema evolution is enabled</td>
+         <td style="word-wrap: break-word">true/false</td>
+      </tr>
+      <tr>
+         <td style="word-wrap: break-word">
+            hive.conversion.avro.flattenedOrc.hiveRuntime.*
+         </td>
+         <td style="word-wrap: break-word">
+            <p>Additional hive properties to be set while executing the conversion DDL.</p>
+            <p>Prefix any hive standard properties with this key</p>
+         </td>
+         <td style="word-wrap: break-word">
+            hive.conversion.avro.flattenedOrc.hiveRuntime.mapred.map.tasks=10
+         </td>
+      </tr>
+      <tr>
+         <td style="word-wrap: break-word">
+            hive.conversion.avro.destinationFormats
+         </td>
+         <td style="word-wrap: break-word">A comma separated list of destination formats. Currently supports nestedOrc and flattenedOrc</td>
+         <td style="word-wrap: break-word">flattenedOrc,nestedOrc</td>
+      </tr>
 </table>
-
 
 # Metrics and Events
 
 SLA event is published every time an Avro partition/table is converted to ORC. Each SLA event has the following metadata.
 
-<pre>
+```
 {
-## Publish timestamp
-"timestamp" : "1470229945441",
-"namespace" : "gobblin.hive.conversion",
-"name" : "gobblin.hive.conversion.ConversionSuccessful",
-"metadata" : {
+    ## Publish timestamp
+    "timestamp" : "1470229945441",
+    "namespace" : "gobblin.hive.conversion",
+    "name" : "gobblin.hive.conversion.ConversionSuccessful",
+    "metadata" : {
 
-## Azkaban metadata (If running on Azkaban)
-"azkabanExecId": "880060",
-"azkabanFlowId": "azkaban_flow_name",
-"azkabanJobId": "azkaban_job_name",
-"azkabanProjectName": "azkaban_project_name",
-"jobId": "job_AvroToOrcConversion_1470227416023",
-"jobName": "AvroToOrcConversion",
+        ## Azkaban metadata (If running on Azkaban)
+        "azkabanExecId": "880060",
+        "azkabanFlowId": "azkaban_flow_name",
+        "azkabanJobId": "azkaban_job_name",
+        "azkabanProjectName": "azkaban_project_name",
+        "jobId": "job_AvroToOrcConversion_1470227416023",
+        "jobName": "AvroToOrcConversion",
 
-## Dataset and Partition metadata
-"datasetUrn": "events@logevent",
-"sourceDataLocation": "hdfs://<host>:<port>/events/LogEvent/2016/08/03/04",
-"partition": "datepartition=2016-08-03-04",
-"schemaEvolutionDDLNum": "0",
+        ## Dataset and Partition metadata
+        "datasetUrn": "events@logevent",
+        "sourceDataLocation": "hdfs://<host>:<port>/events/LogEvent/2016/08/03/04",
+        "partition": "datepartition=2016-08-03-04",
+        "schemaEvolutionDDLNum": "0",
 
-## Begin and End time metadata for each phase
-"beginConversionDDLExecuteTime": "1470227453370",
-"beginDDLBuildTime": "1470227452382",
-"beginGetWorkunitsTime": "1470227428136",
-"beginPublishDDLExecuteTime": "1470229944141",
-"endConversionDDLExecuteTime": "1470227928486",
-"endDDLBuildTime": "1470227452382",
-"endPublishDDLExecuteTime": "1470229945440",
-"originTimestamp": "1470227446703",
-"previousPublishTs": "1470223843230",
-"upstreamTimestamp": "1470226593984",
-"workunitCreateTime": "1470227446703"
+        ## Begin and End time metadata for each phase
+        "beginConversionDDLExecuteTime": "1470227453370",
+        "beginDDLBuildTime": "1470227452382",
+        "beginGetWorkunitsTime": "1470227428136",
+        "beginPublishDDLExecuteTime": "1470229944141",
+        "endConversionDDLExecuteTime": "1470227928486",
+        "endDDLBuildTime": "1470227452382",
+        "endPublishDDLExecuteTime": "1470229945440",
+        "originTimestamp": "1470227446703",
+        "previousPublishTs": "1470223843230",
+        "upstreamTimestamp": "1470226593984",
+        "workunitCreateTime": "1470227446703"
 
-## Gobblin metrics metadata
-"class": "gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher",
-"metricContextID": "20bfb2a2-0592-4f53-9259-c8ee125f90a8",
-"metricContextName": "gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher.781426901",
+        ## Gobblin metrics metadata
+        "class": "gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher",
+        "metricContextID": "20bfb2a2-0592-4f53-9259-c8ee125f90a8",
+        "metricContextName": "gobblin.data.management.conversion.hive.publisher.HiveConvertPublisher.781426901",
+    }
 }
-}
-</pre>
+```
 
 The diagram below describes timestamps captured in the SLA event.
-<p align="center">
-<figure>
-<img src=../img/Avro-to-Orc-timeline.jpg>
-<figcaption><br>Figure 1: Event metadata description<br></figcaption>
-</figure>
-</p>
+![Event metadata description](../img/Avro-to-Orc-timeline.jpg)
 
 # Sample Job
 
