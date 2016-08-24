@@ -76,10 +76,10 @@ By default publishing happens per dataset (dataset = table in this context). If 
 
 These are some of the job config properties used by `KafkaSource` and `KafkaExtractor`.
 
-<table style="table-layout: fixed; width: 150%">
+<table style="table-layout: fixed; width: 100%">
+  <col width="20%">
   <col width="40%">
-  <col width="50%">
-  <col width="60%">
+  <col width="40%">
    <tr>
       <th>Configuration key</th>
       <th>Description</th>
