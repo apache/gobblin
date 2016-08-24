@@ -35,7 +35,9 @@ public class SchedulerDaemon extends ServiceBasedAppLauncher {
 
   public SchedulerDaemon(Properties properties) throws Exception {
     super(properties, getAppName(properties));
-    addService(new JobScheduler(properties));
+    SchedulerService schedulerService = new SchedulerService(properties);
+    addService(schedulerService);
+    addService(new JobScheduler(properties, schedulerService));
   }
 
   private static String getAppName(Properties properties) {

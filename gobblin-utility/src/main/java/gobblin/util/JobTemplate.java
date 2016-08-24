@@ -12,6 +12,7 @@
 package gobblin.util;
 
 import com.typesafe.config.Config;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Properties;
 
@@ -43,5 +44,5 @@ public interface JobTemplate {
    * Return the combine configuration of template and user customized attributes.
    * @return
    */
-  Config getResolvedConfig(Properties userProps) ;
+  Config getResolvedConfig(Config userProps) throws IOException;
 }

@@ -91,7 +91,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   /**
    * list of partitions that a partition has replaced. E.g. list of hourly partitons for a daily partition
    */
-  private static final String REPLACED_PARTITIONS_HIVE_METASTORE_KEY = "gobblin.replaced.partitions";
+  public static final String REPLACED_PARTITIONS_HIVE_METASTORE_KEY = "gobblin.replaced.partitions";
 
   /**
    * The dataset being converted.
@@ -459,21 +459,28 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     return orcDataLocation + Path.SEPARATOR + orcStagingTableName;
   }
 
-  /**
-   * Parse the {@link #REPLACED_PARTITIONS_HIVE_METASTORE_KEY} from partition parameters to returns DDLs for all the partitions to be
-   * dropped.
-   */
+
   @VisibleForTesting
   public static List<Map<String, String>> getDropPartitionsDDLInfo(QueryBasedHiveConversionEntity conversionEntity) {
     if (!conversionEntity.getHivePartition().isPresent()) {
       return Collections.emptyList();
     }
 
-    Table table = conversionEntity.getHiveTable().getTTable();
-    Partition hivePartition = conversionEntity.getHivePartition().get();
+    return getDropPartitionsDDLInfo(conversionEntity.getHivePartition().get());
 
+  }
+
+  /**
+   * Parse the {@link #REPLACED_PARTITIONS_HIVE_METASTORE_KEY} from partition parameters to returns DDLs for all the partitions to be
+   * dropped.
+   *
+   * @return A {@link List} of partitions to be dropped. Each element of the list is a {@link Map} which maps a partition's
+   * key and value.
+   *
+   */
+  public static List<Map<String, String>> getDropPartitionsDDLInfo(Partition hivePartition) {
     List<Map<String, String>> replacedPartitionsDDLInfo = Lists.newArrayList();
-    List<FieldSchema> partitionKeys = table.getPartitionKeys();
+    List<FieldSchema> partitionKeys = hivePartition.getTable().getPartitionKeys();
 
     if (StringUtils.isNotBlank(hivePartition.getParameters().get(REPLACED_PARTITIONS_HIVE_METASTORE_KEY))) {
 
@@ -493,7 +500,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         }
       }
     }
-
     return replacedPartitionsDDLInfo;
   }
 

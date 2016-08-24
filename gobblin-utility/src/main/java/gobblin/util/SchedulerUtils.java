@@ -34,7 +34,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.filesystem.PathAlterationListener;
-import gobblin.util.filesystem.PathAlterationMonitor;
+import gobblin.util.filesystem.PathAlterationDetector;
 import gobblin.util.filesystem.PathAlterationObserver;
 
 
@@ -59,11 +59,10 @@ public class SchedulerUtils {
   public static List<Properties> loadGenericJobConfigs(Properties properties)
       throws ConfigurationException, IOException {
     Path rootPath = new Path(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
-    PullFileLoader loader =
-        new PullFileLoader(rootPath, rootPath.getFileSystem(new Configuration()), getJobConfigurationFileExtensions(properties),
-            PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
-    Collection<Config>
-        configs = loader.loadPullFilesRecursively(rootPath, ConfigFactory.parseProperties(properties), true);
+    PullFileLoader loader = new PullFileLoader(rootPath, rootPath.getFileSystem(new Configuration()),
+        getJobConfigurationFileExtensions(properties), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
+    Collection<Config> configs =
+        loader.loadPullFilesRecursively(rootPath, ConfigFactory.parseProperties(properties), true);
 
     List<Properties> jobConfigs = Lists.newArrayList();
     for (Config config : configs) {
@@ -85,9 +84,8 @@ public class SchedulerUtils {
       Path jobConfigPathDir)
       throws ConfigurationException, IOException {
 
-    PullFileLoader loader =
-        new PullFileLoader(jobConfigPathDir, jobConfigPathDir.getFileSystem(new Configuration()),
-            getJobConfigurationFileExtensions(properties), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
+    PullFileLoader loader = new PullFileLoader(jobConfigPathDir, jobConfigPathDir.getFileSystem(new Configuration()),
+        getJobConfigurationFileExtensions(properties), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
     Collection<Config> configs =
         loader.loadPullFilesRecursively(commonPropsPath.getParent(), ConfigFactory.parseProperties(properties), true);
 
@@ -110,24 +108,23 @@ public class SchedulerUtils {
   public static Properties loadGenericJobConfig(Properties properties, Path jobConfigPath, Path jobConfigPathDir)
       throws ConfigurationException, IOException {
 
-    PullFileLoader loader =
-        new PullFileLoader(jobConfigPathDir, jobConfigPathDir.getFileSystem(new Configuration()),
-            getJobConfigurationFileExtensions(properties), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
+    PullFileLoader loader = new PullFileLoader(jobConfigPathDir, jobConfigPathDir.getFileSystem(new Configuration()),
+        getJobConfigurationFileExtensions(properties), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
 
     Config config = loader.loadPullFile(jobConfigPath, ConfigFactory.parseProperties(properties), true);
     return resolveTemplate(ConfigUtils.configToProperties(config));
   }
 
   /**
-   * Add {@link gobblin.util.filesystem.PathAlterationMonitor}s for the given
+   * Add {@link PathAlterationDetector}s for the given
    * root directory and any nested subdirectories under the root directory to the given
-   * {@link gobblin.util.filesystem.PathAlterationMonitor}.
+   * {@link PathAlterationDetector}.
    *
-   * @param monitor a {@link gobblin.util.filesystem.PathAlterationMonitor}
+   * @param monitor a {@link PathAlterationDetector}
    * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
    * @param rootDirPath root directory
    */
-  public static void addPathAlterationObserver(PathAlterationMonitor monitor, PathAlterationListener listener,
+  public static void addPathAlterationObserver(PathAlterationDetector monitor, PathAlterationListener listener,
       Path rootDirPath)
       throws IOException {
     PathAlterationObserver observer = new PathAlterationObserver(rootDirPath);
@@ -149,10 +146,10 @@ public class SchedulerUtils {
     }));
   }
 
-  private static Properties resolveTemplate(Properties jobProps) {
+  private static Properties resolveTemplate(Properties jobProps) throws IOException {
     if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      return  (new ResourceBasedTemplate(jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH)))
-          .getResolvedConfigAsProperties(jobProps);
+      return ConfigUtils.configToProperties((new ResourceBasedTemplate(
+          jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfig(ConfigFactory.parseProperties(jobProps)));
     } else {
       return jobProps;
     }

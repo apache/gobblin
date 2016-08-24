@@ -280,4 +280,13 @@ public class JobSpec implements Configurable {
       return this;
     }
   }
+
+  /**
+   * get the private uri as the primary key for this object.
+   * @return
+   */
+  public URI getUri() {
+    return this.uri;
+  }
+
 }

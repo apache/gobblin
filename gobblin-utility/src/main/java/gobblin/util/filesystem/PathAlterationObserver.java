@@ -15,7 +15,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
 
-
 public class PathAlterationObserver {
 
   private final List<PathAlterationListener> listeners = new CopyOnWriteArrayList<>();
@@ -184,33 +183,33 @@ public class PathAlterationObserver {
    *
    * @param parent The parent entry
    * @param previous The original list of paths
-   * @param paths The current list of paths
+   * @param currentPaths The current list of paths
    */
-  private void checkAndNotify(final FileStatusEntry parent, final FileStatusEntry[] previous, final Path[] paths)
+  private void checkAndNotify(final FileStatusEntry parent, final FileStatusEntry[] previous, final Path[] currentPaths)
       throws IOException {
 
     int c = 0;
     final FileStatusEntry[] current =
-        paths.length > 0 ? new FileStatusEntry[paths.length] : FileStatusEntry.EMPTY_ENTRIES;
-    for (final FileStatusEntry entry : previous) {
-      while (c < paths.length && comparator.compare(entry.getPath(), paths[c]) > 0) {
-        current[c] = createPathEntry(parent, paths[c]);
+        currentPaths.length > 0 ? new FileStatusEntry[currentPaths.length] : FileStatusEntry.EMPTY_ENTRIES;
+    for (final FileStatusEntry previousEntry : previous) {
+      while (c < currentPaths.length && comparator.compare(previousEntry.getPath(), currentPaths[c]) > 0) {
+        current[c] = createPathEntry(parent, currentPaths[c]);
         doCreate(current[c]);
         c++;
       }
-      if (c < paths.length && comparator.compare(entry.getPath(), paths[c]) == 0) {
-        doMatch(entry, paths[c]);
-        checkAndNotify(entry, entry.getChildren(), listPaths(paths[c]));
-        current[c] = entry;
+      if (c < currentPaths.length && comparator.compare(previousEntry.getPath(), currentPaths[c]) == 0) {
+        doMatch(previousEntry, currentPaths[c]);
+        checkAndNotify(previousEntry, previousEntry.getChildren(), listPaths(currentPaths[c]));
+        current[c] = previousEntry;
         c++;
       } else {
-        checkAndNotify(entry, entry.getChildren(), EMPTY_PATH_ARRAY);
-        doDelete(entry);
+        checkAndNotify(previousEntry, previousEntry.getChildren(), EMPTY_PATH_ARRAY);
+        doDelete(previousEntry);
       }
     }
 
-    for (; c < paths.length; c++) {
-      current[c] = createPathEntry(parent, paths[c]);
+    for (; c < currentPaths.length; c++) {
+      current[c] = createPathEntry(parent, currentPaths[c]);
       doCreate(current[c]);
     }
     parent.setChildren(current);
@@ -244,10 +243,10 @@ public class PathAlterationObserver {
 
     final FileStatusEntry[] children =
         paths.length > 0 ? new FileStatusEntry[paths.length] : FileStatusEntry.EMPTY_ENTRIES;
-    for (int i = 0 ; i < paths.length ; i ++ ) {
-      children[i] = createPathEntry(entry, paths[i]) ;
+    for (int i = 0; i < paths.length; i++) {
+      children[i] = createPathEntry(entry, paths[i]);
     }
-    return children ;
+    return children;
   }
 
   /**
@@ -256,6 +255,7 @@ public class PathAlterationObserver {
    * @param entry The file entry
    */
   private void doCreate(final FileStatusEntry entry) {
+
     for (final PathAlterationListener listener : listeners) {
       if (entry.isDirectory()) {
         listener.onDirectoryCreate(entry.getPath());

@@ -25,7 +25,7 @@ import gobblin.source.extractor.Extractor;
  * from a {@link org.apache.hadoop.mapreduce.lib.input.FileSplit}.
  *
  * <p>
- *   This class can read either keys of type {@link #<K>} or values of type {@link #<V>} using the
+ *   This class can read either keys of type K or values of type V using the
  *   given {@link RecordReader}, depending on the value of the second argument of the constructor
  *   {@link #HadoopFileInputExtractor(RecordReader, boolean)}. It will read keys if the argument
  *   is {@code true}, otherwise it will read values. Normally, this is specified using the property
@@ -34,8 +34,8 @@ import gobblin.source.extractor.Extractor;
  *
  * <p>
  *   This class provides a default implementation of {@link #readRecord(Object)} that simply casts
- *   the keys or values read by the {@link RecordReader} into type {@link #<D>}. It is required
- *   that type {@link #<K>} or {@link #<V>} can be safely casted to type {@link #<D>}.
+ *   the keys or values read by the {@link RecordReader} into type D. It is required
+ *   that type K or V can be safely casted to type D.
  * </p>
  *
  * <p>
@@ -48,10 +48,10 @@ import gobblin.source.extractor.Extractor;
  *   method.
  * </p>
  *
- * @param <S> output schema type
- * @param <D> output data record type that MUST be compatible with either {@link #<K>} or {@link #<V>}
- * @param <K> key type expected by the {@link RecordReader}
- * @param <V> value type expected by the {@link RecordReader}
+ * @param S output schema type
+ * @param D output data record type that MUST be compatible with either K or V
+ * @param K key type expected by the {@link RecordReader}
+ * @param V value type expected by the {@link RecordReader}
  *
  * @author Yinan Li
  */

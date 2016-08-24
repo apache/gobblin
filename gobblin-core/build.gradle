@@ -49,6 +49,7 @@ dependencies {
   compile externalDependency.confluentSchemaRegistryClient
   compile externalDependency.confluentAvroSerializer
   compile externalDependency.confluentJsonSerializer
+  compile externalDependency.oltu
 
   runtime externalDependency.protobuf
 
@@ -60,6 +61,8 @@ dependencies {
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.mockRunnerJdbc
+  testCompile externalDependency.httpcore
+  testCompile externalDependency.httpclient
 }
 
 configurations {

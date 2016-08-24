@@ -31,5 +31,5 @@ public interface MutableJobCatalog extends JobCatalog {
   /**
    * Removes an existing JobSpec with the given URI. A no-op if such JobSpec does not exist.
    */
-  public void remove(URI uri);
+  void remove(URI uri);
 }

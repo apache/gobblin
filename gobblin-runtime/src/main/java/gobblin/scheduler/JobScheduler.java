@@ -20,6 +20,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.hadoop.fs.Path;
@@ -62,7 +64,7 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.SchedulerUtils;
 import gobblin.util.filesystem.PathAlterationListener;
-import gobblin.util.filesystem.PathAlterationMonitor;
+import gobblin.util.filesystem.PathAlterationDetector;
 
 
 /**
@@ -98,7 +100,7 @@ public class JobScheduler extends AbstractIdleService {
   public final Properties properties;
 
   // A Quartz scheduler
-  private final Scheduler scheduler;
+  private final SchedulerService scheduler;
 
   // A thread pool executor for running jobs without schedules
   protected final ExecutorService jobExecutor;
@@ -113,16 +115,16 @@ public class JobScheduler extends AbstractIdleService {
   public final Set<String> jobConfigFileExtensions;
 
   // A monitor for changes to job conf files for general FS
-  public final PathAlterationMonitor pathAlterationMonitor;
+  public final PathAlterationDetector pathAlterationDetector;
 
   // A period of time for scheduler to wait until jobs are finished
   private final boolean waitForJobCompletion;
 
 
-  public JobScheduler(Properties properties)
+  public JobScheduler(Properties properties, SchedulerService scheduler)
       throws Exception {
     this.properties = properties;
-    this.scheduler = new StdSchedulerFactory().getScheduler();
+    this.scheduler = scheduler;
 
     this.jobExecutor = Executors.newFixedThreadPool(Integer.parseInt(
         properties.getProperty(ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY,
@@ -137,7 +139,7 @@ public class JobScheduler extends AbstractIdleService {
     long pollingInterval = Long.parseLong(
         this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
             Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
-    this.pathAlterationMonitor = new PathAlterationMonitor(pollingInterval);
+    this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
 
     this.waitForJobCompletion = Boolean.parseBoolean(
         this.properties.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
@@ -148,7 +150,12 @@ public class JobScheduler extends AbstractIdleService {
   protected void startUp()
       throws Exception {
     LOG.info("Starting the job scheduler");
-    this.scheduler.start();
+
+    try {
+      this.scheduler.awaitRunning(1, TimeUnit.SECONDS);
+    } catch (TimeoutException | IllegalStateException exc) {
+      throw new IllegalStateException("Scheduler service is not running.");
+    }
 
     // Note: This should not be mandatory, gobblin-cluster modes have their own job configuration managers
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
@@ -175,14 +182,10 @@ public class JobScheduler extends AbstractIdleService {
 
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY) || this.properties.containsKey(
         ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
-      this.pathAlterationMonitor.stop(1000);
+      this.pathAlterationDetector.stop(1000);
     }
 
-    try {
-      ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
-    } finally {
-      this.scheduler.shutdown(this.waitForJobCompletion);
-    }
+    ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
   }
 
   /**
@@ -266,7 +269,7 @@ public class JobScheduler extends AbstractIdleService {
 
     try {
       // Schedule the Quartz job with a trigger built from the job configuration
-      this.scheduler.scheduleJob(job, getTrigger(job.getKey(), jobProps));
+      this.scheduler.getScheduler().scheduleJob(job, getTrigger(job.getKey(), jobProps));
     } catch (SchedulerException se) {
       LOG.error("Failed to schedule job " + jobName, se);
       throw new JobException("Failed to schedule job " + jobName, se);
@@ -285,7 +288,7 @@ public class JobScheduler extends AbstractIdleService {
       throws JobException {
     if (this.scheduledJobs.containsKey(jobName)) {
       try {
-        this.scheduler.deleteJob(this.scheduledJobs.remove(jobName));
+        this.scheduler.getScheduler().deleteJob(this.scheduledJobs.remove(jobName));
       } catch (SchedulerException se) {
         LOG.error("Failed to unschedule and delete job " + jobName, se);
         throw new JobException("Failed to unschedule and delete job " + jobName, se);
@@ -353,7 +356,7 @@ public class JobScheduler extends AbstractIdleService {
       closer.register(jobLauncher).launchJob(jobListener);
       boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
       if (runOnce && this.scheduledJobs.containsKey(jobName)) {
-        this.scheduler.deleteJob(this.scheduledJobs.remove(jobName));
+        this.scheduler.getScheduler().deleteJob(this.scheduledJobs.remove(jobName));
       }
     } catch (Throwable t) {
       throw new JobException("Failed to launch and run job " + jobName, t);
@@ -419,8 +422,8 @@ public class JobScheduler extends AbstractIdleService {
         new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
 
     PathAlterationListener listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath, this);
-    SchedulerUtils.addPathAlterationObserver(this.pathAlterationMonitor, listener, jobConfigFileDirPath);
-    this.pathAlterationMonitor.start();
+    SchedulerUtils.addPathAlterationObserver(this.pathAlterationDetector, listener, jobConfigFileDirPath);
+    this.pathAlterationDetector.start();
   }
 
   /**
