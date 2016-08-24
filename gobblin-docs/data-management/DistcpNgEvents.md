@@ -23,7 +23,7 @@ Events by `name`:
 
 - `FilePublished` - sent when an individual file gets published
     - `datasetUrn` - the URN of the dataset (dataset-specific) of which the part is part
-    - `partition` - the partition (dataset-specific) of which the part is part
+    - `partition` - the partition (dataset-specific) of which this file is part
     - `SourcePath` - the full source path for the file 
     - `TargetPath` - the full destination path for the file 
     - `originTimestamp` - similar to `originTimestamp` for `DatasetPublished` events
