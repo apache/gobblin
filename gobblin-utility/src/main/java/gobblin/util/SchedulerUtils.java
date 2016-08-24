@@ -146,10 +146,10 @@ public class SchedulerUtils {
     }));
   }
 
-  private static Properties resolveTemplate(Properties jobProps) {
+  private static Properties resolveTemplate(Properties jobProps) throws IOException {
     if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      return (new ResourceBasedTemplate(
-          jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfigAsProperties(jobProps);
+      return ConfigUtils.configToProperties((new ResourceBasedTemplate(
+          jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfig(ConfigFactory.parseProperties(jobProps)));
     } else {
       return jobProps;
     }
