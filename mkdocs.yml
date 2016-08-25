@@ -27,9 +27,11 @@ pages:
         - Configuration Glossary: user-guide/Configuration-Properties-Glossary.md
         - Partitioned Writers: user-guide/Partitioned-Writers.md
         - Monitoring: user-guide/Monitoring.md
+        - Template: user-guide/Gobblin-template.md
         - Schedulers: user-guide/Gobblin-Schedulers.md
         - Job Execution History Store: user-guide/Job-Execution-History-Store.md
         - Building Gobblin: user-guide/Building-Gobblin.md
+        - Generic Configuration Loading: user-guide/Gobblin-genericLoad.md
         - JDBC Writer: user-guide/Gobblin-JDBC-Writer.md
         - Hive Registration: user-guide/Hive-Registration.md
         - Config Management : user-guide/Config-Management.md
@@ -37,13 +39,14 @@ pages:
         - FAQs: user-guide/FAQs.md
     - Gobblin Adaptors:
         - Gobblin Distcp: adaptors/Gobblin-Distcp.md
+        - Hive Avro-To-Orc Converter: adaptors/Hive-Avro-To-ORC-Converter.md
     - Case Studies:
         - Kafka-HDFS Ingestion: case-studies/Kafka-HDFS-Ingestion.md
         - Publishing Data to S3: case-studies/Publishing-Data-to-S3.md
         - Writing ORC Data: case-studies/Writing-ORC-Data.md
+        - Hive Distcp: case-studies/Hive-Distcp.md
     - Gobblin Data Management:
         - Retention: data-management/Gobblin-Retention.md
-        - Distcp-NG events: data-management/DistcpNgEvents.md
     - Gobblin Metrics:
         - Quick Start: metrics/Gobblin-Metrics.md
         - Existing Reporters: metrics/Existing-Reporters.md
