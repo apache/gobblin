@@ -47,6 +47,7 @@ pages:
         - Hive Distcp: case-studies/Hive-Distcp.md
     - Gobblin Data Management:
         - Retention: data-management/Gobblin-Retention.md
+        - Distcp-NG events: data-management/DistcpNgEvents.md
     - Gobblin Metrics:
         - Quick Start: metrics/Gobblin-Metrics.md
         - Existing Reporters: metrics/Existing-Reporters.md
