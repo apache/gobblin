@@ -172,8 +172,8 @@ public class KafkaDataWriterUnitTest {
     testKafkaWrites(new ConstantTimingType(10000), 4000, 0, false);
     // Every 7th call incurs 10s latency, every other call incurs 1s latency
     testKafkaWrites(new NthTimingType(7, 1000, 10000), 4000, 0, false);
-    // Every 7th call incurs 10s latency, every other call incurs 1s latency
-    testKafkaWrites(new NthTimingType(7, 1000, 10000), 4000, 89.9, true);
+    // Every 7th call incurs 10s latency, every other call incurs 1s latency, failures allowed < 11%
+    testKafkaWrites(new NthTimingType(7, 1000, 10000), 4000, 11, true);
 
   }
 

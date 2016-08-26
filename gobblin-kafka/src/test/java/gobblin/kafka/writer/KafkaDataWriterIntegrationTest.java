@@ -144,8 +144,7 @@ public class KafkaDataWriterIntegrationTest {
     final ConsumerIterator<byte[], byte[]> iterator = kafkaTestHelper.getIteratorForTopic(topic);
     for (int i = 0; i < totalSuccessful; ++i) {
       String message = new String(iterator.next().message(), "UTF-8");
-      log.warn(String.format("%d of %d: Message consumed: %s", (i+1), totalSuccessful, message));
-      System.out.println(message);
+      log.debug(String.format("%d of %d: Message consumed: %s", (i+1), totalSuccessful, message));
     }
 
   }

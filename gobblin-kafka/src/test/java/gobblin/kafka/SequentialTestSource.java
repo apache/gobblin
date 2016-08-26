@@ -36,18 +36,13 @@ import gobblin.util.ConfigUtils;
 
 
 /**
- * Created by sdas on 7/23/16.
+ * A Test source that generates a sequence of records
  */
 @Slf4j
 public class SequentialTestSource implements Source<String, String> {
   private static final int DEFAULT_NUM_PARALLELISM = 1;
   private static final String DEFAULT_NAMESPACE = "TestDB";
   private static final String DEFAULT_TABLE = "TestTable";
-  /**
-  public static final String SCHEMA_STRING =
-      "\"namespace\": \"gobblin.test\",\"type\": \"record\",\"name\": \"TestLongRecord\","
-          + "\"fields\": [{\"name\": \"sequence\", \"type\": \"long\"}], }";
-  **/
   private static final Integer DEFAULT_NUM_RECORDS_PER_EXTRACT = 100;
   public static final String WORK_UNIT_INDEX = "workUnitIndex";
 
@@ -88,7 +83,7 @@ public class SequentialTestSource implements Source<String, String> {
           LongWatermark expectedWatermark = new LongWatermark(watermark.getValue() + numRecordsPerExtract);
           WatermarkInterval watermarkInterval = new WatermarkInterval(watermark, expectedWatermark);
           workUnit = WorkUnit.create(newExtract(tableType, namespace, table), watermarkInterval);
-          log.warn("Will be setting watermark interval to " + watermarkInterval.toJson());
+          log.debug("Will be setting watermark interval to " + watermarkInterval.toJson());
           workUnit.setProp(WORK_UNIT_INDEX, workUnitState.getWorkunit().getProp(WORK_UNIT_INDEX));
         }
         else
@@ -98,7 +93,7 @@ public class SequentialTestSource implements Source<String, String> {
           LongWatermark expectedWatermark = new LongWatermark(watermark.getValue() + numRecordsPerExtract);
           WatermarkInterval watermarkInterval = new WatermarkInterval(watermark, expectedWatermark);
           workUnit = WorkUnit.create(newExtract(tableType, namespace, table), watermarkInterval);
-          log.warn("Will be setting watermark interval to " + watermarkInterval.toJson());
+          log.debug("Will be setting watermark interval to " + watermarkInterval.toJson());
           workUnit.setProp(WORK_UNIT_INDEX, workUnitState.getWorkunit().getProp(WORK_UNIT_INDEX));
         }
         newWorkUnits.add(workUnit);
@@ -150,7 +145,7 @@ public class SequentialTestSource implements Source<String, String> {
           throws DataRecordException, IOException {
         if (recordsExtracted < numRecordsPerExtract) {
           String record = ":index:" + index + ":seq:" + currentWatermark.getValue() + ":";
-          log.warn("Extracted record -> " + record);
+          log.debug("Extracted record -> " + record);
           currentWatermark.increment();
           recordsExtracted++;
           return record;

@@ -122,7 +122,7 @@ public class KafkaDataWriter<D> extends InstrumentedDataWriter<D> {
           if (null == exception) {
             recordsWritten.mark();
           } else {
-            log.warn("record failed to write", exception);
+            log.debug("record failed to write", exception);
             recordsFailed.mark();
           }
       }
@@ -203,7 +203,7 @@ public class KafkaDataWriter<D> extends InstrumentedDataWriter<D> {
       }
       else
       {
-        message += "\nCommitting because failureRatio: " + failureRatio +
+        message += "\nCommitting because failureRatio percentage: " + (failureRatio * 100.0) +
             " is less than the failureAllowance percentage: " + (failureAllowance * 100.0);
         log.warn(message);
       }
