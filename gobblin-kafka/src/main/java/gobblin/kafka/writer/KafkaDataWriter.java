@@ -16,26 +16,22 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Meter;
 import com.google.common.base.Throwables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.instrumented.writer.InstrumentedDataWriter;
 import gobblin.util.ConfigUtils;
-import gobblin.writer.DataWriter;
 
 import static gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
 /**
@@ -45,7 +41,7 @@ import static gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
  *
  */
 @Slf4j
-public class KafkaDataWriter<D> implements DataWriter<D> {
+public class KafkaDataWriter<D> extends InstrumentedDataWriter<D> {
 
   private static final long MILLIS_TO_NANOS = 1000 * 1000;
 
@@ -53,12 +49,12 @@ public class KafkaDataWriter<D> implements DataWriter<D> {
   private final Callback producerCallback;
   private final String topic;
   private final long commitTimeoutInNanos;
+  private final long commitStepWaitTimeMillis;
+  private final double failureAllowance;
   private final AtomicInteger bytesWritten;
-  private final AtomicInteger recordsWritten;
-  private long recordsProduced;
-  private long recordsFailed;
-  private final Lock lock;
-  private final Condition stateChange;
+  private final Meter recordsWritten;
+  private final Meter recordsFailed;
+  private final Meter recordsProduced;
 
 
   private static Properties getProducerProperties(Properties props)
@@ -107,32 +103,28 @@ public class KafkaDataWriter<D> implements DataWriter<D> {
 
   public KafkaDataWriter(KafkaProducer producer, Config config)
   {
-    recordsProduced = 0;
-    recordsWritten = new AtomicInteger(0);
-    recordsFailed = 0;
+    super(ConfigUtils.configToState(config));
+    recordsProduced = getMetricContext().meter(KafkaWriterMetricNames.RECORDS_PRODUCED_METER);
+    recordsWritten = getMetricContext().meter(KafkaWriterMetricNames.RECORDS_SUCCESS_METER);
+    recordsFailed = getMetricContext().meter(KafkaWriterMetricNames.RECORDS_FAILED_METER);
     bytesWritten = new AtomicInteger(-1);
-    lock = new ReentrantLock();
-    stateChange = lock.newCondition();
     this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
     this.commitTimeoutInNanos = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
         KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT) * MILLIS_TO_NANOS;
+    this.commitStepWaitTimeMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_CONFIG,
+        KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_DEFAULT);
+    this.failureAllowance = ConfigUtils.getDouble(config, KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG,
+        KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_DEFAULT) / 100.0;
     this.producer = producer;
     this.producerCallback = new Callback() {
       @Override
       public void onCompletion(RecordMetadata metadata, Exception exception) {
-        lock.lock();
-        try {
           if (null == exception) {
-            recordsWritten.incrementAndGet();
+            recordsWritten.mark();
           } else {
             log.warn("record failed to write", exception);
-            recordsFailed++;
+            recordsFailed.mark();
           }
-          stateChange.signal();
-        }
-        finally {
-          lock.unlock();
-        }
       }
     };
   }
@@ -151,25 +143,23 @@ public class KafkaDataWriter<D> implements DataWriter<D> {
   }
 
   @Override
-  public void write(D record)
+  public void writeImpl(D record)
       throws IOException {
     log.debug("Write called");
-    lock.lock();
-    try
-    {
-      this.producer.send(new ProducerRecord<String, D>(topic, record), this.producerCallback);
-      recordsProduced++;
-    }
-    finally {
-      lock.unlock();
-    }
+    this.producer.send(new ProducerRecord<String, D>(topic, record), this.producerCallback);
+    recordsProduced.mark();
   }
 
   @Override
   public void close()
       throws IOException {
     log.debug("Close called");
-    this.producer.close();
+    try {
+      this.producer.close();
+    }
+    finally {
+      super.close();
+    }
   }
 
   @Override
@@ -177,37 +167,48 @@ public class KafkaDataWriter<D> implements DataWriter<D> {
       throws IOException {
     log.debug("Commit called, will wait for commitTimeout : " + commitTimeoutInNanos / MILLIS_TO_NANOS + "ms");
     long commitStartTime = System.nanoTime();
-    lock.lock();
-    try {
-      while (((System.nanoTime() - commitStartTime) < commitTimeoutInNanos)  &&
-      (recordsProduced != (recordsWritten.get() + recordsFailed)))
-      {
-        log.debug("Commit waiting... records produced: " + recordsProduced + " written: " + recordsWritten.get() + " failed: " + recordsFailed);
-        try {
-          stateChange.awaitNanos(commitTimeoutInNanos);
-        } catch (InterruptedException e) {
-          throw new IOException(e);
-        }
+    while (((System.nanoTime() - commitStartTime) < commitTimeoutInNanos)  &&
+        (recordsProduced.getCount() != (recordsWritten.getCount() + recordsFailed.getCount())))
+    {
+      log.debug("Commit waiting... records produced: " + recordsProduced.getCount() + " written: "
+          + recordsWritten.getCount() + " failed: " + recordsFailed.getCount());
+      try {
+        Thread.sleep(commitStepWaitTimeMillis);
+      } catch (InterruptedException e) {
+        throw new IOException("Interrupted while waiting for commit to complete", e);
       }
-      log.debug("Commit done waiting");
-      if (recordsProduced != (recordsWritten.get() + recordsFailed)) // timeout
+    }
+    log.debug("Commit done waiting");
+    long recordsProducedFinal = recordsProduced.getCount();
+    long recordsWrittenFinal = recordsWritten.getCount();
+    long recordsFailedFinal = recordsFailed.getCount();
+    long unacknowledgedWrites  = recordsProducedFinal - recordsWrittenFinal - recordsFailedFinal;
+    long totalFailures = unacknowledgedWrites + recordsFailedFinal;
+    if (unacknowledgedWrites > 0) // timeout
+    {
+      log.warn("Timeout waiting for all writes to be acknowledged. Missing " + unacknowledgedWrites
+          + " responses out of " + recordsProducedFinal);
+    }
+    if (totalFailures > 0 && recordsProducedFinal > 0)
+    {
+      String message = "Commit failed to write " + totalFailures
+          + " records (" + recordsFailedFinal + " failed, " + unacknowledgedWrites + " unacknowledged) out of "
+          + recordsProducedFinal + " produced.";
+      double failureRatio = (double)totalFailures / (double)recordsProducedFinal;
+      if (failureRatio > failureAllowance)
       {
-        String message = "Commit timeout: RecordsWritten = " + recordsWritten.get()
-            + "; RecordsFailed = " + recordsFailed;
-        log.debug(message);
+        message += "\nAborting because this is greater than the failureAllowance percentage: " + failureAllowance*100.0;
+        log.error(message);
         throw new IOException(message);
       }
-      if (recordsFailed > 0)
+      else
       {
-        String message = "Commit failed to write " + recordsFailed + " records.";
-        log.debug(message);
-        throw new IOException(message);
+        message += "\nCommitting because failureRatio: " + failureRatio +
+            " is less than the failureAllowance percentage: " + (failureAllowance * 100.0);
+        log.warn(message);
       }
-      log.debug("Commit successful...");
     }
-    finally{
-      lock.unlock();
-    }
+    log.info("Successfully committed " + recordsWrittenFinal + " records.");
   }
 
   @Override
@@ -219,7 +220,7 @@ public class KafkaDataWriter<D> implements DataWriter<D> {
 
   @Override
   public long recordsWritten() {
-    return recordsWritten.get();
+    return recordsWritten.getCount();
   }
 
   @Override

@@ -31,4 +31,8 @@ public class KafkaWriterConfigurationKeys {
   static final long COMMIT_TIMEOUT_MILLIS_DEFAULT = 60000; // 1 minute
   static final String CLIENT_ID_CONFIG = "client.id";
   static final String CLIENT_ID_DEFAULT = "gobblin";
+  static final String COMMIT_STEP_WAIT_TIME_CONFIG = "commitStepWaitTimeMillis";
+  static final long COMMIT_STEP_WAIT_TIME_DEFAULT = 500; // 500ms
+  static final String FAILURE_ALLOWANCE_PCT_CONFIG = "failureAllowancePercentage";
+  static final double FAILURE_ALLOWANCE_PCT_DEFAULT = 20.0;
 }

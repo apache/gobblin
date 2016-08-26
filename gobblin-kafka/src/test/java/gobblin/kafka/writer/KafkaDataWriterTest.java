@@ -77,13 +77,13 @@ public class KafkaDataWriterTest {
     String messageString = "foobar";
     try {
       kafkaWriter.write(messageString);
+      kafkaWriter.commit();
     }
     finally
     {
       kafkaWriter.close();
     }
 
-    Thread.sleep(500);
     Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     String messageReceived = new String(message);
@@ -106,13 +106,13 @@ public class KafkaDataWriterTest {
 
     try {
       kafkaWriter.write(messageBytes);
+      kafkaWriter.commit();
     }
     finally
     {
       kafkaWriter.close();
     }
 
-    Thread.sleep(500);
     Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     Assert.assertEquals(message, messageBytes);
@@ -140,13 +140,13 @@ public class KafkaDataWriterTest {
     GenericRecord record = KafkaTestUtils.generateRandomAvroRecord();
     try {
       kafkaWriter.write(record);
+      kafkaWriter.commit();
     }
     finally
     {
       kafkaWriter.close();
     }
 
-    Thread.sleep(500);
     Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     ConfigDrivenMd5SchemaRegistry schemaReg = new ConfigDrivenMd5SchemaRegistry(topic, record.getSchema());

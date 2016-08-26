@@ -166,17 +166,24 @@ public class KafkaDataWriterUnitTest {
 
   @Test
   public void testSlowKafka() throws Exception {
-    testKafkaWrites(new ConstantTimingType(1000), 40000, true);
-    testKafkaWrites(new ConstantTimingType(10000), 4000, false);
-    testKafkaWrites(new NthTimingType(7, 1000, 10000), 4000, false);
+    // Every call incurs 1s latency, commit timeout is 40s
+    testKafkaWrites(new ConstantTimingType(1000), 40000, 0, true);
+    // Every call incurs 10s latency, commit timeout is 4s
+    testKafkaWrites(new ConstantTimingType(10000), 4000, 0, false);
+    // Every 7th call incurs 10s latency, every other call incurs 1s latency
+    testKafkaWrites(new NthTimingType(7, 1000, 10000), 4000, 0, false);
+    // Every 7th call incurs 10s latency, every other call incurs 1s latency
+    testKafkaWrites(new NthTimingType(7, 1000, 10000), 4000, 89.9, true);
+
   }
 
-  private void testKafkaWrites(TimingType timingType, long commitTimeout, boolean success)
+  private void testKafkaWrites(TimingType timingType, long commitTimeout, double failurePercentage, boolean success)
   {
     TimingManager timingManager = new TimingManager(false, timingType); // 1s latency per record
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, "Test");
     props.setProperty(KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG, "" + commitTimeout);
+    props.setProperty(KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG, "" + failurePercentage);
     props.setProperty("bootstrap.servers", "localhost:9092");
     props.setProperty("key.serializer", KafkaWriterConfigurationKeys.DEFAULT_KEY_SERIALIZER);
     props.setProperty("value.serializer", KafkaWriterConfigurationKeys.DEFAULT_VALUE_SERIALIZER);
@@ -258,9 +265,14 @@ public class KafkaDataWriterUnitTest {
     KafkaDataWriter<byte[]> kafkaWriter = new KafkaDataWriter<>(flakyKafkaProducer, ConfigFactory.parseProperties(props));
 
     byte[] messageBytes = KafkaTestUtils.generateRandomBytes();
+    kafkaWriter.write(messageBytes);
 
     try {
-      kafkaWriter.write(messageBytes);
+      kafkaWriter.commit();
+    }
+    catch (IOException e)
+    {
+      // ok for commit to throw exception
     }
     finally
     {

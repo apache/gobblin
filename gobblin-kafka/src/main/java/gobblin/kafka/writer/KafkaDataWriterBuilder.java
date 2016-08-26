@@ -26,7 +26,7 @@ import gobblin.writer.PartitionAwareDataWriterBuilder;
 /**
  * Builder that hands back a {@link KafkaDataWriter}
  */
-public class KafkaDataWriterBuilder extends PartitionAwareDataWriterBuilder<Schema, GenericRecord> {
+public class KafkaDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
   /**
    * Build a {@link DataWriter}.
    *
@@ -41,16 +41,4 @@ public class KafkaDataWriterBuilder extends PartitionAwareDataWriterBuilder<Sche
     return new KafkaDataWriter<>(taskProps);
   }
 
-  /**
-   * Checks whether the {@link PartitionAwareDataWriterBuilder} is compatible with a given partition {@link Schema}.
-   * If this method returns false, the execution will crash with an error. If this method returns true, the
-   * {@link DataWriterBuilder} is expected to be able to understand the partitioning schema and handle it correctly.
-   * @param partitionSchema {@link Schema} of {@link GenericRecord} objects that will be passed to {@link #forPartition}.
-   * @return true if the {@link DataWriterBuilder} can understand the schema and is able to generate partitions from
-   *        this schema.
-   */
-  @Override
-  public boolean validatePartitionSchema(Schema partitionSchema) {
-    return true;
-  }
 }

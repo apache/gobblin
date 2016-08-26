@@ -21,7 +21,8 @@ import gobblin.util.ConfigUtils;
 
 
 /**
- * Created by sdas on 7/17/16.
+ * A class that can be configured to simulate errors
+ * {@see FlakyKafkaProducer} for usage.
  */
 public class ErrorManager<D> {
 
