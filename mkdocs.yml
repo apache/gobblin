@@ -37,6 +37,8 @@ pages:
         - Config Management : user-guide/Config-Management.md
         - Troubleshooting: user-guide/Troubleshooting.md
         - FAQs: user-guide/FAQs.md
+    - Sinks:
+        - Kafka: sinks/Kafka.md
     - Gobblin Adaptors:
         - Gobblin Distcp: adaptors/Gobblin-Distcp.md
     - Case Studies:
