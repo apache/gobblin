@@ -182,6 +182,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         cleanUpWorkingDirectory();
       } finally {
         super.close();
+        fs.close();
       }
     }
   }
@@ -497,7 +498,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private static FileSystem buildFileSystem(Properties jobProps, Configuration configuration)
       throws IOException {
     URI fsUri = URI.create(jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
-    return FileSystem.get(fsUri, configuration);
+    return FileSystem.newInstance(fsUri, configuration);
   }
 
   /**
