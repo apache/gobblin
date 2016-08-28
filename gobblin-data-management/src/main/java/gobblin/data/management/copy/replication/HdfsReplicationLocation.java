@@ -6,6 +6,12 @@ import com.typesafe.config.Config;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+/**
+ * Class HdfsReplicationLocation is used to specify the Hdfs location of the replication data,
+ * including hdfs colo, hdfs cluster name and hdfs path.
+ * @author mitu
+ *
+ */
 @AllArgsConstructor
 public class HdfsReplicationLocation implements ReplicationLocation{
   public static final String HDFS_COLO_KEY = "cluster.colo";

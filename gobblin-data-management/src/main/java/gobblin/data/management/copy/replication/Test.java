@@ -25,14 +25,16 @@ public class Test {
     //displayAllConfig(source);
     //displayAllConfig(c.getConfig(ReplicationConfiguration.REPLICATION_REPLICAS));
     
-    //ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
-    ReplicationMetaData md = ReplicationConfiguration.buildMetaData(c);
+    ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
+    //ReplicationMetaData md = ReplicationUtils.buildMetaData(c);
+    ReplicationMetaData md = rc.getMetaData();
     System.out.println("metadata : " + md);
     
-    ReplicationSource source = ReplicationConfiguration.buildSource(c);
+    //ReplicationSource source = ReplicationUtils.buildSource(c);
+    ReplicationSource source = rc.getSource();
     System.out.println("source : " + source);
     
-    List<ReplicationReplica> replicas = ReplicationConfiguration.buildReplicas(c);
+    List<ReplicationReplica> replicas = rc.getReplicas(); //ReplicationUtils.buildReplicas(c);
     for(ReplicationReplica r: replicas){
       System.out.println("replica: " + r);
     }

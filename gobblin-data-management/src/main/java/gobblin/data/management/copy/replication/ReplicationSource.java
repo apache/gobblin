@@ -19,7 +19,7 @@ public class ReplicationSource extends AbstractReplicationData {
   private final Optional datasetsFinder;
 
   public ReplicationSource(ReplicationLocation rl, Optional ds){
-    super(ReplicationConfiguration.REPLICATION_SOURCE, rl);
+    super(ReplicationUtils.REPLICATION_SOURCE, rl);
     this.datasetsFinder = ds;
   }
 

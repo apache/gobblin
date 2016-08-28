@@ -3,7 +3,6 @@ package gobblin.data.management.copy.replication;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -14,17 +13,20 @@ import com.typesafe.config.ConfigValue;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+/**
+ * Class ReplicationConfiguration is used to describe the overall configuration of the replication flow for
+ * a specific {@link ReplicationData}, including:
+ * <ul>
+ *  <li>Meta data 
+ *  <li>Replication source
+ *  <li>Replication replicas
+ *  <li>Replication topology
+ * </ul>
+ * @author mitu
+ *
+ */
 @AllArgsConstructor
 public class ReplicationConfiguration {
-  
-  public static final String METADATA = "metadata";
-  public static final String METADATA_JIRA = "jira";
-  public static final String METADATA_OWNER = "owner";
-  public static final String METADATA_NAME = "name";
-  
-  public static final String REPLICATION_SOURCE = "source";
-  public static final String REPLICATION_REPLICAS = "replicas";
-  public static final String REPLICATOIN_REPLICAS_LIST = "list";
 
   @Getter
   private final ReplicationMetaData metaData;
@@ -41,48 +43,57 @@ public class ReplicationConfiguration {
   public static ReplicationConfiguration buildFromConfig(Config config){
     if(config == null) return null;
     
-    return new ReplicationConfiguration(buildMetaData(config),
-        buildSource(config), buildReplicas(config), null);
+//    return new ReplicationConfiguration(buildMetaData(config),
+//        buildSource(config), buildReplicas(config), null);
+    
+    return new Builder()
+        .withReplicationMetaData(ReplicationUtils.buildMetaData(config))
+        .withReplicationSource(ReplicationUtils.buildSource(config))
+        .withReplicationReplicas(ReplicationUtils.buildReplicas(config))
+        .withDataFlowTopology(null)
+        .build();
   }
   
-  public static ReplicationMetaData buildMetaData(Config config){
-    if(!config.hasPath(METADATA)){
-      return new ReplicationMetaData(Optional.absent(), Optional.absent(), Optional.absent());
+  private ReplicationConfiguration (Builder builder){
+    this.metaData = builder.metaData;
+    this.source = builder.source;
+    this.replicas = builder.replicas;
+    this.topology = builder.topology;
+  }
+  
+  
+  
+  private static class Builder {
+    private ReplicationMetaData metaData;
+
+    private ReplicationSource source;
+
+    private List<ReplicationReplica> replicas;
+
+    private DataFlowTopology topology;
+
+    public Builder withReplicationMetaData(ReplicationMetaData metaData) {
+      this.metaData = metaData;
+      return this;
+    }
+
+    public Builder withReplicationSource(ReplicationSource source) {
+      this.source = source;
+      return this;
     }
     
-    Config metaDataConfig = config.getConfig(METADATA);
-    
-    Optional<String> metaDataJira = metaDataConfig.hasPath(METADATA_JIRA)? Optional.of(metaDataConfig.getString(METADATA_JIRA)): Optional.absent();
-    Optional<String> metaDataOwner = metaDataConfig.hasPath(METADATA_OWNER)? Optional.of(metaDataConfig.getString(METADATA_OWNER)): Optional.absent();
-    Optional<String> metaDataName = metaDataConfig.hasPath(METADATA_NAME)? Optional.of(metaDataConfig.getString(METADATA_NAME)): Optional.absent();
-    
-    ReplicationMetaData metaData = new ReplicationMetaData(metaDataJira, metaDataOwner, metaDataName);
-    return metaData;
-  }
-  
-  public static ReplicationSource buildSource(Config config){
-    Preconditions.checkArgument(config.hasPath(REPLICATION_SOURCE));
-    
-    Config sourceConfig = config.getConfig(REPLICATION_SOURCE);
-    
-    return new ReplicationSource(ReplicationLocationBuilder.buildReplicationLocation(sourceConfig), Optional.absent());
-  }
-  
-  public static List<ReplicationReplica> buildReplicas(Config config){
-    Preconditions.checkArgument(config.hasPath(REPLICATION_REPLICAS));
-    
-    Config replicaConfig = config.getConfig(REPLICATION_REPLICAS);
-    Preconditions.checkArgument(replicaConfig.hasPath(REPLICATOIN_REPLICAS_LIST));
-    ConfigList replicas = replicaConfig.getList(REPLICATOIN_REPLICAS_LIST);
-    Iterator<ConfigValue> it = replicas.iterator();
-    
-    List<ReplicationReplica> result = new ArrayList<ReplicationReplica>();
-    while(it.hasNext()){
-      String replicaName = it.next().render();
-      Config subConfig = replicaConfig.getConfig(replicaName);
-      result.add(new ReplicationReplica(replicaName, ReplicationLocationBuilder.buildReplicationLocation(subConfig), Optional.absent()));
+    public Builder withReplicationReplicas(List<ReplicationReplica> replicas) {
+      this.replicas = replicas;
+      return this;
     }
     
-    return result;
+    public Builder withDataFlowTopology(DataFlowTopology topology) {
+      this.topology = topology;
+      return this;
+    }
+
+    public ReplicationConfiguration build() {
+      return new ReplicationConfiguration(this);
+    }
   }
 }
