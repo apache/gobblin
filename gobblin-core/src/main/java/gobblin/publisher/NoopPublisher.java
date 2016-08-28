@@ -53,7 +53,7 @@ public class NoopPublisher extends DataPublisher {
       if (state.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL)
       {
         state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-        log.warn("Marking state committed");
+        log.info("Marking state committed");
       }
     }
   }

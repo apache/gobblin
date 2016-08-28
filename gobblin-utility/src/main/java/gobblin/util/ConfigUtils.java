@@ -240,6 +240,19 @@ public class ConfigUtils {
   }
 
   /**
+   * Return double value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return double value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   */
+  public static double getDouble(Config config, String path, double def) {
+    if (config.hasPath(path)) {
+      return config.getDouble(path);
+    }
+    return def;
+  }
+  /**
    * Return {@link Config} value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
    *
    * @param config in which the path may be present

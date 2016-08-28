@@ -24,6 +24,7 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.metrics.kafka.KafkaSchemaRegistry;
 import gobblin.metrics.kafka.SchemaRegistryException;
@@ -43,6 +44,7 @@ import gobblin.metrics.kafka.SchemaRegistryException;
  *   that uniquely identifies the {@link Schema}. It is also capable of fetching the latest {@link Schema} for a topic.
  * </p>
  */
+@Slf4j
 public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, Schema> {
 
   public static final String CONFLUENT_MAX_SCHEMAS_PER_SUBJECT =
@@ -81,10 +83,11 @@ public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, S
 
   @Override
   public Schema getLatestSchemaByTopic(String topic) throws SchemaRegistryException {
+    String schemaName = topic + this.schemaNameSuffix;
     try {
-      String schemaName = topic + this.schemaNameSuffix;
       return new Schema.Parser().parse(this.schemaRegistryClient.getLatestSchemaMetadata(schemaName).getSchema());
     } catch (IOException | RestClientException e) {
+      log.error("Failed to get schema for topic " + topic + "; subject " + schemaName);
       throw new SchemaRegistryException(e);
     }
   }

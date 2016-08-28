@@ -31,8 +31,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.I0Itec.zkclient.ZkClient;
+
+import com.google.common.collect.ImmutableMap;
 
 import kafka.admin.AdminUtils;
 import kafka.consumer.Consumer;
@@ -48,95 +51,207 @@ import kafka.utils.TestZKUtils;
 import kafka.utils.Time;
 import kafka.utils.ZKStringSerializer$;
 import kafka.zk.EmbeddedZookeeper;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * Base for tests requiring a Kafka server
- *
- * Server will be created automatically at "localhost:" + kafkaPort
- * {@link kafka.consumer.ConsumerIterator} for the specified topic will be created at iterator
- *
- * @author ibuenros
+ * A private class for starting a suite of servers for Kafka
+ * Calls to start and shutdown are reference counted, so that the suite is started and shutdown in pairs.
+ * A suite of servers (Zk, Kafka etc) will be started just once per process
  */
-public class KafkaTestBase implements Closeable {
-
-  private static int brokerId = 0;
-  //static int kafkaPort = 0;
-  static String zkConnect = "";
-  static EmbeddedZookeeper zkServer = null;
-  static ZkClient zkClient = null;
-  static KafkaServer kafkaServer = null;
-  static boolean serverStarted = false;
-  static boolean serverClosed = false;
-
-  public void startServer() throws RuntimeException {
-    if (serverStarted && serverClosed) {
-      throw new RuntimeException("Kafka test server has already been closed. Cannot generate Kafka server twice.");
+@Slf4j
+class KafkaServerSuite {
+  static KafkaServerSuite _instance;
+  static KafkaServerSuite getInstance()
+  {
+    if (null == _instance)
+    {
+      _instance = new KafkaServerSuite();
+      return _instance;
     }
-    if (!serverStarted) {
-      serverStarted = true;
-      zkConnect = TestZKUtils.zookeeperConnect();
-      zkServer = new EmbeddedZookeeper(zkConnect);
-      zkClient = new ZkClient(zkServer.connectString(), 30000, 30000, ZKStringSerializer$.MODULE$);
+    else
+    {
+      return _instance;
+    }
+  }
 
-      kafkaPort = TestUtils.choosePort();
-      Properties props = TestUtils.createBrokerConfig(brokerId, kafkaPort, true);
+  private int _brokerId = 0;
+  private EmbeddedZookeeper _zkServer;
+  private ZkClient _zkClient;
+  private KafkaServer _kafkaServer;
+  private final int _kafkaServerPort;
+  private final String _zkConnectString;
+  private final AtomicInteger _numStarted;
+
+
+  public ZkClient getZkClient() {
+    return _zkClient;
+  }
+
+  public KafkaServer getKafkaServer() {
+    return _kafkaServer;
+  }
+
+  public int getKafkaServerPort() {
+    return _kafkaServerPort;
+  }
+
+  public String getZkConnectString() {
+    return _zkConnectString;
+  }
+
+  private KafkaServerSuite()
+  {
+    _kafkaServerPort = TestUtils.choosePort();
+    _zkConnectString = TestZKUtils.zookeeperConnect();
+    _numStarted = new AtomicInteger(0);
+  }
+
+
+  void start()
+    throws RuntimeException {
+    if (_numStarted.incrementAndGet() == 1) {
+      log.warn("Starting up Kafka server suite. Zk at " + _zkConnectString + "; Kafka server at " + _kafkaServerPort);
+      _zkServer = new EmbeddedZookeeper(_zkConnectString);
+      _zkClient = new ZkClient(_zkConnectString, 30000, 30000, ZKStringSerializer$.MODULE$);
+
+
+      Properties props = TestUtils.createBrokerConfig(_brokerId, _kafkaServerPort, true);
 
       KafkaConfig config = new KafkaConfig(props);
       Time mock = new MockTime();
-      kafkaServer = TestUtils.createServer(config, mock);
+      _kafkaServer = TestUtils.createServer(config, mock);
+    }
+    else
+    {
+      log.info("Kafka server suite already started... continuing");
     }
   }
 
-  public static void closeServer() {
-    if (serverStarted && !serverClosed) {
-      serverClosed = true;
-      kafkaServer.shutdown();
-      zkClient.close();
-      zkServer.shutdown();
+
+  void shutdown() {
+    if (_numStarted.decrementAndGet() == 0) {
+      log.info("Shutting down Kafka server suite");
+      _kafkaServer.shutdown();
+      _zkClient.close();
+      _zkServer.shutdown();
+    }
+    else {
+      log.info("Kafka server suite still in use ... not shutting down yet");
     }
   }
 
-  protected String topic;
-  protected ConsumerConnector consumer;
-  protected KafkaStream<byte[], byte[]> stream;
-  protected ConsumerIterator<byte[], byte[]> iterator;
-  protected int kafkaPort;
+}
 
-  public KafkaTestBase(String topic) throws InterruptedException, RuntimeException {
+class KafkaConsumerSuite {
+  private final ConsumerConnector _consumer;
+  private final KafkaStream<byte[], byte[]> _stream;
+  private final ConsumerIterator<byte[], byte[]> _iterator;
+  private final String _topic;
 
-    startServer();
-
-    this.topic = topic;
-
-    AdminUtils.createTopic(zkClient, topic, 1, 1, new Properties());
-
-    List<KafkaServer> servers = new ArrayList<>();
-    servers.add(kafkaServer);
-    TestUtils.waitUntilMetadataIsPropagated(scala.collection.JavaConversions.asScalaBuffer(servers), topic, 0, 5000);
-
+  KafkaConsumerSuite(String zkConnectString, String topic)
+  {
+    _topic = topic;
     Properties consumeProps = new Properties();
-    consumeProps.put("zookeeper.connect", zkConnect);
-    consumeProps.put("group.id", "testConsumer");
+    consumeProps.put("zookeeper.connect", zkConnectString);
+    consumeProps.put("group.id", _topic+"-"+System.nanoTime());
     consumeProps.put("zookeeper.session.timeout.ms", "10000");
     consumeProps.put("zookeeper.sync.time.ms", "10000");
     consumeProps.put("auto.commit.interval.ms", "10000");
-    consumeProps.put("consumer.timeout.ms", "10000");
+    consumeProps.put("_consumer.timeout.ms", "10000");
 
-    consumer = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumeProps));
+    _consumer = Consumer.createJavaConsumerConnector(new ConsumerConfig(consumeProps));
 
-    Map<String, Integer> topicCountMap = new HashMap<>();
-    topicCountMap.put(this.topic, 1);
-    Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumer.createMessageStreams(topicCountMap);
-    List<KafkaStream<byte[], byte[]>> streams = consumerMap.get(this.topic);
-    stream = streams.get(0);
+    Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap =
+        _consumer.createMessageStreams(ImmutableMap.of(this._topic, 1));
+    List<KafkaStream<byte[], byte[]>> streams = consumerMap.get(this._topic);
+    _stream = streams.get(0);
+    _iterator = _stream.iterator();
+  }
 
-    iterator = stream.iterator();
+  void shutdown()
+  {
+    _consumer.shutdown();
+  }
+
+  public ConsumerIterator<byte[],byte[]> getIterator() {
+    return _iterator;
+  }
+}
+
+/**
+ * A Helper class for testing against Kafka
+ * A suite of servers (Zk, Kafka etc) will be started just once per process
+ * Consumer and iterator will be created per instantiation and is one instance per topic.
+ */
+public class KafkaTestBase implements Closeable {
+
+  private final KafkaServerSuite _kafkaServerSuite;
+  private final Map<String, KafkaConsumerSuite> _topicConsumerMap;
+
+  public KafkaTestBase() throws InterruptedException, RuntimeException {
+
+    this._kafkaServerSuite = KafkaServerSuite.getInstance();
+    this._topicConsumerMap = new HashMap<>();
+  }
+
+  public synchronized void startServers()
+  {
+    _kafkaServerSuite.start();
+  }
+
+  public void stopServers()
+  {
+      _kafkaServerSuite.shutdown();
+  }
+
+  public void start() {
+    startServers();
+  }
+
+  public void stopClients() throws IOException {
+    for (Map.Entry<String, KafkaConsumerSuite> consumerSuiteEntry: _topicConsumerMap.entrySet())
+    {
+      consumerSuiteEntry.getValue().shutdown();
+      AdminUtils.deleteTopic(_kafkaServerSuite.getZkClient(), consumerSuiteEntry.getKey());
+    }
   }
 
   @Override
   public void close() throws IOException {
-    consumer.shutdown();
+    stopClients();
+    stopServers();
+  }
+
+  public void provisionTopic(String topic) {
+    if (_topicConsumerMap.containsKey(topic)) {
+      // nothing to do: return
+    } else {
+      // provision topic
+      AdminUtils.createTopic(_kafkaServerSuite.getZkClient(), topic, 1, 1, new Properties());
+
+      List<KafkaServer> servers = new ArrayList<>();
+      servers.add(_kafkaServerSuite.getKafkaServer());
+      TestUtils.waitUntilMetadataIsPropagated(scala.collection.JavaConversions.asScalaBuffer(servers), topic, 0, 5000);
+      KafkaConsumerSuite consumerSuite = new KafkaConsumerSuite(_kafkaServerSuite.getZkConnectString(), topic);
+      _topicConsumerMap.put(topic, consumerSuite);
+    }
+  }
+
+
+  public ConsumerIterator<byte[], byte[]> getIteratorForTopic(String topic) {
+    if (_topicConsumerMap.containsKey(topic))
+    {
+      return _topicConsumerMap.get(topic).getIterator();
+    }
+    else
+    {
+      throw new IllegalStateException("Could not find provisioned topic" + topic + ": call provisionTopic before");
+    }
+  }
+
+  public int getKafkaServerPort() {
+    return _kafkaServerSuite.getKafkaServerPort();
   }
 }
 
