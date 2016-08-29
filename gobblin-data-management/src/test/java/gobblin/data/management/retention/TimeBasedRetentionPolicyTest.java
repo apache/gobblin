@@ -15,14 +15,12 @@ package gobblin.data.management.retention;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.List;
-import java.util.Properties;
 
 import org.apache.commons.collections.ListUtils;
 import org.apache.hadoop.fs.Path;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeUtils;
-import org.testng.Assert;
 import org.testng.annotations.AfterGroups;
 import org.testng.annotations.Test;
 
@@ -31,35 +29,9 @@ import com.google.common.collect.Lists;
 
 import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
 import gobblin.data.management.version.TimestampedDatasetVersion;
-import gobblin.util.test.RetentionTestDataGenerator.FixedThreadLocalMillisProvider;
 
 @Test(groups = { "SystemTimeTests"})
 public class TimeBasedRetentionPolicyTest {
-
-  @Test
-  public void testDefaultRetention() {
-
-    Properties props = new Properties();
-
-    TimeBasedRetentionPolicy policy = new TimeBasedRetentionPolicy(props);
-
-    DateTimeUtils.setCurrentMillisProvider(new FixedThreadLocalMillisProvider(new DateTime(2015, 6, 2, 18, 0, 0, 0).getMillis()));
-
-    TimestampedDatasetVersion datasetVersion1 =
-        new TimestampedDatasetVersion(new DateTime(2015, 6, 2, 10, 0, 0, 0), new Path("test"));
-    TimestampedDatasetVersion datasetVersion2 =
-        new TimestampedDatasetVersion(new DateTime(2015, 6, 1, 10, 0, 0, 0), new Path("test"));
-
-    Assert.assertEquals(policy.versionClass(), TimestampedDatasetVersion.class);
-
-    List<TimestampedDatasetVersion> versions = Lists.newArrayList();
-    versions.add(datasetVersion1);
-    versions.add(datasetVersion2);
-    List<TimestampedDatasetVersion> deletableVersions = Lists.newArrayList(policy.listDeletableVersions(versions));
-    Assert.assertEquals(deletableVersions.size(), 1);
-    Assert.assertEquals(deletableVersions.get(0).getDateTime(), new DateTime(2015, 6, 1, 10, 0, 0, 0));
-
-  }
 
   @Test
   public void testISORetentionDuration() throws Exception {
