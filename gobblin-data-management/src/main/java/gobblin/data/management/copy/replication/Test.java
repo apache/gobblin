@@ -38,5 +38,10 @@ public class Test {
     for(ReplicationReplica r: replicas){
       System.out.println("replica: " + r);
     }
+    
+    DataFlowTopology topology = rc.getTopology();
+    for(DataFlowTopology.CopyRoute route: topology.getRoutes()){
+      System.out.println("route: " + route);
+    }
   }
 }

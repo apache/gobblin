@@ -1,17 +1,16 @@
 package gobblin.data.management.copy.replication;
 
 /**
- * An enumeration of possible replication types which could belong
- * to replication source or replication replicas.
+ * An enumeration of possible replication types which is the attribute of {@link ReplicationLocation}
  * 
  * @author mitu
  *
  */
 public enum ReplicationType {
-  
+
   HDFS("hdfs"),
   HIVE("hive");
-  
+
   private final String name;
 
   ReplicationType(String name) {

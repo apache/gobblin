@@ -1,17 +1,12 @@
 package gobblin.data.management.copy.replication;
 
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigList;
-import com.typesafe.config.ConfigValue;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
 
 /**
  * Class ReplicationConfiguration is used to describe the overall configuration of the replication flow for
@@ -30,39 +25,37 @@ public class ReplicationConfiguration {
 
   @Getter
   private final ReplicationMetaData metaData;
-  
+
   @Getter
   private final ReplicationSource source;
-  
+
   @Getter
   private final List<ReplicationReplica> replicas;
-  
+
   @Getter
   private final DataFlowTopology topology;
-  
-  public static ReplicationConfiguration buildFromConfig(Config config){
-    if(config == null) return null;
-    
-//    return new ReplicationConfiguration(buildMetaData(config),
-//        buildSource(config), buildReplicas(config), null);
-    
-    return new Builder()
-        .withReplicationMetaData(ReplicationUtils.buildMetaData(config))
-        .withReplicationSource(ReplicationUtils.buildSource(config))
-        .withReplicationReplicas(ReplicationUtils.buildReplicas(config))
-        .withDataFlowTopology(null)
+
+  public static ReplicationConfiguration buildFromConfig(Config config) {
+    if (config == null)
+      return null;
+
+    ReplicationSource source = ReplicationUtils.buildSource(config);
+    List<ReplicationReplica> replicas = ReplicationUtils.buildReplicas(config);
+
+    return new Builder().withReplicationMetaData(ReplicationUtils.buildMetaData(config))
+        .withReplicationSource(source)
+        .withReplicationReplicas(replicas)
+        .withDataFlowTopology(ReplicationUtils.buildDataFlowTopology(config, source, replicas))
         .build();
   }
-  
-  private ReplicationConfiguration (Builder builder){
+
+  private ReplicationConfiguration(Builder builder) {
     this.metaData = builder.metaData;
     this.source = builder.source;
     this.replicas = builder.replicas;
     this.topology = builder.topology;
   }
-  
-  
-  
+
   private static class Builder {
     private ReplicationMetaData metaData;
 
@@ -81,12 +74,12 @@ public class ReplicationConfiguration {
       this.source = source;
       return this;
     }
-    
+
     public Builder withReplicationReplicas(List<ReplicationReplica> replicas) {
       this.replicas = replicas;
       return this;
     }
-    
+
     public Builder withDataFlowTopology(DataFlowTopology topology) {
       this.topology = topology;
       return this;

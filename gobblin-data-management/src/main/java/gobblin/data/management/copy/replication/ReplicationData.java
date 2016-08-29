@@ -1,9 +1,8 @@
 package gobblin.data.management.copy.replication;
 
-import com.google.common.base.Optional;
-
 import gobblin.dataset.Dataset;
 import gobblin.dataset.DatasetsFinder;
+
 
 /**
  * Interface Replication Data is used to describe the data which need to be replicated.
@@ -13,6 +12,7 @@ import gobblin.dataset.DatasetsFinder;
  *  <li>Telling whether the data is source or replicas
  *  <li>Specifying the replication name
  *  <li>Specifying the replication location {@link ReplicationLocation}
+ *  <li>Specifying the {@link DatasetsFinder} which can find all data sets
  * </ul>
  * 
  * @author mitu
@@ -20,12 +20,12 @@ import gobblin.dataset.DatasetsFinder;
  * @param <T>
  */
 public interface ReplicationData<T extends Dataset> {
-  
+
   public boolean isSource();
-  
+
   public String getReplicationName();
-  
+
   public ReplicationLocation getReplicationLocation();
-  
-  public Optional<DatasetsFinder<T>> getDatasetsFinder();
+
+  public DatasetsFinder<T> getDatasetsFinder();
 }
