@@ -63,8 +63,11 @@ public class DataFlowTopology {
           route.copyFrom.add(builder.source);
         }
         // copy from other replicas
-        else {
+        else if(replicasMap.containsKey(copyFromName)){
           route.copyFrom.add(replicasMap.get(copyFromName));
+        }
+        else{
+          throw new IllegalArgumentException("can not find replica with name " + copyFromName);
         }
       }
 
