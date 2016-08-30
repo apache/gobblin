@@ -37,6 +37,8 @@ pages:
         - Config Management : user-guide/Config-Management.md
         - Troubleshooting: user-guide/Troubleshooting.md
         - FAQs: user-guide/FAQs.md
+    - Sinks:
+        - Kafka: sinks/Kafka.md
     - Gobblin Adaptors:
         - Gobblin Distcp: adaptors/Gobblin-Distcp.md
         - Hive Avro-To-Orc Converter: adaptors/Hive-Avro-To-ORC-Converter.md
@@ -47,6 +49,7 @@ pages:
         - Hive Distcp: case-studies/Hive-Distcp.md
     - Gobblin Data Management:
         - Retention: data-management/Gobblin-Retention.md
+        - Distcp-NG events: data-management/DistcpNgEvents.md
     - Gobblin Metrics:
         - Quick Start: metrics/Gobblin-Metrics.md
         - Existing Reporters: metrics/Existing-Reporters.md

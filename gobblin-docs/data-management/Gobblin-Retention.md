@@ -12,26 +12,26 @@ To support all the retention configuration requirements, we use Gobblin Dataset 
 
 The Gobblin Dataset Config Management Library is a library for storing, managing and accessing configuration. The library is an extension to TypeSafe Config with additional features like dataset awareness and tags.
 
-The library provides a mapping from a config key to a config object. Each config key is represented through a URI. The config object is a map from property name to a property value. 
+The library provides a mapping from a config key to a config object. Each config key is represented through a URI. The config object is a map from property name to a property value.
 
-A config key K can import one or more config keys I1, I2, ... . The config key K will inherit any properties from I1, I2, … that are not defined in K. The inheritance is resolved in the order of the keys I1, I2, … etc., i.e. the property will be resolved to the value in the last Im that defines the property. Applications can create tags T1, T2 etc and import them explicitly in K. 
+A config key K can import one or more config keys I1, I2, ... . The config key K will inherit any properties from I1, I2, … that are not defined in K. The inheritance is resolved in the order of the keys I1, I2, … etc., i.e. the property will be resolved to the value in the last Im that defines the property. Applications can create tags T1, T2 etc and import them explicitly in K.
 
 We also use the path in the config key URI for implicit tagging. For example, /trackingData/someEvent implicitly imports which /trackingData which implicitly imports /.
 
-**ConfigClient** - The client APIs that an application uses to interact with the library 
+**ConfigClient** - The client APIs that an application uses to interact with the library
 
 **ConfigLibrary** - Core implementation that stores the topology of configs in the store. Business logic such as substitution resolution and interpolation of configs happen here.
 
-**ConfigStore** - The physical store for all the configs and tags. Currently a HDFS based 
-ConfigStore is implemented but other physical stores can be implemented 
+**ConfigStore** - The physical store for all the configs and tags. Currently a HDFS based
+ConfigStore is implemented but other physical stores can be implemented
 
 ## Retention Constructs
 ![Gobblin Retention Architecture](../img/Gobblin-Retention-Architecture.png)
 
 ### DatasetCleaner
-The ```DatasetCleaner``` is the retention runner. The class takes in job properites as key value pairs. A single ```DatasetCleaner``` can manage retention for different kinds of datasets. Each kind of dataset gets its own ```DatasetFinder```. ```DatasetCleaner``` is responsible for instantiating all the ```DatasetFinder```s. For each ```DatasetFinder``` it finds all the ```CleanableDataset```s and calls the ```CleanableDataset.clean()``` method to delete data. 
+The ```DatasetCleaner``` is the retention runner. The class takes in job properites as key value pairs. A single ```DatasetCleaner``` can manage retention for different kinds of datasets. Each kind of dataset gets its own ```DatasetFinder```. ```DatasetCleaner``` is responsible for instantiating all the ```DatasetFinder```s. For each ```DatasetFinder``` it finds all the ```CleanableDataset```s and calls the ```CleanableDataset.clean()``` method to delete data.
 
-To instantiate all the dataset finders, it uses the ```gobblin.retention.tag``` job property. This is a comma seperated list of tag URIs in the ```ConfigStore```. A ```DatasetFinder``` will be created for every dataset that imports any of these tags. 
+To instantiate all the dataset finders, it uses the ```gobblin.retention.tag``` job property. This is a comma seperated list of tag URIs in the ```ConfigStore```. A ```DatasetFinder``` will be created for every dataset that imports any of these tags.
 
 For instance let's say we have a all the event based datasets at ```/datasets/trackingData``` in the ```ConfigStore``` and it is tagged with a tag ```/tags/retention/TimeBased```. When ```gobblin.retention.tag``` is set to ```/tags/retention/TimeBased```. All datasets that are tagged with ```/tags/retention/TimeBased``` in the ```ConfigStore``` will be processed by this retention job. So in this case a ```DatasetFinder``` will be created for ```/datasets/trackingData```. More details about the ```ConfigStore``` in [Retention Configuration](#Retention Configuration) section.
 
@@ -72,7 +72,7 @@ Let us take an example ConfigStore instance on HDFS as below.
             └── main.conf
                  ├── timebased
                     └── main.conf
-       
+
 </pre>
 
 Every config store has a store root directory named ```_CONFIG_STORE```. Each new deployment of a store creates a new version (2.0 shown above). Each directory in the store may have a main.conf file and an includes.conf file. The main.conf file holds the config key/value pairs. And includes.conf are used to import other directory paths in the same store. For instance, ```_CONFIG_STORE/2.0/data/events``` can import ```/tags/retention``` in its includes.conf file. All the key value pairs in ```/tags/retention/main.conf``` are automatically imported into ```/data/events```.
@@ -87,7 +87,7 @@ For maintainability and reusablity we define all the configs as tags and import 
 <pre>
 
 gobblin.retention : {
- 
+
     ##Alias
     TimeBasedSelectionPolicy=gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
     DateTimeDatasetVersionFinder=gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
@@ -108,7 +108,7 @@ gobblin.retention : {
         datetime.pattern = "yyyy/MM/dd"
       }
     }
-}   
+}
 </pre>
 
 - To apply this retention config to ```hdfs://data/events``` the tag ```/tags/retention/timeBased``` can be imported by ```_CONFIG_STORE/2.0/data/events/includes.conf``` shown below.
@@ -258,4 +258,42 @@ gobblin.retention : {
   }
 }
 
+</pre>
+
+
+### 5. Time based Hive Retention
+Gobblin supports retention for a hive partitioned table. Partitions older than n days can be dropped using this policy. The job can optionally choose to NOT delete the data pointed by the partition and only deregister the hive partition. By default the job also deletes data associated with the partition.
+
+<pre>
+
+gobblin.retention : {
+
+    is.blacklisted=false
+
+    dataset : {
+      finder.class=gobblin.data.management.retention.dataset.finder.CleanableHiveDatasetFinder
+    }
+
+    selection : {
+      policy.class=gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
+
+      ## Partitions older than 3 days will be deleted
+      timeBased.lookbackTime=3d
+    }
+
+    version.finder.class=gobblin.data.management.version.finder.DatePartitionHiveVersionFinder
+
+    hive {
+      partition {
+        key.name=datepartition
+        value.datetime.pattern=yyyy-MM-dd-HH
+      }
+    }
+}
+
+</pre>
+
+Job level configuration to disable data deletion
+<pre>
+gobblin.retention.hive.shouldDeleteData=false
 </pre>

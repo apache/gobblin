@@ -14,6 +14,7 @@ dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-utility")
+  compile project(":gobblin-metrics")
 
   compile externalDependency.avro
   compile externalDependency.jacksonCore
@@ -33,6 +34,7 @@ dependencies {
   compile externalDependency.kafkaClient
   compile externalDependency.scala
   compile externalDependency.lombok
+  compile externalDependency.metricsCore
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 
@@ -41,6 +43,7 @@ dependencies {
   runtime externalDependency.confluentSchemaRegistryClient
   runtime externalDependency.protobuf
 
+  testCompile project(":gobblin-runtime")
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.mockito
   testCompile externalDependency.testng

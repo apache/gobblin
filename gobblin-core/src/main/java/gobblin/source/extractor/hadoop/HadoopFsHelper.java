@@ -115,7 +115,7 @@ public class HadoopFsHelper implements TimestampAwareFileBasedHelper {
 
     } else {
       // Initialize file system as the current user.
-      this.fs = FileSystem.get(URI.create(uri), this.configuration);
+      this.fs = FileSystem.newInstance(URI.create(uri), this.configuration);
     }
   }
 

@@ -104,6 +104,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     List<KafkaTopic> topics = getFilteredTopics(state);
 
+    for (KafkaTopic topic: topics)
+    {
+      LOG.info("Discovered topic " + topic.getName());
+    }
     Map<String, State> topicSpecificStateMap =
         DatasetUtils.getDatasetSpecificProps(Iterables.transform(topics, new Function<KafkaTopic, String>() {
 

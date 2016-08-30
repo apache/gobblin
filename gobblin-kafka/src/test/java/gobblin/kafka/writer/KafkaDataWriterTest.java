@@ -13,18 +13,21 @@
 package gobblin.kafka.writer;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.lang.management.ManagementFactory;
 import java.util.Properties;
-import java.util.Random;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
+import com.typesafe.config.ConfigFactory;
+
+import lombok.extern.slf4j.Slf4j;
+
+import gobblin.kafka.ErrorManager;
+import gobblin.kafka.FlakyKafkaProducer;
 import gobblin.kafka.KafkaTestBase;
 import gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
 import gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
@@ -32,49 +35,57 @@ import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.LiAvroDeserializer;
 
 
-public class KafkaDataWriterTest extends KafkaTestBase {
+@Slf4j
+public class KafkaDataWriterTest {
 
 
-  private static final String TOPIC = KafkaDataWriterTest.class.getName();
+  private final KafkaTestBase _kafkaTestHelper;
   public KafkaDataWriterTest()
       throws InterruptedException, RuntimeException {
-    super(TOPIC);
+    _kafkaTestHelper = new KafkaTestBase();
   }
-  @AfterClass
-  public void after() {
-    try {
-      close();
-    } catch(Exception e) {
-      System.err.println("Failed to close Kafka server.");
-    }
+
+  @BeforeSuite
+  public void beforeSuite() {
+    log.warn("Process id = " + ManagementFactory.getRuntimeMXBean().getName());
+
+    _kafkaTestHelper.startServers();
   }
 
   @AfterSuite
-  public void afterSuite() {
-    closeServer();
+  public void afterSuite()
+      throws IOException {
+    try {
+      _kafkaTestHelper.stopClients();
+    }
+    finally {
+      _kafkaTestHelper.stopServers();
+    }
   }
 
   @Test
   public void testStringSerialization()
       throws IOException, InterruptedException {
+    String topic = "testStringSerialization";
+    _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, TOPIC);
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + this.kafkaPort);
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
     KafkaDataWriter<String> kafkaWriter = new KafkaDataWriter<String>(props);
 
     String messageString = "foobar";
     try {
       kafkaWriter.write(messageString);
+      kafkaWriter.commit();
     }
     finally
     {
       kafkaWriter.close();
     }
 
-    Thread.sleep(500);
     Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
-    byte[] message = iterator.next().message();
+    byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     String messageReceived = new String(message);
     Assert.assertEquals(messageReceived, messageString);
 
@@ -83,85 +94,67 @@ public class KafkaDataWriterTest extends KafkaTestBase {
   @Test
   public void testBinarySerialization()
       throws IOException, InterruptedException {
+    String topic = "testBinarySerialization";
+    _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, TOPIC);
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + this.kafkaPort);
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     KafkaDataWriter<byte[]> kafkaWriter = new KafkaDataWriter<>(props);
 
-    byte[] messageBytes = generateRandomBytes();
+    byte[] messageBytes = KafkaTestUtils.generateRandomBytes();
 
     try {
       kafkaWriter.write(messageBytes);
+      kafkaWriter.commit();
     }
     finally
     {
       kafkaWriter.close();
     }
 
-    Thread.sleep(500);
     Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
-    byte[] message = iterator.next().message();
+    byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     Assert.assertEquals(message, messageBytes);
-  }
-
-  private byte[] generateRandomBytes() {
-    Random rng = new Random();
-    int length = rng.nextInt(200);
-    byte[] messageBytes = new byte[length];
-    rng.nextBytes(messageBytes);
-    return messageBytes;
   }
 
   @Test
   public void testAvroSerialization()
       throws IOException, InterruptedException, SchemaRegistryException {
+    String topic = "testAvroSerialization";
+    _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, TOPIC);
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", "localhost:" + this.kafkaPort);
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "value.serializer",
         "gobblin.kafka.serialize.LiAvroSerializer");
 
     // set up mock schema registry
 
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX
+        + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
         ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
     KafkaDataWriter<GenericRecord> kafkaWriter = new KafkaDataWriter<>(props);
 
-    GenericRecord record = generateRandomAvroRecord();
+    GenericRecord record = KafkaTestUtils.generateRandomAvroRecord();
     try {
       kafkaWriter.write(record);
+      kafkaWriter.commit();
     }
     finally
     {
       kafkaWriter.close();
     }
 
-    Thread.sleep(500);
     Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
-    byte[] message = iterator.next().message();
-    ConfigDrivenMd5SchemaRegistry schemaReg = new ConfigDrivenMd5SchemaRegistry(TOPIC, record.getSchema());
+    byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
+    ConfigDrivenMd5SchemaRegistry schemaReg = new ConfigDrivenMd5SchemaRegistry(topic, record.getSchema());
     LiAvroDeserializer deser = new LiAvroDeserializer(schemaReg);
-    GenericRecord receivedRecord = deser.deserialize(TOPIC, message);
+    GenericRecord receivedRecord = deser.deserialize(topic, message);
     System.out.println(record.toString());
     System.out.println(receivedRecord.toString());
   }
 
-  private GenericRecord generateRandomAvroRecord() {
 
-    ArrayList<Schema.Field> fields = new ArrayList<Schema.Field>();
-    String fieldName = "field1";
-    Schema fieldSchema = Schema.create(Schema.Type.STRING);
-    String docString = "doc";
-    fields.add(new Schema.Field(fieldName, fieldSchema, docString, null));
-    Schema schema = Schema.createRecord("name", docString, "test",false);
-    schema.setFields(fields);
-
-    Record record = new Record(schema);
-    record.put("field1", "foobar");
-
-    return record;
-
-  }
 }

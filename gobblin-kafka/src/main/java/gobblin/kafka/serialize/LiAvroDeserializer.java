@@ -14,6 +14,7 @@ package gobblin.kafka.serialize;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -29,6 +30,7 @@ import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.kafka.schemareg.KafkaSchemaRegistry;
+import gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
 import gobblin.kafka.schemareg.SchemaRegistryException;
 
 
@@ -41,6 +43,9 @@ public class LiAvroDeserializer implements Deserializer<GenericRecord> {
   private KafkaSchemaRegistry<MD5Digest, Schema> _schemaRegistry;
   private GenericDatumReader<GenericData.Record> _datumReader;
 
+  public LiAvroDeserializer()
+  {}
+
   public LiAvroDeserializer(KafkaSchemaRegistry<MD5Digest, Schema> schemaRegistry)
   {
     _schemaRegistry = schemaRegistry;
@@ -49,17 +54,22 @@ public class LiAvroDeserializer implements Deserializer<GenericRecord> {
     Preconditions.checkState(_datumReader!=null, "Datum Reader is not initialized");
   }
   /**
-   * TODO: Not implemented.
    * Configure this class.
-
    * @param configs configs in key/value pairs
    * @param isKey whether is for key or value
    */
   @Override
   public void configure(Map<String, ?> configs, boolean isKey) {
-    //TODO: configure this deserializer, set up schema registry etc.
-    //TODO: Preconditions.checkState(_schemaRegistry!=null, "Schema Registry is not initialized");
-    //TODO: Preconditions.checkState(_datumReader!=null, "Datum Reader is not initialized");
+    Preconditions.checkArgument(isKey==false, "LiAvroDeserializer only works for value fields");
+    _datumReader = new GenericDatumReader<>();
+    Properties props = new Properties();
+    for (Map.Entry<String, ?> entry: configs.entrySet())
+    {
+      String value = String.valueOf(entry.getValue());
+      props.setProperty(entry.getKey(), value);
+    }
+
+    _schemaRegistry = KafkaSchemaRegistryFactory.getSchemaRegistry(props);
   }
 
   /**
