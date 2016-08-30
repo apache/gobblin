@@ -32,17 +32,17 @@ public class ReplicationUtils {
 
   public static ReplicationMetaData buildMetaData(Config config) {
     if (!config.hasPath(METADATA)) {
-      return new ReplicationMetaData(Optional.absent(), Optional.absent(), Optional.absent());
+      return new ReplicationMetaData(Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent());
     }
 
     Config metaDataConfig = config.getConfig(METADATA);
 
     Optional<String> metaDataJira = metaDataConfig.hasPath(METADATA_JIRA)
-        ? Optional.of(metaDataConfig.getString(METADATA_JIRA)) : Optional.absent();
+        ? Optional.of(metaDataConfig.getString(METADATA_JIRA)) : Optional.<String>absent();
     Optional<String> metaDataOwner = metaDataConfig.hasPath(METADATA_OWNER)
-        ? Optional.of(metaDataConfig.getString(METADATA_OWNER)) : Optional.absent();
+        ? Optional.of(metaDataConfig.getString(METADATA_OWNER)) : Optional.<String>absent();
     Optional<String> metaDataName = metaDataConfig.hasPath(METADATA_NAME)
-        ? Optional.of(metaDataConfig.getString(METADATA_NAME)) : Optional.absent();
+        ? Optional.of(metaDataConfig.getString(METADATA_NAME)) : Optional.<String>absent();
 
     ReplicationMetaData metaData = new ReplicationMetaData(metaDataJira, metaDataOwner, metaDataName);
     return metaData;
