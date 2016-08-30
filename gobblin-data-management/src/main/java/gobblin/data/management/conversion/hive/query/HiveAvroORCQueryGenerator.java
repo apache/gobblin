@@ -62,15 +62,15 @@ public class HiveAvroORCQueryGenerator {
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
   // Table properties keys
-  private static final String ORC_COMPRESSION_KEY                 = "orc.compress";
-  private static final String ORC_ROW_INDEX_STRIDE_KEY            = "orc.row.index.stride";
+  public static final String ORC_COMPRESSION_KEY                 = "orc.compress";
+  public static final String ORC_ROW_INDEX_STRIDE_KEY            = "orc.row.index.stride";
 
   // Default values for Hive DDL / DML query generation
   private static final String DEFAULT_DB_NAME                     = "default";
   private static final String DEFAULT_ROW_FORMAT_SERDE            = "org.apache.hadoop.hive.ql.io.orc.OrcSerde";
   private static final String DEFAULT_ORC_INPUT_FORMAT            = "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat";
   private static final String DEFAULT_ORC_OUTPUT_FORMAT           = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat";
-  private static final String DEFAULT_ORC_COMPRESSION             = "SNAPPY";
+  private static final String DEFAULT_ORC_COMPRESSION             = "ZLIB";
   private static final String DEFAULT_ORC_ROW_INDEX_STRIDE        = "268435456";
   private static final Map<String, String> DEFAULT_TBL_PROPERTIES = ImmutableMap
       .<String, String>builder().
@@ -171,8 +171,7 @@ public class HiveAvroORCQueryGenerator {
     String rowFormatSerde = optionalRowFormatSerde.isPresent() ? optionalRowFormatSerde.get() : DEFAULT_ROW_FORMAT_SERDE;
     String inputFormat = optionalInputFormat.isPresent() ? optionalInputFormat.get() : DEFAULT_ORC_INPUT_FORMAT;
     String outputFormat = optionalOutputFormat.isPresent() ? optionalOutputFormat.get() : DEFAULT_ORC_OUTPUT_FORMAT;
-    Map<String, String> tblProperties = optionalTblProperties.isPresent() ? optionalTblProperties.get() :
-                                                                            DEFAULT_TBL_PROPERTIES;
+    Map<String, String> tblProperties = getTableProperties(optionalTblProperties);
 
     // Start building Hive DDL
     // Refer to Hive DDL manual for explanation of clauses:
@@ -297,6 +296,21 @@ public class HiveAvroORCQueryGenerator {
     }
 
     return ddl.toString();
+  }
+
+  private static Map<String, String> getTableProperties(Optional<Map<String, String>> optionalTblProperties) {
+    if (!optionalTblProperties.isPresent()) {
+      return DEFAULT_TBL_PROPERTIES;
+    }
+    Map<String, String> tblProperties = optionalTblProperties.get();
+
+    for (String key : DEFAULT_TBL_PROPERTIES.keySet()) {
+      if (!tblProperties.containsKey(key)) {
+        tblProperties.put(key, DEFAULT_TBL_PROPERTIES.get(key));
+      }
+    }
+
+    return tblProperties;
   }
 
   /***

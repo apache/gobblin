@@ -136,6 +136,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
     public static final String DESTINATION_TABLE_KEY = "destination.tableName";
     public static final String DESTINATION_DB_KEY = "destination.dbName";
     public static final String DESTINATION_DATA_PATH_KEY = "destination.dataPath";
+    public static final String DESTINATION_TABLE_COMPRESSION_KEY = "destination.tableCompression";
     public static final String CLUSTER_BY_KEY = "clusterByList";
     public static final String NUM_BUCKETS_KEY = "numBuckets";
     public static final String EVOLUTION_ENABLED = "evolution.enabled";
@@ -187,6 +188,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
     private final String destinationStagingTableName;
     private final String destinationDbName;
     private final String destinationDataPath;
+    private final Optional<String> destinationTableCompression;
     private final List<String> clusterBy;
     private final Optional<Integer> numBuckets;
     private final Properties hiveRuntimeProperties;
@@ -209,6 +211,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
       this.destinationDataPath = resolveTemplate(config.getString(DESTINATION_DATA_PATH_KEY), table);
 
       // Optional
+      this.destinationTableCompression = Optional.fromNullable(ConfigUtils.getString(config, DESTINATION_TABLE_COMPRESSION_KEY, null));
       this.clusterBy = ConfigUtils.getStringList(config, CLUSTER_BY_KEY);
       this.numBuckets = Optional.fromNullable(ConfigUtils.getInt(config, NUM_BUCKETS_KEY, null));
       this.hiveRuntimeProperties = ConfigUtils

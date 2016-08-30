@@ -168,6 +168,13 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             : Optional.of(getConversionConfig().getClusterBy());
     Optional<Integer> numBuckets = getConversionConfig().getNumBuckets();
     Optional<Integer> rowLimit = getConversionConfig().getRowLimit();
+    Optional<String> orcTableCompression = getConversionConfig().getDestinationTableCompression();
+    Optional<Map<String, String>> optionalTblProperties = Optional.<Map<String, String>>absent();
+    if (orcTableCompression.isPresent()) {
+      Map<String, String> tblProperties = Maps.newHashMap();
+      tblProperties.put(HiveAvroORCQueryGenerator.ORC_COMPRESSION_KEY, orcTableCompression.get());
+      optionalTblProperties = Optional.of(tblProperties);
+    }
 
     // Partition dir hint helps create different directory for hourly and daily partition with same timestamp, such as:
     // .. daily_2016-01-01-00 and hourly_2016-01-01-00
@@ -199,7 +206,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             Optional.<String>absent(),
             Optional.<String>absent(),
             Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(),
+            optionalTblProperties,
             isEvolutionEnabled,
             destinationTableMeta,
             hiveColumns);
@@ -289,7 +296,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
               Optional.<String>absent(),
               Optional.<String>absent(),
               Optional.<String>absent(),
-              Optional.<Map<String, String>>absent(),
+              optionalTblProperties,
               isEvolutionEnabled,
               destinationTableMeta,
               new HashMap<String, String>());
