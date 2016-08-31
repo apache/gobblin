@@ -17,6 +17,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
@@ -178,7 +179,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override public void onAddJob(JobSpec addedJob) {
       super.onAddJob(addedJob);
-      _jobScheduler.scheduleJob(addedJob, new JobSpecRunnable(addedJob));
+      _jobScheduler.scheduleJob(addedJob, createJobSpecRunnable(addedJob));
     }
 
     @Override public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
@@ -188,8 +189,12 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override public void onUpdateJob(JobSpec updatedJob) {
       super.onUpdateJob(updatedJob);
-      _jobScheduler.scheduleJob(updatedJob, new JobSpecRunnable(updatedJob));
+      _jobScheduler.scheduleJob(updatedJob, createJobSpecRunnable(updatedJob));
     }
+  }
+
+  @VisibleForTesting JobSpecRunnable createJobSpecRunnable(JobSpec addedJob) {
+    return new JobSpecRunnable(addedJob);
   }
 
   ConfigAccessor getInstanceCfg() {

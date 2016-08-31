@@ -14,6 +14,7 @@ package gobblin.runtime.api;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
@@ -26,7 +27,10 @@ import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
+import gobblin.annotation.Alpha;
 import gobblin.runtime.JobState;
 import gobblin.runtime.JobState.RunningState;
 
@@ -36,8 +40,24 @@ import lombok.Getter;
  * TODO
  *
  */
+@Alpha
 public class JobExecutionState implements JobExecutionStatus {
   public static final String UKNOWN_STAGE = "unkown";
+  private static final Map<RunningState, Set<RunningState>>
+      EXPECTED_PRE_TRANSITION_STATES = ImmutableMap.<RunningState, Set<RunningState>>builder()
+        .put(RunningState.PENDING, ImmutableSet.<RunningState>builder().build())
+        .put(RunningState.RUNNING, ImmutableSet.<RunningState>builder().add(RunningState.PENDING).build())
+        .put(RunningState.SUCCESSFUL, ImmutableSet.<RunningState>builder().add(RunningState.RUNNING).build())
+        .put(RunningState.COMMITTED, ImmutableSet.<RunningState>builder().add(RunningState.SUCCESSFUL).build())
+        .put(RunningState.FAILED,
+             ImmutableSet.<RunningState>builder()
+               .add(RunningState.PENDING).add(RunningState.RUNNING).add(RunningState.SUCCESSFUL).build())
+        .put(RunningState.CANCELLED,
+            ImmutableSet.<RunningState>builder()
+              .add(RunningState.PENDING).add(RunningState.RUNNING).add(RunningState.SUCCESSFUL).build())
+        .build();
+
+
   public final static Predicate<JobExecutionState> EXECUTION_DONE_PREDICATE =
       new Predicate<JobExecutionState>() {
         @Override public boolean apply(@Nonnull JobExecutionState state) {
@@ -118,106 +138,60 @@ public class JobExecutionState implements JobExecutionStatus {
 
 
   public void setRunningState(JobState.RunningState runningState) {
-    switch (runningState){
-      case PENDING: this.switchToPending(); break;
-      case RUNNING: this.switchToRunning(); break;
-      case SUCCESSFUL: this.switchToSuccessful(); break;
-      case FAILED: this.switchToFailed(); break;
-      case COMMITTED: this.switchToCommitted(); break;
-      case CANCELLED: this.switchToCancelled(); break;
-      default: throw new Error("Unexpected state");
-    }
+    doRunningStateChange(runningState);
   }
 
   public void switchToPending() {
-    this.changeLock.lock();
-    try {
-      Preconditions.checkState(null == this.runningState, "unexpected state:" + this.runningState);
-      doRunningStateChange(RunningState.PENDING);
-    }
-    finally {
-      this.changeLock.unlock();
-    }
+    doRunningStateChange(RunningState.PENDING);
   }
 
   public void switchToRunning() {
-    this.changeLock.lock();
-    try {
-      Preconditions.checkState(RunningState.PENDING == this.runningState,
-          "unexpected state:" + this.runningState);
-      doRunningStateChange(RunningState.RUNNING);
-    }
-    finally {
-      this.changeLock.unlock();
-    }
+    doRunningStateChange(RunningState.RUNNING);
   }
 
   public void switchToSuccessful() {
-    this.changeLock.lock();
-    try {
-      Preconditions.checkState(RunningState.RUNNING == this.runningState,
-          "unexpected state:" + this.runningState);
-      doRunningStateChange(RunningState.SUCCESSFUL);
-    }
-    finally {
-      this.changeLock.unlock();
-    }
+    doRunningStateChange(RunningState.SUCCESSFUL);
   }
 
   public void switchToFailed() {
-    this.changeLock.lock();
-    try {
-      Preconditions.checkState(RunningState.PENDING == this.runningState // error during initialization
-          || RunningState.RUNNING == this.runningState // error during execution
-          || RunningState.SUCCESSFUL == this.runningState // error during commit
-          ,
-          "unexpected state:" + this.runningState);
-      doRunningStateChange(RunningState.FAILED);
-    }
-    finally {
-      this.changeLock.unlock();
-    }
+    doRunningStateChange(RunningState.FAILED);
   }
 
   public void switchToCommitted() {
-    this.changeLock.lock();
-    try {
-      Preconditions.checkState(RunningState.SUCCESSFUL == this.runningState,
-          "unexpected state:" + this.runningState);
-      doRunningStateChange(RunningState.COMMITTED);
-    }
-    finally {
-      this.changeLock.unlock();
-    }
+    doRunningStateChange(RunningState.COMMITTED);
   }
 
   public void switchToCancelled() {
-    this.changeLock.lock();
-    try {
-      Preconditions.checkState(RunningState.PENDING == this.runningState
-          || RunningState.RUNNING == this.runningState
-          || RunningState.SUCCESSFUL == this.runningState,
-          "unexpected state:" + this.runningState);
-      doRunningStateChange(RunningState.CANCELLED);
-    }
-    finally {
-      this.changeLock.unlock();
-    }
+    doRunningStateChange(RunningState.CANCELLED);
   }
 
   // This must be called only when holding changeLock
   private void doRunningStateChange(RunningState newState) {
+    RunningState oldState = null;
+    JobExecutionStateListener stateListener = null;
     this.changeLock.lock();
     try {
-      RunningState oldState = this.runningState;
-      this.runningState = newState;;
+      // verify transition
+      if (null == this.runningState) {
+        Preconditions.checkState(RunningState.PENDING == newState);
+      }
+      else {
+        Preconditions.checkState(EXPECTED_PRE_TRANSITION_STATES.get(newState).contains(this.runningState),
+            "unexpected state:" + this.runningState);
+      }
+
+      oldState = this.runningState;
+      this.runningState = newState;
       if (this.listener.isPresent()) {
-        this.listener.get().onStatusChange(this, oldState, this.runningState);
+        stateListener = this.listener.get();
       }
       this.runningStateChanged.signalAll();
     }
     finally {
       this.changeLock.unlock();
+    }
+    if (null != stateListener) {
+      stateListener.onStatusChange(this, oldState, newState);
     }
   }
 

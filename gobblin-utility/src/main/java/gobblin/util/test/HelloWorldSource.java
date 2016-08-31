@@ -31,12 +31,12 @@ import gobblin.util.ConfigUtils;
  * Hello world!
  */
 public class HelloWorldSource implements Source<String, String> {
-  public static String CONFIG_NAMESPACE = "gobblin.source.helloWorld";
-  public static String NUM_HELLOS_KEY = "numHellos";
-  public static String NUM_HELLOS_FULL_KEY = CONFIG_NAMESPACE + "." + NUM_HELLOS_KEY;
-  public static int DEFAULT_NUM_HELLOS = 1;
-  public static String HELLO_ID_KEY = "helloId";
-  public static String HELLO_ID_FULL_KEY = CONFIG_NAMESPACE +"." + HELLO_ID_KEY;
+  public static final String CONFIG_NAMESPACE = "gobblin.source.helloWorld";
+  public static final String NUM_HELLOS_KEY = "numHellos";
+  public static final String NUM_HELLOS_FULL_KEY = CONFIG_NAMESPACE + "." + NUM_HELLOS_KEY;
+  public static final int DEFAULT_NUM_HELLOS = 1;
+  public static final String HELLO_ID_KEY = "helloId";
+  public static final String HELLO_ID_FULL_KEY = CONFIG_NAMESPACE +"." + HELLO_ID_KEY;
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {

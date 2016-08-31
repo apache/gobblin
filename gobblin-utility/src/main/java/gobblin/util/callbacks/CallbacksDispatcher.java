@@ -138,13 +138,17 @@ public class CallbacksDispatcher<L> {
   private <R> CallbackResults<L, R> execCallbacks(Function<? super L, R> callback,
                                                           List<L> listeners)
       throws InterruptedException {
+    CallbackResults<L, R> res = new CallbackResults<L, R>();
+    if (0 == listeners.size()) {
+      return res;
+    }
+
     List<Callable<R>> callbacks = new ArrayList<>(listeners.size());
     for (L listener: listeners) {
       callbacks.add(new CallbackCallable<>(callback, listener));
     }
 
     List<Future<R>> futures = _execService.invokeAll(callbacks);
-    CallbackResults<L, R> res = new CallbackResults<L, R>();
     for (int i = 0; i < listeners.size(); ++i) {
       CallbackResult<R> cr = CallbackResult.createFromFuture(futures.get(i));
       L listener = listeners.get(i);
