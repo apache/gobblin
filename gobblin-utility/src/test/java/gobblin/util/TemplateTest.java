@@ -64,7 +64,7 @@ public class TemplateTest {
   }
 
   @Test
-  public void testRequiredAttrList() {
+  public void testRequiredAttrList() throws Exception {
     Properties jobProps = this.userProp;
 
     Set<String> requiredConfigList = (new ResourceBasedTemplate(

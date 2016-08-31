@@ -1,23 +1,28 @@
-gobblin.template.required_attributes=topics,job.name
+gobblin.template.required_attributes="topics,job.name,output"
 
 job.group=GobblinKafka
 job.description=Gobblin quick start job for Kafka
 job.lock.enabled=true
 
-kafka.brokers=localhost:9092
+kafka.brokers="localhost:9092"
 
-source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleSource
+source.class=gobblin.source.extractor.extract.kafka.SimpleKafkaSource
+gobblin.source.kafka.extractorType=DESERIALIZER
+kafka.deserializer.type=BYTE_ARRAY
+
 extract.namespace=gobblin.extract.kafka
 
 writer.builder.class=gobblin.writer.SimpleDataWriterBuilder
+simple.writer.delimiter="\n"
+simple.writer.prepend.size=false
+
 writer.file.path.type=tablename
 writer.destination.type=HDFS
 writer.output.format=txt
 
-data.publisher.type=gobblin.publisher.BaseDataPublisher
-
-mr.job.max.mappers=1
+data.publisher.type=gobblin.publisher.TimePartitionedDataPublisher
 
 bootstrap.with.offset=latest
 
 topic.whitelist=${topics}
+data.publisher.final.dir=${output}

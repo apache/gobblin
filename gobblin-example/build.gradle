@@ -25,6 +25,8 @@ dependencies {
     compile externalDependency.gson
     compile externalDependency.commonsVfs
     compile externalDependency.avroMapredH2
+    compile externalDependency.lombok
+    compile externalDependency.jodaTime
 
     testCompile externalDependency.testng
 }

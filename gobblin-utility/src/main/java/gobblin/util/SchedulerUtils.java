@@ -66,7 +66,12 @@ public class SchedulerUtils {
 
     List<Properties> jobConfigs = Lists.newArrayList();
     for (Config config : configs) {
-      jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config)));
+      try {
+        jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config)));
+      } catch (IOException ioe) {
+        LOGGER.error("Could not parse job config at " + ConfigUtils.getString(config,
+            ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, "Unknown path"), ioe);
+      }
     }
 
     return jobConfigs;
@@ -91,7 +96,12 @@ public class SchedulerUtils {
 
     List<Properties> jobConfigs = Lists.newArrayList();
     for (Config config : configs) {
-      jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config)));
+      try {
+        jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config)));
+      } catch (IOException ioe) {
+        LOGGER.error("Could not parse job config at " + ConfigUtils.getString(config,
+            ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, "Unknown path"), ioe);
+      }
     }
 
     return jobConfigs;
@@ -148,8 +158,9 @@ public class SchedulerUtils {
 
   private static Properties resolveTemplate(Properties jobProps) throws IOException {
     if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-      return ConfigUtils.configToProperties((new ResourceBasedTemplate(
+      Properties resolvedProps = ConfigUtils.configToProperties((new ResourceBasedTemplate(
           jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH))).getResolvedConfig(ConfigFactory.parseProperties(jobProps)));
+      return resolvedProps;
     } else {
       return jobProps;
     }

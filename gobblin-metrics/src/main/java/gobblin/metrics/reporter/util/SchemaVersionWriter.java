@@ -32,6 +32,23 @@ import org.apache.avro.Schema;
  */
 public interface SchemaVersionWriter<S> {
 
+  enum Type {
+    NOOP() {
+      @Override
+      public SchemaVersionWriter getVersionWriter() {
+        return new NoopSchemaVersionWriter();
+      }
+    },
+    FIXED_VERSION() {
+      @Override
+      public SchemaVersionWriter getVersionWriter() {
+        return new FixedSchemaVersionWriter();
+      }
+    };
+
+    public abstract SchemaVersionWriter getVersionWriter();
+  }
+
   /**
    * Write schema information to {@link java.io.DataOutputStream}.
    * @param schema Avro {@link org.apache.avro.Schema} of the data that will be serialized into outputStream.

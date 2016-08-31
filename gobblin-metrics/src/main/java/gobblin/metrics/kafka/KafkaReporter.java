@@ -17,7 +17,6 @@ import gobblin.metrics.MetricReport;
 import gobblin.metrics.reporter.MetricReportReporter;
 import gobblin.metrics.reporter.util.AvroJsonSerializer;
 import gobblin.metrics.reporter.util.AvroSerializer;
-import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import gobblin.metrics.reporter.util.SchemaVersionWriter;
 import gobblin.util.ConfigUtils;
 
@@ -28,22 +27,31 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * Kafka reporter for metrics.
  *
  * @author ibuenros
  */
+@Slf4j
 public class KafkaReporter extends MetricReportReporter {
+
+  public static final String SCHEMA_VERSION_WRITER_TYPE = "metrics.kafka.schemaVersionWriterType";
 
   protected final AvroSerializer<MetricReport> serializer;
   protected final KafkaPusher kafkaPusher;
 
+
   protected KafkaReporter(Builder<?> builder, Config config) throws IOException {
     super(builder, config);
 
-    this.serializer = this.closer.register(
-        createSerializer(new FixedSchemaVersionWriter()));
+    SchemaVersionWriter versionWriter = config.hasPath(SCHEMA_VERSION_WRITER_TYPE) ?
+        SchemaVersionWriter.Type.valueOf(config.getString(SCHEMA_VERSION_WRITER_TYPE)).getVersionWriter() :
+        SchemaVersionWriter.Type.FIXED_VERSION.getVersionWriter();
+    log.info("Schema version writer: " + versionWriter.getClass().getName());
+    this.serializer = this.closer.register(createSerializer(versionWriter));
 
     if (builder.kafkaPusher.isPresent()) {
       this.kafkaPusher = builder.kafkaPusher.get();
