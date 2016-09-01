@@ -115,13 +115,13 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     if (null != _jobContext) {
       switch (_jobContext.getJobState().getState()) {
         case PENDING:
+        case SUCCESSFUL:
         case RUNNING: {
           // We have to pass another listener instance as launcher does not store the listener used
           // in launchJob()
           cancel(false);
           break;
         }
-        case SUCCESSFUL:
         case FAILED:
         case COMMITTED:
         case CANCELLED: {
