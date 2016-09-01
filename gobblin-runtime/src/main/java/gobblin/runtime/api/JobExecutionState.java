@@ -177,7 +177,7 @@ public class JobExecutionState implements JobExecutionStatus {
       }
       else {
         Preconditions.checkState(EXPECTED_PRE_TRANSITION_STATES.get(newState).contains(this.runningState),
-            "unexpected state:" + this.runningState);
+            "unexpected state transition " + this.runningState + " --> " + newState);
       }
 
       oldState = this.runningState;

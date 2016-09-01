@@ -109,4 +109,52 @@ public class TestStandardGobblinInstanceLauncher {
   }
 
 
+  @Test
+  /** Test running of a job using the standard path of submitting to the job catalog */
+  public void testSubmitToJobCatalog() throws Exception {
+    StandardGobblinInstanceLauncher.Builder instanceLauncherBuilder =
+        StandardGobblinInstanceLauncher.builder()
+        .withInstanceName("testSubmitToJobCatalog");
+    instanceLauncherBuilder.driver();
+    StandardGobblinInstanceLauncher instanceLauncher =
+        instanceLauncherBuilder.build();
+    instanceLauncher.startAsync();
+    instanceLauncher.awaitRunning(50, TimeUnit.MILLISECONDS);
+
+    JobSpec js1 = JobSpec.builder()
+        .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
+        .build();
+    final StandardGobblinInstanceDriver instance =
+        (StandardGobblinInstanceDriver)instanceLauncher.getDriver();
+
+    final ArrayBlockingQueue<JobExecutionDriver> jobDrivers = new ArrayBlockingQueue<>(1);
+
+    JobLifecycleListener js1Listener = new FilteredJobLifecycleListener(
+        JobSpecFilter.eqJobSpecURI(js1.getUri()),
+        new DefaultJobLifecycleListenerImpl(instance.getLog()) {
+            @Override public void onJobLaunch(JobExecutionDriver jobDriver) {
+              super.onJobLaunch(jobDriver);
+              try {
+                jobDrivers.offer(jobDriver, 100, TimeUnit.MILLISECONDS);
+              } catch (InterruptedException e) {
+                instance.getLog().error("Offer interrupted.");
+              }
+            }
+          });
+    instance.registerWeakJobLifecycleListener(js1Listener);
+
+    instance.getMutableJobCatalog().put(js1);
+
+    JobExecutionDriver jobDriver = jobDrivers.poll(10, TimeUnit.SECONDS);
+    Assert.assertNotNull(jobDriver);
+    JobExecutionResult jobResult = jobDriver.get(5, TimeUnit.SECONDS);
+
+    Assert.assertTrue(jobResult.isSuccessful());
+
+    instanceLauncher.stopAsync();
+    instanceLauncher.awaitTerminated(50, TimeUnit.MILLISECONDS);
+  }
+
+
+
 }
