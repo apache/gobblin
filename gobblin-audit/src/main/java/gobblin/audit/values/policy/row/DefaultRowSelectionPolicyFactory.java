@@ -33,10 +33,10 @@ public class DefaultRowSelectionPolicyFactory {
 
   private static final String ROW_SELECTION_POLICY_CLASS_NAME_KEY = "class";
 
-  private final ClassAliasResolver aliasResolver;
+  private final ClassAliasResolver<RowSelectionPolicy> aliasResolver;
 
   private DefaultRowSelectionPolicyFactory() {
-    this.aliasResolver = new ClassAliasResolver(RowSelectionPolicy.class);
+    this.aliasResolver = new ClassAliasResolver<>(RowSelectionPolicy.class);
   }
 
   /**

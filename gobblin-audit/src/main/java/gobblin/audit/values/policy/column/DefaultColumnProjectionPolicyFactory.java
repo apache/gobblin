@@ -31,10 +31,10 @@ public class DefaultColumnProjectionPolicyFactory {
 
   private static final String COLUMN_PROJECTION_POLICY_CLASS_NAME_KEY = "class";
 
-  private final ClassAliasResolver aliasResolver;
+  private final ClassAliasResolver<ColumnProjectionPolicy> aliasResolver;
 
   private DefaultColumnProjectionPolicyFactory() {
-    this.aliasResolver = new ClassAliasResolver(ColumnProjectionPolicy.class);
+    this.aliasResolver = new ClassAliasResolver<>(ColumnProjectionPolicy.class);
   }
 
   /**

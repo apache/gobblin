@@ -20,7 +20,7 @@ import gobblin.metrics.reporter.util.AvroSerializer;
 import gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
 import gobblin.util.AvroUtils;
 
-public class GobblinMetricsFlattenerConverterTest {
+public class GobblinMetricsPinotFlattenerConverterTest {
 
   @Test
   public void test() throws Exception {
@@ -37,7 +37,7 @@ public class GobblinMetricsFlattenerConverterTest {
     Schema metricReportUtf8 = new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("MetricReport.avsc"));
     GenericRecord genericRecordMetric = AvroUtils.slowDeserializeGenericRecord(serializer.serializeRecord(metricReport), metricReportUtf8);
 
-    GobblinMetricsFlattenerConverter converter = new GobblinMetricsFlattenerConverter();
+    GobblinMetricsPinotFlattenerConverter converter = new GobblinMetricsPinotFlattenerConverter();
 
     Schema outputSchema = converter.convertSchema(MetricReport.SCHEMA$, new WorkUnitState());
     Iterable<GenericRecord> converted = converter.convertRecord(outputSchema, genericRecordMetric, new WorkUnitState());

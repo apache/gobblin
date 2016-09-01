@@ -24,12 +24,12 @@ import lombok.extern.slf4j.Slf4j;
  * The output schema can be found at "gobblin-metrics/src/main/avro/FlatGobblinMetric.avsc".
  */
 @Slf4j
-public class GobblinMetricsFlattenerConverter extends Converter<Schema, Schema, GenericRecord, GenericRecord> {
+public class GobblinMetricsPinotFlattenerConverter extends Converter<Schema, Schema, GenericRecord, GenericRecord> {
 
   private final Schema schema;
 
-  public GobblinMetricsFlattenerConverter() throws IOException {
-    try (InputStream is = GobblinMetricsFlattenerConverter.class.getClassLoader().getResourceAsStream("FlatGobblinMetric.avsc")) {
+  public GobblinMetricsPinotFlattenerConverter() throws IOException {
+    try (InputStream is = GobblinMetricsPinotFlattenerConverter.class.getClassLoader().getResourceAsStream("FlatGobblinMetric.avsc")) {
       this.schema = new Schema.Parser().parse(is);
     }
   }

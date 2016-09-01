@@ -17,7 +17,9 @@ import gobblin.metrics.MetricReport;
 import gobblin.metrics.reporter.MetricReportReporter;
 import gobblin.metrics.reporter.util.AvroJsonSerializer;
 import gobblin.metrics.reporter.util.AvroSerializer;
+import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import gobblin.metrics.reporter.util.SchemaVersionWriter;
+import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
 
 import java.io.IOException;
@@ -47,9 +49,19 @@ public class KafkaReporter extends MetricReportReporter {
   protected KafkaReporter(Builder<?> builder, Config config) throws IOException {
     super(builder, config);
 
-    SchemaVersionWriter versionWriter = config.hasPath(SCHEMA_VERSION_WRITER_TYPE) ?
-        SchemaVersionWriter.Type.valueOf(config.getString(SCHEMA_VERSION_WRITER_TYPE)).getVersionWriter() :
-        SchemaVersionWriter.Type.FIXED_VERSION.getVersionWriter();
+    SchemaVersionWriter versionWriter;
+    if (config.hasPath(SCHEMA_VERSION_WRITER_TYPE)) {
+      try {
+        ClassAliasResolver<SchemaVersionWriter> resolver = new ClassAliasResolver<>(SchemaVersionWriter.class);
+        Class<? extends SchemaVersionWriter> klazz = resolver.resolveClass(config.getString(SCHEMA_VERSION_WRITER_TYPE));
+        versionWriter = klazz.newInstance();
+      } catch (ReflectiveOperationException roe) {
+        throw new IOException("Could not instantiate version writer.", roe);
+      }
+    } else {
+      versionWriter = new FixedSchemaVersionWriter();
+    }
+
     log.info("Schema version writer: " + versionWriter.getClass().getName());
     this.serializer = this.closer.register(createSerializer(versionWriter));
 

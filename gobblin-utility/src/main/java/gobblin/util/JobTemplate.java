@@ -12,9 +12,9 @@
 package gobblin.util;
 
 import com.typesafe.config.Config;
-import java.io.IOException;
+
 import java.util.Collection;
-import java.util.Properties;
+
 
 /**
  * An interface for claiming methods used for
@@ -44,5 +44,15 @@ public interface JobTemplate {
    * Return the combine configuration of template and user customized attributes.
    * @return
    */
-  Config getResolvedConfig(Config userProps) throws IOException;
+  Config getResolvedConfig(Config userProps) throws TemplateException;
+
+  class TemplateException extends Exception {
+    public TemplateException(String message, Throwable cause) {
+      super(message, cause);
+    }
+
+    public TemplateException(String message) {
+      super(message);
+    }
+  }
 }

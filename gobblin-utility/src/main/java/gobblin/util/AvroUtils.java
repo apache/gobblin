@@ -479,7 +479,7 @@ public class AvroUtils {
   }
 
   /**
-   * Deserialize a {@link GenericRecord} from a byte buffer. This method is not intended for high performance.
+   * Deserialize a {@link GenericRecord} from a byte array. This method is not intended for high performance.
    */
   public static GenericRecord slowDeserializeGenericRecord(byte[] serializedRecord, Schema schema) throws IOException {
     Decoder decoder = DecoderFactory.get().binaryDecoder(serializedRecord, null);

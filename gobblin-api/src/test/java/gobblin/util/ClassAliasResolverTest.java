@@ -21,14 +21,42 @@ public class ClassAliasResolverTest {
 
   @Test
   public void testResolve() {
-    ClassAliasResolver resolver = new ClassAliasResolver(IDummyAliasTest.class);
-    Assert.assertEquals(resolver.resolve("abc"), DummyAliasTest.class.getCanonicalName());
+    ClassAliasResolver<IDummyAliasTest> resolver = new ClassAliasResolver<>(IDummyAliasTest.class);
+    Assert.assertEquals(resolver.resolve("abc"), DummyAliasTest.class.getName());
     // Resolve returns the passed string if alias mapping does not exist
     Assert.assertEquals(resolver.resolve("abcd"), "abcd");
+  }
+
+  @Test
+  public void testResolveClass() throws Exception {
+    ClassAliasResolver<IDummyAliasTest> resolver = new ClassAliasResolver<>(IDummyAliasTest.class);
+
+    Assert.assertEquals(resolver.resolveClass("abc"), DummyAliasTest.class);
+    Assert.assertEquals(resolver.resolveClass(DummyAliasTest.class.getName()), DummyAliasTest.class);
+
+    try {
+      resolver.resolveClass("def");
+      Assert.fail();
+    } catch (ClassNotFoundException cnfe) {
+      // expect to throw exception
+    }
+
+    try {
+      resolver.resolveClass(AnotherAliasClass.class.getName());
+      Assert.fail();
+    } catch (ClassNotFoundException cnfe) {
+      // expect to throw exception
+    }
   }
 
   @Alias(value="abc")
   public static class DummyAliasTest implements IDummyAliasTest{}
 
   public static interface IDummyAliasTest {}
+
+  @Alias(value="abc")
+  public static class AnotherAliasClass {}
+
+  @Alias(value="def")
+  public static class YetAnotherAliasClass {}
 }

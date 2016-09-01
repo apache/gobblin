@@ -70,9 +70,8 @@ public class WikipediaSource extends AbstractSource<String, JsonElement> {
       });
       watermarks = Iterables.filter(watermarks, Predicates.notNull());
       List<LongWatermark> watermarkList = Lists.newArrayList(watermarks);
-      Collections.sort(watermarkList, Collections.<LongWatermark>reverseOrder());
       if (watermarkList.size() > 0) {
-        prevHighWatermarks.put(entry.getKey(), watermarkList.get(0));
+        prevHighWatermarks.put(entry.getKey(), Collections.max(watermarkList));
       }
     }
 

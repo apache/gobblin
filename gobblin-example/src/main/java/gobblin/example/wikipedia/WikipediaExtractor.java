@@ -27,6 +27,10 @@ import java.util.Map;
 import java.util.Queue;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.http.message.BasicNameValuePair;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
@@ -34,7 +38,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Joiner;
+import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -97,11 +101,11 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
 
   private class WikiResponseReader implements Iterator<JsonElement> {
 
-    private long latestPulledRevision;
+    private long lastPulledRevision;
     private long revisionsPulled = 0;
 
     public WikiResponseReader(long latestPulledRevision) {
-      this.latestPulledRevision = latestPulledRevision;
+      this.lastPulledRevision = latestPulledRevision;
     }
 
     @Override
@@ -109,9 +113,9 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
 
       if (WikipediaExtractor.this.maxRevisionsPulled > -1
           && this.revisionsPulled >= WikipediaExtractor.this.maxRevisionsPulled) {
-        WikipediaExtractor.this.workUnitState.setActualHighWatermark(new LongWatermark(this.latestPulledRevision));
-        LOG.info(String.format("Pulled max number of records %d, final revision pulled %d.", this.revisionsPulled,
-            this.latestPulledRevision));
+        WikipediaExtractor.this.workUnitState.setActualHighWatermark(new LongWatermark(this.lastPulledRevision));
+        LOG.info("Pulled max number of records {}, final revision pulled {}.", this.revisionsPulled,
+            this.lastPulledRevision);
         return false;
       }
 
@@ -123,7 +127,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
          * Retrieve revisions for the next title. Repeat until we find a title that has at least one revision,
          * otherwise return false
          */
-        if (this.latestPulledRevision >= WikipediaExtractor.this.lastRevisionId) {
+        if (this.lastPulledRevision >= WikipediaExtractor.this.lastRevisionId) {
           return false;
         }
 
@@ -133,7 +137,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
               .put("rvprop", "ids|timestamp|user|userid|size")
               .put("titles", WikipediaExtractor.this.requestedTitle)
               .put("rvlimit", Integer.toString(WikipediaExtractor.this.batchSize + 1))
-              .put("rvstartid", Long.toString(this.latestPulledRevision))
+              .put("rvstartid", Long.toString(this.lastPulledRevision))
               .put("rvendid", Long.toString(WikipediaExtractor.this.lastRevisionId))
               .put("rvdir", "newer")
               .build());
@@ -154,7 +158,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
         return null;
       }
       JsonElement element = WikipediaExtractor.this.currentBatch.poll();
-      this.latestPulledRevision = parseRevision(element);
+      this.lastPulledRevision = parseRevision(element);
       this.revisionsPulled++;
       return element;
     }
@@ -166,7 +170,6 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
   }
 
   public WikipediaExtractor(WorkUnitState workUnitState) throws IOException {
-    //LOG.info("WorkUnitState received: " + workUnitState);
 
     this.workUnitState = workUnitState;
     this.rootUrl = readProp(WIKIPEDIA_API_ROOTURL, workUnitState);
@@ -199,7 +202,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
     workUnitState.setActualHighWatermark(new LongWatermark(this.lastRevisionId));
     this.currentBatch = new LinkedList<>();
 
-    LOG.info(String.format("Will pull revisions %s to %s for page %s.",this.reader.latestPulledRevision,
+    LOG.info(String.format("Will pull revisions %s to %s for page %s.",this.reader.lastPulledRevision,
         this.lastRevisionId, this.requestedTitle));
 
     this.maxRevisionsPulled = workUnitState.getPropAsInt(MAX_REVISION_PER_PAGE, DEFAULT_MAX_REVISIONS_PER_PAGE);
@@ -252,13 +255,13 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
 
   private JsonElement performHttpQuery(String rootUrl, Map<String, String> query) throws URISyntaxException, IOException {
 
-    List<String> queryTokens = Lists.newArrayList();
+    List<NameValuePair> queryTokens = Lists.newArrayList();
     for (Map.Entry<String, String> entry : query.entrySet()) {
-      queryTokens.add(entry.getKey() + "=" + entry.getValue());
+      queryTokens.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
     }
-    String actualQuery = Joiner.on("&").skipNulls().join(queryTokens);
+    String encodedQuery = URLEncodedUtils.format(queryTokens, Charsets.UTF_8);
 
-    URL actualURL = new URL(rootUrl + (rootUrl.contains("?") ? "&" : "?") + actualQuery);
+    URL actualURL = new URIBuilder(rootUrl).setQuery(encodedQuery).build().toURL();
 
     Closer closer = Closer.create();
     HttpURLConnection conn = null;

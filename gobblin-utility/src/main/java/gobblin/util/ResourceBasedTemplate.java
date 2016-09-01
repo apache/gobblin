@@ -37,16 +37,6 @@ public class ResourceBasedTemplate implements JobTemplate {
   private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerUtils.class);
   private final Config config;
 
-  public static class TemplateException extends IOException {
-    public TemplateException(String message, Throwable cause) {
-      super(message, cause);
-    }
-
-    public TemplateException(String message) {
-      super(message);
-    }
-  }
-
   /**
    * Initilized the template by retrieving the specified template file and obtain some special attributes.
    * @param templatePath

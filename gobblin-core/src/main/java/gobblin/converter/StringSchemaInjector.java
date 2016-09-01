@@ -9,7 +9,7 @@ import gobblin.configuration.WorkUnitState;
 /**
  * Injects a string schema into specified by key {@link #SCHEMA_KEY}.
  */
-public class SchemaInjector<SI, DI> extends Converter<SI, String, DI, DI> {
+public class StringSchemaInjector<SI, DI> extends Converter<SI, String, DI, DI> {
 
   public static final String SCHEMA_KEY = "gobblin.converter.schemaInjector.schema";
 

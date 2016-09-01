@@ -1,3 +1,7 @@
+# Template for dumping data from Kafka to Hadoop compatible file system.
+# By default simply dumps the records with no decoding or transformations.
+# Required attributes: topics (topics to pull), job.name (name of the job), output (where to put the dump files)
+
 gobblin.template.required_attributes="topics,job.name,output"
 
 job.group=GobblinKafka
@@ -6,7 +10,7 @@ job.lock.enabled=true
 
 kafka.brokers="localhost:9092"
 
-source.class=gobblin.source.extractor.extract.kafka.SimpleKafkaSource
+source.class=gobblin.source.extractor.extract.kafka.UniversalKafkaSource
 gobblin.source.kafka.extractorType=DESERIALIZER
 kafka.deserializer.type=BYTE_ARRAY
 

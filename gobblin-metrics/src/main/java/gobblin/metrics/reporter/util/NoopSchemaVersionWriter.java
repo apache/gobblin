@@ -18,11 +18,14 @@ import java.io.IOException;
 
 import org.apache.avro.Schema;
 
+import gobblin.annotation.Alias;
+
 
 /**
  * Implementation of {@link gobblin.metrics.reporter.util.SchemaVersionWriter} that does not write anything to
  * {@link java.io.DataOutputStream}.
  */
+@Alias(value = "NOOP")
 public class NoopSchemaVersionWriter implements SchemaVersionWriter<Void> {
   @Override
   public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream)

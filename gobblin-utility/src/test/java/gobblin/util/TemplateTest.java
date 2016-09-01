@@ -78,7 +78,7 @@ public class TemplateTest {
   // Testing the resolving of userCustomized attributes and template is correct.
   @Test
   public void testResolvingConfig()
-      throws IOException {
+      throws Exception {
     Config jobProps = ConfigFactory.parseProperties(this.userProp);
     Assert.assertEquals(ConfigUtils.configToProperties(jobProps).size(), 6);
     jobProps = (new ResourceBasedTemplate(

@@ -6,12 +6,14 @@ import org.apache.avro.io.DecoderFactory;
 
 import com.google.common.base.Preconditions;
 
+import gobblin.annotation.Alias;
 import gobblin.configuration.WorkUnitState;
 
 
 /**
  * Extract avro records from a Kafka topic using a fixed schema provided by {@link #STATIC_SCHEMA_ROOT_KEY}.
  */
+@Alias(value = "AVRO_FIXED_SCHEMA")
 public class FixedSchemaKafkaAvroExtractor extends KafkaAvroExtractor<Void> {
 
   public static final String STATIC_SCHEMA_ROOT_KEY = "gobblin.source.kafka.fixedSchema";
