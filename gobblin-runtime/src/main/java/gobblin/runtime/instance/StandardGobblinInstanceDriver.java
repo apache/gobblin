@@ -35,6 +35,9 @@ import gobblin.runtime.job_exec.JobLauncherExecutionDriver;
 import gobblin.runtime.scheduler.ImmediateJobSpecScheduler;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 
+/** A simple wrapper {@link DefaultGobblinInstanceDriverImpl} that will instantiate necessary
+ * sub-components (e.g. {@link JobCatalog}, {@link JobSpecScheduler}, {@link JobExecutionLauncher}
+ * and it will manage their lifecycle. */
 public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverImpl {
   private ServiceManager _subservices;
 

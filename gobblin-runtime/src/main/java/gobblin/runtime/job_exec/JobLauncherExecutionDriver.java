@@ -165,7 +165,9 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
         _jobState.switchToFailed();
       }
       else {
+        // TODO Remove next line once the JobLauncher starts sending notifications for success
         _jobState.switchToSuccessful();
+        _jobState.switchToCommitted();
       }
     }
 
@@ -333,7 +335,6 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
       unit = TimeUnit.SECONDS;
     }
     getJobExecutionState().awaitForDone(unit.toMillis(timeout));
-
-    return null;
+    return JobExecutionResult.createFromState(getJobExecutionState());
   }
 }
