@@ -98,12 +98,12 @@ public class CopySourceWithMultipleSourceLocation extends CopySource{
     for(DataFlowTopology.CopyRoute route: routes){
       HdfsReplicationLocation hdfsForCopyDestination = (HdfsReplicationLocation)(route.getCopyDestination().getReplicationLocation());
       try {
-        URI destURI = new URI(hdfsForCopyDestination.getClustername());
+        URI destURI = new URI(hdfsForCopyDestination.getFs_uri());
         if(destURI.equals(executionClusterURI)){
           return route;
         }
       } catch (URISyntaxException e) {
-        log.warn("Can not generate namenode URI from " + hdfsForCopyDestination.getClustername());
+        log.warn("Can not generate namenode URI from " + hdfsForCopyDestination.getFs_uri());
       }
     }
 
@@ -250,12 +250,12 @@ public class CopySourceWithMultipleSourceLocation extends CopySource{
       HdfsReplicationLocation hdfsCopyTo = (HdfsReplicationLocation)(route.getCopyDestination().getReplicationLocation());
       HdfsReplicationLocation hdfsCopyFrom = (HdfsReplicationLocation)(route.getCopyFrom().get(0).getReplicationLocation());
 
-      stateCp.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, hdfsCopyFrom.getClustername()); 
+      stateCp.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, hdfsCopyFrom.getFs_uri()); 
       stateCp.setProp(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, hdfsCopyFrom.getPath());
       log.info("source dir is " + hdfsCopyFrom.getPath());
 
 
-      stateCp.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, hdfsCopyTo.getClustername());
+      stateCp.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, hdfsCopyTo.getFs_uri());
       stateCp.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, hdfsCopyTo.getPath());
 
       log.info("target dir is " + hdfsCopyTo.getPath());
