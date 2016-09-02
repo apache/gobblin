@@ -41,14 +41,13 @@ public class FileStatusEntry extends FileStatus {
       if (_fileStatus.isPresent()) {
         Optional<FileStatus> oldStatus = this._fileStatus;
         try {
-          Optional<FileStatus> newStatus = Optional.of(fs.getFileStatus(path));
-          this.exists = newStatus.isPresent();
+          this._fileStatus = Optional.of(fs.getFileStatus(path));
+          this.exists = this._fileStatus.isPresent();
 
           return (oldStatus.isPresent() != this._fileStatus.isPresent()
-              || oldStatus.get().getModificationTime() != newStatus.get().getModificationTime()
-              || oldStatus.get().isDirectory() != newStatus.get().isDirectory() || oldStatus.get().getLen() != newStatus
-              .get()
-              .getLen());
+              || oldStatus.get().getModificationTime() != this._fileStatus.get().getModificationTime()
+              || oldStatus.get().isDirectory() != this._fileStatus.get().isDirectory()
+              || oldStatus.get().getLen() != this._fileStatus.get().getLen());
         } catch (FileNotFoundException e) {
           _fileStatus = Optional.absent();
           this.exists = false;

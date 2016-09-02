@@ -1,6 +1,7 @@
 package gobblin.scheduler;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.configuration.ConfigurationException;
@@ -10,10 +11,13 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
+import com.google.common.collect.Maps;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobException;
 import gobblin.runtime.listeners.EmailNotificationJobListener;
 import gobblin.runtime.listeners.RunOnceJobListener;
+import gobblin.util.PathUtils;
 import gobblin.util.SchedulerUtils;
 import gobblin.util.filesystem.PathAlterationListenerAdaptor;
 
@@ -28,10 +32,22 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
 
   Path jobConfigFileDirPath;
   JobScheduler jobScheduler;
+  /** Store path to job mappings. Required for correctly unscheduling. */
+  private final Map<Path, String> jobNameMap;
 
   PathAlterationListenerAdaptorForMonitor(Path jobConfigFileDirPath, JobScheduler jobScheduler) {
     this.jobConfigFileDirPath = jobConfigFileDirPath;
     this.jobScheduler = jobScheduler;
+    this.jobNameMap = Maps.newConcurrentMap();
+  }
+
+  private Path getJobPath(Properties jobProps) {
+    return PathUtils.getPathWithoutSchemeAndAuthority(new Path(jobProps.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY)));
+  }
+
+  public void addToJobNameMap(Properties jobProps) {
+    this.jobNameMap.put(getJobPath(jobProps),
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
   }
 
   public void loadNewJobConfigAndHandleNewJob(Path path, JobScheduler.Action action) {
@@ -41,22 +57,19 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
     try {
       Properties jobProps =
           SchedulerUtils.loadGenericJobConfig(this.jobScheduler.properties, path, jobConfigFileDirPath);
-
       switch (action) {
         case SCHEDULE:
           boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
           customizedInfo = "schedule";
+          addToJobNameMap(jobProps);
           jobScheduler.scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-          break;
-        case UNSCHEDULE:
-          String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-          customizedInfo = "unschedule";
-          jobScheduler.unscheduleJob(jobName);
           break;
         case RESCHEDULE:
           customizedInfo = "reschedule";
           rescheduleJob(jobProps);
           break;
+        case UNSCHEDULE:
+          throw new RuntimeException("Should not call loadNewJobConfigAndHandleNewJob for unscheduling jobs.");
         default:
           break;
       }
@@ -79,6 +92,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
               boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
               customizedInfoAction = "schedule";
               customizedInfoResult = "creation or equivalent action";
+              addToJobNameMap(jobProps);
               jobScheduler.scheduleJob(jobProps,
                   runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
               break;
@@ -88,11 +102,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
               rescheduleJob(jobProps);
               break;
             case UNSCHEDULE:
-              String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-              customizedInfoAction = "unschedule";
-              customizedInfoResult = "deletion";
-              jobScheduler.unscheduleJob(jobName);
-              break;
+              throw new RuntimeException("Should not call loadNewCommonConfigAndHandleNewJob for unscheduling jobs.");
             default:
               break;
           }
@@ -175,18 +185,39 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
 
     LOG.info("Detected deletion to job configuration file " + path.toString());
     // As for normal job file, deletion means unschedule
-    loadNewJobConfigAndHandleNewJob(path, JobScheduler.Action.UNSCHEDULE);
+    unscheduleJobAtPath(path);
+  }
+
+  private void unscheduleJobAtPath(Path path) {
+    try {
+      Path pathWithoutSchemeOrAuthority = PathUtils.getPathWithoutSchemeAndAuthority(path);
+      String jobName = this.jobNameMap.get(pathWithoutSchemeOrAuthority);
+      if (jobName == null) {
+        LOG.info("Could not find a scheduled job to unschedule with path " + pathWithoutSchemeOrAuthority);
+        return;
+      }
+      LOG.info("Unscheduling job " + jobName);
+      this.jobScheduler.unscheduleJob(jobName);
+      this.jobNameMap.remove(pathWithoutSchemeOrAuthority);
+    } catch (JobException je) {
+      LOG.error("Could not unschedule job " + this.jobNameMap.get(path));
+    }
   }
 
   private void rescheduleJob(Properties jobProps)
       throws JobException {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    Path jobPath = getJobPath(jobProps);
     // First unschedule and delete the old job
-    jobScheduler.unscheduleJob(jobName);
+    if (this.jobNameMap.containsKey(jobPath)) {
+      jobScheduler.unscheduleJob(this.jobNameMap.get(jobPath));
+      this.jobNameMap.remove(jobPath);
+    }
     boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
     // Reschedule the job with the new job configuration
     jobScheduler.scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-    LOG.debug("[JobScheduler]" + "" + "" + "The new job " + jobName + " is rescheduled.");
+    addToJobNameMap(jobProps);
+    LOG.debug("[JobScheduler] The new job " + jobName + " is rescheduled.");
   }
 
   /**

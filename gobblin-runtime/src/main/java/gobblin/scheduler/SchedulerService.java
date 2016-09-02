@@ -44,6 +44,7 @@ public class SchedulerService extends AbstractIdleService {
   protected void startUp()
       throws Exception {
     this.scheduler = new StdSchedulerFactory().getScheduler();
+    this.scheduler.start();
   }
 
   @Override
