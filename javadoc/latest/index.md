@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Gobblin Javadoc packages 0.7.0
+title: Gobblin Javadoc packages 0.8.0
 permalink: /javadoc/latest/
 ---
 
@@ -25,4 +25,7 @@ permalink: /javadoc/latest/
 * [gobblin-core](gobblin-core)
 * [gobblin-example](gobblin-example)
 * [gobblin-rest-client](gobblin-rest-client)
+* [gobblin-kafka](gobblin-kafka)
+* [gobblin-aws](gobblin-aws)
+* [gobblin-cluster](gobblin-cluster)
 
