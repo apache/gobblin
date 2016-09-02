@@ -15,11 +15,15 @@ package gobblin.scheduler;
 import java.util.Properties;
 
 import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 import org.quartz.impl.StdSchedulerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ConfigUtils;
 
 import lombok.Getter;
 
@@ -33,22 +37,39 @@ public class SchedulerService extends AbstractIdleService {
   @Getter
   private Scheduler scheduler;
   private final boolean waitForJobCompletion;
+  private final Optional<Properties> quartzProps;
+
+  public SchedulerService(boolean waitForJobCompletion, Optional<Properties> quartzConfig) {
+    this.waitForJobCompletion = waitForJobCompletion;
+    this.quartzProps = quartzConfig;
+  }
 
   public SchedulerService(Properties props) {
-    this.waitForJobCompletion = Boolean.parseBoolean(
-        props.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
-            ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION));
+    this(Boolean.parseBoolean(
+            props.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
+                              ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION)),
+        Optional.of(props));
+  }
+
+  public SchedulerService(Config cfg) {
+    this(cfg.hasPath(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY) ?
+         cfg.getBoolean(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY) :
+         Boolean.parseBoolean(ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION),
+         Optional.of(ConfigUtils.configToProperties(cfg, "org.quartz.")));
   }
 
   @Override
-  protected void startUp()
-      throws Exception {
-    this.scheduler = new StdSchedulerFactory().getScheduler();
+  protected void startUp() throws SchedulerException  {
+    StdSchedulerFactory schedulerFactory = new StdSchedulerFactory();
+    if (this.quartzProps.isPresent()) {
+      schedulerFactory.initialize(this.quartzProps.get());
+    }
+    this.scheduler = schedulerFactory.getScheduler();
+    this.scheduler.start();
   }
 
   @Override
-  protected void shutDown()
-      throws Exception {
+  protected void shutDown() throws SchedulerException  {
     this.scheduler.shutdown(this.waitForJobCompletion);
   }
 }

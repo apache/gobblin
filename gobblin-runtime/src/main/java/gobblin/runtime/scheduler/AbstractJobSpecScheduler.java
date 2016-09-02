@@ -16,12 +16,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecSchedule;
@@ -29,15 +31,19 @@ import gobblin.runtime.api.JobSpecScheduler;
 import gobblin.runtime.api.JobSpecSchedulerListener;
 
 /**
- * A base implementation of {@link JobSpecScheduler} that keeps track
+ * A base implementation of {@link JobSpecScheduler} that keeps track of {@link JobSpecSchedule}s
+ * and listeners. Subclasses are expected to implement mainly
+ * {@link #doScheduleJob(JobSpec, Runnable)} and {@link #doUnschedule(JobSpecSchedule)} which
+ * implement the actual scheduling.
  */
-public abstract class AbstractJobSpecScheduler implements JobSpecScheduler {
+public abstract class AbstractJobSpecScheduler extends AbstractIdleService
+                                               implements JobSpecScheduler  {
   protected final Map<URI, JobSpecSchedule> _schedules = new HashMap<>();
   private final Logger _log;
   private final JobSpecSchedulerListeners _callbacksDispatcher;
 
   public AbstractJobSpecScheduler(Optional<Logger> log) {
-    _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
+    _log = log.or(LoggerFactory.getLogger(getClass()));
     _callbacksDispatcher = new JobSpecSchedulerListeners(_log);
   }
 
@@ -164,6 +170,15 @@ public abstract class AbstractJobSpecScheduler implements JobSpecScheduler {
       _callbacksDispatcher.onJobTriggered(_jobSpec);
       _jobRunnable.run();
     }
+  }
+  @Override
+  protected void startUp() throws TimeoutException {
+    // Do nothing by default
+  }
+
+  @Override
+  protected void shutDown() throws TimeoutException {
+    // Do nothing by default
   }
 
 }
