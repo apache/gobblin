@@ -72,7 +72,7 @@ public class ReplicationConfigurationTest {
     Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationType.HDFS);
     Assert.assertTrue(source.getReplicationLocation() instanceof HdfsReplicationLocation);
     HdfsReplicationLocation hdfsLocation = (HdfsReplicationLocation)(source.getReplicationLocation());
-    Assert.assertTrue(hdfsLocation.getClustername().equals("lva1_war"));
+    Assert.assertTrue(hdfsLocation.getClustername().equals("hdfs://lva1-warnn01.grid.linkedin.com:9000"));
     Assert.assertTrue(hdfsLocation.getPath().equals("/jobs/mitu/profileTest"));
     Assert.assertTrue(hdfsLocation.getColo().equals("lva1"));
     

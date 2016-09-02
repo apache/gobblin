@@ -42,7 +42,7 @@ import lombok.extern.slf4j.Slf4j;
  * </p>
  */
 @Slf4j
-class ConcurrentBoundedWorkUnitList {
+public class ConcurrentBoundedWorkUnitList {
 
   private final TreeMap<FileSet<CopyEntity>, List<WorkUnit>> workUnitsMap;
   @Getter
