@@ -159,10 +159,15 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override
     public void run() {
-       JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
-       _callbacksDispatcher.onJobLaunch(driver);
-       driver.registerStateListener(new JobStateTracker());
-       driver.startAsync();
+      try {
+         JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
+         _callbacksDispatcher.onJobLaunch(driver);
+         driver.registerStateListener(new JobStateTracker());
+         driver.startAsync();
+      }
+      catch (Throwable t) {
+        _log.error("Job launch failed: " + t, t);
+      }
     }
   }
 

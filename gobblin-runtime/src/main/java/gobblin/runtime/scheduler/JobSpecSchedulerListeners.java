@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 
+import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecSchedule;
 import gobblin.runtime.api.JobSpecSchedulerListener;
 import gobblin.runtime.api.JobSpecSchedulerListenersContainer;
@@ -66,9 +67,9 @@ public class JobSpecSchedulerListeners
     }
   }
 
-  @Override public void onJobTriggered(JobSpecSchedule jobSchedule) {
+  @Override public void onJobTriggered(JobSpec jobSpec) {
     try {
-      _dispatcher.execCallbacks(new JobTriggeredCallback(jobSchedule));
+      _dispatcher.execCallbacks(new JobTriggeredCallback(jobSpec));
     } catch (InterruptedException e) {
       _dispatcher.getLog().warn("onJobTriggered interrupted.");
     }

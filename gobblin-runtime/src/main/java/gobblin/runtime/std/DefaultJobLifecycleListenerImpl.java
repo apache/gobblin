@@ -106,9 +106,9 @@ public class DefaultJobLifecycleListenerImpl implements JobLifecycleListener {
     }
   }
 
-  @Override public void onJobTriggered(JobSpecSchedule jobSchedule) {
+  @Override public void onJobTriggered(JobSpec jobSpec) {
     if (_log.isPresent()) {
-      _log.get().info("job triggered: " + jobSchedule);
+      _log.get().info("job triggered: " + jobSpec);
     }
   }
 
