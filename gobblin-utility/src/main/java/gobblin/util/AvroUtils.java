@@ -35,6 +35,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
@@ -475,5 +476,14 @@ public class AvroUtils {
       }
     }
     return new Path(Joiner.on(Path.SEPARATOR).join(tokens));
+  }
+
+  /**
+   * Deserialize a {@link GenericRecord} from a byte array. This method is not intended for high performance.
+   */
+  public static GenericRecord slowDeserializeGenericRecord(byte[] serializedRecord, Schema schema) throws IOException {
+    Decoder decoder = DecoderFactory.get().binaryDecoder(serializedRecord, null);
+    GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
+    return reader.read(null, decoder);
   }
 }

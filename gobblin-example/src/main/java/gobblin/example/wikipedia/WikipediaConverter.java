@@ -61,7 +61,9 @@ public class WikipediaConverter extends ToAvroConverterBase<String, JsonElement>
         //switch '*' to 'content' since '*' is not a valid avro schema field name
         record.put(JSON_CONTENT_MEMBER, entry.getValue());
       } else {
-        record.put(entry.getKey(), entry.getValue());
+        if (outputSchema.getField(entry.getKey()) != null) {
+          record.put(entry.getKey(), entry.getValue());
+        }
       }
     }
 

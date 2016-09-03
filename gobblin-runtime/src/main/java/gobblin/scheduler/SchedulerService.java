@@ -58,8 +58,7 @@ public class SchedulerService extends AbstractIdleService {
          Optional.of(ConfigUtils.configToProperties(cfg, "org.quartz.")));
   }
 
-  @Override
-  protected void startUp() throws SchedulerException  {
+  @Override protected void startUp() throws SchedulerException  {
     StdSchedulerFactory schedulerFactory = new StdSchedulerFactory();
     if (this.quartzProps.isPresent() && this.quartzProps.get().size() > 0) {
       schedulerFactory.initialize(this.quartzProps.get());
@@ -68,8 +67,7 @@ public class SchedulerService extends AbstractIdleService {
     this.scheduler.start();
   }
 
-  @Override
-  protected void shutDown() throws SchedulerException  {
+  @Override protected void shutDown() throws SchedulerException  {
     this.scheduler.shutdown(this.waitForJobCompletion);
   }
 }

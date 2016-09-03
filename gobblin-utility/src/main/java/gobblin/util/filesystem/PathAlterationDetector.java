@@ -135,8 +135,8 @@ public final class PathAlterationDetector implements Runnable {
     for (final PathAlterationObserver observer : observers) {
       try {
         observer.checkAndNotify();
-      } catch (IOException e) {
-        e.printStackTrace();
+      } catch (IOException ioe) {
+        LOGGER.error("Path alteration detector error.", ioe);
       }
     }
     if (!running) {
