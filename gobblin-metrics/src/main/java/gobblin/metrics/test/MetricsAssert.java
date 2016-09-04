@@ -15,6 +15,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import javax.annotation.Nonnull;
+
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 
@@ -68,7 +70,7 @@ public class MetricsAssert implements Function<Notification, Void> {
 
   public static Predicate<GobblinTrackingEvent> eqEventName(final String expectedName) {
     return new Predicate<GobblinTrackingEvent>() {
-      @Override public boolean apply(GobblinTrackingEvent input) {
+      @Override public boolean apply(@Nonnull GobblinTrackingEvent input) {
         return input.getName().equals(expectedName);
       }
     };
@@ -76,7 +78,7 @@ public class MetricsAssert implements Function<Notification, Void> {
 
   public static Predicate<GobblinTrackingEvent> eqEventNamespace(final String expectedNamespace) {
     return new Predicate<GobblinTrackingEvent>() {
-      @Override public boolean apply(GobblinTrackingEvent input) {
+      @Override public boolean apply(@Nonnull GobblinTrackingEvent input) {
         return input.getNamespace().equals(expectedNamespace);
       }
     };
@@ -85,7 +87,7 @@ public class MetricsAssert implements Function<Notification, Void> {
   public static Predicate<GobblinTrackingEvent> eqEventMetdata(final String metadataKey,
                                                         final String metadataValue) {
     return new Predicate<GobblinTrackingEvent>() {
-      @Override public boolean apply(GobblinTrackingEvent input) {
+      @Override public boolean apply(@Nonnull GobblinTrackingEvent input) {
         return input.getMetadata().get(metadataKey).equals(metadataValue);
       }
     };
@@ -93,7 +95,7 @@ public class MetricsAssert implements Function<Notification, Void> {
 
   public static Predicate<GobblinTrackingEvent> hasEventMetdata(final String metadataKey) {
     return new Predicate<GobblinTrackingEvent>() {
-      @Override public boolean apply(GobblinTrackingEvent input) {
+      @Override public boolean apply(@Nonnull GobblinTrackingEvent input) {
         return input.getMetadata().containsKey(metadataKey);
       }
     };

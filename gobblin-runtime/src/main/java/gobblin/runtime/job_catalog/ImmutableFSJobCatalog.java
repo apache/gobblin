@@ -56,7 +56,7 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
   protected final PathAlterationDetector pathAlterationDetector;
 
   public ImmutableFSJobCatalog(Config sysConfig)
-      throws Exception {
+      throws IOException {
     this(sysConfig, null);
   }
 
@@ -72,6 +72,10 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
     Properties sysProp = ConfigUtils.configToProperties(this.sysConfig);
     Preconditions.checkArgument(sysProp.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
 
+    this.jobConfDirPath = new Path(sysProp.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+    this.fs = this.jobConfDirPath.getFileSystem(new Configuration());
+    this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
+
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new gobblin.configuration.State(), getClass()));
@@ -82,10 +86,6 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
       this.metricContext = null;
       this.metrics = null;
     }
-
-    this.jobConfDirPath = new Path(sysProp.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
-    this.fs = this.jobConfDirPath.getFileSystem(new Configuration());
-    this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
 
     this.loader = new PullFileLoader(jobConfDirPath, jobConfDirPath.getFileSystem(new Configuration()),
         FSJobCatalogHelper.getJobConfigurationFileExtensions(sysProp),
