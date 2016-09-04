@@ -16,16 +16,18 @@ import java.util.concurrent.TimeUnit;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.util.concurrent.Service.State;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.metrics.MetricContext;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecScheduler;
-import gobblin.runtime.instance.DefaultGobblinInstanceDriverImpl;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.DefaultJobSpecScheduleImpl;
@@ -37,7 +39,7 @@ public class TestDefaultGobblinInstanceDriverImpl {
 
   @Test
   public void testScheduling() throws Exception {
-    final Logger log = LoggerFactory.getLogger(getClass().getName() + ".testBasicFlow");
+    final Logger log = LoggerFactory.getLogger(getClass().getName() + ".testScheduling");
     final Optional<Logger> loggerOpt = Optional.of(log);
     InMemoryJobCatalog jobCatalog = new InMemoryJobCatalog(loggerOpt);
 
@@ -47,6 +49,7 @@ public class TestDefaultGobblinInstanceDriverImpl {
 
     DefaultGobblinInstanceDriverImpl driver =
         new DefaultGobblinInstanceDriverImpl(sysConfig, jobCatalog, scheduler, jobLauncher,
+            Optional.<MetricContext>absent(),
             loggerOpt);
 
     JobSpec js1_1 = JobSpec.builder("test.job1").withVersion("1").build();
@@ -56,6 +59,12 @@ public class TestDefaultGobblinInstanceDriverImpl {
     jobCatalog.put(js1_1);
 
     driver.startAsync().awaitRunning(100, TimeUnit.MILLISECONDS);
+    long startTimeMs = System.currentTimeMillis();
+    Assert.assertTrue(driver.isRunning());
+    Assert.assertTrue(driver.isInstrumentationEnabled());
+    Assert.assertNotNull(driver.getMetricContext());
+    Assert.assertEquals(driver.getMetrics().getUpFlag().getValue().intValue(), 1);
+
     jobCatalog.put(js2);
     jobCatalog.put(js1_2);
     jobCatalog.remove(js2.getUri());
@@ -80,6 +89,19 @@ public class TestDefaultGobblinInstanceDriverImpl {
     Mockito.verify(scheduler).scheduleJob(Mockito.eq(js1_2),
         Mockito.any(DefaultGobblinInstanceDriverImpl.JobSpecRunnable.class));
     Mockito.verify(scheduler).unscheduleJob(Mockito.eq(js2.getUri()));
+
+    long elapsedMs = System.currentTimeMillis()  - startTimeMs;
+    long uptimeMs = driver.getMetrics().getUptimeMs().getValue().longValue();
+
+    Assert.assertTrue(uptimeMs >= elapsedMs, "uptime=" + uptimeMs + " elapsedMs=" + elapsedMs);
+    Assert.assertTrue(uptimeMs <= 2 * elapsedMs, "uptime=" + uptimeMs + " elapsedMs=" + elapsedMs);
+
+    driver.stopAsync();
+    driver.awaitTerminated(100, TimeUnit.MILLISECONDS);
+    Assert.assertEquals(driver.state(), State.TERMINATED);
+    Assert.assertEquals(driver.getMetrics().getUpFlag().getValue().intValue(), 0);
+    Assert.assertEquals(driver.getMetrics().getUptimeMs().getValue().longValue(), 0);
+
   }
 
 }

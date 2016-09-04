@@ -16,6 +16,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.annotation.Alpha;
+import gobblin.instrumented.Instrumentable;
 
 import lombok.Getter;
 
@@ -24,7 +25,7 @@ import lombok.Getter;
  *  configurations, instantiates and runs the Gobblin instance driver.
  */
 @Alpha
-public interface GobblinInstanceLauncher extends Service, Configurable {
+public interface GobblinInstanceLauncher extends Service, Configurable, Instrumentable {
   /**
    * Creates a new Gobblin instance to run Gobblin jobs.
    * @throws IllegalStateException if {@link #isRunning()} is false.*/

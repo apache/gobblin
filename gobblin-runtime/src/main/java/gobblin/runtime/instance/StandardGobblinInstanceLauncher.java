@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.instance;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,6 +24,10 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceDriver;
 import gobblin.runtime.api.GobblinInstanceLauncher;
@@ -36,12 +42,18 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
   private final String _name;
   private final Configurable _instanceConf;
   private final StandardGobblinInstanceDriver _driver;
+  private final MetricContext _metricContext;
+  private final boolean _instrumentationEnabled;
 
-  protected StandardGobblinInstanceLauncher(String name, Configurable instanceConf,
-      StandardGobblinInstanceDriver.Builder driverBuilder) {
+  protected StandardGobblinInstanceLauncher(String name,
+      Configurable instanceConf,
+      StandardGobblinInstanceDriver.Builder driverBuilder,
+      Optional<MetricContext> metricContext) {
     _name = name;
     _instanceConf = instanceConf;
     _driver = driverBuilder.withInstanceLauncher(this).build();
+    _instrumentationEnabled = metricContext.isPresent();
+    _metricContext = metricContext.orNull();
   }
 
   /** {@inheritDoc} */
@@ -91,6 +103,8 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
     Optional<Logger> _log = Optional.absent();
     StandardGobblinInstanceDriver.Builder _driver = new StandardGobblinInstanceDriver.Builder();
     Optional<? extends Configurable> _instanceConfig = Optional.absent();
+    Optional<Boolean> _instrumentationEnabled = Optional.absent();
+    Optional<MetricContext> _metricContext = Optional.absent();
 
     public String getDefaultInstanceName() {
       return StandardGobblinInstanceLauncher.class.getSimpleName() + "-" +
@@ -152,10 +166,65 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
       return this;
     }
 
-    public StandardGobblinInstanceLauncher build() {
-      return new StandardGobblinInstanceLauncher(getInstanceName(), getInstanceConfig(), driver());
+    public Builder setInstrumentationEnabled(boolean enabled) {
+      _instrumentationEnabled = Optional.of(enabled);
+      return this;
     }
 
+    public boolean isInstrumentationEnabled() {
+      if (!_instrumentationEnabled.isPresent()) {
+        _instrumentationEnabled = Optional.of(getDefaultInstrumentationEnabled());
+      }
+      return _instrumentationEnabled.get();
+    }
+
+    public Builder setMetricContext(MetricContext metricContext) {
+      _metricContext = Optional.of(metricContext);
+      return this;
+    }
+
+    public MetricContext getMetricContext() {
+      if (!_metricContext.isPresent()) {
+        _metricContext = Optional.of(getDefaultMetricContext());
+      }
+      return _metricContext.get();
+    }
+
+    private MetricContext getDefaultMetricContext() {
+      gobblin.configuration.State fakeState =
+          new gobblin.configuration.State(getInstanceConfig().getConfigAsProperties());
+      return Instrumented.getMetricContext(fakeState, StandardGobblinInstanceLauncher.class);
+    }
+
+    private boolean getDefaultInstrumentationEnabled() {
+      return GobblinMetrics.isEnabled(getInstanceConfig().getConfig());
+    }
+
+    public StandardGobblinInstanceLauncher build() {
+      return new StandardGobblinInstanceLauncher(getInstanceName(), getInstanceConfig(), driver(),
+          isInstrumentationEnabled() ? Optional.of(getMetricContext()) : Optional.<MetricContext>absent());
+    }
+
+  }
+
+  @Override public MetricContext getMetricContext() {
+    return _metricContext;
+  }
+
+  @Override public boolean isInstrumentationEnabled() {
+    return _instrumentationEnabled;
+  }
+
+  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+    return Collections.emptyList();
+  }
+
+  @Override public void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
   }
 
 }

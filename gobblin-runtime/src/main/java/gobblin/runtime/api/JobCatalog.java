@@ -14,19 +14,98 @@ package gobblin.runtime.api;
 import java.net.URI;
 import java.util.Collection;
 
+import com.codahale.metrics.Gauge;
+import com.google.common.collect.ImmutableMap;
+
 import gobblin.annotation.Alpha;
+import gobblin.instrumented.Instrumentable;
+import gobblin.metrics.ContextAwareCounter;
+import gobblin.metrics.ContextAwareGauge;
+import gobblin.metrics.GobblinTrackingEvent;
+
+import lombok.Getter;
 
 /**
  * A catalog of all the {@link JobSpec}s a Gobblin instance is currently aware of.
  */
 @Alpha
-public interface JobCatalog extends JobCatalogListenersContainer {
+public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable {
   /** Returns an immutable {@link Collection} of {@link JobSpec}s that are known to the catalog. */
   Collection<JobSpec> getJobs();
+
+  /** Metrics for the job catalog; null if
+   * ({@link #isInstrumentationEnabled()}) is false. */
+  StandardMetrics getMetrics();
 
   /**
    * Get a {@link JobSpec} by uri.
    * @throws JobSpecNotFoundException if no such JobSpec exists
    **/
   JobSpec getJobSpec(URI uri) throws JobSpecNotFoundException;
+
+  public static class StandardMetrics implements JobCatalogListener {
+    public static final String NUM_ACTIVE_JOBS_NAME = "numActiveJobs";
+    public static final String NUM_ADDED_JOBS = "numAddedJobs";
+    public static final String NUM_DELETED_JOBS = "numDeletedJobs";
+    public static final String NUM_UPDATED_JOBS = "numUpdatedJobs";
+    public static final String TRACKING_EVENT_NAME = "JobCatalogEvent";
+    public static final String OPERATION_TYPE = "operationType";
+    public static final String JOB_ADDED_OPERATION_TYPE = "JobAdded";
+    public static final String JOB_DELETED_OPERATION_TYPE = "JobDeleted";
+    public static final String JOB_UPDATED_OPERATION_TYPE = "JobUpdated";
+    public static final String JOB_SPEC_URI = "jobSpecURI";
+    public static final String JOB_SPEC_VERSION = "jobSpecVersion";
+
+    @Getter private final ContextAwareGauge<Integer> numActiveJobs;
+    @Getter private final ContextAwareCounter numAddedJobs;
+    @Getter private final ContextAwareCounter numDeletedJobs;
+    @Getter private final ContextAwareCounter numUpdatedJobs;
+
+    public StandardMetrics(final JobCatalog parent) {
+      this.numAddedJobs = parent.getMetricContext().contextAwareCounter(NUM_ADDED_JOBS);
+      this.numDeletedJobs = parent.getMetricContext().contextAwareCounter(NUM_DELETED_JOBS);
+      this.numUpdatedJobs = parent.getMetricContext().contextAwareCounter(NUM_UPDATED_JOBS);
+      this.numActiveJobs = parent.getMetricContext().newContextAwareGauge(NUM_ACTIVE_JOBS_NAME,
+          new Gauge<Integer>() {
+            @Override public Integer getValue() {
+              return parent.getJobs().size();
+            }
+      });
+      parent.addListener(this);
+    }
+
+    @Override public void onAddJob(JobSpec addedJob) {
+      this.numAddedJobs.inc();
+      submitTrackingEvent(addedJob, JOB_ADDED_OPERATION_TYPE);
+    }
+
+    private void submitTrackingEvent(JobSpec job, String operType) {
+      submitTrackingEvent(job.getUri(), job.getVersion(), operType);
+    }
+
+    private void submitTrackingEvent(URI jobSpecURI, String jobSpecVersion, String operType) {
+      GobblinTrackingEvent e = GobblinTrackingEvent.newBuilder()
+          .setName(TRACKING_EVENT_NAME)
+          .setNamespace(JobCatalog.class.getName())
+          .setMetadata(ImmutableMap.<String, String>builder()
+              .put(OPERATION_TYPE, operType)
+              .put(JOB_SPEC_URI, jobSpecURI.toString())
+              .put(JOB_SPEC_VERSION, jobSpecVersion)
+              .build())
+          .build();
+      this.numAddedJobs.getContext().submitEvent(e);
+    }
+
+    @Override
+    public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
+      this.numDeletedJobs.inc();
+      submitTrackingEvent(deletedJobURI, deletedJobVersion, JOB_DELETED_OPERATION_TYPE);
+    }
+
+    @Override
+    public void onUpdateJob(JobSpec updatedJob) {
+      this.numUpdatedJobs.inc();
+      submitTrackingEvent(updatedJob, JOB_UPDATED_OPERATION_TYPE);
+    }
+  }
 }

@@ -25,6 +25,9 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceLauncher;
 import gobblin.runtime.api.JobCatalog;
@@ -42,8 +45,10 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
   private ServiceManager _subservices;
 
   protected StandardGobblinInstanceDriver(Configurable sysConfig, JobCatalog jobCatalog,
-      JobSpecScheduler jobScheduler, JobExecutionLauncher jobLauncher, Optional<Logger> log) {
-    super(sysConfig, jobCatalog, jobScheduler, jobLauncher, log);
+      JobSpecScheduler jobScheduler, JobExecutionLauncher jobLauncher,
+      Optional<MetricContext> instanceMetricContext,
+      Optional<Logger> log) {
+    super(sysConfig, jobCatalog, jobScheduler, jobLauncher, instanceMetricContext, log);
     List<Service> componentServices = new ArrayList<>();
     checkComponentService(getJobCatalog(), componentServices);
     checkComponentService(getJobScheduler(), componentServices);
@@ -108,6 +113,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     private Optional<JobCatalog> _jobCatalog = Optional.absent();
     private Optional<JobSpecScheduler> _jobScheduler = Optional.absent();
     private Optional<JobExecutionLauncher> _jobLauncher = Optional.absent();
+    private Optional<MetricContext> _metricContext = Optional.absent();
 
     public Builder(Optional<GobblinInstanceLauncher> instanceLauncher) {
       _instanceLauncher = instanceLauncher;
@@ -219,11 +225,37 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return this;
     }
 
+    public Builder withMetricContext(MetricContext instanceMetricContext) {
+      _metricContext = Optional.of(instanceMetricContext);
+      return this;
+    }
+
+    public MetricContext getMetricContext() {
+      if (!_metricContext.isPresent()) {
+        _metricContext = Optional.of(getDefaultMetricContext());
+      }
+      return _metricContext.get();
+    }
+
+    public MetricContext getDefaultMetricContext() {
+      gobblin.configuration.State fakeState =
+          new gobblin.configuration.State(getSysConfig().getConfigAsProperties());
+      List<Tag<?>> tags = new ArrayList<>();
+      tags.add(new Tag<>(StandardMetrics.INSTANCE_NAME_TAG, getInstanceName()));
+      MetricContext res = Instrumented.getMetricContext(fakeState,
+          StandardGobblinInstanceDriver.class, tags);
+      return res;
+    }
+
     public StandardGobblinInstanceDriver build() {
-      Configurable sysConfig = _instanceLauncher.isPresent() ? _instanceLauncher.get() :
-          DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
+      Configurable sysConfig = getSysConfig();
       return new StandardGobblinInstanceDriver(sysConfig, getJobCatalog(), getJobScheduler(),
-             getJobLauncher(), Optional.of(getLog()));
+             getJobLauncher(), Optional.of(getMetricContext()), Optional.of(getLog()));
+    }
+
+    private Configurable getSysConfig() {
+      return _instanceLauncher.isPresent() ? _instanceLauncher.get() :
+          DefaultConfigurableImpl.createFromConfig(ConfigFactory.load());
     }
   }
 
