@@ -11,16 +11,20 @@
  */
 package gobblin.runtime.job_exec;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 
+import gobblin.configuration.State;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.runtime.api.GobblinInstanceDriver;
 import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.std.JobExecutionUpdatable;
 
 /**
  * Runs the Gobblin jobs locally in a thread pool.
@@ -49,6 +53,36 @@ public class LocalJobExecutionLauncher implements JobExecutionLauncher {
       // TODO Auto-generated method stub
 
     }
+
+  }
+
+  @Override
+  public MetricContext getMetricContext() {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    // TODO Auto-generated method stub
+    return false;
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    // TODO Auto-generated method stub
+    return null;
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    // TODO Auto-generated method stub
+
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    // TODO Auto-generated method stub
 
   }
 }

@@ -1,5 +1,6 @@
 package gobblin.runtime.job_exec;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -13,6 +14,8 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.runtime.JobContext;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
@@ -281,6 +284,36 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
       Preconditions.checkNotNull(jobSpec);
       return new JobLauncherExecutionDriver(getSysConfig(), jobSpec, _jobLauncherType,
           Optional.of(getLog(jobSpec)));
+    }
+
+    @Override
+    public MetricContext getMetricContext() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public boolean isInstrumentationEnabled() {
+      // TODO Auto-generated method stub
+      return false;
+    }
+
+    @Override
+    public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public void switchMetricContext(List<Tag<?>> tags) {
+      // TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void switchMetricContext(MetricContext context) {
+      // TODO Auto-generated method stub
+
     }
 
   }

@@ -11,12 +11,53 @@
  */
 package gobblin.runtime.api;
 
+import com.codahale.metrics.Gauge;
+
 import gobblin.annotation.Alpha;
+import gobblin.instrumented.Instrumentable;
+import gobblin.metrics.ContextAwareCounter;
+import gobblin.metrics.ContextAwareGauge;
+
+import lombok.Getter;
 
 /**
- * Placeholder
+ * A factory for {@link JobExecutionDriver}s.
  */
 @Alpha
-public interface JobExecutionLauncher {
+public interface JobExecutionLauncher extends Instrumentable {
   JobExecutionDriver launchJob(JobSpec jobSpec);
+
+  public static class StandardMetrics {
+    public static final String NUM_JOBS_LAUNCHED_COUNTER = "numJobsLaunched";
+    public static final String NUM_JOBS_COMPLETED_COUNTER = "numJobsCompleted";
+    public static final String NUM_JOBS_COMMITTED_COUNTER = "numJobsCommitted";
+    public static final String NUM_JOBS_FAILED_COUNTER = "numJobsFailed";
+    public static final String NUM_JOBS_CANCELLED_COUNTER = "numJobsCancelled";
+    public static final String NUM_JOBS_RUNNING_GAUGE = "numJobsRunning";
+
+
+
+    @Getter private final ContextAwareCounter numJobsLaunched;
+    @Getter private final ContextAwareCounter numJobsCompleted;
+    @Getter private final ContextAwareCounter numJobsCommitted;
+    @Getter private final ContextAwareCounter numJobsFailed;
+    @Getter private final ContextAwareCounter numJobsCancelled;
+    @Getter private final ContextAwareGauge<Integer> numJobsRunning;
+
+    public StandardMetrics(final JobExecutionLauncher parent) {
+      this.numJobsLaunched = parent.getMetricContext().contextAwareCounter(NUM_JOBS_LAUNCHED_COUNTER);
+      this.numJobsCompleted = parent.getMetricContext().contextAwareCounter(NUM_JOBS_COMPLETED_COUNTER);
+      this.numJobsCommitted = parent.getMetricContext().contextAwareCounter(NUM_JOBS_COMMITTED_COUNTER);
+      this.numJobsFailed = parent.getMetricContext().contextAwareCounter(NUM_JOBS_FAILED_COUNTER);
+      this.numJobsCancelled = parent.getMetricContext().contextAwareCounter(NUM_JOBS_CANCELLED_COUNTER);
+      this.numJobsRunning = parent.getMetricContext().newContextAwareGauge(NUM_JOBS_RUNNING_GAUGE,
+            new Gauge<Integer>() {
+              @Override public Integer getValue() {
+                return (int)(StandardMetrics.this.getNumJobsLaunched().getCount() -
+                       StandardMetrics.this.getNumJobsCompleted().getCount() -
+                       StandardMetrics.this.getNumJobsCancelled().getCount());
+              }
+      });
+    }
+  }
 }

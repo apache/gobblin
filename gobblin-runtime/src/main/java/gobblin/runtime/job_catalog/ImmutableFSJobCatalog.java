@@ -76,17 +76,6 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
     this.fs = this.jobConfDirPath.getFileSystem(new Configuration());
     this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
 
-    if (instrumentationEnabled) {
-      MetricContext realParentCtx =
-          parentMetricContext.or(Instrumented.getMetricContext(new gobblin.configuration.State(), getClass()));
-      this.metricContext = realParentCtx.childBuilder("JobCatalog").build();
-      this.metrics = new StandardMetrics(this);
-    }
-    else {
-      this.metricContext = null;
-      this.metrics = null;
-    }
-
     this.loader = new PullFileLoader(jobConfDirPath, jobConfDirPath.getFileSystem(new Configuration()),
         FSJobCatalogHelper.getJobConfigurationFileExtensions(sysProp),
         PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
@@ -104,6 +93,17 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
             this.converter);
     FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener, observerOptional,
         this.jobConfDirPath);
+
+    if (instrumentationEnabled) {
+      MetricContext realParentCtx =
+          parentMetricContext.or(Instrumented.getMetricContext(new gobblin.configuration.State(), getClass()));
+      this.metricContext = realParentCtx.childBuilder("JobCatalog").build();
+      this.metrics = new StandardMetrics(this);
+    }
+    else {
+      this.metricContext = null;
+      this.metrics = null;
+    }
   }
 
   @Override
