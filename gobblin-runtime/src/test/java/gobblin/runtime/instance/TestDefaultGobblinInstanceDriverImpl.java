@@ -116,15 +116,14 @@ public class TestDefaultGobblinInstanceDriverImpl {
     driver.stopAsync();
     driver.awaitTerminated(100, TimeUnit.MILLISECONDS);
     Assert.assertEquals(driver.state(), State.TERMINATED);
+    Assert.assertEquals(driver.getMetrics().getUpFlag().getValue().intValue(), 0);
     // Need an assert with retries because Guava service container notifications are async
     awb.assertTrue(new Predicate<Void>() {
       @Override public boolean apply(Void input) {
-        log.debug("upFlag=" + driver.getMetrics().getUpFlag().getValue().intValue());
-        return driver.getMetrics().getUpFlag().getValue().intValue() == 0;
+        log.debug("upTimeMs=" + driver.getMetrics().getUptimeMs().getValue().longValue());
+        return driver.getMetrics().getUptimeMs().getValue().longValue() == 0;
       }
-    }, "upFlag==0");
-    Assert.assertEquals(driver.getMetrics().getUptimeMs().getValue().longValue(), 0);
-
+    }, "upTimeMs==0");
   }
 
 }
