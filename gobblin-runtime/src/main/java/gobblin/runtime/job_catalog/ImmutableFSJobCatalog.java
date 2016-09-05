@@ -62,7 +62,7 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
 
   public ImmutableFSJobCatalog(Config sysConfig, PathAlterationObserver observer)
       throws IOException {
-    this(sysConfig, null, Optional.<MetricContext>absent(), GobblinMetrics.isEnabled(sysConfig));
+    this(sysConfig, observer, Optional.<MetricContext>absent(), GobblinMetrics.isEnabled(sysConfig));
   }
 
   public ImmutableFSJobCatalog(Config sysConfig, PathAlterationObserver observer, Optional<MetricContext> parentMetricContext,
@@ -170,6 +170,16 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
   @Override
   public void registerWeakJobCatalogListener(JobCatalogListener jobListener) {
     this.listeners.registerWeakJobCatalogListener(jobListener);
+
+    List<JobSpec> currentJobSpecList = this.getJobs();
+    if (currentJobSpecList == null || currentJobSpecList.size() == 0) {
+      return;
+    } else {
+      for (JobSpec jobSpecEntry : currentJobSpecList) {
+        JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpecEntry);
+        this.listeners.callbackOneListener(addJobCallback, jobListener);
+      }
+    }
   }
 
   @Override

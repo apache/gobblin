@@ -20,6 +20,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.util.concurrent.Service.State;
 import com.typesafe.config.ConfigFactory;
 
@@ -31,6 +32,7 @@ import gobblin.runtime.api.JobSpecScheduler;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.DefaultJobSpecScheduleImpl;
+import gobblin.testing.AssertWithBackoff;
 
 /**
  * Unit tests for {@link DefaultGobblinInstanceDriverImpl}
@@ -47,7 +49,7 @@ public class TestDefaultGobblinInstanceDriverImpl {
     JobExecutionLauncher jobLauncher = Mockito.mock(JobExecutionLauncher.class);
     Configurable sysConfig = DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
 
-    DefaultGobblinInstanceDriverImpl driver =
+    final DefaultGobblinInstanceDriverImpl driver =
         new DefaultGobblinInstanceDriverImpl(sysConfig, jobCatalog, scheduler, jobLauncher,
             Optional.<MetricContext>absent(),
             loggerOpt);
@@ -63,7 +65,16 @@ public class TestDefaultGobblinInstanceDriverImpl {
     Assert.assertTrue(driver.isRunning());
     Assert.assertTrue(driver.isInstrumentationEnabled());
     Assert.assertNotNull(driver.getMetricContext());
-    Assert.assertEquals(driver.getMetrics().getUpFlag().getValue().intValue(), 1);
+
+
+    AssertWithBackoff awb = AssertWithBackoff.create().backoffFactor(1.5).maxSleepMs(100)
+        .timeoutMs(1000).logger(log);
+    awb.assertTrue(new Predicate<Void>() {
+      @Override public boolean apply(Void input) {
+        log.debug("upFlag=" + driver.getMetrics().getUpFlag().getValue().intValue());
+        return driver.getMetrics().getUpFlag().getValue().intValue() == 1;
+      }
+    }, "upFlag==1");
 
     jobCatalog.put(js2);
     jobCatalog.put(js1_2);
@@ -99,7 +110,13 @@ public class TestDefaultGobblinInstanceDriverImpl {
     driver.stopAsync();
     driver.awaitTerminated(100, TimeUnit.MILLISECONDS);
     Assert.assertEquals(driver.state(), State.TERMINATED);
-    Assert.assertEquals(driver.getMetrics().getUpFlag().getValue().intValue(), 0);
+    // Need an assert with retries because Guava service container notifications are async
+    awb.assertTrue(new Predicate<Void>() {
+      @Override public boolean apply(Void input) {
+        log.debug("upFlag=" + driver.getMetrics().getUpFlag().getValue().intValue());
+        return driver.getMetrics().getUpFlag().getValue().intValue() == 0;
+      }
+    }, "upFlag==0");
     Assert.assertEquals(driver.getMetrics().getUptimeMs().getValue().longValue(), 0);
 
   }
