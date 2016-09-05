@@ -12,11 +12,9 @@
 
 package gobblin.runtime.job_catalog;
 
-import gobblin.util.ConfigUtils;
-import gobblin.util.filesystem.PathAlterationObserver;
-
 import java.io.File;
 import java.net.URI;
+import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
 
@@ -26,11 +24,11 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Maps;
-
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
+import gobblin.util.ConfigUtils;
+import gobblin.util.filesystem.PathAlterationObserver;
 
 import junit.framework.Assert;
 
@@ -58,10 +56,10 @@ public class TestFSJobCatalog {
     /* Exposed the observer so that checkAndNotify can be manually invoked. */
     FSJobCatalog cat = new FSJobCatalog(ConfigUtils.propertiesToConfig(properties), observer);
 
-    final Map<URI, JobSpec> specs = Maps.newHashMap();
+    final Map<URI, JobSpec> specs = new Hashtable<>();
 
     JobCatalogListener l = Mockito.mock(JobCatalogListener.class);
-    Mockito.doAnswer(new Answer() {
+    Mockito.doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation)
           throws Throwable {
@@ -70,7 +68,7 @@ public class TestFSJobCatalog {
         return null;
       }
     }).when(l).onAddJob(Mockito.any(JobSpec.class));
-    Mockito.doAnswer(new Answer() {
+    Mockito.doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation)
           throws Throwable {
@@ -80,7 +78,7 @@ public class TestFSJobCatalog {
       }
     }).when(l).onUpdateJob(Mockito.any(JobSpec.class));
 
-    Mockito.doAnswer(new Answer() {
+    Mockito.doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation)
           throws Throwable {
@@ -92,7 +90,6 @@ public class TestFSJobCatalog {
 
     JobSpec js1_1 = JobSpec.builder("test_job1").withVersion("1").build();
     JobSpec js1_2 = JobSpec.builder("test_job1").withVersion("2").build();
-    JobSpec js1_3 = JobSpec.builder("test_job1").withVersion("3").build();
     JobSpec js2 = JobSpec.builder("test_job2").withVersion("1").build();
 
     cat.addListener(l);

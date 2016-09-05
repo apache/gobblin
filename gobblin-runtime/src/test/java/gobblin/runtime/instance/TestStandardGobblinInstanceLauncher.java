@@ -50,6 +50,7 @@ public class TestStandardGobblinInstanceLauncher {
         .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
         .build();
     GobblinInstanceDriver instance = instanceLauncher.getDriver();
+
     JobExecutionDriver jobDriver = instance.getJobLauncher().launchJob(js1);
     jobDriver.startAsync();
     JobExecutionResult jobResult = jobDriver.get(5, TimeUnit.SECONDS);
@@ -58,6 +59,8 @@ public class TestStandardGobblinInstanceLauncher {
 
     instanceLauncher.stopAsync();
     instanceLauncher.awaitTerminated(50, TimeUnit.MILLISECONDS);
+    Assert.assertEquals(instance.getMetrics().getUpFlag().getValue().intValue(), 0);
+    Assert.assertEquals(instance.getMetrics().getUptimeMs().getValue().longValue(), 0);
   }
 
 

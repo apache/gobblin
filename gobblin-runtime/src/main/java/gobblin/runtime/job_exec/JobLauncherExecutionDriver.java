@@ -1,5 +1,8 @@
 package gobblin.runtime.job_exec;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -13,6 +16,10 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.runtime.JobContext;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
@@ -176,10 +183,6 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
       super.onJobCancellation(jobContext);
       _jobState.switchToCancelled();
     }
-
-    // FIXME Currently, we can't detect that the transition RUNNING -> SUCCESSFUL as
-    // there is no notification. That transition happens internally in JobContext.
-
   }
 
   @VisibleForTesting JobLauncher getLegacyLauncher() {
@@ -219,6 +222,8 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     private Optional<Configurable> _sysConfig = Optional.absent();
     private Optional<GobblinInstanceDriver> _gobblinInstance = Optional.absent();
     private Optional<Logger> _log = Optional.absent();
+    private Optional<MetricContext> _metricContext = Optional.absent();
+    private Optional<Boolean> _instrumentationEnabled = Optional.absent();
 
     /** Leave unchanged for */
     public Launcher withJobLauncherType(JobLauncherType jobLauncherType) {
@@ -273,14 +278,69 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
       return _log.get();
     }
 
+    public Launcher withInstrumentationEnabled(boolean enabled) {
+      _instrumentationEnabled = Optional.of(enabled);
+      return this;
+    }
+
+    public boolean getDefaultInstrumentationEnabled() {
+      return _gobblinInstance.isPresent() ? _gobblinInstance.get().isInstrumentationEnabled() :
+          GobblinMetrics.isEnabled(getSysConfig().getConfig());
+    }
+
+    @Override
+    public boolean isInstrumentationEnabled() {
+      if (!_instrumentationEnabled.isPresent()) {
+        _instrumentationEnabled = Optional.of(getDefaultInstrumentationEnabled());
+      }
+      return _instrumentationEnabled.get();
+    }
+
     private static Logger getJobLogger(Logger parentLog, JobSpec jobSpec) {
       return LoggerFactory.getLogger(parentLog.getName() + "." + jobSpec.toShortString());
+    }
+
+    public Launcher withMetricContext(MetricContext instanceMetricContext) {
+      _metricContext = Optional.of(instanceMetricContext);
+      return this;
+    }
+
+    @Override
+    public MetricContext getMetricContext() {
+      if (!_metricContext.isPresent()) {
+        _metricContext = Optional.of(getDefaultMetricContext());
+      }
+      return _metricContext.get();
+    }
+
+    public MetricContext getDefaultMetricContext() {
+      if (_gobblinInstance.isPresent()) {
+        return _gobblinInstance.get().getMetricContext()
+            .childBuilder(JobExecutionLauncher.class.getSimpleName()).build();
+      }
+      gobblin.configuration.State fakeState =
+          new gobblin.configuration.State(getSysConfig().getConfigAsProperties());
+      List<Tag<?>> tags = new ArrayList<>();
+      MetricContext res = Instrumented.getMetricContext(fakeState, Launcher.class, tags);
+      return res;
     }
 
     @Override public JobExecutionDriver launchJob(JobSpec jobSpec) {
       Preconditions.checkNotNull(jobSpec);
       return new JobLauncherExecutionDriver(getSysConfig(), jobSpec, _jobLauncherType,
           Optional.of(getLog(jobSpec)));
+    }
+
+    @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+      return Collections.emptyList();
+    }
+
+    @Override public void switchMetricContext(List<Tag<?>> tags) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override public void switchMetricContext(MetricContext context) {
+      throw new UnsupportedOperationException();
     }
 
   }

@@ -23,6 +23,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
+import gobblin.metrics.MetricContext;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.runtime.api.MutableJobCatalog;
@@ -45,8 +46,12 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
    * @throws Exception
    */
   public FSJobCatalog(Config sysConfig)
-      throws Exception {
+      throws IOException {
     super(sysConfig);
+  }
+  public FSJobCatalog(Config sysConfig, Optional<MetricContext> parentMetricContext,
+      boolean instrumentationEnabled) throws IOException{
+    super(sysConfig, null, parentMetricContext, instrumentationEnabled);
   }
 
   /**
@@ -59,7 +64,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
    */
   @VisibleForTesting
   protected FSJobCatalog(Config sysConfig, PathAlterationObserver observer)
-      throws Exception {
+      throws IOException {
     super(sysConfig, observer);
   }
 

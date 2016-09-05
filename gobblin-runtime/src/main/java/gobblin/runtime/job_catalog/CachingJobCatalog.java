@@ -13,12 +13,16 @@ package gobblin.runtime.job_catalog;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 
+import gobblin.configuration.State;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
@@ -92,6 +96,30 @@ public class CachingJobCatalog implements JobCatalog {
   @Override
   public void registerWeakJobCatalogListener(JobCatalogListener jobListener) {
     _cache.registerWeakJobCatalogListener(jobListener);
+  }
+
+  @Override public MetricContext getMetricContext() {
+    return _fallback.getMetricContext();
+  }
+
+  @Override public boolean isInstrumentationEnabled() {
+    return _fallback.isInstrumentationEnabled();
+  }
+
+  @Override public List<Tag<?>> generateTags(State state) {
+    return _fallback.generateTags(state);
+  }
+
+  @Override public void switchMetricContext(List<Tag<?>> tags) {
+    _fallback.switchMetricContext(tags);
+  }
+
+  @Override public void switchMetricContext(MetricContext context) {
+    _fallback.switchMetricContext(context);
+  }
+
+  @Override public StandardMetrics getMetrics() {
+    return _fallback.getMetrics();
   }
 
 }

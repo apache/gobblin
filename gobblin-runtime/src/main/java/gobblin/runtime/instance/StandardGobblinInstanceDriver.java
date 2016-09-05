@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.instance;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -25,11 +26,17 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceLauncher;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobSpecScheduler;
+import gobblin.runtime.job_catalog.FSJobCatalog;
+import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 import gobblin.runtime.job_exec.JobLauncherExecutionDriver;
 import gobblin.runtime.scheduler.ImmediateJobSpecScheduler;
@@ -42,8 +49,10 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
   private ServiceManager _subservices;
 
   protected StandardGobblinInstanceDriver(Configurable sysConfig, JobCatalog jobCatalog,
-      JobSpecScheduler jobScheduler, JobExecutionLauncher jobLauncher, Optional<Logger> log) {
-    super(sysConfig, jobCatalog, jobScheduler, jobLauncher, log);
+      JobSpecScheduler jobScheduler, JobExecutionLauncher jobLauncher,
+      Optional<MetricContext> instanceMetricContext,
+      Optional<Logger> log) {
+    super(sysConfig, jobCatalog, jobScheduler, jobLauncher, instanceMetricContext, log);
     List<Service> componentServices = new ArrayList<>();
     checkComponentService(getJobCatalog(), componentServices);
     checkComponentService(getJobScheduler(), componentServices);
@@ -108,6 +117,8 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     private Optional<JobCatalog> _jobCatalog = Optional.absent();
     private Optional<JobSpecScheduler> _jobScheduler = Optional.absent();
     private Optional<JobExecutionLauncher> _jobLauncher = Optional.absent();
+    private Optional<MetricContext> _metricContext = Optional.absent();
+    private Optional<Boolean> _instrumentationEnabled = Optional.absent();
 
     public Builder(Optional<GobblinInstanceLauncher> instanceLauncher) {
       _instanceLauncher = instanceLauncher;
@@ -172,7 +183,9 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     }
 
     public JobCatalog getDefaultJobCatalog() {
-      return new InMemoryJobCatalog(Optional.of(getLog()));
+      return new InMemoryJobCatalog(Optional.of(getLog()),
+          Optional.of(getMetricContext()),
+          isInstrumentationEnabled());
     }
 
     public JobCatalog getJobCatalog() {
@@ -185,6 +198,33 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     public Builder withJobCatalog(JobCatalog jobCatalog) {
       _jobCatalog = Optional.of(jobCatalog);
       return this;
+    }
+
+    public Builder withInMemoryJobCatalog() {
+      return withJobCatalog(new InMemoryJobCatalog(Optional.of(getLog()),
+          Optional.of(getMetricContext()),
+          isInstrumentationEnabled()));
+    }
+
+    public Builder withFSJobCatalog() {
+      try {
+        return withJobCatalog(new FSJobCatalog(getSysConfig().getConfig(),
+            Optional.of(getMetricContext()),
+            isInstrumentationEnabled()));
+      } catch (IOException e) {
+        throw new RuntimeException("Unable to create FS Job Catalog");
+      }
+    }
+
+    public Builder withImmutableFSJobCatalog() {
+      try {
+        return withJobCatalog(new ImmutableFSJobCatalog(getSysConfig().getConfig(),
+            null,
+            Optional.of(getMetricContext()),
+            isInstrumentationEnabled()));
+      } catch (IOException e) {
+        throw new RuntimeException("Unable to create FS Job Catalog");
+      }
     }
 
     public JobSpecScheduler getDefaultJobScheduler() {
@@ -219,11 +259,56 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return this;
     }
 
+    public Builder withMetricContext(MetricContext instanceMetricContext) {
+      _metricContext = Optional.of(instanceMetricContext);
+      return this;
+    }
+
+    public MetricContext getMetricContext() {
+      if (!_metricContext.isPresent()) {
+        _metricContext = Optional.of(getDefaultMetricContext());
+      }
+      return _metricContext.get();
+    }
+
+    public MetricContext getDefaultMetricContext() {
+      gobblin.configuration.State fakeState =
+          new gobblin.configuration.State(getSysConfig().getConfigAsProperties());
+      List<Tag<?>> tags = new ArrayList<>();
+      tags.add(new Tag<>(StandardMetrics.INSTANCE_NAME_TAG, getInstanceName()));
+      MetricContext res = Instrumented.getMetricContext(fakeState,
+          StandardGobblinInstanceDriver.class, tags);
+      return res;
+    }
+
     public StandardGobblinInstanceDriver build() {
-      Configurable sysConfig = _instanceLauncher.isPresent() ? _instanceLauncher.get() :
-          DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
+      Configurable sysConfig = getSysConfig();
       return new StandardGobblinInstanceDriver(sysConfig, getJobCatalog(), getJobScheduler(),
-             getJobLauncher(), Optional.of(getLog()));
+             getJobLauncher(),
+             isInstrumentationEnabled() ? Optional.of(getMetricContext()) :
+                   Optional.<MetricContext>absent(),
+             Optional.of(getLog()));
+    }
+
+    private Configurable getSysConfig() {
+      return _instanceLauncher.isPresent() ? _instanceLauncher.get() :
+          DefaultConfigurableImpl.createFromConfig(ConfigFactory.load());
+    }
+
+    public Builder withInstrumentationEnabled(boolean enabled) {
+      _instrumentationEnabled = Optional.of(enabled);
+      return this;
+    }
+
+    public boolean getDefaultInstrumentationEnabled() {
+      return GobblinMetrics.isEnabled(getSysConfig().getConfig());
+    }
+
+    public boolean isInstrumentationEnabled() {
+      if (!_instrumentationEnabled.isPresent()) {
+        _instrumentationEnabled = Optional.of(getDefaultInstrumentationEnabled());
+      }
+      return _instrumentationEnabled.get();
     }
   }
 
