@@ -53,6 +53,8 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
   private final JobExecutionUpdatable _jobExec;
   private final JobExecutionState _jobState;
   private final JobExecutionStateListeners _callbackDispatcher;
+  private final boolean _instrumentationEnabled;
+  private final JobExecutionLauncher.StandardMetrics _launcherMetrics;
   private JobContext _jobContext;
 
   /**
@@ -70,7 +72,8 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
    */
   public JobLauncherExecutionDriver(Configurable sysConfig, JobSpec jobSpec,
       Optional<JobLauncherFactory.JobLauncherType> jobLauncherType,
-      Optional<Logger> log) {
+      Optional<Logger> log, boolean instrumentationEnabled,
+      JobExecutionLauncher.StandardMetrics launcherMetrics) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     _sysConfig = sysConfig;
     _jobSpec = jobSpec;
@@ -78,6 +81,8 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     _callbackDispatcher = new JobExecutionStateListeners(_log);
     _jobState = new JobExecutionState(_jobSpec, _jobExec,
                                       Optional.<JobExecutionStateListener>of(_callbackDispatcher));
+    _instrumentationEnabled = instrumentationEnabled;
+    _launcherMetrics = launcherMetrics;
     _legacyLauncher =
         createLauncher(jobLauncherType.isPresent() ?
                       Optional.of(jobLauncherType.get().toString()) :
@@ -153,6 +158,9 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
       super.onJobPrepare(jobContext);
       _jobContext = jobContext;
       _jobState.switchToPending();
+      if (_instrumentationEnabled && null != _launcherMetrics) {
+        _launcherMetrics.getNumJobsLaunched().inc();
+      }
     }
 
     @Override
@@ -168,13 +176,22 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
           || jobContext.getJobState().getState() == RunningState.FAILED,
           "Unexpected state: " + jobContext.getJobState().getState() + " in " + jobContext);
       super.onJobCompletion(jobContext);
+      if (_instrumentationEnabled && null != _launcherMetrics) {
+        _launcherMetrics.getNumJobsCompleted().inc();
+      }
       if (jobContext.getJobState().getState() == RunningState.FAILED) {
+        if (_instrumentationEnabled && null != _launcherMetrics) {
+          _launcherMetrics.getNumJobsFailed().inc();
+        }
         _jobState.switchToFailed();
       }
       else {
         // TODO Remove next line once the JobLauncher starts sending notifications for success
         _jobState.switchToSuccessful();
         _jobState.switchToCommitted();
+        if (_instrumentationEnabled && null != _launcherMetrics) {
+          _launcherMetrics.getNumJobsCommitted().inc();
+        }
       }
     }
 
@@ -182,6 +199,9 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     public void onJobCancellation(JobContext jobContext) throws Exception {
       super.onJobCancellation(jobContext);
       _jobState.switchToCancelled();
+      if (_instrumentationEnabled && null != _launcherMetrics) {
+        _launcherMetrics.getNumJobsCancelled().inc();
+      }
     }
   }
 
@@ -217,13 +237,18 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
    *       use JobExecutionDriver class name plus "." + jobSpec
    * </ul>
    */
-  public static class Launcher implements JobExecutionLauncher {
+  public static class Launcher implements JobExecutionLauncher, GobblinInstanceEnvironment {
     private Optional<JobLauncherType> _jobLauncherType = Optional.absent();
     private Optional<Configurable> _sysConfig = Optional.absent();
     private Optional<GobblinInstanceEnvironment> _gobblinEnv = Optional.absent();
     private Optional<Logger> _log = Optional.absent();
     private Optional<MetricContext> _metricContext = Optional.absent();
     private Optional<Boolean> _instrumentationEnabled = Optional.absent();
+    private JobExecutionLauncher.StandardMetrics _metrics;
+
+    public Launcher() {
+      _metrics = new JobExecutionLauncher.StandardMetrics(this);
+    }
 
     /** Leave unchanged for */
     public Launcher withJobLauncherType(JobLauncherType jobLauncherType) {
@@ -243,6 +268,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
           DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
     }
 
+    @Override
     public Configurable getSysConfig() {
       if (!_sysConfig.isPresent()) {
         _sysConfig = Optional.of(getDefaultSysConfig());
@@ -265,17 +291,8 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
       return _gobblinEnv;
     }
 
-    public Logger getDefaultLog(JobSpec jobSpec) {
-      return getGobblinInstanceEnvironment().isPresent() ?
-          getJobLogger(getGobblinInstanceEnvironment().get().getLog(), jobSpec) :
-          getJobLogger(LoggerFactory.getLogger(JobLauncherExecutionDriver.class), jobSpec);
-    }
-
     public Logger getLog(JobSpec jobSpec) {
-      if (!_log.isPresent()) {
-        _log = Optional.of(getDefaultLog(jobSpec));
-      }
-      return _log.get();
+      return getJobLogger(getLog(), jobSpec);
     }
 
     public Launcher withInstrumentationEnabled(boolean enabled) {
@@ -328,7 +345,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     @Override public JobExecutionDriver launchJob(JobSpec jobSpec) {
       Preconditions.checkNotNull(jobSpec);
       return new JobLauncherExecutionDriver(getSysConfig(), jobSpec, _jobLauncherType,
-          Optional.of(getLog(jobSpec)));
+          Optional.of(getLog(jobSpec)), isInstrumentationEnabled(), getMetrics());
     }
 
     @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
@@ -341,6 +358,30 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
 
     @Override public void switchMetricContext(MetricContext context) {
       throw new UnsupportedOperationException();
+    }
+
+    @Override public String getInstanceName() {
+      return _gobblinEnv.isPresent() ? _gobblinEnv.get().getInstanceName() : getClass().getName();
+    }
+
+    public Logger getDefaultLog() {
+      return _gobblinEnv.isPresent() ? _gobblinEnv.get().getLog() : LoggerFactory.getLogger(getClass());
+    }
+
+    @Override public Logger getLog() {
+      if (! _log.isPresent()) {
+        _log = Optional.of(getDefaultLog());
+      }
+      return _log.get();
+    }
+
+    public Launcher withLog(Logger log) {
+      _log = Optional.of(log);
+      return this;
+    }
+
+    @Override public StandardMetrics getMetrics() {
+      return _metrics;
     }
 
   }
