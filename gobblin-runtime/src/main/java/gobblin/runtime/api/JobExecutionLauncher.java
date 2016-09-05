@@ -35,7 +35,13 @@ public interface JobExecutionLauncher extends Instrumentable {
     public static final String NUM_JOBS_CANCELLED_COUNTER = "numJobsCancelled";
     public static final String NUM_JOBS_RUNNING_GAUGE = "numJobsRunning";
 
-
+    public static final String TRACKING_EVENT_NAME = "JobExecutionLauncherEvent";
+    public static final String JOB_EXECID_META = "jobExecId";
+    public static final String JOB_LAUNCHED_OPERATION_TYPE = "JobLaunched";
+    public static final String JOB_COMPLETED_OPERATION_TYPE = "JobCompleted";
+    public static final String JOB_COMMITED_OPERATION_TYPE = "JobCommitted";
+    public static final String JOB_FAILED_OPERATION_TYPE = "JobFailed";
+    public static final String JOB_CANCELLED_OPERATION_TYPE = "JobCancelled";
 
     @Getter private final ContextAwareCounter numJobsLaunched;
     @Getter private final ContextAwareCounter numJobsCompleted;

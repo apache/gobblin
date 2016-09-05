@@ -29,6 +29,7 @@ import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobCatalogListener.AddJobCallback;
 import gobblin.runtime.api.JobSpec;
@@ -62,7 +63,7 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new State(), getClass()));
-      this.metricContext = realParentCtx.childBuilder("JobCatalog").build();
+      this.metricContext = realParentCtx.childBuilder(JobCatalog.class.getSimpleName()).build();
       this.metrics = new StandardMetrics(this);
     }
     else {

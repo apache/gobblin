@@ -12,6 +12,7 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicates;
 
+import gobblin.instrumented.GobblinMetricsKeys;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.test.MetricsAssert;
 import gobblin.runtime.api.JobCatalog;
@@ -74,10 +75,10 @@ public class TestInMemoryJobCatalog {
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.OPERATION_TYPE,
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.OPERATION_TYPE_META,
                                      JobCatalog.StandardMetrics.JOB_ADDED_OPERATION_TYPE),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_URI, js1_1.getUri().toString()),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_VERSION, js1_1.getVersion())
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_URI_META, js1_1.getUri().toString()),
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_VERSION_META, js1_1.getVersion())
         ),
         100, TimeUnit.MILLISECONDS);
 
@@ -89,10 +90,10 @@ public class TestInMemoryJobCatalog {
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.OPERATION_TYPE,
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.OPERATION_TYPE_META,
                                      JobCatalog.StandardMetrics.JOB_UPDATED_OPERATION_TYPE),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_URI, js1_2.getUri().toString()),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_VERSION, js1_2.getVersion())
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_URI_META, js1_2.getUri().toString()),
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_VERSION_META, js1_2.getVersion())
         ),
         100, TimeUnit.MILLISECONDS);
 
@@ -104,10 +105,10 @@ public class TestInMemoryJobCatalog {
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.OPERATION_TYPE,
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.OPERATION_TYPE_META,
                                      JobCatalog.StandardMetrics.JOB_ADDED_OPERATION_TYPE),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_URI, js2.getUri().toString()),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_VERSION, js2.getVersion())
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_URI_META, js2.getUri().toString()),
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_VERSION_META, js2.getVersion())
         ),
         100, TimeUnit.MILLISECONDS);
 
@@ -119,10 +120,10 @@ public class TestInMemoryJobCatalog {
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.OPERATION_TYPE,
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.OPERATION_TYPE_META,
                                      JobCatalog.StandardMetrics.JOB_UPDATED_OPERATION_TYPE),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_URI, js1_3.getUri().toString()),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_VERSION, js1_3.getVersion())
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_URI_META, js1_3.getUri().toString()),
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_VERSION_META, js1_3.getVersion())
         ),
         100, TimeUnit.MILLISECONDS);
 
@@ -134,10 +135,10 @@ public class TestInMemoryJobCatalog {
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.OPERATION_TYPE,
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.OPERATION_TYPE_META,
                                      JobCatalog.StandardMetrics.JOB_DELETED_OPERATION_TYPE),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_URI, js2.getUri().toString()),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_VERSION, js2.getVersion())
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_URI_META, js2.getUri().toString()),
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_VERSION_META, js2.getVersion())
         ),
         100, TimeUnit.MILLISECONDS);
 
@@ -155,10 +156,10 @@ public class TestInMemoryJobCatalog {
     ma.assertEvent(Predicates.and(
         MetricsAssert.eqEventNamespace(JobCatalog.class.getName()),
         MetricsAssert.eqEventName(JobCatalog.StandardMetrics.TRACKING_EVENT_NAME),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.OPERATION_TYPE,
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.OPERATION_TYPE_META,
                                      JobCatalog.StandardMetrics.JOB_DELETED_OPERATION_TYPE),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_URI, js1_3.getUri().toString()),
-        MetricsAssert.eqEventMetdata(JobCatalog.StandardMetrics.JOB_SPEC_VERSION, js1_3.getVersion())
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_URI_META, js1_3.getUri().toString()),
+        MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_VERSION_META, js1_3.getVersion())
         ),
         100, TimeUnit.MILLISECONDS);
 

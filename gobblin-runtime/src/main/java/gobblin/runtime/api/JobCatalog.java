@@ -18,6 +18,7 @@ import com.codahale.metrics.Gauge;
 import com.google.common.collect.ImmutableMap;
 
 import gobblin.annotation.Alpha;
+import gobblin.instrumented.GobblinMetricsKeys;
 import gobblin.instrumented.Instrumentable;
 import gobblin.metrics.ContextAwareCounter;
 import gobblin.metrics.ContextAwareGauge;
@@ -49,12 +50,9 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
     public static final String NUM_DELETED_JOBS = "numDeletedJobs";
     public static final String NUM_UPDATED_JOBS = "numUpdatedJobs";
     public static final String TRACKING_EVENT_NAME = "JobCatalogEvent";
-    public static final String OPERATION_TYPE = "operationType";
     public static final String JOB_ADDED_OPERATION_TYPE = "JobAdded";
     public static final String JOB_DELETED_OPERATION_TYPE = "JobDeleted";
     public static final String JOB_UPDATED_OPERATION_TYPE = "JobUpdated";
-    public static final String JOB_SPEC_URI = "jobSpecURI";
-    public static final String JOB_SPEC_VERSION = "jobSpecVersion";
 
     @Getter private final ContextAwareGauge<Integer> numActiveJobs;
     @Getter private final ContextAwareCounter numAddedJobs;
@@ -88,9 +86,9 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
           .setName(TRACKING_EVENT_NAME)
           .setNamespace(JobCatalog.class.getName())
           .setMetadata(ImmutableMap.<String, String>builder()
-              .put(OPERATION_TYPE, operType)
-              .put(JOB_SPEC_URI, jobSpecURI.toString())
-              .put(JOB_SPEC_VERSION, jobSpecVersion)
+              .put(GobblinMetricsKeys.OPERATION_TYPE_META, operType)
+              .put(GobblinMetricsKeys.JOB_SPEC_URI_META, jobSpecURI.toString())
+              .put(GobblinMetricsKeys.JOB_SPEC_VERSION_META, jobSpecVersion)
               .build())
           .build();
       this.numAddedJobs.getContext().submitEvent(e);
