@@ -101,10 +101,16 @@ public class TestDefaultGobblinInstanceDriverImpl {
         Mockito.any(DefaultGobblinInstanceDriverImpl.JobSpecRunnable.class));
     Mockito.verify(scheduler).unscheduleJob(Mockito.eq(js2.getUri()));
 
-    long elapsedMs = System.currentTimeMillis()  - startTimeMs;
-    long uptimeMs = driver.getMetrics().getUptimeMs().getValue().longValue();
+    final long elapsedMs = System.currentTimeMillis()  - startTimeMs;
 
-    Assert.assertTrue(uptimeMs >= elapsedMs, "uptime=" + uptimeMs + " elapsedMs=" + elapsedMs);
+
+    awb.assertTrue(new Predicate<Void>() {
+      @Override public boolean apply(Void input) {
+        long uptimeMs = driver.getMetrics().getUptimeMs().getValue().longValue();
+        return uptimeMs >= elapsedMs;
+      }
+    }, "uptime > elapsedMs");
+    long uptimeMs = driver.getMetrics().getUptimeMs().getValue().longValue();
     Assert.assertTrue(uptimeMs <= 2 * elapsedMs, "uptime=" + uptimeMs + " elapsedMs=" + elapsedMs);
 
     driver.stopAsync();
