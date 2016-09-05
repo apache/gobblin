@@ -54,6 +54,7 @@ import gobblin.runtime.std.JobLifecycleListenersList;
 public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
        implements GobblinInstanceDriver {
   protected final Logger _log;
+  protected final String _instanceName;
   protected final Configurable _sysConfig;
   protected final JobCatalog _jobCatalog;
   protected final JobSpecScheduler _jobScheduler;
@@ -65,7 +66,8 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   protected JobSpecListener _jobSpecListener;
   private final StandardMetrics _metrics;
 
-  public DefaultGobblinInstanceDriverImpl(Configurable sysConfig, JobCatalog jobCatalog,
+  public DefaultGobblinInstanceDriverImpl(String instanceName,
+      Configurable sysConfig, JobCatalog jobCatalog,
       JobSpecScheduler jobScheduler,
       JobExecutionLauncher jobLauncher,
       Optional<MetricContext> baseMetricContext,
@@ -75,6 +77,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     Preconditions.checkNotNull(jobLauncher);
     Preconditions.checkNotNull(sysConfig);
 
+    _instanceName = instanceName;
     _log = log.or(LoggerFactory.getLogger(getClass()));
     _metricCtx = baseMetricContext.or(constructMetricContext(sysConfig, _log));
     _instrumentationEnabled = null != _metricCtx && GobblinMetrics.isEnabled(sysConfig.getConfig());
@@ -271,6 +274,11 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
   @Override public StandardMetrics getMetrics() {
     return _metrics;
+  }
+
+  @Override
+  public String getInstanceName() {
+    return _instanceName;
   }
 
 }

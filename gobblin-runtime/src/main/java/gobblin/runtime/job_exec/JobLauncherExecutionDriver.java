@@ -27,7 +27,7 @@ import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.JobLauncherFactory.JobLauncherType;
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.Configurable;
-import gobblin.runtime.api.GobblinInstanceDriver;
+import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.JobExecution;
 import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionLauncher;
@@ -220,7 +220,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
   public static class Launcher implements JobExecutionLauncher {
     private Optional<JobLauncherType> _jobLauncherType = Optional.absent();
     private Optional<Configurable> _sysConfig = Optional.absent();
-    private Optional<GobblinInstanceDriver> _gobblinInstance = Optional.absent();
+    private Optional<GobblinInstanceEnvironment> _gobblinEnv = Optional.absent();
     private Optional<Logger> _log = Optional.absent();
     private Optional<MetricContext> _metricContext = Optional.absent();
     private Optional<Boolean> _instrumentationEnabled = Optional.absent();
@@ -238,8 +238,8 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
 
     /** System-wide settings */
     public Configurable getDefaultSysConfig() {
-      return _gobblinInstance.isPresent() ?
-          _gobblinInstance.get().getSysConfig() :
+      return _gobblinEnv.isPresent() ?
+          _gobblinEnv.get().getSysConfig() :
           DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
     }
 
@@ -256,18 +256,18 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     }
 
     /** Parent Gobblin instance */
-    public Launcher withGobblinInstance(GobblinInstanceDriver gobblinInstance) {
-      _gobblinInstance = Optional.of(gobblinInstance);
+    public Launcher withGobblinInstanceEnvironment(GobblinInstanceEnvironment gobblinInstance) {
+      _gobblinEnv = Optional.of(gobblinInstance);
       return this;
     }
 
-    public Optional<GobblinInstanceDriver> getGobblinInstance() {
-      return _gobblinInstance;
+    public Optional<GobblinInstanceEnvironment> getGobblinInstanceEnvironment() {
+      return _gobblinEnv;
     }
 
     public Logger getDefaultLog(JobSpec jobSpec) {
-      return getGobblinInstance().isPresent() ?
-          getJobLogger(getGobblinInstance().get().getLog(), jobSpec) :
+      return getGobblinInstanceEnvironment().isPresent() ?
+          getJobLogger(getGobblinInstanceEnvironment().get().getLog(), jobSpec) :
           getJobLogger(LoggerFactory.getLogger(JobLauncherExecutionDriver.class), jobSpec);
     }
 
@@ -284,7 +284,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     }
 
     public boolean getDefaultInstrumentationEnabled() {
-      return _gobblinInstance.isPresent() ? _gobblinInstance.get().isInstrumentationEnabled() :
+      return _gobblinEnv.isPresent() ? _gobblinEnv.get().isInstrumentationEnabled() :
           GobblinMetrics.isEnabled(getSysConfig().getConfig());
     }
 
@@ -314,8 +314,8 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
     }
 
     public MetricContext getDefaultMetricContext() {
-      if (_gobblinInstance.isPresent()) {
-        return _gobblinInstance.get().getMetricContext()
+      if (_gobblinEnv.isPresent()) {
+        return _gobblinEnv.get().getMetricContext()
             .childBuilder(JobExecutionLauncher.class.getSimpleName()).build();
       }
       gobblin.configuration.State fakeState =

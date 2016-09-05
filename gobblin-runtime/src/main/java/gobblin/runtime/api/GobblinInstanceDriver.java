@@ -13,13 +13,10 @@ package gobblin.runtime.api;
 
 import java.util.concurrent.Executor;
 
-import org.slf4j.Logger;
-
 import com.codahale.metrics.Gauge;
 import com.google.common.util.concurrent.Service;
 
 import gobblin.annotation.Alpha;
-import gobblin.instrumented.Instrumentable;
 import gobblin.metrics.ContextAwareCounter;
 import gobblin.metrics.ContextAwareGauge;
 
@@ -31,7 +28,7 @@ import lombok.Getter;
  * */
 @Alpha
 public interface GobblinInstanceDriver extends Service, JobLifecycleListenersContainer,
-                                               Instrumentable {
+                                               GobblinInstanceEnvironment {
 
   /** The service that keeps track of jobs that are known to Gobblin */
   JobCatalog getJobCatalog();
@@ -48,12 +45,6 @@ public interface GobblinInstanceDriver extends Service, JobLifecycleListenersCon
 
   /** The service for executing Gobblin jobs */
   JobExecutionLauncher getJobLauncher();
-
-  /** The logger used by this instance*/
-  Logger getLog();
-
-  /** The global system-wide configuration, typically provided by the {@link GobblinInstanceLauncher} */
-  Configurable getSysConfig();
 
   /** Metrics for instance */
   StandardMetrics getMetrics();

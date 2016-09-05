@@ -23,6 +23,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
@@ -58,6 +59,18 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
   public ImmutableFSJobCatalog(Config sysConfig)
       throws IOException {
     this(sysConfig, null);
+  }
+
+  public ImmutableFSJobCatalog(GobblinInstanceEnvironment env)
+      throws IOException {
+    this(env.getSysConfig().getConfig(), null, Optional.of(env.getMetricContext()),
+         env.isInstrumentationEnabled());
+  }
+
+  public ImmutableFSJobCatalog(GobblinInstanceEnvironment env, PathAlterationObserver observer)
+      throws IOException {
+    this(env.getSysConfig().getConfig(), observer, Optional.of(env.getMetricContext()),
+         env.isInstrumentationEnabled());
   }
 
   public ImmutableFSJobCatalog(Config sysConfig, PathAlterationObserver observer)
@@ -108,13 +121,13 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
 
   @Override
   protected void startUp()
-      throws Exception {
+      throws IOException {
     this.pathAlterationDetector.start();
   }
 
   @Override
   protected void shutDown()
-      throws Exception {
+      throws IOException, InterruptedException {
     this.pathAlterationDetector.stop();
   }
 
