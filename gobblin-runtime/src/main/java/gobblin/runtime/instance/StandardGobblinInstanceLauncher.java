@@ -171,7 +171,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
       return this;
     }
 
-    public Builder withInstanceConfig(Properties instanceConfig) {
+    public Builder withSysConfig(Properties instanceConfig) {
       _instanceConfig = Optional.of(DefaultConfigurableImpl.createFromProperties(instanceConfig));
       return this;
     }

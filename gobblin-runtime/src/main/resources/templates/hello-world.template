@@ -1,0 +1,26 @@
+# Required overrides
+gobblin.template.required_attributes=gobblin.workDir
+
+# Optional overrides
+#
+# Number of hellos to generate
+# gobblin.source.helloWorld.numHellos=5
+
+# Job Identification
+job.name=HelloWorld
+job.group=GobblinSamples
+job.description=The "Hello World" Gobblin job
+
+# Source, Converters, Writer, Publisher
+source.class=gobblin.util.test.HelloWorldSource
+writer.builder.class="gobblin.util.test.StdoutWriter$Builder"
+data.publisher.type=gobblin.publisher.NoopPublisher
+
+
+# Work paths
+state.store.enabled=false
+writer.staging.dir=${gobblin.workDir}/writer-staging
+writer.output.dir=${gobblin.workDir}/writer-output
+
+# Miscellaneous
+job.lock.enabled=false

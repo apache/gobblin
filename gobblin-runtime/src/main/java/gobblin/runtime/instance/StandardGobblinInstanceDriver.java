@@ -42,6 +42,7 @@ import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 import gobblin.runtime.job_exec.JobLauncherExecutionDriver;
 import gobblin.runtime.scheduler.ImmediateJobSpecScheduler;
+import gobblin.runtime.scheduler.QuartzJobSpecScheduler;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 
 /** A simple wrapper {@link DefaultGobblinInstanceDriverImpl} that will instantiate necessary
@@ -238,6 +239,14 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     public Builder withJobScheduler(JobSpecScheduler jobScheduler) {
       _jobScheduler = Optional.of(jobScheduler);
       return this;
+    }
+
+    public Builder withImmediateJobScheduler() {
+      return withJobScheduler(new ImmediateJobSpecScheduler(Optional.of(getLog())));
+    }
+
+    public Builder withQuartzJobScheduler() {
+      return withJobScheduler(new QuartzJobSpecScheduler(this));
     }
 
     public JobExecutionLauncher getDefaultJobLauncher() {
