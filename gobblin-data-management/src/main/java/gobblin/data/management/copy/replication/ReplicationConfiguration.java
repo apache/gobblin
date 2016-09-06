@@ -12,10 +12,10 @@ import lombok.Getter;
  * Class ReplicationConfiguration is used to describe the overall configuration of the replication flow for
  * a specific {@link ReplicationData}, including:
  * <ul>
- *  <li>Meta data 
- *  <li>Replication source
- *  <li>Replication replicas
- *  <li>Replication topology
+ *  <li>Meta data {@link ReplicationMetaData}
+ *  <li>Replication source {@link ReplicationSource}
+ *  <li>Replication replicas {@link ReplicationReplica}
+ *  <li>Replication topology {@link DataFlowTopology}
  * </ul>
  * @author mitu
  *

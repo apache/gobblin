@@ -1,6 +1,6 @@
 package gobblin.data.management.copy.replication;
 
-import gobblin.dataset.Dataset;
+import gobblin.data.management.copy.CopyableDataset;
 import gobblin.dataset.DatasetsFinder;
 
 
@@ -19,7 +19,7 @@ import gobblin.dataset.DatasetsFinder;
  *
  * @param <T>
  */
-public interface ReplicationData<T extends Dataset> {
+public interface ReplicationData<T extends CopyableDataset> {
 
   public boolean isSource();
 

@@ -49,38 +49,44 @@ public class DataFlowTopology {
       Preconditions.checkArgument(routesConfig.hasPath(replica.getReplicationName()),
           "can not find route for replica " + replica.getReplicationName());
 
-      CopyRoute route = new CopyRoute();
-      route.copyDestination = replica;
-      route.copyFrom = new ArrayList<ReplicationData<CopyableDataset>>();
+      List<ReplicationData<CopyableDataset>> copyFromReplica = new ArrayList<ReplicationData<CopyableDataset>>();
 
-      List<String> copyFroms = routesConfig.getStringList(replica.getReplicationName());
+      List<String> copyFromStrings = routesConfig.getStringList(replica.getReplicationName());
 
-      for (String copyFromName : copyFroms) {
-        Preconditions.checkArgument(!copyFromName.equals(route.copyDestination.getReplicationName()),
+      for (String copyFromName : copyFromStrings) {
+        Preconditions.checkArgument(!copyFromName.equals(replica.getReplicationName()),
             "can not have same name in both destination and copy from list " + copyFromName);
         // copy from source
         if (copyFromName.equals(ReplicationUtils.REPLICATION_SOURCE)) {
-          route.copyFrom.add(builder.source);
+          copyFromReplica.add(builder.source);
         }
         // copy from other replicas
         else if(replicasMap.containsKey(copyFromName)){
-          route.copyFrom.add(replicasMap.get(copyFromName));
+          copyFromReplica.add(replicasMap.get(copyFromName));
         }
         else{
           throw new IllegalArgumentException("can not find replica with name " + copyFromName);
         }
       }
-
-      this.routes.add(route);
+      
+      CopyRouteBuilder routeBuilder = new CopyRouteBuilder();
+      routeBuilder.withCopyDestination(replica);
+      routeBuilder.withCopyFrom(copyFromReplica);
+      this.routes.add(routeBuilder.build());
     }
   }
 
   public static class CopyRoute {
     @Getter
-    private ReplicationReplica copyDestination;
+    private final ReplicationReplica copyDestination;
 
     @Getter
-    private List<ReplicationData<CopyableDataset>> copyFrom;
+    private final List<ReplicationData<CopyableDataset>> copyFrom;
+    
+    private CopyRoute(CopyRouteBuilder builder){
+      this.copyDestination = builder.copyDestination;
+      this.copyFrom = builder.copyFrom;
+    }
 
     @Override
     public String toString() {
@@ -91,6 +97,26 @@ public class DataFlowTopology {
       }
 
       return sb.toString();
+    }
+  }
+  
+  public static class CopyRouteBuilder{
+    private ReplicationReplica copyDestination;
+    
+    private List<ReplicationData<CopyableDataset>> copyFrom;
+    
+    public CopyRouteBuilder withCopyDestination(ReplicationReplica copyDest) {
+      this.copyDestination = copyDest;
+      return this;
+    }
+
+    public CopyRouteBuilder withCopyFrom(List<ReplicationData<CopyableDataset>> copyFrom) {
+      this.copyFrom = copyFrom;
+      return this;
+    }
+
+    public CopyRoute build() {
+      return new CopyRoute(this);
     }
   }
 

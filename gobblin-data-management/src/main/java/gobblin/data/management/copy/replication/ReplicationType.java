@@ -29,13 +29,7 @@ public enum ReplicationType {
    * @return a {@link ReplicationType} for the given name
    */
   public static ReplicationType forName(String name) {
-    if (name.equalsIgnoreCase(HDFS.name)) {
-      return HDFS;
-    }
-    if (name.equalsIgnoreCase(HIVE.name)) {
-      return HIVE;
-    }
-    throw new IllegalArgumentException("No ReplicationType available for name: " + name);
+    return ReplicationType.valueOf(name.toUpperCase());
   }
 
 }

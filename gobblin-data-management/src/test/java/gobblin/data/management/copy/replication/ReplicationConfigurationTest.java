@@ -62,9 +62,9 @@ public class ReplicationConfigurationTest {
     
     ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
     ReplicationMetaData md = rc.getMetaData();
-    Assert.assertTrue(md.getJira().get().equals("jira-4455"));
-    Assert.assertTrue(md.getName().get().equals("profileTest"));
-    Assert.assertTrue(md.getOwner().get().equals("mitu"));
+    Assert.assertTrue(md.getValues().get().get(ReplicationUtils.METADATA_JIRA).equals("jira-4455"));
+    Assert.assertTrue(md.getValues().get().get(ReplicationUtils.METADATA_NAME).equals("profileTest"));
+    Assert.assertTrue(md.getValues().get().get(ReplicationUtils.METADATA_OWNER).equals("mitu"));
     
     ReplicationSource source = rc.getSource();
     Assert.assertTrue(source.getReplicationName().equals(ReplicationUtils.REPLICATION_SOURCE));

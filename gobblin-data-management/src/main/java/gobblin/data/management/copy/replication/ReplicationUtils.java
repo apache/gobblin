@@ -1,11 +1,15 @@
 package gobblin.data.management.copy.replication;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
 
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.dataset.DatasetsFinder;
@@ -32,19 +36,17 @@ public class ReplicationUtils {
 
   public static ReplicationMetaData buildMetaData(Config config) {
     if (!config.hasPath(METADATA)) {
-      return new ReplicationMetaData(Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent());
+      return new ReplicationMetaData(Optional.<Map<String, String>>absent());
     }
 
     Config metaDataConfig = config.getConfig(METADATA);
+    Map<String, String> metaDataValues = new HashMap<>();
+    Set<Map.Entry<String,ConfigValue>> meataDataEntry = metaDataConfig.entrySet();
+    for(Map.Entry<String,ConfigValue> entry : meataDataEntry){
+      metaDataValues.put(entry.getKey(),  metaDataConfig.getString(entry.getKey()));
+    }
 
-    Optional<String> metaDataJira = metaDataConfig.hasPath(METADATA_JIRA)
-        ? Optional.of(metaDataConfig.getString(METADATA_JIRA)) : Optional.<String>absent();
-    Optional<String> metaDataOwner = metaDataConfig.hasPath(METADATA_OWNER)
-        ? Optional.of(metaDataConfig.getString(METADATA_OWNER)) : Optional.<String>absent();
-    Optional<String> metaDataName = metaDataConfig.hasPath(METADATA_NAME)
-        ? Optional.of(metaDataConfig.getString(METADATA_NAME)) : Optional.<String>absent();
-
-    ReplicationMetaData metaData = new ReplicationMetaData(metaDataJira, metaDataOwner, metaDataName);
+    ReplicationMetaData metaData = new ReplicationMetaData(Optional.of(metaDataValues));
     return metaData;
   }
 
@@ -96,8 +98,7 @@ public class ReplicationUtils {
       return new HdfsReplicationLocation(config.getConfig(type));
     }
 
-    // TODO, other replication types implmenetation 
-    return null;
+    throw new UnsupportedOperationException("Not support for replication type " + RType);
   }
   
   //TODO
