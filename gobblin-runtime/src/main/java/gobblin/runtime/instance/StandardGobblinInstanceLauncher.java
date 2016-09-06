@@ -30,6 +30,7 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceDriver;
+import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.GobblinInstanceLauncher;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 
@@ -39,6 +40,7 @@ import gobblin.runtime.std.DefaultConfigurableImpl;
  */
 public class StandardGobblinInstanceLauncher extends AbstractIdleService
       implements GobblinInstanceLauncher {
+  private final Logger _log;
   private final String _name;
   private final Configurable _instanceConf;
   private final StandardGobblinInstanceDriver _driver;
@@ -48,10 +50,12 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
   protected StandardGobblinInstanceLauncher(String name,
       Configurable instanceConf,
       StandardGobblinInstanceDriver.Builder driverBuilder,
-      Optional<MetricContext> metricContext) {
+      Optional<MetricContext> metricContext,
+      Optional<Logger> log) {
+    _log = log.or(LoggerFactory.getLogger(getClass()));
     _name = name;
     _instanceConf = instanceConf;
-    _driver = driverBuilder.withInstanceLauncher(this).build();
+    _driver = driverBuilder.withInstanceEnvironment(this).build();
     _instrumentationEnabled = metricContext.isPresent();
     _metricContext = metricContext.orNull();
   }
@@ -96,7 +100,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
     return new Builder();
   }
 
-  public static class Builder {
+  public static class Builder implements GobblinInstanceEnvironment {
     final static AtomicInteger INSTANCE_COUNT = new AtomicInteger(1);
 
     Optional<String> _name = Optional.absent();
@@ -106,11 +110,16 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
     Optional<Boolean> _instrumentationEnabled = Optional.absent();
     Optional<MetricContext> _metricContext = Optional.absent();
 
+    public Builder() {
+      _driver.withInstanceEnvironment(this);
+    }
+
     public String getDefaultInstanceName() {
       return StandardGobblinInstanceLauncher.class.getSimpleName() + "-" +
              INSTANCE_COUNT.getAndIncrement();
     }
 
+    @Override
     public String getInstanceName() {
       if (! _name.isPresent()) {
         _name = Optional.of(getDefaultInstanceName());
@@ -127,6 +136,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
       return LoggerFactory.getLogger(getInstanceName());
     }
 
+    @Override
     public Logger getLog() {
       if (! _log.isPresent()) {
         _log = Optional.of(getDefaultLog());
@@ -145,18 +155,18 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
     }
 
     /**  Uses the configuration provided by {@link ConfigFactory#load()} */
-    public Configurable getDefaultInstanceConfig() {
+    public Configurable getDefaultSysConfig() {
       return DefaultConfigurableImpl.createFromConfig(ConfigFactory.load());
     }
 
-    public Configurable getInstanceConfig() {
+    @Override public Configurable getSysConfig() {
       if (! _instanceConfig.isPresent()) {
-        _instanceConfig = Optional.of(getDefaultInstanceConfig());
+        _instanceConfig = Optional.of(getDefaultSysConfig());
       }
       return _instanceConfig.get();
     }
 
-    public Builder withInstanceConfig(Config instanceConfig) {
+    public Builder withSysConfig(Config instanceConfig) {
       _instanceConfig = Optional.of(DefaultConfigurableImpl.createFromConfig(instanceConfig));
       return this;
     }
@@ -171,6 +181,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
       return this;
     }
 
+    @Override
     public boolean isInstrumentationEnabled() {
       if (!_instrumentationEnabled.isPresent()) {
         _instrumentationEnabled = Optional.of(getDefaultInstrumentationEnabled());
@@ -183,6 +194,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
       return this;
     }
 
+    @Override
     public MetricContext getMetricContext() {
       if (!_metricContext.isPresent()) {
         _metricContext = Optional.of(getDefaultMetricContext());
@@ -192,17 +204,33 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
 
     private MetricContext getDefaultMetricContext() {
       gobblin.configuration.State fakeState =
-          new gobblin.configuration.State(getInstanceConfig().getConfigAsProperties());
+          new gobblin.configuration.State(getSysConfig().getConfigAsProperties());
       return Instrumented.getMetricContext(fakeState, StandardGobblinInstanceLauncher.class);
     }
 
     private boolean getDefaultInstrumentationEnabled() {
-      return GobblinMetrics.isEnabled(getInstanceConfig().getConfig());
+      return GobblinMetrics.isEnabled(getSysConfig().getConfig());
     }
 
     public StandardGobblinInstanceLauncher build() {
-      return new StandardGobblinInstanceLauncher(getInstanceName(), getInstanceConfig(), driver(),
-          isInstrumentationEnabled() ? Optional.of(getMetricContext()) : Optional.<MetricContext>absent());
+      return new StandardGobblinInstanceLauncher(getInstanceName(), getSysConfig(), driver(),
+          isInstrumentationEnabled() ? Optional.of(getMetricContext()) : Optional.<MetricContext>absent(),
+          Optional.of(getLog()));
+    }
+
+    @Override
+    public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public void switchMetricContext(List<Tag<?>> tags) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void switchMetricContext(MetricContext context) {
+      throw new UnsupportedOperationException();
     }
 
   }
@@ -225,6 +253,16 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
 
   @Override public void switchMetricContext(MetricContext context) {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public Logger getLog() {
+    return _log;
+  }
+
+  @Override
+  public Configurable getSysConfig() {
+    return this;
   }
 
 }

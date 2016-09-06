@@ -50,7 +50,8 @@ public class TestDefaultGobblinInstanceDriverImpl {
     Configurable sysConfig = DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
 
     final DefaultGobblinInstanceDriverImpl driver =
-        new DefaultGobblinInstanceDriverImpl(sysConfig, jobCatalog, scheduler, jobLauncher,
+        new DefaultGobblinInstanceDriverImpl("testScheduling", sysConfig, jobCatalog, scheduler,
+            jobLauncher,
             Optional.<MetricContext>absent(),
             loggerOpt);
 

@@ -27,6 +27,10 @@ import lombok.Getter;
 public interface JobExecutionLauncher extends Instrumentable {
   JobExecutionDriver launchJob(JobSpec jobSpec);
 
+  /**
+   * Common metrics for all launcher implementations. */
+  StandardMetrics getMetrics();
+
   public static class StandardMetrics {
     public static final String NUM_JOBS_LAUNCHED_COUNTER = "numJobsLaunched";
     public static final String NUM_JOBS_COMPLETED_COUNTER = "numJobsCompleted";

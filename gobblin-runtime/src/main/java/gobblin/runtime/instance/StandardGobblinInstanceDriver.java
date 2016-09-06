@@ -13,6 +13,7 @@ package gobblin.runtime.instance;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +32,7 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.runtime.api.Configurable;
+import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.GobblinInstanceLauncher;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobExecutionLauncher;
@@ -48,11 +50,12 @@ import gobblin.runtime.std.DefaultConfigurableImpl;
 public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverImpl {
   private ServiceManager _subservices;
 
-  protected StandardGobblinInstanceDriver(Configurable sysConfig, JobCatalog jobCatalog,
+  protected StandardGobblinInstanceDriver(String instanceName, Configurable sysConfig,
+      JobCatalog jobCatalog,
       JobSpecScheduler jobScheduler, JobExecutionLauncher jobLauncher,
       Optional<MetricContext> instanceMetricContext,
       Optional<Logger> log) {
-    super(sysConfig, jobCatalog, jobScheduler, jobLauncher, instanceMetricContext, log);
+    super(instanceName, sysConfig, jobCatalog, jobScheduler, jobLauncher, instanceMetricContext, log);
     List<Service> componentServices = new ArrayList<>();
     checkComponentService(getJobCatalog(), componentServices);
     checkComponentService(getJobScheduler(), componentServices);
@@ -107,11 +110,11 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
    * </ul>
    *
    */
-  public static class Builder {
+  public static class Builder implements GobblinInstanceEnvironment {
     private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger(0);
 
-    private Optional<GobblinInstanceLauncher> _instanceLauncher =
-        Optional.<GobblinInstanceLauncher>absent();
+    private Optional<GobblinInstanceEnvironment> _instanceEnv =
+        Optional.<GobblinInstanceEnvironment>absent();
     private Optional<String> _instanceName = Optional.absent();
     private Optional<Logger> _log = Optional.absent();
     private Optional<JobCatalog> _jobCatalog = Optional.absent();
@@ -120,8 +123,8 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     private Optional<MetricContext> _metricContext = Optional.absent();
     private Optional<Boolean> _instrumentationEnabled = Optional.absent();
 
-    public Builder(Optional<GobblinInstanceLauncher> instanceLauncher) {
-      _instanceLauncher = instanceLauncher;
+    public Builder(Optional<GobblinInstanceEnvironment> instanceLauncher) {
+      _instanceEnv = instanceLauncher;
     }
 
     /** Constructor with no Gobblin instance launcher */
@@ -131,22 +134,22 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     /** Constructor with a launcher */
     public Builder(GobblinInstanceLauncher instanceLauncher) {
       this();
-      withInstanceLauncher(instanceLauncher);
+      withInstanceEnvironment(instanceLauncher);
     }
 
-    public Builder withInstanceLauncher(GobblinInstanceLauncher instanceLauncher) {
+    public Builder withInstanceEnvironment(GobblinInstanceEnvironment instanceLauncher) {
       Preconditions.checkNotNull(instanceLauncher);
-      _instanceLauncher = Optional.of(instanceLauncher);
+      _instanceEnv = Optional.of(instanceLauncher);
       return this;
     }
 
-    public Optional<GobblinInstanceLauncher> getInstanceLauncher() {
-      return _instanceLauncher;
+    public Optional<GobblinInstanceEnvironment> getInstanceEnvironment() {
+      return _instanceEnv;
     }
 
     public String getDefaultInstanceName() {
-      if (_instanceLauncher.isPresent()) {
-        return _instanceLauncher.get().getInstanceName();
+      if (_instanceEnv.isPresent()) {
+        return _instanceEnv.get().getInstanceName();
       }
       else {
         return StandardGobblinInstanceDriver.class.getName() + "-" +
@@ -154,6 +157,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       }
     }
 
+    @Override
     public String getInstanceName() {
       if (! _instanceName.isPresent()) {
         _instanceName = Optional.of(getDefaultInstanceName());
@@ -167,9 +171,11 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     }
 
     public Logger getDefaultLog() {
-      return LoggerFactory.getLogger(getInstanceName());
+      return _instanceEnv.isPresent() ? _instanceEnv.get().getLog() :
+            LoggerFactory.getLogger(getInstanceName());
     }
 
+    @Override
     public Logger getLog() {
       if (! _log.isPresent()) {
         _log = Optional.of(getDefaultLog());
@@ -183,9 +189,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     }
 
     public JobCatalog getDefaultJobCatalog() {
-      return new InMemoryJobCatalog(Optional.of(getLog()),
-          Optional.of(getMetricContext()),
-          isInstrumentationEnabled());
+      return new InMemoryJobCatalog(this);
     }
 
     public JobCatalog getJobCatalog() {
@@ -201,16 +205,12 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     }
 
     public Builder withInMemoryJobCatalog() {
-      return withJobCatalog(new InMemoryJobCatalog(Optional.of(getLog()),
-          Optional.of(getMetricContext()),
-          isInstrumentationEnabled()));
+      return withJobCatalog(new InMemoryJobCatalog(this));
     }
 
     public Builder withFSJobCatalog() {
       try {
-        return withJobCatalog(new FSJobCatalog(getSysConfig().getConfig(),
-            Optional.of(getMetricContext()),
-            isInstrumentationEnabled()));
+        return withJobCatalog(new FSJobCatalog(this));
       } catch (IOException e) {
         throw new RuntimeException("Unable to create FS Job Catalog");
       }
@@ -218,10 +218,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
 
     public Builder withImmutableFSJobCatalog() {
       try {
-        return withJobCatalog(new ImmutableFSJobCatalog(getSysConfig().getConfig(),
-            null,
-            Optional.of(getMetricContext()),
-            isInstrumentationEnabled()));
+        return withJobCatalog(new ImmutableFSJobCatalog(this));
       } catch (IOException e) {
         throw new RuntimeException("Unable to create FS Job Catalog");
       }
@@ -244,7 +241,9 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     }
 
     public JobExecutionLauncher getDefaultJobLauncher() {
-      return new JobLauncherExecutionDriver.Launcher();
+      JobLauncherExecutionDriver.Launcher res =
+          new JobLauncherExecutionDriver.Launcher().withGobblinInstanceEnvironment(this);
+      return res;
     }
 
     public JobExecutionLauncher getJobLauncher() {
@@ -264,6 +263,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return this;
     }
 
+    @Override
     public MetricContext getMetricContext() {
       if (!_metricContext.isPresent()) {
         _metricContext = Optional.of(getDefaultMetricContext());
@@ -283,15 +283,16 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
 
     public StandardGobblinInstanceDriver build() {
       Configurable sysConfig = getSysConfig();
-      return new StandardGobblinInstanceDriver(sysConfig, getJobCatalog(), getJobScheduler(),
+      return new StandardGobblinInstanceDriver(getInstanceName(), sysConfig, getJobCatalog(),
+             getJobScheduler(),
              getJobLauncher(),
              isInstrumentationEnabled() ? Optional.of(getMetricContext()) :
                    Optional.<MetricContext>absent(),
              Optional.of(getLog()));
     }
 
-    private Configurable getSysConfig() {
-      return _instanceLauncher.isPresent() ? _instanceLauncher.get() :
+    @Override public Configurable getSysConfig() {
+      return _instanceEnv.isPresent() ? _instanceEnv.get().getSysConfig() :
           DefaultConfigurableImpl.createFromConfig(ConfigFactory.load());
     }
 
@@ -304,11 +305,24 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return GobblinMetrics.isEnabled(getSysConfig().getConfig());
     }
 
+    @Override
     public boolean isInstrumentationEnabled() {
       if (!_instrumentationEnabled.isPresent()) {
         _instrumentationEnabled = Optional.of(getDefaultInstrumentationEnabled());
       }
       return _instrumentationEnabled.get();
+    }
+
+    @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+      return Collections.emptyList();
+    }
+
+    @Override public void switchMetricContext(List<Tag<?>> tags) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override public void switchMetricContext(MetricContext context) {
+      throw new UnsupportedOperationException();
     }
   }
 

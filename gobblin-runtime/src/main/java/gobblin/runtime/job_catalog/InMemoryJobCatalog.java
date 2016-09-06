@@ -29,6 +29,7 @@ import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobCatalogListener.AddJobCallback;
@@ -54,6 +55,11 @@ public class InMemoryJobCatalog implements MutableJobCatalog {
 
   public InMemoryJobCatalog(Optional<Logger> log) {
     this(log, Optional.<MetricContext>absent(), true);
+  }
+
+  public InMemoryJobCatalog(GobblinInstanceEnvironment env) {
+    this(Optional.of(env.getLog()), Optional.of(env.getMetricContext()),
+         env.isInstrumentationEnabled());
   }
 
   public InMemoryJobCatalog(Optional<Logger> log, Optional<MetricContext> parentMetricContext,
