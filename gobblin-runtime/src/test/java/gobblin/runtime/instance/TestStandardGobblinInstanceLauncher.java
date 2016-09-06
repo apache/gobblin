@@ -18,6 +18,7 @@ import java.util.concurrent.TimeoutException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Function;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.runtime.api.GobblinInstanceDriver;
@@ -30,6 +31,7 @@ import gobblin.runtime.instance.DefaultGobblinInstanceDriverImpl.JobSpecRunnable
 import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
 import gobblin.runtime.std.FilteredJobLifecycleListener;
 import gobblin.runtime.std.JobSpecFilter;
+import gobblin.testing.AssertWithBackoff;
 
 /**
  * Unit tests for {@link StandardGobblinInstanceLauncher}
@@ -52,19 +54,32 @@ public class TestStandardGobblinInstanceLauncher {
         .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
         .build();
     GobblinInstanceDriver instance = instanceLauncher.getDriver();
-    JobExecutionLauncher.StandardMetrics launcherMetrics = instance.getJobLauncher().getMetrics();
+    final JobExecutionLauncher.StandardMetrics launcherMetrics =
+        instance.getJobLauncher().getMetrics();
+
+    AssertWithBackoff asb = new AssertWithBackoff().timeoutMs(100);
 
     checkLaunchJob(instanceLauncher, js1, instance);
     Assert.assertEquals(launcherMetrics.getNumJobsLaunched().getCount(), 1);
     Assert.assertEquals(launcherMetrics.getNumJobsCompleted().getCount(), 1);
-    Assert.assertEquals(launcherMetrics.getNumJobsCommitted().getCount(), 1);
+    // Need to use assert with backoff because of race conditions with the callback that updates the
+    // metrics
+    asb.assertEquals(new Function<Void, Long>() {
+      @Override public Long apply(Void input) {
+        return launcherMetrics.getNumJobsCommitted().getCount();
+      }
+    }, 1l, "numJobsCommitted==1");
     Assert.assertEquals(launcherMetrics.getNumJobsFailed().getCount(), 0);
     Assert.assertEquals(launcherMetrics.getNumJobsRunning().getValue().intValue(), 0);
 
     checkLaunchJob(instanceLauncher, js1, instance);
     Assert.assertEquals(launcherMetrics.getNumJobsLaunched().getCount(), 2);
     Assert.assertEquals(launcherMetrics.getNumJobsCompleted().getCount(), 2);
-    Assert.assertEquals(launcherMetrics.getNumJobsCommitted().getCount(), 2);
+    asb.assertEquals(new Function<Void, Long>() {
+      @Override public Long apply(Void input) {
+        return launcherMetrics.getNumJobsCommitted().getCount();
+      }
+    }, 2l, "numJobsCommitted==2");
     Assert.assertEquals(launcherMetrics.getNumJobsFailed().getCount(), 0);
     Assert.assertEquals(launcherMetrics.getNumJobsRunning().getValue().intValue(), 0);
   }
