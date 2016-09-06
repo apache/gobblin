@@ -38,6 +38,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecSchedule;
 import gobblin.runtime.api.JobSpecScheduler;
@@ -79,6 +80,11 @@ public class QuartzJobSpecScheduler extends AbstractJobSpecScheduler {
 
   public QuartzJobSpecScheduler(Logger log, Config cfg) {
     this(Optional.of(log), cfg, Optional.<SchedulerService>absent());
+  }
+
+  public QuartzJobSpecScheduler(GobblinInstanceEnvironment env) {
+    this(Optional.of(env.getLog()), env.getSysConfig().getConfig(),
+         Optional.<SchedulerService>absent());
   }
 
   protected static SchedulerService createDefaultSchedulerService(Config cfg) {
