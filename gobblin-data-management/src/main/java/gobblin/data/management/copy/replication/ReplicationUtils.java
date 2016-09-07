@@ -8,11 +8,13 @@ import java.util.Set;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
 
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.dataset.DatasetsFinder;
+import gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -33,6 +35,11 @@ public class ReplicationUtils {
   public static final String REPLICATION_LOCATION_TYPE_KEY = "type";
 
   public static final String DATAFLOWTOPOLOGY = "dataFlowTopology";
+
+  public static final String DEFAULT_ALL_ROUTES_KEY = "defaultDataFlowTopology";
+
+  public static final String ROUTES_PICKER_CLASS_KEY = "routePickerClass";
+  public static final String DEFAULT_ROUTES_PICKER_CLASS_KEY = DataFlowRoutesPickerBySourceCluster.class.getCanonicalName();
 
   public static ReplicationMetaData buildMetaData(Config config) {
     if (!config.hasPath(METADATA)) {
@@ -82,6 +89,27 @@ public class ReplicationUtils {
     Preconditions.checkArgument(config.hasPath(DATAFLOWTOPOLOGY), "missing required config entery " + DATAFLOWTOPOLOGY);
     Config dataflowConfig = config.getConfig(DATAFLOWTOPOLOGY);
 
+    // NOT specified by literal routes, need to pick it
+    if(!dataflowConfig.hasPath(DataFlowTopology.ROUTES)){
+      // DEFAULT_ALL_ROUTES_KEY specified in top level config
+      Preconditions.checkArgument(config.hasPath(DEFAULT_ALL_ROUTES_KEY), "missing required config entery " + DEFAULT_ALL_ROUTES_KEY);
+
+      Config allRoutes = config.getConfig(DEFAULT_ALL_ROUTES_KEY);
+      String routePickerClassName = dataflowConfig.hasPath(ROUTES_PICKER_CLASS_KEY)? dataflowConfig.getString(ROUTES_PICKER_CLASS_KEY):
+        DEFAULT_ROUTES_PICKER_CLASS_KEY;
+
+      List<Object> args = Lists.newArrayList(allRoutes, source);
+      
+      try {
+        Class<?> routePickerClass = Class.forName(routePickerClassName);
+
+        DataFlowRoutesPicker picker = (DataFlowRoutesPicker)(GobblinConstructorUtils.invokeLongestConstructor(routePickerClass, args.toArray()));
+        dataflowConfig = picker.getPreferredRoutes();
+      } catch (ReflectiveOperationException e) {
+        throw new RuntimeException("Can not build topology from class: " + e.getMessage());
+      }
+    }
+
     return new DataFlowTopology.Builder().withReplicationSource(source).withReplicationReplicas(replicas)
         .withTopologyConfig(dataflowConfig).build();
   }
@@ -100,7 +128,7 @@ public class ReplicationUtils {
 
     throw new UnsupportedOperationException("Not support for replication type " + RType);
   }
-  
+
   //TODO
   /**
    * Based on the input {@link Config} , build corresponding {@link DatasetsFinder}
