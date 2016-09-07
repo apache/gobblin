@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 
+import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecSchedule;
 import gobblin.runtime.api.JobSpecSchedulerListener;
 
@@ -57,9 +58,9 @@ public class DefaultJobSpecSchedulerListenerImpl implements JobSpecSchedulerList
   }
 
   /** {@inheritDoc} */
-  @Override public void onJobTriggered(JobSpecSchedule jobSchedule) {
+  @Override public void onJobTriggered(JobSpec jobSpec) {
     if (_log.isPresent()) {
-      _log.get().info("Job triggered: " + jobSchedule);
+      _log.get().info("Job triggered: " + jobSpec);
     }
   }
 

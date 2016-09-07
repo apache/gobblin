@@ -41,22 +41,24 @@ public class ResourceBasedTemplate implements JobTemplate {
    * Initilized the template by retrieving the specified template file and obtain some special attributes.
    * @param templatePath
    */
-  public ResourceBasedTemplate(String templatePath) {
+  public ResourceBasedTemplate(String templatePath) throws TemplateException {
     LOGGER.info("Load the job configuration template : " + templatePath);
     this.templatePath = templatePath;
 
     if (this.templatePath != null && this.templatePath.length() > 0) {
-      try (InputStream inputStream = getClass().getResourceAsStream("/" + this.templatePath);
+      try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(this.templatePath);
         InputStreamReader reader = new InputStreamReader(inputStream, Charsets.UTF_8)) {
         Config tmpConfig = ConfigFactory.parseReader(reader);
         this._userSpecifiedAttributesList = new HashSet<>(Splitter.on(",").omitEmptyStrings().
             splitToList(tmpConfig.getString(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST)));
         this.config = tmpConfig.root().toConfig();
-      } catch (IOException e) {
-        throw new RuntimeException("Failure to loading template files into i/o stream");
+      } catch (IOException ioe) {
+        throw new TemplateException("Failure to loading template files into i/o stream", ioe);
+      } catch (NullPointerException npe) {
+        throw new TemplateException("Could not find resource with path " + this.templatePath);
       }
     } else {
-      throw new RuntimeException("Template Path doesn't exist");
+      throw new TemplateException(String.format("Invalid template path %s", this.templatePath));
     }
   }
 
@@ -85,10 +87,10 @@ public class ResourceBasedTemplate implements JobTemplate {
    * @return
    */
   @Override
-  public Config getResolvedConfig(Config userProps) throws IOException {
+  public Config getResolvedConfig(Config userProps) throws TemplateException {
     for (String required : this.getRequiredConfigList()) {
       if (!userProps.hasPath(required)) {
-        throw new IOException(String.format("Missing required property %s for template %s.", required, this.templatePath));
+        throw new TemplateException(String.format("Missing required property %s for template %s.", required, this.templatePath));
       }
     }
     return userProps.withFallback(this.config).resolve();

@@ -114,8 +114,11 @@ public class JobScheduler extends AbstractIdleService {
   // Set of supported job configuration file extensions
   public final Set<String> jobConfigFileExtensions;
 
+  public final Path jobConfigFileDirPath;
+
   // A monitor for changes to job conf files for general FS
   public final PathAlterationDetector pathAlterationDetector;
+  public final PathAlterationListenerAdaptorForMonitor listener;
 
   // A period of time for scheduler to wait until jobs are finished
   private final boolean waitForJobCompletion;
@@ -144,12 +147,24 @@ public class JobScheduler extends AbstractIdleService {
     this.waitForJobCompletion = Boolean.parseBoolean(
         this.properties.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
             ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION));
+
+    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
+      this.jobConfigFileDirPath = new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+      this.listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath, this);
+    } else {
+      // This is needed because HelixJobScheduler does not use the same way of finding changed paths
+      this.jobConfigFileDirPath = null;
+      this.listener = null;
+    }
   }
 
   @Override
   protected void startUp()
       throws Exception {
     LOG.info("Starting the job scheduler");
+
+    Preconditions.checkState(this.listener != null,
+        String.format("Property %s was not defined.", ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
 
     try {
       this.scheduler.awaitRunning(1, TimeUnit.SECONDS);
@@ -170,8 +185,8 @@ public class JobScheduler extends AbstractIdleService {
         this.properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             "file://" + this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
       }
-      scheduleGeneralConfiguredJobs();
       startGeneralJobConfigFileMonitor();
+      scheduleGeneralConfiguredJobs();
     }
   }
 
@@ -203,7 +218,11 @@ public class JobScheduler extends AbstractIdleService {
    */
   public void scheduleJob(Properties jobProps, JobListener jobListener)
       throws JobException {
-    scheduleJob(jobProps, jobListener, Maps.<String, Object>newHashMap(), GobblinJob.class);
+    try {
+      scheduleJob(jobProps, jobListener, Maps.<String, Object>newHashMap(), GobblinJob.class);
+    } catch (JobException | RuntimeException exc) {
+      LOG.error("Could not schedule job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "Unknown job"), exc);
+    }
   }
 
   /**
@@ -269,7 +288,9 @@ public class JobScheduler extends AbstractIdleService {
 
     try {
       // Schedule the Quartz job with a trigger built from the job configuration
-      this.scheduler.getScheduler().scheduleJob(job, getTrigger(job.getKey(), jobProps));
+      Trigger trigger = getTrigger(job.getKey(), jobProps);
+      this.scheduler.getScheduler().scheduleJob(job, trigger);
+      LOG.info(String.format("Scheduled job %s. Next run: %s.", job.getKey(), trigger.getNextFireTime()));
     } catch (SchedulerException se) {
       LOG.error("Failed to schedule job " + jobName, se);
       throw new JobException("Failed to schedule job " + jobName, se);
@@ -381,6 +402,7 @@ public class JobScheduler extends AbstractIdleService {
     for (Properties jobProps : loadGeneralJobConfigs()) {
       boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
       scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
+      this.listener.addToJobNameMap(jobProps);
     }
   }
 
@@ -418,11 +440,7 @@ public class JobScheduler extends AbstractIdleService {
    */
   private void startGeneralJobConfigFileMonitor()
       throws Exception {
-    final Path jobConfigFileDirPath =
-        new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
-
-    PathAlterationListener listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath, this);
-    SchedulerUtils.addPathAlterationObserver(this.pathAlterationDetector, listener, jobConfigFileDirPath);
+    SchedulerUtils.addPathAlterationObserver(this.pathAlterationDetector, this.listener, jobConfigFileDirPath);
     this.pathAlterationDetector.start();
   }
 
@@ -448,6 +466,7 @@ public class JobScheduler extends AbstractIdleService {
     @Override
     public void execute(JobExecutionContext context)
         throws JobExecutionException {
+      LOG.info("Starting job " + context.getJobDetail().getKey());
       JobDataMap dataMap = context.getJobDetail().getJobDataMap();
       JobScheduler jobScheduler = (JobScheduler) dataMap.get(JOB_SCHEDULER_KEY);
       Properties jobProps = (Properties) dataMap.get(PROPERTIES_KEY);

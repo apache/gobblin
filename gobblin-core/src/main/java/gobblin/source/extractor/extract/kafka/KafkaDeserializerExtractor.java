@@ -35,6 +35,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import gobblin.annotation.Alias;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.kafka.KafkaSchemaRegistry;
 import gobblin.metrics.kafka.SchemaRegistryException;
@@ -63,6 +64,7 @@ import gobblin.util.PropertiesUtils;
  * </p>
  */
 @Getter(AccessLevel.PACKAGE)
+@Alias(value = "DESERIALIZER")
 public class KafkaDeserializerExtractor extends KafkaExtractor<Object, Object> {
 
   public static final String KAFKA_DESERIALIZER_TYPE = "kafka.deserializer.type";

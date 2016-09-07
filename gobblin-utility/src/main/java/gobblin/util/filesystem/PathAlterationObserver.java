@@ -25,15 +25,13 @@ public class PathAlterationObserver {
   private final FileSystem fs = FileSystem.get(conf);
 
   private final Path[] EMPTY_PATH_ARRAY = new Path[0];
-  private final FileStatusEntry[] EMPTY_PATHENTRY_ARRAY = new FileStatusEntry[0];
 
   /**
    * Final processing.
    *
    * @throws Exception if an error occurs
    */
-  public void destroy()
-      throws Exception {
+  public void destroy() {
   }
 
   /**
@@ -139,11 +137,9 @@ public class PathAlterationObserver {
 
   /**
    * Initialize the observer.
-   *
-   * @throws Exception if an error occurs
+   * @throws IOException if an error occurs
    */
-  public void initialize()
-      throws Exception {
+  public void initialize() throws IOException  {
     rootEntry.refresh(rootEntry.getPath());
     final FileStatusEntry[] children = doListPathsEntry(rootEntry.getPath(), rootEntry);
     rootEntry.setChildren(children);

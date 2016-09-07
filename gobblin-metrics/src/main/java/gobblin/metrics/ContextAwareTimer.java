@@ -12,11 +12,11 @@
 
 package gobblin.metrics;
 
-import lombok.experimental.Delegate;
-
 import com.codahale.metrics.Timer;
 
 import gobblin.metrics.metric.InnerMetric;
+
+import lombok.experimental.Delegate;
 
 
 /**
@@ -35,7 +35,7 @@ import gobblin.metrics.metric.InnerMetric;
  *
  * @author Yinan Li
  */
-class ContextAwareTimer extends Timer implements ContextAwareMetric {
+public class ContextAwareTimer extends Timer implements ContextAwareMetric {
 
   @Delegate
   private final InnerTimer innerTimer;
