@@ -21,7 +21,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -48,14 +47,12 @@ import org.slf4j.LoggerFactory;
 
 import azkaban.jobExecutor.AbstractJob;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -112,7 +109,6 @@ public class ValidationJob extends AbstractJob {
   private final ConvertibleHiveDatasetFinder datasetFinder;
   private final long maxLookBackTime;
   private final long skipRecentThanTime;
-  private final Set<String> destFormats;
   private final HiveMetastoreClientPool pool;
   private final FileSystem fs;
   private final ExecutorService exec;
@@ -142,10 +138,6 @@ public class ValidationJob extends AbstractJob {
     int skipRecentThanDays = Integer.parseInt(props.getProperty(HIVE_SOURCE_SKIP_RECENT_THAN_DAYS_KEY, DEFAULT_HIVE_SOURCE_SKIP_RECENT_THAN_DAYS));
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
     this.skipRecentThanTime = new DateTime().minusDays(skipRecentThanDays).getMillis();
-
-    // value for DESTINATION_CONVERSION_FORMATS_KEY can be a TypeSafe list or a comma separated list of string
-    this.destFormats =
-        Sets.newHashSet(ConfigUtils.getStringList(config, HIVE_DATASET_CONFIG_AVRO_PREFIX + "." + ConvertibleHiveDataset.DESTINATION_CONVERSION_FORMATS_KEY));
 
     int maxThreadCount = Integer.parseInt(props.getProperty(MAX_THREAD_COUNT, DEFAULT_MAX_THREAD_COUNT));
     this.exec =
@@ -249,7 +241,7 @@ public class ValidationJob extends AbstractJob {
 
       log.info(String.format("Validating table: %s", hiveDataset.getTable()));
 
-      for (final String format : this.destFormats) {
+      for (final String format : hiveDataset.getDestFormats()) {
         Optional<ConvertibleHiveDataset.ConversionConfig> conversionConfigOptional = hiveDataset.getConversionConfigForFormat(format);
         if (conversionConfigOptional.isPresent()) {
           ConvertibleHiveDataset.ConversionConfig conversionConfig = conversionConfigOptional.get();
@@ -302,7 +294,7 @@ public class ValidationJob extends AbstractJob {
     // Get partitions for the table
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), Optional.<String> absent());
 
-    for (final String format : this.destFormats) {
+    for (final String format : hiveDataset.getDestFormats()) {
       Optional<ConvertibleHiveDataset.ConversionConfig> conversionConfigOptional = hiveDataset.getConversionConfigForFormat(format);
 
       if (conversionConfigOptional.isPresent()) {
