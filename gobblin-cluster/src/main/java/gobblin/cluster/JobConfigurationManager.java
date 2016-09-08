@@ -76,7 +76,7 @@ public class JobConfigurationManager extends AbstractIdleService {
       if (jobConfigDir.exists()) {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
         Properties properties = new Properties();
-        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, jobConfigDir.getAbsolutePath());
+        properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, "file://" + jobConfigDir.getAbsolutePath());
         List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
