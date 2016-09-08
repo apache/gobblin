@@ -12,11 +12,11 @@
 
 package gobblin.metrics;
 
-import lombok.experimental.Delegate;
-
 import com.codahale.metrics.Meter;
 
 import gobblin.metrics.metric.InnerMetric;
+
+import lombok.experimental.Delegate;
 
 
 /**
@@ -35,7 +35,7 @@ import gobblin.metrics.metric.InnerMetric;
  *
  * @author Yinan Li
  */
-class ContextAwareMeter extends Meter implements ContextAwareMetric {
+public class ContextAwareMeter extends Meter implements ContextAwareMetric {
 
   @Delegate
   private final InnerMeter innerMeter;
