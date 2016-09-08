@@ -21,8 +21,7 @@ public class PathAlterationObserver {
   private final FileStatusEntry rootEntry;
   private final PathFilter pathFilter;
   private final Comparator<Path> comparator;
-  private final Configuration conf = new Configuration();
-  private final FileSystem fs = FileSystem.get(conf);
+  private final FileSystem fs;
 
   private final Path[] EMPTY_PATH_ARRAY = new Path[0];
 
@@ -93,6 +92,8 @@ public class PathAlterationObserver {
     }
     this.rootEntry = rootEntry;
     this.pathFilter = pathFilter;
+
+    this.fs = rootEntry.getPath().getFileSystem(new Configuration());
 
     // By default, the comparsion is case sensitive.
     this.comparator = new Comparator<Path>() {
