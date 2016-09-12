@@ -55,7 +55,7 @@ public class HiveAvroORCQueryGeneratorTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(q,
@@ -77,7 +77,7 @@ public class HiveAvroORCQueryGeneratorTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(q,
@@ -99,7 +99,7 @@ public class HiveAvroORCQueryGeneratorTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(q.trim(),
@@ -121,7 +121,7 @@ public class HiveAvroORCQueryGeneratorTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(q.trim(),
@@ -145,7 +145,7 @@ public class HiveAvroORCQueryGeneratorTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(q,
@@ -188,7 +188,7 @@ public class HiveAvroORCQueryGeneratorTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
   }
 

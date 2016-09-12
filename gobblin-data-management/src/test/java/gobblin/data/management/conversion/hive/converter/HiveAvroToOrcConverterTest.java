@@ -85,7 +85,7 @@ public class HiveAvroToOrcConverterTest {
       QueryBasedHiveConversionEntity queryBasedHiveConversionEntity = conversionEntities.get(0);
       List<String> queries = queryBasedHiveConversionEntity.getQueries();
 
-      Assert.assertEquals(queries.size(), 2, "One DDL and one DML query should be returned");
+      Assert.assertEquals(queries.size(), 4, "4 DDL and one DML query should be returned");
 
       // Ignoring part before first bracket in DDL and 'select' clause in DML because staging table has
       // .. a random name component
@@ -138,7 +138,7 @@ public class HiveAvroToOrcConverterTest {
       QueryBasedHiveConversionEntity queryBasedHiveConversionEntity = conversionEntities.get(0);
       List<String> queries = queryBasedHiveConversionEntity.getQueries();
 
-      Assert.assertEquals(queries.size(), 2, "One DDL and one DML query should be returned");
+      Assert.assertEquals(queries.size(), 4, "4 DDL and one DML query should be returned");
 
       // Ignoring part before first bracket in DDL and 'select' clause in DML because staging table has
       // .. a random name component

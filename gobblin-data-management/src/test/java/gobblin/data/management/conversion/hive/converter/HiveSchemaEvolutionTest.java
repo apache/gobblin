@@ -71,7 +71,7 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir, 
@@ -96,7 +96,7 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
@@ -123,7 +123,7 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir, 
@@ -150,7 +150,7 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
@@ -177,7 +177,7 @@ public class HiveSchemaEvolutionTest {
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
             Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
             Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta,
+            null, isEvolutionEnabled, destinationTableMeta,
             new HashMap<String, String>());
 
     Assert.assertEquals(ddl, ConversionHiveTestUtils.readQueryFromFile(resourceDir,
@@ -207,7 +207,7 @@ public class HiveSchemaEvolutionTest {
         Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, hiveColumns);
+        null, isEvolutionEnabled, destinationTableMeta, hiveColumns);
 
     // Destination table exists
     List<String> generateEvolutionDDL = HiveAvroORCQueryGenerator
@@ -242,7 +242,7 @@ public class HiveSchemaEvolutionTest {
         Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
         Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
         Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
-        Optional.<Map<String, String>>absent(), isEvolutionEnabled, destinationTableMeta, hiveColumns);
+        null, isEvolutionEnabled, destinationTableMeta, hiveColumns);
 
     // Destination table exists
     List<String> generateEvolutionDDL = HiveAvroORCQueryGenerator
