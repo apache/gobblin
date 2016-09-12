@@ -31,10 +31,10 @@ public class DefaultAuditSinkFactory {
   private static final String AUDIT_SINK_CLASS_NAME_KEY = "class";
   private static final String DEFAULT_AUDIT_SINK_CLASS =  FsAuditSink.class.getCanonicalName();
 
-  private final ClassAliasResolver aliasResolver;
+  private final ClassAliasResolver<AuditSink> aliasResolver;
 
   private DefaultAuditSinkFactory() {
-    this.aliasResolver = new ClassAliasResolver(AuditSink.class);
+    this.aliasResolver = new ClassAliasResolver<>(AuditSink.class);
   }
 
   /**

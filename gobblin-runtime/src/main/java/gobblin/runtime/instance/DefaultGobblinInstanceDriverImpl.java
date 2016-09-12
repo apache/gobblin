@@ -12,15 +12,21 @@
 package gobblin.runtime.instance;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceDriver;
@@ -48,28 +54,48 @@ import gobblin.runtime.std.JobLifecycleListenersList;
 public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
        implements GobblinInstanceDriver {
   protected final Logger _log;
+  protected final String _instanceName;
   protected final Configurable _sysConfig;
   protected final JobCatalog _jobCatalog;
   protected final JobSpecScheduler _jobScheduler;
   protected final JobExecutionLauncher _jobLauncher;
   protected final ConfigAccessor _instanceCfg;
   protected final JobLifecycleListenersList _callbacksDispatcher;
+  private final boolean _instrumentationEnabled;
+  protected final MetricContext _metricCtx;
   protected JobSpecListener _jobSpecListener;
+  private final StandardMetrics _metrics;
 
-  public DefaultGobblinInstanceDriverImpl(Configurable sysConfig, JobCatalog jobCatalog, JobSpecScheduler jobScheduler,
-      JobExecutionLauncher jobLauncher, Optional<Logger> log) {
+  public DefaultGobblinInstanceDriverImpl(String instanceName,
+      Configurable sysConfig, JobCatalog jobCatalog,
+      JobSpecScheduler jobScheduler,
+      JobExecutionLauncher jobLauncher,
+      Optional<MetricContext> baseMetricContext,
+      Optional<Logger> log) {
     Preconditions.checkNotNull(jobCatalog);
     Preconditions.checkNotNull(jobScheduler);
     Preconditions.checkNotNull(jobLauncher);
     Preconditions.checkNotNull(sysConfig);
 
+    _instanceName = instanceName;
+    _log = log.or(LoggerFactory.getLogger(getClass()));
+    _metricCtx = baseMetricContext.or(constructMetricContext(sysConfig, _log));
+    _instrumentationEnabled = null != _metricCtx && GobblinMetrics.isEnabled(sysConfig.getConfig());
     _jobCatalog = jobCatalog;
     _jobScheduler = jobScheduler;
     _jobLauncher = jobLauncher;
     _sysConfig = sysConfig;
     _instanceCfg = ConfigAccessor.createFromGlobalConfig(_sysConfig.getConfig());
-    _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     _callbacksDispatcher = new JobLifecycleListenersList(_jobCatalog, _jobScheduler, _log);
+
+    _metrics = new StandardMetrics(this);
+  }
+
+  private MetricContext constructMetricContext(Configurable sysConfig, Logger log) {
+    gobblin.configuration.State tmpState = new gobblin.configuration.State(sysConfig.getConfigAsProperties());
+    return GobblinMetrics.isEnabled(sysConfig.getConfig()) ?
+          Instrumented.getMetricContext(tmpState, getClass())
+          : null;
   }
 
   /** {@inheritDoc} */
@@ -158,10 +184,15 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override
     public void run() {
-       JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
-       _callbacksDispatcher.onJobLaunch(driver);
-       driver.registerStateListener(new JobStateTracker());
-       driver.startAsync();
+      try {
+         JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
+         _callbacksDispatcher.onJobLaunch(driver);
+         driver.registerStateListener(new JobStateTracker());
+         driver.startAsync();
+      }
+      catch (Throwable t) {
+        _log.error("Job launch failed: " + t, t);
+      }
     }
   }
 
@@ -178,7 +209,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override public void onAddJob(JobSpec addedJob) {
       super.onAddJob(addedJob);
-      _jobScheduler.scheduleJob(addedJob, new JobSpecRunnable(addedJob));
+      _jobScheduler.scheduleJob(addedJob, createJobSpecRunnable(addedJob));
     }
 
     @Override public void onDeleteJob(URI deletedJobURI, String deletedJobVersion) {
@@ -188,8 +219,12 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     @Override public void onUpdateJob(JobSpec updatedJob) {
       super.onUpdateJob(updatedJob);
-      _jobScheduler.scheduleJob(updatedJob, new JobSpecRunnable(updatedJob));
+      _jobScheduler.scheduleJob(updatedJob, createJobSpecRunnable(updatedJob));
     }
+  }
+
+  @VisibleForTesting JobSpecRunnable createJobSpecRunnable(JobSpec addedJob) {
+    return new JobSpecRunnable(addedJob);
   }
 
   ConfigAccessor getInstanceCfg() {
@@ -214,6 +249,36 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   @Override
   public void registerWeakJobLifecycleListener(JobLifecycleListener listener) {
     _callbacksDispatcher.registerWeakJobLifecycleListener(listener);
+  }
+
+  @Override public MetricContext getMetricContext() {
+    return _metricCtx;
+  }
+
+  @Override public boolean isInstrumentationEnabled() {
+    return _instrumentationEnabled;
+  }
+
+  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+    return Collections.emptyList();
+  }
+
+  @Override public void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override public StandardMetrics getMetrics() {
+    return _metrics;
+  }
+
+  @Override
+  public String getInstanceName() {
+    return _instanceName;
   }
 
 }

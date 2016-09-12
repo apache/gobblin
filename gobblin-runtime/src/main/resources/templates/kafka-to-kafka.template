@@ -1,0 +1,34 @@
+# Template for transferring data from one kafka topic to another
+# Records are copied directly as byte arrays, additional converters can be used to interpret the records and perform
+# transformations.
+# Required attributes: inputTopics (comma separated topics to consume), outputTopic (single topic where all records
+#                      will be written), job.name (name of the job)
+
+gobblin.template.required_attributes="inputTopics,outputTopic,job.name"
+
+job.group=GobblinKafka
+job.description=Gobblin quick start job for Kafka
+job.lock.enabled=true
+
+kafka.brokers=${inputBrokers}
+
+source.class=gobblin.source.extractor.extract.kafka.UniversalKafkaSource
+gobblin.source.kafka.extractorType=DESERIALIZER
+kafka.deserializer.type=BYTE_ARRAY
+
+extract.namespace=gobblin.extract.kafka
+
+bootstrap.with.offset=latest
+
+topic.whitelist=${inputTopics}
+
+writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
+writer.kafka.topic=${outputTopic}
+writer.kafka.producerConfig.bootstrap.servers=${outputBrokers}
+
+writer.kafka.producerConfig.value.serializer=org.apache.kafka.common.serialization.ByteArraySerializer
+writer.output.format=TEXT
+data.publisher.type=gobblin.publisher.NoopPublisher
+
+inputBrokers="localhost:9092"
+outputBrokers="localhost:9092"

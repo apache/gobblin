@@ -94,9 +94,9 @@ public class FilteredJobLifecycleListener implements JobLifecycleListener {
     }
   }
 
-  @Override public void onJobTriggered(JobSpecSchedule jobSchedule) {
-    if (this.filter.apply(jobSchedule.getJobSpec())) {
-      this.delegate.onJobTriggered(jobSchedule);
+  @Override public void onJobTriggered(JobSpec jobSpec) {
+    if (this.filter.apply(jobSpec)) {
+      this.delegate.onJobTriggered(jobSpec);
     }
   }
 

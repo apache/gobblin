@@ -36,6 +36,8 @@ public class JdbcWriterCommandsFactory {
     switch (destination.getType()) {
       case MYSQL:
         return new MySqlWriterCommands(destination.getProperties(), conn);
+      case TERADATA:
+        return new TeradataWriterCommands(destination.getProperties(), conn);
       default:
         throw new IllegalArgumentException(destination.getType() + " is not supported");
     }

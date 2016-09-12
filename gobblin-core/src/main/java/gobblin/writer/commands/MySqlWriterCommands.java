@@ -21,6 +21,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,12 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
     this.jdbcBufferedWriter = new MySqlBufferedInserter(state, conn);
   }
 
+  @Override
+  public void setConnectionParameters(Properties properties, Connection conn) throws SQLException {
+    // MySQL writer always uses one single transaction
+    this.conn.setAutoCommit(false);
+  }
+  
   @Override
   public void insert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
     this.jdbcBufferedWriter.insert(databaseName, table, jdbcEntryData);

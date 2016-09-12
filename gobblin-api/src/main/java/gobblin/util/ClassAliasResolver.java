@@ -33,42 +33,67 @@ import gobblin.annotation.Alias;
  * <b>Note : If same alias is used for multiple classes in the classpath, the first mapping in classpath scan holds good.
  * Subsequent ones will be logged and ignored.
  * </b>
+ *
+ * <br>
+ * <b>
+ *   Note: For the moment this class will only look for classes with gobblin prefix, as scanning the entire classpath is
+ *   very expensive.
+ * </b>
  */
 @Slf4j
-public class ClassAliasResolver {
+public class ClassAliasResolver<T> {
 
-  Map<String, Class<?>> aliasToClassCache;
+  Map<String, Class<? extends T>> aliasToClassCache;
+  private final Class<T> subtypeOf;
 
-  public ClassAliasResolver(Class<?> subTypeOf) {
-    Map<String, Class<?>> cache = Maps.newHashMap();
+  public ClassAliasResolver(Class<T> subTypeOf) {
+    Map<String, Class<? extends T>> cache = Maps.newHashMap();
     // Scan all packages
-    Reflections reflections = new Reflections("");
-    for (Class<?> clazz : Sets.intersection(reflections.getTypesAnnotatedWith(Alias.class),
-        reflections.getSubTypesOf(subTypeOf))) {
-      String alias = clazz.getAnnotation(Alias.class).value();
-      if (cache.containsKey(alias)) {
-        log.warn(String.format("Alias %s already mapped to class %s. Mapping for %s will be ignored", alias,
-            cache.get(alias).getCanonicalName(), clazz.getCanonicalName()));
-      } else {
-        cache.put(clazz.getAnnotation(Alias.class).value(), clazz);
+    Reflections reflections = new Reflections("gobblin");
+    for (Class<? extends T> clazz : reflections.getSubTypesOf(subTypeOf)) {
+      if (clazz.isAnnotationPresent(Alias.class)) {
+        String alias = clazz.getAnnotation(Alias.class).value();
+        if (cache.containsKey(alias)) {
+          log.warn(String.format("Alias %s already mapped to class %s. Mapping for %s will be ignored", alias,
+              cache.get(alias).getCanonicalName(), clazz.getCanonicalName()));
+        } else {
+          cache.put(clazz.getAnnotation(Alias.class).value(), clazz);
+        }
       }
-
     }
+    this.subtypeOf = subTypeOf;
     this.aliasToClassCache = ImmutableMap.copyOf(cache);
   }
 
   /**
-   * Resolves the given alias to its cannonical name if a mapping exits. To create a mapping for a class,
+   * Resolves the given alias to its name if a mapping exits. To create a mapping for a class,
    * it has to be annotated with {@link Alias}
    *
    * @param possibleAlias to use for resolution.
-   * @return The cannonical name of the class with <code>possibleAlias</code> if mapping is available.
+   * @return The name of the class with <code>possibleAlias</code> if mapping is available.
    * Return the input <code>possibleAlias</code> if no mapping is found.
    */
   public String resolve(final String possibleAlias) {
     if (this.aliasToClassCache.containsKey(possibleAlias)) {
-      return this.aliasToClassCache.get(possibleAlias).getCanonicalName();
+      return this.aliasToClassCache.get(possibleAlias).getName();
     }
     return possibleAlias;
+  }
+
+  /**
+   * Attempts to resolve the given alias to a class. It first tries to find a class in the classpath with that alias
+   * and which is a subclass of {@link #subtypeOf}, if it fails it tries to find a class in the classpath with the
+   * exact input name.
+   */
+  public Class<? extends T> resolveClass(final String aliasOrClassName) throws ClassNotFoundException {
+    if (this.aliasToClassCache.containsKey(aliasOrClassName)) {
+      return this.aliasToClassCache.get(aliasOrClassName);
+    }
+    try {
+      return Class.forName(aliasOrClassName).asSubclass(this.subtypeOf);
+    } catch (ClassCastException cce) {
+      throw new ClassNotFoundException(
+          String.format("Found class %s but it cannot be cast to %s.", aliasOrClassName, this.subtypeOf.getName()), cce);
+    }
   }
 }

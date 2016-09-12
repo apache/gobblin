@@ -26,7 +26,7 @@ public interface JobSpecSchedulerListener {
   void onJobUnscheduled(JobSpecSchedule jobSchedule);
 
   /** Called just before the job (runnable) gets triggered by the scheduler */
-  void onJobTriggered(JobSpecSchedule jobSchedule);
+  void onJobTriggered(JobSpec jobSpec);
 
   public class JobScheduledCallback extends Callback<JobSpecSchedulerListener, Void> {
     private final JobSpecSchedule _jobSchedule;
@@ -57,15 +57,15 @@ public interface JobSpecSchedulerListener {
   }
 
   public class JobTriggeredCallback extends Callback<JobSpecSchedulerListener, Void> {
-    private final JobSpecSchedule _jobSchedule;
+    private final JobSpec _jobSpec;
 
-    public JobTriggeredCallback(JobSpecSchedule jobSchedule) {
-      super(Objects.toStringHelper("onJobTriggered").add("jobSchedule", jobSchedule).toString());
-      _jobSchedule = jobSchedule;
+    public JobTriggeredCallback(JobSpec jobSpec) {
+      super(Objects.toStringHelper("onJobTriggered").add("jobSpec", jobSpec).toString());
+      _jobSpec = jobSpec;
     }
 
     @Override public Void apply(JobSpecSchedulerListener listener) {
-      listener.onJobTriggered(_jobSchedule);
+      listener.onJobTriggered(_jobSpec);
       return null;
     }
   }

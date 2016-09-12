@@ -26,26 +26,19 @@ import static org.mockito.Mockito.when;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
-import org.apache.commons.lang.RandomStringUtils;
 import org.testng.annotations.Test;
 
 import gobblin.configuration.State;
 import gobblin.converter.jdbc.JdbcEntryData;
-import gobblin.converter.jdbc.JdbcEntryDatum;
+import gobblin.writer.commands.JdbcBufferedInserter;
 import gobblin.writer.commands.MySqlBufferedInserter;
 
 @Test(groups = {"gobblin.writer"}, singleThreaded=true)
-public class MySqlBufferedInserterTest {
+public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
 
   public void testMySqlBufferedInsert() throws SQLException {
-    final String db = "db";
-    final String table = "stg";
     final int colNums = 20;
     final int batchSize = 10;
     final int entryCount = 107;
@@ -54,9 +47,7 @@ public class MySqlBufferedInserterTest {
     State state = new State();
     state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
 
-    Connection conn = mock(Connection.class);
-
-    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state, conn);
+    JdbcBufferedInserter inserter = getJdbcBufferedInserter(state, conn);
 
     PreparedStatement pstmt = mock(PreparedStatement.class);
     when(conn.prepareStatement(anyString())).thenReturn(pstmt);
@@ -75,8 +66,6 @@ public class MySqlBufferedInserterTest {
   }
 
   public void testMySqlBufferedInsertParamLimit() throws SQLException {
-    final String db = "db";
-    final String table = "stg";
     final int colNums = 50;
     final int batchSize = 10;
     final int entryCount = 107;
@@ -87,7 +76,6 @@ public class MySqlBufferedInserterTest {
     state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
     state.setProp(WRITER_JDBC_MAX_PARAM_SIZE, maxParamSize);
 
-    Connection conn = mock(Connection.class);
     MySqlBufferedInserter inserter = new MySqlBufferedInserter(state, conn);
 
     PreparedStatement pstmt = mock(PreparedStatement.class);
@@ -108,29 +96,8 @@ public class MySqlBufferedInserterTest {
     reset(pstmt);
   }
 
-  private List<JdbcEntryData> createJdbcEntries(int colNums, int colSize, int entryCount) {
-    Set<String> colNames = new HashSet<>();
-    while (colNames.size() < colNums) {
-      String colName = RandomStringUtils.randomAlphabetic(colSize);
-      if (colNames.contains(colName)) {
-        continue;
-      }
-      colNames.add(colName);
-    }
-
-    List<JdbcEntryData> result = new ArrayList<>();
-    for (int i = 0; i < entryCount; i++) {
-      result.add(createJdbcEntry(colNames, colSize));
-    }
-    return result;
-  }
-
-  private JdbcEntryData createJdbcEntry(Collection<String> colNames, int colSize) {
-    List<JdbcEntryDatum> datumList = new ArrayList<>();
-    for (String colName : colNames) {
-      JdbcEntryDatum datum = new JdbcEntryDatum(colName, RandomStringUtils.randomAlphabetic(colSize));
-      datumList.add(datum);
-    }
-    return new JdbcEntryData(datumList);
+  @Override
+  protected JdbcBufferedInserter getJdbcBufferedInserter(State state, Connection conn) {
+    return new MySqlBufferedInserter(state, conn);
   }
 }

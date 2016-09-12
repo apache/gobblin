@@ -45,13 +45,38 @@ public class ConfigUtils {
    * @return a {@link Properties} instance
    */
   public static Properties configToProperties(Config config) {
+    return configToProperties(config, Optional.<String>absent());
+  }
+
+  /**
+   * Convert a given {@link Config} instance to a {@link Properties} instance.
+   *
+   * @param config the given {@link Config} instance
+   * @param prefix an optional prefix; if present, only properties whose name starts with the prefix
+   *        will be returned.
+   * @return a {@link Properties} instance
+   */
+  public static Properties configToProperties(Config config, Optional<String> prefix) {
     Properties properties = new Properties();
     Config resolvedConfig = config.resolve();
     for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
-      properties.setProperty(entry.getKey(), resolvedConfig.getString(entry.getKey()));
+      if (!prefix.isPresent() || entry.getKey().startsWith(prefix.get())) {
+        properties.setProperty(entry.getKey(), resolvedConfig.getString(entry.getKey()));
+      }
     }
 
     return properties;
+  }
+
+  /**
+   * Convert a given {@link Config} instance to a {@link Properties} instance.
+   *
+   * @param config the given {@link Config} instance
+   * @param prefix only properties whose name starts with the prefix will be returned.
+   * @return a {@link Properties} instance
+   */
+  public static Properties configToProperties(Config config, String prefix) {
+    return configToProperties(config, Optional.of(prefix));
   }
 
   /**

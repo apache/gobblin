@@ -133,7 +133,7 @@ if (!project.hasProperty('bytemanVersion')) {
   ext.bytemanVersion = '2.2.1'
 }
 
-ext.avroVersion = '1.7.7'
+ext.avroVersion = '1.8.1'
 ext.dropwizardMetricsVersion = '3.1.0'
 ext.findBugsVersion = '3.0.0'
 ext.confluentVersion = '2.0.1'
@@ -147,7 +147,7 @@ dependencyManagement {
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
   "avro": "org.apache.avro:avro:" + avroVersion,
-  "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion + ":hadoop2",
+  "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion,
   "awsCore": "com.amazonaws:aws-java-sdk-core:1.11.8",
   "awsAsg": "com.amazonaws:aws-java-sdk-autoscaling:1.11.8",
   "awsAppAsg": "com.amazonaws:aws-java-sdk-applicationautoscaling:1.11.8",

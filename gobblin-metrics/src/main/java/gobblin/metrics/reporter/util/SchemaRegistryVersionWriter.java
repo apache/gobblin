@@ -45,16 +45,25 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
   private final Optional<String> schemaId;
   private final int schemaIdLengthBytes;
 
-  public SchemaRegistryVersionWriter(Config config) throws IOException {
-    this(new KafkaAvroSchemaRegistry(ConfigUtils.configToProperties(config)), Optional.<String>absent(), Optional.<Schema>absent());
+  public SchemaRegistryVersionWriter(Config config)
+      throws IOException {
+    this(new KafkaAvroSchemaRegistry(ConfigUtils.configToProperties(config)), Optional.<String>absent(),
+        Optional.<Schema>absent());
   }
 
-  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String overrideName, Optional<Schema> singleSchema)
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String overrideName)
+      throws IOException {
+    this(registry, overrideName, Optional.<Schema>absent());
+  }
+
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String overrideName,
+      Optional<Schema> singleSchema)
       throws IOException {
     this(registry, Optional.of(overrideName), singleSchema);
   }
 
-  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, Optional<String> overrideName, Optional<Schema> singleSchema)
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, Optional<String> overrideName,
+      Optional<Schema> singleSchema)
       throws IOException {
     this.registry = registry;
     this.registrySchemaIds = Maps.newConcurrentMap();
@@ -63,8 +72,8 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
     this.schemaIdLengthBytes = registry.getSchemaIdLengthByte();
     if (this.schema.isPresent()) {
       try {
-        this.schemaId = this.overrideName.isPresent()
-            ? Optional.of(this.registry.register(this.schema.get(), this.overrideName.get()))
+        this.schemaId = this.overrideName.isPresent() ? Optional
+            .of(this.registry.register(this.schema.get(), this.overrideName.get()))
             : Optional.of(this.registry.register(this.schema.get()));
       } catch (SchemaRegistryException e) {
         throw Throwables.propagate(e);
@@ -75,7 +84,8 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
   }
 
   @Override
-  public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream) throws IOException {
+  public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream)
+      throws IOException {
 
     String schemaId = this.schemaId.isPresent() ? this.schemaId.get() : this.getIdForSchema(schema);
 
@@ -90,8 +100,7 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
   private String getIdForSchema(Schema schema) {
     if (!this.registrySchemaIds.containsKey(schema)) {
       try {
-        String schemaId = this.overrideName.isPresent()
-            ? this.registry.register(schema, this.overrideName.get())
+        String schemaId = this.overrideName.isPresent() ? this.registry.register(schema, this.overrideName.get())
             : this.registry.register(schema);
         this.registrySchemaIds.put(schema, schemaId);
       } catch (SchemaRegistryException e) {
@@ -102,7 +111,8 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
   }
 
   @Override
-  public Schema readSchemaVersioningInformation(DataInputStream inputStream) throws IOException {
+  public Schema readSchemaVersioningInformation(DataInputStream inputStream)
+      throws IOException {
     if (inputStream.readByte() != KafkaAvroSchemaRegistry.MAGIC_BYTE) {
       throw new IOException("MAGIC_BYTE not found in Avro message.");
     }
@@ -110,8 +120,9 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
     byte[] byteKey = new byte[schemaIdLengthBytes];
     int bytesRead = inputStream.read(byteKey, 0, schemaIdLengthBytes);
     if (bytesRead != schemaIdLengthBytes) {
-      throw new IOException(String.format("Could not read enough bytes for schema id. Expected: %d, found: %d.",
-          schemaIdLengthBytes, bytesRead));
+      throw new IOException(String
+          .format("Could not read enough bytes for schema id. Expected: %d, found: %d.", schemaIdLengthBytes,
+              bytesRead));
     }
     String hexKey = Hex.encodeHexString(byteKey);
 

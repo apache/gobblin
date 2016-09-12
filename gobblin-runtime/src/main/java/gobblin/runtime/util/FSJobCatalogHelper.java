@@ -10,6 +10,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 
+import javax.annotation.Nullable;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -33,7 +35,6 @@ import gobblin.util.filesystem.PathAlterationDetector;
 import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationObserver;
 
-import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 
 
@@ -49,7 +50,7 @@ public class FSJobCatalogHelper {
    * Steps:
    *  Create a new one in /tmp.
    *  Safely deletion of old one.
-   *  copy the newly createad configuration file to jobConfigDir.
+   *  copy the newly created configuration file to jobConfigDir.
    *  Delete the shadow file.
    */
   public static void materializedJobSpec(Path jobSpecPath, JobSpec jobSpec, FileSystem fs)

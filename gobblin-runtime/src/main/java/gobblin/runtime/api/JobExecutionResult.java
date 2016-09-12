@@ -53,7 +53,7 @@ public class JobExecutionResult {
     return new JobExecutionResult(RunningState.CANCELLED, null);
   }
 
-  public JobExecutionResult createFromState(JobExecutionState state) {
+  public static JobExecutionResult createFromState(JobExecutionState state) {
     Preconditions.checkArgument(null != state.getRunningState());
     Preconditions.checkArgument(state.getRunningState().isDone());
 

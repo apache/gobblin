@@ -87,7 +87,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
     try {
       this.conn = createConnection();
       this.commands = new JdbcWriterCommandsFactory().newInstance(this.state, this.conn);
-      this.conn.setAutoCommit(false);
+      this.commands.setConnectionParameters(this.state.getProperties(), this.conn);
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }

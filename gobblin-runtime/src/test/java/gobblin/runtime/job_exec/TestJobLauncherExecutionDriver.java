@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Optional;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -32,7 +31,6 @@ import gobblin.runtime.api.JobExecution;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.local.LocalJobLauncher;
 import gobblin.runtime.mapreduce.MRJobLauncher;
-import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.util.test.TestingSource;
 
 /**
@@ -61,13 +59,12 @@ public class TestJobLauncherExecutionDriver {
 
       JobSpec jobSpec1 = JobSpec.builder().withConfig(jobConf1).build();
 
-      JobLauncherExecutionDriver jled = null;
+      JobLauncherExecutionDriver.Launcher launcher =
+          new JobLauncherExecutionDriver.Launcher()
+              .withJobLauncherType(JobLauncherFactory.JobLauncherType.LOCAL)
+              .withLog(log);
 
-      jled = new JobLauncherExecutionDriver(
-              DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty()),
-              jobSpec1,
-              Optional.of(JobLauncherFactory.JobLauncherType.LOCAL),
-              Optional.of(log));
+      JobLauncherExecutionDriver jled = (JobLauncherExecutionDriver)launcher.launchJob(jobSpec1);
       Assert.assertTrue(jled.getLegacyLauncher() instanceof LocalJobLauncher);
       JobExecution jex1 = jled.getJobExecution();
       Assert.assertEquals(jex1.getJobSpecURI(), jobSpec1.getUri());
@@ -92,11 +89,9 @@ public class TestJobLauncherExecutionDriver {
 
       JobSpec jobSpec2 = JobSpec.builder().withConfig(jobConf2).build();
 
-      jled = new JobLauncherExecutionDriver(
-              DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty()),
-              jobSpec2,
-              Optional.of(JobLauncherFactory.JobLauncherType.MAPREDUCE),
-              Optional.of(log));
+      jled = (JobLauncherExecutionDriver)launcher
+          .withJobLauncherType(JobLauncherFactory.JobLauncherType.MAPREDUCE)
+          .launchJob(jobSpec2);
       Assert.assertTrue(jled.getLegacyLauncher() instanceof MRJobLauncher);
       JobExecution jex2 = jled.getJobExecution();
 

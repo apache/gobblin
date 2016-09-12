@@ -2,6 +2,7 @@ package gobblin.runtime.job_catalog;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -11,7 +12,6 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -19,6 +19,11 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.Tag;
+import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
@@ -35,6 +40,8 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
 
   protected final FileSystem fs;
   protected final Config sysConfig;
+  protected final MetricContext metricContext;
+  protected final StandardMetrics metrics;
 
   protected final JobCatalogListenersList listeners;
   protected static final Logger LOGGER = LoggerFactory.getLogger(ImmutableFSJobCatalog.class);
@@ -50,12 +57,29 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
   protected final PathAlterationDetector pathAlterationDetector;
 
   public ImmutableFSJobCatalog(Config sysConfig)
-      throws Exception {
+      throws IOException {
     this(sysConfig, null);
   }
 
-  @VisibleForTesting
+  public ImmutableFSJobCatalog(GobblinInstanceEnvironment env)
+      throws IOException {
+    this(env.getSysConfig().getConfig(), null, Optional.of(env.getMetricContext()),
+         env.isInstrumentationEnabled());
+  }
+
+  public ImmutableFSJobCatalog(GobblinInstanceEnvironment env, PathAlterationObserver observer)
+      throws IOException {
+    this(env.getSysConfig().getConfig(), observer, Optional.of(env.getMetricContext()),
+         env.isInstrumentationEnabled());
+  }
+
   public ImmutableFSJobCatalog(Config sysConfig, PathAlterationObserver observer)
+      throws IOException {
+    this(sysConfig, observer, Optional.<MetricContext>absent(), GobblinMetrics.isEnabled(sysConfig));
+  }
+
+  public ImmutableFSJobCatalog(Config sysConfig, PathAlterationObserver observer, Optional<MetricContext> parentMetricContext,
+      boolean instrumentationEnabled)
       throws IOException {
     this.sysConfig = sysConfig;
     Properties sysProp = ConfigUtils.configToProperties(this.sysConfig);
@@ -82,17 +106,28 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
             this.converter);
     FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener, observerOptional,
         this.jobConfDirPath);
+
+    if (instrumentationEnabled) {
+      MetricContext realParentCtx =
+          parentMetricContext.or(Instrumented.getMetricContext(new gobblin.configuration.State(), getClass()));
+      this.metricContext = realParentCtx.childBuilder("JobCatalog").build();
+      this.metrics = new StandardMetrics(this);
+    }
+    else {
+      this.metricContext = null;
+      this.metrics = null;
+    }
   }
 
   @Override
   protected void startUp()
-      throws Exception {
+      throws IOException {
     this.pathAlterationDetector.start();
   }
 
   @Override
   protected void shutDown()
-      throws Exception {
+      throws IOException, InterruptedException {
     this.pathAlterationDetector.stop();
   }
 
@@ -148,6 +183,16 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
   @Override
   public void registerWeakJobCatalogListener(JobCatalogListener jobListener) {
     this.listeners.registerWeakJobCatalogListener(jobListener);
+
+    List<JobSpec> currentJobSpecList = this.getJobs();
+    if (currentJobSpecList == null || currentJobSpecList.size() == 0) {
+      return;
+    } else {
+      for (JobSpec jobSpecEntry : currentJobSpecList) {
+        JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpecEntry);
+        this.listeners.callbackOneListener(addJobCallback, jobListener);
+      }
+    }
   }
 
   @Override
@@ -175,5 +220,29 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
 
   protected Optional<String> getInjectedExtension() {
     return Optional.absent();
+  }
+
+  @Override public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
+
+  @Override public boolean isInstrumentationEnabled() {
+    return null != this.metricContext;
+  }
+
+  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
+    return Collections.emptyList();
+  }
+
+  @Override public void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override public StandardMetrics getMetrics() {
+    return this.metrics;
   }
 }

@@ -85,6 +85,33 @@ public class ConfigUtilsTest {
     Map<String,String> configMap = Maps.newHashMap();
     configMap.put("key1", null);
     Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(configMap), "key1"), ImmutableList.of());
+  }
 
+  @Test
+  public void testConfigToProperties() {
+    Config cfg = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+        .put("key1", 1)
+        .put("key2", "sTring")
+        .put("key3", true)
+        .build());
+
+    Properties props = ConfigUtils.configToProperties(cfg);
+    Assert.assertEquals(props.getProperty("key1"), "1");
+    Assert.assertEquals(props.getProperty("key2"), "sTring");
+    Assert.assertEquals(props.getProperty("key3"), "true");
+  }
+
+  @Test
+  public void testConfigToPropertiesWithPrefix() {
+    Config cfg = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+        .put("a.key1", 1)
+        .put("b.key2", "sTring")
+        .put("a.key3", true)
+        .build());
+
+    Properties props = ConfigUtils.configToProperties(cfg, "a.");
+    Assert.assertEquals(props.getProperty("a.key1"), "1");
+    Assert.assertNull(props.getProperty("b.key2"));
+    Assert.assertEquals(props.getProperty("a.key3"), "true");
   }
 }

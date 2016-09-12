@@ -24,7 +24,9 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
@@ -36,6 +38,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -54,6 +57,7 @@ import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.util.AutoReturnableObject;
+import gobblin.util.HadoopUtils;
 
 
 /**
@@ -70,6 +74,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * Subdirectory within destination ORC table directory to publish data
    */
   private static final String PUBLISHED_TABLE_SUBDIRECTORY = "final";
+
+  protected final FileSystem fs;
 
   /**
    * Supported destination ORC formats
@@ -126,6 +132,14 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * @return Conversion config
    */
   protected abstract ConversionConfig getConversionConfig();
+
+  public AbstractAvroToOrcConverter() {
+    try {
+      this.fs = FileSystem.get(HadoopUtils.newConfiguration());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
 
   /**
    * Populate the avro to orc conversion queries. The Queries will be added to {@link QueryBasedHiveConversionEntity#getQueries()}
@@ -187,9 +201,35 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     Map<String, String> partitionsDMLInfo = Maps.newHashMap();
     populatePartitionInfo(conversionEntity, partitionsDDLInfo, partitionsDMLInfo);
 
+    /*
+     * Create ORC data location with the same permissions as Avro data
+     *
+     * Note that hive can also automatically create the non-existing directories but it does not
+     * seem to create it with the desired permissions.
+     * According to hive docs permissions for newly created directories/files can be controlled using uMask like,
+     *
+     * SET hive.warehouse.subdir.inherit.perms=false;
+     * SET fs.permissions.umask-mode=022;
+     * Upon testing, this did not work
+     */
+    try {
+      FsPermission sourceDataPermission =
+          this.fs.getFileStatus(conversionEntity.getHiveTable().getDataLocation()).getPermission();
+      if (!this.fs.mkdirs(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission)) {
+        throw new RuntimeException(String.format("Failed to create path %s with permissions %s", new Path(
+            getConversionConfig().getDestinationDataPath()), sourceDataPermission));
+      } else {
+        this.fs.setPermission(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission);
+        log.info(String.format("Created %s with permissions %s", new Path(getConversionConfig()
+            .getDestinationDataPath()), sourceDataPermission));
+      }
+    } catch (IOException e) {
+      Throwables.propagate(e);
+    }
+
     // Set hive runtime properties
     for (Map.Entry<Object, Object> entry : getConversionConfig().getHiveRuntimeProperties().entrySet()) {
-      conversionEntity.getQueries().add(String.format("SET %s=%s;", entry.getKey(), entry.getValue()));
+      conversionEntity.getQueries().add(String.format("SET %s=%s", entry.getKey(), entry.getValue()));
     }
 
     // Create DDL statement for table

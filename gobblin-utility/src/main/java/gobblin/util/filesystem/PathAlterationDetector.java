@@ -1,6 +1,5 @@
 package gobblin.util.filesystem;
 
-import com.google.common.base.Optional;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -8,8 +7,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
 
 import gobblin.util.ExecutorsUtils;
 
@@ -77,11 +79,9 @@ public final class PathAlterationDetector implements Runnable {
 
   /**
    * Start monitoring.
-   *
-   * @throws Exception if an error occurs initializing the observer
+   * @throws IOException if an error occurs initializing the observer
    */
-  public synchronized void start()
-      throws Exception {
+  public synchronized void start() throws IOException {
     if (running) {
       throw new IllegalStateException("Monitor is already running");
     }
@@ -99,7 +99,7 @@ public final class PathAlterationDetector implements Runnable {
    * @throws Exception if an error occurs initializing the observer
    */
   public synchronized void stop()
-      throws Exception {
+      throws IOException, InterruptedException {
     stop(interval);
   }
 
@@ -108,11 +108,11 @@ public final class PathAlterationDetector implements Runnable {
    *
    * @param stopInterval the amount of time in milliseconds to wait for the thread to finish.
    * A value of zero will wait until the thread is finished (see {@link Thread#join(long)}).
-   * @throws Exception if an error occurs initializing the observer
+   * @throws IOException if an error occurs initializing the observer
    * @since 2.1
    */
   public synchronized void stop(final long stopInterval)
-      throws Exception {
+      throws IOException, InterruptedException {
     if (!running) {
       throw new IllegalStateException("Monitor is not running");
     }
@@ -135,8 +135,8 @@ public final class PathAlterationDetector implements Runnable {
     for (final PathAlterationObserver observer : observers) {
       try {
         observer.checkAndNotify();
-      } catch (IOException e) {
-        e.printStackTrace();
+      } catch (IOException ioe) {
+        LOGGER.error("Path alteration detector error.", ioe);
       }
     }
     if (!running) {
