@@ -10,5 +10,5 @@ OUTPUTFORMAT
 LOCATION 
   'file:/user/hive/warehouse/testRecordWithinOptionWithinRecordDDL' 
 TBLPROPERTIES ( 
-  'orc.compress'='SNAPPY', 
+  'orc.compress'='ZLIB', 
   'orc.row.index.stride'='268435456')

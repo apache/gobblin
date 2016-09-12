@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Random;
 
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +57,7 @@ import gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
 import gobblin.hive.HiveMetastoreClientPool;
+import gobblin.metrics.event.sla.SlaEventKeys;
 import gobblin.util.AutoReturnableObject;
 import gobblin.util.HadoopUtils;
 
@@ -74,6 +76,13 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * Subdirectory within destination ORC table directory to publish data
    */
   private static final String PUBLISHED_TABLE_SUBDIRECTORY = "final";
+
+  /**
+   * Hive runtime property key names for tracking
+   */
+  private static final String GOBBLIN_DATASET_URN_KEY = "gobblin.datasetUrn";
+  private static final String GOBBLIN_PARTITION_NAME_KEY = "gobblin.partitionName";
+  private static final String GOBBLIN_WORKUNIT_CREATE_TIME_KEY = "gobblin.workunitCreateTime";
 
   protected final FileSystem fs;
 
@@ -182,6 +191,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             : Optional.of(getConversionConfig().getClusterBy());
     Optional<Integer> numBuckets = getConversionConfig().getNumBuckets();
     Optional<Integer> rowLimit = getConversionConfig().getRowLimit();
+    Properties tableProperties = getConversionConfig().getDestinationTableProperties();
 
     // Partition dir hint helps create different directory for hourly and daily partition with same timestamp, such as:
     // .. daily_2016-01-01-00 and hourly_2016-01-01-00
@@ -220,10 +230,20 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       Throwables.propagate(e);
     }
 
-    // Set hive runtime properties
+    // Set hive runtime properties from conversion config
     for (Map.Entry<Object, Object> entry : getConversionConfig().getHiveRuntimeProperties().entrySet()) {
       conversionEntity.getQueries().add(String.format("SET %s=%s", entry.getKey(), entry.getValue()));
     }
+    // Set hive runtime properties for tracking
+    conversionEntity.getQueries().add(String.format("SET %s=%s", GOBBLIN_DATASET_URN_KEY,
+        conversionEntity.getHiveTable().getCompleteName()));
+    if (conversionEntity.getHivePartition().isPresent()) {
+      conversionEntity.getQueries().add(String.format("SET %s=%s", GOBBLIN_PARTITION_NAME_KEY,
+          conversionEntity.getHivePartition().get().getCompleteName()));
+    }
+    conversionEntity.getQueries().add(String
+        .format("SET %s=%s", GOBBLIN_WORKUNIT_CREATE_TIME_KEY,
+            workUnit.getWorkunit().getProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY)));
 
     // Create DDL statement for table
     Map<String, String> hiveColumns = new HashMap<>();
@@ -239,7 +259,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             Optional.<String>absent(),
             Optional.<String>absent(),
             Optional.<String>absent(),
-            Optional.<Map<String, String>>absent(),
+            tableProperties,
             isEvolutionEnabled,
             destinationTableMeta,
             hiveColumns);
@@ -329,7 +349,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
               Optional.<String>absent(),
               Optional.<String>absent(),
               Optional.<String>absent(),
-              Optional.<Map<String, String>>absent(),
+              tableProperties,
               isEvolutionEnabled,
               destinationTableMeta,
               new HashMap<String, String>());

@@ -10,5 +10,5 @@ OUTPUTFORMAT
 LOCATION
   'file:/tmp/testtable_orc_nested'
 TBLPROPERTIES (
-  'orc.compress'='SNAPPY',
+  'orc.compress'='ZLIB', 
   'orc.row.index.stride'='268435456')
