@@ -26,7 +26,11 @@ public interface JdbcBufferedInserter {
   public static final int MAX_WRITER_JDBC_INSERT_BUFFER_SIZE = 10 * 1024 * 1024; //10 MBytes
   public static final String WRITER_JDBC_MAX_PARAM_SIZE = WRITER_PREFIX + ".jdbc.insert_max_param_size";
   public static final int DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE = 100000; //MySQL limit
-
+  public static final String WRITER_JDBC_INSERT_RETRY_TIMEOUT = WRITER_PREFIX + ".jdbc.insert_retry_timeout";
+  public static final int DEFAULT_WRITER_JDBC_INSERT_RETRY_TIMEOUT = 30; // in seconds
+  public static final String WRITER_JDBC_INSERT_RETRY_MAX_ATTEMPT = WRITER_PREFIX + ".jdbc.insert_retry_max_attempt";
+  public static final int DEFAULT_WRITER_JDBC_INSERT_RETRY_MAX_ATTEMPT = 5;
+  
   /**
    * Inserts entry. Depends on the current batch size, buffer size, param size, it can either put into buffer
    * or it will actually call underlying JDBC RDBMS to be inserted.
