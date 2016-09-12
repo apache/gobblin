@@ -147,7 +147,7 @@ dependencyManagement {
 ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
   "avro": "org.apache.avro:avro:" + avroVersion,
-  "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion + ":hadoop2",
+  "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion,
   "awsCore": "com.amazonaws:aws-java-sdk-core:1.11.8",
   "awsAsg": "com.amazonaws:aws-java-sdk-autoscaling:1.11.8",
   "awsAppAsg": "com.amazonaws:aws-java-sdk-applicationautoscaling:1.11.8",
