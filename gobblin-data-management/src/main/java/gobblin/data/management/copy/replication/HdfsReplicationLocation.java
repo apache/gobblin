@@ -1,5 +1,11 @@
 package gobblin.data.management.copy.replication;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
@@ -23,14 +29,11 @@ public class HdfsReplicationLocation implements ReplicationLocation {
   @Getter
   private final String colo;
 
-  @Getter
   private final String clustername;
 
-  @Getter
-  private final String fs_uri;
+  private final URI fsURI;
 
-  @Getter
-  private final String path;
+  private final Path path;
 
   public HdfsReplicationLocation(Config config) {
     Preconditions.checkArgument(config.hasPath(HDFS_COLO_KEY));
@@ -40,8 +43,12 @@ public class HdfsReplicationLocation implements ReplicationLocation {
 
     this.colo = config.getString(HDFS_COLO_KEY);
     this.clustername = config.getString(HDFS_CLUSTERNAME_KEY);
-    this.path = config.getString(HDFS_PATH_KEY);
-    this.fs_uri = config.getString(HDFS_FILESYSTEM_URI_KEY);
+    this.path = new Path(config.getString(HDFS_PATH_KEY));
+    try {
+      this.fsURI = new URI(config.getString(HDFS_FILESYSTEM_URI_KEY));
+    } catch (URISyntaxException e) {
+      throw new RuntimeException("can not build URI based on " + config.getString(HDFS_FILESYSTEM_URI_KEY));
+    }
   }
 
   @Override
@@ -51,6 +58,23 @@ public class HdfsReplicationLocation implements ReplicationLocation {
 
   @Override
   public String toString() {
-    return ReplicationType.HDFS + " colo:" + this.colo + ", clusterName: " + this.clustername + ", FilsSystemURI: " + this.fs_uri + ",path: " + this.path;
+    return Objects.toStringHelper(this.getClass()).add("colo", this.colo).add("name", this.clustername)
+        .add("FilesystemURI", this.fsURI).add("rootPath", this.path).toString();
+
+  }
+
+  @Override
+  public String getReplicationLocationName() {
+    return this.clustername;
+  }
+
+  @Override
+  public URI getFsURI() {
+    return this.fsURI;
+  }
+
+  @Override
+  public Path getRootPath() {
+    return this.path;
   }
 }

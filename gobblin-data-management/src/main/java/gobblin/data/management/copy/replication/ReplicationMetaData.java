@@ -6,6 +6,7 @@ import com.google.common.base.Optional;
 
 import lombok.Data;
 
+
 /**
  * Class used to represent the meta data of the replication
  * @author mitu
@@ -14,6 +15,6 @@ import lombok.Data;
 
 @Data
 public class ReplicationMetaData {
-  
+
   private final Optional<Map<String, String>> values;
 }

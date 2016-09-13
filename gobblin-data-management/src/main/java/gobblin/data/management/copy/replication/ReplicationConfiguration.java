@@ -10,11 +10,11 @@ import lombok.Getter;
 
 /**
  * Class ReplicationConfiguration is used to describe the overall configuration of the replication flow for
- * a specific {@link ReplicationData}, including:
+ * a specific {@link ReplicationEndPoint}, including:
  * <ul>
  *  <li>Meta data {@link ReplicationMetaData}
- *  <li>Replication source {@link ReplicationSource}
- *  <li>Replication replicas {@link ReplicationReplica}
+ *  <li>Replication source {@link SourceEndPoint}
+ *  <li>Replication replicas {@link ReplicaEndPoint}
  *  <li>Replication topology {@link DataFlowTopology}
  * </ul>
  * @author mitu
@@ -27,10 +27,10 @@ public class ReplicationConfiguration {
   private final ReplicationMetaData metaData;
 
   @Getter
-  private final ReplicationSource source;
+  private final SourceEndPoint source;
 
   @Getter
-  private final List<ReplicationReplica> replicas;
+  private final List<ReplicaEndPoint> replicas;
 
   @Getter
   private final DataFlowTopology topology;
@@ -39,14 +39,12 @@ public class ReplicationConfiguration {
     if (config == null)
       return null;
 
-    ReplicationSource source = ReplicationUtils.buildSource(config);
-    List<ReplicationReplica> replicas = ReplicationUtils.buildReplicas(config);
+    SourceEndPoint source = ReplicationUtils.buildSource(config);
+    List<ReplicaEndPoint> replicas = ReplicationUtils.buildReplicas(config);
 
-    return new Builder().withReplicationMetaData(ReplicationUtils.buildMetaData(config))
-        .withReplicationSource(source)
+    return new Builder().withReplicationMetaData(ReplicationUtils.buildMetaData(config)).withReplicationSource(source)
         .withReplicationReplicas(replicas)
-        .withDataFlowTopology(ReplicationUtils.buildDataFlowTopology(config, source, replicas))
-        .build();
+        .withDataFlowTopology(ReplicationUtils.buildDataFlowTopology(config, source, replicas)).build();
   }
 
   private ReplicationConfiguration(Builder builder) {
@@ -59,9 +57,9 @@ public class ReplicationConfiguration {
   private static class Builder {
     private ReplicationMetaData metaData;
 
-    private ReplicationSource source;
+    private SourceEndPoint source;
 
-    private List<ReplicationReplica> replicas;
+    private List<ReplicaEndPoint> replicas;
 
     private DataFlowTopology topology;
 
@@ -70,12 +68,12 @@ public class ReplicationConfiguration {
       return this;
     }
 
-    public Builder withReplicationSource(ReplicationSource source) {
+    public Builder withReplicationSource(SourceEndPoint source) {
       this.source = source;
       return this;
     }
 
-    public Builder withReplicationReplicas(List<ReplicationReplica> replicas) {
+    public Builder withReplicationReplicas(List<ReplicaEndPoint> replicas) {
       this.replicas = replicas;
       return this;
     }

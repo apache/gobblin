@@ -4,16 +4,20 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import gobblin.data.management.copy.CopyableDataset;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+
 /**
- * Class to represent the data flow topology from copy destination to copy sources
+ * Class to represent the data flow topology from copy source to copy destinations
  * @author mitu
  *
  */
@@ -21,19 +25,20 @@ import lombok.Getter;
 public class DataFlowTopology {
 
   public static final String ROUTES = "routes";
-  
+
   @Getter
   private final List<CopyRoute> routes;
 
   private DataFlowTopology(Builder builder) {
     Preconditions.checkArgument(builder.source != null, "Can not build topology without source");
-    Preconditions.checkArgument(builder.replicas != null && builder.replicas.size() > 0, "Can not build topology without replicas");
+    Preconditions.checkArgument(builder.replicas != null && builder.replicas.size() > 0,
+        "Can not build topology without replicas");
     Preconditions.checkArgument(builder.topologyConfig != null, "Can not build topology without topology config");
     Preconditions.checkArgument(builder.topologyConfig.hasPath(ROUTES), "Can not build topology without " + ROUTES);
 
     // key of the map is replication name, value is {@link ReplicationReplica}
-    Map<String, ReplicationReplica> replicasMap = new HashMap<String, ReplicationReplica>();
-    for (ReplicationReplica replica : builder.replicas) {
+    Map<String, ReplicaEndPoint> replicasMap = new HashMap<String, ReplicaEndPoint>();
+    for (ReplicaEndPoint replica : builder.replicas) {
       String name = replica.getReplicationName();
       // replica name can not be {@link ReplicationUtils#REPLICATION_SOURCE}
       Preconditions.checkArgument(!name.equals(ReplicationUtils.REPLICATION_SOURCE),
@@ -45,11 +50,12 @@ public class DataFlowTopology {
 
     Config routesConfig = builder.topologyConfig.getConfig(ROUTES);
     // routes should be available for each replica
-    for (ReplicationReplica replica : builder.replicas) {
+    for (ReplicaEndPoint replica : builder.replicas) {
       Preconditions.checkArgument(routesConfig.hasPath(replica.getReplicationName()),
           "can not find route for replica " + replica.getReplicationName());
 
-      List<ReplicationData<CopyableDataset>> copyFromReplica = new ArrayList<ReplicationData<CopyableDataset>>();
+      List<ReplicationEndPoint<CopyableDataset>> copyFromReplica =
+          new ArrayList<ReplicationEndPoint<CopyableDataset>>();
 
       List<String> copyFromStrings = routesConfig.getStringList(replica.getReplicationName());
 
@@ -61,57 +67,62 @@ public class DataFlowTopology {
           copyFromReplica.add(builder.source);
         }
         // copy from other replicas
-        else if(replicasMap.containsKey(copyFromName)){
+        else if (replicasMap.containsKey(copyFromName)) {
           copyFromReplica.add(replicasMap.get(copyFromName));
-        }
-        else{
+        } else {
           throw new IllegalArgumentException("can not find replica with name " + copyFromName);
         }
       }
-      
+
       CopyRouteBuilder routeBuilder = new CopyRouteBuilder();
-      routeBuilder.withCopyDestination(replica);
-      routeBuilder.withCopyFrom(copyFromReplica);
+      routeBuilder.withCopyTo(replica);
+      for (ReplicationEndPoint<CopyableDataset> from : copyFromReplica) {
+        routeBuilder.addCopyFrom(from);
+      }
       this.routes.add(routeBuilder.build());
     }
   }
 
   public static class CopyRoute {
     @Getter
-    private final ReplicationReplica copyDestination;
+    private final ReplicaEndPoint copyTo;
 
     @Getter
-    private final List<ReplicationData<CopyableDataset>> copyFrom;
-    
-    private CopyRoute(CopyRouteBuilder builder){
-      this.copyDestination = builder.copyDestination;
-      this.copyFrom = builder.copyFrom;
+    private final List<ReplicationEndPoint<CopyableDataset>> copyFrom;
+
+    private CopyRoute(CopyRouteBuilder builder) {
+      this.copyTo = builder.copyTo;
+      this.copyFrom = builder.copyFroms;
     }
 
     @Override
     public String toString() {
-      StringBuilder sb = new StringBuilder();
-      sb.append(copyDestination.getReplicationName() + ":");
-      for (ReplicationData<CopyableDataset> r : copyFrom) {
-        sb.append(r.getReplicationName() + ",");
-      }
+      Function<ReplicationEndPoint<CopyableDataset>, String> func =
+          new Function<ReplicationEndPoint<CopyableDataset>, String>() {
+            @Override
+            public String apply(ReplicationEndPoint<CopyableDataset> t) {
+              return t.getReplicationName();
+            }
+          };
 
-      return sb.toString();
+      return Objects.toStringHelper(this.getClass()).add("copyTo", this.copyTo.getReplicationName())
+          .add("copyFrom", Joiner.on(",").join(Lists.transform(this.copyFrom, func))).toString();
     }
   }
-  
-  public static class CopyRouteBuilder{
-    private ReplicationReplica copyDestination;
-    
-    private List<ReplicationData<CopyableDataset>> copyFrom;
-    
-    public CopyRouteBuilder withCopyDestination(ReplicationReplica copyDest) {
-      this.copyDestination = copyDest;
+
+  public static class CopyRouteBuilder {
+    private ReplicaEndPoint copyTo;
+
+    private List<ReplicationEndPoint<CopyableDataset>> copyFroms =
+        new ArrayList<ReplicationEndPoint<CopyableDataset>>();
+
+    public CopyRouteBuilder withCopyTo(ReplicaEndPoint copyTo) {
+      this.copyTo = copyTo;
       return this;
     }
 
-    public CopyRouteBuilder withCopyFrom(List<ReplicationData<CopyableDataset>> copyFrom) {
-      this.copyFrom = copyFrom;
+    public CopyRouteBuilder addCopyFrom(ReplicationEndPoint<CopyableDataset> from) {
+      this.copyFroms.add(from);
       return this;
     }
 
@@ -122,19 +133,19 @@ public class DataFlowTopology {
 
   public static class Builder {
 
-    private ReplicationSource source;
+    private SourceEndPoint source;
 
-    private List<ReplicationReplica> replicas;
+    private List<ReplicaEndPoint> replicas = new ArrayList<ReplicaEndPoint>();
 
     private Config topologyConfig;
 
-    public Builder withReplicationSource(ReplicationSource source) {
+    public Builder withReplicationSource(SourceEndPoint source) {
       this.source = source;
       return this;
     }
 
-    public Builder withReplicationReplicas(List<ReplicationReplica> replicas) {
-      this.replicas = replicas;
+    public Builder addReplicationReplica(ReplicaEndPoint replica) {
+      this.replicas.add(replica);
       return this;
     }
 

@@ -78,32 +78,30 @@ import gobblin.data.management.copy.ConcurrentBoundedWorkUnitList;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopySource;
 
+
 @Slf4j
-public class CopySourceWithMultipleSourceLocation extends CopySource{
+public class CopySourceWithMultipleSourceLocation extends CopySource {
 
   public static final String CONFIG_STORE_ROOT = "config.store.root";
   public static final String CONFIG_STORE_REPLICATION_ROOT = "config.store.replication.root";
   public static final String CONFIG_STORE_REPLICATION_TAG = "config.store.replication.tag";
 
-  public static void displayAllConfig(Config c){
-    for(Map.Entry<String, ConfigValue> entry :c.entrySet()){
+  public static void displayAllConfig(Config c) {
+    for (Map.Entry<String, ConfigValue> entry : c.entrySet()) {
       log.info("AAA key " + entry.getKey() + " value " + entry.getValue());
     }
   }
 
-  private DataFlowTopology.CopyRoute getCopyRoute(DataFlowTopology topology)throws IOException{
+  private DataFlowTopology.CopyRoute getCopyRoute(DataFlowTopology topology) throws IOException {
     FileSystem executionCluster = FileSystem.get(new Configuration());
     URI executionClusterURI = executionCluster.getUri();
     List<DataFlowTopology.CopyRoute> routes = topology.getRoutes();
-    for(DataFlowTopology.CopyRoute route: routes){
-      HdfsReplicationLocation hdfsForCopyDestination = (HdfsReplicationLocation)(route.getCopyDestination().getReplicationLocation());
-      try {
-        URI destURI = new URI(hdfsForCopyDestination.getFs_uri());
-        if(destURI.equals(executionClusterURI)){
-          return route;
-        }
-      } catch (URISyntaxException e) {
-        log.warn("Can not generate namenode URI from " + hdfsForCopyDestination.getFs_uri());
+    for (DataFlowTopology.CopyRoute route : routes) {
+      ReplicationLocation copyTo = route.getCopyTo().getReplicationLocation();
+
+      URI destURI = copyTo.getFsURI();
+      if (destURI.equals(executionClusterURI)) {
+        return route;
       }
     }
 
@@ -111,67 +109,68 @@ public class CopySourceWithMultipleSourceLocation extends CopySource{
   }
 
   @Override
-  protected boolean generateWorkunitsBasedOnConfig(final SourceState originState, 
-      final ConcurrentBoundedWorkUnitList workUnitList, final long minWorkUnitWeight) throws IOException{
+  protected boolean generateWorkunitsBasedOnConfig(final SourceState originState,
+      final ConcurrentBoundedWorkUnitList workUnitList, final long minWorkUnitWeight) throws IOException {
     List<Config> configs = this.generateReplicationConfigs(originState);
-    
-    for(Config config: configs){
+
+    for (Config config : configs) {
       ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(config);
-      if(!generateWorkunitsPerReplicationDataset(originState,workUnitList, minWorkUnitWeight,  rc)){
+      if (!generateWorkunitsPerReplicationDataset(originState, workUnitList, minWorkUnitWeight, rc)) {
         return false;
       }
     }
     return true;
-//    String storeRoot;
-//    ConfigClient configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
-//    try {
-//
-//      if(originState.contains(CONFIG_STORE_ROOT)){
-//        storeRoot = originState.getProp(CONFIG_STORE_ROOT);
-//      }
-//      else{
-//        throw new RuntimeException("Can not find config store root");
-//      }
-//
-//      //public Collection<URI> getImportedBy(URI configKeyUri, boolean recursive)
-//      Collection<URI> importedBy = configClient.getImportedBy(new URI(storeRoot+"/tag/testTag"), true);
-//      for(URI u: importedBy){
-//        log.info("AAA imported by is " + u);
-//      }
-//
-//      log.info("generate workunit for /data/derived/data_derived_test_src");
-//      Config c = configClient.getConfig(storeRoot+"/data/derived/data_derived_test_src/");
-//      //displayAllConfig(c);
-//      ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
-//
-//      generateWorkunitsPerReplicationDataset(originState,workUnitList, minWorkUnitWeight,  rc);
-//
-//      log.info("generate workunit for /data/derived/supertitleToSkills");
-//      c = configClient.getConfig(storeRoot+"/data/derived/supertitleToSkills/");
-//      rc = ReplicationConfiguration.buildFromConfig(c);
-//      return generateWorkunitsPerReplicationDataset(originState,workUnitList, minWorkUnitWeight,  rc);
-//
-//
-//    } catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
-//        | URISyntaxException e) {
-//      log.error("Caught error " + e.getMessage());
-//      throw new RuntimeException(e);
-//    }
+    //    String storeRoot;
+    //    ConfigClient configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
+    //    try {
+    //
+    //      if(originState.contains(CONFIG_STORE_ROOT)){
+    //        storeRoot = originState.getProp(CONFIG_STORE_ROOT);
+    //      }
+    //      else{
+    //        throw new RuntimeException("Can not find config store root");
+    //      }
+    //
+    //      //public Collection<URI> getImportedBy(URI configKeyUri, boolean recursive)
+    //      Collection<URI> importedBy = configClient.getImportedBy(new URI(storeRoot+"/tag/testTag"), true);
+    //      for(URI u: importedBy){
+    //        log.info("AAA imported by is " + u);
+    //      }
+    //
+    //      log.info("generate workunit for /data/derived/data_derived_test_src");
+    //      Config c = configClient.getConfig(storeRoot+"/data/derived/data_derived_test_src/");
+    //      //displayAllConfig(c);
+    //      ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
+    //
+    //      generateWorkunitsPerReplicationDataset(originState,workUnitList, minWorkUnitWeight,  rc);
+    //
+    //      log.info("generate workunit for /data/derived/supertitleToSkills");
+    //      c = configClient.getConfig(storeRoot+"/data/derived/supertitleToSkills/");
+    //      rc = ReplicationConfiguration.buildFromConfig(c);
+    //      return generateWorkunitsPerReplicationDataset(originState,workUnitList, minWorkUnitWeight,  rc);
+    //
+    //
+    //    } catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
+    //        | URISyntaxException e) {
+    //      log.error("Caught error " + e.getMessage());
+    //      throw new RuntimeException(e);
+    //    }
   }
 
-  private List<Config> generateReplicationConfigs(final SourceState originState){
+  private List<Config> generateReplicationConfigs(final SourceState originState) {
     try {
       String storeRoot;
       String replicationRootPath;
       String replicationTag;
       ConfigClient configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
-      if(originState.contains(CONFIG_STORE_ROOT) && originState.contains(CONFIG_STORE_REPLICATION_ROOT) && originState.contains(CONFIG_STORE_REPLICATION_TAG)){
+      if (originState.contains(CONFIG_STORE_ROOT) && originState.contains(CONFIG_STORE_REPLICATION_ROOT)
+          && originState.contains(CONFIG_STORE_REPLICATION_TAG)) {
         storeRoot = originState.getProp(CONFIG_STORE_ROOT);
         replicationRootPath = new URI(storeRoot + originState.getProp(CONFIG_STORE_REPLICATION_ROOT)).getPath();
         replicationTag = storeRoot + originState.getProp(CONFIG_STORE_REPLICATION_TAG);
-      }
-      else{
-        throw new RuntimeException(String.format("Can not find required config values for %s, %s, %s", CONFIG_STORE_ROOT, CONFIG_STORE_REPLICATION_ROOT, CONFIG_STORE_REPLICATION_TAG));
+      } else {
+        throw new RuntimeException(String.format("Can not find required config values for %s, %s, %s",
+            CONFIG_STORE_ROOT, CONFIG_STORE_REPLICATION_ROOT, CONFIG_STORE_REPLICATION_TAG));
       }
 
       // get all the URIs which imports {@link #replicationTag}
@@ -180,40 +179,40 @@ public class CopySourceWithMultipleSourceLocation extends CopySource{
       List<URI> replicationDataset = new ArrayList<URI>(importedBy);
       Comparator<URI> pathLengthComparator = new Comparator<URI>() {
         public int compare(URI c1, URI c2) {
-          return c1.getPath().length() - c2.getPath().length(); 
+          return c1.getPath().length() - c2.getPath().length();
         }
       };
 
       // sort the URI based on the path length to make sure the parent path appear before children
       Collections.sort(replicationDataset, pathLengthComparator);
-      
+
       Set<URI> leafDataset = new HashSet<URI>();
-      
-      for(URI u: replicationDataset){
+
+      for (URI u : replicationDataset) {
         // due to the sort, at most one element need to be removed 
         URI needToRemove = null;
-        
+
         // valid dataset URI
-        if(u.getPath().startsWith(replicationRootPath)){
-          for(URI leaf: leafDataset){
-            if(PathUtils.isAncestor(new Path(leaf.getPath()), new Path(u.getPath()))){
+        if (u.getPath().startsWith(replicationRootPath)) {
+          for (URI leaf : leafDataset) {
+            if (PathUtils.isAncestor(new Path(leaf.getPath()), new Path(u.getPath()))) {
               needToRemove = leaf;
               break;
             }
           }
-          
-          if(needToRemove!=null){
+
+          if (needToRemove != null) {
             leafDataset.remove(needToRemove);
           }
           leafDataset.add(u);
         }
       }
-      
-      List<Config> result =new ArrayList<Config>();
-      for(URI u: leafDataset){
+
+      List<Config> result = new ArrayList<Config>();
+      for (URI u : leafDataset) {
         result.add(configClient.getConfig(u));
       }
-      
+
       return result;
     } catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
         | URISyntaxException e) {
@@ -222,23 +221,24 @@ public class CopySourceWithMultipleSourceLocation extends CopySource{
     }
   }
 
-  private boolean generateWorkunitsPerReplicationDataset( SourceState originState,
-      final ConcurrentBoundedWorkUnitList workUnitList, final long minWorkUnitWeight, ReplicationConfiguration rc) throws IOException{
+  private boolean generateWorkunitsPerReplicationDataset(SourceState originState,
+      final ConcurrentBoundedWorkUnitList workUnitList, final long minWorkUnitWeight, ReplicationConfiguration rc)
+      throws IOException {
     SourceState stateCp = new SourceState();
     stateCp.addAll(originState);
     ReplicationMetaData md = rc.getMetaData();
     log.info("metadata : " + md);
 
-    ReplicationSource source = rc.getSource();
+    SourceEndPoint source = rc.getSource();
     log.info("source : " + source);
 
-    List<ReplicationReplica> replicas = rc.getReplicas();
-    for(ReplicationReplica r: replicas){
+    List<ReplicaEndPoint> replicas = rc.getReplicas();
+    for (ReplicaEndPoint r : replicas) {
       log.info("replica: " + r);
     }
 
     DataFlowTopology topology = rc.getTopology();
-    for(DataFlowTopology.CopyRoute route: topology.getRoutes()){
+    for (DataFlowTopology.CopyRoute route : topology.getRoutes()) {
       log.info("route: " + route);
     }
 
@@ -246,19 +246,18 @@ public class CopySourceWithMultipleSourceLocation extends CopySource{
     log.info("route is " + route);
 
     // TODO, for now only pick the first copyFrom
-    if(source.getReplicationLocation().getType() == ReplicationType.HDFS){
-      HdfsReplicationLocation hdfsCopyTo = (HdfsReplicationLocation)(route.getCopyDestination().getReplicationLocation());
-      HdfsReplicationLocation hdfsCopyFrom = (HdfsReplicationLocation)(route.getCopyFrom().get(0).getReplicationLocation());
+    if (source.getReplicationLocation().getType() == ReplicationType.HDFS) {
 
-      stateCp.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, hdfsCopyFrom.getFs_uri()); 
-      stateCp.setProp(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, hdfsCopyFrom.getPath());
-      log.info("source dir is " + hdfsCopyFrom.getPath());
+      ReplicationLocation copyTo = route.getCopyTo().getReplicationLocation();
+      ReplicationLocation copyFrom = route.getCopyFrom().get(0).getReplicationLocation();
+      stateCp.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, copyFrom.getFsURI());
+      stateCp.setProp(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, copyFrom.getRootPath());
+      log.info("source dir is " + copyFrom.getRootPath());
 
+      stateCp.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, copyTo.getFsURI());
+      stateCp.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, copyTo.getRootPath());
 
-      stateCp.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, hdfsCopyTo.getFs_uri());
-      stateCp.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, hdfsCopyTo.getPath());
-
-      log.info("target dir is " + hdfsCopyTo.getPath());
+      log.info("target dir is " + copyTo.getRootPath());
 
       FileSystem sourceFs = super.getSourceFileSystem(stateCp);
       FileSystem targetFs = super.getTargetFileSystem(stateCp);

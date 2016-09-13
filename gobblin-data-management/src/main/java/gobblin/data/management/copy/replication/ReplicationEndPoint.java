@@ -19,13 +19,23 @@ import gobblin.dataset.DatasetsFinder;
  *
  * @param <T>
  */
-public interface ReplicationData<T extends CopyableDataset> {
+public interface ReplicationEndPoint<T extends CopyableDataset> {
 
+  /**
+   * @return true iff this ReplicationEndPoint is the original source
+   */
   public boolean isSource();
 
+  /**
+   * @return the replication name, for each dataset, the replication name should be unique
+   */
   public String getReplicationName();
 
+  /**
+   * 
+   * @return the {@link ReplicationLocation} of this 
+   */
   public ReplicationLocation getReplicationLocation();
 
-  public DatasetsFinder<T> getDatasetsFinder();
+  public T getDataset();
 }

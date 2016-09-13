@@ -39,83 +39,92 @@ public class ReplicationUtils {
   public static final String DEFAULT_ALL_ROUTES_KEY = "defaultDataFlowTopology";
 
   public static final String ROUTES_PICKER_CLASS_KEY = "routePickerClass";
-  public static final String DEFAULT_ROUTES_PICKER_CLASS_KEY = DataFlowRoutesPickerBySourceCluster.class.getCanonicalName();
+  public static final String DEFAULT_ROUTES_PICKER_CLASS_KEY =
+      DataFlowRoutesPickerBySourceCluster.class.getCanonicalName();
 
   public static ReplicationMetaData buildMetaData(Config config) {
     if (!config.hasPath(METADATA)) {
-      return new ReplicationMetaData(Optional.<Map<String, String>>absent());
+      return new ReplicationMetaData(Optional.<Map<String, String>> absent());
     }
 
     Config metaDataConfig = config.getConfig(METADATA);
     Map<String, String> metaDataValues = new HashMap<>();
-    Set<Map.Entry<String,ConfigValue>> meataDataEntry = metaDataConfig.entrySet();
-    for(Map.Entry<String,ConfigValue> entry : meataDataEntry){
-      metaDataValues.put(entry.getKey(),  metaDataConfig.getString(entry.getKey()));
+    Set<Map.Entry<String, ConfigValue>> meataDataEntry = metaDataConfig.entrySet();
+    for (Map.Entry<String, ConfigValue> entry : meataDataEntry) {
+      metaDataValues.put(entry.getKey(), metaDataConfig.getString(entry.getKey()));
     }
 
     ReplicationMetaData metaData = new ReplicationMetaData(Optional.of(metaDataValues));
     return metaData;
   }
 
-  public static ReplicationSource buildSource(Config config) {
-    Preconditions.checkArgument(config.hasPath(REPLICATION_SOURCE), "missing required config entery " + REPLICATION_SOURCE);
+  public static SourceEndPoint buildSource(Config config) {
+    Preconditions.checkArgument(config.hasPath(REPLICATION_SOURCE),
+        "missing required config entery " + REPLICATION_SOURCE);
 
     Config sourceConfig = config.getConfig(REPLICATION_SOURCE);
 
-    return new ReplicationSource(ReplicationUtils.buildReplicationLocation(sourceConfig), 
-        ReplicationUtils.buildDatasetFinder(sourceConfig));
+    return new SourceEndPoint(ReplicationUtils.buildReplicationLocation(sourceConfig),
+        ReplicationUtils.buildDataset(sourceConfig));
   }
 
-  public static List<ReplicationReplica> buildReplicas(Config config) {
-    Preconditions.checkArgument(config.hasPath(REPLICATION_REPLICAS), "missing required config entery " + REPLICATION_REPLICAS);
+  public static List<ReplicaEndPoint> buildReplicas(Config config) {
+    Preconditions.checkArgument(config.hasPath(REPLICATION_REPLICAS),
+        "missing required config entery " + REPLICATION_REPLICAS);
 
     Config replicaConfig = config.getConfig(REPLICATION_REPLICAS);
-    Preconditions.checkArgument(replicaConfig.hasPath(REPLICATOIN_REPLICAS_LIST), "missing required config entery " + REPLICATOIN_REPLICAS_LIST);
+    Preconditions.checkArgument(replicaConfig.hasPath(REPLICATOIN_REPLICAS_LIST),
+        "missing required config entery " + REPLICATOIN_REPLICAS_LIST);
     List<String> replicas = replicaConfig.getStringList(REPLICATOIN_REPLICAS_LIST);
 
-    List<ReplicationReplica> result = new ArrayList<ReplicationReplica>();
+    List<ReplicaEndPoint> result = new ArrayList<ReplicaEndPoint>();
     for (String replicaName : replicas) {
       Config subConfig = replicaConfig.getConfig(replicaName);
-      result.add(
-          new ReplicationReplica(replicaName, ReplicationUtils.buildReplicationLocation(subConfig), 
-              ReplicationUtils.buildDatasetFinder(subConfig)));
+      result.add(new ReplicaEndPoint(replicaName, ReplicationUtils.buildReplicationLocation(subConfig),
+          ReplicationUtils.buildDataset(subConfig)));
     }
 
     return result;
   }
 
-  public static DataFlowTopology buildDataFlowTopology(Config config, ReplicationSource source,
-      List<ReplicationReplica> replicas) {
+  public static DataFlowTopology buildDataFlowTopology(Config config, SourceEndPoint source,
+      List<ReplicaEndPoint> replicas) {
     Preconditions.checkArgument(config.hasPath(DATAFLOWTOPOLOGY), "missing required config entery " + DATAFLOWTOPOLOGY);
     Config dataflowConfig = config.getConfig(DATAFLOWTOPOLOGY);
 
     // NOT specified by literal routes, need to pick it
-    if(!dataflowConfig.hasPath(DataFlowTopology.ROUTES)){
+    if (!dataflowConfig.hasPath(DataFlowTopology.ROUTES)) {
       // DEFAULT_ALL_ROUTES_KEY specified in top level config
-      Preconditions.checkArgument(config.hasPath(DEFAULT_ALL_ROUTES_KEY), "missing required config entery " + DEFAULT_ALL_ROUTES_KEY);
+      Preconditions.checkArgument(config.hasPath(DEFAULT_ALL_ROUTES_KEY),
+          "missing required config entery " + DEFAULT_ALL_ROUTES_KEY);
 
       Config allRoutes = config.getConfig(DEFAULT_ALL_ROUTES_KEY);
-      String routePickerClassName = dataflowConfig.hasPath(ROUTES_PICKER_CLASS_KEY)? dataflowConfig.getString(ROUTES_PICKER_CLASS_KEY):
-        DEFAULT_ROUTES_PICKER_CLASS_KEY;
+      String routePickerClassName = dataflowConfig.hasPath(ROUTES_PICKER_CLASS_KEY)
+          ? dataflowConfig.getString(ROUTES_PICKER_CLASS_KEY) : DEFAULT_ROUTES_PICKER_CLASS_KEY;
 
       List<Object> args = Lists.newArrayList(allRoutes, source);
-      
+
       try {
         Class<?> routePickerClass = Class.forName(routePickerClassName);
 
-        DataFlowRoutesPicker picker = (DataFlowRoutesPicker)(GobblinConstructorUtils.invokeLongestConstructor(routePickerClass, args.toArray()));
+        DataFlowRoutesPicker picker =
+            (DataFlowRoutesPicker) (GobblinConstructorUtils.invokeLongestConstructor(routePickerClass, args.toArray()));
         dataflowConfig = picker.getPreferredRoutes();
       } catch (ReflectiveOperationException e) {
         throw new RuntimeException("Can not build topology from class: " + e.getMessage());
       }
     }
+    DataFlowTopology.Builder builder = new DataFlowTopology.Builder().withReplicationSource(source);
+    for (ReplicaEndPoint replica : replicas) {
+      builder.addReplicationReplica(replica);
+    }
 
-    return new DataFlowTopology.Builder().withReplicationSource(source).withReplicationReplicas(replicas)
-        .withTopologyConfig(dataflowConfig).build();
+    return builder.withTopologyConfig(dataflowConfig).build();
   }
 
   public static ReplicationLocation buildReplicationLocation(Config config) {
-    Preconditions.checkArgument(config.hasPath(REPLICATION_LOCATION_TYPE_KEY), "missing required config entery " + REPLICATION_LOCATION_TYPE_KEY);
+    Preconditions.checkArgument(config.hasPath(REPLICATION_LOCATION_TYPE_KEY),
+        "missing required config entery " + REPLICATION_LOCATION_TYPE_KEY);
 
     String type = config.getString(REPLICATION_LOCATION_TYPE_KEY);
     Preconditions.checkArgument(config.hasPath(type));
@@ -135,7 +144,7 @@ public class ReplicationUtils {
    * @param config
    * @return
    */
-  public static DatasetsFinder<CopyableDataset> buildDatasetFinder(Config config){
+  public static CopyableDataset buildDataset(Config config) {
     return null;
   }
 }
