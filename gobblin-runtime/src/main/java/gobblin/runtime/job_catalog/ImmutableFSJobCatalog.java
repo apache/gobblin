@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
@@ -29,11 +31,12 @@ import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.runtime.util.FSJobCatalogHelper;
-import gobblin.util.ConfigUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.PullFileLoader;
 import gobblin.util.filesystem.PathAlterationDetector;
 import gobblin.util.filesystem.PathAlterationObserver;
+
+import lombok.Getter;
 
 
 public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCatalog {
@@ -82,21 +85,18 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
       boolean instrumentationEnabled)
       throws IOException {
     this.sysConfig = sysConfig;
-    Properties sysProp = ConfigUtils.configToProperties(this.sysConfig);
-    Preconditions.checkArgument(sysProp.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+    ConfigAccessor cfgAccessor = new ConfigAccessor(this.sysConfig);
 
-    this.jobConfDirPath = new Path(sysProp.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+    this.jobConfDirPath = new Path(cfgAccessor.getJobConfDir());
     this.fs = this.jobConfDirPath.getFileSystem(new Configuration());
     this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
 
     this.loader = new PullFileLoader(jobConfDirPath, jobConfDirPath.getFileSystem(new Configuration()),
-        FSJobCatalogHelper.getJobConfigurationFileExtensions(sysProp),
+        cfgAccessor.getJobConfigurationFileExtensions(),
         PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
     this.converter = new FSJobCatalogHelper.JobSpecConverter(this.jobConfDirPath, getInjectedExtension());
 
-    long pollingInterval = Long.parseLong(
-        sysProp.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY,
-            Long.toString(ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL)));
+    long pollingInterval = cfgAccessor.getPollingInterval();
     this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
 
     // If absent, the Optional object will be created automatically by addPathAlterationObserver
@@ -244,5 +244,33 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
 
   @Override public StandardMetrics getMetrics() {
     return this.metrics;
+  }
+
+  @Getter
+  public static class ConfigAccessor {
+    private final Config cfg;
+    private final long pollingInterval;
+    private final String jobConfDir;
+    private final Set<String> JobConfigurationFileExtensions;
+
+    public ConfigAccessor(Config cfg) {
+      this.cfg = cfg;
+      Preconditions.checkArgument(this.cfg.hasPath(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+      this.pollingInterval = this.cfg.hasPath(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY) ?
+          this.cfg.getLong(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY)  :
+          ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL;
+      this.jobConfDir = this.cfg.getString(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY);
+      this.JobConfigurationFileExtensions = ImmutableSet.<String>copyOf(Splitter.on(",")
+          .omitEmptyStrings()
+          .trimResults()
+          .split(getJobConfigurationFileExtensionsString()));
+    }
+
+    private String getJobConfigurationFileExtensionsString() {
+      String propValue = this.cfg.hasPath(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY) ?
+          this.cfg.getString(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY).toLowerCase() :
+            ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS;
+      return propValue;
+    }
   }
 }

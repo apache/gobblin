@@ -32,14 +32,17 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.job_catalog.FSJobCatalog;
+import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import gobblin.util.ConfigUtils;
 import gobblin.util.PullFileLoader;
 import gobblin.util.filesystem.PathAlterationDetector;
@@ -76,13 +79,9 @@ public class FSJobCatalogHelperTest {
   private File subDir11;
   private File subDir2;
 
-  private Properties sysProps;
   private Config sysConfig;
   private PullFileLoader loader;
   private FSJobCatalogHelper.JobSpecConverter converter;
-
-  // Testing the materialized and de-materialized process here.
-  private Config testConfig;
 
   @BeforeClass
   public void setUp()
@@ -98,10 +97,14 @@ public class FSJobCatalogHelperTest {
     this.subDir11.mkdirs();
     this.subDir2.mkdirs();
 
-    this.sysProps = new Properties();
-    this.sysConfig = ConfigUtils.propertiesToConfig(sysProps);
+
+    this.sysConfig = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+        .put(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath())
+        .build());
+    ImmutableFSJobCatalog.ConfigAccessor cfgAccess =
+        new ImmutableFSJobCatalog.ConfigAccessor(this.sysConfig);
     this.loader = new PullFileLoader(new Path(jobConfigDir.toURI()), FileSystem.get(new Configuration()),
-        FSJobCatalogHelper.getJobConfigurationFileExtensions(sysProps),
+        cfgAccess.getJobConfigurationFileExtensions(),
         PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
     this.converter = new FSJobCatalogHelper.JobSpecConverter(new Path(this.jobConfigDir.toURI()), Optional.of(
         FSJobCatalog.CONF_EXTENSION));
@@ -163,30 +166,38 @@ public class FSJobCatalogHelperTest {
     // which is on purpose to keep
     // plus ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, which is not necessary to convert into JobSpec
     // but keep it here to avoid NullPointer exception and validation purpose for testing.
-    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 4);
+    Assert.assertEquals(jobProps1.stringPropertyNames().size(), 5);
     Assert.assertTrue(jobProps1.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
+    Assert.assertEquals(jobProps1.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
+        this.jobConfigDir.getAbsolutePath());
     Assert.assertEquals(jobProps1.getProperty("k1"), "d1");
     Assert.assertEquals(jobProps1.getProperty("k8"), "a8");
     Assert.assertEquals(jobProps1.getProperty("k9"), "a8");
 
     // test-job-conf-dir/test1/test11.pull
     Properties jobProps2 = getJobConfigForFile(jobConfigs, "test11.pull");
-    Assert.assertEquals(jobProps2.stringPropertyNames().size(), 4);
+    Assert.assertEquals(jobProps2.stringPropertyNames().size(), 5);
     Assert.assertTrue(jobProps2.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
+    Assert.assertEquals(jobProps2.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
+                        this.jobConfigDir.getAbsolutePath());
     Assert.assertEquals(jobProps2.getProperty("k1"), "c1");
     Assert.assertEquals(jobProps2.getProperty("k3"), "b3");
     Assert.assertEquals(jobProps2.getProperty("k6"), "a6");
 
     // test-job-conf-dir/test1/test12.PULL
     Properties jobProps3 = getJobConfigForFile(jobConfigs, "test12.PULL");
-    Assert.assertEquals(jobProps3.stringPropertyNames().size(), 2);
+    Assert.assertEquals(jobProps3.stringPropertyNames().size(), 3);
     Assert.assertTrue(jobProps3.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
+    Assert.assertEquals(jobProps3.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
+        this.jobConfigDir.getAbsolutePath());
     Assert.assertEquals(jobProps3.getProperty("k7"), "a7");
 
     // test-job-conf-dir/test2/test21.PULL
     Properties jobProps4 = getJobConfigForFile(jobConfigs, "test21.PULL");
-    Assert.assertEquals(jobProps4.stringPropertyNames().size(), 2);
+    Assert.assertEquals(jobProps4.stringPropertyNames().size(), 3);
     Assert.assertTrue(jobProps4.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY));
+    Assert.assertEquals(jobProps4.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
+        this.jobConfigDir.getAbsolutePath());
     Assert.assertEquals(jobProps4.getProperty("k5"), "b5");
   }
 
@@ -195,12 +206,12 @@ public class FSJobCatalogHelperTest {
       throws ConfigurationException, IOException {
     Path jobConfigPath = new Path(this.subDir11.getAbsolutePath(), "test111.pull");
 
-    Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
+    Properties jobProps =
+        ConfigUtils.configToProperties(loader.loadPullFile(jobConfigPath, this.sysConfig, false));
 
-    Properties jobProps = ConfigUtils.configToProperties(loader.loadPullFile(jobConfigPath, this.sysConfig, false));
-
-    Assert.assertEquals(jobProps.stringPropertyNames().size(), 4);
+    Assert.assertEquals(jobProps.stringPropertyNames().size(), 5);
+    Assert.assertEquals(jobProps.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
+        this.jobConfigDir.getAbsolutePath());
     Assert.assertEquals(jobProps.getProperty("k1"), "d1");
     Assert.assertEquals(jobProps.getProperty("k8"), "a8");
     Assert.assertEquals(jobProps.getProperty("k9"), "a8");
