@@ -6,8 +6,6 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.URI;
 import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
@@ -18,10 +16,7 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
@@ -134,20 +129,6 @@ public class FSJobCatalogHelper {
           .withVersion(version)
           .build();
     }
-  }
-
-  public static Set<String> getJobConfigurationFileExtensions(Properties properties) {
-    Iterable<String> jobConfigFileExtensionsIterable = Splitter.on(",")
-        .omitEmptyStrings()
-        .trimResults()
-        .split(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY,
-            ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS));
-    return ImmutableSet.copyOf(Iterables.transform(jobConfigFileExtensionsIterable, new Function<String, String>() {
-      @Override
-      public String apply(String input) {
-        return null != input ? input.toLowerCase() : "";
-      }
-    }));
   }
 
   /**

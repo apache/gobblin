@@ -40,6 +40,7 @@ import com.typesafe.config.Config;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.job_catalog.FSJobCatalog;
+import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import gobblin.util.ConfigUtils;
 import gobblin.util.PullFileLoader;
 import gobblin.util.filesystem.PathAlterationDetector;
@@ -81,9 +82,6 @@ public class FSJobCatalogHelperTest {
   private PullFileLoader loader;
   private FSJobCatalogHelper.JobSpecConverter converter;
 
-  // Testing the materialized and de-materialized process here.
-  private Config testConfig;
-
   @BeforeClass
   public void setUp()
       throws IOException {
@@ -100,8 +98,10 @@ public class FSJobCatalogHelperTest {
 
     this.sysProps = new Properties();
     this.sysConfig = ConfigUtils.propertiesToConfig(sysProps);
+    ImmutableFSJobCatalog.ConfigAccessor cfgAccess =
+        new ImmutableFSJobCatalog.ConfigAccessor(this.sysConfig);
     this.loader = new PullFileLoader(new Path(jobConfigDir.toURI()), FileSystem.get(new Configuration()),
-        FSJobCatalogHelper.getJobConfigurationFileExtensions(sysProps),
+        cfgAccess.getJobConfigurationFileExtensions(),
         PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
     this.converter = new FSJobCatalogHelper.JobSpecConverter(new Path(this.jobConfigDir.toURI()), Optional.of(
         FSJobCatalog.CONF_EXTENSION));
