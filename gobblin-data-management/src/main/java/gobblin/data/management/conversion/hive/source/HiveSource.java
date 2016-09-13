@@ -23,11 +23,14 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
@@ -167,6 +170,8 @@ public class HiveSource implements Source {
         this.eventSubmitter);
     int maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS);
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
+
+    silenceHiveLoggers();
   }
 
 
@@ -329,5 +334,19 @@ public class HiveSource implements Source {
 
   private static FileSystem getSourceFs() throws IOException {
     return FileSystem.get(HadoopUtils.newConfiguration());
+  }
+
+  /**
+   * Hive logging is too verbose at INFO level. Currently hive does not have a way to set log level.
+   * This is a workaround to set log level to WARN for hive loggers only
+   */
+  private void silenceHiveLoggers() {
+    List<String> loggers = ImmutableList.of("org.apache.hadoop.hive", "org.apache.hive", "hive.ql.parse");
+    for (String name : loggers) {
+      Logger logger = Logger.getLogger(name);
+      if (logger != null) {
+        logger.setLevel(Level.WARN);
+      }
+    }
   }
 }
