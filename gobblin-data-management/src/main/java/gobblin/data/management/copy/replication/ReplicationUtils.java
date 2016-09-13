@@ -131,7 +131,7 @@ public class ReplicationUtils {
 
     ReplicationType RType = ReplicationType.forName(type);
 
-    if (RType == ReplicationType.HDFS) {
+    if (RType == ReplicationType.HADOOPFS) {
       return new HdfsReplicationLocation(config.getConfig(type));
     }
 

@@ -58,7 +58,7 @@ public class ReplicationConfigurationTest {
     SourceEndPoint source = rc.getSource();
     Assert.assertTrue(source.getReplicationName().equals(ReplicationUtils.REPLICATION_SOURCE));
     Assert.assertTrue(source.isSource());
-    Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationType.HDFS);
+    Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationType.HADOOPFS);
     Assert.assertTrue(source.getReplicationLocation() instanceof HdfsReplicationLocation);
     HdfsReplicationLocation hdfsLocation = (HdfsReplicationLocation)(source.getReplicationLocation());
     Assert.assertTrue(hdfsLocation.getReplicationLocationName().equals("war"));
@@ -142,7 +142,7 @@ public class ReplicationConfigurationTest {
     SourceEndPoint source = rc.getSource();
     Assert.assertTrue(source.getReplicationName().equals(ReplicationUtils.REPLICATION_SOURCE));
     Assert.assertTrue(source.isSource());
-    Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationType.HDFS);
+    Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationType.HADOOPFS);
     Assert.assertTrue(source.getReplicationLocation() instanceof HdfsReplicationLocation);
     HdfsReplicationLocation hdfsLocation = (HdfsReplicationLocation)(source.getReplicationLocation());
     Assert.assertTrue(hdfsLocation.getReplicationLocationName().equals("war"));

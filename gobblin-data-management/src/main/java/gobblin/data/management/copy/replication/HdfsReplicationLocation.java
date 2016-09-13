@@ -53,7 +53,7 @@ public class HdfsReplicationLocation implements ReplicationLocation {
 
   @Override
   public ReplicationType getType() {
-    return ReplicationType.HDFS;
+    return ReplicationType.HADOOPFS;
   }
 
   @Override

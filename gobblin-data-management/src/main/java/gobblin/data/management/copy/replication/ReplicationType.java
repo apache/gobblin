@@ -8,7 +8,7 @@ package gobblin.data.management.copy.replication;
  */
 public enum ReplicationType {
 
-  HDFS("hadoopfs"),
+  HADOOPFS("hadoopfs"),
   HIVE("hive");
 
   private final String name;
