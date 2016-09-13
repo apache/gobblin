@@ -94,7 +94,7 @@ public class TestStandardGobblinInstanceLauncher {
     Assert.assertTrue(jobResult.isSuccessful());
 
     instanceLauncher.stopAsync();
-    instanceLauncher.awaitTerminated(100, TimeUnit.MILLISECONDS);
+    instanceLauncher.awaitTerminated(500, TimeUnit.MILLISECONDS);
     Assert.assertEquals(instance.getMetrics().getUpFlag().getValue().intValue(), 0);
     Assert.assertEquals(instance.getMetrics().getUptimeMs().getValue().longValue(), 0);
   }
@@ -126,7 +126,7 @@ public class TestStandardGobblinInstanceLauncher {
             @Override public void onJobLaunch(JobExecutionDriver jobDriver) {
               super.onJobLaunch(jobDriver);
               try {
-                jobDrivers.offer(jobDriver, 100, TimeUnit.MILLISECONDS);
+                jobDrivers.offer(jobDriver, 500, TimeUnit.MILLISECONDS);
               } catch (InterruptedException e) {
                 instance.getLog().error("Offer interrupted.");
               }
@@ -144,7 +144,7 @@ public class TestStandardGobblinInstanceLauncher {
     Assert.assertTrue(jobResult.isSuccessful());
 
     instanceLauncher.stopAsync();
-    instanceLauncher.awaitTerminated(50, TimeUnit.MILLISECONDS);
+    instanceLauncher.awaitTerminated(500, TimeUnit.MILLISECONDS);
   }
 
 
@@ -174,7 +174,7 @@ public class TestStandardGobblinInstanceLauncher {
             @Override public void onJobLaunch(JobExecutionDriver jobDriver) {
               super.onJobLaunch(jobDriver);
               try {
-                jobDrivers.offer(jobDriver, 100, TimeUnit.MILLISECONDS);
+                jobDrivers.offer(jobDriver, 500, TimeUnit.MILLISECONDS);
               } catch (InterruptedException e) {
                 instance.getLog().error("Offer interrupted.");
               }
@@ -191,7 +191,7 @@ public class TestStandardGobblinInstanceLauncher {
     Assert.assertTrue(jobResult.isSuccessful());
 
     instanceLauncher.stopAsync();
-    instanceLauncher.awaitTerminated(50, TimeUnit.MILLISECONDS);
+    instanceLauncher.awaitTerminated(500, TimeUnit.MILLISECONDS);
   }
 
 
