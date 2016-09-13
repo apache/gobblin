@@ -264,7 +264,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             destinationTableMeta,
             hiveColumns);
     conversionEntity.getQueries().add(createStagingTableDDL);
-    log.info("Create staging table DDL: " + createStagingTableDDL);
+    log.debug("Create staging table DDL: " + createStagingTableDDL);
 
     // Create DDL statement for partition
     String orcStagingDataPartitionDirName = getOrcStagingDataPartitionDirName(conversionEntity, sourceDataPathIdentifier);
@@ -277,7 +277,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
               partitionsDMLInfo);
 
       conversionEntity.getQueries().addAll(createStagingPartitionDDL);
-      log.info("Create staging partition DDL: " + createStagingPartitionDDL);
+      log.debug("Create staging partition DDL: " + createStagingPartitionDDL);
     }
 
     // Create DML statement
@@ -296,7 +296,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 destinationTableMeta,
                 rowLimit);
     conversionEntity.getQueries().add(insertInORCStagingTableDML);
-    log.info("Conversion staging DML: " + insertInORCStagingTableDML);
+    log.debug("Conversion staging DML: " + insertInORCStagingTableDML);
 
     // TODO: Split this method into two (conversion and publish)
     // Addition to WUS for Staging publish:
@@ -354,7 +354,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
               destinationTableMeta,
               new HashMap<String, String>());
       publishQueries.add(createTargetTableDDL);
-      log.info("Create final table DDL: " + createTargetTableDDL);
+      log.debug("Create final table DDL: " + createTargetTableDDL);
     }
 
     // Step:
@@ -368,7 +368,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         isEvolutionEnabled,
         hiveColumns,
         destinationTableMeta);
-    log.info("Evolve final table DDLs: " + evolutionDDLs);
+    log.debug("Evolve final table DDLs: " + evolutionDDLs);
     EventWorkunitUtils.setEvolutionMetadata(workUnit, evolutionDDLs);
 
     publishQueries.addAll(evolutionDDLs);
@@ -388,7 +388,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       // A.2.2.3, B.2.2.3: Drop this staging table and delete directories
       String dropStagingTableDDL = HiveAvroORCQueryGenerator.generateDropTableDDL(orcTableDatabase, orcStagingTableName);
 
-      log.info("Drop staging table DDL: " + dropStagingTableDDL);
+      log.debug("Drop staging table DDL: " + dropStagingTableDDL);
       cleanupQueries.add(dropStagingTableDDL);
 
       // Delete: orcStagingDataLocation
@@ -405,7 +405,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
           HiveAvroORCQueryGenerator.generateDropPartitionsDDL(orcTableDatabase,
               orcTableName,
               partitionsDMLInfo);
-      log.info("Drop partitions if exist in final table: " + dropPartitionsDDL);
+      log.debug("Drop partitions if exist in final table: " + dropPartitionsDDL);
       publishQueries.addAll(dropPartitionsDDL);
 
       // Step:
@@ -424,14 +424,14 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
               orcDataPartitionLocation,
               partitionsDMLInfo);
 
-      log.info("Create final partition DDL: " + createFinalPartitionDDL);
+      log.debug("Create final partition DDL: " + createFinalPartitionDDL);
       publishQueries.addAll(createFinalPartitionDDL);
 
       // Step:
       // A.2.3.4, B.2.3.4: Drop this staging table and delete directories
       String dropStagingTableDDL = HiveAvroORCQueryGenerator.generateDropTableDDL(orcTableDatabase, orcStagingTableName);
 
-      log.info("Drop staging table DDL: " + dropStagingTableDDL);
+      log.debug("Drop staging table DDL: " + dropStagingTableDDL);
       cleanupQueries.add(dropStagingTableDDL);
 
       // Delete: orcStagingDataLocation
@@ -449,7 +449,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         getDropPartitionsDDLInfo(conversionEntity)));
 
     HiveAvroORCQueryGenerator.serializePublishCommands(workUnit, publishEntity);
-    log.info("Publish partition entity: " + publishEntity);
+    log.debug("Publish partition entity: " + publishEntity);
 
 
     log.debug("Conversion Query " + conversionEntity.getQueries());
