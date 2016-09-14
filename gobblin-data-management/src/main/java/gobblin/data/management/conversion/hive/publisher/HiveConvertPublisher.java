@@ -224,6 +224,7 @@ public class HiveConvertPublisher extends DataPublisher {
   @Override
   public void close() throws IOException {
     this.avroSchemaManager.cleanupTempSchemas();
+    this.hiveJdbcConnector.close();
   }
 
   private static final Predicate<WorkUnitState> UNSUCCESSFUL_WORKUNIT = new Predicate<WorkUnitState>() {
