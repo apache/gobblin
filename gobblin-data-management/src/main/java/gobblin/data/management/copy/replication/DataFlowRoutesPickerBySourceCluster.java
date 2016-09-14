@@ -6,7 +6,8 @@ import lombok.Data;
 
 
 /**
- * This class is used to pick {@link DataFlowTopology.CopyRoute} based on the cluster name in {@link SourceEndPoint}
+ * This class is used to pick {@link DataFlowTopology.CopyRoute} based on the replication location name in {@link SourceEndPoint}
+ * For hadoop file system, the replication location name is the cluster name
  * @author mitu
  *
  */

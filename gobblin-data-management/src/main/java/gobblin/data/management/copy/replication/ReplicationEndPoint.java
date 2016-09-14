@@ -12,12 +12,10 @@ import gobblin.dataset.DatasetsFinder;
  *  <li>Telling whether the data is source or replicas
  *  <li>Specifying the replication name
  *  <li>Specifying the replication location {@link ReplicationLocation}
- *  <li>Specifying the {@link DatasetsFinder} which can find all data sets
+ *  <li>Specifying the {@link Dataset} class name
  * </ul>
  * 
  * @author mitu
- *
- * @param <T>
  */
 public interface ReplicationEndPoint<T extends CopyableDataset> {
 
@@ -37,5 +35,5 @@ public interface ReplicationEndPoint<T extends CopyableDataset> {
    */
   public ReplicationLocation getReplicationLocation();
 
-  public T getDataset();
+  public String getDatasetClassName();
 }

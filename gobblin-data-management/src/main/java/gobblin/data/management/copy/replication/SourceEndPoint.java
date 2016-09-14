@@ -1,8 +1,5 @@
 package gobblin.data.management.copy.replication;
 
-import gobblin.data.management.copy.CopyableDataset;
-
-
 public class SourceEndPoint extends AbstractReplicationEndPoint {
 
   @Override
@@ -10,7 +7,7 @@ public class SourceEndPoint extends AbstractReplicationEndPoint {
     return true;
   }
 
-  public SourceEndPoint(ReplicationLocation rl, CopyableDataset dataset) {
+  public SourceEndPoint(ReplicationLocation rl, String dataset) {
     super(ReplicationUtils.REPLICATION_SOURCE, rl, dataset);
   }
 

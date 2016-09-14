@@ -12,7 +12,6 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
 
-import gobblin.data.management.copy.CopyableDataset;
 import gobblin.dataset.DatasetsFinder;
 import gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -152,7 +151,7 @@ public class ReplicationUtils {
    * @param config
    * @return
    */
-  public static CopyableDataset buildDataset(Config config) {
-    return null;
+  public static String buildDataset(Config config) {
+    return "";
   }
 }

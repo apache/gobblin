@@ -1,5 +1,10 @@
 package gobblin.data.management.copy.replication;
 
+/**
+ * Specify the replication copy mode, either Pull or Push
+ * @author mitu
+ *
+ */
 public enum ReplicationCopyMode {
   PULL("pull"),
   PUSH("push");

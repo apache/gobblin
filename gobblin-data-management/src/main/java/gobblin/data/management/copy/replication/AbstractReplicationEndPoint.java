@@ -15,12 +15,12 @@ public abstract class AbstractReplicationEndPoint implements ReplicationEndPoint
 
   protected final String replicationName;
   protected final ReplicationLocation location;
-  protected final CopyableDataset dataset;
+  protected final String datasetClassName;
 
-  protected AbstractReplicationEndPoint(String replicationName, ReplicationLocation location, CopyableDataset dataset) {
+  protected AbstractReplicationEndPoint(String replicationName, ReplicationLocation location, String dataset) {
     this.replicationName = replicationName;
     this.location = location;
-    this.dataset = dataset;
+    this.datasetClassName = dataset;
   }
 
   @Override
@@ -34,15 +34,15 @@ public abstract class AbstractReplicationEndPoint implements ReplicationEndPoint
   }
 
   @Override
-  public CopyableDataset getDataset() {
-    return this.dataset;
+  public String getDatasetClassName() {
+    return this.datasetClassName;
   }
 
   @Override
   public String toString() {
     return Objects.toStringHelper(this.getClass()).add("isSource", this.isSource())
         .add("name", this.getReplicationName()).add("location", this.getReplicationLocation())
-        .add("dataset", this.dataset.getClass().getName()).toString();
+        .add("datasetClassName", this.datasetClassName).toString();
   }
 
 }
