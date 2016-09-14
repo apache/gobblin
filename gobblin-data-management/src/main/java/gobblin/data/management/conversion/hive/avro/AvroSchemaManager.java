@@ -9,7 +9,7 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.data.management.conversion.hive;
+package gobblin.data.management.conversion.hive.avro;
 
 import java.io.IOException;
 import java.net.URI;
@@ -151,6 +151,11 @@ public class AvroSchemaManager {
 
     // Try to fetch from HDFS
     Schema schema = AvroUtils.getDirectorySchema(new Path(sd.getLocation()), this.fs, true);
+
+    if (schema == null) {
+      throw new SchemaNotFoundException("Failed to get avro schema");
+    }
+
     return getOrGenerateSchemaFile(schema);
   }
 
