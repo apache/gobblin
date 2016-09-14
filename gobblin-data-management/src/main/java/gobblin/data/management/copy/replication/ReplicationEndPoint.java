@@ -1,7 +1,7 @@
 package gobblin.data.management.copy.replication;
 
+import gobblin.compaction.dataset.Dataset;
 import gobblin.data.management.copy.CopyableDataset;
-import gobblin.dataset.DatasetsFinder;
 
 
 /**
