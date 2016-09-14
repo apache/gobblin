@@ -37,7 +37,8 @@ import com.google.gson.Gson;
 import gobblin.annotation.Alpha;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.AvroSchemaManager;
+import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
+import gobblin.data.management.conversion.hive.avro.SchemaNotFoundException;
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
@@ -208,6 +209,9 @@ public class HiveSource implements Source {
     } catch (UpdateNotFoundException e) {
       log.error(String.format("Not Creating workunit for %s as update time was not found. %s", hiveDataset.getTable()
           .getCompleteName(), e.getMessage()));
+    } catch (SchemaNotFoundException e) {
+      log.error(String.format("Not Creating workunit for %s as schema was not found. %s", hiveDataset.getTable()
+          .getCompleteName(), e.getMessage()));
     }
   }
 
@@ -258,6 +262,9 @@ public class HiveSource implements Source {
         }
       } catch (UpdateNotFoundException e) {
         log.error(String.format("Not Creating workunit for %s as update time was not found. %s",
+            sourcePartition.getCompleteName(), e.getMessage()));
+      } catch (SchemaNotFoundException e) {
+        log.error(String.format("Not Creating workunit for %s as schema was not found. %s",
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
