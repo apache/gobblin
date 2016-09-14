@@ -246,7 +246,7 @@ public class CopySourceWithMultipleSourceLocation extends CopySource {
     log.info("route is " + route);
 
     // TODO, for now only pick the first copyFrom
-    if (source.getReplicationLocation().getType() == ReplicationType.HADOOPFS) {
+    if (source.getReplicationLocation().getType() == ReplicationLocationType.HADOOPFS) {
 
       ReplicationLocation copyTo = route.getCopyTo().getReplicationLocation();
       ReplicationLocation copyFrom = route.getCopyFrom().get(0).getReplicationLocation();

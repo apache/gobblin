@@ -6,14 +6,14 @@ package gobblin.data.management.copy.replication;
  * @author mitu
  *
  */
-public enum ReplicationType {
+public enum ReplicationLocationType {
 
   HADOOPFS("hadoopfs"),
   HIVE("hive");
 
   private final String name;
 
-  ReplicationType(String name) {
+  ReplicationLocationType(String name) {
     this.name = name;
   }
 
@@ -23,13 +23,13 @@ public enum ReplicationType {
   }
 
   /**
-   * Get a {@link ReplicationType} for the given name.
+   * Get a {@link ReplicationLocationType} for the given name.
    *
    * @param name the given name
-   * @return a {@link ReplicationType} for the given name
+   * @return a {@link ReplicationLocationType} for the given name
    */
-  public static ReplicationType forName(String name) {
-    return ReplicationType.valueOf(name.toUpperCase());
+  public static ReplicationLocationType forName(String name) {
+    return ReplicationLocationType.valueOf(name.toUpperCase());
   }
 
 }

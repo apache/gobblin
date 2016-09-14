@@ -22,6 +22,9 @@ import lombok.Getter;
  */
 @AllArgsConstructor
 public class ReplicationConfiguration {
+  
+  @Getter
+  private final ReplicationCopyMode copyMode;
 
   @Getter
   private final ReplicationMetaData metaData;
@@ -44,6 +47,7 @@ public class ReplicationConfiguration {
 
     return new Builder().withReplicationMetaData(ReplicationUtils.buildMetaData(config)).withReplicationSource(source)
         .withReplicationReplicas(replicas)
+        .withReplicationCopyMode(ReplicationUtils.getReplicationCopyMode(config))
         .withDataFlowTopology(ReplicationUtils.buildDataFlowTopology(config, source, replicas)).build();
   }
 
@@ -52,6 +56,7 @@ public class ReplicationConfiguration {
     this.source = builder.source;
     this.replicas = builder.replicas;
     this.topology = builder.topology;
+    this.copyMode = builder.copyMode;
   }
 
   private static class Builder {
@@ -62,6 +67,8 @@ public class ReplicationConfiguration {
     private List<ReplicaEndPoint> replicas;
 
     private DataFlowTopology topology;
+    
+    private ReplicationCopyMode copyMode;
 
     public Builder withReplicationMetaData(ReplicationMetaData metaData) {
       this.metaData = metaData;
@@ -80,6 +87,11 @@ public class ReplicationConfiguration {
 
     public Builder withDataFlowTopology(DataFlowTopology topology) {
       this.topology = topology;
+      return this;
+    }
+    
+    public Builder withReplicationCopyMode(ReplicationCopyMode copyMode) {
+      this.copyMode = copyMode;
       return this;
     }
 

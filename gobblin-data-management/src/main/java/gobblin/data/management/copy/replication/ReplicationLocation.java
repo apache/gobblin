@@ -13,7 +13,7 @@ import org.apache.hadoop.fs.Path;
  */
 public interface ReplicationLocation {
 
-  public ReplicationType getType();
+  public ReplicationLocationType getType();
 
   public String getReplicationLocationName();
 

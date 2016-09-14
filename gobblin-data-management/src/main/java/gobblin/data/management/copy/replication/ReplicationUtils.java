@@ -23,6 +23,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  *
  */
 public class ReplicationUtils {
+  public static final String REPLICATION_COPY_MODE = "copymode";
   public static final String METADATA = "metadata";
   public static final String METADATA_JIRA = "jira";
   public static final String METADATA_OWNER = "owner";
@@ -41,6 +42,13 @@ public class ReplicationUtils {
   public static final String ROUTES_PICKER_CLASS_KEY = "routePickerClass";
   public static final String DEFAULT_ROUTES_PICKER_CLASS_KEY =
       DataFlowRoutesPickerBySourceCluster.class.getCanonicalName();
+
+  public static ReplicationCopyMode getReplicationCopyMode(Config config) {
+    ReplicationCopyMode copyMode = config.hasPath(REPLICATION_COPY_MODE)
+        ? ReplicationCopyMode.forName(config.getString(REPLICATION_COPY_MODE)) : ReplicationCopyMode.PULL;
+
+    return copyMode;
+  }
 
   public static ReplicationMetaData buildMetaData(Config config) {
     if (!config.hasPath(METADATA)) {
@@ -129,9 +137,9 @@ public class ReplicationUtils {
     String type = config.getString(REPLICATION_LOCATION_TYPE_KEY);
     Preconditions.checkArgument(config.hasPath(type));
 
-    ReplicationType RType = ReplicationType.forName(type);
+    ReplicationLocationType RType = ReplicationLocationType.forName(type);
 
-    if (RType == ReplicationType.HADOOPFS) {
+    if (RType == ReplicationLocationType.HADOOPFS) {
       return new HdfsReplicationLocation(config.getConfig(type));
     }
 

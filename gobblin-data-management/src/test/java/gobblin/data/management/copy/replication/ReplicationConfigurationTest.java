@@ -1,7 +1,5 @@
 package gobblin.data.management.copy.replication;
 
-import java.io.File;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +56,7 @@ public class ReplicationConfigurationTest {
     SourceEndPoint source = rc.getSource();
     Assert.assertTrue(source.getReplicationName().equals(ReplicationUtils.REPLICATION_SOURCE));
     Assert.assertTrue(source.isSource());
-    Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationType.HADOOPFS);
+    Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationLocationType.HADOOPFS);
     Assert.assertTrue(source.getReplicationLocation() instanceof HdfsReplicationLocation);
     HdfsReplicationLocation hdfsLocation = (HdfsReplicationLocation)(source.getReplicationLocation());
     Assert.assertTrue(hdfsLocation.getReplicationLocationName().equals("war"));
@@ -128,6 +126,8 @@ public class ReplicationConfigurationTest {
     Assert.assertTrue(singleRoute.getCopyFrom().size() == 2);
     Assert.assertTrue(singleRoute.getCopyFrom().get(0)==replica_war);
     Assert.assertTrue(singleRoute.getCopyFrom().get(1)==source);
+    
+    Assert.assertTrue(rc.getCopyMode() == ReplicationCopyMode.PULL);
   }
   
   @Test
@@ -142,7 +142,7 @@ public class ReplicationConfigurationTest {
     SourceEndPoint source = rc.getSource();
     Assert.assertTrue(source.getReplicationName().equals(ReplicationUtils.REPLICATION_SOURCE));
     Assert.assertTrue(source.isSource());
-    Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationType.HADOOPFS);
+    Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationLocationType.HADOOPFS);
     Assert.assertTrue(source.getReplicationLocation() instanceof HdfsReplicationLocation);
     HdfsReplicationLocation hdfsLocation = (HdfsReplicationLocation)(source.getReplicationLocation());
     Assert.assertTrue(hdfsLocation.getReplicationLocationName().equals("war"));
@@ -212,5 +212,7 @@ public class ReplicationConfigurationTest {
     Assert.assertTrue(singleRoute.getCopyFrom().size() == 2);
     Assert.assertTrue(singleRoute.getCopyFrom().get(0)==replica_war);
     Assert.assertTrue(singleRoute.getCopyFrom().get(1)==source);
+
+    Assert.assertTrue(rc.getCopyMode() == ReplicationCopyMode.PULL);
   }
 }
