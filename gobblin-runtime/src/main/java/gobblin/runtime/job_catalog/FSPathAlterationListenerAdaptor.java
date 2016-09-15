@@ -8,7 +8,6 @@ import org.apache.hadoop.fs.Path;
 import com.typesafe.config.Config;
 
 import gobblin.runtime.api.JobSpec;
-import gobblin.runtime.util.FSJobCatalogHelper;
 import gobblin.util.PathUtils;
 import gobblin.util.PullFileLoader;
 import gobblin.util.filesystem.PathAlterationListenerAdaptor;
@@ -19,10 +18,10 @@ public class FSPathAlterationListenerAdaptor extends PathAlterationListenerAdapt
   private final PullFileLoader loader;
   private final Config sysConfig;
   private final JobCatalogListenersList listeners;
-  private final FSJobCatalogHelper.JobSpecConverter converter;
+  private final ImmutableFSJobCatalog.JobSpecConverter converter;
 
   FSPathAlterationListenerAdaptor(Path jobConfDirPath, PullFileLoader loader, Config sysConfig,
-      JobCatalogListenersList listeners, FSJobCatalogHelper.JobSpecConverter converter) {
+      JobCatalogListenersList listeners, ImmutableFSJobCatalog.JobSpecConverter converter) {
     this.jobConfDirPath = jobConfDirPath;
     this.loader = loader;
     this.sysConfig = sysConfig;

@@ -8,6 +8,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -143,4 +144,29 @@ public final class PathAlterationDetector implements Runnable {
       return;
     }
   }
+
+  /**
+   * Create and attach {@link PathAlterationDetector}s for the given
+   * root directory and any nested subdirectories under the root directory to the given
+   * {@link PathAlterationDetector}.
+   * @param detector  a {@link PathAlterationDetector}
+   * @param listener a {@link gobblin.util.filesystem.PathAlterationListener}
+   * @param observerOptional Optional observer object. For testing routine, this has been initialized by user.
+   *                         But for general usage, the observer object is created inside this method.
+   * @param rootDirPath root directory
+   * @throws IOException
+   */
+  public void addPathAlterationObserver(PathAlterationListener listener,
+      Optional<PathAlterationObserver> observerOptional, Path rootDirPath)
+      throws IOException {
+    PathAlterationObserver observer;
+    if (observerOptional.isPresent()) {
+      observer = observerOptional.get();
+    } else {
+      observer = new PathAlterationObserver(rootDirPath);
+    }
+    observer.addListener(listener);
+    addObserver(observer);
+  }
+
 }

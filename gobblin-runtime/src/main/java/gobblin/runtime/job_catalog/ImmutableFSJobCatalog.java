@@ -1,10 +1,14 @@
 package gobblin.runtime.job_catalog;
 
+import java.beans.ConstructorProperties;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+
+import javax.annotation.Nullable;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -12,6 +16,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -30,12 +35,12 @@ import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobCatalogListener;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecNotFoundException;
-import gobblin.runtime.util.FSJobCatalogHelper;
 import gobblin.util.PathUtils;
 import gobblin.util.PullFileLoader;
 import gobblin.util.filesystem.PathAlterationDetector;
 import gobblin.util.filesystem.PathAlterationObserver;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 
@@ -53,11 +58,14 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
 
   /* The root configuration directory path.*/
   protected final Path jobConfDirPath;
-  private final FSJobCatalogHelper.JobSpecConverter converter;
+  private final ImmutableFSJobCatalog.JobSpecConverter converter;
 
   // A monitor for changes to job conf files for general FS
   // This embedded monitor is monitoring job configuration files instead of JobSpec Object.
   protected final PathAlterationDetector pathAlterationDetector;
+  public static final String VERSION_KEY_IN_JOBSPEC = "gobblin.fsJobCatalog.version";
+  // Key used in the metadata of JobSpec.
+  public static final String DESCRIPTION_KEY_IN_JOBSPEC = "gobblin.fsJobCatalog.description";
 
   public ImmutableFSJobCatalog(Config sysConfig)
       throws IOException {
@@ -87,14 +95,14 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
     this.sysConfig = sysConfig;
     ConfigAccessor cfgAccessor = new ConfigAccessor(this.sysConfig);
 
-    this.jobConfDirPath = new Path(cfgAccessor.getJobConfDir());
-    this.fs = this.jobConfDirPath.getFileSystem(new Configuration());
+    this.jobConfDirPath = cfgAccessor.getJobConfDirPath();
+    this.fs = cfgAccessor.getJobConfDirFileSystem();
     this.listeners = new JobCatalogListenersList(Optional.of(LOGGER));
 
     this.loader = new PullFileLoader(jobConfDirPath, jobConfDirPath.getFileSystem(new Configuration()),
         cfgAccessor.getJobConfigurationFileExtensions(),
         PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
-    this.converter = new FSJobCatalogHelper.JobSpecConverter(this.jobConfDirPath, getInjectedExtension());
+    this.converter = new ImmutableFSJobCatalog.JobSpecConverter(this.jobConfDirPath, getInjectedExtension());
 
     long pollingInterval = cfgAccessor.getPollingInterval();
     this.pathAlterationDetector = new PathAlterationDetector(pollingInterval);
@@ -104,7 +112,7 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
     FSPathAlterationListenerAdaptor configFilelistener =
         new FSPathAlterationListenerAdaptor(this.jobConfDirPath, this.loader, this.sysConfig, this.listeners,
             this.converter);
-    FSJobCatalogHelper.addPathAlterationObserver(this.pathAlterationDetector, configFilelistener, observerOptional,
+    this.pathAlterationDetector.addPathAlterationObserver(configFilelistener, observerOptional,
         this.jobConfDirPath);
 
     if (instrumentationEnabled) {
@@ -251,15 +259,34 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
     private final Config cfg;
     private final long pollingInterval;
     private final String jobConfDir;
+    private final Path jobConfDirPath;
+    private final FileSystem jobConfDirFileSystem;
     private final Set<String> JobConfigurationFileExtensions;
 
     public ConfigAccessor(Config cfg) {
       this.cfg = cfg;
-      Preconditions.checkArgument(this.cfg.hasPath(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
       this.pollingInterval = this.cfg.hasPath(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY) ?
           this.cfg.getLong(ConfigurationKeys.JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY)  :
           ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL;
-      this.jobConfDir = this.cfg.getString(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY);
+
+      if (this.cfg.hasPath(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
+        this.jobConfDir = this.cfg.getString(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY);
+      }
+      else if (this.cfg.hasPath(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
+        File localJobConfigDir = new File(this.cfg.getString(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY));
+        this.jobConfDir = "file://" + localJobConfigDir.getAbsolutePath();
+      }
+      else {
+        throw new IllegalArgumentException("Expected " + ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY
+            + " or " + ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY + " properties.");
+      }
+      this.jobConfDirPath = new Path(this.jobConfDir);
+      try {
+        this.jobConfDirFileSystem = this.jobConfDirPath.getFileSystem(new Configuration());
+      } catch (IOException e) {
+        throw new RuntimeException("Unable to detect job config directory file system: " + e, e);
+      }
+
       this.JobConfigurationFileExtensions = ImmutableSet.<String>copyOf(Splitter.on(",")
           .omitEmptyStrings()
           .trimResults()
@@ -271,6 +298,62 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
           this.cfg.getString(ConfigurationKeys.JOB_CONFIG_FILE_EXTENSIONS_KEY).toLowerCase() :
             ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_EXTENSIONS;
       return propValue;
+    }
+  }
+
+  /**
+   * Instance of this function is passed as a parameter into other transform function,
+   * for converting Properties object into JobSpec object.
+   */
+  @AllArgsConstructor
+  public static class JobSpecConverter implements Function<Config, JobSpec> {
+    private final Path jobConfigDirPath;
+    private final Optional<String> extensionToStrip;
+  
+    public URI computeURI(Path filePath) {
+      // Make sure this is relative
+      URI uri = PathUtils.relativizePath(filePath,
+          jobConfigDirPath).toUri();
+      if (this.extensionToStrip.isPresent()) {
+        uri = PathUtils.removeExtension(new Path(uri), this.extensionToStrip.get()).toUri();
+      }
+      return uri;
+    }
+  
+    @Nullable
+    @Override
+    public JobSpec apply(Config rawConfig) {
+  
+      URI jobConfigURI = computeURI(new Path(rawConfig.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY)));
+  
+      // Points to noted:
+      // 1.To ensure the transparency of JobCatalog, need to remove the addtional
+      //   options that added through the materialization process.
+      // 2. For files that created by user directly in the file system, there might not be
+      //   version and description provided. Set them to default then, according to JobSpec constructor.
+  
+      String version;
+      if (rawConfig.hasPath(VERSION_KEY_IN_JOBSPEC)) {
+        version = rawConfig.getString(VERSION_KEY_IN_JOBSPEC);
+      } else {
+        // Set the version as default.
+        version = "1";
+      }
+  
+      String description;
+      if (rawConfig.hasPath(DESCRIPTION_KEY_IN_JOBSPEC)) {
+        description = rawConfig.getString(DESCRIPTION_KEY_IN_JOBSPEC);
+      } else {
+        // Set description as default.
+        description = "Gobblin job " + jobConfigURI;
+      }
+  
+      // The builder has null-checker. Leave the checking there.
+      return JobSpec.builder(jobConfigURI)
+          .withConfig(rawConfig)
+          .withDescription(description)
+          .withVersion(version)
+          .build();
     }
   }
 }

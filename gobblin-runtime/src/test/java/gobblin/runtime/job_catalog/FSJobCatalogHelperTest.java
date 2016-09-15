@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.runtime.util;
+package gobblin.runtime.job_catalog;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -81,7 +81,7 @@ public class FSJobCatalogHelperTest {
 
   private Config sysConfig;
   private PullFileLoader loader;
-  private FSJobCatalogHelper.JobSpecConverter converter;
+  private ImmutableFSJobCatalog.JobSpecConverter converter;
 
   @BeforeClass
   public void setUp()
@@ -106,7 +106,7 @@ public class FSJobCatalogHelperTest {
     this.loader = new PullFileLoader(new Path(jobConfigDir.toURI()), FileSystem.get(new Configuration()),
         cfgAccess.getJobConfigurationFileExtensions(),
         PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
-    this.converter = new FSJobCatalogHelper.JobSpecConverter(new Path(this.jobConfigDir.toURI()), Optional.of(
+    this.converter = new ImmutableFSJobCatalog.JobSpecConverter(new Path(this.jobConfigDir.toURI()), Optional.of(
         FSJobCatalog.CONF_EXTENSION));
 
     Properties rootProps = new Properties();
@@ -238,7 +238,7 @@ public class FSJobCatalogHelperTest {
       }
     };
 
-    FSJobCatalogHelper.addPathAlterationObserver(detector, listener, Optional.<PathAlterationObserver>absent(),
+    detector.addPathAlterationObserver(listener, Optional.<PathAlterationObserver>absent(),
         new Path(this.jobConfigDir.getPath()));
     try {
       detector.start();
