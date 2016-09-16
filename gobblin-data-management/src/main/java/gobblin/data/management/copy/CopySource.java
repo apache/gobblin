@@ -122,22 +122,82 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     this.metricContext = Instrumented.getMetricContext(state, CopySource.class);
 
     try {
+
+      final FileSystem sourceFs = getSourceFileSystem(state);
+      final FileSystem targetFs = getTargetFileSystem(state);
       long maxSizePerBin = state.getPropAsLong(MAX_SIZE_MULTI_WORKUNITS, 0);
       long maxWorkUnitsPerMultiWorkUnit = state.getPropAsLong(MAX_WORK_UNITS_PER_BIN, 50);
       final long minWorkUnitWeight = Math.max(1, maxSizePerBin / maxWorkUnitsPerMultiWorkUnit);
+      final Optional<CopyableFileWatermarkGenerator> watermarkGenerator =
+          CopyableFileWatermarkHelper.getCopyableFileWatermarkGenerator(state);
 
       // TODO: The comparator sets the priority of file sets. Currently, all file sets have the same priority, this needs to
       // be pluggable.
       final ConcurrentBoundedWorkUnitList workUnitList = ConcurrentBoundedWorkUnitList.builder()
           .maxSize(state.getPropAsInt(MAX_FILES_COPIED_KEY, DEFAULT_MAX_FILES_COPIED)).strictLimitMultiplier(2).build();
 
-      if(!generateWorkunitsBasedOnConfig(state, workUnitList, minWorkUnitWeight)){
+      final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
+
+      DatasetsFinder<CopyableDatasetBase> datasetFinder = DatasetUtils
+          .instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
+              new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build(), state);
+
+      IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder =
+          datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
+              : new IterableDatasetFinderImpl<>(datasetFinder);
+
+      Iterator<CopyableDatasetBase> copyableDatasets =
+          new InterruptibleIterator<>(iterableDatasetFinder.getDatasetsIterator(), new Callable<Boolean>() {
+            @Override
+            public Boolean call()
+                throws Exception {
+              return shouldStopGeneratingWorkUnits(workUnitList);
+            }
+          });
+
+      Iterator<Callable<Void>> callableIterator =
+          Iterators.transform(copyableDatasets, new Function<CopyableDatasetBase, Callable<Void>>() {
+            @Nullable
+            @Override
+            public Callable<Void> apply(@Nullable CopyableDatasetBase copyableDataset) {
+
+              IterableCopyableDataset iterableCopyableDataset;
+              if (copyableDataset instanceof IterableCopyableDataset) {
+                iterableCopyableDataset = (IterableCopyableDataset) copyableDataset;
+              } else if (copyableDataset instanceof CopyableDataset) {
+                iterableCopyableDataset = new IterableCopyableDatasetImpl((CopyableDataset) copyableDataset);
+              } else {
+                throw new RuntimeException(String.format("Cannot process %s, can only copy %s or %s.",
+                    copyableDataset == null ? null : copyableDataset.getClass().getName(),
+                    CopyableDataset.class.getName(), IterableCopyableDataset.class.getName()));
+              }
+
+              return new DatasetWorkUnitGenerator(iterableCopyableDataset, sourceFs, targetFs, state, workUnitList,
+                  copyConfiguration, minWorkUnitWeight, watermarkGenerator);
+            }
+          });
+
+      try {
+        List<Future<Void>> futures = new IteratorExecutor<>(callableIterator,
+            state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES),
+            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Copy-file-listing-pool-%d")))
+            .execute();
+
+        for (Future<Void> future : futures) {
+          try {
+            future.get();
+          } catch (ExecutionException exc) {
+            log.error("Failed to get work units for dataset.", exc.getCause());
+          }
+        }
+      } catch (InterruptedException ie) {
+        log.error("Retrieval of work units was interrupted. Aborting.");
         return Lists.newArrayList();
       }
 
       log.info(String.format("Created %s workunits ", workUnitList.getWorkUnits().size()));
 
-      //copyConfiguration.getCopyContext().logCacheStatistics();
+      copyConfiguration.getCopyContext().logCacheStatistics();
 
       if (state.contains(SIMULATE) && state.getPropAsBoolean(SIMULATE)) {
         Map<FileSet<CopyEntity>, List<WorkUnit>> copyEntitiesMap = workUnitList.getRawWorkUnitMap();
@@ -166,86 +226,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       throw new RuntimeException(e);
     }
   }
-  
-  protected boolean generateWorkunitsBasedOnConfig(final SourceState state,
-      final ConcurrentBoundedWorkUnitList workUnitList, final long minWorkUnitWeight) throws IOException {
-    final FileSystem sourceFs = getSourceFileSystem(state);
-    final FileSystem targetFs = getTargetFileSystem(state);
-    DatasetsFinder<CopyableDatasetBase> datasetFinder =
-        DatasetUtils.instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
-            new EventSubmitter.Builder(this.metricContext, CopyConfiguration.COPY_PREFIX).build(), state);
-
-    return generateWorkunitsPerSourceTargetFs(state, sourceFs, targetFs, datasetFinder, workUnitList,
-        minWorkUnitWeight);
-  }
-
-  protected boolean generateWorkunitsPerSourceTargetFs(final SourceState state, final FileSystem sourceFs,
-      final FileSystem targetFs, DatasetsFinder<CopyableDatasetBase> datasetFinder,
-      final ConcurrentBoundedWorkUnitList workUnitList, final long minWorkUnitWeight) throws IOException {
-
-    final Optional<CopyableFileWatermarkGenerator> watermarkGenerator =
-        CopyableFileWatermarkHelper.getCopyableFileWatermarkGenerator(state);
-
-    final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
-
-    IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder = datasetFinder instanceof IterableDatasetFinder
-        ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder : new IterableDatasetFinderImpl<>(datasetFinder);
-
-    Iterator<CopyableDatasetBase> copyableDatasets =
-        new InterruptibleIterator<>(iterableDatasetFinder.getDatasetsIterator(), new Callable<Boolean>() {
-          @Override
-          public Boolean call() throws Exception {
-            return shouldStopGeneratingWorkUnits(workUnitList);
-          }
-        });
-
-    Iterator<Callable<Void>> callableIterator =
-        Iterators.transform(copyableDatasets, new Function<CopyableDatasetBase, Callable<Void>>() {
-          @Nullable
-          @Override
-          public Callable<Void> apply(@Nullable CopyableDatasetBase copyableDataset) {
-
-            IterableCopyableDataset iterableCopyableDataset;
-            if (copyableDataset instanceof IterableCopyableDataset) {
-              iterableCopyableDataset = (IterableCopyableDataset) copyableDataset;
-            } else if (copyableDataset instanceof CopyableDataset) {
-              iterableCopyableDataset = new IterableCopyableDatasetImpl((CopyableDataset) copyableDataset);
-            } else {
-              throw new RuntimeException(String.format("Cannot process %s, can only copy %s or %s.",
-                  copyableDataset == null ? null : copyableDataset.getClass().getName(),
-                  CopyableDataset.class.getName(), IterableCopyableDataset.class.getName()));
-            }
-
-            return new DatasetWorkUnitGenerator(iterableCopyableDataset, sourceFs, targetFs, state, workUnitList,
-                copyConfiguration, minWorkUnitWeight, watermarkGenerator);
-          }
-        });
-
-    try {
-      List<Future<Void>> futures = new IteratorExecutor<>(callableIterator,
-          state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES),
-          ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Copy-file-listing-pool-%d"))).execute();
-
-      for (Future<Void> future : futures) {
-        try {
-          future.get();
-        } catch (ExecutionException exc) {
-          log.error("Failed to get work units for dataset.", exc.getCause());
-        }
-      }
-    } catch (InterruptedException ie) {
-      log.error("Retrieval of work units was interrupted. Aborting.");
-      return false;
-    }
-
-    copyConfiguration.getCopyContext().logCacheStatistics();
-    return true;
-  }
 
   /**
    * {@link Runnable} to generate copy listing for one {@link CopyableDataset}.
    */
-
+  @AllArgsConstructor
   private class DatasetWorkUnitGenerator implements Callable<Void> {
 
     private final IterableCopyableDataset copyableDataset;
@@ -304,23 +289,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       }
       return null;
     }
-
-    public DatasetWorkUnitGenerator(IterableCopyableDataset copyableDataset, FileSystem originFs, FileSystem targetFs,
-        State state, final ConcurrentBoundedWorkUnitList workUnitList, CopyConfiguration copyConfiguration,
-        long minWorkUnitWeight, Optional<CopyableFileWatermarkGenerator> watermarkGenerator) {
-      super();
-      this.copyableDataset = copyableDataset;
-      this.originFs = originFs;
-      this.targetFs = targetFs;
-      this.state = state;
-      this.workUnitList = workUnitList;
-      this.copyConfiguration = copyConfiguration;
-      this.minWorkUnitWeight = minWorkUnitWeight;
-      this.watermarkGenerator = watermarkGenerator;
-    }
   }
 
-  private boolean shouldStopGeneratingWorkUnits(final ConcurrentBoundedWorkUnitList workUnitList) {
+  private boolean shouldStopGeneratingWorkUnits(ConcurrentBoundedWorkUnitList workUnitList) {
     // Stop generating work units the first time the work unit container rejects a file set due to capacity issues.
     // TODO: more sophisticated stop algorithm.
     return workUnitList.isFull() || workUnitList.hasRejectedFileSet();
@@ -361,7 +332,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
-  protected static FileSystem getTargetFileSystem(State state)
+  private static FileSystem getTargetFileSystem(State state)
       throws IOException {
     return HadoopUtils.getOptionallyThrottledFileSystem(WriterUtils.getWriterFS(state, 1, 0), state);
   }

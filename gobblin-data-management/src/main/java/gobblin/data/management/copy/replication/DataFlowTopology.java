@@ -17,10 +17,18 @@ import lombok.Getter;
 
 
 /**
- * Class to represent the data flow topology from copy source to copy destinations
+ * Class to represent the data flow topology from copy source to copy destinations. Each {@link DataFlowTopology} contains 
+ * a list of {@link DataFlowTopology.CopyRoute}s
+ * 
+ * Each {@link DataFlowTopology.CopyRoute}, includes
+ * <ul>
+ *  <li>A copyTo {@link ReplicaEndPoint}
+ *  <li>A list of copyFrom of {@link ReplicaEndPoint}
+ * </ul>
  * @author mitu
  *
  */
+
 @AllArgsConstructor
 public class DataFlowTopology {
 
