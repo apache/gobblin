@@ -1,6 +1,5 @@
 package gobblin.runtime.job_catalog;
 
-import java.beans.ConstructorProperties;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -309,7 +308,7 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
   public static class JobSpecConverter implements Function<Config, JobSpec> {
     private final Path jobConfigDirPath;
     private final Optional<String> extensionToStrip;
-  
+
     public URI computeURI(Path filePath) {
       // Make sure this is relative
       URI uri = PathUtils.relativizePath(filePath,
@@ -319,19 +318,19 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
       }
       return uri;
     }
-  
+
     @Nullable
     @Override
     public JobSpec apply(Config rawConfig) {
-  
+
       URI jobConfigURI = computeURI(new Path(rawConfig.getString(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY)));
-  
+
       // Points to noted:
       // 1.To ensure the transparency of JobCatalog, need to remove the addtional
       //   options that added through the materialization process.
       // 2. For files that created by user directly in the file system, there might not be
       //   version and description provided. Set them to default then, according to JobSpec constructor.
-  
+
       String version;
       if (rawConfig.hasPath(VERSION_KEY_IN_JOBSPEC)) {
         version = rawConfig.getString(VERSION_KEY_IN_JOBSPEC);
@@ -339,7 +338,7 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
         // Set the version as default.
         version = "1";
       }
-  
+
       String description;
       if (rawConfig.hasPath(DESCRIPTION_KEY_IN_JOBSPEC)) {
         description = rawConfig.getString(DESCRIPTION_KEY_IN_JOBSPEC);
@@ -347,7 +346,7 @@ public class ImmutableFSJobCatalog extends AbstractIdleService implements JobCat
         // Set description as default.
         description = "Gobblin job " + jobConfigURI;
       }
-  
+
       // The builder has null-checker. Leave the checking there.
       return JobSpec.builder(jobConfigURI)
           .withConfig(rawConfig)
