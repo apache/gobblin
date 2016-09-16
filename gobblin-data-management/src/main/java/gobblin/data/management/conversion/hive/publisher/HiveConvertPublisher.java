@@ -119,11 +119,13 @@ public class HiveConvertPublisher extends DataPublisher {
         directoriesToDelete.addAll(publishEntity.getCleanupDirectories());
 
         wus.setWorkingState(WorkingState.FAILED);
-        try {
-          new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
-        } catch (Exception e) {
-          log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
-              + "all clean up comamnds", e);
+        if (!Boolean.valueOf(wus.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
+          try {
+            new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_FAILED_EVENT, wus.getProperties()).submit();
+          } catch (Exception e) {
+            log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
+                + "all clean up comamnds", e);
+          }
         }
       }
     } else {
@@ -158,15 +160,17 @@ public class HiveConvertPublisher extends DataPublisher {
         wus.setWorkingState(WorkingState.COMMITTED);
         this.watermarker.setActualHighWatermark(wus);
 
-        try {
-          new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
-              .submit();
-        } catch (Exception e) {
-          log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
-              + "all clean up commands", e);
+        // Emit an SLA event
+        if (!Boolean.valueOf(wus.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
+          try {
+            new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
+                .submit();
+          } catch (Exception e) {
+            log.error("Failed while emitting SLA event, but ignoring and moving forward to curate "
+                + "all clean up commands", e);
+          }
         }
       }
-
     }
 
     // Execute cleanup commands
