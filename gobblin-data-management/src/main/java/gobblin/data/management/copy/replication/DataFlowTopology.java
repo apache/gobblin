@@ -181,21 +181,13 @@ public class DataFlowTopology {
           "missing required config entery " + ReplicationConfiguration.DEFAULT_ALL_ROUTES_KEY);
 
       Config allRoutes = config.getConfig(ReplicationConfiguration.DEFAULT_ALL_ROUTES_KEY);
-      String routePickerClassName = dataflowConfig.hasPath(ReplicationConfiguration.ROUTES_PICKER_CLASS_KEY)
-          ? dataflowConfig.getString(ReplicationConfiguration.ROUTES_PICKER_CLASS_KEY)
-          : ReplicationConfiguration.DEFAULT_ROUTES_PICKER_CLASS_KEY;
+      DataFlowRoutesPickerTypes routePickerType = dataflowConfig.hasPath(ReplicationConfiguration.ROUTES_PICKER_TYPE)
+          ? DataFlowRoutesPickerTypes.forName(dataflowConfig.getString(ReplicationConfiguration.ROUTES_PICKER_TYPE))
+          : ReplicationConfiguration.DEFAULT_ROUTES_PICKER_TYPE;
 
-      List<Object> args = Lists.newArrayList(allRoutes, source);
-
-      try {
-        Class<?> routePickerClass = Class.forName(routePickerClassName);
-
-        DataFlowRoutesPicker picker =
-            (DataFlowRoutesPicker) (GobblinConstructorUtils.invokeLongestConstructor(routePickerClass, args.toArray()));
-        dataflowConfig = picker.getPreferredRoutes();
-      } catch (ReflectiveOperationException e) {
-        throw new RuntimeException("Can not build topology from class: " + e.getMessage());
-      }
+      DataFlowRoutesPicker picker =
+          DataFlowRoutesPickerFactory.createDataFlowRoutesPicker(routePickerType, allRoutes, source);
+      dataflowConfig = picker.getPreferredRoutes();
     }
     DataFlowTopology.Builder builder = new DataFlowTopology.Builder().withReplicationSource(source);
     for (ReplicaEndPoint replica : replicas) {

@@ -41,9 +41,8 @@ public class ReplicationConfiguration {
 
   public static final String DEFAULT_ALL_ROUTES_KEY = "defaultDataFlowTopology";
 
-  public static final String ROUTES_PICKER_CLASS_KEY = "routePickerClass";
-  public static final String DEFAULT_ROUTES_PICKER_CLASS_KEY =
-      DataFlowRoutesPickerBySourceCluster.class.getCanonicalName();
+  public static final String ROUTES_PICKER_TYPE = "routePickerType";
+  public static final DataFlowRoutesPickerTypes DEFAULT_ROUTES_PICKER_TYPE = DataFlowRoutesPickerTypes.BY_SOURCE_CLUSTER;
 
   @Getter
   private final ReplicationCopyMode copyMode;
