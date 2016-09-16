@@ -49,12 +49,12 @@ public class ReplicationConfigurationTest {
     Config c = ConfigFactory.parseResources(getClass().getClassLoader(), "replicationConfigTest/validCompleteDataset.conf");
     ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
     ReplicationMetaData md = rc.getMetaData();
-    Assert.assertTrue(md.getValues().get().get(ReplicationUtils.METADATA_JIRA).equals("jira-4455"));
-    Assert.assertTrue(md.getValues().get().get(ReplicationUtils.METADATA_NAME).equals("profileTest"));
-    Assert.assertTrue(md.getValues().get().get(ReplicationUtils.METADATA_OWNER).equals("mitu"));
+    Assert.assertTrue(md.getValues().get().get(ReplicationConfiguration.METADATA_JIRA).equals("jira-4455"));
+    Assert.assertTrue(md.getValues().get().get(ReplicationConfiguration.METADATA_NAME).equals("profileTest"));
+    Assert.assertTrue(md.getValues().get().get(ReplicationConfiguration.METADATA_OWNER).equals("mitu"));
     
     SourceEndPoint source = rc.getSource();
-    Assert.assertTrue(source.getReplicationName().equals(ReplicationUtils.REPLICATION_SOURCE));
+    Assert.assertTrue(source.getReplicationName().equals(ReplicationConfiguration.REPLICATION_SOURCE));
     Assert.assertTrue(source.isSource());
     Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationLocationType.HADOOPFS);
     Assert.assertTrue(source.getReplicationLocation() instanceof HdfsReplicationLocation);
@@ -135,12 +135,12 @@ public class ReplicationConfigurationTest {
     Config c = ConfigFactory.parseResources(getClass().getClassLoader(), "replicationConfigTest/validCompleteDatasetWithRoutePicker.conf");
     ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
     ReplicationMetaData md = rc.getMetaData();
-    Assert.assertTrue(md.getValues().get().get(ReplicationUtils.METADATA_JIRA).equals("jira-4455"));
-    Assert.assertTrue(md.getValues().get().get(ReplicationUtils.METADATA_NAME).equals("profileTest"));
-    Assert.assertTrue(md.getValues().get().get(ReplicationUtils.METADATA_OWNER).equals("mitu"));
+    Assert.assertTrue(md.getValues().get().get(ReplicationConfiguration.METADATA_JIRA).equals("jira-4455"));
+    Assert.assertTrue(md.getValues().get().get(ReplicationConfiguration.METADATA_NAME).equals("profileTest"));
+    Assert.assertTrue(md.getValues().get().get(ReplicationConfiguration.METADATA_OWNER).equals("mitu"));
     
     SourceEndPoint source = rc.getSource();
-    Assert.assertTrue(source.getReplicationName().equals(ReplicationUtils.REPLICATION_SOURCE));
+    Assert.assertTrue(source.getReplicationName().equals(ReplicationConfiguration.REPLICATION_SOURCE));
     Assert.assertTrue(source.isSource());
     Assert.assertTrue(source.getReplicationLocation().getType() == ReplicationLocationType.HADOOPFS);
     Assert.assertTrue(source.getReplicationLocation() instanceof HdfsReplicationLocation);

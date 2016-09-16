@@ -2,6 +2,7 @@ package gobblin.data.management.copy.replication;
 
 import java.util.List;
 
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
 import lombok.AllArgsConstructor;
@@ -23,7 +24,27 @@ import lombok.Getter;
  */
 @AllArgsConstructor
 public class ReplicationConfiguration {
-  
+
+  public static final String REPLICATION_COPY_MODE = "copymode";
+  public static final String METADATA = "metadata";
+  public static final String METADATA_JIRA = "jira";
+  public static final String METADATA_OWNER = "owner";
+  public static final String METADATA_NAME = "name";
+
+  public static final String REPLICATION_SOURCE = "source";
+  public static final String REPLICATION_REPLICAS = "replicas";
+  public static final String REPLICATOIN_REPLICAS_LIST = "list";
+
+  public static final String REPLICATION_LOCATION_TYPE_KEY = "type";
+
+  public static final String DATAFLOWTOPOLOGY = "dataFlowTopology";
+
+  public static final String DEFAULT_ALL_ROUTES_KEY = "defaultDataFlowTopology";
+
+  public static final String ROUTES_PICKER_CLASS_KEY = "routePickerClass";
+  public static final String DEFAULT_ROUTES_PICKER_CLASS_KEY =
+      DataFlowRoutesPickerBySourceCluster.class.getCanonicalName();
+
   @Getter
   private final ReplicationCopyMode copyMode;
 
@@ -40,16 +61,15 @@ public class ReplicationConfiguration {
   private final DataFlowTopology topology;
 
   public static ReplicationConfiguration buildFromConfig(Config config) {
-    if (config == null)
-      return null;
+    Preconditions.checkArgument(config != null, "can not build ReplicationConfig from null");
 
-    SourceEndPoint source = ReplicationUtils.buildSource(config);
-    List<ReplicaEndPoint> replicas = ReplicationUtils.buildReplicas(config);
+    SourceEndPoint source = SourceEndPoint.buildSource(config);
+    List<ReplicaEndPoint> replicas = ReplicaEndPoint.buildReplicaEndPoints(config);
 
-    return new Builder().withReplicationMetaData(ReplicationUtils.buildMetaData(config)).withReplicationSource(source)
-        .withReplicationReplicas(replicas)
-        .withReplicationCopyMode(ReplicationUtils.getReplicationCopyMode(config))
-        .withDataFlowTopology(ReplicationUtils.buildDataFlowTopology(config, source, replicas)).build();
+    return new Builder().withReplicationMetaData(ReplicationMetaData.buildMetaData(config))
+        .withReplicationSource(source).withReplicationReplicas(replicas)
+        .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config))
+        .withDataFlowTopology(DataFlowTopology.buildDataFlowTopology(config, source, replicas)).build();
   }
 
   private ReplicationConfiguration(Builder builder) {
@@ -68,7 +88,7 @@ public class ReplicationConfiguration {
     private List<ReplicaEndPoint> replicas;
 
     private DataFlowTopology topology;
-    
+
     private ReplicationCopyMode copyMode;
 
     public Builder withReplicationMetaData(ReplicationMetaData metaData) {
@@ -90,7 +110,7 @@ public class ReplicationConfiguration {
       this.topology = topology;
       return this;
     }
-    
+
     public Builder withReplicationCopyMode(ReplicationCopyMode copyMode) {
       this.copyMode = copyMode;
       return this;

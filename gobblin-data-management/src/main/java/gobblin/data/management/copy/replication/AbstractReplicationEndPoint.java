@@ -2,11 +2,20 @@ package gobblin.data.management.copy.replication;
 
 import org.testng.collections.Objects;
 
+import com.typesafe.config.Config;
+
 import gobblin.data.management.copy.CopyableDataset;
 
 
 /**
- * Abstract class which has the basic implementations 
+ * Abstract class which has the basic implementations. It provides the implementation of 
+ * <ul>
+ *  <li>{@link #getReplicationName() getReplicationName}
+ *  <li>{@link #getReplicationLocation() getReplicationLocation}
+ *  <li>{@link #getDatasetClassName() getDatasetClassName}
+ * </ul> 
+ * 
+ * The subclass need to implement {@link #isSource() isSource}
  * @author mitu
  *
  */
@@ -36,6 +45,11 @@ public abstract class AbstractReplicationEndPoint implements ReplicationEndPoint
   @Override
   public String getDatasetClassName() {
     return this.datasetClassName;
+  }
+
+  //TODO
+  public static String buildDataset(Config config) {
+    return "";
   }
 
   @Override

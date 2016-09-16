@@ -1,5 +1,8 @@
 package gobblin.data.management.copy.replication;
 
+import com.typesafe.config.Config;
+
+
 /**
  * Specify the replication copy mode, either Pull or Push
  * @author mitu
@@ -28,6 +31,14 @@ public enum ReplicationCopyMode {
    */
   public static ReplicationCopyMode forName(String name) {
     return ReplicationCopyMode.valueOf(name.toUpperCase());
+  }
+
+  public static ReplicationCopyMode getReplicationCopyMode(Config config) {
+    ReplicationCopyMode copyMode = config.hasPath(ReplicationConfiguration.REPLICATION_COPY_MODE)
+        ? ReplicationCopyMode.forName(config.getString(ReplicationConfiguration.REPLICATION_COPY_MODE))
+        : ReplicationCopyMode.PULL;
+
+    return copyMode;
   }
 
 }

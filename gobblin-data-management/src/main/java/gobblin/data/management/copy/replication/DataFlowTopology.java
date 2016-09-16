@@ -12,6 +12,7 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import gobblin.data.management.copy.CopyableDataset;
+import gobblin.util.reflection.GobblinConstructorUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -48,9 +49,9 @@ public class DataFlowTopology {
     Map<String, ReplicaEndPoint> replicasMap = new HashMap<String, ReplicaEndPoint>();
     for (ReplicaEndPoint replica : builder.replicas) {
       String name = replica.getReplicationName();
-      // replica name can not be {@link ReplicationUtils#REPLICATION_SOURCE}
-      Preconditions.checkArgument(!name.equals(ReplicationUtils.REPLICATION_SOURCE),
-          String.format("replica name %s can not be reserved word %s ", name, ReplicationUtils.REPLICATION_SOURCE));
+      // replica name can not be {@link ReplicationConfiguration#REPLICATION_SOURCE}
+      Preconditions.checkArgument(!name.equals(ReplicationConfiguration.REPLICATION_SOURCE), String
+          .format("replica name %s can not be reserved word %s ", name, ReplicationConfiguration.REPLICATION_SOURCE));
       replicasMap.put(name, replica);
     }
 
@@ -71,7 +72,7 @@ public class DataFlowTopology {
         Preconditions.checkArgument(!copyFromName.equals(replica.getReplicationName()),
             "can not have same name in both destination and copy from list " + copyFromName);
         // copy from source
-        if (copyFromName.equals(ReplicationUtils.REPLICATION_SOURCE)) {
+        if (copyFromName.equals(ReplicationConfiguration.REPLICATION_SOURCE)) {
           copyFromReplica.add(builder.source);
         }
         // copy from other replicas
@@ -165,5 +166,42 @@ public class DataFlowTopology {
     public DataFlowTopology build() {
       return new DataFlowTopology(this);
     }
+  }
+
+  public static DataFlowTopology buildDataFlowTopology(Config config, SourceEndPoint source,
+      List<ReplicaEndPoint> replicas) {
+    Preconditions.checkArgument(config.hasPath(ReplicationConfiguration.DATAFLOWTOPOLOGY),
+        "missing required config entery " + ReplicationConfiguration.DATAFLOWTOPOLOGY);
+    Config dataflowConfig = config.getConfig(ReplicationConfiguration.DATAFLOWTOPOLOGY);
+
+    // NOT specified by literal routes, need to pick it
+    if (!dataflowConfig.hasPath(DataFlowTopology.ROUTES)) {
+      // DEFAULT_ALL_ROUTES_KEY specified in top level config
+      Preconditions.checkArgument(config.hasPath(ReplicationConfiguration.DEFAULT_ALL_ROUTES_KEY),
+          "missing required config entery " + ReplicationConfiguration.DEFAULT_ALL_ROUTES_KEY);
+
+      Config allRoutes = config.getConfig(ReplicationConfiguration.DEFAULT_ALL_ROUTES_KEY);
+      String routePickerClassName = dataflowConfig.hasPath(ReplicationConfiguration.ROUTES_PICKER_CLASS_KEY)
+          ? dataflowConfig.getString(ReplicationConfiguration.ROUTES_PICKER_CLASS_KEY)
+          : ReplicationConfiguration.DEFAULT_ROUTES_PICKER_CLASS_KEY;
+
+      List<Object> args = Lists.newArrayList(allRoutes, source);
+
+      try {
+        Class<?> routePickerClass = Class.forName(routePickerClassName);
+
+        DataFlowRoutesPicker picker =
+            (DataFlowRoutesPicker) (GobblinConstructorUtils.invokeLongestConstructor(routePickerClass, args.toArray()));
+        dataflowConfig = picker.getPreferredRoutes();
+      } catch (ReflectiveOperationException e) {
+        throw new RuntimeException("Can not build topology from class: " + e.getMessage());
+      }
+    }
+    DataFlowTopology.Builder builder = new DataFlowTopology.Builder().withReplicationSource(source);
+    for (ReplicaEndPoint replica : replicas) {
+      builder.addReplicationReplica(replica);
+    }
+
+    return builder.withTopologyConfig(dataflowConfig).build();
   }
 }

@@ -23,4 +23,5 @@ public interface ReplicationLocation {
    * @return the root path for the replication
    */
   public Path getRootPath();
+
 }
