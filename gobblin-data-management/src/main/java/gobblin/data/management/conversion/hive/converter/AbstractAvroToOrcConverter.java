@@ -25,6 +25,7 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -216,13 +217,15 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
      * Upon testing, this did not work
      */
     try {
-      FsPermission sourceDataPermission =
-          this.fs.getFileStatus(conversionEntity.getHiveTable().getDataLocation()).getPermission();
+      FileStatus sourceDataFileStatus = this.fs.getFileStatus(conversionEntity.getHiveTable().getDataLocation());
+      FsPermission sourceDataPermission = sourceDataFileStatus.getPermission();
       if (!this.fs.mkdirs(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission)) {
         throw new RuntimeException(String.format("Failed to create path %s with permissions %s", new Path(
             getConversionConfig().getDestinationDataPath()), sourceDataPermission));
       } else {
         this.fs.setPermission(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission);
+        this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), sourceDataFileStatus.getOwner(),
+            sourceDataFileStatus.getGroup());
         log.info(String.format("Created %s with permissions %s", new Path(getConversionConfig()
             .getDestinationDataPath()), sourceDataPermission));
       }
