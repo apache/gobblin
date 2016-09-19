@@ -27,8 +27,6 @@ public class PathAlterationObserver {
 
   /**
    * Final processing.
-   *
-   * @throws Exception if an error occurs
    */
   public void destroy() {
   }
@@ -77,10 +75,6 @@ public class PathAlterationObserver {
 
   /**
    * The comparison between path is always case-sensitive in this general file system context.
-   *
-   * @param rootEntry
-   * @param pathFilter
-   * @throws IOException
    */
   public PathAlterationObserver(final FileStatusEntry rootEntry, final PathFilter pathFilter)
       throws IOException {
