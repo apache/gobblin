@@ -304,7 +304,7 @@ public class HiveSource implements Source {
    */
   @VisibleForTesting
   public boolean isOlderThanLookback(Partition partition) {
-    return new DateTime(getCreateTime(partition)).isBefore(this.maxLookBackTime);
+     return new DateTime(getCreateTime(partition)).isBefore(this.maxLookBackTime);
   }
 
   @VisibleForTesting
@@ -316,13 +316,14 @@ public class HiveSource implements Source {
       return TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS);
     }
     // Try to use distcp-ng registration generation time if it is available
-    else if (partition.getTPartition().isSetParameters() && partition.getTPartition().getParameters().containsKey(DISTCP_REGISTRATION_GENERATION_TIME_KEY)) {
-
+    else if (partition.getTPartition().isSetParameters()
+        && partition.getTPartition().getParameters().containsKey(DISTCP_REGISTRATION_GENERATION_TIME_KEY)) {
       log.debug("Did not find createTime in Hive partition, used distcp registration generation time.");
       return Long.parseLong(partition.getTPartition().getParameters().get(DISTCP_REGISTRATION_GENERATION_TIME_KEY));
     } else {
-      throw new IllegalStateException(String.format("Could not find create time in hive metastore for partition %s",
+      log.warn(String.format("Could not find create time for partition %s. Will return createTime as 0",
           partition.getCompleteName()));
+      return 0;
     }
   }
 

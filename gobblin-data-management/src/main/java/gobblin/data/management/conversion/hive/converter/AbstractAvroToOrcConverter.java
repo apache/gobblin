@@ -224,10 +224,11 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             getConversionConfig().getDestinationDataPath()), sourceDataPermission));
       } else {
         this.fs.setPermission(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission);
-        this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), sourceDataFileStatus.getOwner(),
+        // Set the same group as source
+        this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), null,
             sourceDataFileStatus.getGroup());
-        log.info(String.format("Created %s with permissions %s", new Path(getConversionConfig()
-            .getDestinationDataPath()), sourceDataPermission));
+        log.info(String.format("Created %s with permissions %s and group %s", new Path(getConversionConfig()
+            .getDestinationDataPath()), sourceDataPermission, sourceDataFileStatus.getGroup()));
       }
     } catch (IOException e) {
       Throwables.propagate(e);
