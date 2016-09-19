@@ -37,6 +37,7 @@ dependencies {
   compile externalDependency.avroMapredH2
   compile externalDependency.commonsLang3
   compile externalDependency.gson
+  compile externalDependency.opencsv
 
   runtime externalDependency.hadoopCommon
   runtime externalDependency.hadoopClientCore

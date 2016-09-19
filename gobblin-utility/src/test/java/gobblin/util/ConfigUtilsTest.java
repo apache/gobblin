@@ -69,14 +69,35 @@ public class ConfigUtilsTest {
   @Test
   public void testGetStringList() throws Exception {
 
-    // Comma separated
-    Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(ImmutableMap.of("key1", "value1,value2")), "key1"),
-        ImmutableList.of("value1", "value2"));
+    // values as comma separated strings
+    Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(ImmutableMap.of("a.b", "1,2,3")), "a.b"),
+        ImmutableList.of("1", "2", "3"));
 
-    // Type safe list
-    Assert.assertEquals(
-        ConfigUtils.getStringList(ConfigFactory.empty().withValue("key1", ConfigValueFactory.fromIterable(ImmutableList.of("value1", "value2"))), "key1"),
-        ImmutableList.of("value1", "value2"));
+    // values as quoted comma separated strings
+    Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(ImmutableMap.of("a.b", "\"1\",\"2\",\"3\"")), "a.b"),
+        ImmutableList.of("1", "2", "3"));
+
+    // values as quoted comma separated strings (Multiple values)
+    Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(ImmutableMap.of("a.b", "\"1\",\"2,3\"")), "a.b"),
+        ImmutableList.of("1", "2,3"));
+
+    // values as Type safe list
+    Assert.assertEquals(ConfigUtils.getStringList(
+            ConfigFactory.empty().withValue("a.b",
+                ConfigValueFactory.fromIterable(ImmutableList.of("1", "2","3"))), "a.b"),
+        ImmutableList.of("1", "2", "3"));
+
+    // values as quoted Type safe list
+    Assert.assertEquals(ConfigUtils.getStringList(
+            ConfigFactory.empty().withValue("a.b",
+                ConfigValueFactory.fromIterable(ImmutableList.of("\"1\"", "\"2\"","\"3\""))), "a.b"),
+        ImmutableList.of("1", "2", "3"));
+
+    // values as quoted Type safe list (Multiple values)
+    Assert.assertEquals(ConfigUtils.getStringList(
+            ConfigFactory.empty().withValue("a.b",
+                ConfigValueFactory.fromIterable(ImmutableList.of("\"1\"", "\"2,3\""))), "a.b"),
+        ImmutableList.of("1", "2,3"));
 
     // Empty list if path does not exist
     Assert.assertEquals(ConfigUtils.getStringList(ConfigFactory.parseMap(ImmutableMap.of("key1", "value1,value2")), "key2"), ImmutableList.of());

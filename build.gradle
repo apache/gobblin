@@ -268,7 +268,8 @@ ext.externalDependency = [
   "embeddedProcess": "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.2",
   "testMysqlServer": "com.wix:wix-embedded-mysql:2.0.1",
   "flyway": "org.flywaydb:flyway-core:3.2.1",
-  "oltu": "org.apache.oltu.oauth2:org.apache.oltu.oauth2.client:1.0.2"
+  "oltu": "org.apache.oltu.oauth2:org.apache.oltu.oauth2.client:1.0.2",
+  "opencsv": "net.sf.opencsv:opencsv:2.3"
 ];
 
 if (!isDefaultEnvironment)

@@ -12,6 +12,8 @@
 
 package gobblin.util;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -20,10 +22,13 @@ import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 
+import au.com.bytecode.opencsv.CSVReader;
+
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
@@ -292,10 +297,25 @@ public class ConfigUtils {
   }
 
   /**
-   * An extension to {@link Config#getStringList(String)}. The string list can either be specified as a TypeSafe {@link ConfigList} of strings
-   * or as list of comma separated strings.
+   * <p>
+   * An extension to {@link Config#getStringList(String)}. The value at <code>path</code> can either be a TypeSafe
+   * {@link ConfigList} of strings in which case it delegates to {@link Config#getStringList(String)} or as list of
+   * comma separated strings in which case it splits the comma separated list.
    *
-   * Returns an empty list of <code>path</code> does not exist
+   *
+   * </p>
+   * Additionally
+   * <li>Returns an empty list if <code>path</code> does not exist
+   * <li>removes any leading and lagging quotes from each string in the returned list.
+   *
+   * Examples below will all return a list [1,2,3] without quotes
+   *
+   * <ul>
+   * <li> a.b=[1,2,3]
+   * <li> a.b=["1","2","3"]
+   * <li> a.b=1,2,3
+   * <li> a.b="1","2","3"
+   * </ul>
    *
    * @param config in which the path may be present
    * @param path key to look for in the config object
@@ -307,14 +327,40 @@ public class ConfigUtils {
       return Collections.emptyList();
     }
 
+    List<String> valueList = Lists.newArrayList();
     try {
-      return config.getStringList(path);
+      valueList = config.getStringList(path);
     } catch (ConfigException.WrongType e) {
-      Splitter tokenSplitter = Splitter.on(",").omitEmptyStrings().trimResults();
-      return tokenSplitter.splitToList(config.getString(path));
+
+      /*
+       * Using CSV Reader as values could be quoted.
+       * E.g The string "a","false","b","10,12" will be split to a list of 4 elements and not 5.
+       *
+       * a
+       * false
+       * b
+       * 10,12
+       */
+      try (CSVReader csvr = new CSVReader(new StringReader(config.getString(path)));) {
+        valueList = Lists.newArrayList(csvr.readNext());
+      } catch (IOException ioe) {
+        throw new RuntimeException(ioe);
+      }
     }
 
+    // Remove any leading or lagging quotes in the values
+    // [\"a\",\"b\"] ---> [a,b]
+    return Lists.newArrayList(Lists.transform(valueList, new Function<String, String>() {
+      @Override
+      public String apply(String input) {
+        if (input == null) {
+          return input;
+        }
+        return input.replaceAll("^\"|\"$", "");
+      }
+    }));
   }
+
   /**
    * Check if the given <code>key</code> exists in <code>config</code> and it is not null or empty
    * Uses {@link StringUtils#isNotBlank(CharSequence)}
