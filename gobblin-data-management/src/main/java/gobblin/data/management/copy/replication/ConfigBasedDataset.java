@@ -13,6 +13,14 @@ import gobblin.data.management.copy.CopyableDataset;
 
 /**
  * Extends {@link CopableDataset} to represent data replication dataset based on {@link Config}
+ * 
+ * Detail logics
+ * <ul>
+ *  <li>Picked the preferred topology
+ *  <li>Based on current running cluster and CopyMode (push or pull) pick the routes
+ *  <li>Based on optimization policy to pick the CopyFrom and CopyTo pair
+ *  <li>Generated the CopyEntity based on CopyFrom and CopyTo pair
+ * </ul>
  * @author mitu
  *
  */
