@@ -5,9 +5,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Properties;
 import java.util.Set;
 
+import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -19,17 +19,6 @@ import org.testng.annotations.Test;
  */
 public class ConfigBasedDatasetsFinderTest {
   
-  private ConfigBasedDatasetsFinder getDatasetsFinder() throws IOException{
-    Properties p = new Properties();
-    p.setProperty(ConfigBasedDatasetsFinder.CONFIG_STORE_ROOT, "root");
-    p.setProperty(ConfigBasedDatasetsFinder.CONFIG_STORE_REPLICATION_ROOT, "/data/derived");
-    p.setProperty(ConfigBasedDatasetsFinder.CONFIG_STORE_REPLICATION_TAG, "derivedTag");
-   
-    System.out.println("contains root " + p.containsKey(ConfigBasedDatasetsFinder.CONFIG_STORE_ROOT));
-    System.out.println("contains root " + p.contains(ConfigBasedDatasetsFinder.CONFIG_STORE_ROOT));
-    return new ConfigBasedDatasetsFinder(p);
-  }
-  
   @Test
   public void testGetLeafDatasetURIs() throws URISyntaxException, IOException {
     Collection<URI> allDatasetURIs = new ArrayList<URI>();
@@ -37,6 +26,7 @@ public class ConfigBasedDatasetsFinderTest {
     allDatasetURIs.add(new URI("/data/derived/browsemaps/entities/anet"));
     allDatasetURIs.add(new URI("/data/derived/browsemaps/entities/comp"));
     allDatasetURIs.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily"));
+    allDatasetURIs.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily_dedup"));
     
     // None leaf URI
     allDatasetURIs.add(new URI("/data/derived"));
@@ -47,12 +37,19 @@ public class ConfigBasedDatasetsFinderTest {
     allDatasetURIs.add(new URI("/data/derived/gowl/pymk/"));
     allDatasetURIs.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/"));
     allDatasetURIs.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation"));
+
+    // wrong root
+    allDatasetURIs.add(new URI("/data/derived2"));
     
-    Set<URI> leafOnly = ConfigBasedDatasetsFinder.getValidDatasetURIs(allDatasetURIs, "/data/derived");
+    // disabled
+    Collection<URI> disabled = new ArrayList<URI>();
+    disabled.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily"));
     
-    for(URI u: leafOnly){
-      System.out.println("leaf is " + u);
-    }
-    Assert.assertTrue(leafOnly.size() == 3);
+    Set<URI> validURIs = ConfigBasedDatasetsFinder.getValidDatasetURIs(allDatasetURIs, disabled, new Path("/data/derived"));
+    
+    Assert.assertTrue(validURIs.size() == 3);
+    Assert.assertTrue(validURIs.contains(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily_dedup")));
+    Assert.assertTrue(validURIs.contains(new URI("/data/derived/browsemaps/entities/comp")));
+    Assert.assertTrue(validURIs.contains(new URI("/data/derived/browsemaps/entities/anet")));
   }
 }

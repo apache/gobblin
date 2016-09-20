@@ -14,6 +14,7 @@ import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -27,6 +28,7 @@ import gobblin.dataset.DatasetsFinder;
 import gobblin.util.PathUtils;
 import lombok.extern.slf4j.Slf4j;
 
+
 /**
  * Based on the configuration store to find all {@link ConfigBasedDataset}
  * @author mitu
@@ -39,10 +41,12 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
   public static final String CONFIG_STORE_ROOT = "config.store.root";
   public static final String CONFIG_STORE_REPLICATION_ROOT = "config.store.replication.root";
   public static final String CONFIG_STORE_REPLICATION_TAG = "config.store.replication.tag";
+  public static final String CONFIG_STORE_REPLICATION_DISABLE_TAG = "config.store.replication.disable.tag";
 
   private final String storeRoot;
-  private final String replicationRootPath;
-  private final String replicationTag;
+  private final Path replicationRootPath;
+  private final Path replicationTag;
+  private final Optional<Path> replicationDisableTag;
   private final ConfigClient configClient;
 
   public ConfigBasedDatasetsFinder(Properties props) throws IOException {
@@ -54,17 +58,22 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
         "missing required config entery " + CONFIG_STORE_REPLICATION_TAG);
 
     this.storeRoot = props.getProperty(CONFIG_STORE_ROOT);
-    this.replicationRootPath = this.storeRoot + props.getProperty(CONFIG_STORE_REPLICATION_ROOT);
-    this.replicationTag = this.storeRoot + props.getProperty(CONFIG_STORE_REPLICATION_TAG);
+    this.replicationRootPath =
+        PathUtils.mergePaths(new Path(this.storeRoot), new Path(props.getProperty(CONFIG_STORE_REPLICATION_ROOT)));
+    this.replicationTag =
+        PathUtils.mergePaths(new Path(this.storeRoot), new Path(props.getProperty(CONFIG_STORE_REPLICATION_TAG)));
+    this.replicationDisableTag = props.containsKey(CONFIG_STORE_REPLICATION_DISABLE_TAG) ? Optional.of(PathUtils
+        .mergePaths(new Path(this.storeRoot), new Path(props.getProperty(CONFIG_STORE_REPLICATION_DISABLE_TAG))))
+        : Optional.absent();
 
     configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
   }
 
-  protected static Set<URI> getValidDatasetURIs(Collection<URI> allDatasetURIs, String prefix) {
-    if(allDatasetURIs == null || allDatasetURIs.isEmpty()){
+  protected static Set<URI> getValidDatasetURIs(Collection<URI> allDatasetURIs, Collection<URI> disabledURIs, Path ancestor) {
+    if (allDatasetURIs == null || allDatasetURIs.isEmpty()) {
       return ImmutableSet.of();
     }
-    
+
     Comparator<URI> pathLengthComparator = new Comparator<URI>() {
       public int compare(URI c1, URI c2) {
         return c1.getPath().length() - c2.getPath().length();
@@ -76,14 +85,17 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
     // sort the URI based on the path length to make sure the parent path appear before children
     Collections.sort(datasetsList, pathLengthComparator);
 
-    Set<URI> leafDatasets = new HashSet<URI>();
+    Set<URI> disabledSet = new HashSet<URI>(disabledURIs);
+    Set<URI> validURISet = new HashSet<URI>();
 
+    // remove non leaf URI
     for (URI u : datasetsList) {
       URI needToRemove = null;
 
       // valid dataset URI
-      if (u.getPath().startsWith(prefix)) {
-        for (URI leaf : leafDatasets) {
+      if (PathUtils.isAncestor(ancestor, new Path(u.getPath()))) {
+        
+        for (URI leaf : validURISet) {
           if (PathUtils.isAncestor(new Path(leaf.getPath()), new Path(u.getPath()))) {
             // due to the sort, at most one element need to be removed from leafDatasets
             needToRemove = leaf;
@@ -92,13 +104,19 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
         }
 
         if (needToRemove != null) {
-          leafDatasets.remove(needToRemove);
+          validURISet.remove(needToRemove);
         }
-        leafDatasets.add(u);
+        validURISet.add(u);
       }
     }
-
-    return leafDatasets;
+    
+    // remove disabled URIs
+    for(URI disable: disabledSet){
+      if (validURISet.remove(disable) ){
+        log.info("skip disabled dataset " + disable );
+      }
+    }
+    return validURISet;
   }
 
   /**
@@ -112,27 +130,31 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
   @Override
   public List<ConfigBasedDataset> findDatasets() throws IOException {
     Collection<URI> allDatasetURIs;
+    Collection<URI> disabledURIs;
     try {
       // get all the URIs which imports {@link #replicationTag}
-      allDatasetURIs = configClient.getImportedBy(new URI(replicationTag), true);
+      allDatasetURIs = configClient.getImportedBy(new URI(replicationTag.toString()), true);
+      
+      disabledURIs = this.replicationDisableTag.isPresent()? configClient.getImportedBy(new URI(this.replicationDisableTag.get().toString()), true)
+          : ImmutableList.of();
+      
     } catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
         | URISyntaxException e) {
       log.error("Caught error while getting all the datasets URIs " + e.getMessage());
       throw new RuntimeException(e);
     }
-    
-    Set<URI> leafDatasets = getValidDatasetURIs(allDatasetURIs, this.replicationRootPath);
-    if(leafDatasets.isEmpty()){
+
+    Set<URI> leafDatasets = getValidDatasetURIs(allDatasetURIs, disabledURIs, this.replicationRootPath);
+    if (leafDatasets.isEmpty()) {
       return ImmutableList.of();
     }
-    
+
     List<ConfigBasedDataset> result = new ArrayList<ConfigBasedDataset>();
     for (URI leaf : leafDatasets) {
-      try{
-      result.add(new ConfigBasedDataset(configClient.getConfig(leaf)));
-      }
-      catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
-          e ) {
+      try {
+        result.add(new ConfigBasedDataset(configClient.getConfig(leaf)));
+      } catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException
+          | ConfigStoreCreationException e) {
         log.error("Caught error while retrieve config for " + leaf + ", skipping.");
       }
     }
@@ -141,6 +163,6 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
 
   @Override
   public Path commonDatasetRoot() {
-    return new Path(this.replicationRootPath);
+    return this.replicationRootPath;
   }
 }
