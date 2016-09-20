@@ -21,15 +21,12 @@ public class PathAlterationObserver {
   private final FileStatusEntry rootEntry;
   private final PathFilter pathFilter;
   private final Comparator<Path> comparator;
-  private final Configuration conf = new Configuration();
-  private final FileSystem fs = FileSystem.get(conf);
+  private final FileSystem fs;
 
   private final Path[] EMPTY_PATH_ARRAY = new Path[0];
 
   /**
    * Final processing.
-   *
-   * @throws Exception if an error occurs
    */
   public void destroy() {
   }
@@ -78,10 +75,6 @@ public class PathAlterationObserver {
 
   /**
    * The comparison between path is always case-sensitive in this general file system context.
-   *
-   * @param rootEntry
-   * @param pathFilter
-   * @throws IOException
    */
   public PathAlterationObserver(final FileStatusEntry rootEntry, final PathFilter pathFilter)
       throws IOException {
@@ -93,6 +86,8 @@ public class PathAlterationObserver {
     }
     this.rootEntry = rootEntry;
     this.pathFilter = pathFilter;
+
+    this.fs = rootEntry.getPath().getFileSystem(new Configuration());
 
     // By default, the comparsion is case sensitive.
     this.comparator = new Comparator<Path>() {

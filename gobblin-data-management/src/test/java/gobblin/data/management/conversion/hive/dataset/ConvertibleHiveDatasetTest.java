@@ -127,7 +127,7 @@ public class ConvertibleHiveDatasetTest {
     Assert.assertEquals(conversionConfig.getNumBuckets().get(), Integer.valueOf(4));
 
     Properties hiveProps = new Properties();
-    hiveProps.setProperty("mapred.map.tasks", "10");
+    hiveProps.setProperty("mapred.map.tasks", "10,12");
     hiveProps.setProperty("hive.merge.mapfiles", "false");
     Assert.assertEquals(conversionConfig.getHiveRuntimeProperties(), hiveProps);
   }

@@ -11,24 +11,33 @@
  */
 package gobblin.runtime.job_catalog;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.URI;
+import java.util.Map;
+import java.util.UUID;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigRenderOptions;
 
 import gobblin.metrics.MetricContext;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.util.FSJobCatalogHelper;
 import gobblin.util.filesystem.PathAlterationObserver;
 
 
@@ -86,7 +95,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
     Preconditions.checkNotNull(jobSpec);
     try {
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobSpec.getUri());
-      FSJobCatalogHelper.materializedJobSpec(jobSpecPath, jobSpec, this.fs);
+      materializedJobSpec(jobSpecPath, jobSpec, this.fs);
     } catch (IOException e) {
       throw new RuntimeException("When persisting a new JobSpec, unexpected issues happen:" + e.getMessage());
     } catch (JobSpecNotFoundException e) {
@@ -131,5 +140,43 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   @Override
   protected Optional<String> getInjectedExtension() {
     return Optional.of(CONF_EXTENSION);
+  }
+
+  /**
+   * Used for shadow copying in the process of updating a existing job configuration file,
+   * which requires deletion of the pre-existed copy of file and create a new one with the same name.
+   * Steps:
+   *  Create a new one in /tmp.
+   *  Safely deletion of old one.
+   *  copy the newly created configuration file to jobConfigDir.
+   *  Delete the shadow file.
+   */
+  synchronized void materializedJobSpec(Path jobSpecPath, JobSpec jobSpec, FileSystem fs)
+      throws IOException, JobSpecNotFoundException {
+    Path shadowDirectoryPath = new Path("/tmp");
+    Path shadowFilePath = new Path(shadowDirectoryPath, UUID.randomUUID().toString());
+    /* If previously existed, should delete anyway */
+    if (fs.exists(shadowFilePath)) {
+      fs.delete(shadowFilePath, false);
+    }
+
+    Map<String, String> injectedKeys = ImmutableMap.of(ImmutableFSJobCatalog.DESCRIPTION_KEY_IN_JOBSPEC, jobSpec.getDescription(),
+        ImmutableFSJobCatalog.VERSION_KEY_IN_JOBSPEC, jobSpec.getVersion());
+    String renderedConfig = ConfigFactory.parseMap(injectedKeys).withFallback(jobSpec.getConfig())
+        .root().render(ConfigRenderOptions.defaults());
+    try (DataOutputStream os = fs.create(shadowFilePath);
+        Writer writer = new OutputStreamWriter(os, Charsets.UTF_8)) {
+      writer.write(renderedConfig);
+    }
+
+    /* (Optionally:Delete oldSpec) and copy the new one in. */
+    if (fs.exists(jobSpecPath)) {
+      if (! fs.delete(jobSpecPath, false)) {
+        throw new IOException("Unable to delete existing job file: " + jobSpecPath);
+      }
+    }
+    if (!fs.rename(shadowFilePath, jobSpecPath)) {
+      throw new IOException("Unable to rename job file: " + shadowFilePath + " to " + jobSpecPath);
+    }
   }
 }

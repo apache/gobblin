@@ -30,7 +30,7 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.AvroSchemaManager;
+import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;

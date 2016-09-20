@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2016 Swisscom All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -12,8 +12,10 @@
 
 package gobblin.writer.commands;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.converter.jdbc.JdbcType;
+import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.converter.jdbc.JdbcEntryData;
 
 import java.sql.Connection;
@@ -30,32 +32,51 @@ import com.google.common.collect.ImmutableMap;
 
 
 /**
- * The implementation of JdbcWriterCommands for MySQL.
+ * The implementation of JdbcWriterCommands for Teradata.
+ * It is assumed that the final output table is of type MULTISET without primary index.
+ * If primary index need to be defined, it is advised to adapt the staging table creation
+ * ({@link #CREATE_TABLE_SQL_FORMAT}) to avoid unnecessary redistribution of data among the AMPs during
+ * the insertion to the final table.
+ * 
+ * @author Lorand Bendig
+ *
  */
-public class MySqlWriterCommands implements JdbcWriterCommands {
-  private static final Logger LOG = LoggerFactory.getLogger(MySqlWriterCommands.class);
+public class TeradataWriterCommands implements JdbcWriterCommands {
+  private static final Logger LOG = LoggerFactory.getLogger(TeradataWriterCommands.class);
 
-  private static final String CREATE_TABLE_SQL_FORMAT = "CREATE TABLE %s.%s SELECT * FROM %s.%s WHERE 1=2";
+  private static final String CREATE_TABLE_SQL_FORMAT =
+      "CREATE MULTISET TABLE %s.%s AS (SELECT * FROM %s.%s) WITH NO DATA NO PRIMARY INDEX";
   private static final String SELECT_SQL_FORMAT = "SELECT COUNT(*) FROM %s.%s";
-  private static final String TRUNCATE_TABLE_FORMAT = "TRUNCATE TABLE %s.%s";
+  private static final String TRUNCATE_TABLE_FORMAT = "DELETE FROM %s.%s ALL";
   private static final String DROP_TABLE_SQL_FORMAT = "DROP TABLE %s.%s";
-  private static final String INFORMATION_SCHEMA_SELECT_SQL_PSTMT =
-      "SELECT column_name, column_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ?";
+  private static final String DBC_COLUMNS_SELECT_SQL_PSTMT =
+      "SELECT columnName, columnType FROM dbc.columns WHERE databasename = ? AND tablename = ?";
   private static final String COPY_INSERT_STATEMENT_FORMAT = "INSERT INTO %s.%s SELECT * FROM %s.%s";
   private static final String DELETE_STATEMENT_FORMAT = "DELETE FROM %s.%s";
 
   private final JdbcBufferedInserter jdbcBufferedWriter;
   private final Connection conn;
 
-  public MySqlWriterCommands(State state, Connection conn) {
+  public TeradataWriterCommands(State state, Connection conn) {
     this.conn = conn;
-    this.jdbcBufferedWriter = new MySqlBufferedInserter(state, conn);
+    this.jdbcBufferedWriter = new TeradataBufferedInserter(state, conn);
   }
 
   @Override
   public void setConnectionParameters(Properties properties, Connection conn) throws SQLException {
-    // MySQL writer always uses one single transaction
-    this.conn.setAutoCommit(false);
+    // If staging tables are skipped i.e task level and partial commits are allowed to the target table,
+    // then transaction handling will be managed by the JDBC driver to avoid deadlocks in the database. 
+    boolean jobCommitPolicyIsFull =
+        JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.equals(JobCommitPolicy.getCommitPolicy(properties));
+    boolean publishDataAtJobLevel =
+        Boolean.parseBoolean(properties.getProperty(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
+            String.valueOf(ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL)));   
+    if (jobCommitPolicyIsFull || publishDataAtJobLevel) {
+      this.conn.setAutoCommit(false);
+    }
+    else {
+      LOG.info("Writing without staging tables, transactions are handled by the driver");
+    }
   }
   
   @Override
@@ -69,9 +90,9 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   }
 
   @Override
-  public void createTableStructure(String databaseName, String fromStructure, String targetTableName) throws SQLException {
-    String sql = String.format(CREATE_TABLE_SQL_FORMAT, databaseName, targetTableName,
-                                                        databaseName, fromStructure);
+  public void createTableStructure(String databaseName, String fromStructure, String targetTableName)
+      throws SQLException {
+    String sql = String.format(CREATE_TABLE_SQL_FORMAT, databaseName, targetTableName, databaseName, fromStructure);
     execute(sql);
   }
 
@@ -104,23 +125,22 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
     String sql = String.format(DROP_TABLE_SQL_FORMAT, database, table);
     execute(sql);
   }
-
+  
   /**
-   * https://dev.mysql.com/doc/connector-j/en/connector-j-reference-type-conversions.html
    * {@inheritDoc}
    * @see gobblin.writer.commands.JdbcWriterCommands#retrieveDateColumns(java.sql.Connection, java.lang.String)
    */
   @Override
   public Map<String, JdbcType> retrieveDateColumns(String database, String table) throws SQLException {
     Map<String, JdbcType> targetDataTypes = ImmutableMap.<String, JdbcType> builder()
-                                                        .put("DATE", JdbcType.DATE)
-                                                        .put("DATETIME", JdbcType.TIMESTAMP)
-                                                        .put("TIME", JdbcType.TIME)
-                                                        .put("TIMESTAMP", JdbcType.TIMESTAMP)
+                                                        .put("AT", JdbcType.TIME)
+                                                        .put("DA", JdbcType.DATE)
+                                                        .put("TS", JdbcType.TIMESTAMP)
                                                         .build();
 
     ImmutableMap.Builder<String, JdbcType> dateColumnsBuilder = ImmutableMap.builder();
-    try (PreparedStatement pstmt = this.conn.prepareStatement(INFORMATION_SCHEMA_SELECT_SQL_PSTMT)) {
+    try (PreparedStatement pstmt = this.conn.prepareStatement(DBC_COLUMNS_SELECT_SQL_PSTMT,
+        ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
       pstmt.setString(1, database);
       pstmt.setString(2, table);
       LOG.info("Retrieving column type information from SQL: " + pstmt);
@@ -129,10 +149,10 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
           throw new IllegalArgumentException("No result from information_schema.columns");
         }
         do {
-          String type = rs.getString("column_type").toUpperCase();
+          String type = rs.getString("columnType").toUpperCase();
           JdbcType convertedType = targetDataTypes.get(type);
           if (convertedType != null) {
-            dateColumnsBuilder.put(rs.getString("column_name"), convertedType);
+            dateColumnsBuilder.put(rs.getString("columnName"), convertedType);
           }
         } while (rs.next());
       }
@@ -155,6 +175,6 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
 
   @Override
   public String toString() {
-    return String.format("MySqlWriterCommands [bufferedWriter=%s]", this.jdbcBufferedWriter);
+    return String.format("TeradataWriterCommands [bufferedWriter=%s]", this.jdbcBufferedWriter);
   }
 }

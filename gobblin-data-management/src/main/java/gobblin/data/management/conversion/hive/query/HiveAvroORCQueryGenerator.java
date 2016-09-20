@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import lombok.ToString;
@@ -62,21 +63,21 @@ public class HiveAvroORCQueryGenerator {
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
   // Table properties keys
-  private static final String ORC_COMPRESSION_KEY                 = "orc.compress";
-  private static final String ORC_ROW_INDEX_STRIDE_KEY            = "orc.row.index.stride";
+  public static final String ORC_COMPRESSION_KEY                 = "orc.compress";
+  public static final String ORC_ROW_INDEX_STRIDE_KEY            = "orc.row.index.stride";
 
   // Default values for Hive DDL / DML query generation
   private static final String DEFAULT_DB_NAME                     = "default";
   private static final String DEFAULT_ROW_FORMAT_SERDE            = "org.apache.hadoop.hive.ql.io.orc.OrcSerde";
   private static final String DEFAULT_ORC_INPUT_FORMAT            = "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat";
   private static final String DEFAULT_ORC_OUTPUT_FORMAT           = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat";
-  private static final String DEFAULT_ORC_COMPRESSION             = "SNAPPY";
+  private static final String DEFAULT_ORC_COMPRESSION             = "ZLIB";
   private static final String DEFAULT_ORC_ROW_INDEX_STRIDE        = "268435456";
-  private static final Map<String, String> DEFAULT_TBL_PROPERTIES = ImmutableMap
-      .<String, String>builder().
-      put(ORC_COMPRESSION_KEY, DEFAULT_ORC_COMPRESSION).
-      put(ORC_ROW_INDEX_STRIDE_KEY, DEFAULT_ORC_ROW_INDEX_STRIDE).
-      build();
+  private static final Properties DEFAULT_TBL_PROPERTIES = new Properties();
+  static {
+        DEFAULT_TBL_PROPERTIES.setProperty(ORC_COMPRESSION_KEY, DEFAULT_ORC_COMPRESSION);
+        DEFAULT_TBL_PROPERTIES.setProperty(ORC_ROW_INDEX_STRIDE_KEY, DEFAULT_ORC_ROW_INDEX_STRIDE);
+      }
 
   // Avro to Hive schema mapping
   private static final Map<Schema.Type, String> AVRO_TO_HIVE_COLUMN_MAPPING_V_12 = ImmutableMap
@@ -143,7 +144,7 @@ public class HiveAvroORCQueryGenerator {
    * @param optionalRowFormatSerde Optional row format serde, default is ORC
    * @param optionalInputFormat Optional input format serde, default is ORC
    * @param optionalOutputFormat Optional output format serde, default is ORC
-   * @param optionalTblProperties Optional table properties
+   * @param tableProperties Optional table properties
    * @param isEvolutionEnabled If schema evolution is turned on
    * @param destinationTableMeta Optional destination table metadata  @return Generated DDL query to create new Hive table
    */
@@ -158,7 +159,7 @@ public class HiveAvroORCQueryGenerator {
       Optional<String> optionalRowFormatSerde,
       Optional<String> optionalInputFormat,
       Optional<String> optionalOutputFormat,
-      Optional<Map<String, String>> optionalTblProperties,
+      Properties tableProperties,
       boolean isEvolutionEnabled,
       Optional<Table> destinationTableMeta,
       Map<String, String> hiveColumns) {
@@ -171,8 +172,7 @@ public class HiveAvroORCQueryGenerator {
     String rowFormatSerde = optionalRowFormatSerde.isPresent() ? optionalRowFormatSerde.get() : DEFAULT_ROW_FORMAT_SERDE;
     String inputFormat = optionalInputFormat.isPresent() ? optionalInputFormat.get() : DEFAULT_ORC_INPUT_FORMAT;
     String outputFormat = optionalOutputFormat.isPresent() ? optionalOutputFormat.get() : DEFAULT_ORC_OUTPUT_FORMAT;
-    Map<String, String> tblProperties = optionalTblProperties.isPresent() ? optionalTblProperties.get() :
-                                                                            DEFAULT_TBL_PROPERTIES;
+    tableProperties = getTableProperties(tableProperties);
 
     // Start building Hive DDL
     // Refer to Hive DDL manual for explanation of clauses:
@@ -282,21 +282,35 @@ public class HiveAvroORCQueryGenerator {
     ddl.append(String.format("  '%s' %n", tblLocation));
 
     // Table properties
-    if (null != tblProperties && tblProperties.size() > 0) {
+    if (null != tableProperties && tableProperties.size() > 0) {
       ddl.append("TBLPROPERTIES ( \n");
       boolean isFirst = true;
-      for (Map.Entry<String, String> entry : tblProperties.entrySet()) {
+      for (String property : tableProperties.stringPropertyNames()) {
         if (isFirst) {
           isFirst = false;
         } else {
           ddl.append(", \n");
         }
-        ddl.append(String.format("  '%s'='%s'", entry.getKey(), entry.getValue()));
+        ddl.append(String.format("  '%s'='%s'", property, tableProperties.getProperty(property)));
       }
       ddl.append(") \n");
     }
 
     return ddl.toString();
+  }
+
+  private static Properties getTableProperties(Properties tableProperties) {
+    if (null == tableProperties || tableProperties.size() == 0) {
+      return DEFAULT_TBL_PROPERTIES;
+    }
+
+    for (String property : DEFAULT_TBL_PROPERTIES.stringPropertyNames()) {
+      if (!tableProperties.containsKey(property)) {
+        tableProperties.put(property, DEFAULT_TBL_PROPERTIES.get(property));
+      }
+    }
+
+    return tableProperties;
   }
 
   /***

@@ -23,18 +23,22 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.AvroSchemaManager;
+import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
+import gobblin.data.management.conversion.hive.avro.SchemaNotFoundException;
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
@@ -167,6 +171,8 @@ public class HiveSource implements Source {
         this.eventSubmitter);
     int maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS);
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
+
+    silenceHiveLoggers();
   }
 
 
@@ -202,6 +208,9 @@ public class HiveSource implements Source {
       }
     } catch (UpdateNotFoundException e) {
       log.error(String.format("Not Creating workunit for %s as update time was not found. %s", hiveDataset.getTable()
+          .getCompleteName(), e.getMessage()));
+    } catch (SchemaNotFoundException e) {
+      log.error(String.format("Not Creating workunit for %s as schema was not found. %s", hiveDataset.getTable()
           .getCompleteName(), e.getMessage()));
     }
   }
@@ -254,6 +263,9 @@ public class HiveSource implements Source {
       } catch (UpdateNotFoundException e) {
         log.error(String.format("Not Creating workunit for %s as update time was not found. %s",
             sourcePartition.getCompleteName(), e.getMessage()));
+      } catch (SchemaNotFoundException e) {
+        log.error(String.format("Not Creating workunit for %s as schema was not found. %s",
+            sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
   }
@@ -292,7 +304,7 @@ public class HiveSource implements Source {
    */
   @VisibleForTesting
   public boolean isOlderThanLookback(Partition partition) {
-    return new DateTime(getCreateTime(partition)).isBefore(this.maxLookBackTime);
+     return new DateTime(getCreateTime(partition)).isBefore(this.maxLookBackTime);
   }
 
   @VisibleForTesting
@@ -304,13 +316,14 @@ public class HiveSource implements Source {
       return TimeUnit.MILLISECONDS.convert(partition.getTPartition().getCreateTime(), TimeUnit.SECONDS);
     }
     // Try to use distcp-ng registration generation time if it is available
-    else if (partition.getTPartition().isSetParameters() && partition.getTPartition().getParameters().containsKey(DISTCP_REGISTRATION_GENERATION_TIME_KEY)) {
-
+    else if (partition.getTPartition().isSetParameters()
+        && partition.getTPartition().getParameters().containsKey(DISTCP_REGISTRATION_GENERATION_TIME_KEY)) {
       log.debug("Did not find createTime in Hive partition, used distcp registration generation time.");
       return Long.parseLong(partition.getTPartition().getParameters().get(DISTCP_REGISTRATION_GENERATION_TIME_KEY));
     } else {
-      throw new IllegalStateException(String.format("Could not find create time in hive metastore for partition %s",
+      log.warn(String.format("Could not find create time for partition %s. Will return createTime as 0",
           partition.getCompleteName()));
+      return 0;
     }
   }
 
@@ -329,5 +342,19 @@ public class HiveSource implements Source {
 
   private static FileSystem getSourceFs() throws IOException {
     return FileSystem.get(HadoopUtils.newConfiguration());
+  }
+
+  /**
+   * Hive logging is too verbose at INFO level. Currently hive does not have a way to set log level.
+   * This is a workaround to set log level to WARN for hive loggers only
+   */
+  private void silenceHiveLoggers() {
+    List<String> loggers = ImmutableList.of("org.apache.hadoop.hive", "org.apache.hive", "hive.ql.parse");
+    for (String name : loggers) {
+      Logger logger = Logger.getLogger(name);
+      if (logger != null) {
+        logger.setLevel(Level.WARN);
+      }
+    }
   }
 }

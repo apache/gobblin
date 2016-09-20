@@ -13,8 +13,10 @@ package gobblin.writer.commands;
 
 import gobblin.converter.jdbc.JdbcType;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.Properties;
 
 /**
  * JdbcWriterCommands is interface that its implementation will
@@ -23,6 +25,14 @@ import java.util.Map;
  */
 public interface JdbcWriterCommands extends JdbcBufferedInserter {
 
+  /**
+   * Sets writer specific connection parameters, e.g transaction handling
+   * 
+   * @param properties State properties
+   * @param conn Connection object
+   */
+  public void setConnectionParameters(Properties properties, Connection conn) throws SQLException;
+  
   /**
    * Creates table structure based on the table in parameter. Note that this won't guarantee copy exactly the same as
    * original table such as restraints, foreign keys, sequences, indices, etc
