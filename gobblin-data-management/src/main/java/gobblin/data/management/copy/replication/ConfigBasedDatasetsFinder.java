@@ -16,6 +16,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -41,12 +42,12 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
   public static final String CONFIG_STORE_ROOT = "config.store.root";
   public static final String CONFIG_STORE_REPLICATION_ROOT = "config.store.replication.root";
   public static final String CONFIG_STORE_REPLICATION_TAG = "config.store.replication.tag";
-  public static final String CONFIG_STORE_REPLICATION_DISABLE_TAG = "config.store.replication.disable.tag";
+  public static final String CONFIG_STORE_REPLICATION_DISABLE_TAGS = "config.store.replication.disable.tags";
 
   private final String storeRoot;
   private final Path replicationRootPath;
   private final Path replicationTag;
-  private final Optional<Path> replicationDisableTag;
+  private final Optional<List<Path>> replicationDisableTags;
   private final ConfigClient configClient;
 
   public ConfigBasedDatasetsFinder(Properties props) throws IOException {
@@ -62,9 +63,18 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
         PathUtils.mergePaths(new Path(this.storeRoot), new Path(props.getProperty(CONFIG_STORE_REPLICATION_ROOT)));
     this.replicationTag =
         PathUtils.mergePaths(new Path(this.storeRoot), new Path(props.getProperty(CONFIG_STORE_REPLICATION_TAG)));
-    this.replicationDisableTag = props.containsKey(CONFIG_STORE_REPLICATION_DISABLE_TAG) ? Optional.of(PathUtils
-        .mergePaths(new Path(this.storeRoot), new Path(props.getProperty(CONFIG_STORE_REPLICATION_DISABLE_TAG))))
-        : Optional.absent();
+    
+    if(props.containsKey(CONFIG_STORE_REPLICATION_DISABLE_TAGS)){
+      List<String> disableStrs = Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(CONFIG_STORE_REPLICATION_DISABLE_TAGS));
+      List<Path> disablePaths = new ArrayList<Path>();
+      for(String s: disableStrs){
+        disablePaths.add(PathUtils.mergePaths(new Path(this.storeRoot), new Path(s)));
+      }
+      this.replicationDisableTags = Optional.of(disablePaths);
+    }
+    else{
+      this.replicationDisableTags = Optional.absent();
+    }
 
     configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
   }
@@ -130,14 +140,17 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
   @Override
   public List<ConfigBasedDataset> findDatasets() throws IOException {
     Collection<URI> allDatasetURIs;
-    Collection<URI> disabledURIs;
+    Collection<URI> disabledURIs = ImmutableList.of();;
     try {
       // get all the URIs which imports {@link #replicationTag}
       allDatasetURIs = configClient.getImportedBy(new URI(replicationTag.toString()), true);
       
-      disabledURIs = this.replicationDisableTag.isPresent()? configClient.getImportedBy(new URI(this.replicationDisableTag.get().toString()), true)
-          : ImmutableList.of();
-      
+      if(this.replicationDisableTags.isPresent()){
+        disabledURIs = new ArrayList<URI>();
+        for(Path s: this.replicationDisableTags.get()){
+          disabledURIs.addAll(configClient.getImportedBy(new URI(s.toString()), true));
+        }
+      }
     } catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
         | URISyntaxException e) {
       log.error("Caught error while getting all the datasets URIs " + e.getMessage());
