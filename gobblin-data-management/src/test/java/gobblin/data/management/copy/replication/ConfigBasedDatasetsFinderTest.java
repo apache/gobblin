@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
@@ -42,7 +43,7 @@ public class ConfigBasedDatasetsFinderTest {
     allDatasetURIs.add(new URI("/data/derived2"));
     
     // disabled
-    Collection<URI> disabled = new ArrayList<URI>();
+    Set<URI> disabled = new HashSet<URI>();
     disabled.add(new URI("/data/derived/gowl/pymk/invitationsCreationsSends/hourly_data/aggregation/daily"));
     
     Set<URI> validURIs = ConfigBasedDatasetsFinder.getValidDatasetURIs(allDatasetURIs, disabled, new Path("/data/derived"));
