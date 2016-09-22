@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.hadoop.fs.Path;
 
@@ -41,21 +42,24 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
 
   // prefix key for config store used by data replication
   public static final String GOBBLIN_REPLICATION_CONFIG_STORE = "gobblin.replication.configStore";
-  
+
   // specify the config store root used by data replication
-  public static final String GOBBLIN_REPLICATION_CONFIG_STORE_ROOT = GOBBLIN_REPLICATION_CONFIG_STORE+".root";
-  
+  public static final String GOBBLIN_REPLICATION_CONFIG_STORE_ROOT = GOBBLIN_REPLICATION_CONFIG_STORE + ".root";
+
   // specify the whitelist tag in the config store used by data replication
   // the datasets which import this tag will be processed by data replication
-  public static final String GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG = GOBBLIN_REPLICATION_CONFIG_STORE+"whitelist.tag";
-  
+  public static final String GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG =
+      GOBBLIN_REPLICATION_CONFIG_STORE + "whitelist.tag";
+
   // specify the blacklist tags in the config store used by data replication
   // the datasets which import these tags will NOT be processed by data replication 
   // and blacklist override the whitelist 
-  public static final String GOBBLIN_REPLICATION_CONFIG_STORE_BLACKLIST_TAGS = GOBBLIN_REPLICATION_CONFIG_STORE+"blacklist.tags";
-  
+  public static final String GOBBLIN_REPLICATION_CONFIG_STORE_BLACKLIST_TAGS =
+      GOBBLIN_REPLICATION_CONFIG_STORE + "blacklist.tags";
+
   // specify the common root for all the datasets which will be processed by data replication
-  public static final String GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT = GOBBLIN_REPLICATION_CONFIG_STORE + "dataset.common.root";
+  public static final String GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT =
+      GOBBLIN_REPLICATION_CONFIG_STORE + "dataset.common.root";
 
   private final String storeRoot;
   private final Path replicationDatasetCommonRoot;
@@ -72,27 +76,28 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
         "missing required config entery " + GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG);
 
     this.storeRoot = props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_ROOT);
-    this.replicationDatasetCommonRoot =
-        PathUtils.mergePaths(new Path(this.storeRoot), new Path(props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT)));
-    this.whitelistTag =
-        PathUtils.mergePaths(new Path(this.storeRoot), new Path(props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG)));
-    
-    if(props.containsKey(GOBBLIN_REPLICATION_CONFIG_STORE_BLACKLIST_TAGS)){
-      List<String> disableStrs = Splitter.on(",").omitEmptyStrings().splitToList(props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_BLACKLIST_TAGS));
+    this.replicationDatasetCommonRoot = PathUtils.mergePaths(new Path(this.storeRoot),
+        new Path(props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT)));
+    this.whitelistTag = PathUtils.mergePaths(new Path(this.storeRoot),
+        new Path(props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG)));
+
+    if (props.containsKey(GOBBLIN_REPLICATION_CONFIG_STORE_BLACKLIST_TAGS)) {
+      List<String> disableStrs = Splitter.on(",").omitEmptyStrings()
+          .splitToList(props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_BLACKLIST_TAGS));
       List<Path> disablePaths = new ArrayList<Path>();
-      for(String s: disableStrs){
+      for (String s : disableStrs) {
         disablePaths.add(PathUtils.mergePaths(new Path(this.storeRoot), new Path(s)));
       }
       this.blacklistTags = Optional.of(disablePaths);
-    }
-    else{
+    } else {
       this.blacklistTags = Optional.absent();
     }
 
     configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
   }
 
-  protected static Set<URI> getValidDatasetURIs(Collection<URI> allDatasetURIs, Set<URI> disabledURISet, Path datasetCommonRoot) {
+  protected static Set<URI> getValidDatasetURIs(Collection<URI> allDatasetURIs, Set<URI> disabledURISet,
+      Path datasetCommonRoot) {
     if (allDatasetURIs == null || allDatasetURIs.isEmpty()) {
       return ImmutableSet.of();
     }
@@ -103,39 +108,38 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
       }
     };
 
-    List<URI> datasetsList = new ArrayList<URI>(allDatasetURIs);
+    List<URI> sortedDatasetsList = new ArrayList<URI>(allDatasetURIs);
 
     // sort the URI based on the path length to make sure the parent path appear before children
-    Collections.sort(datasetsList, pathLengthComparator);
+    Collections.sort(sortedDatasetsList, pathLengthComparator);
 
-    Set<URI> validURISet = new HashSet<URI>();
+    TreeSet<URI> uriSet = new TreeSet<URI>();
+    Set<URI> noneLeaf = new HashSet<URI>();
 
-    // remove non leaf URI
-    for (URI u : datasetsList) {
-      URI needToRemove = null;
-
-      // valid dataset URI
+    for (URI u : sortedDatasetsList) {
+      // filter out none common root
       if (PathUtils.isAncestor(datasetCommonRoot, new Path(u.getPath()))) {
-        
-        for (URI leaf : validURISet) {
-          if (PathUtils.isAncestor(new Path(leaf.getPath()), new Path(u.getPath()))) {
-            // due to the sort, at most one element need to be removed from leafDatasets
-            needToRemove = leaf;
-            break;
-          }
+        URI floor = uriSet.floor(u);
+        // check for ancestor Paths
+        if (floor != null && PathUtils.isAncestor(new Path(floor.getPath()), new Path(u.getPath()))) {
+          noneLeaf.add(floor);
         }
+        uriSet.add(u);
+      }
+    }
 
-        if (needToRemove != null) {
-          validURISet.remove(needToRemove);
-        }
+    // only get the leaf nodes
+    Set<URI> validURISet = new HashSet<URI>();
+    for (URI u : uriSet) {
+      if (!noneLeaf.contains(u)) {
         validURISet.add(u);
       }
     }
-    
+
     // remove disabled URIs
-    for(URI disable: disabledURISet){
-      if (validURISet.remove(disable) ){
-        log.info("skip disabled dataset " + disable );
+    for (URI disable : disabledURISet) {
+      if (validURISet.remove(disable)) {
+        log.info("skip disabled dataset " + disable);
       }
     }
     return validURISet;
@@ -156,10 +160,10 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<ConfigBasedData
     try {
       // get all the URIs which imports {@link #replicationTag}
       allDatasetURIs = configClient.getImportedBy(new URI(whitelistTag.toString()), true);
-      
-      if(this.blacklistTags.isPresent()){
+
+      if (this.blacklistTags.isPresent()) {
         disabledURIs = new HashSet<URI>();
-        for(Path s: this.blacklistTags.get()){
+        for (Path s : this.blacklistTags.get()) {
           disabledURIs.addAll(configClient.getImportedBy(new URI(s.toString()), true));
         }
       }
