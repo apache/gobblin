@@ -10,6 +10,10 @@ import gobblin.util.ClassAliasResolver;
 public class RequestAllocatorUtils {
 
   public static final String ALLOCATOR_ALIAS_KEY = "requestAllocatorAlias";
+
+  /**
+   * Infer and construct a {@link RequestAllocator} from an input {@link Config}.
+   */
   public static <T extends Request<T>> RequestAllocator<T> inferFromConfig(Comparator<T> prioritizer, ResourceEstimator<T> resourceEstimator,
       Config limitedScopeConfig) {
     try {

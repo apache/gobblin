@@ -5,6 +5,10 @@ import java.util.Comparator;
 import lombok.AllArgsConstructor;
 
 
+/**
+ * A {@link HierarchicalPrioritizer} built from two input {@link Comparator}s: one for {@link Requestor} and one
+ * for {@link Request}.
+ */
 @AllArgsConstructor
 public class SimpleHierarchicalPrioritizer<T extends Request<T>> implements HierarchicalPrioritizer<T> {
 

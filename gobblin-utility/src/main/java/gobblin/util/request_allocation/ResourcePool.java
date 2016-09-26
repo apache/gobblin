@@ -100,12 +100,19 @@ public class ResourcePool {
     return new ResourceRequirement.Builder(this);
   }
 
+  /**
+   * @return a new {@link ResourcePool} which is a copy of this {@link ResourcePool} except its resource vector has been
+   * reduced by the input {@link ResourceRequirement}.
+   */
   ResourcePool contractPool(ResourceRequirement requirement) {
     return new ResourcePool(VectorAlgebra.addVector(this.softBound, requirement.getResourceVector(), -1., null),
         VectorAlgebra.addVector(this.hardBound, requirement.getResourceVector(), -1., null),
         this.defaultResourceUse, this.dimensionIndex);
   }
 
+  /**
+   * Get the dimensionality of the embedded resource vector.
+   */
   int getNumDimensions() {
     return this.dimensionIndex.size();
   }

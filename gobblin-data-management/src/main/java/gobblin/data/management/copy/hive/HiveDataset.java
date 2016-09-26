@@ -13,7 +13,10 @@
 package gobblin.data.management.copy.hive;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 
 import lombok.Getter;
@@ -36,8 +39,8 @@ import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableDataset;
-import gobblin.data.management.copy.IterableCopyableDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder.DbAndTable;
+import gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
 import gobblin.data.management.partition.FileSet;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.instrumented.Instrumented;
@@ -53,7 +56,7 @@ import gobblin.util.PathUtils;
 @Alpha
 @Getter
 @ToString
-public class HiveDataset implements IterableCopyableDataset {
+public class HiveDataset implements PrioritizedCopyableDataset {
 
   public static final String REGISTERER = "registerer";
   public static final String REGISTRATION_GENERATION_TIME_MILLIS = "registrationGenerationTimeMillis";
@@ -103,15 +106,30 @@ public class HiveDataset implements IterableCopyableDataset {
         Lists.<Tag<?>> newArrayList(new Tag<>(DATABASE, table.getDbName()), new Tag<>(TABLE, table.getTableName())));
   }
 
+  @Override
+  public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
+      throws IOException {
+    try {
+      return new HiveCopyEntityHelper(this, configuration, targetFs).getCopyEntities(configuration);
+    } catch (IOException ioe) {
+      log.error("Failed to copy table " + this.table, ioe);
+      return Iterators.emptyIterator();
+    }
+  }
+
   /**
    * Finds all files read by the table and generates CopyableFiles.
    * For the specific semantics see {@link HiveCopyEntityHelper#getCopyEntities}.
    */
   @Override
-  public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
+  public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration,
+      Comparator<FileSet<CopyEntity>> prioritizer)
       throws IOException {
     try {
-      return new HiveCopyEntityHelper(this, configuration, targetFs).getCopyEntities();
+      List<FileSet<CopyEntity>> fileSetList = Lists.newArrayList(new HiveCopyEntityHelper(this, configuration, targetFs)
+          .getCopyEntities(configuration));
+      Collections.sort(fileSetList, prioritizer);
+      return fileSetList.iterator();
     } catch (IOException ioe) {
       log.error("Failed to copy table " + this.table, ioe);
       return Iterators.emptyIterator();

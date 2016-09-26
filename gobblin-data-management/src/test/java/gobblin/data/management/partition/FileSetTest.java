@@ -37,6 +37,11 @@ public class FileSetTest {
     public FileStatus getFileStatus() {
       return this.fileStatus;
     }
+
+    @Override
+    public FileStatus getOrigin() {
+      return this.fileStatus;
+    }
   }
 
   @Test
@@ -53,10 +58,11 @@ public class FileSetTest {
     Assert.assertEquals(fileSet.getName(), "test");
     Assert.assertEquals(fileSet.getFiles().get(0).getFileStatus().getPath().toString(), file1);
     Assert.assertEquals(fileSet.getFiles().get(1).getFileStatus().getPath().toString(), file2);
-
+    Assert.assertEquals(fileSet.getTotalEntities(), 2);
+    Assert.assertEquals(fileSet.getTotalSizeInBytes(), 20);
   }
 
   private static FileStatus createFileStatus(String path) {
-    return new FileStatus(0, false, 0, 0, 0, new Path(path));
+    return new FileStatus(10, false, 0, 0, 0, new Path(path));
   }
 }

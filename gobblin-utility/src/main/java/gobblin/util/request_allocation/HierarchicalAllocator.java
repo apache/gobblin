@@ -16,6 +16,10 @@ import gobblin.util.ClassAliasResolver;
 import lombok.RequiredArgsConstructor;
 
 
+/**
+ * A {@link RequestAllocator} optimized for {@link HierarchicalPrioritizer}s. Processes {@link Requestor}s in order of
+ * priority. Once the {@link ResourcePool} is full, lower priority {@link Requestor}s will not even be materialized.
+ */
 @RequiredArgsConstructor
 public class HierarchicalAllocator<T extends Request<T>> implements RequestAllocator<T> {
 
@@ -49,6 +53,10 @@ public class HierarchicalAllocator<T extends Request<T>> implements RequestAlloc
     return new HierarchicalIterator(resourcePool, new SingleTierIterator(requestorComparator, requestorList));
   }
 
+  /**
+   * Automatically handles allocation for each tier of {@link Requestor}s, computation of correct {@link #totalResourcesUsed()},
+   * and not materializing next tier once {@link ResourcePool} is full.
+   */
   private class HierarchicalIterator implements AllocatedRequests<T> {
     private SingleTierIterator singleTierIterator;
     private AllocatedRequests<T> currentIterator;
@@ -98,6 +106,10 @@ public class HierarchicalAllocator<T extends Request<T>> implements RequestAlloc
     }
   }
 
+  /**
+   * An {@link Iterator} that only returns entries of the same priority as the first entry it returns. Assumes the input
+   * {@link List} is sorted.
+   */
   private class SingleTierIterator implements Iterator<Requestor<T>> {
     private final Comparator<Requestor<T>> prioritizer;
     private final List<Requestor<T>> requestors;
@@ -133,7 +145,10 @@ public class HierarchicalAllocator<T extends Request<T>> implements RequestAlloc
       return this.requestors.get(this.nextRequestorIdx++);
     }
 
-    public Optional<SingleTierIterator> nextTier() {
+    /**
+     * @return a {@link SingleTierIterator} for the next tier in the input {@link List}.
+     */
+    Optional<SingleTierIterator> nextTier() {
       if (this.nextRequestorIdx < this.requestors.size()) {
         return Optional.of(new SingleTierIterator(this.prioritizer, this.requestors, this.nextRequestorIdx));
       }

@@ -7,7 +7,12 @@ import com.google.common.base.Function;
 
 import lombok.Getter;
 
-public class AllocatedRequestsBase<T> implements AllocatedRequests<T> {
+
+/**
+ * A basic implementation of {@link AllocatedRequests}.
+ * @param <T>
+ */
+public class AllocatedRequestsBase<T extends Request<T>> implements AllocatedRequests<T> {
 
   private final Iterator<TAndRequirement<T>> underlying;
   private final double[] currentRequirement;
@@ -41,7 +46,7 @@ public class AllocatedRequestsBase<T> implements AllocatedRequests<T> {
   }
 
   /**
-   * Stores and element and its weight.
+   * Stores and element and its {@link ResourceRequirement}.
    */
   @Getter
   public static class TAndRequirement<T> {
@@ -58,6 +63,9 @@ public class AllocatedRequestsBase<T> implements AllocatedRequests<T> {
     }
   }
 
+  /**
+   * A {@link Function} used to extract the actual {@link Request} from a {@link TAndRequirement}.
+   */
   public static class TExtractor<T> implements Function<TAndRequirement<T>, T> {
     @Override
     public T apply(TAndRequirement<T> ttAndRequirement) {
