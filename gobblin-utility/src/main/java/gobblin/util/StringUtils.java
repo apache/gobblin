@@ -1,0 +1,66 @@
+package gobblin.util;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+
+public class StringUtils {
+
+  public static final Pattern HUMAN_READABLE_SIZE_PATTERN = Pattern.compile("([0-9\\.]+)\\s*([kKmMgGtTpP]?)[bB]?");
+
+  /**
+   * Convert a human readable string (e.g. 10kb) into the number of bytes.
+   *
+   * Examples: 10b, 10kb, 10mb, 10gb, 10tb, 10pb, 1.2m, ...
+   */
+  public static long humanReadableToByteCount(String string) throws FormatException {
+    Matcher matcher = HUMAN_READABLE_SIZE_PATTERN.matcher(string.trim());
+    if (!matcher.matches()) {
+      throw new FormatException("Could not parse human readable size string " + string);
+    }
+    int exponent = 0;
+    switch (matcher.group(2).toUpperCase()) {
+      case "":
+        exponent = 0;
+        break;
+      case "K":
+        exponent = 10;
+        break;
+      case "M":
+        exponent = 20;
+        break;
+      case "G":
+        exponent = 30;
+        break;
+      case "T":
+        exponent = 40;
+        break;
+      case "P":
+        exponent = 50;
+        break;
+      default:
+        throw new FormatException("Could not parse human readable size string " + string);
+    }
+    try {
+      double base = Double.parseDouble(matcher.group(1));
+      return (long) (base * (1L << exponent));
+    } catch (NumberFormatException nfe) {
+      throw new FormatException("Could not parse human readable size string " + string);
+    }
+  }
+
+  public static class FormatException extends Exception {
+    public FormatException(String message) {
+      super(message);
+    }
+
+    public FormatException(String message, Throwable cause) {
+      super(message, cause);
+    }
+
+    public FormatException(Throwable cause) {
+      super(cause);
+    }
+  }
+
+}
