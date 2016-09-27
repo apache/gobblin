@@ -8,6 +8,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -40,7 +41,7 @@ public class ReplicaHadoopFsEndPoint implements EndPoint {
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       if (fs.exists(metaData)) {
         FSDataInputStream fin = fs.open(metaData);
-        InputStreamReader reader = new InputStreamReader(fin);
+        InputStreamReader reader = new InputStreamReader(fin, Charsets.UTF_8);
         Config c = ConfigFactory.parseReader(reader);
         result = new LongWatermark(c.getLong(LATEST_TIMESTAMP));
       }
