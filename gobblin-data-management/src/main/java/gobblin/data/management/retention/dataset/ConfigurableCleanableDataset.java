@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -23,16 +24,25 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 
+import gobblin.data.management.policy.SelectNothingPolicy;
 import gobblin.data.management.policy.VersionSelectionPolicy;
+import gobblin.data.management.retention.action.MultiAccessControlAction.MultiAccessControlActionFactory;
+import gobblin.data.management.retention.action.RetentionAction;
+import gobblin.data.management.retention.action.RetentionAction.RetentionActionFactory;
+import gobblin.data.management.retention.dataset.MultiVersionCleanableDatasetBase.VersionFinderAndPolicy.VersionFinderAndPolicyBuilder;
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.data.management.version.finder.VersionFinder;
+import gobblin.util.ConfigUtils;
 import gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -96,6 +106,14 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
   private final List<VersionFinderAndPolicy<T>> versionFindersAndPolicies;
 
   /**
+   * A set of all available {@link RetentionActionFactory}s
+   */
+  private static final Set<Class<? extends RetentionActionFactory>> RETENTION_ACTION_TYPES;
+  static {
+    RETENTION_ACTION_TYPES = ImmutableSet.<Class<? extends RetentionActionFactory>>of(MultiAccessControlActionFactory.class);
+  }
+
+  /**
    * Creates a new ConfigurableCleanableDataset configured through gobblin-config-management. The constructor expects
    * {@link #VERSION_FINDER_CLASS_KEY} and {@link #RETENTION_POLICY_CLASS_KEY} to be available in the
    * <code>config</code> passed.
@@ -109,7 +127,7 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
 
     if (config.hasPath(VERSION_FINDER_CLASS_KEY) && config.hasPath(RETENTION_POLICY_CLASS_KEY)) {
       initWithRetentionPolicy(config, jobProps, RETENTION_POLICY_CLASS_KEY, VERSION_FINDER_CLASS_KEY);
-    } else if (config.hasPath(VERSION_FINDER_CLASS_KEY) && config.hasPath(SELECTION_POLICY_CLASS_KEY)) {
+    } else if (config.hasPath(VERSION_FINDER_CLASS_KEY)) {
       initWithSelectionPolicy(config.getConfig(RETENTION_CONFIGURATION_KEY), jobProps);
     } else if (config.hasPath(DATASET_PARTITIONS_LIST_KEY)) {
       List<? extends Config> versionAndPolicies = config.getConfigList(DATASET_PARTITIONS_LIST_KEY);
@@ -153,16 +171,31 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
 
     String selectionPolicyKey = StringUtils.substringAfter(SELECTION_POLICY_CLASS_KEY, CONFIGURATION_KEY_PREFIX);
     String versionFinderKey = StringUtils.substringAfter(VERSION_FINDER_CLASS_KEY, CONFIGURATION_KEY_PREFIX);
+    Preconditions.checkArgument(
+        config.hasPath(versionFinderKey),
+        String.format("Version finder class is required at %s in config %s", versionFinderKey,
+            config.root().render(ConfigRenderOptions.concise())));
 
-    if (config.hasPath(selectionPolicyKey) && config.hasPath(versionFinderKey)) {
-      this.versionFindersAndPolicies.add(
-          new VersionFinderAndPolicy<>(createSelectionPolicy(config.getString(selectionPolicyKey), config, jobProps),
-              createVersionFinder(config.getString(versionFinderKey), config, jobProps)));
-    } else {
-      this.log.warn(String.format(
-          "Version finder and policy not initialized for partition. Set version finder at %s and Selection policy at %s",
-          VERSION_FINDER_CLASS_KEY, SELECTION_POLICY_CLASS_KEY));
+    VersionFinderAndPolicyBuilder<T> builder = VersionFinderAndPolicy.builder();
+    builder.versionFinder(createVersionFinder(config.getString(versionFinderKey), config, jobProps));
+    if (config.hasPath(selectionPolicyKey)) {
+      builder.versionSelectionPolicy(createSelectionPolicy(
+          ConfigUtils.getString(config, selectionPolicyKey, SelectNothingPolicy.class.getName()), config, jobProps));
     }
+
+    for (Class<? extends RetentionActionFactory> factoryClass : RETENTION_ACTION_TYPES) {
+      try {
+        RetentionActionFactory factory = factoryClass.newInstance();
+        if (factory.canCreateWithConfig(config)) {
+          builder.retentionAction((RetentionAction) factory.createRetentionAction(config, this.fs));
+        }
+      } catch (InstantiationException | IllegalAccessException e) {
+        Throwables.propagate(e);
+      }
+    }
+
+    this.versionFindersAndPolicies.add(builder.build());
+
   }
 
   @SuppressWarnings("unchecked")

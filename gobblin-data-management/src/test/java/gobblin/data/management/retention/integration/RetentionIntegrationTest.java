@@ -78,6 +78,7 @@ public class RetentionIntegrationTest {
    */
   @DataProvider
   public Object[][] retentionTestDataProvider() {
+
     return new Object[][] {
         { "testTimeBasedRetention", "retention.conf" },
         { "testTimeBasedRetention", "selection.conf" },
@@ -87,7 +88,9 @@ public class RetentionIntegrationTest {
         { "testDailyPatternRetention", "daily-retention.job" },
         { "testMultiVersionRetention", "daily-hourly-retention.conf" },
         { "testCombinePolicy", "retention.job" },
-        { "testCombinePolicy", "selection.conf" }
+        { "testCombinePolicy", "selection.conf" },
+        { "testTimeBasedAccessControl", "selection.conf" },
+        { "testMultiVersionAccessControl", "daily-retention-with-accessControl.conf" }
     };
   }
 
@@ -99,12 +102,16 @@ public class RetentionIntegrationTest {
     RetentionTestDataGenerator dataGenerator = new RetentionTestDataGenerator(testNameTempPath,
         PathUtils.combinePaths(TEST_PACKAGE_RESOURCE_NAME, testName, SETUP_VALIDATE_CONFIG_CLASSPATH_FILENAME), fs);
 
-    dataGenerator.setup();
+    try {
+      dataGenerator.setup();
 
-    RetentionTestHelper.clean(fs, PathUtils.combinePaths(TEST_PACKAGE_RESOURCE_NAME, testName, testConfFileName), testNameTempPath);
+      RetentionTestHelper.clean(fs, PathUtils.combinePaths(TEST_PACKAGE_RESOURCE_NAME, testName, testConfFileName), testNameTempPath);
 
-    dataGenerator.validate();
+      dataGenerator.validate();
 
+    } finally {
+      dataGenerator.cleanup();
+    }
   }
 
   @AfterClass

@@ -19,7 +19,9 @@ import java.util.List;
 import java.util.Properties;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.Singular;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
@@ -31,9 +33,12 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.policy.EmbeddedRetentionSelectionPolicy;
+import gobblin.data.management.policy.SelectNothingPolicy;
 import gobblin.data.management.policy.VersionSelectionPolicy;
+import gobblin.data.management.retention.action.RetentionAction;
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.trash.ProxiedTrash;
+import gobblin.data.management.version.DatasetVersion;
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.data.management.version.finder.VersionFinder;
 import gobblin.dataset.FileSystemDataset;
@@ -41,18 +46,22 @@ import gobblin.util.ConfigUtils;
 
 
 /**
- * {@link MultiVersionCleanableDatasetBase#getVersionFindersAndPolicies()}
- * Implementation of a {@link CleanableDataset} that may have several types of version and selctionPolicies.
+ *  A {@link CleanableDataset} that may have multiple {@link VersionFinder}, {@link VersionSelectionPolicy}
+ *  and {@link RetentionAction}s. Retention needs to performed for different kinds of {@link DatasetVersion}s. Each
+ *  kind of {@link DatasetVersion} can have its own {@link VersionSelectionPolicy} and/or {@link RetentionAction}
+ *  associated with it.
  * <ul>
  * <li>{@link MultiVersionCleanableDatasetBase#getVersionFindersAndPolicies()} gets a list {@link VersionFinderAndPolicy}s
- * <li>Each {@link VersionFinderAndPolicy} contains a {@link VersionFinder} and a {@link VersionSelectionPolicy}.
- * <li>The {@link MultiVersionCleanableDatasetBase#clean()} method finds all the {@link FileSystemDatasetVersion}s for a
- * {@link VersionFinderAndPolicy#versionFinder} and gets the deletable {@link FileSystemDatasetVersion}s by applying
- * {@link VersionFinderAndPolicy#versionSelectionPolicy}. These deletable version are deleted  and then deletes empty parent directories.
+ * <li>Each {@link VersionFinderAndPolicy} contains a {@link VersionFinder} and a {@link VersionSelectionPolicy}. It can
+ * optionally have a {@link RetentionAction}
+ * <li>The {@link MultiVersionCleanableDatasetBase#clean()} method finds all the {@link FileSystemDatasetVersion}s using
+ * {@link VersionFinderAndPolicy#versionFinder}
+ * <li> It gets the deletable {@link FileSystemDatasetVersion}s by applying {@link VersionFinderAndPolicy#versionSelectionPolicy}.
+ * These deletable version are deleted  and then deletes empty parent directories.
+ * <li>If additional retention actions are available at {@link VersionFinderAndPolicy#getRetentionActions()}, all versions
+ * found by the {@link VersionFinderAndPolicy#versionFinder} are passed to {@link RetentionAction#execute(List)} for
+ * each {@link RetentionAction}
  * </ul>
- * For each different types of versions with uses a
- * {@link gobblin.data.management.retention.version.finder.VersionFinder} to find dataset versions, a
- * {@link gobblin.data.management.retention.policy.RetentionPolicy} to figure out deletable versions,
  *
  * <p>
  *   Concrete subclasses should implement {@link #getVersionFindersAndPolicies()}
@@ -215,7 +224,6 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
     this.deleteAsOwner = deleteAsOwner;
     this.isDatasetBlacklisted = isDatasetBlacklisted;
 
-
   }
 
   public MultiVersionCleanableDatasetBase(FileSystem fs, Properties properties, boolean simulate, boolean skipTrash,
@@ -225,9 +233,21 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   }
 
   /**
-   * Perform the cleanup of old / deprecated dataset versions. See {@link gobblin.data.management.retention.DatasetCleanerNew}
-   * javadoc for more information.
-   * @throws java.io.IOException
+   * Method to perform the Retention operations for this dataset.
+   *
+   *<ul>
+  * <li>{@link MultiVersionCleanableDatasetBase#getVersionFindersAndPolicies()} gets a list {@link VersionFinderAndPolicy}s
+  * <li>Each {@link VersionFinderAndPolicy} contains a {@link VersionFinder} and a {@link VersionSelectionPolicy}. It can
+  * optionally have a {@link RetentionAction}
+  * <li>The {@link MultiVersionCleanableDatasetBase#clean()} method finds all the {@link FileSystemDatasetVersion}s using
+  * {@link VersionFinderAndPolicy#versionFinder}
+  * <li> It gets the deletable {@link FileSystemDatasetVersion}s by applying {@link VersionFinderAndPolicy#versionSelectionPolicy}.
+  * These deletable version are deleted  and then deletes empty parent directories.
+  * <li>If additional retention actions are available at {@link VersionFinderAndPolicy#getRetentionActions()}, all versions
+  * found by the {@link VersionFinderAndPolicy#versionFinder} are passed to {@link RetentionAction#execute(List)} for
+  * each {@link RetentionAction}
+   * </ul>
+   *
    */
   @Override
   public void clean() throws IOException {
@@ -236,6 +256,8 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
       this.log.info("Dataset blacklisted. Cleanup skipped for " + datasetRoot());
       return;
     }
+
+    boolean atLeastOneFailureSeen = false;
 
     for (VersionFinderAndPolicy<T> versionFinderAndPolicy : getVersionFindersAndPolicies()) {
 
@@ -261,8 +283,26 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
       Collection<T> deletableVersions = selectionPolicy.listSelectedVersions(versions);
 
       cleanImpl(deletableVersions);
+
+      List<DatasetVersion> allVersions = Lists.newArrayList();
+      for (T ver : versions) {
+        allVersions.add(ver);
+      }
+      for (RetentionAction retentionAction : versionFinderAndPolicy.getRetentionActions()) {
+        try {
+          retentionAction.execute(allVersions);
+        } catch (Throwable t) {
+          atLeastOneFailureSeen = true;
+          log.error(String.format("RetentionAction %s failed for dataset %s", retentionAction.getClass().getName(),
+                  this.datasetRoot()), t);
+        }
+      }
     }
 
+    if (atLeastOneFailureSeen) {
+      throw new RuntimeException(String.format(
+          "At least one failure happened while processing %s. Look for previous logs for failures", datasetRoot()));
+    }
   }
 
   protected void cleanImpl(Collection<T> deletableVersions) throws IOException {
@@ -279,14 +319,55 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
     return this.datasetRoot().toString();
   }
 
-  @AllArgsConstructor
+  /**
+   * A composition of version finder
+   * @param <T> the type of {@link FileSystemDatasetVersion} this version finder knows to find
+   */
   @Getter
+  @Builder
+  @AllArgsConstructor
   public static class VersionFinderAndPolicy<T extends FileSystemDatasetVersion> {
-    VersionSelectionPolicy<T> versionSelectionPolicy;
-    VersionFinder<? extends T> versionFinder;
 
+    private final VersionSelectionPolicy<T> versionSelectionPolicy;
+    private final VersionFinder<? extends T> versionFinder;
+    @Singular
+    private final List<RetentionAction> retentionActions;
+
+    /**
+     * Constructor for backward compatibility
+     * @deprecated use {@link VersionFinderAndPolicyBuilder}
+     */
+    @Deprecated
+    public VersionFinderAndPolicy(VersionSelectionPolicy<T> versionSelectionPolicy, VersionFinder<? extends T> versionFinder) {
+      this.versionSelectionPolicy = versionSelectionPolicy;
+      this.versionFinder = versionFinder;
+      this.retentionActions = Lists.newArrayList();
+    }
     public VersionFinderAndPolicy(RetentionPolicy<T> retentionPolicy, VersionFinder<? extends T> versionFinder) {
       this(new EmbeddedRetentionSelectionPolicy<>(retentionPolicy), versionFinder);
+    }
+
+    public static class VersionFinderAndPolicyBuilder<T extends FileSystemDatasetVersion> {
+      @SuppressWarnings("unchecked")
+      public VersionFinderAndPolicy<T> build() {
+
+        VersionSelectionPolicy<T> localVersionSelectionPolicy;
+        List<RetentionAction> localRetentionActions;
+
+        if (this.versionSelectionPolicy == null) {
+          localVersionSelectionPolicy = (VersionSelectionPolicy<T>) new SelectNothingPolicy(new Properties());
+        } else {
+          localVersionSelectionPolicy = this.versionSelectionPolicy;
+        }
+
+        if (this.retentionActions == null) {
+          localRetentionActions = Lists.newArrayList();
+        } else {
+          localRetentionActions = Lists.newArrayList(this.retentionActions);
+        }
+        return new VersionFinderAndPolicy<T>(localVersionSelectionPolicy, this.versionFinder,
+            localRetentionActions);
+      }
     }
   }
 }
