@@ -55,7 +55,8 @@ public class TestJobLauncherExecutionDriver {
           .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
                      ConfigValueFactory.fromAnyRef(localJobRootDir.getPath()))
           .withValue(ConfigurationKeys.SOURCE_CLASS_KEY,
-                     ConfigValueFactory.fromAnyRef(TestingSource.class.getName()));
+                     ConfigValueFactory.fromAnyRef(TestingSource.class.getName()))
+          .withValue(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, ConfigValueFactory.fromAnyRef(false));
 
       JobSpec jobSpec1 = JobSpec.builder().withConfig(jobConf1).build();
 
@@ -85,7 +86,8 @@ public class TestJobLauncherExecutionDriver {
           .withValue(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY,
                      ConfigValueFactory.fromAnyRef(mrJobRootDir.getPath()))
           .withValue(ConfigurationKeys.SOURCE_CLASS_KEY,
-                     ConfigValueFactory.fromAnyRef(TestingSource.class.getName()));
+                     ConfigValueFactory.fromAnyRef(TestingSource.class.getName()))
+          .withValue(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, ConfigValueFactory.fromAnyRef(false));
 
       JobSpec jobSpec2 = JobSpec.builder().withConfig(jobConf2).build();
 
