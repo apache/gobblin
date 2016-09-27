@@ -23,7 +23,9 @@ import org.apache.hadoop.fs.Path;
 public interface FileSystemDatasetVersion extends DatasetVersion, Comparable<FileSystemDatasetVersion> {
 
   /**
-   * Get the set of {@link org.apache.hadoop.fs.Path}s that are included in this dataset version.
+   * Get the set of {@link org.apache.hadoop.fs.Path}s that are included in this dataset version or the path of the dataset
+   * version itself (In which case the set has one path).
+   *
    */
   public Set<Path> getPaths();
 }

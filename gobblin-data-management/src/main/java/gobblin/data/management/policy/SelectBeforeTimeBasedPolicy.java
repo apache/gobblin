@@ -13,32 +13,36 @@ package gobblin.data.management.policy;
 
 import java.util.Properties;
 
-import com.google.common.base.Predicate;
+import org.joda.time.Period;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alias;
 import gobblin.data.management.version.TimestampedDatasetVersion;
+import gobblin.util.ConfigUtils;
 
 
 /**
- * An implementation of {@link AbstractTimeBasedSelectionPolicy} which returns versions that are older than a certain time.
+ * Selects {@link TimestampedDatasetVersion}s older than lookbackTime.
  */
-public class SelectBeforeTimeBasedPolicy extends AbstractTimeBasedSelectionPolicy {
+@Alias("SelectBeforeTimeBasedPolicy")
+public class SelectBeforeTimeBasedPolicy extends SelectBetweenTimeBasedPolicy {
+
+  private static final String TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY = "selection.timeBased.lookbackTime";
 
   public SelectBeforeTimeBasedPolicy(Config conf) {
-    super(conf);
+    super(Optional.of(getMinLookbackTime(conf)), Optional.<Period>absent());
   }
 
   public SelectBeforeTimeBasedPolicy(Properties props) {
-    super(props);
+    super(ConfigUtils.propertiesToConfig(props));
   }
 
-  @Override
-  protected Predicate<TimestampedDatasetVersion> getSelectionPredicate() {
-    return new Predicate<TimestampedDatasetVersion>() {
-      @Override
-      public boolean apply(TimestampedDatasetVersion version) {
-        return version.getDateTime().plus(SelectBeforeTimeBasedPolicy.this.lookBackPeriod).isBeforeNow();
-      }
-    };
+  private static Period getMinLookbackTime(Config conf) {
+    Preconditions.checkArgument(conf.hasPath(TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY),
+        String.format("Required property %s is not specified", TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY));
+    return SelectBetweenTimeBasedPolicy.getLookBackPeriod(conf.getString(TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY));
   }
 }

@@ -19,7 +19,6 @@ import org.reflections.Reflections;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 import gobblin.annotation.Alias;
 
@@ -43,14 +42,16 @@ import gobblin.annotation.Alias;
 @Slf4j
 public class ClassAliasResolver<T> {
 
+  // Scan all packages in the classpath with prefix gobblin when class is loaded.
+  // Since scan is expensive we do it only once when class is loaded.
+  private static final Reflections REFLECTIONS = new Reflections("gobblin");
+
   Map<String, Class<? extends T>> aliasToClassCache;
   private final Class<T> subtypeOf;
 
   public ClassAliasResolver(Class<T> subTypeOf) {
     Map<String, Class<? extends T>> cache = Maps.newHashMap();
-    // Scan all packages
-    Reflections reflections = new Reflections("gobblin");
-    for (Class<? extends T> clazz : reflections.getSubTypesOf(subTypeOf)) {
+    for (Class<? extends T> clazz : REFLECTIONS.getSubTypesOf(subTypeOf)) {
       if (clazz.isAnnotationPresent(Alias.class)) {
         String alias = clazz.getAnnotation(Alias.class).value();
         if (cache.containsKey(alias)) {
@@ -81,9 +82,9 @@ public class ClassAliasResolver<T> {
   }
 
   /**
-   * Attempts to resolve the given alias to a class. It first tries to find a class in the classpath with that alias
-   * and which is a subclass of {@link #subtypeOf}, if it fails it tries to find a class in the classpath with the
-   * exact input name.
+   * Attempts to resolve the given alias to a class. It first tries to find a class in the classpath with this alias
+   * and is also a subclass of {@link #subtypeOf}, if it fails it returns a class object for name
+   * <code>aliasOrClassName</code>.
    */
   public Class<? extends T> resolveClass(final String aliasOrClassName) throws ClassNotFoundException {
     if (this.aliasToClassCache.containsKey(aliasOrClassName)) {
