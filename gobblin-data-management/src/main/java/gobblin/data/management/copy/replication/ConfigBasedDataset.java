@@ -25,9 +25,14 @@ import gobblin.data.management.copy.CopyableDataset;
  *
  */
 public class ConfigBasedDataset implements CopyableDataset {
+  
+  private final EndPoint copFrom;
+  private final EndPoint copyTo;
 
   public ConfigBasedDataset(Config c) {
-
+    //TODO, place holder
+    this.copFrom = null;
+    this.copyTo = null;
   }
 
   @Override
