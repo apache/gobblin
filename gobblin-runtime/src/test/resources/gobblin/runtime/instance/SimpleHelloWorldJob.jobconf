@@ -2,6 +2,7 @@
 gobblin.template.required_attributes=gobblin.workDir
 
 # Optional overrides
+gobblin.workDir=/tmp/gobblin/GobblinSamples/HelloWorld
 #
 # Number of hellos to generate
 gobblin.source.helloWorld.numHellos=5
@@ -13,14 +14,16 @@ job.description=The "Hello World" Gobblin job
 
 # Source, Converters, Writer, Publisher
 source.class=gobblin.util.test.HelloWorldSource
-writer.builder.class="gobblin.util.test.StdoutWriter$Builder"
+writer.builder.class="gobblin.writer.test.GobblinTestEventBusWriter$Builder"
+writer.GobblinTestEventBusWriter.eventBusId=${gobblin.workDir}
 data.publisher.type=gobblin.publisher.NoopPublisher
 
 
 # Work paths
 state.store.enabled=false
-writer.staging.dir=writer-staging
-writer.output.dir=writer-output
+writer.staging.dir=${gobblin.workDir}/writer-staging
+writer.output.dir=${gobblin.workDir}/writer-output
+
 
 # Miscellaneous
 job.lock.enabled=false
