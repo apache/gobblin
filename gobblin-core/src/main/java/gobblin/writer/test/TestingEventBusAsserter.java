@@ -48,9 +48,9 @@ public class TestingEventBusAsserter implements Closeable {
 
   @AllArgsConstructor
   public static class StaticMessage implements Function<TestingEventBuses.Event, String> {
-    private final String errorMessage;
+    private final String message;
     @Override public String apply(Event input) {
-      return this.errorMessage;
+      return this.message;
     }
   }
 

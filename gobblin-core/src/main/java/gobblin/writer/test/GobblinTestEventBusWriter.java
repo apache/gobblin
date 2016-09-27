@@ -18,6 +18,8 @@ import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.util.ForkOperatorUtils;
 import gobblin.util.WriterUtils;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
@@ -37,6 +39,12 @@ import gobblin.writer.DataWriterBuilder;
 public class GobblinTestEventBusWriter implements DataWriter<Object> {
   private final EventBus _eventBus;
   private final AtomicLong _recordCount = new AtomicLong();
+
+  /** The topic to use for writing */
+  public static final String EVENTBUSID_KEY = "GobblinTestEventBusWriter.eventBusId";
+
+  public static final String FULL_EVENTBUSID_KEY =
+      ConfigurationKeys.WRITER_PREFIX + "." + EVENTBUSID_KEY;
 
   public GobblinTestEventBusWriter(EventBus eventBus) {
     _eventBus = eventBus;
@@ -86,10 +94,19 @@ public class GobblinTestEventBusWriter implements DataWriter<Object> {
     private Optional<String> _eventBusId = Optional.absent();
 
     public String getDefaultEventBusId() {
-      return WriterUtils.getWriterOutputDir(getDestination().getProperties(),
-                                            getBranches(),
-                                            getBranch())
-                        .toString();
+      State destinationCfg = getDestination().getProperties();
+      String eventBusIdKey =
+          ForkOperatorUtils.getPathForBranch(destinationCfg, FULL_EVENTBUSID_KEY, getBranches(),
+                                             getBranch());
+      if (destinationCfg.contains(eventBusIdKey)) {
+        return destinationCfg.getProp(eventBusIdKey);
+      }
+      else {
+        return WriterUtils.getWriterOutputDir(destinationCfg,
+                                              getBranches(),
+                                              getBranch())
+                          .toString();
+      }
     }
 
     public String getEventBusId() {

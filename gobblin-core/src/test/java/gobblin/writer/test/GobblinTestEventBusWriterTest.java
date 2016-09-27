@@ -17,6 +17,10 @@ import java.util.concurrent.TimeoutException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import gobblin.source.workunit.WorkUnit;
+import gobblin.writer.Destination;
+import gobblin.writer.Destination.DestinationType;
+
 
 /**
  * Unit tests for {@link GobblinTestEventBusWriter}
@@ -40,6 +44,30 @@ public class GobblinTestEventBusWriterTest {
       asserter.assertNextValueEq("event3");
 
       Assert.assertEquals(writer.recordsWritten(), 3);
+    }
+  }
+
+  @Test
+  public void testBuilder() throws IOException, InterruptedException, TimeoutException {
+    final String eventBusId = "/GobblinTestEventBusWriterTest/testBuilder";
+
+    GobblinTestEventBusWriter.Builder writerBuilder = new GobblinTestEventBusWriter.Builder();
+    WorkUnit wu = WorkUnit.createEmpty();
+    wu.setProp(GobblinTestEventBusWriter.FULL_EVENTBUSID_KEY, eventBusId);
+    writerBuilder.writeTo(Destination.of(DestinationType.HDFS, wu));
+
+    Assert.assertEquals(writerBuilder.getEventBusId(), eventBusId);
+
+    try(TestingEventBusAsserter asserter = new TestingEventBusAsserter(eventBusId)) {
+      GobblinTestEventBusWriter writer = writerBuilder.build();
+
+      writer.write("event1");
+      writer.write("event2");
+
+      asserter.assertNextValueEq("event1");
+      asserter.assertNextValueEq("event2");
+
+      Assert.assertEquals(writer.recordsWritten(), 2);
     }
   }
 

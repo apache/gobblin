@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.instance;
 
+import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -32,6 +33,9 @@ import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
 import gobblin.runtime.std.FilteredJobLifecycleListener;
 import gobblin.runtime.std.JobSpecFilter;
 import gobblin.testing.AssertWithBackoff;
+import gobblin.util.test.HelloWorldSource;
+import gobblin.writer.test.GobblinTestEventBusWriter;
+import gobblin.writer.test.TestingEventBusAsserter;
 
 /**
  * Unit tests for {@link StandardGobblinInstanceLauncher}
@@ -163,6 +167,10 @@ public class TestStandardGobblinInstanceLauncher {
     JobSpec js1 = JobSpec.builder()
         .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
         .build();
+
+    final String eventBusId = js1.getConfig().resolve().getString(GobblinTestEventBusWriter.FULL_EVENTBUSID_KEY);
+    TestingEventBusAsserter asserter = new TestingEventBusAsserter(eventBusId);
+
     final StandardGobblinInstanceDriver instance =
         (StandardGobblinInstanceDriver)instanceLauncher.getDriver();
 
@@ -189,8 +197,16 @@ public class TestStandardGobblinInstanceLauncher {
     JobExecutionResult jobResult = jobDriver.get(5, TimeUnit.SECONDS);
 
     Assert.assertTrue(jobResult.isSuccessful());
-
     instanceLauncher.stopAsync();
+
+    final int numHellos = js1.getConfig().getInt(HelloWorldSource.NUM_HELLOS_FULL_KEY);
+    ArrayList<String> expectedEvents = new ArrayList<>();
+    for (int i = 1; i <= numHellos; ++i) {
+      expectedEvents.add(HelloWorldSource.ExtractorImpl.helloMessage(i));
+    }
+    asserter.assertNextValuesEq(expectedEvents);
+    asserter.close();
+
     instanceLauncher.awaitTerminated(500, TimeUnit.MILLISECONDS);
   }
 
