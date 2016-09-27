@@ -1,14 +1,26 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.util.request_allocation;
 
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
 
-import lombok.AllArgsConstructor;
+import gobblin.util.iterators.InterruptibleIterator;
+
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -23,23 +35,23 @@ import lombok.extern.slf4j.Slf4j;
  *   {@link Request}s.
  * </p>
  */
-@AllArgsConstructor
 @Slf4j
-public class PreOrderAllocator<T extends Request<T>> implements RequestAllocator<T> {
+public class PreOrderAllocator<T extends Request<T>> extends PriorityIterableBasedRequestAllocator<T> {
 
   public static class Factory implements RequestAllocator.Factory {
     @Override
-    public <T extends Request<T>> RequestAllocator<T> createRequestAllocator(Comparator<T> prioritizer,
-        ResourceEstimator<T> resourceEstimator, Config limitedScopeConfig) {
-      return new PreOrderAllocator<>(prioritizer, resourceEstimator);
+    public <T extends Request<T>> RequestAllocator<T> createRequestAllocator(RequestAllocatorConfig<T> configuration) {
+      return new PreOrderAllocator<>(configuration);
     }
   }
 
-  private final Comparator<T> prioritizer;
-  private final ResourceEstimator<T> resourceEstimator;
+  public PreOrderAllocator(RequestAllocatorConfig<T> configuration) {
+    super(log, configuration);
+  }
 
   @Override
-  public AllocatedRequests<T> allocateRequests(Iterator<? extends Requestor<T>> requestors, ResourcePool resourcePool) {
+  protected Iterator<T> getJoinIterator(Iterator<? extends Requestor<T>> requestors,
+      final ConcurrentBoundedPriorityIterable<T> requestIterable) {
 
     List<Iterator<T>> iteratorList = Lists.newArrayList();
     while (requestors.hasNext()) {
@@ -48,20 +60,20 @@ public class PreOrderAllocator<T extends Request<T>> implements RequestAllocator
         throw new RuntimeException(String.format("%s can only be used with %s.", PreOrderAllocator.class, PushDownRequestor.class));
       }
       try {
-        iteratorList.add(((PushDownRequestor<T>) requestor).getRequests(this.prioritizer));
+        iteratorList.add(((PushDownRequestor<T>) requestor).getRequests(getConfiguration().getPrioritizer()));
       } catch (IOException ioe) {
         log.error("Failed to get requests from " + requestor);
       }
     }
 
-    PriorityMultiIterator<T> multiIterator = new PriorityMultiIterator<>(iteratorList, this.prioritizer);
+    PriorityMultiIterator<T> multiIterator = new PriorityMultiIterator<>(iteratorList, getConfiguration().getPrioritizer());
 
-    ConcurrentBoundedPriorityIterable<T> iterable =
-        new ConcurrentBoundedPriorityIterable<>(this.prioritizer, this.resourceEstimator, resourcePool);
-    while (multiIterator.hasNext() && !iterable.isFull()) {
-      iterable.add(multiIterator.next());
-    }
-
-    return new AllocatedRequestsBase<>(iterable.iterator(), resourcePool);
+    return new InterruptibleIterator<>(multiIterator, new Callable<Boolean>() {
+      @Override
+      public Boolean call()
+          throws Exception {
+        return requestIterable.isFull();
+      }
+    });
   }
 }

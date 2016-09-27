@@ -76,11 +76,11 @@ import gobblin.util.binpacking.WorstFitDecreasingBinPacking;
 import gobblin.util.deprecation.DeprecationUtils;
 import gobblin.util.executors.IteratorExecutor;
 import gobblin.util.guid.Guid;
-import gobblin.util.request_allocation.AllEqualAllocator;
-import gobblin.util.request_allocation.BruteForceAllocator;
+import gobblin.util.request_allocation.GreedyAllocator;
 import gobblin.util.request_allocation.HierarchicalAllocator;
 import gobblin.util.request_allocation.HierarchicalPrioritizer;
 import gobblin.util.request_allocation.RequestAllocator;
+import gobblin.util.request_allocation.RequestAllocatorConfig;
 import gobblin.util.request_allocation.RequestAllocatorUtils;
 
 
@@ -145,6 +145,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       final long minWorkUnitWeight = Math.max(1, maxSizePerBin / maxWorkUnitsPerMultiWorkUnit);
       final Optional<CopyableFileWatermarkGenerator> watermarkGenerator =
           CopyableFileWatermarkHelper.getCopyableFileWatermarkGenerator(state);
+      int maxThreads = state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES);
 
       final CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, state.getProperties()).build();
 
@@ -164,7 +165,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       final HashMultimap<FileSet<CopyEntity>, WorkUnit> workUnitsMap = HashMultimap.create();
 
-      RequestAllocator<FileSet<CopyEntity>> allocator = createRequestAllocator(copyConfiguration, state);
+      RequestAllocator<FileSet<CopyEntity>> allocator = createRequestAllocator(copyConfiguration, maxThreads);
       Iterator<FileSet<CopyEntity>> prioritizedFileSets = allocator.allocateRequests(requestorIterator, copyConfiguration.getMaxToCopy());
 
       Iterator<Callable<Void>> callableIterator =
@@ -179,7 +180,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       try {
         List<Future<Void>> futures = new IteratorExecutor<>(callableIterator,
-            state.getPropAsInt(MAX_CONCURRENT_LISTING_SERVICES, DEFAULT_MAX_CONCURRENT_LISTING_SERVICES),
+            maxThreads,
             ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Copy-file-listing-pool-%d")))
             .execute();
 
@@ -224,18 +225,23 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     }
   }
 
-  private RequestAllocator<FileSet<CopyEntity>> createRequestAllocator(CopyConfiguration copyConfiguration, SourceState state) {
+  private RequestAllocator<FileSet<CopyEntity>> createRequestAllocator(CopyConfiguration copyConfiguration, int maxThreads) {
     Optional<FileSetComparator> prioritizer = copyConfiguration.getPrioritizer();
+
+    RequestAllocatorConfig.Builder<FileSet<CopyEntity>> configBuilder =
+        RequestAllocatorConfig.builder(new FileSetResourceEstimator()).allowParallelization(maxThreads)
+            .withLimitedScopeConfig(copyConfiguration.getPrioritizationConfig());
+
     if (!prioritizer.isPresent()) {
-      return new AllEqualAllocator<>(new FileSetResourceEstimator());
-    }
-    if (prioritizer.get() instanceof HierarchicalPrioritizer) {
-      return new HierarchicalAllocator.Factory().createRequestAllocator(
-          (HierarchicalPrioritizer) copyConfiguration.getPrioritizer().get(), new FileSetResourceEstimator(),
-          copyConfiguration.getPrioritizationConfig());
+      return new GreedyAllocator<>(configBuilder.build());
     } else {
-      return RequestAllocatorUtils.inferFromConfig(
-          prioritizer.get(), new FileSetResourceEstimator(), copyConfiguration.getPrioritizationConfig());
+      configBuilder.withPrioritizer(prioritizer.get());
+    }
+
+    if (prioritizer.get() instanceof HierarchicalPrioritizer) {
+      return new HierarchicalAllocator.Factory().createRequestAllocator(configBuilder.build());
+    } else {
+      return RequestAllocatorUtils.inferFromConfig(configBuilder.build());
     }
   }
 

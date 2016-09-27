@@ -12,8 +12,11 @@ public class BruteForceAllocatorTest {
   @Test
   public void testAllocateRequests()
       throws Exception {
+    RequestAllocatorConfig<StringRequest> configuration =
+        RequestAllocatorConfig.builder(new StringRequest.StringRequestEstimator())
+            .withPrioritizer(new StringRequest.StringRequestComparator()).build();
     BruteForceAllocator<StringRequest> allocator =
-        new BruteForceAllocator<>(new StringRequest.StringRequestComparator(), new StringRequest.StringRequestEstimator());
+        new BruteForceAllocator<>(configuration);
 
     ResourcePool pool = ResourcePool.builder().maxResource(StringRequest.MEMORY, 100.).build();
 
@@ -22,7 +25,7 @@ public class BruteForceAllocatorTest {
         new StringRequestor("r2", "j-10", "b-20", "e-20"),
         new StringRequestor("r3", "g-20", "c-200", "d-30"));
 
-    AllocatedRequests<StringRequest> result = allocator.allocateRequests(requests.iterator(), pool);
+    AllocatedRequestsIterator<StringRequest> result = allocator.allocateRequests(requests.iterator(), pool);
 
     List<StringRequest> resultList = Lists.newArrayList(result);
 

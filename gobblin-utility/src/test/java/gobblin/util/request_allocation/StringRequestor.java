@@ -26,8 +26,7 @@ public class StringRequestor implements PushDownRequestor<StringRequest> {
   private final List<String> strings;
 
   @Override
-  public Iterator<StringRequest> getRequests()
-      throws IOException {
+  public Iterator<StringRequest> iterator() {
     return Iterators.transform(this.strings.iterator(), new Function<String, StringRequest>() {
       @Override
       public StringRequest apply(String input) {

@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.util.request_allocation;
 
 import lombok.AccessLevel;
@@ -52,6 +64,10 @@ public class ResourceRequirement {
   @Getter
   private final double[] resourceVector;
 
+  public ResourceRequirement(ResourceRequirement other) {
+    this.resourceVector = other.resourceVector.clone();
+  }
+
   /**
    * Vector addition of this and other {@link ResourceRequirement}.
    */
@@ -66,9 +82,19 @@ public class ResourceRequirement {
     VectorAlgebra.addVector(this.resourceVector, other.resourceVector, -1., this.resourceVector);
   }
 
-  @Override
-  public ResourceRequirement clone() {
-    return new ResourceRequirement(this.resourceVector.clone());
+  void entryWiseMax(ResourceRequirement other) {
+    for (int i = 0; i < this.resourceVector.length; i ++) {
+      this.resourceVector[i] = Math.max(this.resourceVector[i], other.resourceVector[i]);
+    }
+  }
+
+  ResourceRequirement copyInto(ResourceRequirement reuse) {
+    if (reuse == null) {
+      return new ResourceRequirement(this.resourceVector.clone());
+    } else {
+      System.arraycopy(this.resourceVector, 0, reuse.getResourceVector(), 0, this.resourceVector.length);
+      return reuse;
+    }
   }
 
   public static ResourceRequirement add(ResourceRequirement r1, ResourceRequirement r2, ResourceRequirement reuse) {

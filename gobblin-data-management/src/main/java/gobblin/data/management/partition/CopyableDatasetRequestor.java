@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.data.management.partition;
 
 import java.io.IOException;
@@ -24,11 +36,13 @@ import gobblin.util.request_allocation.PushDownRequestor;
 
 import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * A wrapper around a {@link CopyableDatasetBase} that makes it a {@link PushDownRequestor} for prioritization.
  */
+@Slf4j
 @AllArgsConstructor
 public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyEntity>> {
 
@@ -61,8 +75,13 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
   private final IterableCopyableDataset dataset;
 
   @Override
-  public Iterator<FileSet<CopyEntity>> getRequests() throws IOException {
-    return injectRequestor(this.dataset.getFileSetIterator(this.targetFs, this.copyConfiguration));
+  public Iterator<FileSet<CopyEntity>> iterator() {
+    try {
+      return injectRequestor(this.dataset.getFileSetIterator(this.targetFs, this.copyConfiguration));
+    } catch (IOException ioe) {
+      log.error(String.format("Could not get FileSets for dataset %s. Skipping.", this.dataset.datasetURN()));
+      return Iterators.emptyIterator();
+    }
   }
 
   @Override

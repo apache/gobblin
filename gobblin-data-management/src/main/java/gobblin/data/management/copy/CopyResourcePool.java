@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.data.management.copy;
 
 import java.util.Map;
@@ -5,7 +17,7 @@ import java.util.Map;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 
-import gobblin.util.StringUtils;
+import gobblin.util.StringParsingUtils;
 import gobblin.util.request_allocation.ResourcePool;
 import gobblin.util.request_allocation.ResourceRequirement;
 
@@ -33,14 +45,14 @@ public class CopyResourcePool extends ResourcePool {
   public static CopyResourcePool fromConfig(Config limitedScopeConfig) {
     try {
       String sizeStr = limitedScopeConfig.hasPath(SIZE_KEY) ? limitedScopeConfig.getString(SIZE_KEY) : DEFAULT_MAX_SIZE;
-      long maxSize = StringUtils.humanReadableToByteCount(sizeStr);
+      long maxSize = StringParsingUtils.humanReadableToByteCount(sizeStr);
       int maxEntities = limitedScopeConfig.hasPath(ENTITIES_KEY) ? limitedScopeConfig.getInt(ENTITIES_KEY) : DEFAULT_MAX_ENTITIES;
       double tolerance = limitedScopeConfig.hasPath(TOLERANCE_KEY) ? limitedScopeConfig.getDouble(TOLERANCE_KEY) : DEFAULT_TOLERANCE;
 
       return new CopyResourcePool(ImmutableMap.of(ENTITIES_DIMENSION, (double) maxEntities, BYTES_DIMENSION, (double) maxSize),
           ImmutableMap.of(ENTITIES_DIMENSION, tolerance, BYTES_DIMENSION, tolerance),
           ImmutableMap.<String, Double>of());
-    } catch (StringUtils.FormatException fe) {
+    } catch (StringParsingUtils.FormatException fe) {
       throw new RuntimeException(fe);
     }
   }

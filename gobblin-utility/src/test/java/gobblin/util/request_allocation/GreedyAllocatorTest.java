@@ -11,12 +11,14 @@ import com.google.common.collect.Sets;
 
 
 
-public class AllEqualAllocatorTest {
+public class GreedyAllocatorTest {
   @Test
   public void testAllocateRequests()
       throws Exception {
-    AllEqualAllocator<StringRequest> allocator =
-        new AllEqualAllocator<>(new StringRequest.StringRequestEstimator());
+    RequestAllocatorConfig<StringRequest> configuration =
+        RequestAllocatorConfig.builder(new StringRequest.StringRequestEstimator()).build();
+    GreedyAllocator<StringRequest> allocator =
+        new GreedyAllocator<>(configuration);
 
     ResourcePool pool = ResourcePool.builder().maxResource(StringRequest.MEMORY, 100.).build();
 
@@ -25,7 +27,7 @@ public class AllEqualAllocatorTest {
         new StringRequestor("r2", "j-10", "b-20", "e-20"),
         new StringRequestor("r3", "g-20", "c-200", "d-30"));
 
-    AllocatedRequests<StringRequest> result = allocator.allocateRequests(requests.iterator(), pool);
+    AllocatedRequestsIterator<StringRequest> result = allocator.allocateRequests(requests.iterator(), pool);
 
     List<StringRequest> resultList = Lists.newArrayList(result);
 

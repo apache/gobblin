@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.util.request_allocation;
 
 import java.util.Collections;
@@ -9,9 +21,6 @@ import java.util.NoSuchElementException;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
-
-import gobblin.util.ClassAliasResolver;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,12 +34,11 @@ public class HierarchicalAllocator<T extends Request<T>> implements RequestAlloc
 
   public static class Factory implements RequestAllocator.Factory {
     @Override
-    public <T extends Request<T>> RequestAllocator<T> createRequestAllocator(Comparator<T> prioritizer,
-        ResourceEstimator<T> resourceEstimator, Config limitedScopeConfig) {
-      Preconditions.checkArgument(prioritizer instanceof HierarchicalPrioritizer,
+    public <T extends Request<T>> RequestAllocator<T> createRequestAllocator(RequestAllocatorConfig<T> cofiguration) {
+      Preconditions.checkArgument(cofiguration.getPrioritizer() instanceof HierarchicalPrioritizer,
           "Prioritizer must be a " + HierarchicalPrioritizer.class.getSimpleName());
-      RequestAllocator<T> underlying = RequestAllocatorUtils.inferFromConfig(prioritizer, resourceEstimator, limitedScopeConfig);
-      return new HierarchicalAllocator<>((HierarchicalPrioritizer<T>) prioritizer, underlying);
+      RequestAllocator<T> underlying = RequestAllocatorUtils.inferFromConfig(cofiguration);
+      return new HierarchicalAllocator<>((HierarchicalPrioritizer<T>) cofiguration.getPrioritizer(), underlying);
     }
   }
 
@@ -38,7 +46,7 @@ public class HierarchicalAllocator<T extends Request<T>> implements RequestAlloc
   private final RequestAllocator<T> underlying;
 
   @Override
-  public AllocatedRequests<T> allocateRequests(Iterator<? extends Requestor<T>> requestors, ResourcePool resourcePool) {
+  public AllocatedRequestsIterator<T> allocateRequests(Iterator<? extends Requestor<T>> requestors, ResourcePool resourcePool) {
 
     List<Requestor<T>> requestorList = Lists.newArrayList(requestors);
 
@@ -57,9 +65,9 @@ public class HierarchicalAllocator<T extends Request<T>> implements RequestAlloc
    * Automatically handles allocation for each tier of {@link Requestor}s, computation of correct {@link #totalResourcesUsed()},
    * and not materializing next tier once {@link ResourcePool} is full.
    */
-  private class HierarchicalIterator implements AllocatedRequests<T> {
+  private class HierarchicalIterator implements AllocatedRequestsIterator<T> {
     private SingleTierIterator singleTierIterator;
-    private AllocatedRequests<T> currentIterator;
+    private AllocatedRequestsIterator<T> currentIterator;
     private ResourcePool resourcePool;
     private final ResourceRequirement currentRequirement;
 

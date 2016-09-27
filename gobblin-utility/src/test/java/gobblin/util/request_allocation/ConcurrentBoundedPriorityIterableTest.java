@@ -6,11 +6,8 @@ import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-
-import javax.annotation.Nullable;
 
 
 public class ConcurrentBoundedPriorityIterableTest {
@@ -44,29 +41,24 @@ public class ConcurrentBoundedPriorityIterableTest {
 
     // Check items
     List<String> items = Lists.newArrayList(Iterators.transform(iterable.iterator(),
-        new AllocatedRequestsBase.TExtractor<String>()));
+        new AllocatedRequestsIteratorBase.TExtractor<String>()));
     Assert.assertEquals(items.size(), 2);
     Assert.assertEquals(items.get(0), "b-50");
     Assert.assertEquals(items.get(1), "d-50");
 
+    iterable.reopen();
     // a high priority that won't fit even with evictions should not evict anything
     Assert.assertFalse(iterable.add("c-500"));
     items = Lists.newArrayList(Iterators.transform(iterable.iterator(),
-        new AllocatedRequestsBase.TExtractor<String>()));
+        new AllocatedRequestsIteratorBase.TExtractor<String>()));
     Assert.assertEquals(items.size(), 2);
 
+    iterable.reopen();
     // even if it is higher priority than everything else
     Assert.assertFalse(iterable.add("a-500"));
     items = Lists.newArrayList(Iterators.transform(iterable.iterator(),
-        new AllocatedRequestsBase.TExtractor<String>()));
+        new AllocatedRequestsIteratorBase.TExtractor<String>()));
     Assert.assertEquals(items.size(), 2);
-  }
-
-  private class NaturalComparator<T extends Comparable<T>> implements Comparator<T> {
-    @Override
-    public int compare(T o1, T o2) {
-      return o1.compareTo(o2);
-    }
   }
 
   private class MyComparator implements Comparator<String> {

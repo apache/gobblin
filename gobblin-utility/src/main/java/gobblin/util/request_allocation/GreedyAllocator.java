@@ -13,41 +13,57 @@
 package gobblin.util.request_allocation;
 
 import java.util.Iterator;
+import java.util.concurrent.Callable;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
+
+import gobblin.util.iterators.InterruptibleIterator;
 
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * A {@link RequestAllocator} that simply adds every work unit to a {@link ConcurrentBoundedPriorityIterable}, then returns
- * the iterator.
+ * A {@link RequestAllocator} that selects {@link Request}s without any order guarantees until the {@link ResourcePool}
+ * is full, then stops. This allocator will mostly ignore the prioritizer.
+ *
+ * <p>
+ *   This allocator is useful when there is no prioritization or fairness required. It is generally the fastest and least
+ *   memory intensive implementation.
+ * </p>
  */
 @Slf4j
-public class BruteForceAllocator<T extends Request<T>> extends PriorityIterableBasedRequestAllocator<T> {
+public class GreedyAllocator<T extends Request<T>> extends PriorityIterableBasedRequestAllocator<T> {
 
   public static class Factory implements RequestAllocator.Factory {
     @Override
     public <T extends Request<T>> RequestAllocator<T> createRequestAllocator(RequestAllocatorConfig<T> configuration) {
-      return new BruteForceAllocator<>(configuration);
+      return new GreedyAllocator<>(configuration);
     }
   }
 
-  public BruteForceAllocator(RequestAllocatorConfig<T> configuration) {
+  public GreedyAllocator(RequestAllocatorConfig<T> configuration) {
     super(log, configuration);
   }
 
   @Override
   protected Iterator<T> getJoinIterator(Iterator<? extends Requestor<T>> requestors,
-      ConcurrentBoundedPriorityIterable<T> requestIterable) {
-    return Iterators.concat(Iterators.transform(requestors, new Function<Requestor<T>, Iterator<T>>() {
+      final ConcurrentBoundedPriorityIterable<T> requestIterable) {
+    Iterator<T> unionIterator = Iterators.concat(Iterators.transform(requestors, new Function<Requestor<T>, Iterator<T>>() {
       @Nullable
       @Override
       public Iterator<T> apply(Requestor<T> input) {
         return input.iterator();
       }
     }));
+
+    return new InterruptibleIterator<>(unionIterator, new Callable<Boolean>() {
+      @Override
+      public Boolean call()
+          throws Exception {
+        return requestIterable.isFull();
+      }
+    });
   }
 }

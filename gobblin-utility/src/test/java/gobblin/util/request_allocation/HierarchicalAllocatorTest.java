@@ -8,8 +8,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import static org.testng.Assert.*;
-
 
 public class HierarchicalAllocatorTest {
   @Test
@@ -27,8 +25,9 @@ public class HierarchicalAllocatorTest {
 
     HierarchicalPrioritizer<StringRequest> prioritizer =
         new SimpleHierarchicalPrioritizer<>(requestorComparator, new StringRequest.StringRequestComparator());
-
-    BruteForceAllocator<StringRequest> underlying = new BruteForceAllocator<>(prioritizer, new StringRequest.StringRequestEstimator());
+    RequestAllocatorConfig<StringRequest> configuration =
+        RequestAllocatorConfig.builder(new StringRequest.StringRequestEstimator()).withPrioritizer(prioritizer).build();
+    BruteForceAllocator<StringRequest> underlying = new BruteForceAllocator<>(configuration);
     HierarchicalAllocator<StringRequest> hierarchicalAllocator = new HierarchicalAllocator<>(prioritizer, underlying);
 
     List<Requestor<StringRequest>> requests = Lists.<Requestor<StringRequest>>newArrayList(
@@ -38,7 +37,7 @@ public class HierarchicalAllocatorTest {
         new StringRequestor("r3", "a-10", "d-10"));
     ResourcePool pool = ResourcePool.builder().maxResource(StringRequest.MEMORY, 45.).build();
 
-    AllocatedRequests<StringRequest> result = hierarchicalAllocator.allocateRequests(requests.iterator(), pool);
+    AllocatedRequestsIterator<StringRequest> result = hierarchicalAllocator.allocateRequests(requests.iterator(), pool);
     List<StringRequest> resultList = Lists.newArrayList(result);
 
     Assert.assertEquals(resultList.size(), 5);

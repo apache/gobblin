@@ -14,8 +14,10 @@ public class PreOrderAllocatorTest {
   public void testAllocateRequests()
       throws Exception {
     StringRequest.StringRequestEstimator estimator = new StringRequest.StringRequestEstimator();
+    RequestAllocatorConfig<StringRequest> configuration =
+        RequestAllocatorConfig.builder(estimator).withPrioritizer(new StringRequest.StringRequestComparator()).build();
     PreOrderAllocator<StringRequest> allocator =
-        new PreOrderAllocator<>(new StringRequest.StringRequestComparator(), estimator);
+        new PreOrderAllocator<>(configuration);
 
     ResourcePool pool = ResourcePool.builder().maxResource(StringRequest.MEMORY, 100.).build();
 
@@ -24,7 +26,7 @@ public class PreOrderAllocatorTest {
         new StringRequestor("r2", "j-10", "b-20", "e-20"),
         new StringRequestor("r3", "g-20", "c-200", "d-30"));
 
-    AllocatedRequests<StringRequest> result = allocator.allocateRequests(requests.iterator(), pool);
+    AllocatedRequestsIterator<StringRequest> result = allocator.allocateRequests(requests.iterator(), pool);
 
     List<StringRequest> resultList = Lists.newArrayList(result);
 

@@ -12,18 +12,15 @@
 
 package gobblin.util.request_allocation;
 
-import java.io.IOException;
-import java.util.Comparator;
 import java.util.Iterator;
 
 
 /**
- * A {@link Requestor} that can provide an {@link Iterator} of {@link Request}s already sorted by the input
- * prioritizer. Allows push down of certain prioritizers to more efficient layers.
+ * An {@link Iterator} over {@link Request} that also provides with the total resources used by all consumed entries.
  */
-public interface PushDownRequestor<T extends Request> extends Requestor<T> {
+public interface AllocatedRequestsIterator<T extends Request<T>> extends Iterator<T> {
   /**
-   * Return an {@link Iterator} of {@link Request}s already sorted by the input prioritizer.
+   * @return The total resources used by the elements consumed so far from this iterator.
    */
-  Iterator<T> getRequests(Comparator<T> prioritizer) throws IOException;
+  ResourceRequirement totalResourcesUsed();
 }

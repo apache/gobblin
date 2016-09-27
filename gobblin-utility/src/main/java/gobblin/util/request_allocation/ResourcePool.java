@@ -1,9 +1,23 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.util.request_allocation;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -22,9 +36,7 @@ public class ResourcePool {
   public static final double DEFAULT_DIMENSION_TOLERANCE = 1.2;
 
   private final ImmutableMap<String, Integer> dimensionIndex;
-  @VisibleForTesting
   private final double[] softBound;
-  @VisibleForTesting
   private final double[] hardBound;
   private final double[] defaultResourceUse;
 
@@ -77,6 +89,31 @@ public class ResourcePool {
     this.dimensionIndex = dimensionIndex;
   }
 
+  @Override
+  public String toString() {
+    StringBuilder builder = new StringBuilder(ResourcePool.class.getSimpleName()).append(": {");
+    builder.append("softBound").append(": ").append(vectorToString(this.softBound));
+    builder.append(", ");
+    builder.append("hardBound").append(": ").append(vectorToString(this.hardBound));
+    builder.append("}");
+    return builder.toString();
+  }
+
+  /**
+   * Stringify a {@link ResourceRequirement} with the appropriate dimension labels.
+   */
+  public String stringifyRequirement(ResourceRequirement requirement) {
+    return vectorToString(requirement.getResourceVector());
+  }
+
+  private String vectorToString(double[] vector) {
+    List<String> tokens = Lists.newArrayListWithCapacity(this.dimensionIndex.size());
+    for (Map.Entry<String, Integer> dimension : dimensionIndex.entrySet()) {
+      tokens.add(dimension.getKey() + ": " + vector[dimension.getValue()]);
+    }
+    return Arrays.toString(tokens.toArray());
+  }
+
   /**
    * @return true if input {@link ResourceRequirement} exceeds the soft bound long any dimension. If the parameter
    *        orEqual is true, then matching along any dimension will also return true.
@@ -118,14 +155,10 @@ public class ResourcePool {
   }
 
   double[] getDefaultResourceUse(double[] reuse) {
-    return reuseOrClone(this.defaultResourceUse, reuse);
-  }
-
-  private double[] reuseOrClone(double[] ref, double[] reuse) {
-    if (reuse != null && ref.length == reuse.length) {
-      System.arraycopy(ref, 0, reuse, 0, ref.length);
+    if (reuse != null && this.defaultResourceUse.length == reuse.length) {
+      System.arraycopy(this.defaultResourceUse, 0, reuse, 0, this.defaultResourceUse.length);
       return reuse;
     }
-    return ref.clone();
+    return this.defaultResourceUse.clone();
   }
 }
