@@ -24,6 +24,7 @@ import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ConfigUtils;
+import gobblin.util.PropertiesUtils;
 
 import lombok.Getter;
 
@@ -48,7 +49,7 @@ public class SchedulerService extends AbstractIdleService {
     this(Boolean.parseBoolean(
             props.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
                               ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION)),
-        Optional.of(props));
+        Optional.of(PropertiesUtils.extractPropertiesWithPrefix(props, Optional.of("org.quartz."))));
   }
 
   public SchedulerService(Config cfg) {
