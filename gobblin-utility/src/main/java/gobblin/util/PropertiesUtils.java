@@ -17,6 +17,7 @@ import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 
@@ -61,6 +62,9 @@ public class PropertiesUtils {
    * @return a {@link Properties} instance
    */
   public static Properties extractPropertiesWithPrefix(Properties properties, Optional<String> prefix) {
+    Preconditions.checkNotNull(properties);
+    Preconditions.checkNotNull(prefix);
+
     Properties extractedProperties = new Properties();
     for (Map.Entry<Object, Object> entry : properties.entrySet()) {
       if (StringUtils.startsWith(entry.getKey().toString(), prefix.or(StringUtils.EMPTY))) {
