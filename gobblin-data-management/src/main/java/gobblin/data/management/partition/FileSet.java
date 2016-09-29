@@ -13,30 +13,48 @@
 package gobblin.data.management.partition;
 
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.Singular;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
 
+import com.beust.jcommander.internal.Maps;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import gobblin.data.management.copy.CopyEntity;
+import gobblin.data.management.copy.CopyableFile;
 import gobblin.dataset.Dataset;
+import gobblin.util.request_allocation.Request;
+import gobblin.util.request_allocation.Requestor;
+
 
 /**
- * A named subset of {@link File}s in a {@link Dataset}. (Useful for partitions, versions, etc.)
+ * A named subset of {@link File}s in a {@link Dataset}. (Useful for partitions, versions, etc.).
+ *
+ * The actual list of files in this {@link FileSet} is, in ideal circumstances, generated lazily. As such, the method
+ * {@link #getFiles()} should only be called when the actual list of files is needed.
  */
-@Data
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class FileSet<T extends CopyEntity> {
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+public abstract class FileSet<T extends CopyEntity> implements Request<FileSet<CopyEntity>> {
 
+  /**
+   * A builder for {@link StaticFileSet} provided for backwards compatibility. The output of this builder is not lazy.
+   */
   public static class Builder<T extends CopyEntity> {
 
     private final String name;
-    private final List<T> files;
+    private final List<T> files = Lists.newArrayList();
     private final Dataset dataset;
 
     public Builder(String name, Dataset dataset) {
@@ -44,7 +62,6 @@ public class FileSet<T extends CopyEntity> {
         throw new RuntimeException("Name cannot be null.");
       }
       this.name = name;
-      this.files = Lists.newArrayList();
       this.dataset = dataset;
     }
 
@@ -59,12 +76,71 @@ public class FileSet<T extends CopyEntity> {
     }
 
     public FileSet<T> build() {
-      return new FileSet<>(this.name, ImmutableList.copyOf(this.files), this.dataset);
+      return new StaticFileSet<>(this.name, this.dataset, this.files);
     }
   }
 
+  @Getter
   @NonNull private final String name;
-  private final ImmutableList<T> files;
+  @Getter
   private final Dataset dataset;
+
+  private ImmutableList<T> generatedEntities;
+  private long totalSize = -1;
+  private int totalEntities = -1;
+  @Setter(value = AccessLevel.PACKAGE)
+  @Getter
+  private Requestor<FileSet<CopyEntity>> requestor;
+
+  public ImmutableList<T> getFiles() {
+    ensureFilesGenerated();
+    return this.generatedEntities;
+  }
+
+  public long getTotalSizeInBytes() {
+    ensureStatsComputed();
+    return this.totalSize;
+  }
+
+  public int getTotalEntities() {
+    ensureStatsComputed();
+    return this.totalEntities;
+  }
+
+  private void ensureFilesGenerated() {
+    if (this.generatedEntities == null) {
+      try {
+        this.generatedEntities = ImmutableList.copyOf(generateCopyEntities());
+      } catch (Exception exc) {
+        throw new RuntimeException("Failed to generate files for file set " + name);
+      }
+      recomputeStats();
+    }
+  }
+
+  private void ensureStatsComputed() {
+    ensureFilesGenerated();
+    if (this.totalEntities < 0 || this.totalSize < 0) {
+      recomputeStats();
+    }
+  }
+
+  private void recomputeStats() {
+    this.totalEntities = this.generatedEntities.size();
+    this.totalSize = 0;
+    for (CopyEntity copyEntity : this.generatedEntities) {
+      if (copyEntity instanceof CopyableFile) {
+        this.totalSize += ((CopyableFile) copyEntity).getOrigin().getLen();
+      }
+    }
+  }
+
+  /**
+   * This method is called lazily when needed and only once, it is intended to do the heavy work of generating the
+   * {@link CopyEntity}s.
+   * @return The {@link Collection} of {@link CopyEntity}s in this file set.
+   * @throws IOException
+   */
+  protected abstract Collection<T> generateCopyEntities() throws IOException;
 
 }

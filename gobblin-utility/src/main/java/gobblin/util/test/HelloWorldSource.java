@@ -90,7 +90,11 @@ public class HelloWorldSource implements Source<String, String> {
         return null;
       }
       ++_recordsEmitted;
-      return "Hello world " + _helloId + " !";
+      return helloMessage(_helloId);
+    }
+
+    public static String helloMessage(int helloId) {
+      return "Hello world " + helloId + " !";
     }
 
     @Override public long getExpectedRecordCount() {

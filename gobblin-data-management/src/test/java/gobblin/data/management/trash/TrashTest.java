@@ -37,7 +37,7 @@ import com.google.common.collect.Lists;
 
 import static org.mockito.Mockito.*;
 
-
+@Test(groups = { "SystemTimeTests"})
 public class TrashTest {
 
   @Test
@@ -151,89 +151,91 @@ public class TrashTest {
   @Test
   public void testCreateSnapshot() throws IOException {
 
-    TrashTestBase trash = new TrashTestBase(new Properties());
+    try {
+      TrashTestBase trash = new TrashTestBase(new Properties());
 
-    Path pathInTrash = new Path(trash.trash.getTrashLocation(), "dirInTrash");
+      Path pathInTrash = new Path(trash.trash.getTrashLocation(), "dirInTrash");
 
-    DateTimeUtils.setCurrentMillisFixed(new DateTime(2015, 7, 15, 10, 0).getMillis());
+      DateTimeUtils.setCurrentMillisFixed(new DateTime(2015, 7, 15, 10, 0).getMillis());
 
-    final List<Path> createdDirs = Lists.newArrayList();
-    final List<Pair<Path, Path>> movedPaths = Lists.newArrayList();
+      final List<Path> createdDirs = Lists.newArrayList();
+      final List<Pair<Path, Path>> movedPaths = Lists.newArrayList();
 
-    when(trash.fs.listStatus(eq(trash.trash.getTrashLocation()), any(PathFilter.class))).
-        thenReturn(Lists.newArrayList(new FileStatus(0, true, 0, 0, 0, pathInTrash)).toArray(new FileStatus[]{}));
-    when(trash.fs.exists(any(Path.class))).thenReturn(false);
-    when(trash.fs.mkdirs(any(Path.class), any(FsPermission.class))).thenAnswer(new Answer<Boolean>() {
-      @Override
-      public Boolean answer(InvocationOnMock invocation)
-          throws Throwable {
-        createdDirs.add((Path) invocation.getArguments()[0]);
-        return true;
-      }
-    });
-    when(trash.fs.rename(any(Path.class), any(Path.class))).thenAnswer(new Answer<Boolean>() {
-      @Override
-      public Boolean answer(InvocationOnMock invocation)
-          throws Throwable {
-        Object[] args = invocation.getArguments();
-        movedPaths.add(new Pair<Path, Path>((Path) args[0], (Path) args[1]));
-        return true;
-      }
-    });
+      when(trash.fs.listStatus(eq(trash.trash.getTrashLocation()), any(PathFilter.class))).
+          thenReturn(Lists.newArrayList(new FileStatus(0, true, 0, 0, 0, pathInTrash)).toArray(new FileStatus[]{}));
+      when(trash.fs.exists(any(Path.class))).thenReturn(false);
+      when(trash.fs.mkdirs(any(Path.class), any(FsPermission.class))).thenAnswer(new Answer<Boolean>() {
+        @Override
+        public Boolean answer(InvocationOnMock invocation)
+            throws Throwable {
+          createdDirs.add((Path) invocation.getArguments()[0]);
+          return true;
+        }
+      });
+      when(trash.fs.rename(any(Path.class), any(Path.class))).thenAnswer(new Answer<Boolean>() {
+        @Override
+        public Boolean answer(InvocationOnMock invocation)
+            throws Throwable {
+          Object[] args = invocation.getArguments();
+          movedPaths.add(new Pair<Path, Path>((Path) args[0], (Path) args[1]));
+          return true;
+        }
+      });
 
-    trash.trash.createTrashSnapshot();
+      trash.trash.createTrashSnapshot();
 
-    Assert.assertEquals(createdDirs.size(), 1);
-    Path createdDir = createdDirs.get(0);
-    Assert.assertTrue(Trash.TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(createdDir.getName()).equals(new DateTime().withZone(
-        DateTimeZone.UTC)));
-    Assert.assertEquals(movedPaths.size(), 1);
-    Assert.assertTrue(movedPaths.get(0).first().equals(pathInTrash));
-    Assert.assertTrue(movedPaths.get(0).second().getName().equals(pathInTrash.getName()));
-    Assert.assertTrue(movedPaths.get(0).second().getParent().equals(createdDir));
-
-    DateTimeUtils.setCurrentMillisSystem();
-
+      Assert.assertEquals(createdDirs.size(), 1);
+      Path createdDir = createdDirs.get(0);
+      Assert.assertTrue(Trash.TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(createdDir.getName()).equals(new DateTime().withZone(
+          DateTimeZone.UTC)));
+      Assert.assertEquals(movedPaths.size(), 1);
+      Assert.assertTrue(movedPaths.get(0).first().equals(pathInTrash));
+      Assert.assertTrue(movedPaths.get(0).second().getName().equals(pathInTrash.getName()));
+      Assert.assertTrue(movedPaths.get(0).second().getParent().equals(createdDir));
+    } finally {
+      DateTimeUtils.setCurrentMillisSystem();
+    }
   }
 
   @Test
   public void testPurgeSnapshots() throws IOException {
 
-    Properties properties = new Properties();
-    properties.setProperty(Trash.SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TestCleanupPolicy.class.getCanonicalName());
+    try {
+      Properties properties = new Properties();
+      properties.setProperty(Trash.SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TestCleanupPolicy.class.getCanonicalName());
 
-    TrashTestBase trash = new TrashTestBase(properties);
+      TrashTestBase trash = new TrashTestBase(properties);
 
-    DateTimeUtils.setCurrentMillisFixed(new DateTime(2015, 7, 15, 10, 0).withZone(DateTimeZone.UTC).getMillis());
+      DateTimeUtils.setCurrentMillisFixed(new DateTime(2015, 7, 15, 10, 0).withZone(DateTimeZone.UTC).getMillis());
 
-    final List<Path> deletedPaths = Lists.newArrayList();
+      final List<Path> deletedPaths = Lists.newArrayList();
 
-    Path snapshot1 = new Path(trash.trash.getTrashLocation(), Trash.TRASH_SNAPSHOT_NAME_FORMATTER.print(new DateTime()));
-    Path snapshot2 = new Path(trash.trash.getTrashLocation(),
-        Trash.TRASH_SNAPSHOT_NAME_FORMATTER.print(new DateTime().minusDays(1)));
+      Path snapshot1 = new Path(trash.trash.getTrashLocation(), Trash.TRASH_SNAPSHOT_NAME_FORMATTER.print(new DateTime()));
+      Path snapshot2 = new Path(trash.trash.getTrashLocation(),
+          Trash.TRASH_SNAPSHOT_NAME_FORMATTER.print(new DateTime().minusDays(1)));
 
-    when(trash.fs.listStatus(any(Path.class), any(PathFilter.class))).
-        thenReturn(
-            Lists.newArrayList(
-                new FileStatus(0, true, 0, 0, 0, snapshot1),
-                new FileStatus(0, true, 0, 0, 0, snapshot2))
-                .toArray(new FileStatus[]{}));
-    when(trash.fs.delete(any(Path.class), anyBoolean())).thenAnswer(new Answer<Boolean>() {
-      @Override
-      public Boolean answer(InvocationOnMock invocation)
-          throws Throwable {
-        deletedPaths.add((Path) invocation.getArguments()[0]);
-        return true;
-      }
-    });
+      when(trash.fs.listStatus(any(Path.class), any(PathFilter.class))).
+          thenReturn(
+              Lists.newArrayList(
+                  new FileStatus(0, true, 0, 0, 0, snapshot1),
+                  new FileStatus(0, true, 0, 0, 0, snapshot2))
+                  .toArray(new FileStatus[]{}));
+      when(trash.fs.delete(any(Path.class), anyBoolean())).thenAnswer(new Answer<Boolean>() {
+        @Override
+        public Boolean answer(InvocationOnMock invocation)
+            throws Throwable {
+          deletedPaths.add((Path) invocation.getArguments()[0]);
+          return true;
+        }
+      });
 
-    trash.trash.purgeTrashSnapshots();
+      trash.trash.purgeTrashSnapshots();
 
-    Assert.assertEquals(deletedPaths.size(), 1);
-    Assert.assertTrue(deletedPaths.get(0).equals(snapshot2));
-
-    DateTimeUtils.setCurrentMillisSystem();
-
+      Assert.assertEquals(deletedPaths.size(), 1);
+      Assert.assertTrue(deletedPaths.get(0).equals(snapshot2));
+    } finally {
+      DateTimeUtils.setCurrentMillisSystem();
+    }
   }
 
 }
