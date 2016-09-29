@@ -43,15 +43,17 @@ import gobblin.annotation.Alias;
 public class ClassAliasResolver<T> {
 
   // Scan all packages in the classpath with prefix gobblin when class is loaded.
-  // Since scan is expensive we do it only once when class is loaded.
-  private static final Reflections REFLECTIONS = new Reflections("gobblin");
+  // Since scan is expensive we do it only once. It is lazily loaded when the first time new ClassAliasResolver() is called.
+  private static class ReflectionsHolder {
+    private static final Reflections REFLECTIONS = new Reflections("gobblin");
+  }
 
   Map<String, Class<? extends T>> aliasToClassCache;
   private final Class<T> subtypeOf;
 
   public ClassAliasResolver(Class<T> subTypeOf) {
     Map<String, Class<? extends T>> cache = Maps.newHashMap();
-    for (Class<? extends T> clazz : REFLECTIONS.getSubTypesOf(subTypeOf)) {
+    for (Class<? extends T> clazz : ReflectionsHolder.REFLECTIONS.getSubTypesOf(subTypeOf)) {
       if (clazz.isAnnotationPresent(Alias.class)) {
         String alias = clazz.getAnnotation(Alias.class).value();
         if (cache.containsKey(alias)) {
