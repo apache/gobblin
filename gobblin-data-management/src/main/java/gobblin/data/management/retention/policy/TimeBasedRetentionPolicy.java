@@ -22,6 +22,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.format.ISOPeriodFormat;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
@@ -72,8 +73,8 @@ public class TimeBasedRetentionPolicy implements RetentionPolicy<TimestampedData
 
   public TimeBasedRetentionPolicy(String duration) {
     this.retention = parseDuration(duration);
-    log.info(String.format("%s will delete dataset versions older than %s.", TimeBasedRetentionPolicy.class.getName(),
-        duration));
+    log.info(String
+        .format("%s will delete dataset versions older than %s.", TimeBasedRetentionPolicy.class.getName(), duration));
   }
 
   @Override
@@ -111,9 +112,9 @@ public class TimeBasedRetentionPolicy implements RetentionPolicy<TimestampedData
   }
 
   private static Duration getDuration(Config config) {
-    Preconditions.checkArgument(
-        config.hasPath(RETENTION_TIMEBASED_DURATION_KEY) || config.hasPath(RETENTION_MINUTES_KEY),
-        String.format("Either %s or %s needs to be set", RETENTION_TIMEBASED_DURATION_KEY, RETENTION_MINUTES_KEY));
+    Preconditions
+        .checkArgument(config.hasPath(RETENTION_TIMEBASED_DURATION_KEY) || config.hasPath(RETENTION_MINUTES_KEY),
+            String.format("Either %s or %s needs to be set", RETENTION_TIMEBASED_DURATION_KEY, RETENTION_MINUTES_KEY));
 
     if (config.hasPath(RETENTION_TIMEBASED_DURATION_KEY)) {
       return parseDuration(config.getString(RETENTION_TIMEBASED_DURATION_KEY));
