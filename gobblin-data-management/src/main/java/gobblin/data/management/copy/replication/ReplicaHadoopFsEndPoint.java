@@ -9,6 +9,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -29,6 +30,8 @@ public class ReplicaHadoopFsEndPoint implements EndPoint {
   private final String replicaName;
 
   public ReplicaHadoopFsEndPoint(HadoopFsReplicaConfig rc, String replicaName) {
+    Preconditions.checkArgument(!replicaName.equals(ReplicationConfiguration.REPLICATION_SOURCE),
+        "replicaName can not be " + ReplicationConfiguration.REPLICATION_SOURCE);
     this.rc = rc;
     this.replicaName = replicaName;
   }
@@ -40,12 +43,12 @@ public class ReplicaHadoopFsEndPoint implements EndPoint {
       Path metaData = new Path(rc.getPath(), WATERMARK_FILE);
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       if (fs.exists(metaData)) {
-        FSDataInputStream fin = fs.open(metaData);
-        InputStreamReader reader = new InputStreamReader(fin, Charsets.UTF_8);
-        Config c = ConfigFactory.parseReader(reader);
-        result = new LongWatermark(c.getLong(LATEST_TIMESTAMP));
+        try(FSDataInputStream fin = fs.open(metaData)){
+          InputStreamReader reader = new InputStreamReader(fin, Charsets.UTF_8);
+          Config c = ConfigFactory.parseReader(reader);
+          result = new LongWatermark(c.getLong(LATEST_TIMESTAMP));
+        }
       }
-
       // for replica, can not use the file time stamp as that is different with original source time stamp
       return result;
     } catch (IOException e) {
