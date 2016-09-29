@@ -10,7 +10,7 @@ public class HadoopFsEndPointFactory implements EndPointFactory {
   public static final String HADOOP_FS_CONFIG_KEY = "hadoopfs";
 
   @Override
-  public EndPoint buildSource(Config sourceConfig) {
+  public HadoopFsEndPoint buildSource(Config sourceConfig) {
     Preconditions.checkArgument(sourceConfig.hasPath(HADOOP_FS_CONFIG_KEY),
         "missing required config entery " + HADOOP_FS_CONFIG_KEY);
 
@@ -18,7 +18,7 @@ public class HadoopFsEndPointFactory implements EndPointFactory {
   }
 
   @Override
-  public EndPoint buildReplica(Config replicaConfig, String replicaName) {
+  public HadoopFsEndPoint buildReplica(Config replicaConfig, String replicaName) {
     Preconditions.checkArgument(replicaConfig.hasPath(HADOOP_FS_CONFIG_KEY),
         "missing required config entery " + HADOOP_FS_CONFIG_KEY);
 

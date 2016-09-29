@@ -10,12 +10,14 @@ import org.apache.hadoop.fs.FileSystem;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.util.FileListUtils;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-public class SourceHadoopFsEndPoint implements EndPoint {
+public class SourceHadoopFsEndPoint implements HadoopFsEndPoint{
 
+  @Getter
   private final HadoopFsReplicaConfig rc;
 
   public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc) {
@@ -49,5 +51,10 @@ public class SourceHadoopFsEndPoint implements EndPoint {
   @Override
   public String getEndPointName() {
     return ReplicationConfiguration.REPLICATION_SOURCE;
+  }
+
+  @Override
+  public String getClusterName() {
+    return this.rc.getClustername();
   }
 }
