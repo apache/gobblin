@@ -10,14 +10,15 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.copy;
+package gobblin.util.request_allocation;
 
-import gobblin.dataset.Dataset;
+import java.util.Comparator;
 
 
 /**
- * A common superinterface for {@link Dataset}s that can be operated on by distcp.
- * Concrete classes must implement a subinterface of this interface ({@link CopyableDataset} or {@link IterableCopyableDataset}).
+ * A {@link Comparator} for {@link Request}s that can also compare {@link Requestor}s, and which guarantees that
+ * given {@link Request}s r1, r2, then r1.getRequestor > r2.getRequestor implies r1 > r2.
  */
-public interface CopyableDatasetBase extends Dataset {
+public interface HierarchicalPrioritizer<T extends Request> extends Comparator<T> {
+  int compareRequestors(Requestor<T> r1, Requestor<T> r2);
 }

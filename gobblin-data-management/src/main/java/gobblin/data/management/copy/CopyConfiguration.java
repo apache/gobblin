@@ -23,8 +23,15 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.data.management.copy.prioritization.FileSetComparator;
+import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
+import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.util.request_allocation.ResourcePool;
+
 
 /**
  * Configuration for Gobblin distcp jobs.
@@ -37,6 +44,12 @@ public class CopyConfiguration {
   public static final String COPY_PREFIX = "gobblin.copy";
   public static final String PRESERVE_ATTRIBUTES_KEY = COPY_PREFIX + ".preserved.attributes";
   public static final String DESTINATION_GROUP_KEY = COPY_PREFIX + ".dataset.destination.group";
+  public static final String PRIORITIZATION_PREFIX = COPY_PREFIX + ".prioritization";
+
+  public static final String PRIORITIZER_ALIAS_KEY = PRIORITIZATION_PREFIX + ".prioritizerAlias";
+  public static final String MAX_COPY_PREFIX = PRIORITIZATION_PREFIX + ".maxCopy";
+
+  public static final String BINPACKING_MAX_PER_BUCKET_PREFIX = COPY_PREFIX + ".binPacking.maxPerBucket";
 
   /**
    * User supplied directory where files should be published. This value is identical for all datasets in the distcp job.
@@ -52,6 +65,10 @@ public class CopyConfiguration {
   private final CopyContext copyContext;
   private final Optional<String> targetGroup;
   private final FileSystem targetFs;
+  private final Optional<FileSetComparator> prioritizer;
+  private final ResourcePool maxToCopy;
+
+  private final Config config;
 
   public static class CopyConfigurationBuilder {
 
@@ -65,6 +82,8 @@ public class CopyConfiguration {
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
           "Missing property " + ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);
 
+      this.config = ConfigUtils.propertiesToConfig(properties);
+
       this.targetGroup =
           properties.containsKey(DESTINATION_GROUP_KEY) ? Optional.of(properties.getProperty(DESTINATION_GROUP_KEY))
               : Optional.<String> absent();
@@ -76,11 +95,28 @@ public class CopyConfiguration {
       this.publishDir = publishDirTmp;
       this.copyContext = new CopyContext();
       this.targetFs = targetFs;
+      if (properties.containsKey(PRIORITIZER_ALIAS_KEY)) {
+        try {
+          this.prioritizer = Optional.of(GobblinConstructorUtils.<FileSetComparator>invokeLongestConstructor(
+              new ClassAliasResolver(FileSetComparator.class).resolveClass(properties.getProperty(
+                  PRIORITIZER_ALIAS_KEY)),
+              properties));
+        } catch (ReflectiveOperationException roe) {
+          throw new RuntimeException("Could not build prioritizer.", roe);
+        }
+      } else {
+        this.prioritizer = Optional.absent();
+      }
+      this.maxToCopy = CopyResourcePool.fromConfig(ConfigUtils.getConfigOrEmpty(this.config, MAX_COPY_PREFIX));
     }
   }
 
   public static CopyConfigurationBuilder builder(FileSystem targetFs, Properties properties) {
     return new CopyConfigurationBuilder(targetFs, properties);
+  }
+
+  public Config getPrioritizationConfig() {
+    return ConfigUtils.getConfigOrEmpty(this.config, PRIORITIZATION_PREFIX);
   }
 
 }

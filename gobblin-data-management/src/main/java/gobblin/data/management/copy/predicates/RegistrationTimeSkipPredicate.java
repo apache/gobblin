@@ -21,6 +21,7 @@ import com.google.common.base.Predicate;
 
 import gobblin.data.management.copy.hive.HiveCopyEntityHelper;
 import gobblin.data.management.copy.hive.HiveDataset;
+import gobblin.data.management.copy.hive.HivePartitionFileSet;
 import gobblin.util.PathUtils;
 
 import javax.annotation.Nullable;
@@ -35,12 +36,12 @@ import lombok.extern.slf4j.Slf4j;
  */
 @AllArgsConstructor
 @Slf4j
-public class RegistrationTimeSkipPredicate implements Predicate<HiveCopyEntityHelper.PartitionCopy> {
+public class RegistrationTimeSkipPredicate implements Predicate<HivePartitionFileSet> {
 
   private final HiveCopyEntityHelper helper;
 
   @Override
-  public boolean apply(@Nullable HiveCopyEntityHelper.PartitionCopy input) {
+  public boolean apply(@Nullable HivePartitionFileSet input) {
 
     if (input == null) {
       return true;

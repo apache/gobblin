@@ -10,14 +10,23 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.copy;
+package gobblin.util.request_allocation;
 
-import gobblin.dataset.Dataset;
+import com.typesafe.config.Config;
 
 
 /**
- * A common superinterface for {@link Dataset}s that can be operated on by distcp.
- * Concrete classes must implement a subinterface of this interface ({@link CopyableDataset} or {@link IterableCopyableDataset}).
+ * Computes the {@link ResourceRequirement} for {@link Request}s. See {@link RequestAllocator}.
+ * @param <T>
  */
-public interface CopyableDatasetBase extends Dataset {
+public interface ResourceEstimator<T> {
+
+  interface Factory<T> {
+    ResourceEstimator<T> create(Config config);
+  }
+
+  /**
+   * @return The {@link ResourceRequirement} for input {@link Request}.
+   */
+  ResourceRequirement estimateRequirement(T t, ResourcePool resourcePool);
 }

@@ -10,14 +10,11 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.copy;
-
-import gobblin.dataset.Dataset;
-
+package gobblin.util.request_allocation;
 
 /**
- * A common superinterface for {@link Dataset}s that can be operated on by distcp.
- * Concrete classes must implement a subinterface of this interface ({@link CopyableDataset} or {@link IterableCopyableDataset}).
+ * Represents an expensive request in the request allocation problem. See {@link RequestAllocator}.
  */
-public interface CopyableDatasetBase extends Dataset {
+public interface Request<T extends Request> {
+  Requestor<T> getRequestor();
 }

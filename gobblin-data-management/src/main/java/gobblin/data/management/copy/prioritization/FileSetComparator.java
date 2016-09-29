@@ -10,14 +10,23 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.data.management.copy;
+package gobblin.data.management.copy.prioritization;
 
-import gobblin.dataset.Dataset;
+import java.util.Comparator;
+
+import com.typesafe.config.Config;
+
+import gobblin.data.management.copy.CopyEntity;
+import gobblin.data.management.partition.FileSet;
 
 
 /**
- * A common superinterface for {@link Dataset}s that can be operated on by distcp.
- * Concrete classes must implement a subinterface of this interface ({@link CopyableDataset} or {@link IterableCopyableDataset}).
+ * An alias for a {@link Comparator} of {@link FileSet} for type safety.
  */
-public interface CopyableDatasetBase extends Dataset {
+public interface FileSetComparator extends Comparator<FileSet<CopyEntity>> {
+
+  public interface Factory {
+    FileSetComparator create(Config config);
+  }
+
 }
