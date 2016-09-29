@@ -16,9 +16,11 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -26,6 +28,7 @@ import au.com.bytecode.opencsv.CSVReader;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -42,6 +45,12 @@ import gobblin.configuration.State;
  * Utility class for dealing with {@link Config} objects.
  */
 public class ConfigUtils {
+
+  /**
+   * List of keys that should be excluded when converting to typesafe config.
+   * Usually, it is the key that is both the parent object of a value and a value, which is disallowed by Typesafe.
+   */
+  private static final String GOBBLIN_CONFIG_BLACKLIST_KEYS = "gobblin.config.blacklistKeys";
 
   /**
    * Convert a given {@link Config} instance to a {@link Properties} instance.
@@ -135,10 +144,16 @@ public class ConfigUtils {
    * @return a {@link Config} instance
    */
   public static Config propertiesToConfig(Properties properties, Optional<String> prefix) {
+    Set<String> blacklistedKeys = new HashSet<>();
+    if (properties.containsKey(GOBBLIN_CONFIG_BLACKLIST_KEYS)) {
+      blacklistedKeys = new HashSet<>(Splitter.on(',').omitEmptyStrings().trimResults()
+          .splitToList(properties.getProperty(GOBBLIN_CONFIG_BLACKLIST_KEYS)));
+    }
     ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
     for (Map.Entry<Object, Object> entry : properties.entrySet()) {
-      if (StringUtils.startsWith(entry.getKey().toString(), prefix.or(StringUtils.EMPTY))) {
-        immutableMapBuilder.put(entry.getKey().toString(), entry.getValue());
+      String entryKey = entry.getKey().toString();
+      if (StringUtils.startsWith(entryKey, prefix.or(StringUtils.EMPTY)) && !blacklistedKeys.contains(entryKey)) {
+        immutableMapBuilder.put(entryKey, entry.getValue());
       }
     }
     return ConfigFactory.parseMap(immutableMapBuilder.build());
@@ -174,24 +189,20 @@ public class ConfigUtils {
    * treated as strings.*/
   private static Map<String, Object> guessPropertiesTypes(Map<Object, Object> srcProperties) {
     Map<String, Object> res = new HashMap<>();
-    for (Map.Entry<Object, Object> prop: srcProperties.entrySet()) {
+    for (Map.Entry<Object, Object> prop : srcProperties.entrySet()) {
       Object value = prop.getValue();
       if (null != value && value instanceof String && !Strings.isNullOrEmpty(value.toString())) {
         try {
           value = Long.parseLong(value.toString());
-        }
-        catch (NumberFormatException e) {
+        } catch (NumberFormatException e) {
           try {
             value = Double.parseDouble(value.toString());
-          }
-          catch (NumberFormatException e2) {
+          } catch (NumberFormatException e2) {
             if (value.toString().equalsIgnoreCase("true") || value.toString().equalsIgnoreCase("yes")) {
               value = Boolean.TRUE;
-            }
-            else if (value.toString().equalsIgnoreCase("false") || value.toString().equalsIgnoreCase("no")) {
+            } else if (value.toString().equalsIgnoreCase("false") || value.toString().equalsIgnoreCase("no")) {
               value = Boolean.FALSE;
-            }
-            else {
+            } else {
               // nothing to do
             }
           }
@@ -282,6 +293,7 @@ public class ConfigUtils {
     }
     return def;
   }
+
   /**
    * Return {@link Config} value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
    *
@@ -378,8 +390,8 @@ public class ConfigUtils {
    */
   public static boolean verifySubset(Config superConfig, Config subConfig) {
     for (Map.Entry<String, ConfigValue> entry : subConfig.entrySet()) {
-      if (!superConfig.hasPath(entry.getKey())
-          || !superConfig.getValue(entry.getKey()).unwrapped().equals(entry.getValue().unwrapped())) {
+      if (!superConfig.hasPath(entry.getKey()) || !superConfig.getValue(entry.getKey()).unwrapped()
+          .equals(entry.getValue().unwrapped())) {
         return false;
       }
     }
