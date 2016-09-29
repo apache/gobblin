@@ -16,12 +16,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
+import lombok.ToString;
+
 import gobblin.data.management.version.FileSystemDatasetVersion;
 
 
 /**
  * Implementation of {@link VersionSelectionPolicy} that selects all {@link FileSystemDatasetVersion}s.
  */
+@ToString
 public class SelectAllPolicy implements VersionSelectionPolicy<FileSystemDatasetVersion> {
 
   public SelectAllPolicy(Properties properties) {}

@@ -12,8 +12,10 @@
 
 package gobblin.data.management.retention.version.finder;
 
+import java.io.IOException;
 import java.util.Properties;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -59,14 +61,23 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
   }
 
   @Override
-  public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion = this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, fullPath);
+  public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus) {
+    gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion =
+        this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, versionFileStatus);
     if (timestampedDatasetVersion != null) {
       return new TimestampedDatasetVersion(timestampedDatasetVersion);
     }
     return null;
   }
 
+  // This Method will never be called. It exists because the deprecated super class gobblin.data.management.retention.version.finder.DatasetVersionFinder
+  // requires it. getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus) will be called instead
+  @Override
+  public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
+    throw new UnsupportedOperationException(
+        "This method should not be called. getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus) "
+        + "should have been called instead");
+  }
 
   /**
    * This conversion is required because the deprecated keys {@value #RETENTION_DATE_TIME_PATTERN_KEY} and
@@ -85,4 +96,6 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
     }
     return props;
   }
+
+
 }

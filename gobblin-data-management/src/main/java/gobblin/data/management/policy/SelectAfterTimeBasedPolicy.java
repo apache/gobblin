@@ -13,6 +13,8 @@ package gobblin.data.management.policy;
 
 import java.util.Properties;
 
+import lombok.ToString;
+
 import org.joda.time.Period;
 
 import com.google.common.base.Optional;
@@ -28,6 +30,7 @@ import gobblin.util.ConfigUtils;
  * Selects {@link TimestampedDatasetVersion}s newer than lookbackTime.
  */
 @Alias("SelectAfterTimeBasedPolicy")
+@ToString(callSuper=true)
 public class SelectAfterTimeBasedPolicy extends SelectBetweenTimeBasedPolicy {
 
   public static final String TIME_BASED_SELECTION_LOOK_BACK_TIME_KEY = "selection.timeBased.lookbackTime";

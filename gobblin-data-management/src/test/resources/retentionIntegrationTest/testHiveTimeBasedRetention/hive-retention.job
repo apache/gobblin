@@ -9,3 +9,4 @@ gobblin.retention.version.finder.class=gobblin.data.management.version.finder.Da
 gobblin.retention.hive.partition.key.name=datepartition
 gobblin.retention.hive.partition.value.datetime.pattern=yyyy-MM-dd-HH
 gobblin.retention.hive.partition.value.datetime.timezone=America/Los_Angeles
+gobblin.retention.hive.shouldDeleteData=true
