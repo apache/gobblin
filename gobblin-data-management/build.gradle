@@ -33,6 +33,7 @@ dependencies {
   compile externalDependency.commonsCodec
   compile externalDependency.commonsCompress
   compile externalDependency.commonsIo
+  compile externalDependency.commonsPool
   compile externalDependency.gson
   compile externalDependency.commonsCodec
   compile externalDependency.mockito
