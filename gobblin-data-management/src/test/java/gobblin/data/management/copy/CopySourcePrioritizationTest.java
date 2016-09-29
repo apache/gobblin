@@ -73,6 +73,8 @@ public class CopySourcePrioritizationTest {
     state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/target/dir");
     state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY,
         MyFinder.class.getName());
+    // Disable parallel listing to make work unit selection deterministic
+    state.setProp(CopySource.MAX_CONCURRENT_LISTING_SERVICES, 1);
     state.setProp(CopyConfiguration.MAX_COPY_PREFIX + "." + CopyResourcePool.ENTITIES_KEY, 10);
     state.setProp(CopyConfiguration.MAX_COPY_PREFIX + "." + CopyResourcePool.TOLERANCE_KEY, 1);
 
