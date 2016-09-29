@@ -14,6 +14,8 @@ package gobblin.data.management.policy;
 import java.util.Collection;
 import java.util.List;
 
+import lombok.ToString;
+
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
@@ -40,6 +42,7 @@ import gobblin.data.management.version.TimestampedDatasetVersion;
  *
  */
 @Alias("SelectBetweenTimeBasedPolicy")
+@ToString
 public class SelectBetweenTimeBasedPolicy implements VersionSelectionPolicy<TimestampedDatasetVersion> {
 
   protected final Optional<Period> minLookBackPeriod;

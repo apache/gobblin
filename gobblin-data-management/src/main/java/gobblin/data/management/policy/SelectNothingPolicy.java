@@ -16,6 +16,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
+import lombok.ToString;
+
 import com.google.common.collect.Lists;
 
 import gobblin.data.management.version.FileSystemDatasetVersion;
@@ -24,6 +26,7 @@ import gobblin.data.management.version.FileSystemDatasetVersion;
 /**
  * Implementation of {@link VersionSelectionPolicy} that selects nothing.
  */
+@ToString
 public class SelectNothingPolicy implements VersionSelectionPolicy<FileSystemDatasetVersion> {
 
   public SelectNothingPolicy(Properties properties) {}

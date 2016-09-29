@@ -29,14 +29,15 @@ public class RetentionActionTest {
     // Using alias
     AccessControlAction testRetentionAction =
         new AccessControlAction(ConfigFactory.parseMap(ImmutableMap.<String, String> of("selection.policy.class",
-            "SelectAfterTimeBasedPolicy", "selection.timeBased.lookbackTime", "7d")), null);
+            "SelectAfterTimeBasedPolicy", "selection.timeBased.lookbackTime", "7d")), null, ConfigFactory.empty());
 
     Assert.assertEquals(testRetentionAction.getSelectionPolicy().getClass(), SelectAfterTimeBasedPolicy.class);
 
     // Using complete class name
     testRetentionAction =
         new AccessControlAction(ConfigFactory.parseMap(ImmutableMap.<String, String> of("selection.policy.class",
-            SelectAfterTimeBasedPolicy.class.getName(), "selection.timeBased.lookbackTime", "7d")), null);
+            SelectAfterTimeBasedPolicy.class.getName(), "selection.timeBased.lookbackTime", "7d")), null,
+            ConfigFactory.empty());
 
     Assert.assertEquals(testRetentionAction.getSelectionPolicy().getClass(), SelectAfterTimeBasedPolicy.class);
   }

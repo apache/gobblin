@@ -25,6 +25,7 @@ import com.typesafe.config.Config;
 import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.policy.VersionSelectionPolicy;
 import gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import gobblin.data.management.retention.dataset.FsCleanableHelper;
 import gobblin.data.management.version.DatasetVersion;
 import gobblin.data.management.version.finder.VersionFinder;
 import gobblin.dataset.DatasetsFinder;
@@ -42,10 +43,13 @@ public abstract class RetentionAction {
   protected final FileSystem fs;
   @SuppressWarnings("rawtypes")
   protected final ClassAliasResolver<VersionSelectionPolicy> versionSelectionAliasResolver;
+  protected final boolean isSimulateMode;
 
-  public RetentionAction(Config actionConfig, FileSystem fs) {
+  public RetentionAction(Config actionConfig, FileSystem fs, Config jobConfig) {
     this.versionSelectionAliasResolver = new ClassAliasResolver<>(VersionSelectionPolicy.class);
     this.fs = fs;
+    this.isSimulateMode = ConfigUtils.getBoolean(jobConfig, FsCleanableHelper.SIMULATE_KEY,
+            Boolean.valueOf(FsCleanableHelper.SIMULATE_DEFAULT));
   }
 
   /**
@@ -74,7 +78,7 @@ public abstract class RetentionAction {
      * @param config to use to create the {@link RetentionAction}
      * @return A new {@link RetentionAction}
      */
-    RetentionAction createRetentionAction(Config config, FileSystem fs);
+    RetentionAction createRetentionAction(Config config, FileSystem fs, Config jobConfig);
 
     /**
      * Method to check if a {@link RetentionAction} can be created/instantiated with the <code>config</code>.
@@ -84,6 +88,7 @@ public abstract class RetentionAction {
      * this {@link RetentionAction}.
      *
      * @param config to use to create the {@link RetentionAction}
+     * @param jobConfig is the job level config
      * @return true if the specific type of {@link RetentionAction} has been specified in the configuration, false otherwise
      */
     boolean canCreateWithConfig(Config config);
@@ -94,7 +99,7 @@ public abstract class RetentionAction {
    * pattern of creating new objects using GobblinConstructorUtils
    */
   @SuppressWarnings("unchecked")
-  protected VersionSelectionPolicy<DatasetVersion> createSelectionPolicy(Config selectionConfig) {
+  protected VersionSelectionPolicy<DatasetVersion> createSelectionPolicy(Config selectionConfig, Config jobConfig) {
     try {
       String selectionPolicyKey =
           StringUtils.substringAfter(ConfigurableCleanableDataset.SELECTION_POLICY_CLASS_KEY,
@@ -103,8 +108,8 @@ public abstract class RetentionAction {
       String className = selectionConfig.getString(selectionPolicyKey);
       return (VersionSelectionPolicy<DatasetVersion>) GobblinConstructorUtils.invokeFirstConstructor(
           this.versionSelectionAliasResolver.resolveClass(className), ImmutableList.<Object> of(selectionConfig),
-          ImmutableList.<Object> of(selectionConfig, ConfigUtils.configToProperties(selectionConfig)),
-          ImmutableList.<Object> of(ConfigUtils.configToProperties(selectionConfig)));
+          ImmutableList.<Object> of(selectionConfig, ConfigUtils.configToProperties(jobConfig)),
+          ImmutableList.<Object> of(ConfigUtils.configToProperties(jobConfig)));
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new IllegalArgumentException(e);

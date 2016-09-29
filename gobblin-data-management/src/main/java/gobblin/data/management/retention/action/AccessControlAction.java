@@ -17,6 +17,8 @@ import java.util.List;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -27,6 +29,7 @@ import com.typesafe.config.Config;
 
 import gobblin.data.management.policy.VersionSelectionPolicy;
 import gobblin.data.management.version.DatasetVersion;
+import gobblin.data.management.version.FileStatusAware;
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.util.ConfigUtils;
 
@@ -50,7 +53,7 @@ public class AccessControlAction extends RetentionAction {
    */
   private static final String GROUP_KEY = "group";
 
-  private final Optional<String> permission;
+  private final Optional<FsPermission> permission;
   private final Optional<String> owner;
   private final Optional<String> group;
 
@@ -58,14 +61,14 @@ public class AccessControlAction extends RetentionAction {
   @Getter
   private final VersionSelectionPolicy<DatasetVersion> selectionPolicy;
 
-
   @VisibleForTesting
-  AccessControlAction(Config actionConfig, FileSystem fs) {
-    super(actionConfig, fs);
-    this.permission = Optional.fromNullable(ConfigUtils.getString(actionConfig, MODE_KEY, null));
+  AccessControlAction(Config actionConfig, FileSystem fs, Config jobConfig) {
+    super(actionConfig, fs, jobConfig);
+    this.permission = actionConfig.hasPath(MODE_KEY) ? Optional.of(new FsPermission(actionConfig.getString(MODE_KEY))) : Optional
+            .<FsPermission> absent();
     this.owner = Optional.fromNullable(ConfigUtils.getString(actionConfig, OWNER_KEY, null));
     this.group = Optional.fromNullable(ConfigUtils.getString(actionConfig, GROUP_KEY, null));
-    this.selectionPolicy = createSelectionPolicy(actionConfig);
+    this.selectionPolicy = createSelectionPolicy(actionConfig, jobConfig);
 
   }
 
@@ -91,24 +94,69 @@ public class AccessControlAction extends RetentionAction {
     // Perform action if it is a FileSystemDatasetVersion
     if (datasetVersion instanceof FileSystemDatasetVersion) {
       FileSystemDatasetVersion fsDatasetVersion = (FileSystemDatasetVersion) datasetVersion;
-      for (Path path : fsDatasetVersion.getPaths()) {
 
-        if (this.fs.exists(path)) {
-
-          // Update permissions if set in config
-          if (this.permission.isPresent()) {
-            FsPermission fsPermission = new FsPermission(this.permission.get());
-            this.fs.setPermission(path, fsPermission);
-            log.debug("Set permissions for {} to {}", path.toString(), fsPermission);
-          }
-
-          // Update owner and group if set in config
-          if (this.owner.isPresent() || this.group.isPresent()) {
-            this.fs.setOwner(path, this.owner.orNull(), this.group.orNull());
-            log.debug("Set owner and group for {} to {}:{}", path.toString(), this.owner.orNull(),
-                this.group.orNull());
+      // If the version is filestatus aware, use the filestatus to ignore permissions update when the path already has
+      // the desired permissions
+      if (datasetVersion instanceof FileStatusAware) {
+        for (FileStatus fileStatus : ((FileStatusAware)datasetVersion).getFileStatuses()) {
+          if (needsPermissionsUpdate(fileStatus) || needsOwnerUpdate(fileStatus) || needsGroupUpdate(fileStatus)) {
+            updatePermissionsAndOwner(fileStatus.getPath());
           }
         }
+      } else {
+        for (Path path : fsDatasetVersion.getPaths()) {
+          updatePermissionsAndOwner(path);
+        }
+      }
+    }
+  }
+
+  private boolean needsPermissionsUpdate(FileStatus fileStatus) {
+    return this.permission.isPresent() && !this.permission.get().equals(fileStatus.getPermission());
+  }
+
+  private boolean needsOwnerUpdate(FileStatus fileStatus) {
+    return this.owner.isPresent() && !StringUtils.equals(owner.get(), fileStatus.getOwner());
+  }
+
+  private boolean needsGroupUpdate(FileStatus fileStatus) {
+    return this.group.isPresent() && !StringUtils.equals(group.get(), fileStatus.getGroup());
+  }
+
+  private void updatePermissionsAndOwner(Path path) throws IOException {
+    boolean atLeastOneOperationFailed = false;
+    if (this.fs.exists(path)) {
+
+      try {
+        // Update permissions if set in config
+        if (this.permission.isPresent()) {
+          if (!this.isSimulateMode) {
+            this.fs.setPermission(path, this.permission.get());
+            log.debug("Set permissions for {} to {}", path, this.permission.get());
+          } else {
+            log.info("Simulating set permissions for {} to {}", path, this.permission.get());
+          }
+        }
+      } catch (IOException e) {
+        log.error(String.format("Setting permissions failed on %s", path), e);
+        atLeastOneOperationFailed = true;
+      }
+
+      // Update owner and group if set in config
+      if (this.owner.isPresent() || this.group.isPresent()) {
+        if (!this.isSimulateMode) {
+          this.fs.setOwner(path, this.owner.orNull(), this.group.orNull());
+          log.debug("Set owner and group for {} to {}:{}", path, this.owner.orNull(),
+              this.group.orNull());
+        } else {
+          log.info("Simulating set owner and group for {} to {}:{}", path, this.owner.orNull(),
+              this.group.orNull());
+        }
+      }
+
+      if (atLeastOneOperationFailed) {
+        throw new RuntimeException(String.format(
+            "At least one failure happened while processing %s. Look for previous logs for failures", path));
       }
     }
   }

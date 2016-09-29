@@ -53,7 +53,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  *
  * <ul>
  * <li>A version finder at {@value #VERSION_FINDER_CLASS_KEY} is used to find all the partitions the dataset
- * <li>A selection policy at {@value #SELECTION_POLICY_CLASS_KEY} is appliced on all these partitions to get the partitions to be deleted.
+ * <li>A selection policy at {@value #SELECTION_POLICY_CLASS_KEY} is applied on all these partitions to get the partitions to be deleted.
  * <li>These selected partitions are dropped in the hive metastore and all the data on FileSystem is also deleted
  * </ul>
  *
@@ -63,7 +63,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
 public class CleanableHiveDataset extends HiveDataset implements CleanableDataset {
 
   private static final String SHOULD_DELETE_DATA_KEY = "gobblin.retention.hive.shouldDeleteData";
-  private static final String SHOULD_DELETE_DATA_DEFAULT = Boolean.toString(true);
+  private static final String SHOULD_DELETE_DATA_DEFAULT = Boolean.toString(false);
 
   private static final String VERSION_FINDER_CLASS_KEY = "version.finder.class";
   private static final String DEFAULT_VERSION_FINDER_CLASS = DatePartitionHiveVersionFinder.class.getName();
