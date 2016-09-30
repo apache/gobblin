@@ -13,6 +13,8 @@ package gobblin.data.management.version;
 
 import java.util.Set;
 
+import lombok.EqualsAndHashCode;
+
 import org.apache.hadoop.fs.FileStatus;
 import org.joda.time.DateTime;
 
@@ -21,6 +23,7 @@ import com.google.common.collect.Sets;
 /**
  * A {@link TimestampedDatasetVersion} that is also aware of the {@link FileStatus}s of all its paths.
  */
+@EqualsAndHashCode(callSuper=true)
 public class FileStatusTimestampedDatasetVersion extends TimestampedDatasetVersion implements FileStatusAware {
 
   private final FileStatus fileStatus;
