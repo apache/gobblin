@@ -24,6 +24,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 
+/**
+ * Unit test for {@link EnvelopeSchemaConverter}.
+ */
 @Test(groups = {"gobblin.converter"})
 public class EnvelopeSchemaConverterTest {
 

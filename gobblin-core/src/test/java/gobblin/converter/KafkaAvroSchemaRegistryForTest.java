@@ -6,7 +6,9 @@ import gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
 import java.util.Properties;
 import org.apache.avro.Schema;
 
-
+/**
+ * Override some methods of {@link KafkaAvroSchemaRegistry} for use in {@link EnvelopeSchemaConverterTest}
+ */
 public class KafkaAvroSchemaRegistryForTest extends KafkaAvroSchemaRegistry {
   public static class Factory implements KafkaSchemaRegistryFactory {
     public Factory() {}

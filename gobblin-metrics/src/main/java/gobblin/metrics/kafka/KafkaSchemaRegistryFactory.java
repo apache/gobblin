@@ -14,9 +14,17 @@ package gobblin.metrics.kafka;
 
 import java.util.Properties;
 
-
+/**
+ * Interface for factories for {@link KafkaSchemaRegistry}
+ */
 public interface KafkaSchemaRegistryFactory {
   String KAFKA_SCHEMA_REGISTRY_FACTORY_CLASS = "kafka.schema.registry.factory.class";
 
+  /**
+   * Create a new KafkaSchemaRegistry
+   *
+   * @param props properties to pass to {@link KafkaSchemaRegistry} constructor
+   * @return the created {@link KafkaSchemaRegistry}
+   */
   KafkaSchemaRegistry create(Properties props);
 }

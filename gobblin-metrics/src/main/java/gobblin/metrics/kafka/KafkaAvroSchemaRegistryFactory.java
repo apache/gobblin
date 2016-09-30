@@ -14,7 +14,9 @@ package gobblin.metrics.kafka;
 
 import java.util.Properties;
 
-
+/**
+ * Factory for {@link KafkaAvroSchemaRegistry}
+ */
 public class KafkaAvroSchemaRegistryFactory implements KafkaSchemaRegistryFactory {
   public KafkaSchemaRegistry create(Properties props) {
     return new KafkaAvroSchemaRegistry(props);
