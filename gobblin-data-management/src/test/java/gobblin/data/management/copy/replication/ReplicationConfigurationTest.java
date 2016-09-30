@@ -21,8 +21,22 @@ public class ReplicationConfigurationTest {
   }
   
   @Test
-  public void testValidConfigsInPushMode() throws Exception{
-    Config c = ConfigFactory.parseResources(getClass().getClassLoader(), "replicationConfigTest/validCompleteDataset_PushMode.conf");
+  public void testValidConfigsInPullMode_withTopologyPicker() throws Exception{
+    Config c = ConfigFactory.parseResources(getClass().getClassLoader(), "replicationConfigTest/validCompleteDataset_PullMode2.conf");
+    ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
+    this.checkReplicationConfig_Pull(rc);
+  }
+  
+  @Test
+  public void testValidConfigsInPushMode_withClusterResolve() throws Exception{
+    Config c = ConfigFactory.parseResources(getClass().getClassLoader(), "replicationConfigTest/validCompleteDataset_PushMode.conf").resolve();
+    ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
+    this.checkReplicationConfig_Push(rc);
+  }
+  
+  @Test
+  public void testValidConfigsInPushMode_withTopologyPicker() throws Exception{
+    Config c = ConfigFactory.parseResources(getClass().getClassLoader(), "replicationConfigTest/validCompleteDataset_PushMode2.conf").resolve();
     ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
     this.checkReplicationConfig_Push(rc);
   }
@@ -41,7 +55,7 @@ public class ReplicationConfigurationTest {
 
     HadoopFsReplicaConfig innerConf = source.getRc();
     Assert.assertTrue(innerConf.getClustername().equals("war"));
-    Assert.assertTrue(innerConf.getFsURI().toString().equals("hdfs://ltx1-warnn01.grid.linkedin.com:9000"));
+    Assert.assertTrue(innerConf.getFsURI().toString().equals("hdfs://lva1-warnn01.grid.linkedin.com:9000"));
     Assert.assertTrue(innerConf.getPath().toString().equals("/jobs/mitu/profileTest"));
     Assert.assertTrue(innerConf.getColo().equals("lva1"));
     
@@ -64,14 +78,14 @@ public class ReplicationConfigurationTest {
     EndPoint replica_war = replicas.get(2);
     innerConf = ((ReplicaHadoopFsEndPoint)replica_war).getRc();
     Assert.assertTrue(innerConf.getClustername().equals("war"));
-    Assert.assertTrue(innerConf.getFsURI().toString().equals("hdfs://ltx1-warnn01.grid.linkedin.com:9000"));
+    Assert.assertTrue(innerConf.getFsURI().toString().equals("hdfs://lva1-warnn01.grid.linkedin.com:9000"));
     Assert.assertTrue(innerConf.getPath().toString().equals("/data/derived/onWar"));
     Assert.assertTrue(innerConf.getColo().equals("lva1"));
     
     EndPoint replica_tarock = replicas.get(3);
     innerConf = ((ReplicaHadoopFsEndPoint)replica_tarock).getRc();
     Assert.assertTrue(innerConf.getClustername().equals("tarock"));
-    Assert.assertTrue(innerConf.getFsURI().toString().equals("hdfs://ltx1-tarocknn01.grid.linkedin.com:9000"));
+    Assert.assertTrue(innerConf.getFsURI().toString().equals("hdfs://lva1-tarocknn01.grid.linkedin.com:9000"));
     Assert.assertTrue(innerConf.getPath().toString().equals("/data/derived/onTarock"));
     Assert.assertTrue(innerConf.getColo().equals("lva1"));
   }

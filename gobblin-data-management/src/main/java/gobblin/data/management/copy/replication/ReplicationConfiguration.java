@@ -73,9 +73,11 @@ public class ReplicationConfiguration {
   @Getter
   private final DataFlowTopology dataFlowToplogy;
 
-  public static ReplicationConfiguration buildFromConfig(Config config)
+  public static ReplicationConfiguration buildFromConfig(Config input)
       throws InstantiationException, IllegalAccessException, ClassNotFoundException {
-    Preconditions.checkArgument(config != null, "can not build ReplicationConfig from null");
+    Preconditions.checkArgument(input != null, "can not build ReplicationConfig from null");
+    
+    Config config = input.resolve();
 
     return new Builder().withReplicationMetaData(ReplicationMetaData.buildMetaData(config))
         .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config)).withReplicationSource(config)
@@ -195,9 +197,8 @@ public class ReplicationConfiguration {
       }
 
       // topology not specified in literal, need to pick one topology from the defaults
-      Preconditions.checkArgument(this.dataFlowTopologyConfig.hasPath(DATA_FLOW_TOPOLOGY_PICKER),
-          "missing required config entry " + DATA_FLOW_TOPOLOGY_PICKER);
-      String topologyPickerStr = this.dataFlowTopologyConfig.getString(DATA_FLOW_TOPOLOGY_PICKER);
+      String topologyPickerStr = this.dataFlowTopologyConfig.hasPath(DATA_FLOW_TOPOLOGY_PICKER)?
+          this.dataFlowTopologyConfig.getString(DATA_FLOW_TOPOLOGY_PICKER): DEFAULT_DATA_FLOW_TOPOLOGY_PICKER_CLASS;
       DataFlowTopologyPickerBySource picker =
           dataFlowTopologyPickerResolver.resolveClass(topologyPickerStr).newInstance();
 
