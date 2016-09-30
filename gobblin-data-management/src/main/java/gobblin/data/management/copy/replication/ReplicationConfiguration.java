@@ -249,11 +249,11 @@ public class ReplicationConfiguration {
             }
           }
           
-          List<EndPointCopyPair> copyPairs = Lists.transform(copyFromStrings, new Function<String, EndPointCopyPair>() {
+          List<CopyRoute> copyPairs = Lists.transform(copyFromStrings, new Function<String, CopyRoute>() {
             @Override
-            public EndPointCopyPair apply(String t) {
+            public CopyRoute apply(String t) {
               // create CopyPair in Pull mode
-              return new EndPointCopyPair(validEndPoints.get(t), replica);
+              return new CopyRoute(validEndPoints.get(t), replica);
             }
           });
 
@@ -282,11 +282,11 @@ public class ReplicationConfiguration {
             }
             currentCopyTo.addAll(copyToStrings);
 
-            List<EndPointCopyPair> copyPairs = Lists.transform(copyToStrings, new Function<String, EndPointCopyPair>() {
+            List<CopyRoute> copyPairs = Lists.transform(copyToStrings, new Function<String, CopyRoute>() {
               @Override
-              public EndPointCopyPair apply(String t) {
+              public CopyRoute apply(String t) {
                 // create CopyPair in Push mode
-                return new EndPointCopyPair(valid.getValue(), validEndPoints.get(t));
+                return new CopyRoute(valid.getValue(), validEndPoints.get(t));
               }
             });
 

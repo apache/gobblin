@@ -5,7 +5,7 @@ import lombok.Data;
 
 @AllArgsConstructor
 @Data
-public class EndPointCopyPair {
+public class CopyRoute {
 
   private final EndPoint copyFrom;
   private final EndPoint copyTo;

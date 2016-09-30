@@ -25,6 +25,6 @@ public class DataFlowTopology {
   @AllArgsConstructor
   @Data
   public static class DataFlowPath{
-    private List<EndPointCopyPair> copyPairs;
+    private List<CopyRoute> copyPairs;
   }
 }
