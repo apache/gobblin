@@ -16,10 +16,13 @@ import java.util.List;
 
 import gobblin.configuration.State;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * Utilities to handle deprecations in Gobblin.
  */
+@Slf4j
 public class DeprecationUtils {
 
   /**
@@ -38,6 +41,7 @@ public class DeprecationUtils {
     }
     for (String oldKey : deprecatedKeys) {
       if (state.contains(oldKey)) {
+        log.info("Copying the value of deprecated key " + oldKey + " into key " + currentKey);
         state.setProp(currentKey, state.getProp(oldKey));
         return;
       }

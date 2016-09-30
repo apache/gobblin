@@ -135,7 +135,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
     try {
 
-      DeprecationUtils.renameDeprecatedKeys(state, CopyConfiguration.PRIORITIZATION_PREFIX + "." + CopyResourcePool.ENTITIES_KEY,
+      DeprecationUtils.renameDeprecatedKeys(state, CopyConfiguration.MAX_COPY_PREFIX + "." + CopyResourcePool.ENTITIES_KEY,
           Lists.newArrayList(MAX_FILES_COPIED_KEY));
 
       final FileSystem sourceFs = getSourceFileSystem(state);

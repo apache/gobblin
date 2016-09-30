@@ -62,6 +62,10 @@ public class CopyResourcePool extends ResourcePool {
     super(maxResources, tolerances, defaults);
   }
 
+  private CopyResourcePool(ResourcePool other) {
+    super(other);
+  }
+
   @Override
   public ResourceRequirement.Builder getResourceRequirementBuilder() {
     return getCopyResourceRequirementBuilder();
@@ -69,6 +73,12 @@ public class CopyResourcePool extends ResourcePool {
 
   public CopyResourceRequirementBuilder getCopyResourceRequirementBuilder() {
     return new CopyResourceRequirementBuilder(this);
+  }
+
+  @Override
+  protected ResourcePool contractPool(ResourceRequirement requirement) {
+    ResourcePool superPool = super.contractPool(requirement);
+    return new CopyResourcePool(superPool);
   }
 
   public class CopyResourceRequirementBuilder extends ResourceRequirement.Builder {

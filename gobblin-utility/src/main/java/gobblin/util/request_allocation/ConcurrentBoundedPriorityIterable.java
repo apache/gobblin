@@ -127,7 +127,8 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
     if (this.resourcePool.exceedsHardBound(newElement.getResourceRequirement(), false)) {
       // item does not fit even in empty pool
       log.warn(String.format("Request %s is larger than the available resource pool. If the pool is not expanded, "
-          + "it will never be selected.", newElement.getT()));
+          + "it will never be selected. Request: %s.", newElement.getT(),
+          this.resourcePool.stringifyRequirement(newElement.getResourceRequirement())));
       this.requestsRefused++;
       return false;
     }
@@ -138,7 +139,7 @@ public class ConcurrentBoundedPriorityIterable<T> implements Iterable<AllocatedR
     if (this.resourcePool.exceedsHardBound(candidateRequirement, false)) {
 
       if (this.comparator.compare(this.elements.last().getT(), newElement.getT()) <= 0) {
-        log.debug("Request {} does not fit in resource pool and is smaller than current smallest request. "
+        log.debug("Request {} does not fit in resource pool and is lower priority than current lowest priority request. "
             + "Rejecting", newElement.getT());
         this.requestsRefused++;
         return false;

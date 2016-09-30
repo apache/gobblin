@@ -104,7 +104,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   private final Optional<EventSubmitter> eventSubmitter;
 
   protected final Optional<String> configStoreUri;
-  protected final Function<DbAndTable, String> configStoreDatasetUriBuilder;
+  protected final Function<Table, String> configStoreDatasetUriBuilder;
 
   protected final String datasetConfigPrefix;
   protected final ConfigClient configClient;
@@ -162,7 +162,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     this.configClient = configClient;
     try {
       this.configStoreDatasetUriBuilder =
-          properties.containsKey(CONFIG_STORE_DATASET_URI_BUILDER_CLASS) ? (Function<DbAndTable, String>) ConstructorUtils
+          properties.containsKey(CONFIG_STORE_DATASET_URI_BUILDER_CLASS) ? (Function<Table, String>) ConstructorUtils
               .invokeConstructor(Class.forName(properties.getProperty(CONFIG_STORE_DATASET_URI_BUILDER_CLASS)))
               : DEFAULT_CONFIG_STORE_DATASET_URI_BUILDER;
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
@@ -237,11 +237,11 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
           DbAndTable dbAndTable = this.tables.next();
 
           try (AutoReturnableObject<IMetaStoreClient> client = HiveDatasetFinder.this.clientPool.getClient()) {
-            Config datasetConfig = getDatasetConfig(dbAndTable);
+            Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
+            Config datasetConfig = getDatasetConfig(table);
             if (ConfigUtils.getBoolean(datasetConfig, HIVE_DATASET_IS_BLACKLISTED_KEY, DEFAULT_HIVE_DATASET_IS_BLACKLISTED_KEY)) {
               continue;
             }
-            Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
             EventSubmitter.submit(HiveDatasetFinder.this.eventSubmitter, DATASET_FOUND, SlaEventKeys.DATASET_URN_KEY, dbAndTable.toString());
             return createHiveDataset(table, datasetConfig);
           } catch (Throwable t) {
@@ -283,10 +283,10 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
    * <li>If {@link #datasetConfigPrefix} is specified, only configs with this prefix is returned
    * <li>If {@link #datasetConfigPrefix} is not specified, all configs are returned
    * </ul>
-   * @param dbAndTable of the dataset to get config
+   * @param table of the dataset to get config
    * @return the {@link Config} for <code>dbAndTable</code>
    */
-  private Config getDatasetConfig(DbAndTable dbAndTable) throws ConfigStoreFactoryDoesNotExistsException,
+  private Config getDatasetConfig(Table table) throws ConfigStoreFactoryDoesNotExistsException,
       ConfigStoreCreationException, URISyntaxException {
 
     Config datasetConfig;
@@ -294,7 +294,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     // Config store enabled
     if (this.configStoreUri.isPresent()) {
       datasetConfig = this.configClient.getConfig(this.configStoreUri.get() + Path.SEPARATOR
-              + this.configStoreDatasetUriBuilder.apply(dbAndTable));
+              + this.configStoreDatasetUriBuilder.apply(table));
 
     // If config store is not enabled use job config
     } else {
@@ -305,12 +305,12 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
         this.datasetConfigPrefix, ConfigFactory.empty());
   }
 
-  private static final Function<DbAndTable, String> DEFAULT_CONFIG_STORE_DATASET_URI_BUILDER =
-      new Function<HiveDatasetFinder.DbAndTable, String>() {
+  private static final Function<Table, String> DEFAULT_CONFIG_STORE_DATASET_URI_BUILDER =
+      new Function<Table, String>() {
 
         @Override
-        public String apply(@Nonnull DbAndTable dbAndTable) {
-          return HiveConfigClientUtils.getDatasetUri(dbAndTable);
+        public String apply(@Nonnull Table table) {
+          return HiveConfigClientUtils.getDatasetUri(table);
         }
       };
 }
