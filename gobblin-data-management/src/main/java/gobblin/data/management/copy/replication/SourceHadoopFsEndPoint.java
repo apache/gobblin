@@ -7,6 +7,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 
+import com.google.common.base.Objects;
+
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.util.FileListUtils;
@@ -56,5 +58,11 @@ public class SourceHadoopFsEndPoint implements HadoopFsEndPoint{
   @Override
   public String getClusterName() {
     return this.rc.getClustername();
+  }
+  
+  @Override
+  public String toString() {
+    return Objects.toStringHelper(this.getClass()).add("is source", this.isSource()).add("end point name", this.getEndPointName())
+        .add("hadoopfs config", this.rc).toString();
   }
 }

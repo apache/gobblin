@@ -9,6 +9,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -71,5 +72,11 @@ public class ReplicaHadoopFsEndPoint implements HadoopFsEndPoint {
   @Override
   public String getClusterName() {
     return this.rc.getClustername();
+  }
+  
+  @Override
+  public String toString() {
+    return Objects.toStringHelper(this.getClass()).add("is source", this.isSource()).add("end point name", this.getEndPointName())
+        .add("hadoopfs config", this.rc).toString();
   }
 }

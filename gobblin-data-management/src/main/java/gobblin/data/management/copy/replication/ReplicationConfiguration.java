@@ -119,7 +119,7 @@ public class ReplicationConfiguration {
     public Builder withReplicationSource(Config config)
         throws InstantiationException, IllegalAccessException, ClassNotFoundException {
       Preconditions.checkArgument(config.hasPath(REPLICATION_SOURCE),
-          "missing required config entery " + REPLICATION_SOURCE);
+          "missing required config entry " + REPLICATION_SOURCE);
 
       Config sourceConfig = config.getConfig(REPLICATION_SOURCE);
       String endPointFactory = sourceConfig.hasPath(END_POINT_FACTORY_CLASS)
