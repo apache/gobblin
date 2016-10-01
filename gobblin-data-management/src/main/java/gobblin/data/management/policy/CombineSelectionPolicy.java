@@ -22,6 +22,8 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import lombok.ToString;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -57,6 +59,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  *   Additionally, any configuration necessary for combined policies must be specified.
  * </p>
  */
+@ToString
 public class CombineSelectionPolicy implements VersionSelectionPolicy<DatasetVersion> {
 
   public static final String VERSION_SELECTION_POLICIES_PREFIX = "selection.combine.policy.classes";

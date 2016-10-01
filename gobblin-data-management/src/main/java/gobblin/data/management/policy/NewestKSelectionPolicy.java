@@ -16,6 +16,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
+import lombok.Data;
+import lombok.ToString;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,12 +29,11 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.version.DatasetVersion;
 
-import lombok.Data;
-
 
 /**
  * Select the newest k versions of the dataset.
  */
+@ToString
 public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVersion> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NewestKSelectionPolicy.class);

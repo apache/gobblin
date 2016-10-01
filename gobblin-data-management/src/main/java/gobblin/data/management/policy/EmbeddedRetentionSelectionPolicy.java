@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 import lombok.AllArgsConstructor;
+import lombok.ToString;
 
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.version.FileSystemDatasetVersion;
@@ -23,6 +24,7 @@ import gobblin.data.management.version.FileSystemDatasetVersion;
  * A wrapper {@link VersionSelectionPolicy} that delegates calls to deprecated {@link RetentionPolicy}
  */
 @AllArgsConstructor
+@ToString
 public class EmbeddedRetentionSelectionPolicy<T extends FileSystemDatasetVersion> implements VersionSelectionPolicy<T> {
 
   private final RetentionPolicy<T> embeddedRetentionPolicy;

@@ -20,10 +20,11 @@ import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-public class ReplicaHadoopFsEndPoint implements EndPoint {
+public class ReplicaHadoopFsEndPoint implements HadoopFsEndPoint {
   public static final String WATERMARK_FILE = "_metadata";
   public static final String LATEST_TIMESTAMP = "latestTimestamp";
 
+  @Getter
   private final HadoopFsReplicaConfig rc;
 
   @Getter
@@ -66,5 +67,9 @@ public class ReplicaHadoopFsEndPoint implements EndPoint {
   public String getEndPointName() {
     return this.replicaName;
   }
-
+  
+  @Override
+  public String getClusterName() {
+    return this.rc.getClustername();
+  }
 }

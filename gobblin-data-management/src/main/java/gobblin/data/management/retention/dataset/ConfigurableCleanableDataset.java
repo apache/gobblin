@@ -187,7 +187,8 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
       try {
         RetentionActionFactory factory = factoryClass.newInstance();
         if (factory.canCreateWithConfig(config)) {
-          builder.retentionAction((RetentionAction) factory.createRetentionAction(config, this.fs));
+          builder.retentionAction((RetentionAction) factory.createRetentionAction(config, this.fs,
+              ConfigUtils.propertiesToConfig(jobProps)));
         }
       } catch (InstantiationException | IllegalAccessException e) {
         Throwables.propagate(e);
@@ -224,7 +225,7 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
   @SuppressWarnings("unchecked")
   private VersionSelectionPolicy<T> createSelectionPolicy(String className, Config config, Properties jobProps) {
     try {
-      this.log.info(String.format("Configuring selection policy %s for %s with %s", className, this.datasetRoot,
+      this.log.debug(String.format("Configuring selection policy %s for %s with %s", className, this.datasetRoot,
           config.root().render(ConfigRenderOptions.concise())));
       return (VersionSelectionPolicy<T>) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(className),
           ImmutableList.<Object> of(config), ImmutableList.<Object> of(config, jobProps),

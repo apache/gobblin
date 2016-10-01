@@ -65,7 +65,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
   public static final String DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT =
       CONFIGURATION_KEY_PREFIX + "hdfs.calls.per.second.limit";
 
-  public static final String DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED = "1000";
+  public static final String DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED = "100";
 
   private static Logger LOG = LoggerFactory.getLogger(DatasetCleaner.class);
 
@@ -90,6 +90,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
             Long.parseLong(props.getProperty(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT))));
         ((RateControlledFileSystem) optionalRateControlledFs).startRateControl();
       }
+
       this.datasetFinder = new MultiCleanableDatasetFinder(optionalRateControlledFs, props);
     } catch (NumberFormatException exception) {
       throw new IOException(exception);

@@ -63,8 +63,8 @@ public class MultiAccessControlAction extends RetentionAction {
    * @param actionConfig to use while creating a new {@link MultiAccessControlAction}
    * @param fs
    */
-  private MultiAccessControlAction(Config actionConfig, FileSystem fs) {
-    super(actionConfig, fs);
+  private MultiAccessControlAction(Config actionConfig, FileSystem fs, Config jobConfig) {
+    super(actionConfig, fs, jobConfig);
     this.embeddedAccessControlActions = Lists.newArrayList();
     for (String policy : ConfigUtils.getStringList(actionConfig, POLICIES_KEY)) {
       Preconditions.checkArgument(
@@ -72,7 +72,7 @@ public class MultiAccessControlAction extends RetentionAction {
           String.format("Policy %s is specified at key %s but actionConfig does not have config for this policy."
               + "Complete actionConfig %s", policy, POLICIES_KEY,
               actionConfig.root().render(ConfigRenderOptions.concise())));
-      embeddedAccessControlActions.add(new AccessControlAction(actionConfig.getConfig(policy), fs));
+      embeddedAccessControlActions.add(new AccessControlAction(actionConfig.getConfig(policy), fs, jobConfig));
     }
   }
 
@@ -99,13 +99,13 @@ public class MultiAccessControlAction extends RetentionAction {
         + ACCESS_CONTROL_KEY;
 
     @Override
-    public MultiAccessControlAction createRetentionAction(Config config, FileSystem fs) {
+    public MultiAccessControlAction createRetentionAction(Config config, FileSystem fs, Config jobConfig) {
       Preconditions.checkArgument(this.canCreateWithConfig(config),
           "Can not create MultiAccessControlAction with config " + config.root().render(ConfigRenderOptions.concise()));
       if (config.hasPath(LEGACY_ACCESS_CONTROL_KEY)) {
-        return new MultiAccessControlAction(config.getConfig(LEGACY_ACCESS_CONTROL_KEY), fs);
+        return new MultiAccessControlAction(config.getConfig(LEGACY_ACCESS_CONTROL_KEY), fs, jobConfig);
       } else if (config.hasPath(ACCESS_CONTROL_KEY)) {
-        return new MultiAccessControlAction(config.getConfig(ACCESS_CONTROL_KEY), fs);
+        return new MultiAccessControlAction(config.getConfig(ACCESS_CONTROL_KEY), fs, jobConfig);
       }
       throw new IllegalStateException(
           "RetentionActionFactory.canCreateWithConfig returned true but could not create MultiAccessControlAction");

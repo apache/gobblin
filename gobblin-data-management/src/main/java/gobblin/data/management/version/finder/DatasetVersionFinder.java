@@ -12,21 +12,14 @@
 
 package gobblin.data.management.version.finder;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.collect.Lists;
-
-import gobblin.dataset.Dataset;
-import gobblin.dataset.FileSystemDataset;
 import gobblin.data.management.version.FileSystemDatasetVersion;
-import gobblin.util.PathUtils;
+import gobblin.dataset.FileSystemDataset;
 
 
 /**
@@ -35,61 +28,27 @@ import gobblin.util.PathUtils;
  * Concrete subclasses should implement a ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties})
  * constructor to be instantiated.
  *
+ * Provides a callback with just the path of the version {@link DatasetVersionFinder#getDatasetVersion(Path, Path)}.
+ * Use {@link AbstractDatasetVersionFinder#getDatasetVersion(Path, FileStatus)} if you need a callback with {@link FileStatus}
+ * of the version.
+ *
  * @param <T> Type of {@link gobblin.data.management.version.FileSystemDatasetVersion} expected from this class.
  */
-public abstract class DatasetVersionFinder<T extends FileSystemDatasetVersion> implements VersionFinder<T> {
-
-  protected FileSystem fs;
+public abstract class DatasetVersionFinder<T extends FileSystemDatasetVersion> extends AbstractDatasetVersionFinder<T>
+    implements VersionFinder<T> {
 
   public DatasetVersionFinder(FileSystem fs, Properties props) {
-    this.fs = fs;
+    super(fs, props);
   }
 
   public DatasetVersionFinder(FileSystem fs) {
     this(fs, new Properties());
   }
 
-  /**
-   * Find dataset versions in the input {@link org.apache.hadoop.fs.Path}. Dataset versions are subdirectories of the
-   * input {@link org.apache.hadoop.fs.Path} representing a single manageable unit in the dataset.
-   * See {@link gobblin.data.management.retention.DatasetCleaner} for more information.
-   *
-   * @param dataset {@link org.apache.hadoop.fs.Path} to directory containing all versions of a dataset.
-   * @return Map of {@link gobblin.data.management.version.DatasetVersion} and {@link org.apache.hadoop.fs.FileStatus}
-   *        for each dataset version found.
-   * @throws IOException
-   */
   @Override
-  public Collection<T> findDatasetVersions(Dataset dataset) throws IOException {
-    FileSystemDataset fsDataset = (FileSystemDataset) dataset;
-    Path versionGlobStatus = new Path(fsDataset.datasetRoot(), globVersionPattern());
-    FileStatus[] dataSetVersionPaths = this.fs.globStatus(versionGlobStatus);
-
-    List<T> dataSetVersions = Lists.newArrayList();
-    for (FileStatus dataSetVersionPath : dataSetVersionPaths) {
-      T datasetVersion =
-          getDatasetVersion(PathUtils.relativizePath(dataSetVersionPath.getPath(), fsDataset.datasetRoot()),
-              dataSetVersionPath.getPath());
-      if (datasetVersion != null) {
-        dataSetVersions.add(datasetVersion);
-      }
-    }
-
-    return dataSetVersions;
+  public T getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus) {
+    return getDatasetVersion(pathRelativeToDatasetRoot, versionFileStatus.getPath());
   }
-
-  /**
-   * Should return class of T.
-   */
-  @Override
-  public abstract Class<? extends FileSystemDatasetVersion> versionClass();
-
-  /**
-   * Glob pattern relative to the root of the dataset used to find {@link org.apache.hadoop.fs.FileStatus} for each
-   * dataset version.
-   * @return glob pattern relative to dataset root.
-   */
-  public abstract Path globVersionPattern();
 
   /**
    * Parse {@link gobblin.data.management.version.DatasetVersion} from the path of a dataset version.

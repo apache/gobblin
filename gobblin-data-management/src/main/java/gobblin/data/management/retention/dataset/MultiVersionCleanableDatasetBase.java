@@ -269,7 +269,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
       }
 
       this.log.info(String.format("Cleaning dataset %s. Using version finder %s and policy %s", this,
-          versionFinder.getClass().getName(), selectionPolicy.getClass().getName()));
+          versionFinder.getClass().getName(), selectionPolicy));
 
       List<T> versions = Lists.newArrayList(versionFinder.findDatasetVersions(this));
 
