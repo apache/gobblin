@@ -44,7 +44,7 @@ public class DataFlowTopology {
   @Data
   @AllArgsConstructor
   public static class DataFlowPath{
-    private List<CopyRoute> copyPairs;
+    private List<CopyRoute> copyRoutes;
     
     @Override
     public String toString(){
@@ -57,7 +57,7 @@ public class DataFlowTopology {
           };
           
       return Objects.toStringHelper(this.getClass())
-          .add("copyPairs:", Joiner.on(",").join(Lists.transform(this.copyPairs, func))).toString();
+          .add("copyPairs:", Joiner.on(",").join(Lists.transform(this.copyRoutes, func))).toString();
     }
   }
 }

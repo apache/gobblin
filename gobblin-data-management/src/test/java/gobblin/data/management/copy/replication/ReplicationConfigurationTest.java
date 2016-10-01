@@ -107,7 +107,7 @@ public class ReplicationConfigurationTest {
     Assert.assertTrue(topology.getDataFlowPaths().size()==4);
     
     for(DataFlowTopology.DataFlowPath p: topology.getDataFlowPaths()){
-      List<EndPointCopyPair> pairs = p.getCopyPairs();
+      List<CopyRoute> pairs = p.getCopyRoutes();
       Assert.assertTrue(!pairs.isEmpty());
       String copyFromName = pairs.get(0).getCopyFrom().getEndPointName();
       
@@ -155,7 +155,7 @@ public class ReplicationConfigurationTest {
     Assert.assertTrue(topology.getDataFlowPaths().size()==4);
     
     for(DataFlowTopology.DataFlowPath p: topology.getDataFlowPaths()){
-      List<EndPointCopyPair> pairs = p.getCopyPairs();
+      List<CopyRoute> pairs = p.getCopyRoutes();
       Assert.assertTrue(!pairs.isEmpty());
       String copyToName = pairs.get(0).getCopyTo().getEndPointName();
       

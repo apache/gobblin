@@ -2,6 +2,7 @@ package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URI;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -14,6 +15,7 @@ import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.extract.LongWatermark;
 import lombok.Getter;
@@ -39,7 +41,7 @@ public class ReplicaHadoopFsEndPoint implements HadoopFsEndPoint {
   }
 
   @Override
-  public Watermark getWatermark() {
+  public ComparableWatermark getWatermark() {
     LongWatermark result = new LongWatermark(-1);
     try {
       Path metaData = new Path(rc.getPath(), WATERMARK_FILE);
@@ -78,5 +80,10 @@ public class ReplicaHadoopFsEndPoint implements HadoopFsEndPoint {
   public String toString() {
     return Objects.toStringHelper(this.getClass()).add("is source", this.isSource()).add("end point name", this.getEndPointName())
         .add("hadoopfs config", this.rc).toString();
+  }
+
+  @Override
+  public URI getFsURI() {
+    return this.rc.getFsURI();
   }
 }
