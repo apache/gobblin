@@ -16,7 +16,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.extract.LongWatermark;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;

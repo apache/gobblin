@@ -11,7 +11,6 @@ import org.apache.hadoop.fs.FileSystem;
 import com.google.common.base.Objects;
 
 import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.util.FileListUtils;
 import lombok.Getter;
