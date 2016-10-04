@@ -22,11 +22,14 @@ import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversion
 import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import gobblin.hive.util.HiveJdbcConnector;
 import gobblin.writer.DataWriter;
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * The {@link HiveQueryExecutionWriter} is responsible for running the hive query available at
  * {@link QueryBasedHiveConversionEntity#getConversionQuery()}
  */
+@Slf4j
 @AllArgsConstructor
 public class HiveQueryExecutionWriter implements DataWriter<QueryBasedHiveConversionEntity> {
 
@@ -35,12 +38,19 @@ public class HiveQueryExecutionWriter implements DataWriter<QueryBasedHiveConver
 
   @Override
   public void write(QueryBasedHiveConversionEntity hiveConversionEntity) throws IOException {
+    List<String> conversionQueries = null;
     try {
-      List<String> conversionQueries = hiveConversionEntity.getQueries();
+      conversionQueries = hiveConversionEntity.getQueries();
       EventWorkunitUtils.setBeginConversionDDLExecuteTimeMetadata(this.workUnit, System.currentTimeMillis());
       this.hiveJdbcConnector.executeStatements(conversionQueries.toArray(new String[conversionQueries.size()]));
       EventWorkunitUtils.setEndConversionDDLExecuteTimeMetadata(this.workUnit, System.currentTimeMillis());
     } catch (SQLException e) {
+      if (null != conversionQueries) {
+        log.warn("Dumping queries attempted by the writer.");
+        for (String conversionQuery : conversionQueries) {
+          log.warn("Conversion query attempted by Hive Query writer: " + conversionQuery);
+        }
+      }
       throw new IOException(e);
     }
   }
