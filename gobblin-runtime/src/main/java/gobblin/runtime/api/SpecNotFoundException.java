@@ -16,7 +16,7 @@ import java.net.URI;
 
 
 /**
- * An {@link Exception} thrown when a {@link gobblin.runtime.Spec} with the given {@link URI} cannot be found.
+ * An {@link Exception} thrown when a {@link Spec} with the given {@link URI} cannot be found.
  */
 public class SpecNotFoundException extends Exception {
   private static final long serialVersionUID = 1L;

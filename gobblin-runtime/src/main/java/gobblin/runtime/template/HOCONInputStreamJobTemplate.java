@@ -17,6 +17,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -42,7 +43,7 @@ public class HOCONInputStreamJobTemplate extends StaticJobTemplate {
    */
   public HOCONInputStreamJobTemplate(InputStream inputStream, URI uri, JobCatalogWithTemplates catalog)
       throws SpecNotFoundException, TemplateException {
-    this(ConfigFactory.parseReader(new InputStreamReader(inputStream)), uri, catalog);
+    this(ConfigFactory.parseReader(new InputStreamReader(inputStream, Charsets.UTF_8)), uri, catalog);
   }
 
   private HOCONInputStreamJobTemplate(Config config, URI uri, JobCatalogWithTemplates catalog)

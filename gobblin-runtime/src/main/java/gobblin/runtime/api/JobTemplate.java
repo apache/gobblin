@@ -17,9 +17,6 @@ import com.typesafe.config.Config;
 import java.util.Collection;
 
 
-import gobblin.runtime.Spec;
-
-
 /**
  * An interface for claiming methods used for
  * retrieving template configs

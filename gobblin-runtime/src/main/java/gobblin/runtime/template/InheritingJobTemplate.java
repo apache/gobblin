@@ -71,7 +71,7 @@ public abstract class InheritingJobTemplate implements JobTemplate {
       return;
     }
     this.superTemplates = Lists.newArrayList();
-    for (URI uri : superTemplateUris) {
+    for (URI uri : this.superTemplateUris) {
       if (!loadedTemplates.containsKey(uri)) {
         JobTemplate newTemplate = this.catalog.getTemplate(uri);
         loadedTemplates.put(uri, newTemplate);

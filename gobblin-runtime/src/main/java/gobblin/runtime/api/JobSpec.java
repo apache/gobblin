@@ -25,7 +25,6 @@ import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobState;
 import gobblin.util.ConfigUtils;
-import gobblin.runtime.Spec;
 
 import lombok.Data;
 
