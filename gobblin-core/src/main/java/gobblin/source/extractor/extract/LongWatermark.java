@@ -20,6 +20,7 @@ import com.google.common.primitives.Longs;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
+import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.Watermark;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -27,7 +28,7 @@ import lombok.Setter;
 
 
 @EqualsAndHashCode
-public class LongWatermark implements Watermark, Comparable<LongWatermark> {
+public class LongWatermark implements ComparableWatermark {
 
   private static final Gson GSON = new Gson();
 
@@ -64,8 +65,9 @@ public class LongWatermark implements Watermark, Comparable<LongWatermark> {
   }
 
   @Override
-  public int compareTo(LongWatermark other) {
-    return Longs.compare(this.value, other.value);
+  public int compareTo(ComparableWatermark other) {
+    Preconditions.checkArgument(other instanceof LongWatermark);
+    return Longs.compare(this.value, ((LongWatermark)other).value);
   }
 
 }

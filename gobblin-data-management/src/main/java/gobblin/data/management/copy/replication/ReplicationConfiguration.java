@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.data.management.copy.replication;
 
 import java.util.ArrayList;
@@ -73,9 +85,11 @@ public class ReplicationConfiguration {
   @Getter
   private final DataFlowTopology dataFlowToplogy;
 
-  public static ReplicationConfiguration buildFromConfig(Config config)
+  public static ReplicationConfiguration buildFromConfig(Config input)
       throws InstantiationException, IllegalAccessException, ClassNotFoundException {
-    Preconditions.checkArgument(config != null, "can not build ReplicationConfig from null");
+    Preconditions.checkArgument(input != null, "can not build ReplicationConfig from null");
+    
+    Config config = input.resolve();
 
     return new Builder().withReplicationMetaData(ReplicationMetaData.buildMetaData(config))
         .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config)).withReplicationSource(config)
@@ -119,7 +133,7 @@ public class ReplicationConfiguration {
     public Builder withReplicationSource(Config config)
         throws InstantiationException, IllegalAccessException, ClassNotFoundException {
       Preconditions.checkArgument(config.hasPath(REPLICATION_SOURCE),
-          "missing required config entery " + REPLICATION_SOURCE);
+          "missing required config entry " + REPLICATION_SOURCE);
 
       Config sourceConfig = config.getConfig(REPLICATION_SOURCE);
       String endPointFactory = sourceConfig.hasPath(END_POINT_FACTORY_CLASS)
@@ -195,9 +209,8 @@ public class ReplicationConfiguration {
       }
 
       // topology not specified in literal, need to pick one topology from the defaults
-      Preconditions.checkArgument(this.dataFlowTopologyConfig.hasPath(DATA_FLOW_TOPOLOGY_PICKER),
-          "missing required config entry " + DATA_FLOW_TOPOLOGY_PICKER);
-      String topologyPickerStr = this.dataFlowTopologyConfig.getString(DATA_FLOW_TOPOLOGY_PICKER);
+      String topologyPickerStr = this.dataFlowTopologyConfig.hasPath(DATA_FLOW_TOPOLOGY_PICKER)?
+          this.dataFlowTopologyConfig.getString(DATA_FLOW_TOPOLOGY_PICKER): DEFAULT_DATA_FLOW_TOPOLOGY_PICKER_CLASS;
       DataFlowTopologyPickerBySource picker =
           dataFlowTopologyPickerResolver.resolveClass(topologyPickerStr).newInstance();
 
