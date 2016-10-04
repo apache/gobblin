@@ -24,6 +24,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -137,6 +139,29 @@ public class IteratorExecutor<T> {
         return input instanceof Either.Left;
       }
     });
+  }
+
+  /**
+   * Log failures in the output of {@link #executeAndGetResults()}.
+   * @param results output of {@link #executeAndGetResults()}
+   * @param useLogger logger to log the messages into.
+   * @param atMost will log at most this many errors.
+   */
+  public static <T> void logFailures(List<Either<T, ExecutionException>> results, Logger useLogger, int atMost) {
+    Logger actualLogger = useLogger == null ? log : useLogger;
+    Iterator<Either<T, ExecutionException>> it = results.iterator();
+    int printed = 0;
+    while (it.hasNext()) {
+      Either<T, ExecutionException> nextResult = it.next();
+      if (nextResult instanceof Either.Right) {
+        ExecutionException exc = ((Either.Right<T, ExecutionException>) nextResult).getRight();
+        actualLogger.error("Iterator executor failure.", exc);
+        printed++;
+        if (printed >= atMost) {
+          return;
+        }
+      }
+    }
   }
 
 }

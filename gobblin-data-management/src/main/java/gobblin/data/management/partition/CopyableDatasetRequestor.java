@@ -36,6 +36,7 @@ import gobblin.util.request_allocation.PushDownRequestor;
 
 import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -44,6 +45,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @AllArgsConstructor
+@Getter
 public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyEntity>> {
 
   @AllArgsConstructor

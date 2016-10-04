@@ -71,7 +71,6 @@ public class HivePartitionFileSet extends HiveFileSet {
   protected Collection<CopyEntity> generateCopyEntities() throws IOException {
 
     try (Closer closer = Closer.create()) {
-      log.info("Getting copy entities for partition " + this.partition.getCompleteName());
       MultiTimingEvent multiTimer = closer.register(new MultiTimingEvent(this.eventSubmitter, "PartitionCopy", true));
 
       int stepPriority = 0;
@@ -147,6 +146,8 @@ public class HivePartitionFileSet extends HiveFileSet {
           hiveCopyEntityHelper.getConfiguration(), Optional.of(this.partition))) {
         copyEntities.add(builder.fileSet(fileSet).checksum(new byte[0]).build());
       }
+
+      log.info("Created {} copy entities for partition {}", copyEntities.size(), this.partition.getCompleteName());
 
       return copyEntities;
     }

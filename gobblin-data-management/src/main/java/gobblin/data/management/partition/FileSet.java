@@ -143,4 +143,8 @@ public abstract class FileSet<T extends CopyEntity> implements Request<FileSet<C
    */
   protected abstract Collection<T> generateCopyEntities() throws IOException;
 
+  @Override
+  public String toString() {
+    return this.dataset.datasetURN() + "@" + this.name;
+  }
 }

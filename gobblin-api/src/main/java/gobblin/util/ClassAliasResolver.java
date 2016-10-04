@@ -53,12 +53,12 @@ public class ClassAliasResolver<T> {
     Map<String, Class<? extends T>> cache = Maps.newHashMap();
     for (Class<? extends T> clazz : REFLECTIONS.getSubTypesOf(subTypeOf)) {
       if (clazz.isAnnotationPresent(Alias.class)) {
-        String alias = clazz.getAnnotation(Alias.class).value();
+        String alias = clazz.getAnnotation(Alias.class).value().toUpperCase();
         if (cache.containsKey(alias)) {
           log.warn(String.format("Alias %s already mapped to class %s. Mapping for %s will be ignored", alias,
               cache.get(alias).getCanonicalName(), clazz.getCanonicalName()));
         } else {
-          cache.put(clazz.getAnnotation(Alias.class).value(), clazz);
+          cache.put(clazz.getAnnotation(Alias.class).value().toUpperCase(), clazz);
         }
       }
     }
@@ -75,8 +75,8 @@ public class ClassAliasResolver<T> {
    * Return the input <code>possibleAlias</code> if no mapping is found.
    */
   public String resolve(final String possibleAlias) {
-    if (this.aliasToClassCache.containsKey(possibleAlias)) {
-      return this.aliasToClassCache.get(possibleAlias).getName();
+    if (this.aliasToClassCache.containsKey(possibleAlias.toUpperCase())) {
+      return this.aliasToClassCache.get(possibleAlias.toUpperCase()).getName();
     }
     return possibleAlias;
   }
@@ -87,8 +87,8 @@ public class ClassAliasResolver<T> {
    * <code>aliasOrClassName</code>.
    */
   public Class<? extends T> resolveClass(final String aliasOrClassName) throws ClassNotFoundException {
-    if (this.aliasToClassCache.containsKey(aliasOrClassName)) {
-      return this.aliasToClassCache.get(aliasOrClassName);
+    if (this.aliasToClassCache.containsKey(aliasOrClassName.toUpperCase())) {
+      return this.aliasToClassCache.get(aliasOrClassName.toUpperCase());
     }
     try {
       return Class.forName(aliasOrClassName).asSubclass(this.subtypeOf);

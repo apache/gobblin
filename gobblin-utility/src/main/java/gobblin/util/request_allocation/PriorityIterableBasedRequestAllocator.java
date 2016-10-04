@@ -13,7 +13,9 @@
 package gobblin.util.request_allocation;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
 import org.slf4j.Logger;
 
@@ -21,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 
+import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.executors.IteratorExecutor;
 
@@ -65,7 +68,8 @@ public abstract class PriorityIterableBasedRequestAllocator<T extends Request<T>
           ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("request-allocator-%d")));
 
       try {
-        executor.executeAndGetResults();
+        List<Either<Void, ExecutionException>> results = executor.executeAndGetResults();
+        IteratorExecutor.logFailures(results, log, 10);
       } catch (InterruptedException ie) {
         log.error("Request allocation was interrupted.");
         return new AllocatedRequestsIteratorBase<>(Iterators.<AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T>>emptyIterator(),
