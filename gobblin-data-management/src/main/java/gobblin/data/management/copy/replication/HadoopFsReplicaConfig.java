@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.data.management.copy.replication;
 
 import java.net.URI;
@@ -55,6 +67,49 @@ public class HadoopFsReplicaConfig {
   public String toString() {
     return Objects.toStringHelper(this.getClass()).add("colo", this.colo).add("name", this.clustername)
         .add("FilesystemURI", this.fsURI).add("rootPath", this.path).toString();
+  }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((clustername == null) ? 0 : clustername.hashCode());
+    result = prime * result + ((colo == null) ? 0 : colo.hashCode());
+    result = prime * result + ((fsURI == null) ? 0 : fsURI.hashCode());
+    result = prime * result + ((path == null) ? 0 : path.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj)
+      return true;
+    if (obj == null)
+      return false;
+    if (getClass() != obj.getClass())
+      return false;
+    HadoopFsReplicaConfig other = (HadoopFsReplicaConfig) obj;
+    if (clustername == null) {
+      if (other.clustername != null)
+        return false;
+    } else if (!clustername.equals(other.clustername))
+      return false;
+    if (colo == null) {
+      if (other.colo != null)
+        return false;
+    } else if (!colo.equals(other.colo))
+      return false;
+    if (fsURI == null) {
+      if (other.fsURI != null)
+        return false;
+    } else if (!fsURI.equals(other.fsURI))
+      return false;
+    if (path == null) {
+      if (other.path != null)
+        return false;
+    } else if (!path.equals(other.path))
+      return false;
+    return true;
   }
 
 }

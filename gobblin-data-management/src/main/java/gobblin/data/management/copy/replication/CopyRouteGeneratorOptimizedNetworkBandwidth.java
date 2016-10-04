@@ -1,19 +1,26 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.data.management.copy.replication;
 
-import java.io.IOException;
 import java.util.List;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 
-import gobblin.util.HadoopUtils;
-import lombok.extern.slf4j.Slf4j;
-
-
-@Slf4j
+/**
+ * In Pull mode, Optimized for network bandwidth : pick the first available data source
+ * @author mitu
+ *
+ */
 public class CopyRouteGeneratorOptimizedNetworkBandwidth extends CopyRouteGeneratorOptimizer {
   /**
    * 
@@ -28,16 +35,8 @@ public class CopyRouteGeneratorOptimizedNetworkBandwidth extends CopyRouteGenera
       }
 
       HadoopFsEndPoint copyFrom = (HadoopFsEndPoint) (copyRoute.getCopyFrom());
-      try {
-        Configuration conf = HadoopUtils.newConfiguration();
-        FileSystem fs = FileSystem.get(copyFrom.getFsURI(), conf);
-        if (fs.exists(new Path("/"))) {
-          return Optional.of(copyRoute);
-        } else {
-          log.warn("Skipped the problematic FileSystem " + copyFrom.getFsURI());
-        }
-      } catch (IOException ioe) {
-        log.warn("Skipped the problematic FileSystem " + copyFrom.getFsURI());
+      if(copyFrom.isAvailable()) {
+        return Optional.of(copyRoute);
       }
     }
     return Optional.absent();

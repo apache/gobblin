@@ -1,3 +1,15 @@
+/*
+ * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+ * this file except in compliance with the License. You may obtain a copy of the
+ * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied.
+ */
+
 package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
@@ -18,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-public class SourceHadoopFsEndPoint implements HadoopFsEndPoint{
+public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
 
   @Getter
   private final HadoopFsReplicaConfig rc;
@@ -70,5 +82,31 @@ public class SourceHadoopFsEndPoint implements HadoopFsEndPoint{
   @Override
   public URI getFsURI() {
     return this.rc.getFsURI();
+  }
+  
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((rc == null) ? 0 : rc.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj)
+      return true;
+    if (obj == null)
+      return false;
+    if (getClass() != obj.getClass())
+      return false;
+    SourceHadoopFsEndPoint other = (SourceHadoopFsEndPoint) obj;
+    if (rc == null) {
+      if (other.rc != null)
+        return false;
+    } else if (!rc.equals(other.rc))
+      return false;
+    return true;
   }
 }
