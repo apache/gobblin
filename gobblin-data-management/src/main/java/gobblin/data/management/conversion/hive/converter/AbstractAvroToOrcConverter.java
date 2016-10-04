@@ -85,6 +85,12 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   private static final String GOBBLIN_PARTITION_NAME_KEY = "gobblin.partitionName";
   private static final String GOBBLIN_WORKUNIT_CREATE_TIME_KEY = "gobblin.workunitCreateTime";
 
+  /***
+   * Separators used by Hive
+   */
+  private static final String HIVE_PARTITIONS_INFO = "/";
+  private static final String HIVE_PARTITIONS_TYPE = ":";
+
   protected final FileSystem fs;
 
   /**
@@ -581,8 +587,11 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       if (StringUtils.isBlank(partitionsInfoString) || StringUtils.isBlank(partitionsTypeString)) {
         throw new IllegalArgumentException("Both partitions info and partitions must be present, if one is specified");
       }
-      List<String> pInfo = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsInfoString);
-      List<String> pType = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(partitionsTypeString);
+      List<String> pInfo = Splitter.on(HIVE_PARTITIONS_INFO).omitEmptyStrings().trimResults().splitToList(partitionsInfoString);
+      List<String> pType = Splitter.on(HIVE_PARTITIONS_TYPE).omitEmptyStrings().trimResults().splitToList(partitionsTypeString);
+      log.debug("PartitionsInfoString: " + partitionsInfoString);
+      log.debug("PartitionsTypeString: " + partitionsTypeString);
+
       if (pInfo.size() != pType.size()) {
         throw new IllegalArgumentException("partitions info and partitions type list should of same size");
       }

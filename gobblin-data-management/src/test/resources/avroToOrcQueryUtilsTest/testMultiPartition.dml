@@ -1,0 +1,9 @@
+INSERT OVERWRITE TABLE `default`.`testMultiPartitionDML_orc` 
+PARTITION (`datepartition`='2016-01-01', `id`='101', `country`='US') 
+SELECT 
+  `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldString`, 
+  `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldInt`, 
+  `parentFieldRecord`.`nestedFieldString`, 
+  `parentFieldRecord`.`nestedFieldInt`, 
+  `parentFieldInt` 
+ FROM `default`.`testMultiPartitionDML` WHERE `datepartition`='2016-01-01' AND `id`='101' AND `country`='US'
