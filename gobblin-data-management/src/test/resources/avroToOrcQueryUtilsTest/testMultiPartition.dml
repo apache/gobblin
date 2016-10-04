@@ -6,4 +6,4 @@ SELECT
   `parentFieldRecord`.`nestedFieldString`, 
   `parentFieldRecord`.`nestedFieldInt`, 
   `parentFieldInt` 
- FROM `default`.`testMultiPartitionDML` WHERE `datepartition`='2016-01-01' and `id`='101' and `country`='US'
+ FROM `default`.`testMultiPartitionDML` WHERE `datepartition`='2016-01-01' AND `id`='101' AND `country`='US'

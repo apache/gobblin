@@ -761,7 +761,7 @@ public class HiveAvroORCQueryGenerator {
           if (isFirstPartitionSpec) {
             isFirstPartitionSpec = false;
           } else {
-            dmlQuery.append(" and ");
+            dmlQuery.append(" AND ");
           }
           dmlQuery.append(String.format("`%s`='%s'",
               partition.getKey(), partition.getValue()));

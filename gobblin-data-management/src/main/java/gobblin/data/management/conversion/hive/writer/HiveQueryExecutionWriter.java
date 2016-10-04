@@ -45,7 +45,7 @@ public class HiveQueryExecutionWriter implements DataWriter<QueryBasedHiveConver
       this.hiveJdbcConnector.executeStatements(conversionQueries.toArray(new String[conversionQueries.size()]));
       EventWorkunitUtils.setEndConversionDDLExecuteTimeMetadata(this.workUnit, System.currentTimeMillis());
     } catch (SQLException e) {
-      log.warn("Dumping queries attempted by the writer.");
+      log.warn("Failed to execute queries: ");
       for (String conversionQuery : conversionQueries) {
         log.warn("Conversion query attempted by Hive Query writer: " + conversionQuery);
       }
