@@ -36,8 +36,10 @@ public class CopyRouteGeneratorOptimizedLatency extends CopyRouteGeneratorOptimi
   public Optional<CopyRoute> getOptimizedCopyRoute(List<CopyRoute> routes) {
     CopyRoute result = null;
     for (CopyRoute copyRoute : routes) {
-      if (result == null || (copyRoute.getCopyFrom().isAvailable()
-          && copyRoute.getCopyFrom().getWatermark().compareTo(result.getCopyFrom().getWatermark()) > 0)) {
+      if(!copyRoute.getCopyFrom().isAvailable()){
+        continue;
+      }
+      if (result == null || copyRoute.getCopyFrom().getWatermark().compareTo(result.getCopyFrom().getWatermark()) > 0) {
         result = copyRoute;
       }
     }
