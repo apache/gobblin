@@ -265,7 +265,7 @@ gobblin.retention : {
 
 
 ### 5. Time based Hive Retention
-Gobblin supports retention for a hive partitioned table. Partitions older than n days can be dropped using this policy. The job can optionally choose to NOT delete the data pointed by the partition and only deregister the hive partition. By default the job also deletes data associated with the partition.
+Gobblin supports retention for a hive partitioned table. Partitions older than n days can be dropped using this policy. A job can optionally choose to delete data associated with the partition. By default the job does NOT delete data. It only drops the hive partition.
 
 <pre>
 
@@ -294,6 +294,11 @@ gobblin.retention : {
     }
 }
 
+</pre>
+
+Job level configuration to enable data deletion
+<pre>
+gobblin.retention.hive.shouldDeleteData=true
 </pre>
 
 ### 6. Setting permissions/owner/group for versions of a dataset
@@ -352,9 +357,4 @@ gobblin.retention : {
   }
 }
 
-</pre>
-
-Job level configuration to disable data deletion
-<pre>
-gobblin.retention.hive.shouldDeleteData=false
 </pre>
