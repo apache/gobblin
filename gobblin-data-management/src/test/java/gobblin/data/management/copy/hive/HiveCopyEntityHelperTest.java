@@ -151,7 +151,7 @@ public class HiveCopyEntityHelperTest {
     Mockito.when(helper.getTargetPathHelper()).thenReturn(targetPathHelper);
 
     // Add policy to not delete un-managed data
-    Mockito.when(helper.getManagedDataPolicy()).thenReturn(HiveCopyEntityHelper.ManagedDataPolicy.ABORT);
+    Mockito.when(helper.getUnmanagedDataPolicy()).thenReturn(HiveCopyEntityHelper.UnmanagedDataPolicy.ABORT);
 
     // We should receive an exception that un-managed files are detected 
     try {
@@ -212,7 +212,7 @@ public class HiveCopyEntityHelperTest {
     Mockito.when(helper.getTargetPathHelper()).thenReturn(targetPathHelper);
 
     // Add policy to delete un-managed data
-    Mockito.when(helper.getManagedDataPolicy()).thenReturn(HiveCopyEntityHelper.ManagedDataPolicy.DELETE_UNMANAGED_DATA);
+    Mockito.when(helper.getUnmanagedDataPolicy()).thenReturn(HiveCopyEntityHelper.UnmanagedDataPolicy.DELETE_UNMANAGED_DATA);
 
     // Since policy is specified to delete un-managed data, this should not throw exception and un-managed file should
     // .. show up in pathsToDelete in the diff
