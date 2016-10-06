@@ -756,7 +756,13 @@ public class HiveAvroORCQueryGenerator {
     if (optionalPartitionDMLInfo.isPresent()) {
       if (optionalPartitionDMLInfo.get().size() > 0) {
         dmlQuery.append("WHERE ");
+        boolean isFirstPartitionSpec = true;
         for (Map.Entry<String, String> partition : optionalPartitionDMLInfo.get().entrySet()) {
+          if (isFirstPartitionSpec) {
+            isFirstPartitionSpec = false;
+          } else {
+            dmlQuery.append(" AND ");
+          }
           dmlQuery.append(String.format("`%s`='%s'",
               partition.getKey(), partition.getValue()));
         }

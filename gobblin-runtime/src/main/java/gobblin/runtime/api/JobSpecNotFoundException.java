@@ -16,16 +16,8 @@ import java.net.URI;
 /**
  * An exception thrown when a JobSpec with a given URI is not found.
  */
-public class JobSpecNotFoundException extends Exception {
-  private static final long serialVersionUID = 1L;
-  private final URI _missingJobSpecURI;
-
+public class JobSpecNotFoundException extends SpecNotFoundException {
   public JobSpecNotFoundException(URI missingJobSpecURI) {
-    super("No JobSpec with URI " + missingJobSpecURI);
-    _missingJobSpecURI = missingJobSpecURI;
-  }
-
-  public URI getMissingJobSpecURI() {
-    return _missingJobSpecURI;
+    super(missingJobSpecURI);
   }
 }

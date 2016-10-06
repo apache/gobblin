@@ -89,6 +89,13 @@ public class ResourcePool {
     this.dimensionIndex = dimensionIndex;
   }
 
+  protected ResourcePool(ResourcePool other) {
+    this.softBound = other.getSoftBound();
+    this.hardBound = other.getHardBound();
+    this.defaultResourceUse = other.getDefaultResourceUse();
+    this.dimensionIndex = other.getDimensionIndex();
+  }
+
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder(ResourcePool.class.getSimpleName()).append(": {");
@@ -141,7 +148,7 @@ public class ResourcePool {
    * @return a new {@link ResourcePool} which is a copy of this {@link ResourcePool} except its resource vector has been
    * reduced by the input {@link ResourceRequirement}.
    */
-  ResourcePool contractPool(ResourceRequirement requirement) {
+  protected ResourcePool contractPool(ResourceRequirement requirement) {
     return new ResourcePool(VectorAlgebra.addVector(this.softBound, requirement.getResourceVector(), -1., null),
         VectorAlgebra.addVector(this.hardBound, requirement.getResourceVector(), -1., null),
         this.defaultResourceUse, this.dimensionIndex);

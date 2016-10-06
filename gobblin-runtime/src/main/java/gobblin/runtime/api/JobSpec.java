@@ -38,7 +38,7 @@ import lombok.Data;
  */
 @Alpha
 @Data
-public class JobSpec implements Configurable {
+public class JobSpec implements Configurable, Spec {
   /** An URI identifying the job. */
   final URI uri;
   /** The implementation-defined version of this spec. */

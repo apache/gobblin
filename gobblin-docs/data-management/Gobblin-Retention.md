@@ -1,11 +1,11 @@
 #Table Of Contents
 [TOC]
 #Introduction
-Gobblin retention management is a framework to manage the retention of Hadoop datasets. The system allows users to configure the retention policies for individual datasets using the Gobblin config store. This framework gives the flexibility to associate retention configurations both at a dataset level and a cluster level.
-For HDFS datasets, the framework comes with several standard policies like timebased policy, policy to retain top k files in a dataset and many more. It also has in-built support for standard data layouts like daily/hourly paritioned data and snapshot data.
+Gobblin retention management is a framework to manage the retention of Hadoop datasets. The system allows users to configure retention policies for individual datasets using the Gobblin config store. This framework gives the flexibility to associate retention configurations both at a dataset level and a cluster level.
+For HDFS datasets, the framework comes with several standard policies like timebased policy, policy to retain top k files in a dataset and many more. It also has in-built support for standard data layouts like daily/hourly paritioned data and snapshot data. Gobblin retention management supports several retention actions. The most basic action is deleting files that satisfy a policy. Gobblin also supports actions like access control which set permissions on files that satisfy a policy.
 
 # Design
-The design has two parts. The first parts describes the contructs like dataset finders, version finders and policies. The second part describes the configuration aspects of gobblin retention management.
+The design has two parts. First part describes the contructs like dataset finders, version finders and policies. Second part describes the configuration aspects of gobblin retention management.
 
 ## Overview of Gobblin Config Management Library
 To support all the retention configuration requirements, we use Gobblin Dataset Config Management library.This is a short overview. In the gobblin code base it can be found in the module ```gobblin-config-management```
@@ -48,7 +48,10 @@ The ```ManagedCleanableDatasetFinder``` instantiates a ```ConfigurableClenableDa
 A version is defined as a deletable entity (or a path) in a dataset. A version can either be retained or deleted. The ```VersionFinder``` finds all the versions of a dataset.
 
 ### VersionSelectionPolicy
-A policy to find all the versions that need to be deleted. Note that the versions selected by this policy will be **Deleted** not retained.
+A predicate to select subset of versions from the list of all version discovered by the `VersionFinder`. By default all the versions selected by the ```VersionSelectionPolicy``` will be **deleted**. Apart from delete, gobblin also provides other `RetentionAction`s on the selected versions.
+
+### RetentionAction
+An abstraction for the kind of action to be performed on all the versions discoverd by the ```VersionFinder``` or a subset of versions filtered by the ```VersionSelectionPolicy```. Delete is the default action on selected versions. Gobblin also supports ```AccessControlAction``` which sets permissions on selected versions.
 
 ## Retention Configuration
 Gobblin Retention is configured through Gobblin config management. All dataset configs are stored in a config store that can be accessed through a ```ConfigClient```. The gobblin config management uses [TypeSafe Config](https://github.com/typesafehub/config). The language used is [HOCON](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation), a more readable JSON superset.
@@ -262,7 +265,7 @@ gobblin.retention : {
 
 
 ### 5. Time based Hive Retention
-Gobblin supports retention for a hive partitioned table. Partitions older than n days can be dropped using this policy. The job can optionally choose to NOT delete the data pointed by the partition and only deregister the hive partition. By default the job also deletes data associated with the partition.
+Gobblin supports retention for a hive partitioned table. Partitions older than n days can be dropped using this policy. A job can optionally choose to delete data associated with the partition. By default the job does NOT delete data. It only drops the hive partition.
 
 <pre>
 
@@ -293,7 +296,65 @@ gobblin.retention : {
 
 </pre>
 
-Job level configuration to disable data deletion
+Job level configuration to enable data deletion
 <pre>
-gobblin.retention.hive.shouldDeleteData=false
+gobblin.retention.hive.shouldDeleteData=true
+</pre>
+
+### 6. Setting permissions/owner/group for versions of a dataset
+Gobblin retention can set permissions, change owner/group for certain versions of a dataset. The below configuration is an extention to example #4, where along with deleting daily versions older than 5 days, it also restricts the access for daily versions older than 4 days to owner only.
+All the access control policies to apply are discovered through the key ```accessControl.policies```. The below example shows one such policy called ```ownerOnly```. Users can define any arbitrary policy and add them to ```accessControl.policies```.
+
+<pre>
+gobblin.retention : {
+
+    TimeBasedSelectionPolicy=gobblin.data.management.policy.SelectBeforeTimeBasedPolicy
+    DateTimeDatasetVersionFinder=gobblin.data.management.version.finder.DateTimeDatasetVersionFinder
+
+    dataset : {
+      pattern="/user/gobblin/data/*"
+      finder.class=gobblin.data.management.retention.profile.ManagedCleanableDatasetFinder
+      partitions=[${gobblin.retention.hourly}, ${gobblin.retention.daily}]
+    }
+
+    daily : {
+      selection {
+        policy.class = ${gobblin.retention.TimeBasedSelectionPolicy}
+        timeBased.lookbackTime = 5d
+      }
+      version : {
+        finder.class=${gobblin.retention.DateTimeDatasetVersionFinder}
+        globPattern = "daily/*/*/*"
+        datetime.pattern = "yyyy/MM/dd"
+      }
+      accessControl {
+
+            ## Provide a list of comma separated policies to apply. Each entry in this list should have a corresponding config section.
+            policies = [ownerOnly]
+
+            ownerOnly {
+                 selection {
+                    policy.class = ${gobblin.retention.TimeBasedSelectionPolicy}
+                    timeBased.lookbackTime=4d
+                 }
+                 mode : 700
+                 user : myUser
+                 group : noAccess
+            }
+        }
+    }
+
+    hourly : {
+      selection {
+        policy.class = ${gobblin.retention.TimeBasedSelectionPolicy}
+        timeBased.lookbackTime = 2d
+      }
+      version : {
+        finder.class=${gobblin.retention.DateTimeDatasetVersionFinder}
+        globPattern = "hourly/*/*/*/*"
+        datetime.pattern = "yyyy/MM/dd/hh"
+      }
+  }
+}
+
 </pre>

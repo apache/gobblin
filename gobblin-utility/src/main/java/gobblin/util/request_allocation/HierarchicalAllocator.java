@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -30,6 +31,7 @@ import lombok.RequiredArgsConstructor;
  * priority. Once the {@link ResourcePool} is full, lower priority {@link Requestor}s will not even be materialized.
  */
 @RequiredArgsConstructor
+@Slf4j
 public class HierarchicalAllocator<T extends Request<T>> implements RequestAllocator<T> {
 
   public static class Factory implements RequestAllocator.Factory {
@@ -82,6 +84,10 @@ public class HierarchicalAllocator<T extends Request<T>> implements RequestAlloc
       while (this.currentIterator == null || !this.currentIterator.hasNext()) {
         if (this.currentIterator != null) {
           this.currentRequirement.add(this.currentIterator.totalResourcesUsed());
+        }
+
+        if (this.resourcePool.exceedsSoftBound(this.currentRequirement, true)) {
+          return false;
         }
 
         Optional<SingleTierIterator> tmp = this.singleTierIterator.nextTier();
@@ -137,6 +143,7 @@ public class HierarchicalAllocator<T extends Request<T>> implements RequestAlloc
         this.referenceRequestor = null;
       }
       this.nextRequestorIdx = initialIndex;
+      log.debug("Starting a single tier iterator with reference requestor: {}", this.referenceRequestor);
     }
 
     @Override

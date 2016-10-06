@@ -12,15 +12,14 @@
 
 package gobblin.util.request_allocation;
 
-import java.util.Comparator;
-
 import com.typesafe.config.Config;
 
 import gobblin.util.ClassAliasResolver;
 
-import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
+@Slf4j
 public class RequestAllocatorUtils {
 
   public static final String ALLOCATOR_ALIAS_KEY = "requestAllocatorAlias";
@@ -35,6 +34,9 @@ public class RequestAllocatorUtils {
           BruteForceAllocator.Factory.class.getName();
       RequestAllocator.Factory allocatorFactory = new ClassAliasResolver<>(RequestAllocator.Factory.class).
           resolveClass(alias).newInstance();
+
+      log.info("Using allocator factory " + allocatorFactory.getClass().getName());
+
       return allocatorFactory.createRequestAllocator(configuration);
     } catch (ReflectiveOperationException roe) {
       throw new RuntimeException(roe);
