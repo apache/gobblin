@@ -382,8 +382,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     if (obj == null) {
       obj = getCustomColumnSchema(targetColumnName);
     } else {
-      String watermarkColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
-      String primarykeyColumn = this.workUnit.getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
+      String watermarkColumn = this.workUnitState.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
+      String primarykeyColumn = this.workUnitState.getProp(ConfigurationKeys.EXTRACT_PRIMARY_KEY_FIELDS_KEY);
       boolean isMultiColumnWatermark = this.hasMultipleWatermarkColumns(watermarkColumn);
 
       obj.setColumnName(targetColumnName);
@@ -709,15 +709,15 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * @return JDBCSource
    */
   protected JdbcProvider createJdbcSource() {
-    String driver = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_DRIVER);
-    String userName = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
+    String driver = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_DRIVER);
+    String userName = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
     String password = PasswordManager.getInstance(this.workUnit)
-        .readPassword(this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
+        .readPassword(this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
     String connectionUrl = this.getConnectionUrl();
 
-    String proxyHost = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL);
-    int proxyPort = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) != null
-        ? this.workUnit.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) : -1;
+    String proxyHost = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL);
+    int proxyPort = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) != null
+        ? this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT) : -1;
 
     if (this.jdbcSource == null || this.jdbcSource.isClosed()) {
       this.jdbcSource = new JdbcProvider(driver, connectionUrl, userName, password, 1, this.getTimeOut(), "DEFAULT",
