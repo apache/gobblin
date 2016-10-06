@@ -90,6 +90,11 @@ public class HiveCopyEntityHelper {
   public static final String EXISTING_ENTITY_POLICY_KEY =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".existing.entity.conflict.policy";
   public static final String DEFAULT_EXISTING_ENTITY_POLICY = ExistingEntityPolicy.ABORT.name();
+
+  public static final String MANAGED_DATA_POLICY_KEY =
+      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".managed.data.conflict.policy";
+  public static final String DEFAULT_MANAGED_DATA_POLICY = ManagedDataPolicy.ABORT.name();
+
   /** Target metastore URI */
   public static final String TARGET_METASTORE_URI_KEY =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.metastore.uri";
@@ -154,6 +159,7 @@ public class HiveCopyEntityHelper {
   private final Table targetTable;
   private final Optional<String> targetURI;
   private final ExistingEntityPolicy existingEntityPolicy;
+  private final ManagedDataPolicy managedDataPolicy;
   private final Optional<String> partitionFilter;
   private final Optional<Predicate<PartitionCopy>> fastPartitionSkip;
   private final Optional<Predicate<HiveCopyEntityHelper>> fastTableSkip;
@@ -177,6 +183,16 @@ public class HiveCopyEntityHelper {
     /** Deregister target table, do NOT delete its files, and create a new table with correct values. */
     REPLACE_TABLE,
     /** Abort copying of conflict table. */
+    ABORT
+  }
+
+  /**
+   * Defines what should be done for data that is not managed by the existing target table / partition.
+   */
+  public enum ManagedDataPolicy {
+    /** Delete any data that is not managed by the existing target table / partition. */
+    DELETE_UNMANAGED_DATA,
+    /** Abort copying of conflict table / partition. */
     ABORT
   }
 
@@ -234,6 +250,8 @@ public class HiveCopyEntityHelper {
           .or(this.dataset.table.getDbName());
       this.existingEntityPolicy = ExistingEntityPolicy.valueOf(this.dataset.getProperties()
           .getProperty(EXISTING_ENTITY_POLICY_KEY, DEFAULT_EXISTING_ENTITY_POLICY).toUpperCase());
+      this.managedDataPolicy = ManagedDataPolicy.valueOf(this.dataset.getProperties()
+          .getProperty(MANAGED_DATA_POLICY_KEY, DEFAULT_MANAGED_DATA_POLICY).toUpperCase());
 
       this.deleteMethod = this.dataset.getProperties().containsKey(DELETE_FILES_ON_DEREGISTER)
           ? DeregisterFileDeleteMethod
@@ -755,13 +773,25 @@ public class HiveCopyEntityHelper {
     }
 
     // Now desiredTargetExistingPaths contains paths that we don't want, but which are not managed by the existing
-    // table / partition. We shouldn't delete them (they're not managed by Hive), and we don't want to pick them up
-    // in the new table / partition, so if there are any leftover files, abort copying this table / partition.
-    if (desiredTargetExistingPaths.size() > 0) {
+    // table / partition.
+    // Ideally, we shouldn't delete them (they're not managed by Hive), and we don't want to pick
+    // them up in the new table / partition, so if there are any leftover files, we should abort copying
+    // this table / partition.
+    if (desiredTargetExistingPaths.size() > 0 && helper.getManagedDataPolicy() != ManagedDataPolicy.DELETE_UNMANAGED_DATA) {
       throw new IOException(String.format(
           "New table / partition would pick up existing, undesired files in target file system. " + "%s, files %s.",
-          partition.isPresent() ? partition.get().getCompleteName() : helper.dataset.table.getCompleteName(),
+          partition.isPresent() ? partition.get().getCompleteName() : helper.getDataset().getTable().getCompleteName(),
           Arrays.toString(desiredTargetExistingPaths.keySet().toArray())));
+    }
+    // Unless, the policy requires us to delete such un-managed files - in which case: we will add the leftover files
+    // to the deletion list.
+    else if (desiredTargetExistingPaths.size() > 0) {
+      log.warn("Un-managed files detected in target file system, however deleting them because of the policy: " +
+        ManagedDataPolicy.DELETE_UNMANAGED_DATA);
+      for (Path delete : desiredTargetExistingPaths.keySet()) {
+        log.warn("Un-managed file to be deleted: " + delete);
+        builder.deleteFile(delete);
+      }
     }
 
     return builder.build();
