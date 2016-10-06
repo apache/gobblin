@@ -63,7 +63,7 @@ public class SqlQueryUtils {
    * Returns true for values such as [t|true|yes|1] and false for [f|false|no].
    * If a boolean value cannot be trivially parsed, false is returned. 
    * 
-   * @param fieldValue           the value of the boolean string field    
+   * @param fieldValue    the value of the boolean string field    
    */
   public static boolean castToBoolean(String fieldValue) {
     String lowerField = fieldValue.toLowerCase();
