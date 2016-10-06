@@ -26,26 +26,26 @@ public class CopyRouteGeneratorTest {
 
   @Test
   public void testCopyRouteGenerator() throws Exception {
-    long unoWatermark = 1475304606000L;
+    long replica1Watermark = 1475304606000L;
     long sourceWatermark = 1475604606000L;
 
-    ReplicaHadoopFsEndPoint holdemReplica = Mockito.mock(ReplicaHadoopFsEndPoint.class);
-    Mockito.when(holdemReplica.isAvailable()).thenReturn(false);
+    ReplicaHadoopFsEndPoint notAvailableReplica = Mockito.mock(ReplicaHadoopFsEndPoint.class);
+    Mockito.when(notAvailableReplica.isAvailable()).thenReturn(false);
 
-    ReplicaHadoopFsEndPoint unoReplica = Mockito.mock(ReplicaHadoopFsEndPoint.class);
-    Mockito.when(unoReplica.isAvailable()).thenReturn(true);
-    Mockito.when(unoReplica.getWatermark()).thenReturn(new LongWatermark(unoWatermark)); // Oct 1, 2016
+    ReplicaHadoopFsEndPoint replica1 = Mockito.mock(ReplicaHadoopFsEndPoint.class);
+    Mockito.when(replica1.isAvailable()).thenReturn(true);
+    Mockito.when(replica1.getWatermark()).thenReturn(new LongWatermark(replica1Watermark)); // Oct 1, 2016
 
     SourceHadoopFsEndPoint source = Mockito.mock(SourceHadoopFsEndPoint.class);
     Mockito.when(source.isAvailable()).thenReturn(true);
     Mockito.when(source.getWatermark()).thenReturn(new LongWatermark(sourceWatermark)); // Oct 4, 2016
 
-    ReplicaHadoopFsEndPoint warReplica = Mockito.mock(ReplicaHadoopFsEndPoint.class);
-    Mockito.when(warReplica.isAvailable()).thenReturn(true);
+    ReplicaHadoopFsEndPoint copyToEndPoint = Mockito.mock(ReplicaHadoopFsEndPoint.class);
+    Mockito.when(copyToEndPoint.isAvailable()).thenReturn(true);
 
-    CopyRoute cp1 = new CopyRoute(holdemReplica, warReplica);
-    CopyRoute cp2 = new CopyRoute(unoReplica, warReplica);
-    CopyRoute cp3 = new CopyRoute(source, warReplica);
+    CopyRoute cp1 = new CopyRoute(notAvailableReplica, copyToEndPoint);
+    CopyRoute cp2 = new CopyRoute(replica1, copyToEndPoint);
+    CopyRoute cp3 = new CopyRoute(source, copyToEndPoint);
     DataFlowTopology.DataFlowPath dataFlowPath =
         new DataFlowTopology.DataFlowPath(ImmutableList.<CopyRoute> of(cp1, cp2, cp3));
     DataFlowTopology dataFlowTopology = new DataFlowTopology();
@@ -54,17 +54,17 @@ public class CopyRouteGeneratorTest {
     ReplicationConfiguration rc = Mockito.mock(ReplicationConfiguration.class);
     Mockito.when(rc.getCopyMode()).thenReturn(ReplicationCopyMode.PULL);
     Mockito.when(rc.getSource()).thenReturn(source);
-    Mockito.when(rc.getReplicas()).thenReturn(ImmutableList.<EndPoint> of(holdemReplica, unoReplica, warReplica));
+    Mockito.when(rc.getReplicas()).thenReturn(ImmutableList.<EndPoint> of(notAvailableReplica, replica1, copyToEndPoint));
     Mockito.when(rc.getDataFlowToplogy()).thenReturn(dataFlowTopology);
 
     CopyRouteGeneratorOptimizedNetworkBandwidth network = new CopyRouteGeneratorOptimizedNetworkBandwidth();
-    Assert.assertTrue(network.getPullRoute(rc, warReplica).get().getCopyFrom().equals(unoReplica));
-    Assert.assertTrue(network.getPullRoute(rc, warReplica).get().getCopyFrom().getWatermark()
-        .compareTo(new LongWatermark(unoWatermark)) == 0);
+    Assert.assertTrue(network.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().equals(replica1));
+    Assert.assertTrue(network.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().getWatermark()
+        .compareTo(new LongWatermark(replica1Watermark)) == 0);
 
     CopyRouteGeneratorOptimizedLatency latency = new CopyRouteGeneratorOptimizedLatency();
-    Assert.assertTrue(latency.getPullRoute(rc, warReplica).get().getCopyFrom().equals(source));
-    Assert.assertTrue(latency.getPullRoute(rc, warReplica).get().getCopyFrom().getWatermark()
+    Assert.assertTrue(latency.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().equals(source));
+    Assert.assertTrue(latency.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().getWatermark()
         .compareTo(new LongWatermark(sourceWatermark)) == 0);
   }
 }
