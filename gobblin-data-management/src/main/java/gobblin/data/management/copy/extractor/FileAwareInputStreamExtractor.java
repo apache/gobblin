@@ -16,10 +16,12 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.util.HadoopUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
 
@@ -60,9 +62,11 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse)
       throws DataRecordException, IOException {
 
+    Configuration conf = HadoopUtils.newConfiguration();
+    FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
     if (!this.recordRead) {
       this.recordRead = true;
-      return new FileAwareInputStream(this.file, this.fs.open(this.file.getFileStatus().getPath()));
+      return new FileAwareInputStream(this.file, fsFromFile.open(this.file.getFileStatus().getPath()));
     }
     return null;
 

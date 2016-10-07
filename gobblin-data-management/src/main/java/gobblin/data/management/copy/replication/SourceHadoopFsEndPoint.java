@@ -19,8 +19,10 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
@@ -35,26 +37,36 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   @Getter
   private final HadoopFsReplicaConfig rc;
 
+  private boolean initialized = false;
+  private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
+  
   public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc) {
     this.rc = rc;
   }
 
   @Override
-  public ComparableWatermark getWatermark() {
-    LongWatermark result = new LongWatermark(-1);
+  public Optional<ComparableWatermark> getWatermark() {
+    if(initialized){
+      return cachedWatermark;
+    }
+    this.initialized = true;
+    
+    long curTs = -1;
     try {
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       List<FileStatus> allFileStatus = FileListUtils.listFilesRecursively(fs, rc.getPath());
       for (FileStatus f : allFileStatus) {
-        if (f.getModificationTime() > result.getValue()) {
-          result = new LongWatermark(f.getModificationTime());
+        if (f.getModificationTime() > curTs) {
+          curTs = f.getModificationTime();
         }
       }
 
-      return result;
+      ComparableWatermark result = new LongWatermark(curTs);
+      this.cachedWatermark = Optional.of(result);
+      return cachedWatermark;
     } catch (IOException e) {
       log.error("Error while retrieve the watermark for " + this);
-      return result;
+      return cachedWatermark;
     }
   }
 
@@ -84,6 +96,10 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
     return this.rc.getFsURI();
   }
   
+  @Override
+  public Path getDatasetPath(){
+    return this.rc.getPath();
+  }
 
   @Override
   public int hashCode() {

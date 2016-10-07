@@ -21,11 +21,16 @@ import java.util.List;
 
 import com.google.common.base.Optional;
 
+import gobblin.annotation.Alias;
+
+
 /**
  * In Pull mode, Optimized for data replication latency: pick the highest watermark from all the data sources
  * @author mitu
  *
  */
+
+@Alias(value = "OptimizedLatency")
 public class CopyRouteGeneratorOptimizedLatency extends CopyRouteGeneratorOptimizer {
   /**
    * 
@@ -36,10 +41,16 @@ public class CopyRouteGeneratorOptimizedLatency extends CopyRouteGeneratorOptimi
   public Optional<CopyRoute> getOptimizedCopyRoute(List<CopyRoute> routes) {
     CopyRoute result = null;
     for (CopyRoute copyRoute : routes) {
-      if(!copyRoute.getCopyFrom().isAvailable()){
+      if (!copyRoute.getCopyFrom().isAvailable()) {
         continue;
       }
-      if (result == null || copyRoute.getCopyFrom().getWatermark().compareTo(result.getCopyFrom().getWatermark()) > 0) {
+
+      if (result == null) {
+        result = copyRoute;
+      } else if (copyRoute.getCopyFrom().getWatermark().isPresent()
+          && (!result.getCopyFrom().getWatermark().isPresent() || (copyRoute.getCopyFrom().getWatermark().isPresent()
+              && result.getCopyFrom().getWatermark().isPresent() && copyRoute.getCopyFrom().getWatermark().get()
+                  .compareTo(result.getCopyFrom().getWatermark().get()) > 0))) {
         result = copyRoute;
       }
     }

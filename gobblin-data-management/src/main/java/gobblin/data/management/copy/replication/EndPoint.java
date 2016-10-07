@@ -12,6 +12,8 @@
 
 package gobblin.data.management.copy.replication;
 
+import com.google.common.base.Optional;
+
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.Watermark;
 
@@ -43,7 +45,7 @@ public interface EndPoint {
    * 
    * @return the {@link Watermark} of the replica
    */
-  public ComparableWatermark getWatermark();
+  public Optional<ComparableWatermark> getWatermark();
   
   /**
    * @return whether this {@link EndPoint} is available to replica data

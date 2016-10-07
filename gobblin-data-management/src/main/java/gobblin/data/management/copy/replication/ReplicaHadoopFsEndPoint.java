@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -43,6 +44,9 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
 
   @Getter
   private final String replicaName;
+  
+  private boolean initialized = false;
+  private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
 
   public ReplicaHadoopFsEndPoint(HadoopFsReplicaConfig rc, String replicaName) {
     Preconditions.checkArgument(!replicaName.equals(ReplicationConfiguration.REPLICATION_SOURCE),
@@ -52,9 +56,15 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   }
 
   @Override
-  public ComparableWatermark getWatermark() {
-    LongWatermark result = new LongWatermark(-1);
+  public Optional<ComparableWatermark> getWatermark() {
+    if(initialized){
+      return cachedWatermark;
+    }
+    
+    this.initialized = true;
     try {
+      ComparableWatermark result;
+      
       Path metaData = new Path(rc.getPath(), WATERMARK_FILE);
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       if (fs.exists(metaData)) {
@@ -63,12 +73,13 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
           Config c = ConfigFactory.parseReader(reader);
           result = new LongWatermark(c.getLong(LATEST_TIMESTAMP));
         }
+        this.cachedWatermark = Optional.of(result);
       }
       // for replica, can not use the file time stamp as that is different with original source time stamp
-      return result;
+      return cachedWatermark;
     } catch (IOException e) {
       log.warn("Can not find " + WATERMARK_FILE + " for replica " + this);
-      return result;
+      return cachedWatermark;
     }
   }
 
@@ -96,6 +107,11 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   @Override
   public URI getFsURI() {
     return this.rc.getFsURI();
+  }
+  
+  @Override
+  public Path getDatasetPath(){
+    return this.rc.getPath();
   }
 
   @Override

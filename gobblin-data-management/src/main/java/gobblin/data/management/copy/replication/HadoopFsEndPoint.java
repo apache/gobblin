@@ -33,6 +33,8 @@ public abstract class HadoopFsEndPoint implements EndPoint{
   
   public abstract URI getFsURI();
   
+  public abstract Path getDatasetPath();
+  
   @Override
   public boolean isAvailable() {
     try {
