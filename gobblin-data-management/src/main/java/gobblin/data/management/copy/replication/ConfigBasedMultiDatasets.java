@@ -33,6 +33,7 @@ public class ConfigBasedMultiDatasets {
       //TODO, currently all the staging directory will be created in the target file system ( copyTo )
       // which imply that we need to at least have a distcp-ng job per copyTo cluster
       if(rc.getCopyMode()== ReplicationCopyMode.PUSH){
+        log.warn(String.format("Currently not support for push mode of dataset with metadata %s", rc.getMetaData()));
         return;
       }
       

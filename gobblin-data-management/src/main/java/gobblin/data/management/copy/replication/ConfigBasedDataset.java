@@ -119,7 +119,9 @@ public class ConfigBasedDataset implements CopyableDataset {
             this.rc.getMetaData()));
       } else {
         copyableFiles
-            .add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, configuration).build());
+            .add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, configuration)
+                .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString())
+                .build());
       }
     }
 
