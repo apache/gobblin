@@ -12,15 +12,16 @@
 
 package gobblin.writer.partitioner;
 
-import gobblin.configuration.State;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import gobblin.configuration.State;
 
 
 /**
- * A {@link WriterPartitioner} that partitions a record based on its schema.
+ * A {@link WriterPartitioner} that partitions a record based on its schema. Partition record is returned with
+ * field {@link #SCHEMA_STRING} containing the record's schema as a string.
  */
 public class SchemaBasedWriterPartitioner implements WriterPartitioner<GenericRecord> {
 

@@ -12,22 +12,27 @@
 
 package gobblin.writer;
 
-import gobblin.configuration.State;
-import gobblin.writer.partitioner.SchemaBasedWriterPartitioner;
 import org.apache.avro.Schema;
 import org.apache.hadoop.fs.Path;
+import gobblin.configuration.State;
+import gobblin.writer.partitioner.SchemaBasedWriterPartitioner;
 
 
 /**
- * A {@link DataWriterBuilder} for use with {@link gobblin.converter.EnvelopeSchemaConverter}
+ * A {@link DataWriterBuilder} that must be used with {@link SchemaBasedWriterPartitioner}
  */
-public class EnvelopeDataWriterBuilder extends AvroDataWriterBuilder {
+public class SchemaBasedPartitionedDataWriterBuilder extends AvroDataWriterBuilder {
   /**
    * Use the name field of {@link #schema} to partition path
    */
   @Override
   protected String getPartitionedFileName(State properties, String originalFileName) {
-    return new Path(this.getSchema().getName(), originalFileName).toString();
+    Schema schema = this.getSchema();
+    if (schema != null) {
+      return new Path(schema.getName(), originalFileName).toString();
+    } else {
+      return originalFileName;
+    }
   }
 
   /**
