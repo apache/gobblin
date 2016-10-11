@@ -166,12 +166,12 @@ public class MysqlExtractor extends JdbcExtractor {
 
   @Override
   public String getConnectionUrl() {
-    String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
-    String port = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
-    String database = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
+    String host = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
+    String port = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
+    String database = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
     String url = "jdbc:mysql://" + host.trim() + ":" + port + "/" + database.trim();
 
-    if (Boolean.valueOf(this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED))) {
+    if (Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_COMPRESSION_ENABLED))) {
       return url + "?useCompression=true";
     }
     return url;
