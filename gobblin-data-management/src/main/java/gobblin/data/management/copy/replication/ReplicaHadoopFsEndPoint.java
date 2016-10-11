@@ -45,7 +45,6 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   @Getter
   private final String replicaName;
   
-  private boolean initialized = false;
   private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
 
   public ReplicaHadoopFsEndPoint(HadoopFsReplicaConfig rc, String replicaName) {
@@ -53,15 +52,7 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
         "replicaName can not be " + ReplicationConfiguration.REPLICATION_SOURCE);
     this.rc = rc;
     this.replicaName = replicaName;
-  }
-
-  @Override
-  public Optional<ComparableWatermark> getWatermark() {
-    if(initialized){
-      return cachedWatermark;
-    }
     
-    this.initialized = true;
     try {
       ComparableWatermark result;
       
@@ -76,11 +67,15 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
         this.cachedWatermark = Optional.of(result);
       }
       // for replica, can not use the file time stamp as that is different with original source time stamp
-      return cachedWatermark;
+
     } catch (IOException e) {
       log.warn("Can not find " + WATERMARK_FILE + " for replica " + this);
-      return cachedWatermark;
     }
+  }
+
+  @Override
+  public Optional<ComparableWatermark> getWatermark() {
+    return this.cachedWatermark;
   }
 
   @Override

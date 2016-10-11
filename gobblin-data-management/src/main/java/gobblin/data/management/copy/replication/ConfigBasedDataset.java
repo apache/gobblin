@@ -69,7 +69,12 @@ public class ConfigBasedDataset implements CopyableDataset {
 
   @Override
   public String datasetURN() {
-    return this.copyRoute.getCopyTo().toString();
+    EndPoint e = this.copyRoute.getCopyTo();
+    if(e instanceof HadoopFsEndPoint){
+      return ((HadoopFsEndPoint)e).getDatasetPath().toString();
+    }
+    
+    return e.toString();
   }
 
   @Override
@@ -111,17 +116,17 @@ public class ConfigBasedDataset implements CopyableDataset {
     for (FileStatus originFileStatus : copyFromFileStatuses) {
       // construct the new path in the target file system
       Path newPath = new Path(copyTo.getDatasetPath(),
-          PathUtils.relativizePath(originFileStatus.getPath(), copyFrom.getDatasetPath()));
+          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(originFileStatus.getPath()),
+              PathUtils.getPathWithoutSchemeAndAuthority(copyFrom.getDatasetPath())));
 
       if (copyToFileMap.containsKey(newPath) && copyToFileMap.get(newPath).getLen() == originFileStatus.getLen()
           && copyToFileMap.get(newPath).getModificationTime() > originFileStatus.getModificationTime()) {
-        log.info(String.format("Skipped copy from %s for dataset with metadata %s", originFileStatus.getPath(),
-            this.rc.getMetaData()));
+        log.debug(String.format(
+            "Copy from timestamp older than copy to timestamp, skipped copy from %s for dataset with metadata %s",
+            originFileStatus.getPath(), this.rc.getMetaData()));
       } else {
-        copyableFiles
-            .add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, configuration)
-                .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString())
-                .build());
+        copyableFiles.add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, configuration)
+            .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
       }
     }
 

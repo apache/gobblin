@@ -43,7 +43,6 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   private boolean recordRead;
 
   public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file) {
-
     this.fs = fs;
     this.file = file;
     this.recordRead = false;
@@ -62,9 +61,9 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse)
       throws DataRecordException, IOException {
 
-    Configuration conf = HadoopUtils.newConfiguration();
-    FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
     if (!this.recordRead) {
+      Configuration conf = HadoopUtils.newConfiguration();
+      FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
       this.recordRead = true;
       return new FileAwareInputStream(this.file, fsFromFile.open(this.file.getFileStatus().getPath()));
     }

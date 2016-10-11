@@ -66,7 +66,7 @@ public class WatermarkMetadataGenerationCommitStep implements CommitStep {
     
     Path filenamePath = new Path(this.targetDirPath, ReplicaHadoopFsEndPoint.WATERMARK_FILE);
     if (fs.exists(filenamePath)) {
-      fs.delete(filenamePath, true);
+      fs.delete(filenamePath, false);
     }
 
     FSDataOutputStream fout = fs.create(filenamePath);

@@ -47,8 +47,10 @@ import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
 import gobblin.config.client.api.VersionStabilityPolicy;
 import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.api.VersionDoesNotExistException;
+import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDatasetBase;
 import gobblin.dataset.DatasetsFinder;
+import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.executors.IteratorExecutor;
@@ -88,9 +90,6 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDataset
   public static final String GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT =
       GOBBLIN_REPLICATION_CONFIG_STORE + ".dataset.common.root";
 
-  public static final String THREAD_POOL_SIZE = GOBBLIN_REPLICATION + ".numThreadForDatasetFinder";
-  public static final int DEFAULT_THREAD_POOL_SIZE = 10;
-
   private final String storeRoot;
   private final Path replicationDatasetCommonRoot;
   private final Path whitelistTag;
@@ -114,8 +113,9 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDataset
         new Path(props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT)));
     this.whitelistTag = PathUtils.mergePaths(new Path(this.storeRoot),
         new Path(props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG)));
-    this.threadPoolSize = props.containsKey(THREAD_POOL_SIZE) ? Integer.parseInt(props.getProperty(THREAD_POOL_SIZE))
-        : DEFAULT_THREAD_POOL_SIZE;
+    this.threadPoolSize = props.containsKey(CopySource.MAX_CONCURRENT_LISTING_SERVICES)
+        ? Integer.parseInt(props.getProperty(CopySource.MAX_CONCURRENT_LISTING_SERVICES))
+        : CopySource.DEFAULT_MAX_CONCURRENT_LISTING_SERVICES;
 
     if (props.containsKey(GOBBLIN_REPLICATION_CONFIG_STORE_BLACKLIST_TAGS)) {
       List<String> disableStrs = Splitter.on(",").omitEmptyStrings()
@@ -237,17 +237,10 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDataset
 
   private void executeItertorExecutor(Iterator<Callable<Void>> callableIterator) throws IOException {
     try {
-      List<Future<Void>> futures = new IteratorExecutor<>(callableIterator, this.threadPoolSize,
-          ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())))
-              .execute();
-
-      for (Future<Void> future : futures) {
-        try {
-          future.get();
-        } catch (ExecutionException ee) {
-          log.error("Failed to find datasets. ", ee.getCause());
-        }
-      }
+      IteratorExecutor<Void> executor = new IteratorExecutor<>(callableIterator, this.threadPoolSize,
+          ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
+      List<Either<Void, ExecutionException>> results = executor.executeAndGetResults();
+      IteratorExecutor.logFailures(results, log, 10);
     } catch (InterruptedException ie) {
       throw new IOException("Dataset finder is interrupted.", ie);
     }

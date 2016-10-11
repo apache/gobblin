@@ -15,6 +15,18 @@ import com.typesafe.config.ConfigRenderOptions;
 
 import lombok.extern.slf4j.Slf4j;
 
+
+/**
+ * Based on single dataset configuration in {@link Config} format, in Pull mode replication, there could be multiple 
+ * {@link ConfigBasedDataset} generated. For example, if two replicas exists on the same copy to cluster, 
+ * say replica1 and replica2, then there will be 2 {@link ConfigBasedDataset} generated, one for replication data from 
+ * copy from {@link EndPoint} to replica1, the other from copy from {@link EndPoint} to replica2
+ * 
+ * This class will be responsible to generate those {@link ConfigBasedDataset}s
+ * 
+ * @author mitu
+ */
+
 @Slf4j
 public class ConfigBasedMultiDatasets {
 

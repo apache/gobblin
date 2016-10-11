@@ -37,22 +37,12 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   @Getter
   private final HadoopFsReplicaConfig rc;
 
-  private boolean initialized = false;
   private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
   
   public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc) {
     this.rc = rc;
-  }
-
-  @Override
-  public Optional<ComparableWatermark> getWatermark() {
-    if(initialized){
-      return cachedWatermark;
-    }
-    this.initialized = true;
-    
-    long curTs = -1;
     try {
+      long curTs = -1;
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       List<FileStatus> allFileStatus = FileListUtils.listFilesRecursively(fs, rc.getPath());
       for (FileStatus f : allFileStatus) {
@@ -63,11 +53,14 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
 
       ComparableWatermark result = new LongWatermark(curTs);
       this.cachedWatermark = Optional.of(result);
-      return cachedWatermark;
     } catch (IOException e) {
       log.error("Error while retrieve the watermark for " + this);
-      return cachedWatermark;
     }
+  }
+
+  @Override
+  public Optional<ComparableWatermark> getWatermark() {
+    return this.cachedWatermark;
   }
 
   @Override
