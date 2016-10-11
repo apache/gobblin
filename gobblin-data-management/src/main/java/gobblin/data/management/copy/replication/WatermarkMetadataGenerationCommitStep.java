@@ -25,6 +25,11 @@ import com.google.common.base.Charsets;
 
 import gobblin.commit.CommitStep;
 
+/**
+ * A {@link CommitStep} to write watermark metadata to Hdfs
+ * @author mitu
+ *
+ */
 public class WatermarkMetadataGenerationCommitStep implements CommitStep {
   private final String fsUriString;
   private final Path targetDirPath;

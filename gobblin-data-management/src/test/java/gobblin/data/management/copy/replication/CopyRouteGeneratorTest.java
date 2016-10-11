@@ -12,10 +12,12 @@
 
 package gobblin.data.management.copy.replication;
 
+
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
 import gobblin.source.extractor.extract.LongWatermark;
@@ -34,11 +36,11 @@ public class CopyRouteGeneratorTest {
 
     ReplicaHadoopFsEndPoint replica1 = Mockito.mock(ReplicaHadoopFsEndPoint.class);
     Mockito.when(replica1.isAvailable()).thenReturn(true);
-    Mockito.when(replica1.getWatermark()).thenReturn(new LongWatermark(replica1Watermark)); // Oct 1, 2016
+    Mockito.when(replica1.getWatermark()).thenReturn(Optional.of(new LongWatermark(replica1Watermark))); // Oct 1, 2016
 
     SourceHadoopFsEndPoint source = Mockito.mock(SourceHadoopFsEndPoint.class);
     Mockito.when(source.isAvailable()).thenReturn(true);
-    Mockito.when(source.getWatermark()).thenReturn(new LongWatermark(sourceWatermark)); // Oct 4, 2016
+    Mockito.when(source.getWatermark()).thenReturn(Optional.of(new LongWatermark(sourceWatermark))); // Oct 4, 2016
 
     ReplicaHadoopFsEndPoint copyToEndPoint = Mockito.mock(ReplicaHadoopFsEndPoint.class);
     Mockito.when(copyToEndPoint.isAvailable()).thenReturn(true);
@@ -60,11 +62,11 @@ public class CopyRouteGeneratorTest {
     CopyRouteGeneratorOptimizedNetworkBandwidth network = new CopyRouteGeneratorOptimizedNetworkBandwidth();
     Assert.assertTrue(network.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().equals(replica1));
     Assert.assertTrue(network.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().getWatermark()
-        .compareTo(new LongWatermark(replica1Watermark)) == 0);
+        .get().compareTo(new LongWatermark(replica1Watermark)) == 0);
 
     CopyRouteGeneratorOptimizedLatency latency = new CopyRouteGeneratorOptimizedLatency();
     Assert.assertTrue(latency.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().equals(source));
     Assert.assertTrue(latency.getPullRoute(rc, copyToEndPoint).get().getCopyFrom().getWatermark()
-        .compareTo(new LongWatermark(sourceWatermark)) == 0);
+        .get().compareTo(new LongWatermark(sourceWatermark)) == 0);
   }
 }
