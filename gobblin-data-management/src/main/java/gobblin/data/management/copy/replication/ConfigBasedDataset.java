@@ -34,9 +34,11 @@ import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.RecursivePathFinder;
 import gobblin.data.management.copy.entities.PostPublishStep;
+import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.util.HadoopUtils;
 import gobblin.util.PathUtils;
+import gobblin.util.commit.DeleteFileCommitStep;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -113,11 +115,19 @@ public class ConfigBasedDataset implements CopyableDataset {
       copyToFileMap.put(PathUtils.getPathWithoutSchemeAndAuthority(f.getPath()), f);
     }
 
+    Collection<Path> deletedPaths = Lists.newArrayList();
+    
+    boolean watermarkMetadataCopied = false;
+    
     for (FileStatus originFileStatus : copyFromFileStatuses) {
+      Path relative = PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(originFileStatus.getPath()),
+          PathUtils.getPathWithoutSchemeAndAuthority(copyFrom.getDatasetPath()));
       // construct the new path in the target file system
-      Path newPath = new Path(copyTo.getDatasetPath(),
-          PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(originFileStatus.getPath()),
-              PathUtils.getPathWithoutSchemeAndAuthority(copyFrom.getDatasetPath())));
+      Path newPath = new Path(copyTo.getDatasetPath(), relative);
+      
+      if(relative.toString().equals(ReplicaHadoopFsEndPoint.WATERMARK_FILE)){
+        watermarkMetadataCopied = true;
+      }
 
       if (copyToFileMap.containsKey(newPath) && copyToFileMap.get(newPath).getLen() == originFileStatus.getLen()
           && copyToFileMap.get(newPath).getModificationTime() > originFileStatus.getModificationTime()) {
@@ -125,17 +135,31 @@ public class ConfigBasedDataset implements CopyableDataset {
             "Copy from timestamp older than copy to timestamp, skipped copy from %s for dataset with metadata %s",
             originFileStatus.getPath(), this.rc.getMetaData()));
       } else {
+        
+        // need to remove those files in the target File System
+        if ( copyToFileMap.containsKey(newPath) ){
+          deletedPaths.add(newPath);
+        }
+        
         copyableFiles.add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, configuration)
             .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
       }
     }
+    
+    // delete old files first
+    if(!deletedPaths.isEmpty()){
+      DeleteFileCommitStep deleteCommitStep = DeleteFileCommitStep.fromPaths(copyToFs, deletedPaths,
+          this.props);
+      copyableFiles.add(new PrePublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(), deleteCommitStep, 0)); 
+    }
 
-    if (copyFrom.getWatermark().isPresent()) {
+    // generate the watermark file
+    if ((!watermarkMetadataCopied) && copyFrom.getWatermark().isPresent()) {
       LongWatermark tmp = (LongWatermark) (copyFrom.getWatermark().get());
       copyableFiles.add(new PostPublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(),
           new WatermarkMetadataGenerationCommitStep(copyTo.getFsURI().toString(), copyTo.getDatasetPath(),
               tmp.getValue()),
-          0));
+          1));
     }
 
     return copyableFiles;
