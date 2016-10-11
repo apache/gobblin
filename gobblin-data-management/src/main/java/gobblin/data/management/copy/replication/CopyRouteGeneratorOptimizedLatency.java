@@ -17,6 +17,7 @@
  */
 package gobblin.data.management.copy.replication;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.google.common.base.Optional;
@@ -39,21 +40,7 @@ public class CopyRouteGeneratorOptimizedLatency extends CopyRouteGeneratorOptimi
    */
   @Override
   public Optional<CopyRoute> getOptimizedCopyRoute(List<CopyRoute> routes) {
-    CopyRoute result = null;
-    for (CopyRoute copyRoute : routes) {
-      if (!copyRoute.getCopyFrom().isAvailable()) {
-        continue;
-      }
-
-      if (result == null) {
-        result = copyRoute;
-      } else if (copyRoute.getCopyFrom().getWatermark().isPresent()
-          && (!result.getCopyFrom().getWatermark().isPresent() || (copyRoute.getCopyFrom().getWatermark().isPresent()
-              && result.getCopyFrom().getWatermark().isPresent() && copyRoute.getCopyFrom().getWatermark().get()
-                  .compareTo(result.getCopyFrom().getWatermark().get()) > 0))) {
-        result = copyRoute;
-      }
-    }
-    return Optional.fromNullable(result);
+    CopyRoute preferred = Collections.max(routes, new CopyRouteComparatorBySourceWatermark());
+    return Optional.of(preferred);
   }
 }

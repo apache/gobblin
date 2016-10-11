@@ -33,6 +33,7 @@ public class CopyRouteGeneratorTest {
 
     ReplicaHadoopFsEndPoint notAvailableReplica = Mockito.mock(ReplicaHadoopFsEndPoint.class);
     Mockito.when(notAvailableReplica.isAvailable()).thenReturn(false);
+    Mockito.when(notAvailableReplica.getWatermark()).thenReturn(Optional.absent());
 
     ReplicaHadoopFsEndPoint replica1 = Mockito.mock(ReplicaHadoopFsEndPoint.class);
     Mockito.when(replica1.isAvailable()).thenReturn(true);
