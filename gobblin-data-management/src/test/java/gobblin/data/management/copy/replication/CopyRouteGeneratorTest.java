@@ -20,6 +20,7 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
+import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
 
 
@@ -28,20 +29,25 @@ public class CopyRouteGeneratorTest {
 
   @Test
   public void testCopyRouteGenerator() throws Exception {
-    long replica1Watermark = 1475304606000L;
-    long sourceWatermark = 1475604606000L;
+    long replica1Watermark = 1475304606000L; // Oct 1, 2016
+    long sourceWatermark   = 1475604606000L; // Oct 4, 2016
 
     ReplicaHadoopFsEndPoint notAvailableReplica = Mockito.mock(ReplicaHadoopFsEndPoint.class);
     Mockito.when(notAvailableReplica.isAvailable()).thenReturn(false);
-    Mockito.when(notAvailableReplica.getWatermark()).thenReturn(Optional.absent());
+    Optional<ComparableWatermark> tmp = Optional.absent();
+    Mockito.when(notAvailableReplica.getWatermark()).thenReturn(tmp);
 
     ReplicaHadoopFsEndPoint replica1 = Mockito.mock(ReplicaHadoopFsEndPoint.class);
     Mockito.when(replica1.isAvailable()).thenReturn(true);
-    Mockito.when(replica1.getWatermark()).thenReturn(Optional.of(new LongWatermark(replica1Watermark))); // Oct 1, 2016
+    ComparableWatermark cw = new LongWatermark(replica1Watermark) ;
+    tmp = Optional.of(cw);
+    Mockito.when(replica1.getWatermark()).thenReturn(tmp); 
 
     SourceHadoopFsEndPoint source = Mockito.mock(SourceHadoopFsEndPoint.class);
     Mockito.when(source.isAvailable()).thenReturn(true);
-    Mockito.when(source.getWatermark()).thenReturn(Optional.of(new LongWatermark(sourceWatermark))); // Oct 4, 2016
+    cw = new LongWatermark(sourceWatermark);
+    tmp = Optional.of(cw);
+    Mockito.when(source.getWatermark()).thenReturn(tmp); 
 
     ReplicaHadoopFsEndPoint copyToEndPoint = Mockito.mock(ReplicaHadoopFsEndPoint.class);
     Mockito.when(copyToEndPoint.isAvailable()).thenReturn(true);
