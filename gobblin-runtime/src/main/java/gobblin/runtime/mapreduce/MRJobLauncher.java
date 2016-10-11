@@ -319,14 +319,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     serializeJobState(this.fs, this.mrJobDir, this.conf, this.jobContext.getJobState(), this.job);
 
     if (this.jobProps.containsKey(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
-      // When there is a limit on the number of mappers, each mapper may run
-      // multiple tasks if the total number of tasks is larger than the limit.
-      int maxMappers = Integer.parseInt(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY));
-      if (workUnits.size() > maxMappers) {
-        int numTasksPerMapper =
-            workUnits.size() % maxMappers == 0 ? workUnits.size() / maxMappers : workUnits.size() / maxMappers + 1;
-        NLineInputFormat.setNumLinesPerSplit(this.job, numTasksPerMapper);
-      }
+      GobblinWorkUnitsInputFormat.setMaxMappers(this.job,
+          Integer.parseInt(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)));
     }
 
     mrJobSetupTimer.stop();
