@@ -22,6 +22,7 @@ import com.google.common.base.Strings;
 
 import gobblin.runtime.api.JobCatalogWithTemplates;
 import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,6 +43,11 @@ public final class ResourceBasedJobTemplate extends HOCONInputStreamJobTemplate 
     try (InputStream is = getInputStreamForURI(uri)) {
       return new ResourceBasedJobTemplate(is, uri, catalog);
     }
+  }
+
+  public static ResourceBasedJobTemplate forResourcePath(String path)
+      throws SpecNotFoundException, TemplateException, IOException, URISyntaxException {
+    return forResourcePath(path, new PackagedTemplatesJobCatalogDecorator());
   }
 
   public static ResourceBasedJobTemplate forResourcePath(String path, JobCatalogWithTemplates catalog)
