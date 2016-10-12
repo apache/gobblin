@@ -19,7 +19,10 @@ import gobblin.writer.partitioner.SchemaBasedWriterPartitioner;
 
 
 /**
- * A {@link DataWriterBuilder} that must be used with {@link SchemaBasedWriterPartitioner}
+ * A {@link DataWriterBuilder} that uses name field of {@link #schema} in path name and overrides {@link #getSchema()}
+ * to use {@link #partition}
+ *
+ * Must be used with {@link SchemaBasedWriterPartitioner}
  */
 public class SchemaBasedPartitionedDataWriterBuilder extends AvroDataWriterBuilder {
   /**
@@ -46,5 +49,10 @@ public class SchemaBasedPartitionedDataWriterBuilder extends AvroDataWriterBuild
     } else {
       return null;
     }
+  }
+
+  @Override
+  public boolean validatePartitionSchema(Schema partitionSchema) {
+    return partitionSchema.getField(SchemaBasedWriterPartitioner.SCHEMA_STRING) != null;
   }
 }
