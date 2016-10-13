@@ -392,7 +392,7 @@ public class JobLauncherExecutionDriver extends AbstractIdleService implements J
 
   @Override public boolean isDone() {
     RunningState runState = getJobExecutionStatus().getRunningState();
-    return runState.isDone();
+    return runState == null ? false : runState.isDone() ;
   }
 
   @Override public boolean cancel(boolean mayInterruptIfRunning) {
