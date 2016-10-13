@@ -451,14 +451,20 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
 
   @Override
   public long getFileMTime(String filePath) throws FileBasedHelperException {
-    try {
-      ChannelSftp channelSftp = getSftpChannel();
-      int modificationTime = channelSftp.lstat(filePath).getMTime();
-      channelSftp.disconnect();
-      return modificationTime;
-    } catch (SftpException e) {
-      throw new FileBasedHelperException(String
-          .format("Failed to get modified timestamp for file at path %s due to error %s", filePath, e.getMessage()), e);
-    }
+      ChannelSftp channelSftp = null;
+      try {
+	  channelSftp = getSftpChannel();
+	  int modificationTime = channelSftp.lstat(filePath).getMTime();
+	  return modificationTime;
+      } catch (SftpException e) {
+	  throw new FileBasedHelperException(
+					     String.format("Failed to get modified timestamp for file at path %s due to error %s", filePath,
+							   e.getMessage()),
+					     e);
+      } finally {
+	  if (channelSftp != null) {
+	      channelSftp.disconnect();
+	  }
+      }
   }
 }
