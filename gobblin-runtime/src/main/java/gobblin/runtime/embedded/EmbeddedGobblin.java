@@ -204,7 +204,7 @@ public class EmbeddedGobblin {
    * Encapsulates a timeout with corresponding {@link TimeUnit}.
    */
   @Data
-  private class FullTimeout {
+  private static class FullTimeout {
     private final long timeout;
     private final TimeUnit timeUnit;
   }
@@ -212,7 +212,7 @@ public class EmbeddedGobblin {
   /**
    * A {@link gobblin.runtime.api.JobLifecycleListener} that listens for a particular job and detects the start of the job.
    */
-  private class EmbeddedJobLifecycleListener extends DefaultJobLifecycleListenerImpl {
+  private static class EmbeddedJobLifecycleListener extends DefaultJobLifecycleListenerImpl {
 
     private final Lock lock = new ReentrantLock();
     private final Condition runningStateCondition = this.lock.newCondition();
@@ -240,7 +240,7 @@ public class EmbeddedGobblin {
           if (millisLeft < 0) {
             return false;
           }
-          this.runningStateCondition.await(millisLeft, TimeUnit.MILLISECONDS);
+          boolean outoftime = this.runningStateCondition.await(millisLeft, TimeUnit.MILLISECONDS);
         }
       } finally {
         this.lock.unlock();
