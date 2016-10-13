@@ -45,7 +45,7 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   }
 
   @Override
-  public Optional<ComparableWatermark> getWatermark() {
+  public synchronized Optional<ComparableWatermark> getWatermark() {
     if(this.initialized) {
       return this.cachedWatermark;
     }

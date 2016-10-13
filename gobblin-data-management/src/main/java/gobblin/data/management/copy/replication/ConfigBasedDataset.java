@@ -35,7 +35,6 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.RecursivePathFinder;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
-import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.util.HadoopUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.commit.DeleteFileCommitStep;
@@ -73,14 +72,21 @@ public class ConfigBasedDataset implements CopyableDataset {
   public String datasetURN() {
     EndPoint e = this.copyRoute.getCopyTo();
     if(e instanceof HadoopFsEndPoint){
-      return ((HadoopFsEndPoint)e).getDatasetPath().toString();
+      HadoopFsEndPoint copyTo = (HadoopFsEndPoint) e;
+      Configuration conf = HadoopUtils.newConfiguration();
+      try {
+        FileSystem copyToFs = FileSystem.get(copyTo.getFsURI(), conf);
+        return copyToFs.makeQualified(copyTo.getDatasetPath()).toString();
+      } catch (IOException e1) {
+        // ignored
+      }
     }
     
     return e.toString();
   }
 
   @Override
-  public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
+  public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs, CopyConfiguration copyConfiguration)
       throws IOException {
     List<CopyEntity> copyableFiles = Lists.newArrayList();
     EndPoint copyFromRaw = copyRoute.getCopyFrom();
@@ -93,10 +99,8 @@ public class ConfigBasedDataset implements CopyableDataset {
     if ((!copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent())
         || (copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent()
             && copyFromRaw.getWatermark().get().compareTo(copyToRaw.getWatermark().get()) <= 0)) {
-      log.info(String.format(
-          "No need to copy as destination watermark >= source watermark with source watermark %s, for dataset with metadata %s",
-          copyFromRaw.getWatermark().isPresent() ? copyFromRaw.getWatermark().get().toJson() : "N/A",
-          this.rc.getMetaData()));
+      log.info("No need to copy as destination watermark >= source watermark with source watermark {}, for dataset with metadata {}",
+          copyFromRaw.getWatermark().isPresent() ? copyFromRaw.getWatermark().get().toJson() : "N/A", this.rc.getMetaData());
       return copyableFiles;
     }
 
@@ -119,6 +123,8 @@ public class ConfigBasedDataset implements CopyableDataset {
     
     boolean watermarkMetadataCopied = false;
     
+    boolean deleteTargetIfNotExistOnSource = false; // TODO need to based on config to set
+    
     for (FileStatus originFileStatus : copyFromFileStatuses) {
       Path relative = PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(originFileStatus.getPath()),
           PathUtils.getPathWithoutSchemeAndAuthority(copyFrom.getDatasetPath()));
@@ -129,21 +135,28 @@ public class ConfigBasedDataset implements CopyableDataset {
         watermarkMetadataCopied = true;
       }
 
+      // skip copy same file
       if (copyToFileMap.containsKey(newPath) && copyToFileMap.get(newPath).getLen() == originFileStatus.getLen()
           && copyToFileMap.get(newPath).getModificationTime() > originFileStatus.getModificationTime()) {
-        log.debug(String.format(
-            "Copy from timestamp older than copy to timestamp, skipped copy from %s for dataset with metadata %s",
-            originFileStatus.getPath(), this.rc.getMetaData()));
+        log.debug("Copy from timestamp older than copy to timestamp, skipped copy {} for dataset with metadata {}",
+            originFileStatus.getPath(), this.rc.getMetaData());
       } else {
-        
         // need to remove those files in the target File System
         if ( copyToFileMap.containsKey(newPath) ){
           deletedPaths.add(newPath);
         }
         
-        copyableFiles.add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, configuration)
+        copyableFiles.add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, copyConfiguration)
             .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
       }
+      
+      // clean up already checked paths
+      copyToFileMap.remove(newPath);
+    }
+    
+    // delete the paths on target directory if NOT exists on source
+    if(deleteTargetIfNotExistOnSource){
+      deletedPaths.addAll(copyToFileMap.keySet());
     }
     
     // delete old files first
@@ -155,10 +168,9 @@ public class ConfigBasedDataset implements CopyableDataset {
 
     // generate the watermark file
     if ((!watermarkMetadataCopied) && copyFrom.getWatermark().isPresent()) {
-      LongWatermark tmp = (LongWatermark) (copyFrom.getWatermark().get());
       copyableFiles.add(new PostPublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(),
           new WatermarkMetadataGenerationCommitStep(copyTo.getFsURI().toString(), copyTo.getDatasetPath(),
-              tmp.getValue()),
+              copyFrom.getWatermark().get()),
           1));
     }
 

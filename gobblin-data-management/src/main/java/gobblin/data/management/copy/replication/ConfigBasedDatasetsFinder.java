@@ -46,6 +46,8 @@ import gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
 import gobblin.config.client.api.VersionStabilityPolicy;
 import gobblin.config.store.api.ConfigStoreCreationException;
 import gobblin.config.store.api.VersionDoesNotExistException;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDatasetBase;
 import gobblin.dataset.DatasetsFinder;
@@ -64,30 +66,21 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDatasetBase> {
-
-  //prefix key for config store used by data replication
-  public static final String GOBBLIN_REPLICATION = "gobblin.replication";
-
-  // prefix key for config store used by data replication
-  public static final String GOBBLIN_REPLICATION_CONFIG_STORE = GOBBLIN_REPLICATION + ".configStore";
-
-  // specify the config store root used by data replication
-  public static final String GOBBLIN_REPLICATION_CONFIG_STORE_ROOT = GOBBLIN_REPLICATION_CONFIG_STORE + ".root";
-
+ 
   // specify the whitelist tag in the config store used by data replication
   // the datasets which import this tag will be processed by data replication
   public static final String GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG =
-      GOBBLIN_REPLICATION_CONFIG_STORE + ".whitelist.tag";
+      CopyConfiguration.COPY_PREFIX + ".whitelist.tag";
 
   // specify the blacklist tags in the config store used by data replication
   // the datasets which import these tags will NOT be processed by data replication 
   // and blacklist override the whitelist 
   public static final String GOBBLIN_REPLICATION_CONFIG_STORE_BLACKLIST_TAGS =
-      GOBBLIN_REPLICATION_CONFIG_STORE + ".blacklist.tags";
+      CopyConfiguration.COPY_PREFIX + ".blacklist.tags";
 
   // specify the common root for all the datasets which will be processed by data replication
   public static final String GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT =
-      GOBBLIN_REPLICATION_CONFIG_STORE + ".dataset.common.root";
+      CopyConfiguration.COPY_PREFIX + ".dataset.common.root";
 
   private final String storeRoot;
   private final Path replicationDatasetCommonRoot;
@@ -100,14 +93,14 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDataset
   public ConfigBasedDatasetsFinder(FileSystem fs, Properties props) throws IOException {
     // ignore the input FileSystem , the source file system could be different for different datasets
     
-    Preconditions.checkArgument(props.containsKey(GOBBLIN_REPLICATION_CONFIG_STORE_ROOT),
-        "missing required config entery " + GOBBLIN_REPLICATION_CONFIG_STORE_ROOT);
+    Preconditions.checkArgument(props.containsKey(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI),
+        "missing required config entery " + ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI);
     Preconditions.checkArgument(props.containsKey(GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT),
         "missing required config entery " + GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT);
     Preconditions.checkArgument(props.containsKey(GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG),
         "missing required config entery " + GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG);
 
-    this.storeRoot = props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_ROOT);
+    this.storeRoot = props.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI);
     this.replicationDatasetCommonRoot = PathUtils.mergePaths(new Path(this.storeRoot),
         new Path(props.getProperty(GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT)));
     this.whitelistTag = PathUtils.mergePaths(new Path(this.storeRoot),
@@ -225,7 +218,7 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDataset
         });
 
     this.executeItertorExecutor(callableIterator);
-    log.info(String.format("found %s datasets in ConfigBasedDatasetsFinder ", result.size()));
+    log.info("found {} datasets in ConfigBasedDatasetsFinder", result.size());
     return result;
   }
 

@@ -31,8 +31,15 @@ public abstract class HadoopFsEndPoint implements EndPoint{
    */
   public abstract String getClusterName();
   
+  /**
+   * @return the hadoop cluster FileSystem URI
+   */
   public abstract URI getFsURI();
   
+  /**
+   * 
+   * @return Deepest {@link org.apache.hadoop.fs.Path} that contains all files in the dataset.
+   */
   public abstract Path getDatasetPath();
   
   @Override

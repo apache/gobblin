@@ -25,11 +25,10 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+import com.google.common.io.CharStreams;
 
 import gobblin.source.extractor.ComparableWatermark;
-import gobblin.source.extractor.extract.LongWatermark;
+import gobblin.source.extractor.Watermark;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,31 +56,34 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   }
 
   @Override
-  public Optional<ComparableWatermark> getWatermark() {
+  public synchronized Optional<ComparableWatermark> getWatermark() {
     if(this.initialized) {
       return this.cachedWatermark;
     }
     
     this.initialized = true;
     try {
-      ComparableWatermark result;
-      
       Path metaData = new Path(rc.getPath(), WATERMARK_FILE);
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       if (fs.exists(metaData)) {
         try(FSDataInputStream fin = fs.open(metaData)){
           InputStreamReader reader = new InputStreamReader(fin, Charsets.UTF_8);
-          Config c = ConfigFactory.parseReader(reader);
-          result = new LongWatermark(c.getLong(LATEST_TIMESTAMP));
+          String content = CharStreams.toString(reader);
+          Watermark w = WatermarkMetadataUtil.deserialize(content);
+          if(w instanceof ComparableWatermark){
+            this.cachedWatermark = Optional.of((ComparableWatermark)w);
+          }
         }
-        this.cachedWatermark = Optional.of(result);
         return this.cachedWatermark;
       }
+      
       // for replica, can not use the file time stamp as that is different with original source time stamp
-
       return this.cachedWatermark;
     } catch (IOException e) {
       log.warn("Can not find " + WATERMARK_FILE + " for replica " + this);
+      return this.cachedWatermark;
+    } catch (WatermarkMetadataUtil.WatermarkMetadataMulFormatException e){
+      log.warn("Can not create watermark from " + WATERMARK_FILE + " for replica " + this);
       return this.cachedWatermark;
     }
   }

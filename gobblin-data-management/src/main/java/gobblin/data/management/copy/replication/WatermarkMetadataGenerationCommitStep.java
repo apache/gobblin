@@ -22,8 +22,11 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Objects;
+import com.google.gson.JsonElement;
 
 import gobblin.commit.CommitStep;
+import gobblin.source.extractor.Watermark;
 
 /**
  * A {@link CommitStep} to write watermark metadata to Hdfs
@@ -33,14 +36,14 @@ import gobblin.commit.CommitStep;
 public class WatermarkMetadataGenerationCommitStep implements CommitStep {
   private final String fsUriString;
   private final Path targetDirPath;
-  private final long latestTimestamp;
+  private final Watermark watermark;
   
   private boolean completed = false;
   
-  public WatermarkMetadataGenerationCommitStep(String fsString, Path targetDirPath, long timestamp) {
+  public WatermarkMetadataGenerationCommitStep(String fsString, Path targetDirPath, Watermark wm) {
     this.fsUriString = fsString;
     this.targetDirPath = targetDirPath;
-    this.latestTimestamp = timestamp;
+    this.watermark = wm;
   }
 
   @Override
@@ -50,8 +53,12 @@ public class WatermarkMetadataGenerationCommitStep implements CommitStep {
   
   @Override 
   public String toString(){
-    return "create file " + new Path(this.targetDirPath, ReplicaHadoopFsEndPoint.WATERMARK_FILE)
-        + " in fs " + this.fsUriString + " with content " + this.latestTimestamp;
+    return Objects.toStringHelper(this.getClass())
+        .add("metafile",new Path(this.targetDirPath, ReplicaHadoopFsEndPoint.WATERMARK_FILE))
+        .add("file system uri", this.fsUriString)
+        .add("watermark class", this.watermark.getClass().getCanonicalName())
+        .add("watermark json", this.watermark.toJson().toString())
+        .toString();
   }
 
   @Override
@@ -70,7 +77,7 @@ public class WatermarkMetadataGenerationCommitStep implements CommitStep {
     }
 
     FSDataOutputStream fout = fs.create(filenamePath);
-    fout.write((ReplicaHadoopFsEndPoint.LATEST_TIMESTAMP+":"+this.latestTimestamp).getBytes(Charsets.UTF_8));
+    fout.write(WatermarkMetadataUtil.serialize(this.watermark).getBytes(Charsets.UTF_8));
     fout.close();
     this.completed = true;
   }
