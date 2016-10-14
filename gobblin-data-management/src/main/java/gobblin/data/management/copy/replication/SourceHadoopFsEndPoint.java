@@ -14,6 +14,7 @@ package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
@@ -39,11 +40,20 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
 
   private boolean initialized = false;
   private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
+  private Collection<FileStatus> allFileStatus;
   
   public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc) {
     this.rc = rc;
   }
 
+  @Override
+  public synchronized Collection<FileStatus> getFiles() throws IOException{
+    if(!this.initialized){
+      this.getWatermark();
+    }
+    return this.allFileStatus;
+  }
+  
   @Override
   public synchronized Optional<ComparableWatermark> getWatermark() {
     if(this.initialized) {
@@ -63,6 +73,7 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
       }
 
       ComparableWatermark result = new LongWatermark(curTs);
+      this.allFileStatus = allFileStatus;
       this.cachedWatermark = Optional.of(result);
       return this.cachedWatermark;
     } catch (IOException e) {

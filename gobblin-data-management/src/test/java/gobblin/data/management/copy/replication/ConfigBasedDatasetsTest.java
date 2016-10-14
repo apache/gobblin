@@ -36,6 +36,7 @@ import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
+import gobblin.util.FileListUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.commit.DeleteFileCommitStep;
 
@@ -76,12 +77,14 @@ public class ConfigBasedDatasetsTest {
     Mockito.when(copyFrom.getFsURI()).thenReturn(local);
     ComparableWatermark sw = new LongWatermark(sourceWatermark);
     Mockito.when(copyFrom.getWatermark()).thenReturn(Optional.of(sw));
+    Mockito.when(copyFrom.getFiles()).thenReturn(FileListUtils.listFilesRecursively(localFs, new Path(sourceDir)));
 
     HadoopFsEndPoint copyTo = Mockito.mock(HadoopFsEndPoint.class);
     Mockito.when(copyTo.getDatasetPath()).thenReturn(new Path(destinationDir));
     Mockito.when(copyTo.getFsURI()).thenReturn(local);
     Optional<ComparableWatermark>tmp = Optional.absent();
     Mockito.when(copyTo.getWatermark()).thenReturn(tmp);
+    Mockito.when(copyTo.getFiles()).thenReturn(FileListUtils.listFilesRecursively(localFs, new Path(destinationDir)));
 
     CopyRoute route = Mockito.mock(CopyRoute.class);
     Mockito.when(route.getCopyFrom()).thenReturn(copyFrom);

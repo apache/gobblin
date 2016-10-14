@@ -15,9 +15,12 @@ package gobblin.data.management.copy.replication;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.util.Collection;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -29,6 +32,7 @@ import com.google.common.io.CharStreams;
 
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.Watermark;
+import gobblin.util.FileListUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,8 +48,10 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   @Getter
   private final String replicaName;
   
-  private boolean initialized = false;
+  private boolean watermarkInitialized = false;
+  private boolean filesInitialized = false;
   private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
+  private Collection<FileStatus> allFileStatus;
 
   public ReplicaHadoopFsEndPoint(HadoopFsReplicaConfig rc, String replicaName) {
     Preconditions.checkArgument(!replicaName.equals(ReplicationConfiguration.REPLICATION_SOURCE),
@@ -56,12 +62,25 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   }
 
   @Override
+  public synchronized Collection<FileStatus> getFiles() throws IOException{
+    if(filesInitialized){
+      return this.allFileStatus;
+    }
+    
+    this.filesInitialized = true;
+    FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
+    List<FileStatus> files = FileListUtils.listFilesRecursively(fs, this.rc.getPath());
+    this.allFileStatus = files;
+    return this.allFileStatus;
+  }
+  
+  @Override
   public synchronized Optional<ComparableWatermark> getWatermark() {
-    if(this.initialized) {
+    if(this.watermarkInitialized) {
       return this.cachedWatermark;
     }
     
-    this.initialized = true;
+    this.watermarkInitialized = true;
     try {
       Path metaData = new Path(rc.getPath(), WATERMARK_FILE);
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
@@ -149,4 +168,6 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
       return false;
     return true;
   }
+
+
 }

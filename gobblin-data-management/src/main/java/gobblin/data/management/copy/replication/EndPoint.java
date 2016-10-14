@@ -12,6 +12,11 @@
 
 package gobblin.data.management.copy.replication;
 
+import java.io.IOException;
+import java.util.Collection;
+
+import org.apache.hadoop.fs.FileStatus;
+
 import com.google.common.base.Optional;
 
 import gobblin.source.extractor.ComparableWatermark;
@@ -52,5 +57,9 @@ public interface EndPoint {
    */
   public boolean isAvailable();
   
-  //public Collection<FileStatus> getFiles();
+  /**
+   * 
+   * @return all the {@link FileStatus}s of this {@link EndPoint} in the context of data replication
+   */
+  public Collection<FileStatus> getFiles() throws IOException;
 }

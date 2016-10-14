@@ -60,6 +60,9 @@ public class ReplicationConfiguration {
   public static final String DEFAULT_DATA_FLOW_TOPOLOGIES_PUSHMODE = "defaultDataFlowTopologies_PushMode";
   public static final String DEFAULT_DATA_FLOW_TOPOLOGIES_PULLMODE = "defaultDataFlowTopologies_PullMode";
 
+  //copy route generator
+  public static final String DELETE_TARGET_IFNOT_ON_SOURCE = "deleteTarget";
+ 
   // data flow picker 
   public static final String DATA_FLOW_TOPOLOGY_PICKER_CLASS = "dataFlowTopologyPickerClass";
   public static final String DEFAULT_DATA_FLOW_TOPOLOGY_PICKER_CLASS =
@@ -97,6 +100,9 @@ public class ReplicationConfiguration {
   
   @Getter
   private final CopyRouteGenerator copyRouteGenerator;
+  
+  @Getter
+  private final boolean deleteTargetIfNotExistOnSource;
 
   public static ReplicationConfiguration buildFromConfig(Config input)
       throws InstantiationException, IllegalAccessException, ClassNotFoundException {
@@ -105,10 +111,14 @@ public class ReplicationConfiguration {
     Config config = input.resolve();
 
     return new Builder().withReplicationMetaData(ReplicationMetaData.buildMetaData(config))
-        .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config)).withReplicationSource(config)
-        .withReplicationReplica(config).withDefaultDataFlowTopologyConfig_PullMode(config)
-        .withDefaultDataFlowTopologyConfig_PushMode(config).withDataFlowTopologyConfig(config)
+        .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config))
+        .withReplicationSource(config)
+        .withReplicationReplica(config)
+        .withDefaultDataFlowTopologyConfig_PullMode(config)
+        .withDefaultDataFlowTopologyConfig_PushMode(config)
+        .withDataFlowTopologyConfig(config)
         .withCopyRouteGenerator(config)
+        .withDeleteTarget(config)
         .build();
   }
 
@@ -119,6 +129,7 @@ public class ReplicationConfiguration {
     this.copyMode = builder.copyMode;
     this.dataFlowToplogy = builder.dataFlowTopology;
     this.copyRouteGenerator = builder.copyRouteGenerator;
+    this.deleteTargetIfNotExistOnSource = builder.deleteTargetIfNotExistOnSource;
   }
 
   private static class Builder {
@@ -140,9 +151,18 @@ public class ReplicationConfiguration {
     private DataFlowTopology dataFlowTopology = new DataFlowTopology();
     
     private CopyRouteGenerator copyRouteGenerator;
+    
+    private boolean deleteTargetIfNotExistOnSource = false;
 
     public Builder withReplicationMetaData(ReplicationMetaData metaData) {
       this.metaData = metaData;
+      return this;
+    }
+    
+    public Builder withDeleteTarget(Config config){
+      if(config.hasPath(DELETE_TARGET_IFNOT_ON_SOURCE)){
+        this.deleteTargetIfNotExistOnSource = config.getBoolean(DELETE_TARGET_IFNOT_ON_SOURCE);
+      }
       return this;
     }
     

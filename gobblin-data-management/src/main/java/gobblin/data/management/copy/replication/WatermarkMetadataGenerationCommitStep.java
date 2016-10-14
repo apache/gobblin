@@ -23,7 +23,6 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
-import com.google.gson.JsonElement;
 
 import gobblin.commit.CommitStep;
 import gobblin.source.extractor.Watermark;

@@ -13,7 +13,6 @@ package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -23,18 +22,22 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.RecursivePathFinder;
 import gobblin.data.management.copy.entities.PostPublishStep;
 import gobblin.data.management.copy.entities.PrePublishStep;
+import gobblin.data.management.dataset.DatasetUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.commit.DeleteFileCommitStep;
@@ -71,7 +74,7 @@ public class ConfigBasedDataset implements CopyableDataset {
   @Override
   public String datasetURN() {
     EndPoint e = this.copyRoute.getCopyTo();
-    if(e instanceof HadoopFsEndPoint){
+    if (e instanceof HadoopFsEndPoint) {
       HadoopFsEndPoint copyTo = (HadoopFsEndPoint) e;
       Configuration conf = HadoopUtils.newConfiguration();
       try {
@@ -81,7 +84,7 @@ public class ConfigBasedDataset implements CopyableDataset {
         // ignored
       }
     }
-    
+
     return e.toString();
   }
 
@@ -99,39 +102,51 @@ public class ConfigBasedDataset implements CopyableDataset {
     if ((!copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent())
         || (copyFromRaw.getWatermark().isPresent() && copyToRaw.getWatermark().isPresent()
             && copyFromRaw.getWatermark().get().compareTo(copyToRaw.getWatermark().get()) <= 0)) {
-      log.info("No need to copy as destination watermark >= source watermark with source watermark {}, for dataset with metadata {}",
-          copyFromRaw.getWatermark().isPresent() ? copyFromRaw.getWatermark().get().toJson() : "N/A", this.rc.getMetaData());
+      log.info(
+          "No need to copy as destination watermark >= source watermark with source watermark {}, for dataset with metadata {}",
+          copyFromRaw.getWatermark().isPresent() ? copyFromRaw.getWatermark().get().toJson() : "N/A",
+          this.rc.getMetaData());
       return copyableFiles;
     }
 
     HadoopFsEndPoint copyFrom = (HadoopFsEndPoint) copyFromRaw;
+    HadoopFsEndPoint copyTo = (HadoopFsEndPoint) copyToRaw;
     Configuration conf = HadoopUtils.newConfiguration();
     FileSystem copyFromFs = FileSystem.get(copyFrom.getFsURI(), conf);
-    RecursivePathFinder finder = new RecursivePathFinder(copyFromFs, copyFrom.getDatasetPath(), this.props);
-    Set<FileStatus> copyFromFileStatuses = finder.getPaths(false);
-    
-    HadoopFsEndPoint copyTo = (HadoopFsEndPoint) copyToRaw;
     FileSystem copyToFs = FileSystem.get(copyTo.getFsURI(), conf);
-    finder = new RecursivePathFinder(copyToFs, copyTo.getDatasetPath(), this.props);
-    Set<FileStatus> copyToFileStatuses = finder.getPaths(false);
-    Map<Path, FileStatus> copyToFileMap = new HashMap<>();
-    for (FileStatus f : copyToFileStatuses) {
-      copyToFileMap.put(PathUtils.getPathWithoutSchemeAndAuthority(f.getPath()), f);
-    }
 
+    Collection<FileStatus> allFilesInSource = copyFrom.getFiles();
+    Collection<FileStatus> allFilesInTarget = copyTo.getFiles();
+
+    final PathFilter pathFilter = DatasetUtils.instantiatePathFilter(this.props);
+    Predicate<FileStatus> predicate = new Predicate<FileStatus>() {
+      @Override
+      public boolean apply(FileStatus input) {
+        return pathFilter.accept(input.getPath());
+      }
+    };
+
+    Set<FileStatus> copyFromFileStatuses = Sets.newHashSet(Collections2.filter(allFilesInSource, predicate));
+    Map<Path, FileStatus> copyToFileMap = Maps.newHashMap();
+    for(FileStatus f: allFilesInTarget){
+      if(pathFilter.accept(f.getPath())){
+        copyToFileMap.put(PathUtils.getPathWithoutSchemeAndAuthority(f.getPath()), f);
+      }
+    }
+    
     Collection<Path> deletedPaths = Lists.newArrayList();
-    
+
     boolean watermarkMetadataCopied = false;
-    
-    boolean deleteTargetIfNotExistOnSource = false; // TODO need to based on config to set
-    
+
+    boolean deleteTargetIfNotExistOnSource = rc.isDeleteTargetIfNotExistOnSource();
+
     for (FileStatus originFileStatus : copyFromFileStatuses) {
       Path relative = PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(originFileStatus.getPath()),
           PathUtils.getPathWithoutSchemeAndAuthority(copyFrom.getDatasetPath()));
       // construct the new path in the target file system
       Path newPath = new Path(copyTo.getDatasetPath(), relative);
-      
-      if(relative.toString().equals(ReplicaHadoopFsEndPoint.WATERMARK_FILE)){
+
+      if (relative.toString().equals(ReplicaHadoopFsEndPoint.WATERMARK_FILE)) {
         watermarkMetadataCopied = true;
       }
 
@@ -142,28 +157,29 @@ public class ConfigBasedDataset implements CopyableDataset {
             originFileStatus.getPath(), this.rc.getMetaData());
       } else {
         // need to remove those files in the target File System
-        if ( copyToFileMap.containsKey(newPath) ){
+        if (copyToFileMap.containsKey(newPath)) {
           deletedPaths.add(newPath);
         }
-        
-        copyableFiles.add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, copyConfiguration)
-            .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
+
+        copyableFiles
+            .add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, copyConfiguration)
+                .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
       }
-      
+
       // clean up already checked paths
       copyToFileMap.remove(newPath);
     }
-    
+
     // delete the paths on target directory if NOT exists on source
-    if(deleteTargetIfNotExistOnSource){
+    if (deleteTargetIfNotExistOnSource) {
       deletedPaths.addAll(copyToFileMap.keySet());
     }
-    
+
     // delete old files first
-    if(!deletedPaths.isEmpty()){
-      DeleteFileCommitStep deleteCommitStep = DeleteFileCommitStep.fromPaths(copyToFs, deletedPaths,
-          this.props);
-      copyableFiles.add(new PrePublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(), deleteCommitStep, 0)); 
+    if (!deletedPaths.isEmpty()) {
+      DeleteFileCommitStep deleteCommitStep = DeleteFileCommitStep.fromPaths(copyToFs, deletedPaths, this.props);
+      copyableFiles.add(new PrePublishStep(copyTo.getDatasetPath().toString(), Maps.<String, String> newHashMap(),
+          deleteCommitStep, 0));
     }
 
     // generate the watermark file
