@@ -47,7 +47,7 @@ public class CopyRouteGeneratorOptimizedLatency extends CopyRouteGeneratorOptimi
     return Optional.of(preferred);
   }
   
-  class CopyRouteComparatorBySourceWatermark implements Comparator<CopyRoute>, Serializable{
+  static class CopyRouteComparatorBySourceWatermark implements Comparator<CopyRoute>, Serializable{
 
     private static final long serialVersionUID = 1439642339646179830L;
 
