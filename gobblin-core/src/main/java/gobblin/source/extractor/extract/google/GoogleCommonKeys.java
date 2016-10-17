@@ -9,21 +9,12 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
+package gobblin.source.extractor.extract.google;
 
-package gobblin.source.extractor.filebased;
+public interface GoogleCommonKeys {
+  public static final String GOOGLE_SOURCE_PREFIX = "source.google.";
 
-import java.io.Closeable;
-import java.io.InputStream;
-import java.util.List;
-
-
-public interface FileBasedHelper extends Closeable {
-  public void connect()
-      throws FileBasedHelperException;
-
-  public List<String> ls(String path)
-      throws FileBasedHelperException;
-
-  public InputStream getFileStream(String path)
-      throws FileBasedHelperException;
+  public static final String API_SCOPES = GOOGLE_SOURCE_PREFIX + "api_scopes";
+  public static final String APPLICATION_NAME = GOOGLE_SOURCE_PREFIX + "application_name";
+  public static final String PRIVATE_KEY_FILESYSTEM_URI = GOOGLE_SOURCE_PREFIX + "privatekey_fs_uri";
 }

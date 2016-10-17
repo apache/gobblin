@@ -63,4 +63,10 @@ public class SeekableFSInputStream extends FSInputStream {
     }
     return val;
   }
+
+  @Override
+  public void close() throws IOException {
+    super.close();
+    in.close();
+  }
 }

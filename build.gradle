@@ -137,6 +137,7 @@ ext.avroVersion = '1.8.1'
 ext.dropwizardMetricsVersion = '3.1.0'
 ext.findBugsVersion = '3.0.0'
 ext.confluentVersion = '2.0.1'
+ext.googleVersion = '1.22.0'
 
 dependencyManagement {
   imports {
@@ -269,7 +270,13 @@ ext.externalDependency = [
   "testMysqlServer": "com.wix:wix-embedded-mysql:2.0.1",
   "flyway": "org.flywaydb:flyway-core:3.2.1",
   "oltu": "org.apache.oltu.oauth2:org.apache.oltu.oauth2.client:1.0.2",
-  "opencsv": "net.sf.opencsv:opencsv:2.3"
+  "googleAnalytics": "com.google.apis:google-api-services-analytics:v3-rev134-1.22.0",
+  "googleDrive": "com.google.apis:google-api-services-drive:v3-rev42-1.22.0",
+  "googleHttpClient": "com.google.http-client:google-http-client:" + googleVersion,
+  "googleHttpClientGson": "com.google.http-client:google-http-client-gson:" + googleVersion,
+  "googleOauthClient": "com.google.oauth-client:google-oauth-client:" + googleVersion,
+  "googleApiClient": "com.google.api-client:google-api-client:" + googleVersion,
+  "opencsv": "com.opencsv:opencsv:3.8"
 ];
 
 if (!isDefaultEnvironment)

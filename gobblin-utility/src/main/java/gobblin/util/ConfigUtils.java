@@ -24,7 +24,7 @@ import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 
-import au.com.bytecode.opencsv.CSVReader;
+import com.opencsv.CSVReader;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;

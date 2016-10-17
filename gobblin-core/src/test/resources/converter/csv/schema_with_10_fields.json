@@ -1,0 +1,82 @@
+[
+  {
+    "columnName": "Date",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "DeviceCategory",
+    "comment": "",
+    "isNullable": "false",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "Sessions",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "BounceRate",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "double"
+    }
+  },
+  {
+    "columnName": "AvgSessionDuration",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "double"
+    }
+  },
+  {
+    "columnName": "Pageviews",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "PageviewsPerSession",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "double"
+    }
+  },
+  {
+    "columnName": "UniquePageviews",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  },
+  {
+    "columnName": "AvgTimeOnPage",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "double"
+    }
+  },
+  {
+    "columnName": "User_count",
+    "comment": "",
+    "isNullable": "true",
+    "dataType": {
+      "type": "int"
+    }
+  }
+]
