@@ -21,6 +21,7 @@ dependencies {
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate', classifier: 'data-template')
   compile project(":gobblin-rest-service:gobblin-rest-server")
+  compile project(":gobblin-data-management")
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2

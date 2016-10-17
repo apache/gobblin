@@ -27,6 +27,8 @@ public class TestInMemoryJobCatalog {
   public void testCallbacks()
       throws Exception {
     InMemoryJobCatalog cat = new InMemoryJobCatalog();
+    cat.startAsync();
+    cat.awaitRunning(1, TimeUnit.SECONDS);
 
     JobCatalogListener l = Mockito.mock(JobCatalogListener.class);
 
@@ -52,6 +54,9 @@ public class TestInMemoryJobCatalog {
     Mockito.verify(l).onDeleteJob(Mockito.eq(js2.getUri()), Mockito.eq(js2.getVersion()));
 
     Mockito.verifyNoMoreInteractions(l);
+
+    cat.stopAsync();
+    cat.awaitTerminated(1, TimeUnit.SECONDS);
   }
 
   @SuppressWarnings("unchecked")
@@ -60,6 +65,9 @@ public class TestInMemoryJobCatalog {
     final Logger log = LoggerFactory.getLogger(getClass().getSimpleName() +".testMetrics");
     InMemoryJobCatalog cat = new InMemoryJobCatalog(Optional.of(log),
         Optional.<MetricContext>absent(), true);
+    cat.startAsync();
+    cat.awaitRunning(1, TimeUnit.SECONDS);
+
     MetricsAssert ma = new MetricsAssert(cat.getMetricContext());
 
     JobSpec js1_1 = JobSpec.builder("test:job1").withVersion("1").build();
@@ -162,6 +170,9 @@ public class TestInMemoryJobCatalog {
         MetricsAssert.eqEventMetdata(GobblinMetricsKeys.JOB_SPEC_VERSION_META, js1_3.getVersion())
         ),
         100, TimeUnit.MILLISECONDS);
+
+    cat.stopAsync();
+    cat.awaitTerminated(1, TimeUnit.SECONDS);
 
   }
 }

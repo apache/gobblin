@@ -16,6 +16,7 @@ import java.util.Collection;
 
 import com.codahale.metrics.Gauge;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Service;
 
 import gobblin.annotation.Alpha;
 import gobblin.instrumented.GobblinMetricsKeys;
@@ -30,7 +31,7 @@ import lombok.Getter;
  * A catalog of all the {@link JobSpec}s a Gobblin instance is currently aware of.
  */
 @Alpha
-public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable {
+public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable, Service {
   /** Returns an immutable {@link Collection} of {@link JobSpec}s that are known to the catalog. */
   Collection<JobSpec> getJobs();
 

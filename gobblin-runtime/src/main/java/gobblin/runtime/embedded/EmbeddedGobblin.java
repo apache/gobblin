@@ -12,34 +12,43 @@
 
 package gobblin.runtime.embedded;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.joda.time.Period;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.JdkFutureAdapters;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.api.GobblinInstanceDriver;
+import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionResult;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.instance.StandardGobblinInstanceDriver;
+import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import gobblin.runtime.job_catalog.StaticJobCatalog;
 import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
 
@@ -60,9 +69,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class EmbeddedGobblin {
 
+  private static final Splitter KEY_VALUE_SPLITTER = Splitter.on(":").limit(2);
+
   private final JobSpec.Builder specBuilder;
-  private final Map<String, String> configMap;
-  private final Config fallback;
+  private final Map<String, String> userConfigMap;
+  private final Map<String, String> builtConfigMap;
+  private final Config defaultFallback;
   private JobTemplate template;
   private Logger useLog = log;
   private FullTimeout launchTimeout = new FullTimeout(10, TimeUnit.SECONDS);
@@ -71,15 +83,17 @@ public class EmbeddedGobblin {
 
   public EmbeddedGobblin(String name) {
     this.specBuilder = new JobSpec.Builder(name);
-    this.configMap = Maps.newHashMap();
-    this.fallback = getDefaultFallback();
+    this.userConfigMap = Maps.newHashMap();
+    this.builtConfigMap = Maps.newHashMap();
+    this.defaultFallback = getDefaultFallback();
   }
 
   /**
-   * Set the {@link gobblin.runtime.JobLauncherFactory.JobLauncherType} to use.
+   * Specify job should run in MR mode.
    */
-  public EmbeddedGobblin setJobLauncher(JobLauncherFactory.JobLauncherType jobLauncherType) {
-    this.configMap.put(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, jobLauncherType.name());
+  public EmbeddedGobblin mrMode() throws IOException {
+    this.userConfigMap.put(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.MAPREDUCE.name());
+    this.builtConfigMap.put(ConfigurationKeys.FS_URI_KEY, FileSystem.get(new Configuration()).getUri().toString());
     return this;
   }
 
@@ -92,11 +106,30 @@ public class EmbeddedGobblin {
   }
 
   /**
+   * Set a {@link JobTemplate} to use.
+   */
+  public EmbeddedGobblin setTemplate(String templateURI) throws URISyntaxException, SpecNotFoundException,
+                                                        JobTemplate.TemplateException {
+    return setTemplate(new PackagedTemplatesJobCatalogDecorator().getTemplate(new URI(templateURI)));
+  }
+
+  /**
    * Manually set a key-value pair in the job configuration.
    */
   public EmbeddedGobblin setConfiguration(String key, String value) {
-    this.configMap.put(key, value);
+    this.userConfigMap.put(key, value);
     return this;
+  }
+
+  /**
+   * Manually set a key-value pair in the job configuration. Input is of the form <key>:<value>
+   */
+  public EmbeddedGobblin setConfiguration(String keyValue) {
+    List<String> split = KEY_VALUE_SPLITTER.splitToList(keyValue);
+    if (split.size() != 2) {
+      throw new RuntimeException("Cannot parse " + keyValue + ". Expected <key>:<value>.");
+    }
+    return setConfiguration(split.get(0), split.get(1));
   }
 
   /**
@@ -108,6 +141,13 @@ public class EmbeddedGobblin {
   }
 
   /**
+   * Set the timeout for the Gobblin job execution from ISO-style period.
+   */
+  public EmbeddedGobblin setJobTimeout(String timeout) {
+    return setJobTimeout(Period.parse(timeout).getSeconds(), TimeUnit.SECONDS);
+  }
+
+  /**
    * Set the timeout for launching the Gobblin job.
    */
   public EmbeddedGobblin setLaunchTimeout(long timeout, TimeUnit timeUnit) {
@@ -116,11 +156,25 @@ public class EmbeddedGobblin {
   }
 
   /**
+   * Set the timeout for launching the Gobblin job from ISO-style period.
+   */
+  public EmbeddedGobblin setLaunchTimeout(String timeout) {
+    return setLaunchTimeout(Period.parse(timeout).getSeconds(), TimeUnit.SECONDS);
+  }
+
+  /**
    * Set the timeout for shutting down the Gobblin instance driver after the job is done.
    */
   public EmbeddedGobblin setShutdownTimeout(long timeout, TimeUnit timeUnit) {
     this.shutdownTimeout = new FullTimeout(timeout, timeUnit);
     return this;
+  }
+
+  /**
+   * Set the timeout for shutting down the Gobblin instance driver after the job is done from ISO-style period.
+   */
+  public EmbeddedGobblin setShutdownTimeout(String timeout) {
+    return setShutdownTimeout(Period.parse(timeout).getSeconds(), TimeUnit.SECONDS);
   }
 
   /**
@@ -135,7 +189,7 @@ public class EmbeddedGobblin {
    * Run the Gobblin job. This call will block until the job is done.
    * @return a {@link JobExecutionResult} containing the result of the execution.
    */
-  public JobExecutionResult run() throws InterruptedException, TimeoutException {
+  public JobExecutionResult run() throws InterruptedException, TimeoutException, ExecutionException {
     JobExecutionDriver jobDriver = runAsync();
     return jobDriver.get(this.jobTimeout.getTimeout(), this.jobTimeout.getTimeUnit());
   }
@@ -146,7 +200,9 @@ public class EmbeddedGobblin {
    * @throws TimeoutException if the Gobblin job does not start within the launch timeout.
    */
   public JobExecutionDriver runAsync() throws TimeoutException, InterruptedException {
-    Config finalConfig = ConfigFactory.parseMap(this.configMap).withFallback(this.fallback);
+    Config finalConfig = ConfigFactory.parseMap(this.userConfigMap)
+        .withFallback(ConfigFactory.parseMap(this.builtConfigMap))
+        .withFallback(this.defaultFallback);
     if (this.template != null) {
       try {
         finalConfig = this.template.getResolvedConfig(finalConfig);
@@ -156,8 +212,9 @@ public class EmbeddedGobblin {
     }
     this.specBuilder.withConfig(finalConfig);
 
+    final JobCatalog jobCatalog = new StaticJobCatalog(Optional.of(this.useLog), Lists.newArrayList(this.specBuilder.build()));
     final GobblinInstanceDriver driver = new StandardGobblinInstanceDriver.Builder().withLog(this.useLog)
-        .withJobCatalog(new StaticJobCatalog(Optional.of(this.useLog), Lists.newArrayList(this.specBuilder.build())))
+        .withJobCatalog(jobCatalog)
         .withImmediateJobScheduler()
         .build();
 
@@ -171,13 +228,12 @@ public class EmbeddedGobblin {
       throw new TimeoutException("Timeout waiting for job to start.");
     }
 
-    JobExecutionDriver jobDriver = listener.getJobDriver();
-    // TODO: make JobExecutionDriver a ListenableFuture.
-    ListenableFuture<JobExecutionResult> listenableFuture = JdkFutureAdapters.listenInPoolThread(jobDriver);
+    final JobExecutionDriver jobDriver = listener.getJobDriver();
     // Stop the Gobblin instance driver when the job finishes.
-    Futures.addCallback(listenableFuture, new FutureCallback<JobExecutionResult>() {
+    Futures.addCallback(jobDriver, new FutureCallback<JobExecutionResult>() {
       @Override
       public void onSuccess(@Nullable JobExecutionResult result) {
+
         stopGobblinInstanceDriver();
       }
 

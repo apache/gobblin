@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.scheduler;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -28,7 +30,7 @@ import gobblin.util.callbacks.CallbacksDispatcher;
  * Manages a list of {@link JobSpecSchedulerListener}s and can dispatch callbacks to them.
  */
 public class JobSpecSchedulerListeners
-       implements JobSpecSchedulerListenersContainer, JobSpecSchedulerListener {
+       implements JobSpecSchedulerListenersContainer, JobSpecSchedulerListener, Closeable {
   private CallbacksDispatcher<JobSpecSchedulerListener> _dispatcher;
 
   public JobSpecSchedulerListeners(Optional<ExecutorService> execService,
@@ -88,4 +90,9 @@ public class JobSpecSchedulerListeners
     _dispatcher.addWeakListener(listener);
   }
 
+  @Override
+  public void close()
+      throws IOException {
+    _dispatcher.close();
+  }
 }

@@ -13,6 +13,7 @@ package gobblin.runtime.instance;
 
 import java.util.ArrayList;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -90,9 +91,9 @@ public class TestStandardGobblinInstanceLauncher {
 
 
   private void checkLaunchJob(StandardGobblinInstanceLauncher instanceLauncher, JobSpec js1,
-      GobblinInstanceDriver instance) throws TimeoutException, InterruptedException {
+      GobblinInstanceDriver instance) throws TimeoutException, InterruptedException, ExecutionException {
     JobExecutionDriver jobDriver = instance.getJobLauncher().launchJob(js1);
-    jobDriver.startAsync();
+    new Thread(jobDriver).run();
     JobExecutionResult jobResult = jobDriver.get(5, TimeUnit.SECONDS);
 
     Assert.assertTrue(jobResult.isSuccessful());

@@ -12,6 +12,7 @@
 
 package gobblin.runtime.job_catalog;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -20,8 +21,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AbstractIdleService;
 
-import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
@@ -34,7 +35,7 @@ import gobblin.runtime.api.JobSpec;
 /**
  * An abstract base for {@link JobCatalog}s implementing boilerplate methods (metrics, listeners, etc.)
  */
-public abstract class JobCatalogBase implements JobCatalog {
+public abstract class JobCatalogBase extends AbstractIdleService implements JobCatalog {
 
   protected final JobCatalogListenersList listeners;
   protected final Logger log;
@@ -60,7 +61,7 @@ public abstract class JobCatalogBase implements JobCatalog {
     this.listeners = new JobCatalogListenersList(log);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
-          parentMetricContext.or(Instrumented.getMetricContext(new State(), getClass()));
+          parentMetricContext.or(Instrumented.getMetricContext(new gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(JobCatalog.class.getSimpleName()).build();
       this.metrics = new StandardMetrics(this);
     }
@@ -70,15 +71,33 @@ public abstract class JobCatalogBase implements JobCatalog {
     }
   }
 
+  @Override
+  protected void startUp() throws IOException {
+    notifyAllListeners();
+  }
+
+  @Override
+  protected void shutDown() throws IOException {
+    this.listeners.close();
+  }
+
+  protected void notifyAllListeners() {
+    for (JobSpec jobSpec : getJobs()) {
+      this.listeners.onAddJob(jobSpec);
+    }
+  }
+
   /**{@inheritDoc}*/
   @Override
   public synchronized void addListener(JobCatalogListener jobListener) {
     Preconditions.checkNotNull(jobListener);
-
     this.listeners.addListener(jobListener);
-    for (JobSpec jobSpec : getJobs()) {
-      JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpec);
-      this.listeners.callbackOneListener(addJobCallback, jobListener);
+
+    if (state() == State.RUNNING) {
+      for (JobSpec jobSpec : getJobs()) {
+        JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpec);
+        this.listeners.callbackOneListener(addJobCallback, jobListener);
+      }
     }
   }
 
@@ -100,7 +119,7 @@ public abstract class JobCatalogBase implements JobCatalog {
     return null != this.metricContext;
   }
 
-  @Override public List<Tag<?>> generateTags(State state) {
+  @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
     return Collections.emptyList();
   }
 

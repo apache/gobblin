@@ -97,4 +97,11 @@ public class ClassAliasResolver<T> {
           String.format("Found class %s but it cannot be cast to %s.", aliasOrClassName, this.subtypeOf.getName()), cce);
     }
   }
+
+  /**
+   * Get the map from found aliases to classes.
+   */
+  public Map<String, Class<? extends T>> getAliasMap() {
+    return ImmutableMap.copyOf(this.aliasToClassCache);
+  }
 }

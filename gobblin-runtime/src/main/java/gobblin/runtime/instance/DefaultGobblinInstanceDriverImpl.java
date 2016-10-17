@@ -140,6 +140,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     if (null != _jobSpecListener) {
       _jobCatalog.removeListener(_jobSpecListener);
     }
+    _callbacksDispatcher.close();
     getLog().info("Default driver: shut down.");
   }
 
@@ -188,7 +189,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
          JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
          _callbacksDispatcher.onJobLaunch(driver);
          driver.registerStateListener(new JobStateTracker());
-         driver.startAsync();
+        new Thread(driver).start();
       }
       catch (Throwable t) {
         _log.error("Job launch failed: " + t, t);

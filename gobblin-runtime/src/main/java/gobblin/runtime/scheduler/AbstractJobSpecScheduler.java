@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.scheduler;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.HashMap;
@@ -178,7 +179,11 @@ public abstract class AbstractJobSpecScheduler extends AbstractIdleService
 
   @Override
   protected void shutDown() throws TimeoutException {
-    // Do nothing by default
+    try {
+      _callbacksDispatcher.close();
+    } catch (IOException ioe) {
+      _log.error("Failed to shut down " + this.getClass().getName(), ioe);
+    }
   }
 
 }
