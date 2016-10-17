@@ -35,6 +35,7 @@ pages:
         - JDBC Writer: user-guide/Gobblin-JDBC-Writer.md
         - Hive Registration: user-guide/Hive-Registration.md
         - Config Management : user-guide/Config-Management.md
+        - Docker Integration: user-guide/Docker-Integration.md
         - Troubleshooting: user-guide/Troubleshooting.md
         - FAQs: user-guide/FAQs.md
     - Sinks:
