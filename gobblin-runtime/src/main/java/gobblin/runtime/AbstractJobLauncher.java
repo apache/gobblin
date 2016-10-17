@@ -253,6 +253,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         if (workUnits.get().isEmpty()) {
           this.eventSubmitter.submit(JobEvent.WORK_UNITS_EMPTY);
           LOG.warn("No work units have been created for job " + jobId);
+          jobState.setState(JobState.RunningState.COMMITTED);
+          notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_COMPLETE,
+              new JobListenerAction() {
+                @Override
+                public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
+                  jobListener.onJobCompletion(jobContext);
+                }
+              });
           return;
         }
 

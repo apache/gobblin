@@ -9,22 +9,28 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.annotation;
 
-import java.lang.annotation.Documented;
+package gobblin.runtime.cli;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+
 /**
- * Denotes that a class has an alias.
+ * Specify additional information to use when building a CLI option from a method.
+ * This will only be respected on public methods with none or exactly one {@link String} parameter.
  */
-@Documented @Retention(value=RetentionPolicy.RUNTIME) @Target(value=ElementType.TYPE)
-public @interface Alias {
+@Retention(value= RetentionPolicy.RUNTIME) @Target(value= {ElementType.METHOD})
+public @interface EmbeddedGobblinCliOption {
   /**
-   * Alias for that class
+   * The name of the option in cli (e.g. if name="myName", then CLI users would call "-myName" to activate the option).
    */
-  public String value();
-  public String description() default "";
+  String name() default "";
+
+  /**
+   * A description for the option.
+   */
+  String description() default "";
 }

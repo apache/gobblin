@@ -9,22 +9,11 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.annotation;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+package gobblin.runtime.cli;
 
 /**
- * Denotes that a class has an alias.
+ * A dummy class used by {@link CliEmbeddedGobblin}.
  */
-@Documented @Retention(value=RetentionPolicy.RUNTIME) @Target(value=ElementType.TYPE)
-public @interface Alias {
-  /**
-   * Alias for that class
-   */
-  public String value();
-  public String description() default "";
+class Dummy {
 }

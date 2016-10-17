@@ -21,6 +21,9 @@ import gobblin.annotation.Alias;
 import gobblin.data.management.copy.RecursiveCopyableDataset;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.cli.EmbeddedGobblinCliOption;
+import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
+import gobblin.runtime.cli.NotOnCli;
 import gobblin.runtime.template.ResourceBasedJobTemplate;
 
 
@@ -29,8 +32,13 @@ import gobblin.runtime.template.ResourceBasedJobTemplate;
  * Usage:
  * new EmbeddedGobblinDistcp(new Path("/source"), new Path("/dest")).run();
  */
-@Alias(value = "distcp")
+@Alias(value = "distcp", description = "Distributed copy between Hadoop compatibly file systems.")
 public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
+
+  @EmbeddedGobblinCliSupport(argumentNames = {"from", "to"})
+  public EmbeddedGobblinDistcp(String from, String to) throws JobTemplate.TemplateException, IOException {
+    this(new Path(from), new Path(to));
+  }
 
   public EmbeddedGobblinDistcp(Path from, Path to) throws JobTemplate.TemplateException, IOException {
     super("Distcp");
@@ -47,6 +55,7 @@ public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
    * Specifies that files in the target should be updated if they have changed in the source. Equivalent to -update
    * option in Hadoop distcp.
    */
+  @EmbeddedGobblinCliOption(description = "Specifies files should be updated if they're different in the source.")
   public EmbeddedGobblinDistcp update() {
     this.setConfiguration(RecursiveCopyableDataset.UPDATE_KEY, Boolean.toString(true));
     return this;
@@ -56,6 +65,7 @@ public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
    * Specifies that files in the target that don't exist in the source should be deleted. Equivalent to -delete
    * option in Hadoop distcp.
    */
+  @EmbeddedGobblinCliOption(description = "Delete files in target that don't exist on source.")
   public EmbeddedGobblinDistcp delete() {
     this.setConfiguration(RecursiveCopyableDataset.DELETE_KEY, Boolean.toString(true));
     return this;
@@ -64,9 +74,17 @@ public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
   /**
    * If {@link #delete()} is used, specifies that newly empty parent directories should also be deleted.
    */
+  @EmbeddedGobblinCliOption(description = "If deleting files on target, also delete newly empty parent directories.")
   public EmbeddedGobblinDistcp deleteEmptyParentDirectories() {
     this.setConfiguration(RecursiveCopyableDataset.DELETE_EMPTY_DIRECTORIES_KEY, Boolean.toString(true));
     return this;
   }
 
+  // Remove template from CLI
+  @Override
+  @NotOnCli
+  public EmbeddedGobblin setTemplate(String templateURI)
+      throws URISyntaxException, SpecNotFoundException, JobTemplate.TemplateException {
+    return super.setTemplate(templateURI);
+  }
 }
