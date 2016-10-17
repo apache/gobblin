@@ -12,6 +12,7 @@
 
 package gobblin.source.extractor.filebased;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -28,6 +29,7 @@ import org.slf4j.MDC;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
@@ -46,7 +48,7 @@ import gobblin.source.workunit.Extract.TableType;
 public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
   private static final Logger log = LoggerFactory.getLogger(FileBasedSource.class);
   protected TimestampAwareFileBasedHelper fsHelper;
-  private String splitPattern = ":::";
+  protected String splitPattern = ":::";
 
   /**
    * Initialize the logger.
@@ -199,7 +201,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
       log.info("Shutting down the FileSystemHelper connection");
       try {
         this.fsHelper.close();
-      } catch (FileBasedHelperException e) {
+      } catch (IOException e) {
         log.error("Unable to shutdown FileSystemHelper", e);
       }
     }
