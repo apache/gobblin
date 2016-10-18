@@ -205,7 +205,7 @@ public class SftpLightWeightFileSystem extends FileSystem {
     try {
       ChannelSftp channelSftp = this.fsHelper.getSftpChannel();
       InputStream is = channelSftp.get(HadoopUtils.toUriPath(path), monitor);
-      return new FSDataInputStream(new BufferedFSInputStream(new SftpFsFileInputStream(is, channelSftp), bufferSize));
+      return new FSDataInputStream(new BufferedFSInputStream(new SftpFsHelper.SftpFsFileInputStream(is, channelSftp), bufferSize));
     } catch (SftpException e) {
       throw new IOException(e);
     }
@@ -259,26 +259,6 @@ public class SftpLightWeightFileSystem extends FileSystem {
   public FSDataOutputStream create(Path arg0, FsPermission arg1, boolean arg2, int arg3, short arg4, long arg5,
       Progressable arg6) throws IOException {
     throw new UnsupportedOperationException("Not implemented");
-  }
-
-  /**
-   * A {@link SeekableFSInputStream} that holds a handle on the Sftp {@link Channel} used to open the
-   * {@link InputStream}. The {@link Channel} is disconnected when {@link InputStream#close()} is called.
-   */
-  private static class SftpFsFileInputStream extends SeekableFSInputStream {
-
-    private final Channel channel;
-
-    public SftpFsFileInputStream(InputStream in, Channel channel) {
-      super(in);
-      this.channel = channel;
-    }
-
-    @Override
-    public void close() throws IOException {
-      super.close();
-      this.channel.disconnect();
-    }
   }
 
   /**
