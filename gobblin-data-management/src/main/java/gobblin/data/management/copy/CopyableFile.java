@@ -259,7 +259,7 @@ public class CopyableFile extends CopyEntity implements File {
     Optional<FileStatus> originFileStatus = copyConfiguration.getCopyContext().getFileStatus(fs, path);
 
     if (!originFileStatus.isPresent()) {
-      throw new IOException(String.format("Origin path %s does not exist.", originFileStatus));
+      throw new IOException(String.format("Origin path %s does not exist.", path));
     }
 
     String group = null;
