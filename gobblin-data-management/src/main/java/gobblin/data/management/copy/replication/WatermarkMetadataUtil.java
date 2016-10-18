@@ -27,14 +27,14 @@ import gobblin.source.extractor.WatermarkSerializerHelper;
  */
 public class WatermarkMetadataUtil {
 
-  public static final String DELEMETER = "\n";
+  public static final String DELIMITER = "\n";
 
   public static String serialize(Watermark watermark) {
-    return watermark.getClass().getCanonicalName() + DELEMETER + watermark.toJson().toString();
+    return watermark.getClass().getCanonicalName() + DELIMITER + watermark.toJson().toString();
   }
 
   public static Watermark deserialize(String content) throws WatermarkMetadataMulFormatException {
-    List<String> tmp = Splitter.on(DELEMETER).trimResults().omitEmptyStrings().splitToList(content);
+    List<String> tmp = Splitter.on(DELIMITER).trimResults().omitEmptyStrings().splitToList(content);
     if (tmp.size() < 2) {
       throw new WatermarkMetadataMulFormatException("wrong format " + content);
     }

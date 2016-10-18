@@ -64,28 +64,34 @@ public class ConfigBasedDataset implements CopyableDataset {
   private final Properties props;
   private final CopyRoute copyRoute;
   private final ReplicationConfiguration rc;
+  private String datasetURN;
 
   public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute) {
     this.props = props;
     this.copyRoute = copyRoute;
     this.rc = rc;
+    calculateDatasetURN();
   }
-
-  @Override
-  public String datasetURN() {
+  
+  private void calculateDatasetURN(){
     EndPoint e = this.copyRoute.getCopyTo();
     if (e instanceof HadoopFsEndPoint) {
       HadoopFsEndPoint copyTo = (HadoopFsEndPoint) e;
       Configuration conf = HadoopUtils.newConfiguration();
       try {
         FileSystem copyToFs = FileSystem.get(copyTo.getFsURI(), conf);
-        return copyToFs.makeQualified(copyTo.getDatasetPath()).toString();
+        this.datasetURN = copyToFs.makeQualified(copyTo.getDatasetPath()).toString();
       } catch (IOException e1) {
         // ignored
       }
     }
 
-    return e.toString();
+    this.datasetURN = e.toString();
+  }
+
+  @Override
+  public String datasetURN() {
+    return this.datasetURN;
   }
 
   @Override
@@ -114,7 +120,7 @@ public class ConfigBasedDataset implements CopyableDataset {
     Configuration conf = HadoopUtils.newConfiguration();
     FileSystem copyFromFs = FileSystem.get(copyFrom.getFsURI(), conf);
     FileSystem copyToFs = FileSystem.get(copyTo.getFsURI(), conf);
-
+    
     Collection<FileStatus> allFilesInSource = copyFrom.getFiles();
     Collection<FileStatus> allFilesInTarget = copyTo.getFiles();
 
@@ -162,8 +168,9 @@ public class ConfigBasedDataset implements CopyableDataset {
         }
 
         copyableFiles
-            .add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, newPath, copyConfiguration)
+            .add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, copyToFs.makeQualified(newPath), copyConfiguration)
                 .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
+        
       }
 
       // clean up already checked paths
