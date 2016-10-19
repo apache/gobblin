@@ -17,7 +17,11 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -196,5 +200,48 @@ public class AvroUtilsTest {
     Assert.assertEquals(AvroUtils.serializeAsPath(partition, true, true), new Path("name=a_b_c_d_e/title=title"));
     Assert.assertEquals(AvroUtils.serializeAsPath(partition, false, true), new Path("a_b_c_d_e/title"));
     Assert.assertEquals(AvroUtils.serializeAsPath(partition, false, false), new Path("a/b_c_d_e/title"));
+  }
+
+  @Test public void testGetObjectFromMap() throws Exception {
+    final String TEST_OBJECT = "testMap";
+    final String TEST_FIELD1 = "field1";
+    final String TEST_FIELD2 = "field2";
+    final String TEST_VALUE1 = "value1";
+    final String TEST_VALUE2 = "value2";
+
+    final String TEST_FIELD1_LOCATION = TEST_OBJECT + "." + TEST_FIELD1;
+    final String TEST_FIELD2_LOCATION = TEST_OBJECT + "." + TEST_FIELD2;
+
+    String testSchema = "{" +
+                          "\"name\":\"testRecord\"," +
+                          "\"type\":\"record\"," +
+                          "\"fields\":" +
+                            "[" +
+                              "{" +
+                                "\"name\":\"" + TEST_OBJECT + "\"," +
+                                "\"type\":" +
+                                  "{" +
+                                    "\"type\":\"map\"," +
+                                    "\"values\":\"string\"" +
+                                  "}" +
+                              "}" +
+                            "]" +
+                        "}";
+    Schema schema = Schema.parse(testSchema);
+    String json = "{" +
+                    "\"" + TEST_OBJECT + "\":" +
+                      "{" +
+                         "\"" + TEST_FIELD1 + "\":\"" + TEST_VALUE1 + "\"," +
+                         "\"" + TEST_FIELD2 + "\":\"" + TEST_VALUE2 + "\"" +
+                      "}" +
+                  "}";
+
+    Decoder decoder = DecoderFactory.get().jsonDecoder(schema, json);
+    DatumReader<Object> reader = new GenericDatumReader<>(schema);
+    GenericRecord oldRecord = null;
+    GenericRecord record = (GenericRecord) reader.read(oldRecord, decoder);
+
+    Assert.assertEquals(AvroUtils.getFieldValue(record, TEST_FIELD1_LOCATION).get().toString(), TEST_VALUE1);
+    Assert.assertEquals(AvroUtils.getFieldValue(record, TEST_FIELD2_LOCATION).get().toString(), TEST_VALUE2);
   }
 }
