@@ -14,13 +14,16 @@ package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
@@ -35,26 +38,47 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   @Getter
   private final HadoopFsReplicaConfig rc;
 
+  private boolean initialized = false;
+  private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
+  private Collection<FileStatus> allFileStatus;
+  
   public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc) {
     this.rc = rc;
   }
 
   @Override
-  public ComparableWatermark getWatermark() {
-    LongWatermark result = new LongWatermark(-1);
+  public synchronized Collection<FileStatus> getFiles() throws IOException{
+    if(!this.initialized){
+      this.getWatermark();
+    }
+    return this.allFileStatus;
+  }
+  
+  @Override
+  public synchronized Optional<ComparableWatermark> getWatermark() {
+    if(this.initialized) {
+      return this.cachedWatermark;
+    }
+    
+    this.initialized = true;
+    
     try {
+      long curTs = -1;
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       List<FileStatus> allFileStatus = FileListUtils.listFilesRecursively(fs, rc.getPath());
       for (FileStatus f : allFileStatus) {
-        if (f.getModificationTime() > result.getValue()) {
-          result = new LongWatermark(f.getModificationTime());
+        if (f.getModificationTime() > curTs) {
+          curTs = f.getModificationTime();
         }
       }
 
-      return result;
+      ComparableWatermark result = new LongWatermark(curTs);
+      this.allFileStatus = allFileStatus;
+      this.cachedWatermark = Optional.of(result);
+      return this.cachedWatermark;
     } catch (IOException e) {
       log.error("Error while retrieve the watermark for " + this);
-      return result;
+      return this.cachedWatermark;
     }
   }
 
@@ -84,6 +108,10 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
     return this.rc.getFsURI();
   }
   
+  @Override
+  public Path getDatasetPath(){
+    return this.rc.getPath();
+  }
 
   @Override
   public int hashCode() {

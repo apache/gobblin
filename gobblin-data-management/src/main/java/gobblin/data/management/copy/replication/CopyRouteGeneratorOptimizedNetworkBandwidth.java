@@ -15,12 +15,16 @@ package gobblin.data.management.copy.replication;
 import java.util.List;
 
 import com.google.common.base.Optional;
+import gobblin.annotation.Alias;
 
 /**
  * In Pull mode, Optimized for network bandwidth : pick the first available data source
  * @author mitu
  *
  */
+
+
+@Alias(value="OptimizedNetworkBandwidth")
 public class CopyRouteGeneratorOptimizedNetworkBandwidth extends CopyRouteGeneratorOptimizer {
   /**
    * 
