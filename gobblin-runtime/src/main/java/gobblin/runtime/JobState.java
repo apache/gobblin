@@ -108,6 +108,10 @@ public class JobState extends SourceState {
     public boolean isFailure() {
       return this.equals(FAILED);
     }
+
+    public boolean isRunningOrDone() {
+      return isDone() || this.equals(RUNNING);
+    }
   }
 
   private String jobName;

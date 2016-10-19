@@ -27,6 +27,7 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 import com.google.common.base.Strings;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.source.extractor.filebased.FileBasedHelper;
@@ -165,12 +166,7 @@ public class HadoopFsHelper implements TimestampAwareFileBasedHelper {
   }
 
   @Override
-  public void close() throws FileBasedHelperException {
-    try {
-      this.getFileSystem().close();
-    } catch (IOException e) {
-      throw new FileBasedHelperException("Failed to close filesystem", e);
-    }
+  public void close() throws IOException {
+    this.getFileSystem().close();
   }
-
 }

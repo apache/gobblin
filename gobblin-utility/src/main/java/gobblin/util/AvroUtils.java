@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.avro.Schema;
@@ -40,6 +41,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
+import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -146,9 +148,28 @@ public class AvroUtils {
     }
 
     if ((field + 1) == pathList.size()) {
+      if (data instanceof Map) {
+        return getObjectFromMap((Map) data, pathList.get(field));
+      }
       return Optional.fromNullable(((Record) data).get(pathList.get(field)));
     }
+    if (data instanceof Map) {
+      return AvroUtils.getFieldHelper(getObjectFromMap((Map) data, pathList.get(field)), pathList, ++field);
+    }
     return AvroUtils.getFieldHelper(((Record) data).get(pathList.get(field)), pathList, ++field);
+  }
+
+  /**
+   * This method is to get object from map given a key as string.
+   * Avro persists string as Utf8
+   * @param map passed from {@link #getFieldHelper(Object, List, int)}
+   * @param key passed from {@link #getFieldHelper(Object, List, int)}
+   * @return This could again be a GenericRecord
+   */
+
+  private static Optional<Object> getObjectFromMap(Map map, String key) {
+    Utf8 utf8Key = new Utf8(key);
+    return Optional.fromNullable(map.get(utf8Key));
   }
 
   /**

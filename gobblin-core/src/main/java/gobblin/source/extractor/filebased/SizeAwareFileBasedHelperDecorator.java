@@ -14,6 +14,7 @@ package gobblin.source.extractor.filebased;
 
 import gobblin.util.Decorator;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
@@ -36,7 +37,7 @@ public class SizeAwareFileBasedHelperDecorator implements SizeAwareFileBasedHelp
   }
 
   @Override
-  public void close() throws FileBasedHelperException {
+  public void close() throws IOException {
     this.fileBasedHelper.close();
   }
 

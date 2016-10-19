@@ -60,15 +60,28 @@ public class ReplicationConfiguration {
   public static final String DEFAULT_DATA_FLOW_TOPOLOGIES_PUSHMODE = "defaultDataFlowTopologies_PushMode";
   public static final String DEFAULT_DATA_FLOW_TOPOLOGIES_PULLMODE = "defaultDataFlowTopologies_PullMode";
 
-  public static final String DATA_FLOW_TOPOLOGY_PICKER = "dataFlowTopologyPicker";
+  //copy route generator
+  public static final String DELETE_TARGET_IFNOT_ON_SOURCE = "deleteTarget";
+ 
+  // data flow picker 
+  public static final String DATA_FLOW_TOPOLOGY_PICKER_CLASS = "dataFlowTopologyPickerClass";
   public static final String DEFAULT_DATA_FLOW_TOPOLOGY_PICKER_CLASS =
       DataFlowTopologyPickerByHadoopFsSource.class.getCanonicalName();
+  public static final ClassAliasResolver<DataFlowTopologyPickerBySource> dataFlowTopologyPickerResolver =
+      new ClassAliasResolver<>(DataFlowTopologyPickerBySource.class);
 
+  // end point factory
   public static final String END_POINT_FACTORY_CLASS = "endPointFactoryClass";
   public static final String DEFAULT_END_POINT_FACTORY_CLASS = HadoopFsEndPointFactory.class.getCanonicalName();
-
   public static final ClassAliasResolver<EndPointFactory> endPointFactoryResolver =
       new ClassAliasResolver<>(EndPointFactory.class);
+  
+  // copy route generator
+  public static final String COPYROUTE_OPTIMIZER_CLASS = "copyRouteOptimizerClass";
+  public static final String DEFAULT_COPYROUTE_OPTIMIZER_CLASS = CopyRouteGeneratorOptimizedNetworkBandwidth.class.getCanonicalName();
+  public static final ClassAliasResolver<CopyRouteGenerator> copyRouteGeneratorResolver =
+      new ClassAliasResolver<>(CopyRouteGenerator.class);
+
 
   @Getter
   private final ReplicationCopyMode copyMode;
@@ -84,6 +97,12 @@ public class ReplicationConfiguration {
 
   @Getter
   private final DataFlowTopology dataFlowToplogy;
+  
+  @Getter
+  private final CopyRouteGenerator copyRouteGenerator;
+  
+  @Getter
+  private final boolean deleteTargetIfNotExistOnSource;
 
   public static ReplicationConfiguration buildFromConfig(Config input)
       throws InstantiationException, IllegalAccessException, ClassNotFoundException {
@@ -92,9 +111,15 @@ public class ReplicationConfiguration {
     Config config = input.resolve();
 
     return new Builder().withReplicationMetaData(ReplicationMetaData.buildMetaData(config))
-        .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config)).withReplicationSource(config)
-        .withReplicationReplica(config).withDefaultDataFlowTopologyConfig_PullMode(config)
-        .withDefaultDataFlowTopologyConfig_PushMode(config).withDataFlowTopologyConfig(config).build();
+        .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config))
+        .withReplicationSource(config)
+        .withReplicationReplica(config)
+        .withDefaultDataFlowTopologyConfig_PullMode(config)
+        .withDefaultDataFlowTopologyConfig_PushMode(config)
+        .withDataFlowTopologyConfig(config)
+        .withCopyRouteGenerator(config)
+        .withDeleteTarget(config)
+        .build();
   }
 
   private ReplicationConfiguration(Builder builder) {
@@ -103,11 +128,11 @@ public class ReplicationConfiguration {
     this.replicas = builder.replicas;
     this.copyMode = builder.copyMode;
     this.dataFlowToplogy = builder.dataFlowTopology;
+    this.copyRouteGenerator = builder.copyRouteGenerator;
+    this.deleteTargetIfNotExistOnSource = builder.deleteTargetIfNotExistOnSource;
   }
 
   private static class Builder {
-    public static final ClassAliasResolver<DataFlowTopologyPickerBySource> dataFlowTopologyPickerResolver =
-        new ClassAliasResolver<>(DataFlowTopologyPickerBySource.class);
 
     private ReplicationMetaData metaData;
 
@@ -124,9 +149,29 @@ public class ReplicationConfiguration {
     private Optional<Config> defaultDataFlowTopology_PullModeConfig;
 
     private DataFlowTopology dataFlowTopology = new DataFlowTopology();
+    
+    private CopyRouteGenerator copyRouteGenerator;
+    
+    private boolean deleteTargetIfNotExistOnSource = false;
 
     public Builder withReplicationMetaData(ReplicationMetaData metaData) {
       this.metaData = metaData;
+      return this;
+    }
+    
+    public Builder withDeleteTarget(Config config){
+      if(config.hasPath(DELETE_TARGET_IFNOT_ON_SOURCE)){
+        this.deleteTargetIfNotExistOnSource = config.getBoolean(DELETE_TARGET_IFNOT_ON_SOURCE);
+      }
+      return this;
+    }
+    
+    public Builder withCopyRouteGenerator(Config config)
+        throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+      
+      String copyRouteGeneratorStr = config.hasPath(COPYROUTE_OPTIMIZER_CLASS)?
+          config.getString(COPYROUTE_OPTIMIZER_CLASS): DEFAULT_COPYROUTE_OPTIMIZER_CLASS;
+      this.copyRouteGenerator = copyRouteGeneratorResolver.resolveClass(copyRouteGeneratorStr).newInstance();
       return this;
     }
 
@@ -209,8 +254,8 @@ public class ReplicationConfiguration {
       }
 
       // topology not specified in literal, need to pick one topology from the defaults
-      String topologyPickerStr = this.dataFlowTopologyConfig.hasPath(DATA_FLOW_TOPOLOGY_PICKER)?
-          this.dataFlowTopologyConfig.getString(DATA_FLOW_TOPOLOGY_PICKER): DEFAULT_DATA_FLOW_TOPOLOGY_PICKER_CLASS;
+      String topologyPickerStr = this.dataFlowTopologyConfig.hasPath(DATA_FLOW_TOPOLOGY_PICKER_CLASS)?
+          this.dataFlowTopologyConfig.getString(DATA_FLOW_TOPOLOGY_PICKER_CLASS): DEFAULT_DATA_FLOW_TOPOLOGY_PICKER_CLASS;
       DataFlowTopologyPickerBySource picker =
           dataFlowTopologyPickerResolver.resolveClass(topologyPickerStr).newInstance();
 

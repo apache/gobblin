@@ -220,10 +220,10 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
   }
 
   @Override
-  public void close() {
+  public void close() throws IOException {
     try {
       this.fsHelper.close();
-    } catch (FileBasedHelperException e) {
+    } catch (IOException e) {
       LOG.error("Could not successfully close file system helper due to error: " + e.getMessage(), e);
     }
   }

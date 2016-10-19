@@ -17,15 +17,24 @@
  */
 package gobblin.data.management.copy.replication;
 
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import com.google.common.base.Optional;
+
+import gobblin.annotation.Alias;
+import gobblin.source.extractor.ComparableWatermark;
+
 
 /**
  * In Pull mode, Optimized for data replication latency: pick the highest watermark from all the data sources
  * @author mitu
  *
  */
+
+@Alias(value = "OptimizedLatency")
 public class CopyRouteGeneratorOptimizedLatency extends CopyRouteGeneratorOptimizer {
   /**
    * 
@@ -34,15 +43,36 @@ public class CopyRouteGeneratorOptimizedLatency extends CopyRouteGeneratorOptimi
    */
   @Override
   public Optional<CopyRoute> getOptimizedCopyRoute(List<CopyRoute> routes) {
-    CopyRoute result = null;
-    for (CopyRoute copyRoute : routes) {
-      if(!copyRoute.getCopyFrom().isAvailable()){
-        continue;
-      }
-      if (result == null || copyRoute.getCopyFrom().getWatermark().compareTo(result.getCopyFrom().getWatermark()) > 0) {
-        result = copyRoute;
-      }
-    }
-    return Optional.fromNullable(result);
+    CopyRoute preferred = Collections.max(routes, new CopyRouteComparatorBySourceWatermark());
+    return Optional.of(preferred);
   }
+  
+  static class CopyRouteComparatorBySourceWatermark implements Comparator<CopyRoute>, Serializable{
+
+    private static final long serialVersionUID = 1439642339646179830L;
+
+    @Override
+    public int compare(CopyRoute o1, CopyRoute o2) {
+      EndPoint from1 = o1.getCopyFrom();
+      EndPoint from2 = o2.getCopyFrom();
+      Optional<ComparableWatermark> w1 = from1.getWatermark();
+      Optional<ComparableWatermark> w2 = from2.getWatermark();
+      
+      // both are absent
+      if(!w1.isPresent() && !w2.isPresent()){
+        return 0;
+      }
+      
+      if(!w2.isPresent()){
+        return 1;
+      }
+      
+      if(!w1.isPresent()){
+        return -1;
+      }
+      
+      return w1.get().compareTo(w2.get());
+    }
+  }
+
 }
