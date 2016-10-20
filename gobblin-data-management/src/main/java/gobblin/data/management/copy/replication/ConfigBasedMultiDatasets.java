@@ -70,6 +70,7 @@ public class ConfigBasedMultiDatasets {
 
   private void generateDatasetInPushMode(ReplicationConfiguration rc, URI executionClusterURI){
     if(rc.getCopyMode()== ReplicationCopyMode.PULL){
+      log.info("Skip process pull mode dataset with meta data{} as job level property specify push mode ", rc.getMetaData());
       return;
     }
 
@@ -87,7 +88,10 @@ public class ConfigBasedMultiDatasets {
     for(EndPoint pushFrom: pushCandidates){
       if(needGenerateCopyEntity(pushFrom, executionClusterURI)){
         Optional<List<CopyRoute>> copyRoutes = cpGen.getPushRoutes(rc, pushFrom);
-        if(!copyRoutes.isPresent()) return;
+        if(!copyRoutes.isPresent()) {
+          log.warn("In Push mode, did not found any copyRoute for dataset with meta data {}", rc.getMetaData());
+          return;
+        }
 
         for(CopyRoute cr: copyRoutes.get()){
           if(cr.getCopyTo() instanceof HadoopFsEndPoint){
@@ -104,6 +108,7 @@ public class ConfigBasedMultiDatasets {
 
   private void generateDatasetInPullMode(ReplicationConfiguration rc, URI executionClusterURI){
     if(rc.getCopyMode()== ReplicationCopyMode.PUSH){
+      log.info("Skip process push mode dataset with meta data{} as job level property specify pull mode ", rc.getMetaData());
       return;
     }
 
