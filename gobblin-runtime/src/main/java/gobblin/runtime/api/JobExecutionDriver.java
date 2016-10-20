@@ -45,9 +45,9 @@ public interface JobExecutionDriver
   //void stopForcefully();
 
   /** {@inheritDoc} */
-  @Override JobExecutionResult get() throws InterruptedException, ExecutionException;
+  @Override JobExecutionResult get() throws InterruptedException;
 
   /** {@inheritDoc} */
   @Override JobExecutionResult get(long timeout, TimeUnit unit)
-            throws InterruptedException, TimeoutException, ExecutionException;
+            throws InterruptedException, TimeoutException;
 }

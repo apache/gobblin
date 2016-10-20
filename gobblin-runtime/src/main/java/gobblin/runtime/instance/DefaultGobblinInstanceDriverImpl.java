@@ -43,6 +43,8 @@ import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.std.DefaultJobCatalogListenerImpl;
 import gobblin.runtime.std.DefaultJobExecutionStateListenerImpl;
 import gobblin.runtime.std.JobLifecycleListenersList;
+import gobblin.util.ExecutorsUtils;
+
 
 /**
  * A default implementation of {@link GobblinInstanceDriver}. It accepts already instantiated
@@ -189,7 +191,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
          JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
          _callbacksDispatcher.onJobLaunch(driver);
          driver.registerStateListener(new JobStateTracker());
-        new Thread(driver).start();
+        ExecutorsUtils.newThreadFactory(Optional.of(_log), Optional.of("gobblin-instance-driver")).newThread(driver).start();
       }
       catch (Throwable t) {
         _log.error("Job launch failed: " + t, t);

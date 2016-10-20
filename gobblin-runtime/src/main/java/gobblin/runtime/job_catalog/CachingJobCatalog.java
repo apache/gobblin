@@ -66,10 +66,8 @@ public class CachingJobCatalog extends AbstractIdleService implements JobCatalog
   @Override
   protected void startUp() {
     _cache.startAsync();
-    _fallback.startAsync();
     try {
       _cache.awaitRunning(2, TimeUnit.SECONDS);
-      _fallback.awaitRunning(2, TimeUnit.SECONDS);
     } catch (TimeoutException te) {
       throw new RuntimeException("Failed to start " + CachingJobCatalog.class.getName(), te);
     }
@@ -78,10 +76,8 @@ public class CachingJobCatalog extends AbstractIdleService implements JobCatalog
   @Override
   protected void shutDown() {
     _cache.stopAsync();
-    _fallback.stopAsync();
     try {
       _cache.awaitTerminated(2, TimeUnit.SECONDS);
-      _fallback.awaitTerminated(2, TimeUnit.SECONDS);
     } catch (TimeoutException te) {
       throw new RuntimeException("Failed to stop " + CachingJobCatalog.class.getName(), te);
     }

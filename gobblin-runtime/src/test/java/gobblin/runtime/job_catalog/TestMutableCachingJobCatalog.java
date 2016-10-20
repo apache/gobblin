@@ -33,6 +33,8 @@ public class TestMutableCachingJobCatalog {
   public void test() throws Exception {
     InMemoryJobCatalog baseCat =
         new InMemoryJobCatalog(Optional.<Logger>of(LoggerFactory.getLogger("baseCat")));
+    baseCat.startAsync();
+    baseCat.awaitRunning(2, TimeUnit.SECONDS);
     MutableCachingJobCatalog cachedCat =
         new MutableCachingJobCatalog(baseCat, Optional.<Logger>of(LoggerFactory.getLogger("cachedCat")));
 
@@ -92,6 +94,8 @@ public class TestMutableCachingJobCatalog {
 
     cachedCat.stopAsync();
     cachedCat.awaitTerminated(10, TimeUnit.SECONDS);
+    baseCat.stopAsync();
+    baseCat.awaitTerminated(2, TimeUnit.SECONDS);
   }
 
 }

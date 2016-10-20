@@ -31,7 +31,7 @@ import lombok.Getter;
  * A catalog of all the {@link JobSpec}s a Gobblin instance is currently aware of.
  */
 @Alpha
-public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable, Service {
+public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable {
   /** Returns an immutable {@link Collection} of {@link JobSpec}s that are known to the catalog. */
   Collection<JobSpec> getJobs();
 

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
@@ -47,6 +48,7 @@ import gobblin.runtime.listeners.AbstractJobListener;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.JobExecutionStateListeners;
 import gobblin.runtime.std.JobExecutionUpdatable;
+import gobblin.util.ExecutorsUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -164,7 +166,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
 
   protected void startAsync() throws JobException {
     _log.info("Starting " + getClass().getSimpleName());
-    new Thread(this).start();
+    ExecutorsUtils.newThreadFactory(Optional.of(_log), Optional.of("job-launcher-execution-driver")).newThread(this).start();
   }
 
   @Override
@@ -491,4 +493,23 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     return getJobExecutionStatus().getRunningState().isCancelled();
   }
 
+  @Override
+  public JobExecutionResult get()
+      throws InterruptedException {
+    try {
+      return super.get();
+    } catch (ExecutionException ee) {
+      return JobExecutionResult.createFailureResult(ee.getCause());
+    }
+  }
+
+  @Override
+  public JobExecutionResult get(long timeout, TimeUnit unit)
+      throws InterruptedException, TimeoutException {
+    try {
+      return super.get(timeout, unit);
+    } catch (ExecutionException ee) {
+      return JobExecutionResult.createFailureResult(ee.getCause());
+    }
+  }
 }
