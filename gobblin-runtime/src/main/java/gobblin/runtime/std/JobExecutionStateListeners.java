@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.std;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 
 import org.slf4j.Logger;
@@ -29,7 +31,7 @@ import gobblin.util.callbacks.CallbacksDispatcher;
  * listeners.
  */
 public class JobExecutionStateListeners
-    implements JobExecutionStateListener, JobExecutionStateListenerContainer {
+    implements JobExecutionStateListener, JobExecutionStateListenerContainer, Closeable {
   private CallbacksDispatcher<JobExecutionStateListener> _dispatcher;
 
   public JobExecutionStateListeners(Optional<ExecutorService> execService,
@@ -93,4 +95,9 @@ public class JobExecutionStateListeners
     _dispatcher.addWeakListener(listener);
   }
 
+  @Override
+  public void close()
+      throws IOException {
+    _dispatcher.close();
+  }
 }

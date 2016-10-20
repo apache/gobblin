@@ -50,7 +50,7 @@ public class TestDefaultGobblinInstanceDriverImpl {
     Configurable sysConfig = DefaultConfigurableImpl.createFromConfig(ConfigFactory.empty());
 
     final DefaultGobblinInstanceDriverImpl driver =
-        new DefaultGobblinInstanceDriverImpl("testScheduling", sysConfig, jobCatalog, scheduler,
+        new StandardGobblinInstanceDriver("testScheduling", sysConfig, jobCatalog, scheduler,
             jobLauncher,
             Optional.<MetricContext>absent(),
             loggerOpt);
@@ -59,14 +59,13 @@ public class TestDefaultGobblinInstanceDriverImpl {
     JobSpec js1_2 = JobSpec.builder("test.job1").withVersion("2").build();
     JobSpec js2 = JobSpec.builder("test.job2").withVersion("1").build();
 
-    jobCatalog.put(js1_1);
-
     driver.startAsync().awaitRunning(100, TimeUnit.MILLISECONDS);
     long startTimeMs = System.currentTimeMillis();
     Assert.assertTrue(driver.isRunning());
     Assert.assertTrue(driver.isInstrumentationEnabled());
     Assert.assertNotNull(driver.getMetricContext());
 
+    jobCatalog.put(js1_1);
 
     AssertWithBackoff awb = AssertWithBackoff.create().backoffFactor(1.5).maxSleepMs(100)
         .timeoutMs(1000).logger(log);

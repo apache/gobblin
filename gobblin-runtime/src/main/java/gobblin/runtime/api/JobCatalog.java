@@ -16,6 +16,7 @@ import java.util.Collection;
 
 import com.codahale.metrics.Gauge;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Service;
 
 import gobblin.annotation.Alpha;
 import gobblin.instrumented.GobblinMetricsKeys;

@@ -92,6 +92,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
    */
   @Override
   public synchronized void put(JobSpec jobSpec) {
+    Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     Preconditions.checkNotNull(jobSpec);
     try {
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobSpec.getUri());
@@ -110,6 +111,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
    */
   @Override
   public synchronized void remove(URI jobURI) {
+    Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     try {
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobURI);
 
