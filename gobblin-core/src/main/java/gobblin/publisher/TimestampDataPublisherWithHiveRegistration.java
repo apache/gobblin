@@ -12,12 +12,12 @@
 
 package gobblin.publisher;
 
-import gobblin.configuration.ConfigurationKeys;
 import java.io.IOException;
 import java.util.Collection;
+import org.apache.hadoop.fs.Path;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
-import org.apache.hadoop.fs.Path;
 
 
 /**
