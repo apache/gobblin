@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -37,7 +36,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 
 /**
@@ -90,37 +88,36 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     Map<Path, FileStatus> filesInSource = createPathMap(getFilesAtPath(this.fs, this.rootPath, this.pathFilter), this.rootPath);
     Map<Path, FileStatus> filesInTarget = createPathMap(getFilesAtPath(targetFs, targetPath, this.pathFilter), targetPath);
 
-    Set<Path> inSourceNotInTarget = Sets.difference(filesInSource.keySet(), filesInTarget.keySet());
-    Set<Path> inTargetNotInSource = Sets.difference(filesInTarget.keySet(), filesInSource.keySet());
-    Set<Path> inBoth = Sets.intersection(filesInSource.keySet(), filesInTarget.keySet());
-
-    List<CopyEntity> copyEntities = Lists.newArrayList();
-
     List<Path> toCopy = Lists.newArrayList();
-    List<Path> toDelete = Lists.newArrayList();
+    Map<Path, FileStatus> toDelete = Maps.newHashMap();
+    boolean requiresUpdate = false;
 
-    for (Path path : inBoth) {
-      if (!sameFile(filesInSource.get(path), filesInTarget.get(path))) {
-        toCopy.add(path);
-        toDelete.add(path);
+    for (Map.Entry<Path, FileStatus> entry : filesInSource.entrySet()) {
+      FileStatus statusInTarget = filesInTarget.remove(entry.getKey());
+      if (statusInTarget != null) {
+        // in both
+        if (!sameFile(filesInSource.get(entry.getKey()), statusInTarget)) {
+          toCopy.add(entry.getKey());
+          toDelete.put(entry.getKey(), statusInTarget);
+          requiresUpdate = true;
+        }
+      } else {
+        toCopy.add(entry.getKey());
       }
     }
-    if (!this.update && !toCopy.isEmpty()) {
+
+    if (!this.update && requiresUpdate) {
       throw new IOException("Some files need to be copied but they already exist in the destination. "
           + "Aborting because not running in update mode.");
     }
 
-    for (Path path : inSourceNotInTarget) {
-      toCopy.add(path);
-    }
-
     if (this.delete) {
-      for (Path path : inTargetNotInSource) {
-        toDelete.add(path);
-      }
+      toDelete.putAll(filesInTarget);
     }
 
+    List<CopyEntity> copyEntities = Lists.newArrayList();
     List<CopyableFile> copyableFiles = Lists.newArrayList();
+
     for (Path path : toCopy) {
       FileStatus file = filesInSource.get(path);
       Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), nonGlobSearchPath);
@@ -135,13 +132,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     copyEntities.addAll(this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles));
 
     if (!toDelete.isEmpty()) {
-      List<FileStatus> statusesToDelete = Lists.newArrayList();
-      for (Path path : toDelete) {
-        statusesToDelete.add(filesInTarget.get(path));
-      }
-
       CommitStep step =
-          new DeleteFileCommitStep(targetFs, statusesToDelete, this.properties,
+          new DeleteFileCommitStep(targetFs, toDelete.values(), this.properties,
               this.deleteEmptyDirectories ? Optional.of(targetPath) : Optional.<Path>absent());
 
       copyEntities.add(new PrePublishStep(datasetURN(), Maps.<String, String>newHashMap(), step, 1));
