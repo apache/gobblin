@@ -21,8 +21,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.ConfigFactory;
@@ -34,6 +36,8 @@ import gobblin.metrics.Tag;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.GobblinInstanceLauncher;
+import gobblin.runtime.api.GobblinInstancePlugin;
+import gobblin.runtime.api.GobblinInstancePluginFactory;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobSpecScheduler;
@@ -44,26 +48,69 @@ import gobblin.runtime.job_exec.JobLauncherExecutionDriver;
 import gobblin.runtime.scheduler.ImmediateJobSpecScheduler;
 import gobblin.runtime.scheduler.QuartzJobSpecScheduler;
 import gobblin.runtime.std.DefaultConfigurableImpl;
+import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
 
 /** A simple wrapper {@link DefaultGobblinInstanceDriverImpl} that will instantiate necessary
  * sub-components (e.g. {@link JobCatalog}, {@link JobSpecScheduler}, {@link JobExecutionLauncher}
  * and it will manage their lifecycle. */
 public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverImpl {
+
+  public static final String INSTANCE_CFG_PREFIX = "gobblin.instance";
+  /** A comma-separated list of class names or aliases of {@link GobblinInstancePluginFactory} for
+   * plugins to be instantiated with this instance. */
+  public static final String PLUGINS_KEY = "plugins";
+  public static final String PLUGINS_FULL_KEY = INSTANCE_CFG_PREFIX + "." + PLUGINS_KEY;
+
   private ServiceManager _subservices;
+  private final List<GobblinInstancePlugin> _plugins;
 
   protected StandardGobblinInstanceDriver(String instanceName, Configurable sysConfig,
       JobCatalog jobCatalog,
       JobSpecScheduler jobScheduler, JobExecutionLauncher jobLauncher,
       Optional<MetricContext> instanceMetricContext,
-      Optional<Logger> log) {
+      Optional<Logger> log,
+      List<GobblinInstancePluginFactory> plugins) {
     super(instanceName, sysConfig, jobCatalog, jobScheduler, jobLauncher, instanceMetricContext, log);
     List<Service> componentServices = new ArrayList<>();
+
     checkComponentService(getJobCatalog(), componentServices);
     checkComponentService(getJobScheduler(), componentServices);
     checkComponentService(getJobLauncher(), componentServices);
+
+    _plugins = createPlugins(plugins, componentServices);
+
     if (componentServices.size() > 0) {
       _subservices = new ServiceManager(componentServices);
     }
+  }
+
+  private List<GobblinInstancePlugin> createPlugins(List<GobblinInstancePluginFactory> plugins,
+      List<Service> componentServices) {
+    List<GobblinInstancePlugin> res = new ArrayList<>();
+
+    for (GobblinInstancePluginFactory pluginFactory: plugins) {
+      Optional<GobblinInstancePlugin> plugin = createPlugin(this, pluginFactory, componentServices);
+      if (plugin.isPresent()) {
+        res.add(plugin.get());
+      }
+    }
+    return res;
+  }
+
+  static Optional<GobblinInstancePlugin> createPlugin(StandardGobblinInstanceDriver instance,
+      GobblinInstancePluginFactory pluginFactory, List<Service> componentServices) {
+    instance.getLog().info("Instantiating a plugin of type: " + pluginFactory);
+    try {
+      GobblinInstancePlugin plugin = pluginFactory.createPlugin(instance);
+      componentServices.add(plugin);
+      instance.getLog().info("Instantiated plugin: " + plugin);
+      return Optional.of(plugin);
+    }
+    catch (RuntimeException e) {
+      instance.getLog().warn("Failed to create plugin: " + e, e);
+    }
+    return Optional.absent();
   }
 
   @Override
@@ -99,6 +146,10 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     }
   }
 
+  public static Builder builder() {
+    return new Builder();
+  }
+
   /**
    * A builder for StandardGobblinInstanceDriver instances. The goal is to be convention driven
    * rather than configuration.
@@ -123,6 +174,9 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     private Optional<JobExecutionLauncher> _jobLauncher = Optional.absent();
     private Optional<MetricContext> _metricContext = Optional.absent();
     private Optional<Boolean> _instrumentationEnabled = Optional.absent();
+    private List<GobblinInstancePluginFactory> _plugins = new ArrayList<>();
+    private final ClassAliasResolver<GobblinInstancePluginFactory> _aliasResolver =
+        new ClassAliasResolver<>(GobblinInstancePluginFactory.class);
 
     public Builder(Optional<GobblinInstanceEnvironment> instanceLauncher) {
       _instanceEnv = instanceLauncher;
@@ -297,7 +351,9 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
              getJobLauncher(),
              isInstrumentationEnabled() ? Optional.of(getMetricContext()) :
                    Optional.<MetricContext>absent(),
-             Optional.of(getLog()));
+             Optional.of(getLog()),
+             getPlugins()
+             );
     }
 
     @Override public Configurable getSysConfig() {
@@ -333,6 +389,46 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     @Override public void switchMetricContext(MetricContext context) {
       throw new UnsupportedOperationException();
     }
+
+    /**
+     * Returns the list of plugins as defined in the system configuration. These are the
+     * defined in the PLUGINS_FULL_KEY config option. */
+    public List<GobblinInstancePluginFactory> getDefaultPlugins() {
+      if (!getSysConfig().getConfig().hasPath(PLUGINS_FULL_KEY)) {
+        return Collections.emptyList();
+      }
+
+      List<String> pluginNames =
+          ConfigUtils.getStringList(getSysConfig().getConfig(), PLUGINS_FULL_KEY);
+
+      return Lists.transform(pluginNames, new Function<String, GobblinInstancePluginFactory>() {
+
+        @Override public GobblinInstancePluginFactory apply(String input) {
+          Class<? extends GobblinInstancePluginFactory> factoryClass;
+          try {
+            factoryClass = _aliasResolver.resolveClass(input);
+            return factoryClass.newInstance();
+          } catch (ClassNotFoundException|InstantiationException|IllegalAccessException e) {
+            throw new RuntimeException("Unable to instantiate plugin factory " + input + ": " + e, e);
+          }
+        }
+      });
+    }
+
+    public List<GobblinInstancePluginFactory> getPlugins() {
+      List<GobblinInstancePluginFactory> res = new ArrayList<>(getDefaultPlugins());
+      res.addAll(_plugins);
+      return res;
+    }
+
+    public Builder addPlugin(GobblinInstancePluginFactory pluginFactory) {
+      _plugins.add(pluginFactory);
+      return this;
+    }
+  }
+
+  public List<GobblinInstancePlugin> getPlugins() {
+    return _plugins;
   }
 
 }

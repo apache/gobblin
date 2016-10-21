@@ -11,6 +11,7 @@
  */
 package gobblin.runtime.instance;
 
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import org.mockito.Mockito;
@@ -26,6 +27,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.metrics.MetricContext;
 import gobblin.runtime.api.Configurable;
+import gobblin.runtime.api.GobblinInstancePluginFactory;
 import gobblin.runtime.api.JobExecutionLauncher;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecScheduler;
@@ -53,7 +55,8 @@ public class TestDefaultGobblinInstanceDriverImpl {
         new StandardGobblinInstanceDriver("testScheduling", sysConfig, jobCatalog, scheduler,
             jobLauncher,
             Optional.<MetricContext>absent(),
-            loggerOpt);
+            loggerOpt,
+            Collections.<GobblinInstancePluginFactory>emptyList());
 
     JobSpec js1_1 = JobSpec.builder("test.job1").withVersion("1").build();
     JobSpec js1_2 = JobSpec.builder("test.job1").withVersion("2").build();
