@@ -211,7 +211,7 @@ public class LiKafkaSchemaRegistry implements KafkaSchemaRegistry<MD5Digest, Sch
    * Fetch schema by key.
    */
   protected Schema fetchSchemaByKey(MD5Digest key) throws SchemaRegistryException {
-    String schemaUrl = this.url + GET_RESOURCE_BY_ID + key;
+    String schemaUrl = this.url + GET_RESOURCE_BY_ID + key.asString();
 
     GetMethod get = new GetMethod(schemaUrl);
 
