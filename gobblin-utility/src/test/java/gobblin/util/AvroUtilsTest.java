@@ -14,14 +14,19 @@ package gobblin.util;
 
 import java.io.IOException;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.file.FileReader;
+import org.apache.avro.file.SeekableInput;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.mapred.FsInput;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -29,7 +34,6 @@ import org.testng.annotations.Test;
 
 
 public class AvroUtilsTest {
-
   private static final String AVRO_DIR = "gobblin-utility/src/test/resources/avroDirParent/";
 
   @Test
@@ -202,46 +206,49 @@ public class AvroUtilsTest {
     Assert.assertEquals(AvroUtils.serializeAsPath(partition, false, false), new Path("a/b_c_d_e/title"));
   }
 
-  @Test public void testGetObjectFromMap() throws Exception {
-    final String TEST_OBJECT = "testMap";
-    final String TEST_FIELD1 = "field1";
-    final String TEST_FIELD2 = "field2";
-    final String TEST_VALUE1 = "value1";
-    final String TEST_VALUE2 = "value2";
+  private List<GenericRecord> getRecordFromFile(String path)
+      throws IOException {
+    Configuration config = new Configuration();
+    SeekableInput input = new FsInput(new Path(path), config);
+    DatumReader<GenericRecord> reader1 = new GenericDatumReader<>();
+    FileReader<GenericRecord> fileReader = DataFileReader.openReader(input, reader1);
+    List<GenericRecord> records = new ArrayList<>();
+    for (GenericRecord datum : fileReader) {
+      records.add(datum);
+    }
+    fileReader.close();
+    return records;
+  }
 
-    final String TEST_FIELD1_LOCATION = TEST_OBJECT + "." + TEST_FIELD1;
-    final String TEST_FIELD2_LOCATION = TEST_OBJECT + "." + TEST_FIELD2;
+  /**
+   * This is a test to validate support of maps in {@link gobblin.util.AvroUtils#getFieldValue(GenericRecord, String)}
+   * and {@link gobblin.util.AvroUtils#getFieldSchema(Schema, String)}
+   * @throws IOException
+   */
 
-    String testSchema = "{" +
-                          "\"name\":\"testRecord\"," +
-                          "\"type\":\"record\"," +
-                          "\"fields\":" +
-                            "[" +
-                              "{" +
-                                "\"name\":\"" + TEST_OBJECT + "\"," +
-                                "\"type\":" +
-                                  "{" +
-                                    "\"type\":\"map\"," +
-                                    "\"values\":\"string\"" +
-                                  "}" +
-                              "}" +
-                            "]" +
-                        "}";
-    Schema schema = Schema.parse(testSchema);
-    String json = "{" +
-                    "\"" + TEST_OBJECT + "\":" +
-                      "{" +
-                         "\"" + TEST_FIELD1 + "\":\"" + TEST_VALUE1 + "\"," +
-                         "\"" + TEST_FIELD2 + "\":\"" + TEST_VALUE2 + "\"" +
-                      "}" +
-                  "}";
+  @Test
+  public void testGetObjectFromMap()
+      throws IOException {
+    final String TEST_FIELD_LOCATION = "Map.stringKey.Field";
+    String avroFilePath = this.AVRO_DIR + "avroDir/avroUtilsTestFile.avro";
+    GenericRecord record = getRecordFromFile(avroFilePath).get(0);
+    Assert.assertEquals(AvroUtils.getFieldValue(record, TEST_FIELD_LOCATION).get().toString(), "stringValue2");
+    Assert.assertEquals(AvroUtils.getFieldSchema(record.getSchema(), TEST_FIELD_LOCATION).get().getType(),
+        Schema.Type.STRING);
+  }
 
-    Decoder decoder = DecoderFactory.get().jsonDecoder(schema, json);
-    DatumReader<Object> reader = new GenericDatumReader<>(schema);
-    GenericRecord oldRecord = null;
-    GenericRecord record = (GenericRecord) reader.read(oldRecord, decoder);
+  /**
+   * In case of complex data types in union {@link AvroUtils#getFieldSchema(Schema, String)} should throw {@link AvroRuntimeException}
+   * @throws IOException
+   */
 
-    Assert.assertEquals(AvroUtils.getFieldValue(record, TEST_FIELD1_LOCATION).get().toString(), TEST_VALUE1);
-    Assert.assertEquals(AvroUtils.getFieldValue(record, TEST_FIELD2_LOCATION).get().toString(), TEST_VALUE2);
+  @Test(expectedExceptions = AvroRuntimeException.class)
+  public void testComplexTypesInUnionNotSupported()
+      throws IOException {
+    final String TEST_LOCATION = "TestUnionObject.RecordInUnion";
+    String avroFilePath = this.AVRO_DIR + "avroDir/avroUtilsTestFile.avro";
+    GenericRecord record = getRecordFromFile(avroFilePath).get(0);
+
+    AvroUtils.getFieldSchema(record.getSchema(), TEST_LOCATION);
   }
 }

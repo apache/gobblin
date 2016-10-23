@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -98,19 +99,31 @@ public class AvroUtils {
 
   /**
    * Helper method that does the actual work for {@link #getFieldSchema(Schema, String)}
-   * @param schema passed from {@link #getFieldValue(Schema, String)}
-   * @param pathList passed from {@link #getFieldValue(Schema, String)}
+   * @param schema passed from {@link #getFieldSchema(Schema, String)}
+   * @param pathList passed from {@link #getFieldSchema(Schema, String)}
    * @param field keeps track of the index used to access the list pathList
    * @return the schema of the field
    */
   private static Optional<Schema> getFieldSchemaHelper(Schema schema, List<String> pathList, int field) {
-    if (schema.getField(pathList.get(field)) == null) {
+    if (schema.getType() == Type.RECORD && schema.getField(pathList.get(field)) == null) {
       return Optional.absent();
     }
-    if ((field + 1) == pathList.size()) {
-      return Optional.fromNullable(schema.getField(pathList.get(field)).schema());
+    switch (schema.getType()) {
+      case UNION:
+        throw new AvroRuntimeException("Union of complex types cannot be handled : " + schema);
+      case MAP:
+        if ((field + 1) == pathList.size()) {
+          return Optional.fromNullable(schema.getValueType());
+        }
+        return AvroUtils.getFieldSchemaHelper(schema.getValueType(), pathList, ++field);
+      case RECORD:
+        if ((field + 1) == pathList.size()) {
+          return Optional.fromNullable(schema.getField(pathList.get(field)).schema());
+        }
+        return AvroUtils.getFieldSchemaHelper(schema.getField(pathList.get(field)).schema(), pathList, ++field);
+      default:
+        throw new AvroRuntimeException("Invalid type in schema : " + schema);
     }
-    return AvroUtils.getFieldSchemaHelper(schema.getField(pathList.get(field)).schema(), pathList, ++field);
   }
 
   /**
@@ -149,7 +162,7 @@ public class AvroUtils {
 
     if ((field + 1) == pathList.size()) {
       if (data instanceof Map) {
-        return getObjectFromMap((Map) data, pathList.get(field));
+        return Optional.fromNullable(getObjectFromMap((Map) data, pathList.get(field)));
       }
       return Optional.fromNullable(((Record) data).get(pathList.get(field)));
     }
@@ -167,9 +180,9 @@ public class AvroUtils {
    * @return This could again be a GenericRecord
    */
 
-  private static Optional<Object> getObjectFromMap(Map map, String key) {
+  private static Object getObjectFromMap(Map map, String key) {
     Utf8 utf8Key = new Utf8(key);
-    return Optional.fromNullable(map.get(utf8Key));
+    return map.get(utf8Key);
   }
 
   /**
