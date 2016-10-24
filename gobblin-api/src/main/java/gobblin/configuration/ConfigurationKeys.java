@@ -444,6 +444,8 @@ public class ConfigurationKeys {
    * Configuration properties used by the Hadoop MR job launcher.
    */
   public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
+  /** Specifies a static location in HDFS to upload jars to. Useful for sharing jars across different Gobblin runs.*/
+  public static final String MR_JARS_DIR = "mr.jars.dir";
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
   public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
   public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
@@ -636,5 +638,4 @@ public class ConfigurationKeys {
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
   public static final int PERMISSION_PARSING_RADIX = 8;
-
 }

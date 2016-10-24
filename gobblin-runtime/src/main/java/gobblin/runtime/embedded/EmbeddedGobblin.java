@@ -17,6 +17,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -24,25 +25,42 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.avro.SchemaBuilder;
+import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.util.ClassUtil;
 import org.joda.time.Period;
+import org.joda.time.ReadableInstant;
 import org.slf4j.Logger;
 
+import com.codahale.metrics.MetricFilter;
+import com.github.rholder.retry.RetryListener;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.escape.Escaper;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.linkedin.data.template.DataTemplate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.metastore.FsStateStore;
+import gobblin.metrics.MetricContext;
 import gobblin.runtime.JobLauncherFactory;
+import gobblin.runtime.Task;
+import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceDriver;
+import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionResult;
@@ -53,10 +71,13 @@ import gobblin.runtime.cli.ConstructorAndPublicMethodsToCliHelper;
 import gobblin.runtime.cli.EmbeddedGobblinCliFactory;
 import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
 import gobblin.runtime.cli.NotOnCli;
+import gobblin.runtime.instance.SimpleGobblinInstanceEnvironment;
 import gobblin.runtime.instance.StandardGobblinInstanceDriver;
 import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import gobblin.runtime.job_catalog.StaticJobCatalog;
+import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
+import gobblin.util.PathUtils;
 
 import javax.annotation.Nullable;
 import lombok.AccessLevel;
@@ -99,7 +120,10 @@ public class EmbeddedGobblin {
   private final JobSpec.Builder specBuilder;
   private final Map<String, String> userConfigMap;
   private final Map<String, String> builtConfigMap;
-  private final Config defaultFallback;
+  private final Config defaultSysConfig;
+  private final Map<String, String> sysConfigOverrides;
+  private final Set<String> distributedJars;
+  private Runnable distributeJarsFunction;
   private JobTemplate template;
   private Logger useLog = log;
   private FullTimeout launchTimeout = new FullTimeout(10, TimeUnit.SECONDS);
@@ -115,15 +139,41 @@ public class EmbeddedGobblin {
     this.specBuilder = new JobSpec.Builder(name);
     this.userConfigMap = Maps.newHashMap();
     this.builtConfigMap = Maps.newHashMap();
-    this.defaultFallback = getDefaultFallback();
+    this.sysConfigOverrides = Maps.newHashMap();
+    this.defaultSysConfig = getDefaultSysConfig();
+    this.distributedJars = getCoreGobblinJars();
+    this.distributeJarsFunction = new Runnable() {
+      @Override
+      public void run() {
+        // NOOP
+      }
+    };
   }
 
   /**
    * Specify job should run in MR mode.
    */
   public EmbeddedGobblin mrMode() throws IOException {
-    this.userConfigMap.put(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.MAPREDUCE.name());
+    this.sysConfigOverrides.put(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.MAPREDUCE.name());
+    this.sysConfigOverrides.put(ConfigurationKeys.MR_JARS_DIR, "/tmp/EmbeddedGobblin/_jars");
     this.builtConfigMap.put(ConfigurationKeys.FS_URI_KEY, FileSystem.get(new Configuration()).getUri().toString());
+    this.builtConfigMap.put(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY, "/tmp/EmbeddedGobblin_" + System.currentTimeMillis());
+    this.distributeJarsFunction = new Runnable() {
+      @Override
+      public void run() {
+        // Add jars needed at runtime to the sys config so MR job launcher will add them to distributed cache.
+        EmbeddedGobblin.this.sysConfigOverrides.put(ConfigurationKeys.JOB_JAR_FILES_KEY,
+            Joiner.on(",").join(EmbeddedGobblin.this.distributedJars));
+      }
+    };
+    return this;
+  }
+
+  /**
+   * Specify that the input jar should be added to workers' classpath on distributed mode.
+   */
+  public EmbeddedGobblin distributeJar(String jarPath) {
+    this.distributedJars.add(jarPath);
     return this;
   }
 
@@ -211,8 +261,8 @@ public class EmbeddedGobblin {
    * This is the base {@link Config} used for the job, containing all default configurations. Subclasses can override
    * default configurations (for example setting a particular {@link gobblin.runtime.JobLauncherFactory.JobLauncherType}.
    */
-  protected Config getDefaultFallback() {
-    return ConfigFactory.load("embedded/embedded.conf");
+  protected Config getDefaultSysConfig() {
+    return ConfigFactory.parseResources("embedded/embedded.conf");
   }
 
   /**
@@ -232,9 +282,13 @@ public class EmbeddedGobblin {
    */
   @NotOnCli
   public JobExecutionDriver runAsync() throws TimeoutException, InterruptedException {
+    // Run function to distribute jars to workers in distributed mode
+    this.distributeJarsFunction.run();
+
     Config finalConfig = ConfigFactory.parseMap(this.userConfigMap)
         .withFallback(ConfigFactory.parseMap(this.builtConfigMap))
-        .withFallback(this.defaultFallback);
+        .withFallback(this.defaultSysConfig);
+
     if (this.template != null) {
       try {
         finalConfig = this.template.getResolvedConfig(finalConfig);
@@ -242,10 +296,17 @@ public class EmbeddedGobblin {
         throw new RuntimeException(exc);
       }
     }
+    finalConfig = finalConfig.resolve();
+
     this.specBuilder.withConfig(finalConfig);
 
     final JobCatalog jobCatalog = new StaticJobCatalog(Optional.of(this.useLog), Lists.newArrayList(this.specBuilder.build()));
-    final GobblinInstanceDriver driver = new StandardGobblinInstanceDriver.Builder().withLog(this.useLog)
+
+    SimpleGobblinInstanceEnvironment instanceEnvironment =
+        new SimpleGobblinInstanceEnvironment("EmbeddedGobblinInstance", this.useLog, getSysConfig());
+
+    final GobblinInstanceDriver driver =
+        new StandardGobblinInstanceDriver.Builder(Optional.<GobblinInstanceEnvironment>of(instanceEnvironment)).withLog(this.useLog)
         .withJobCatalog(jobCatalog)
         .withImmediateJobScheduler()
         .build();
@@ -286,6 +347,32 @@ public class EmbeddedGobblin {
     });
 
     return listener.getJobDriver();
+  }
+
+  private Configurable getSysConfig() {
+    return DefaultConfigurableImpl.createFromConfig(ConfigFactory.parseMap(this.sysConfigOverrides).withFallback(this.defaultSysConfig));
+  }
+
+  /**
+   * This returns the set of jars required by a basic Gobblin ingestion job. In general, these need to be distributed
+   * to workers in a distributed environment.
+   */
+  private Set<String> getCoreGobblinJars() {
+    String gobblinApiJar = ClassUtil.findContainingJar(State.class);
+    String gobblinCoreJar = ClassUtil.findContainingJar(Constructs.class);
+    String gobblinMetricsJar = ClassUtil.findContainingJar(MetricContext.class);
+    String gobblinMetastoreJar = ClassUtil.findContainingJar(FsStateStore.class);
+    String gobblinRuntimeJar = ClassUtil.findContainingJar(Task.class);
+    String gobblinUtilityJar = ClassUtil.findContainingJar(PathUtils.class);
+    String jodaTimeJar = ClassUtil.findContainingJar(ReadableInstant.class);
+    String guavaJar = ClassUtil.findContainingJar(Escaper.class); // Escaper was added in guava 15, so we use it to identify correct jar
+    String dropwizardMetricsJar = ClassUtil.findContainingJar(MetricFilter.class);
+    String pegasusJar = ClassUtil.findContainingJar(DataTemplate.class);
+    String commons3Jar = ClassUtil.findContainingJar(ClassUtils.class);
+    String avroJar = ClassUtil.findContainingJar(SchemaBuilder.class);
+    String retryJar = ClassUtil.findContainingJar(RetryListener.class);
+    return Sets.newHashSet(gobblinApiJar, gobblinCoreJar, gobblinMetricsJar, gobblinMetastoreJar, gobblinRuntimeJar,
+        gobblinUtilityJar, jodaTimeJar, guavaJar, dropwizardMetricsJar, pegasusJar, commons3Jar, avroJar, retryJar);
   }
 
   /**
