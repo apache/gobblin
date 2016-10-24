@@ -357,6 +357,9 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     /** Parent Gobblin instance */
     public Launcher withGobblinInstanceEnvironment(GobblinInstanceEnvironment gobblinInstance) {
       _gobblinEnv = Optional.of(gobblinInstance);
+      if (!_sysConfig.isPresent()) {
+        _sysConfig = Optional.of(gobblinInstance.getSysConfig());
+      }
       return this;
     }
 
