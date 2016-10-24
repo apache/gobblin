@@ -24,6 +24,8 @@ import java.io.IOException;
 
 import org.apache.avro.generic.GenericRecord;
 
+import com.google.common.base.Preconditions;
+
 import org.kitesdk.data.Dataset;
 import org.kitesdk.data.DatasetWriter;
 
@@ -64,6 +66,8 @@ public class PNDAKiteWriter implements DataWriter<GenericRecord> {
      */
     @Override
     public final void write(GenericRecord record) throws IOException {
+        Preconditions.checkNotNull(record);
+
         this.writer.write(record);
         this.recordsWritten++;
     }

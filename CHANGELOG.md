@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Added
+- Basic checks on PNDA message after deserialization
+
 ## [0.1.1] 2016-09-13
 ### Changes
 - Enhanced CI support
