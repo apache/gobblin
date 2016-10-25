@@ -62,7 +62,7 @@ public class TestDefaultGobblinInstanceDriverImpl {
     JobSpec js1_2 = JobSpec.builder("test.job1").withVersion("2").build();
     JobSpec js2 = JobSpec.builder("test.job2").withVersion("1").build();
 
-    driver.startAsync().awaitRunning(100, TimeUnit.MILLISECONDS);
+    driver.startAsync().awaitRunning(1000, TimeUnit.MILLISECONDS);
     long startTimeMs = System.currentTimeMillis();
     Assert.assertTrue(driver.isRunning());
     Assert.assertTrue(driver.isInstrumentationEnabled());
