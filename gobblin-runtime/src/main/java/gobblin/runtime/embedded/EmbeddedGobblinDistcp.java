@@ -15,15 +15,18 @@ package gobblin.runtime.embedded;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 import org.apache.hadoop.fs.Path;
 
 import gobblin.annotation.Alias;
 import gobblin.data.management.copy.RecursiveCopyableDataset;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.cli.EmbeddedGobblinCliFactory;
 import gobblin.runtime.cli.EmbeddedGobblinCliOption;
-import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
 import gobblin.runtime.cli.NotOnCli;
+import gobblin.runtime.cli.PublicMethodsToCliHelper;
 import gobblin.runtime.template.ResourceBasedJobTemplate;
 
 
@@ -32,12 +35,39 @@ import gobblin.runtime.template.ResourceBasedJobTemplate;
  * Usage:
  * new EmbeddedGobblinDistcp(new Path("/source"), new Path("/dest")).run();
  */
-@Alias(value = "distcp", description = "Distributed copy between Hadoop compatibly file systems.")
 public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
 
-  @EmbeddedGobblinCliSupport(argumentNames = {"from", "to"})
-  public EmbeddedGobblinDistcp(String from, String to) throws JobTemplate.TemplateException, IOException {
-    this(new Path(from), new Path(to));
+  @Alias(value = "distcp", description = "Distributed copy between Hadoop compatibly file systems.")
+  public static class CliFactory implements EmbeddedGobblinCliFactory {
+
+    PublicMethodsToCliHelper helper = new PublicMethodsToCliHelper(EmbeddedGobblinDistcp.class);
+
+    @Override
+    public Options getOptions() {
+      return this.helper.getOptions();
+    }
+
+    @Override
+    public EmbeddedGobblin buildEmbeddedGobblin(CommandLine cli) {
+      String[] leftoverArgs = cli.getArgs();
+      if (leftoverArgs.length != 2) {
+        throw new RuntimeException("Unexpected number of arguments.");
+      }
+      try {
+        Path from = new Path(leftoverArgs[0]);
+        Path to = new Path(leftoverArgs[1]);
+        EmbeddedGobblinDistcp embeddedGobblin = new EmbeddedGobblinDistcp(from, to);
+        this.helper.applyCommandLineOptions(cli, embeddedGobblin);
+        return embeddedGobblin;
+      } catch (IOException | JobTemplate.TemplateException exc) {
+        throw new RuntimeException("Could not instantiate " + EmbeddedGobblinDistcp.class.getSimpleName(), exc);
+      }
+    }
+
+    @Override
+    public String getUsageString() {
+      return "[OPTIONS] <source> <target>";
+    }
   }
 
   public EmbeddedGobblinDistcp(Path from, Path to) throws JobTemplate.TemplateException, IOException {

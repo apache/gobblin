@@ -24,6 +24,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.joda.time.Period;
@@ -47,6 +49,8 @@ import gobblin.runtime.api.JobExecutionResult;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.cli.ConstructorAndPublicMethodsToCliHelper;
+import gobblin.runtime.cli.EmbeddedGobblinCliFactory;
 import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
 import gobblin.runtime.cli.NotOnCli;
 import gobblin.runtime.instance.StandardGobblinInstanceDriver;
@@ -70,6 +74,25 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class EmbeddedGobblin {
+
+  public static class CliFactory implements EmbeddedGobblinCliFactory {
+    private final ConstructorAndPublicMethodsToCliHelper helper = new ConstructorAndPublicMethodsToCliHelper(EmbeddedGobblin.class);
+
+    @Override
+    public Options getOptions() {
+      return this.helper.getOptions();
+    }
+
+    @Override
+    public EmbeddedGobblin buildEmbeddedGobblin(CommandLine cli) {
+      return this.helper.buildInstance(cli);
+    }
+
+    @Override
+    public String getUsageString() {
+      return "-jobName <jobName> [OPTIONS]";
+    }
+  }
 
   private static final Splitter KEY_VALUE_SPLITTER = Splitter.on(":").limit(2);
 

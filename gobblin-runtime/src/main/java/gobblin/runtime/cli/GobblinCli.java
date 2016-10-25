@@ -12,6 +12,8 @@
 
 package gobblin.runtime.cli;
 
+import com.google.common.collect.Sets;
+
 import gobblin.annotation.Alias;
 import gobblin.util.ClassAliasResolver;
 
@@ -24,12 +26,8 @@ public class GobblinCli {
   public static void main(String[] args) {
     ClassAliasResolver<CliApplication> resolver = new ClassAliasResolver<>(CliApplication.class);
 
-    if (args.length < 1) {
-      System.out.println("Usage: gobblin <command>");
-      System.out.println("Available commands:");
-      for (Alias alias : resolver.getAliasObjects()) {
-        System.out.println("\t" + alias.value() + "\t" + alias.description());
-      }
+    if (args.length < 1 || Sets.newHashSet("-h", "--help").contains(args[0])) {
+      printUsage(resolver);
       return;
     }
 
@@ -39,7 +37,16 @@ public class GobblinCli {
       CliApplication application = resolver.resolveClass(alias).newInstance();
       application.run(args);
     } catch (ReflectiveOperationException roe) {
-      throw new RuntimeException("Could not find an application with alias " + alias);
+      System.err.println("Could not find an application with alias " + alias);
+      printUsage(resolver);
+    }
+  }
+
+  private static void printUsage(ClassAliasResolver<CliApplication> resolver) {
+    System.out.println("Usage: gobblin <command>");
+    System.out.println("Available commands:");
+    for (Alias alias : resolver.getAliasObjects()) {
+      System.out.println("\t" + alias.value() + "\t" + alias.description());
     }
   }
 
