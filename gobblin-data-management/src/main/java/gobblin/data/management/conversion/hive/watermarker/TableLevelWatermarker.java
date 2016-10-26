@@ -73,7 +73,7 @@ public class TableLevelWatermarker implements HiveSourceWatermarker {
           this.tableWatermarks.put(datasetWorkUnitStates.getKey(), Collections.min(previousWatermarks));
         }
       }
-      log.info("Loaded table watermarks from previous state " + this.tableWatermarks);
+      log.debug("Loaded table watermarks from previous state " + this.tableWatermarks);
     }
   }
 
