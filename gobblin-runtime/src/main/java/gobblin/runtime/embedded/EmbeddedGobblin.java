@@ -24,6 +24,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.joda.time.Period;
@@ -47,6 +49,10 @@ import gobblin.runtime.api.JobExecutionResult;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.cli.ConstructorAndPublicMethodsToCliHelper;
+import gobblin.runtime.cli.EmbeddedGobblinCliFactory;
+import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
+import gobblin.runtime.cli.NotOnCli;
 import gobblin.runtime.instance.StandardGobblinInstanceDriver;
 import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import gobblin.runtime.job_catalog.StaticJobCatalog;
@@ -69,6 +75,25 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class EmbeddedGobblin {
 
+  public static class CliFactory implements EmbeddedGobblinCliFactory {
+    private final ConstructorAndPublicMethodsToCliHelper helper = new ConstructorAndPublicMethodsToCliHelper(EmbeddedGobblin.class);
+
+    @Override
+    public Options getOptions() {
+      return this.helper.getOptions();
+    }
+
+    @Override
+    public EmbeddedGobblin buildEmbeddedGobblin(CommandLine cli) {
+      return this.helper.buildInstance(cli);
+    }
+
+    @Override
+    public String getUsageString() {
+      return "-jobName <jobName> [OPTIONS]";
+    }
+  }
+
   private static final Splitter KEY_VALUE_SPLITTER = Splitter.on(":").limit(2);
 
   private final JobSpec.Builder specBuilder;
@@ -81,6 +106,11 @@ public class EmbeddedGobblin {
   private FullTimeout jobTimeout = new FullTimeout(10, TimeUnit.DAYS);
   private FullTimeout shutdownTimeout = new FullTimeout(10, TimeUnit.SECONDS);
 
+  public EmbeddedGobblin() {
+    this("EmbeddedGobblin");
+  }
+
+  @EmbeddedGobblinCliSupport(argumentNames = {"jobName"})
   public EmbeddedGobblin(String name) {
     this.specBuilder = new JobSpec.Builder(name);
     this.userConfigMap = Maps.newHashMap();
@@ -189,6 +219,7 @@ public class EmbeddedGobblin {
    * Run the Gobblin job. This call will block until the job is done.
    * @return a {@link JobExecutionResult} containing the result of the execution.
    */
+  @NotOnCli
   public JobExecutionResult run() throws InterruptedException, TimeoutException, ExecutionException {
     JobExecutionDriver jobDriver = runAsync();
     return jobDriver.get(this.jobTimeout.getTimeout(), this.jobTimeout.getTimeUnit());
@@ -199,6 +230,7 @@ public class EmbeddedGobblin {
    * @return a {@link JobExecutionDriver}. This object is a future that will resolve when the Gobblin job finishes.
    * @throws TimeoutException if the Gobblin job does not start within the launch timeout.
    */
+  @NotOnCli
   public JobExecutionDriver runAsync() throws TimeoutException, InterruptedException {
     Config finalConfig = ConfigFactory.parseMap(this.userConfigMap)
         .withFallback(ConfigFactory.parseMap(this.builtConfigMap))

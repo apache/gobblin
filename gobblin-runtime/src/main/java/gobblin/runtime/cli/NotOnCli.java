@@ -9,22 +9,18 @@
  * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
  * CONDITIONS OF ANY KIND, either express or implied.
  */
-package gobblin.annotation;
 
-import java.lang.annotation.Documented;
+package gobblin.runtime.cli;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+
 /**
- * Denotes that a class has an alias.
+ * Specifies that the annotated method should not be offered as an option in the CLI.
  */
-@Documented @Retention(value=RetentionPolicy.RUNTIME) @Target(value=ElementType.TYPE)
-public @interface Alias {
-  /**
-   * Alias for that class
-   */
-  public String value();
-  public String description() default "";
+@Retention(value= RetentionPolicy.RUNTIME) @Target(value= {ElementType.METHOD})
+public @interface NotOnCli {
 }
