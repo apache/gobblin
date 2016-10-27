@@ -33,6 +33,7 @@ import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.test.TestExtractor;
 import gobblin.test.TestSource;
+import gobblin.util.ClusterNameTags;
 import gobblin.util.JobLauncherUtils;
 
 
@@ -58,13 +59,20 @@ public class JobLauncherTestHelper {
     String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
+    JobContext jobContext = null;
     Closer closer = Closer.create();
     try {
       JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
       jobLauncher.launchJob(null);
+      jobContext = ((AbstractJobLauncher) jobLauncher).getJobContext();
     } finally {
       closer.close();
     }
+
+    Assert.assertTrue(jobContext.getJobMetricsOptional().isPresent());
+    String jobMetricContextTags = jobContext.getJobMetricsOptional().get().getMetricContext().getTags().toString();
+    Assert.assertTrue(jobMetricContextTags.contains(ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME),
+        ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME + " tag missing in job metric context tags.");
 
     List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
     DatasetState datasetState = datasetStateList.get(0);

@@ -124,6 +124,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
+    // Add clusterIdentifier tag so that it is added to any new TaskState created
+    List<Tag<?>> clusterNameTags = Lists.newArrayList();
+    clusterNameTags.addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()));
+    GobblinMetrics.addCustomTagsToProperties(jobProps, clusterNameTags);
+
     // Make a copy for both the system and job configuration properties
     this.jobProps = new Properties();
     this.jobProps.putAll(jobProps);
@@ -142,7 +147,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           }
         });
 
-    metadataTags = addClusterNameTags(metadataTags);
     this.eventSubmitter = buildEventSubmitter(metadataTags);
 
     // Add all custom tags to the JobState so that tags are added to any new TaskState created
@@ -157,6 +161,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               String.format("Previous instance of job %s is still running, skipping this scheduled run",
                             this.jobContext.getJobName()));
     }
+  }
+
+  /**
+   * The JobContext of the particular job.
+   *
+   * @return {@link JobContext} of the job
+   */
+  JobContext getJobContext() {
+    return this.jobContext;
   }
 
   /**
