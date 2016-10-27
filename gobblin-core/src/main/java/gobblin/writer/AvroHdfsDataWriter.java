@@ -111,4 +111,9 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
     // Open the file and return the DataFileWriter
     return writer.create(this.schema, this.stagingFileOutputStream);
   }
+
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    return this.writerAttemptIdOptional.isPresent() && this.getClass() == AvroHdfsDataWriter.class;
+  }
 }

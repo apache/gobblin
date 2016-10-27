@@ -36,7 +36,7 @@ public class FileAwareInputStreamDataWriterBuilder extends DataWriterBuilder<Str
   }
 
   protected DataWriter<FileAwareInputStream> buildWriter() throws IOException {
-    return new FileAwareInputStreamDataWriter(this.destination.getProperties(), this.branches, this.branch);
+    return new FileAwareInputStreamDataWriter(this.destination.getProperties(), this.branches, this.branch, this.writerAttemptId);
   }
 
   /**

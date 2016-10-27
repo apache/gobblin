@@ -30,6 +30,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.io.Closer;
 
+import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
@@ -46,7 +47,7 @@ import gobblin.writer.partitioner.WriterPartitioner;
  * @param <D> record type.
  */
 @Slf4j
-public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
+public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
 
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
@@ -58,41 +59,46 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
   private final Optional<PartitionAwareDataWriterBuilder> builder;
   private final boolean shouldPartition;
   private final Closer closer;
+  private boolean isSpeculativeAttemptSafe;
 
-  public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state) throws IOException {
-
+  public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state)
+      throws IOException {
+    this.isSpeculativeAttemptSafe = true;
     this.baseWriterId = builder.getWriterId();
     this.closer = Closer.create();
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
-      public DataWriter<D> load(final GenericRecord key) throws Exception {
+      public DataWriter<D> load(final GenericRecord key)
+          throws Exception {
         return PartitionedDataWriter.this.closer
             .register(new InstrumentedPartitionedDataWriterDecorator<>(createPartitionWriter(key), state, key));
       }
     });
 
     if (state.contains(ConfigurationKeys.WRITER_PARTITIONER_CLASS)) {
-      Preconditions.checkArgument(builder instanceof PartitionAwareDataWriterBuilder,
-          String.format("%s was specified but the writer %s does not support partitioning.",
-              ConfigurationKeys.WRITER_PARTITIONER_CLASS, builder.getClass().getCanonicalName()));
+      Preconditions.checkArgument(builder instanceof PartitionAwareDataWriterBuilder, String
+              .format("%s was specified but the writer %s does not support partitioning.",
+                  ConfigurationKeys.WRITER_PARTITIONER_CLASS, builder.getClass().getCanonicalName()));
 
       try {
         this.shouldPartition = true;
         this.builder = Optional.of(PartitionAwareDataWriterBuilder.class.cast(builder));
-        this.partitioner = Optional.of(WriterPartitioner.class.cast(
-            ConstructorUtils.invokeConstructor(Class.forName(state.getProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS)),
-                state, builder.getBranches(), builder.getBranch())));
-        Preconditions.checkArgument(
-            this.builder.get().validatePartitionSchema(this.partitioner.get().partitionSchema()),
-            String.format("Writer %s does not support schema from partitioner %s",
-                builder.getClass().getCanonicalName(), this.partitioner.getClass().getCanonicalName()));
+        this.partitioner = Optional.of(WriterPartitioner.class.cast(ConstructorUtils
+                .invokeConstructor(Class.forName(state.getProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS)), state,
+                    builder.getBranches(), builder.getBranch())));
+        Preconditions
+            .checkArgument(this.builder.get().validatePartitionSchema(this.partitioner.get().partitionSchema()), String
+                    .format("Writer %s does not support schema from partitioner %s",
+                        builder.getClass().getCanonicalName(), this.partitioner.getClass().getCanonicalName()));
       } catch (ReflectiveOperationException roe) {
         throw new IOException(roe);
       }
     } else {
       this.shouldPartition = false;
+      DataWriter<D> dataWriter = builder.build();
       InstrumentedDataWriterDecorator<D> writer =
-          this.closer.register(new InstrumentedDataWriterDecorator<>(builder.build(), state));
+          this.closer.register(new InstrumentedDataWriterDecorator<>(dataWriter, state));
+      this.isSpeculativeAttemptSafe = this.isDataWriterForPartitionSafe(dataWriter);
       this.partitionWriters.put(NON_PARTITIONED_WRITER_KEY, writer);
       this.partitioner = Optional.absent();
       this.builder = Optional.absent();
@@ -100,7 +106,8 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
   }
 
   @Override
-  public void write(D record) throws IOException {
+  public void write(D record)
+      throws IOException {
     try {
       GenericRecord partition =
           this.shouldPartition ? this.partitioner.get().partitionForRecord(record) : NON_PARTITIONED_WRITER_KEY;
@@ -112,7 +119,8 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
   }
 
   @Override
-  public void commit() throws IOException {
+  public void commit()
+      throws IOException {
     int writersCommitted = 0;
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
       try {
@@ -128,7 +136,8 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
   }
 
   @Override
-  public void cleanup() throws IOException {
+  public void cleanup()
+      throws IOException {
     int writersCleanedUp = 0;
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
       try {
@@ -153,7 +162,8 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
   }
 
   @Override
-  public long bytesWritten() throws IOException {
+  public long bytesWritten()
+      throws IOException {
     long totalBytes = 0;
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
       totalBytes += entry.getValue().bytesWritten();
@@ -162,16 +172,20 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     this.closer.close();
   }
 
-  private DataWriter<D> createPartitionWriter(GenericRecord partition) throws IOException {
+  private DataWriter<D> createPartitionWriter(GenericRecord partition)
+      throws IOException {
     if (!this.builder.isPresent()) {
       throw new IOException("Writer builder not found. This is an error in the code.");
     }
-    return this.builder.get().forPartition(partition).withWriterId(this.baseWriterId + "_" + this.writerIdSuffix++)
+    DataWriter dataWriter =  this.builder.get().forPartition(partition).withWriterId(this.baseWriterId + "_" + this.writerIdSuffix++)
         .build();
+    this.isSpeculativeAttemptSafe = this.isSpeculativeAttemptSafe && this.isDataWriterForPartitionSafe(dataWriter);
+    return dataWriter;
   }
 
   @Override
@@ -203,5 +217,15 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState {
       // Omit property instead of failing.
     }
     return state;
+  }
+
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    return this.isSpeculativeAttemptSafe;
+  }
+
+  private boolean isDataWriterForPartitionSafe(DataWriter dataWriter) {
+    return dataWriter instanceof  SpeculativeAttemptAwareConstruct
+        && ((SpeculativeAttemptAwareConstruct) dataWriter).isSpeculativeAttemptSafe();
   }
 }

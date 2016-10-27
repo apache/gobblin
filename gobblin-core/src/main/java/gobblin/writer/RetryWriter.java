@@ -11,6 +11,7 @@
  */
 package gobblin.writer;
 
+import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
@@ -39,7 +40,7 @@ import com.google.common.base.Predicate;
  * Retry writer follows decorator pattern that retries on inner writer's failure.
  * @param <D>
  */
-public class RetryWriter<D> implements DataWriter<D> {
+public class RetryWriter<D> implements DataWriter<D>, SpeculativeAttemptAwareConstruct {
   private static final Logger LOG = LoggerFactory.getLogger(RetryWriter.class);
   public static final String RETRY_CONF_PREFIX = "gobblin.writer.retry.";
   public static final String FAILED_RETRY_WRITES_METER = RETRY_CONF_PREFIX + "failed_writes";
@@ -162,5 +163,13 @@ public class RetryWriter<D> implements DataWriter<D> {
         .retryIfException(transients)
         .withWaitStrategy(WaitStrategies.exponentialWait(multiplier, maxWaitMsPerInterval, TimeUnit.MILLISECONDS)) //1, 2, 4, 8, 16 seconds delay
         .withStopStrategy(StopStrategies.stopAfterAttempt(maxAttempts)); //Total 5 attempts and fail.
+  }
+
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    if (this.writer instanceof SpeculativeAttemptAwareConstruct) {
+      return ((SpeculativeAttemptAwareConstruct)this.writer).isSpeculativeAttemptSafe();
+    }
+    return false;
   }
 }

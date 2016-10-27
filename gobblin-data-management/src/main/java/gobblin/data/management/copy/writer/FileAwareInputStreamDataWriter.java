@@ -12,35 +12,12 @@
 
 package gobblin.data.management.copy.writer;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
-import gobblin.data.management.copy.CopySource;
-import gobblin.data.management.copy.CopyableDatasetMetadata;
-import gobblin.data.management.copy.CopyEntity;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.data.management.copy.OwnerAndPermission;
-import gobblin.data.management.copy.PreserveAttributes;
-import gobblin.data.management.copy.recovery.RecoveryHelper;
-import gobblin.instrumented.writer.InstrumentedDataWriter;
-import gobblin.state.ConstructState;
-import gobblin.util.FinalState;
-import gobblin.util.PathUtils;
-import gobblin.util.FileListUtils;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.util.WriterUtils;
-import gobblin.util.io.StreamCopier;
-import gobblin.util.io.StreamUtils;
-import gobblin.writer.DataWriter;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -58,12 +35,35 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.google.common.io.Closer;
 
+import gobblin.commit.SpeculativeAttemptAwareConstruct;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.data.management.copy.CopyEntity;
+import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.FileAwareInputStream;
+import gobblin.data.management.copy.OwnerAndPermission;
+import gobblin.data.management.copy.PreserveAttributes;
+import gobblin.data.management.copy.recovery.RecoveryHelper;
+import gobblin.instrumented.writer.InstrumentedDataWriter;
+import gobblin.state.ConstructState;
+import gobblin.util.FileListUtils;
+import gobblin.util.FinalState;
+import gobblin.util.ForkOperatorUtils;
+import gobblin.util.PathUtils;
+import gobblin.util.WriterUtils;
+import gobblin.util.io.StreamCopier;
+import gobblin.writer.DataWriter;
+
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * A {@link DataWriter} to write {@link FileAwareInputStream}
  */
 @Slf4j
-public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileAwareInputStream> implements FinalState {
+public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileAwareInputStream> implements FinalState, SpeculativeAttemptAwareConstruct {
 
   public static final String GOBBLIN_COPY_BYTES_COPIED_METER = "gobblin.copy.bytesCopiedMeter";
 
@@ -79,6 +79,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   protected final Meter copySpeedMeter;
 
+  protected final Optional<String> writerAttemptIdOptional;
   /**
    * The copyable file in the WorkUnit might be modified by converters (e.g. output extensions added / removed).
    * This field is set when {@link #write} is called, and points to the actual, possibly modified {@link gobblin.data.management.copy.CopyEntity}
@@ -86,7 +87,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    */
   protected Optional<CopyableFile> actualProcessedCopyableFile;
 
-  public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId) throws IOException {
+  public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId, String writerAttemptId)
+      throws IOException {
     super(state);
 
     if (numBranches > 1) {
@@ -94,13 +96,16 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
 
     this.state = state;
+    this.writerAttemptIdOptional = Optional.fromNullable(writerAttemptId);
 
     String uri = this.state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
         ConfigurationKeys.LOCAL_FS_URI);
 
     this.fs = FileSystem.get(URI.create(uri), new Configuration());
-    this.stagingDir = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
+    this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
+        .getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
+        : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
     this.outputDir = getOutputDir(state);
     this.copyableDatasetMetadata =
         CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
@@ -110,8 +115,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
   }
 
+  public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
+      throws IOException {
+    this(state, numBranches, branchId, null);
+  }
+
   @Override
-  public final void writeImpl(FileAwareInputStream fileAwareInputStream) throws IOException {
+  public final void writeImpl(FileAwareInputStream fileAwareInputStream)
+      throws IOException {
     CopyableFile copyableFile = fileAwareInputStream.getFile();
     Path stagingFile = getStagingFilePath(copyableFile);
     if (this.actualProcessedCopyableFile.isPresent()) {
@@ -138,12 +149,15 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    * @param copyableFile {@link gobblin.data.management.copy.CopyEntity} that generated this copy operation.
    * @throws IOException
    */
-  protected void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
+  protected void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile)
+      throws IOException {
 
-    final short replication = copyableFile.getPreserve().preserve(PreserveAttributes.Option.REPLICATION)
-        ? copyableFile.getOrigin().getReplication() : this.fs.getDefaultReplication(writeAt);
-    final long blockSize = copyableFile.getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE)
-        ? copyableFile.getOrigin().getBlockSize() : this.fs.getDefaultBlockSize(writeAt);
+    final short replication =
+        copyableFile.getPreserve().preserve(PreserveAttributes.Option.REPLICATION) ? copyableFile.getOrigin()
+            .getReplication() : this.fs.getDefaultReplication(writeAt);
+    final long blockSize =
+        copyableFile.getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE) ? copyableFile.getOrigin()
+            .getBlockSize() : this.fs.getDefaultBlockSize(writeAt);
 
     Predicate<FileStatus> fileStatusAttributesFilter = new Predicate<FileStatus>() {
       @Override
@@ -168,7 +182,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         }
         this.bytesWritten.addAndGet(copier.copy());
         if (isInstrumentationEnabled()) {
-          log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(), this.copySpeedMeter.getCount(), this.copySpeedMeter.getMeanRate());
+          log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(),
+              this.copySpeedMeter.getCount(), this.copySpeedMeter.getMeanRate());
         } else {
           log.info("File {} copied.", copyableFile.getOrigin().getPath());
         }
@@ -182,7 +197,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   /**
    * Sets the owner/group and permission for the file in the task staging directory
    */
-  protected void setFilePermissions(CopyableFile file) throws IOException {
+  protected void setFilePermissions(CopyableFile file)
+      throws IOException {
     setRecursivePermission(getStagingFilePath(file), file.getDestinationOwnerAndPermission());
   }
 
@@ -230,14 +246,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     } catch (IOException ioe) {
       log.warn("Failed to set owner and/or group for path " + path, ioe);
     }
-
   }
 
   /**
    * Sets the {@link FsPermission}, owner, group for the path passed. And recursively to all directories and files under
    * it.
    */
-  private void setRecursivePermission(Path path, OwnerAndPermission ownerAndPermission) throws IOException {
+  private void setRecursivePermission(Path path, OwnerAndPermission ownerAndPermission)
+      throws IOException {
     List<FileStatus> files = FileListUtils.listPathsRecursively(this.fs, path, FileListUtils.NO_OP_PATH_FILTER);
 
     // Set permissions bottom up. Permissions are set to files first and then directories
@@ -265,7 +281,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
     return new OwnerAndPermission(ownerAndPermission.getOwner(), ownerAndPermission.getGroup(),
         addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
-
   }
 
   static FsPermission addExecutePermissionToOwner(FsPermission fsPermission) {
@@ -279,12 +294,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   }
 
   @Override
-  public long bytesWritten() throws IOException {
+  public long bytesWritten()
+      throws IOException {
     return this.bytesWritten.get();
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     this.closer.close();
   }
 
@@ -297,7 +314,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    * @see gobblin.writer.DataWriter#commit()
    */
   @Override
-  public void commit() throws IOException {
+  public void commit()
+      throws IOException {
 
     if (!this.actualProcessedCopyableFile.isPresent()) {
       return;
@@ -312,8 +330,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     try {
       setFilePermissions(copyableFile);
 
-      Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt = copyableFile.getAncestorsOwnerAndPermission() == null
-          ? Iterators.<OwnerAndPermission> emptyIterator() : copyableFile.getAncestorsOwnerAndPermission().iterator();
+      Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt =
+          copyableFile.getAncestorsOwnerAndPermission() == null ? Iterators.<OwnerAndPermission>emptyIterator()
+              : copyableFile.getAncestorsOwnerAndPermission().iterator();
 
       ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt);
 
@@ -370,7 +389,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   }
 
   @Override
-  public void cleanup() throws IOException {
+  public void cleanup()
+      throws IOException {
     // Do nothing
   }
 
@@ -383,5 +403,10 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     ConstructState constructState = new ConstructState();
     constructState.addOverwriteProperties(state);
     return constructState;
+  }
+
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    return this.writerAttemptIdOptional.isPresent() && this.getClass() == FileAwareInputStreamDataWriter.class;
   }
 }
