@@ -12,6 +12,7 @@
 
 package gobblin.runtime.cli;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -26,6 +27,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
+import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.embedded.EmbeddedGobblin;
 
 import lombok.Getter;
@@ -42,7 +44,7 @@ import lombok.Getter;
  *
  * For an example usage see {@link EmbeddedGobblin.CliFactory}
  */
-public class PublicMethodsToCliHelper {
+public abstract class PublicMethodsGobblinCliFactory implements EmbeddedGobblinCliFactory {
 
   private static final List<String> BLACKLISTED_FROM_CLI = ImmutableList.of(
       "getClass", "hashCode", "notify", "notifyAll", "toString", "wait"
@@ -53,10 +55,28 @@ public class PublicMethodsToCliHelper {
   private final Options options;
   private final Map<String, Method> methodsMap;
 
-  public PublicMethodsToCliHelper(Class<? extends EmbeddedGobblin> klazz) {
+  public PublicMethodsGobblinCliFactory(Class<? extends EmbeddedGobblin> klazz) {
     this.klazz = klazz;
     this.methodsMap = Maps.newHashMap();
     this.options = inferOptionsFromMethods();
+  }
+
+  @Override
+  public EmbeddedGobblin buildEmbeddedGobblin(CommandLine cli) {
+    try {
+      EmbeddedGobblin embeddedGobblin = constructEmbeddedGobblin(cli);
+      applyCommandLineOptions(cli, embeddedGobblin);
+      return embeddedGobblin;
+    } catch (IOException | JobTemplate.TemplateException exc) {
+      throw new RuntimeException("Could not instantiate " + this.klazz.getSimpleName(), exc);
+    }
+  }
+
+  public abstract EmbeddedGobblin constructEmbeddedGobblin(CommandLine cli) throws JobTemplate.TemplateException, IOException;
+
+  @Override
+  public String getUsageString() {
+    return "[OPTIONS]";
   }
 
   /**

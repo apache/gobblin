@@ -63,7 +63,7 @@ public class TestJobLauncherExecutionDriver {
       JobLauncherExecutionDriver.Launcher launcher =
           new JobLauncherExecutionDriver.Launcher()
               .withJobLauncherType(JobLauncherFactory.JobLauncherType.LOCAL)
-              .withLog(log).initialize();
+              .withLog(log);
 
       JobLauncherExecutionDriver jled = (JobLauncherExecutionDriver)launcher.launchJob(jobSpec1);
       Assert.assertTrue(jled.getLegacyLauncher() instanceof LocalJobLauncher);

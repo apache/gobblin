@@ -32,6 +32,8 @@ import gobblin.annotation.Alias;
 import gobblin.runtime.embedded.EmbeddedGobblin;
 import gobblin.util.ClassAliasResolver;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * A {@link CliApplication} that runs a Gobblin flow using {@link EmbeddedGobblin}.
@@ -51,9 +53,11 @@ import gobblin.util.ClassAliasResolver;
  * finally run the application synchronously.
  */
 @Alias(value = "run", description = "Run a Gobblin application.")
+@Slf4j
 public class CliEmbeddedGobblin implements CliApplication {
 
   private static final Option HELP = Option.builder("h").longOpt("help").build();
+  private static final Option USE_LOG = Option.builder("l").desc("Uses log to print out erros in the base CLI code.").build();
   public static final String LIST_QUICK_APPS = "listQuickApps";
 
   @Override
@@ -90,6 +94,7 @@ public class CliEmbeddedGobblin implements CliApplication {
 
     Options options = new Options();
     options.addOption(HELP);
+    options.addOption(USE_LOG);
     for (Option opt : factory.getOptions().getOptions()) {
       options.addOption(opt);
     }
@@ -113,7 +118,11 @@ public class CliEmbeddedGobblin implements CliApplication {
     try {
       embeddedGobblin = factory.buildEmbeddedGobblin(cli);
     } catch (Exception exc) {
-      System.out.println("Error: " + exc.getMessage());
+      if (cli.hasOption(USE_LOG.getOpt())) {
+        log.error("Failed to instantiate " + EmbeddedGobblin.class.getName(), exc);
+      } else {
+        System.out.println("Error: " + exc.getMessage());
+      }
       printUsage(alias, options, factory);
       return;
     }

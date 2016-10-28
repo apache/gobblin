@@ -20,6 +20,8 @@ pages:
     - User Guide:
         - Job Configuration Files: user-guide/Working-with-Job-Configuration-Files.md
         - Deployment: user-guide/Gobblin-Deployment.md
+        - Gobblin as a Library: user-guide/Gobblin-as-a-Library.md
+        - Gobblin CLI: user-guide/Gobblin-CLI.md
         - Gobblin on Yarn: user-guide/Gobblin-on-Yarn.md
         - Compaction: user-guide/Compaction.md
         - State Management and Watermarks: user-guide/State-Management-and-Watermarks.md

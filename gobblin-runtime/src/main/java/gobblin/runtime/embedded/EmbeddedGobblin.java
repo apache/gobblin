@@ -67,8 +67,7 @@ import gobblin.runtime.api.JobExecutionResult;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
-import gobblin.runtime.cli.ConstructorAndPublicMethodsToCliHelper;
-import gobblin.runtime.cli.EmbeddedGobblinCliFactory;
+import gobblin.runtime.cli.ConstructorAndPublicMethodsGobblinCliFactory;
 import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
 import gobblin.runtime.cli.NotOnCli;
 import gobblin.runtime.instance.SimpleGobblinInstanceEnvironment;
@@ -96,17 +95,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class EmbeddedGobblin {
 
-  public static class CliFactory implements EmbeddedGobblinCliFactory {
-    private final ConstructorAndPublicMethodsToCliHelper helper = new ConstructorAndPublicMethodsToCliHelper(EmbeddedGobblin.class);
-
-    @Override
-    public Options getOptions() {
-      return this.helper.getOptions();
-    }
-
-    @Override
-    public EmbeddedGobblin buildEmbeddedGobblin(CommandLine cli) {
-      return this.helper.buildInstance(cli);
+  public static class CliFactory extends ConstructorAndPublicMethodsGobblinCliFactory {
+    public CliFactory() {
+      super(EmbeddedGobblin.class);
     }
 
     @Override
@@ -255,6 +246,15 @@ public class EmbeddedGobblin {
    */
   public EmbeddedGobblin setShutdownTimeout(String timeout) {
     return setShutdownTimeout(Period.parse(timeout).getSeconds(), TimeUnit.SECONDS);
+  }
+
+  /**
+   * Enable state store.
+   */
+  public EmbeddedGobblin useStateStore(String rootDir) {
+    this.setConfiguration(ConfigurationKeys.STATE_STORE_ENABLED, "true");
+    this.setConfiguration(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, rootDir);
+    return this;
   }
 
   /**

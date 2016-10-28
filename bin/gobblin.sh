@@ -21,7 +21,14 @@ classpath() {
     HADOOP_CLASSPATH=$($HADOOP_HOME/bin/hadoop classpath)
   fi
 
-  echo $CLASSPATH:$HADOOP_CLASSPATH
+  CLASSPATH=$CLASSPATH:$HADOOP_CLASSPATH
+
+  if [ ! -z "$GOBBLIN_ADDITIONAL_JARS" ]
+  then
+     CLASSPATH=$GOBBLIN_ADDITIONAL_JARS:$CLASSPATH
+  fi
+
+  echo $CLASSPATH
 }
 
 for i in "$@"

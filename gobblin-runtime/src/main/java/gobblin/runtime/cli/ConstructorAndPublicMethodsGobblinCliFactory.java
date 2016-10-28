@@ -12,6 +12,7 @@
 
 package gobblin.runtime.cli;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
@@ -23,13 +24,14 @@ import org.apache.commons.cli.Options;
 
 import com.google.common.collect.Maps;
 
+import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.embedded.EmbeddedGobblin;
 
 
 /**
  * A helper class for automatically inferring {@link Option}s from the constructor and public methods in a class.
  *
- * For method inference, see {@link PublicMethodsToCliHelper}.
+ * For method inference, see {@link PublicMethodsGobblinCliFactory}.
  *
  * {@link Option}s are inferred from the constructor as follows:
  * 1. The helper will search for exactly one constructor with only String arguments and which is annotated with
@@ -38,17 +40,23 @@ import gobblin.runtime.embedded.EmbeddedGobblin;
  *
  * For an example usage see {@link EmbeddedGobblin.CliFactory}.
  */
-public class ConstructorAndPublicMethodsToCliHelper extends PublicMethodsToCliHelper {
+public abstract class ConstructorAndPublicMethodsGobblinCliFactory extends PublicMethodsGobblinCliFactory {
 
   private final Constructor<? extends EmbeddedGobblin> constructor;
   private final Map<String, Integer> constructoArgumentsMap;
   private final Options options;
 
-  public ConstructorAndPublicMethodsToCliHelper(Class<? extends EmbeddedGobblin> klazz) {
+  public ConstructorAndPublicMethodsGobblinCliFactory(Class<? extends EmbeddedGobblin> klazz) {
     super(klazz);
     this.constructoArgumentsMap = Maps.newHashMap();
     this.options = super.getOptions();
     this.constructor = inferConstructorOptions(this.options);
+  }
+
+  @Override
+  public EmbeddedGobblin constructEmbeddedGobblin(CommandLine cli)
+      throws JobTemplate.TemplateException, IOException {
+    return buildInstance(cli);
   }
 
   @Override
@@ -66,14 +74,15 @@ public class ConstructorAndPublicMethodsToCliHelper extends PublicMethodsToCliHe
   public EmbeddedGobblin buildInstance(CommandLine cli) {
     String[] constructorArgs = new String[this.constructor.getParameterTypes().length];
     for (Option option : cli.getOptions()) {
-      int idx = this.constructoArgumentsMap.get(option.getOpt());
-      constructorArgs[idx] = option.getValue();
+      if (this.constructoArgumentsMap.containsKey(option.getOpt())) {
+        int idx = this.constructoArgumentsMap.get(option.getOpt());
+        constructorArgs[idx] = option.getValue();
+      }
     }
 
     EmbeddedGobblin embeddedGobblin;
     try {
       embeddedGobblin = this.constructor.newInstance((Object[]) constructorArgs);
-      applyCommandLineOptions(cli, embeddedGobblin);
       return embeddedGobblin;
     } catch (IllegalAccessException | InvocationTargetException | InstantiationException exc) {
       throw new RuntimeException("Could not instantiate " + this.klazz.getName(), exc);
