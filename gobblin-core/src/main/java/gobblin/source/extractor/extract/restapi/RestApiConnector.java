@@ -131,8 +131,10 @@ public abstract class RestApiConnector {
   protected HttpClient getHttpClient() {
     if (this.httpClient == null) {
       HttpClientConfiguratorLoader configuratorLoader = new HttpClientConfiguratorLoader(this.state);
-      this.httpClient = configuratorLoader.getConfigurator().
-          setStatePropertiesPrefix(ConfigurationKeys.SOURCE_CONN_PREFIX).createClient();
+      this.httpClient = configuratorLoader.getConfigurator()
+          .setStatePropertiesPrefix(ConfigurationKeys.SOURCE_CONN_PREFIX)
+          .configure(this.state)
+          .createClient();
     }
     return this.httpClient;
   }
