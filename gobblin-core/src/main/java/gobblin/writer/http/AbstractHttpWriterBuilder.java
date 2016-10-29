@@ -127,7 +127,7 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
     return typedSelf();
   }
 
-  public HttpClientBuilder getDefaultBuilder() {
+  public HttpClientBuilder getDefaultHttpClientBuilder() {
     HttpClientConfiguratorLoader clientConfiguratorLoader =
         new HttpClientConfiguratorLoader(getState());
     clientConfiguratorLoader.getConfigurator().setStatePropertiesPrefix(AbstractHttpWriterBuilder.CONF_PREFIX);
@@ -137,7 +137,7 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
 
   public HttpClientBuilder getHttpClientBuilder() {
     if (!this.httpClientBuilder.isPresent()) {
-      this.httpClientBuilder = Optional.of(getDefaultBuilder());
+      this.httpClientBuilder = Optional.of(getDefaultHttpClientBuilder());
     }
 
     return this.httpClientBuilder.get();
