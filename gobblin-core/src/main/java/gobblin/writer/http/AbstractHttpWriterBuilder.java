@@ -64,7 +64,7 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
           .put(POOLING_CONN_MANAGER_MAX_PER_CONN, 2)
           .build());
 
-  private State state;
+  private State state = new State();
   private Optional<HttpClientBuilder> httpClientBuilder = Optional.absent();
 
   private HttpClientConnectionManager httpConnManager;
