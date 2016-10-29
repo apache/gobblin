@@ -21,7 +21,6 @@ import gobblin.util.ClassAliasResolver;
 
 /**
  * Creates an instance of HttpClientConfigurator using dependency injection from configuration.
- * Th
  */
 public class HttpClientConfiguratorLoader {
 
