@@ -401,23 +401,24 @@ public class ConfigurationKeys {
   /**
    * Configuration properties for source connection.
    */
-  public static final String SOURCE_CONN_USE_AUTHENTICATION = "source.conn.use.authentication";
-  public static final String SOURCE_CONN_PRIVATE_KEY = "source.conn.private.key";
-  public static final String SOURCE_CONN_KNOWN_HOSTS = "source.conn.known.hosts";
-  public static final String SOURCE_CONN_CLIENT_SECRET = "source.conn.client.secret";
-  public static final String SOURCE_CONN_CLIENT_ID = "source.conn.client.id";
-  public static final String SOURCE_CONN_DOMAIN = "source.conn.domain";
-  public static final String SOURCE_CONN_USERNAME = "source.conn.username";
-  public static final String SOURCE_CONN_PASSWORD = "source.conn.password";
-  public static final String SOURCE_CONN_SECURITY_TOKEN = "source.conn.security.token";
-  public static final String SOURCE_CONN_HOST_NAME = "source.conn.host";
-  public static final String SOURCE_CONN_VERSION = "source.conn.version";
-  public static final String SOURCE_CONN_TIMEOUT = "source.conn.timeout";
-  public static final String SOURCE_CONN_REST_URL = "source.conn.rest.url";
-  public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
-  public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
-  public static final String SOURCE_CONN_DRIVER = "source.conn.driver";
-  public static final String SOURCE_CONN_PORT = "source.conn.port";
+  public static final String SOURCE_CONN_PREFIX = "source.conn.";
+  public static final String SOURCE_CONN_USE_AUTHENTICATION = SOURCE_CONN_PREFIX + "use.authentication";
+  public static final String SOURCE_CONN_PRIVATE_KEY = SOURCE_CONN_PREFIX + "private.key";
+  public static final String SOURCE_CONN_KNOWN_HOSTS = SOURCE_CONN_PREFIX + "known.hosts";
+  public static final String SOURCE_CONN_CLIENT_SECRET = SOURCE_CONN_PREFIX + "client.secret";
+  public static final String SOURCE_CONN_CLIENT_ID = SOURCE_CONN_PREFIX + "client.id";
+  public static final String SOURCE_CONN_DOMAIN = SOURCE_CONN_PREFIX + "domain";
+  public static final String SOURCE_CONN_USERNAME = SOURCE_CONN_PREFIX + "username";
+  public static final String SOURCE_CONN_PASSWORD = SOURCE_CONN_PREFIX + "password";
+  public static final String SOURCE_CONN_SECURITY_TOKEN = SOURCE_CONN_PREFIX + "security.token";
+  public static final String SOURCE_CONN_HOST_NAME = SOURCE_CONN_PREFIX + "host";
+  public static final String SOURCE_CONN_VERSION = SOURCE_CONN_PREFIX + "version";
+  public static final String SOURCE_CONN_TIMEOUT = SOURCE_CONN_PREFIX + "timeout";
+  public static final String SOURCE_CONN_REST_URL = SOURCE_CONN_PREFIX + "rest.url";
+  public static final String SOURCE_CONN_USE_PROXY_URL = SOURCE_CONN_PREFIX + "use.proxy.url";
+  public static final String SOURCE_CONN_USE_PROXY_PORT = SOURCE_CONN_PREFIX + "use.proxy.port";
+  public static final String SOURCE_CONN_DRIVER = SOURCE_CONN_PREFIX + "driver";
+  public static final String SOURCE_CONN_PORT = SOURCE_CONN_PREFIX + "port";
   public static final int SOURCE_CONN_DEFAULT_PORT = 22;
 
   /**
