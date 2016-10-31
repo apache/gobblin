@@ -47,7 +47,7 @@ public class DefaultHttpClientConfigurator implements HttpClientConfigurator {
   /** The port of the HTTP proxy to use */
   public static final String PROXY_PORT_KEY = "use.proxy.port";
   /** Similar to {@link #PROXY_URL_KEY} and {@link #PROXY_PORT_KEY} but allows you to set it on
-   * one property as <host>:<port> */
+   * one property as <host>:<port> . This property takes precedence over those properties.  */
   public static final String PROXY_HOSTPORT_KEY = "proxyHostport";
   /** Port to use if the HTTP Proxy is enabled but no port is specified */
   public static final int DEFAULT_HTTP_PROXY_PORT = 8080;
