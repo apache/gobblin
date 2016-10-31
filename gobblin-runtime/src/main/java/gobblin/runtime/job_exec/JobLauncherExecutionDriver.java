@@ -323,19 +323,6 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     public Launcher() {
     }
 
-    /**
-     * This method should be called after all builder-style methods have been called.
-     *
-     * Logic in this method cannot be done in the constructor because it uses some attributes of the object that may not have been
-     * initialized at construction time. For example, {@link JobExecutionLauncher.StandardMetrics}
-     * uses {@link #_sysConfig}, which is only initialized when the user runs {@link #withSysConfig(Configurable)} after
-     * construction.
-     */
-    public Launcher initialize() {
-      _metrics = new JobExecutionLauncher.StandardMetrics(this);
-      return this;
-    }
-
     /** Leave unchanged for */
     public Launcher withJobLauncherType(JobLauncherType jobLauncherType) {
       Preconditions.checkNotNull(jobLauncherType);
@@ -370,9 +357,6 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     /** Parent Gobblin instance */
     public Launcher withGobblinInstanceEnvironment(GobblinInstanceEnvironment gobblinInstance) {
       _gobblinEnv = Optional.of(gobblinInstance);
-      if (!_sysConfig.isPresent()) {
-        _sysConfig = Optional.of(gobblinInstance.getSysConfig());
-      }
       return this;
     }
 
@@ -470,6 +454,9 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     }
 
     @Override public StandardMetrics getMetrics() {
+      if (_metrics == null) {
+        _metrics = new JobExecutionLauncher.StandardMetrics(this);
+      }
       return _metrics;
     }
 

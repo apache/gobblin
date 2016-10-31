@@ -305,7 +305,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
 
     public JobExecutionLauncher getDefaultJobLauncher() {
       JobLauncherExecutionDriver.Launcher res =
-          new JobLauncherExecutionDriver.Launcher().withGobblinInstanceEnvironment(this).initialize();
+          new JobLauncherExecutionDriver.Launcher().withGobblinInstanceEnvironment(this);
       return res;
     }
 
