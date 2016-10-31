@@ -17,9 +17,13 @@ import java.net.URISyntaxException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.util.ClassUtil;
 
 import gobblin.annotation.Alias;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.RecursiveCopyableDataset;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
@@ -79,6 +83,12 @@ public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
     }
     this.setConfiguration("from", from.toString());
     this.setConfiguration("to", to.toString());
+    // Infer source and target fs uris from the input paths
+    this.setConfiguration(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, from.getFileSystem(new Configuration()).getUri().toString());
+    this.setConfiguration(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, to.getFileSystem(new Configuration()).getUri().toString());
+
+    // add gobblin-data-management jar to distributed jars
+    this.distributeJar(ClassUtil.findContainingJar(CopySource.class));
   }
 
   /**
@@ -107,6 +117,14 @@ public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
   @EmbeddedGobblinCliOption(description = "If deleting files on target, also delete newly empty parent directories.")
   public EmbeddedGobblinDistcp deleteEmptyParentDirectories() {
     this.setConfiguration(RecursiveCopyableDataset.DELETE_EMPTY_DIRECTORIES_KEY, Boolean.toString(true));
+    return this;
+  }
+
+  /**
+   * Run in simulate mode. Will log everythin it would copy, but not actually copy anything.
+   */
+  public EmbeddedGobblinDistcp simulate() {
+    this.setConfiguration(CopySource.SIMULATE, Boolean.toString(true));
     return this;
   }
 

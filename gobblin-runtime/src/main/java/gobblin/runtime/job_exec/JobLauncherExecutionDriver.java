@@ -321,7 +321,6 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     private JobExecutionLauncher.StandardMetrics _metrics;
 
     public Launcher() {
-      _metrics = new JobExecutionLauncher.StandardMetrics(this);
     }
 
     /** Leave unchanged for */
@@ -455,6 +454,9 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     }
 
     @Override public StandardMetrics getMetrics() {
+      if (_metrics == null) {
+        _metrics = new JobExecutionLauncher.StandardMetrics(this);
+      }
       return _metrics;
     }
 

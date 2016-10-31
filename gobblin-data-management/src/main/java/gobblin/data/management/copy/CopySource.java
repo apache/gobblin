@@ -140,6 +140,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
       final FileSystem sourceFs = getSourceFileSystem(state);
       final FileSystem targetFs = getTargetFileSystem(state);
+
+      log.info("Identified source file system at {} and target file system at {}.",
+          sourceFs.getUri(), targetFs.getUri());
+
       long maxSizePerBin = state.getPropAsLong(MAX_SIZE_MULTI_WORKUNITS, 0);
       long maxWorkUnitsPerMultiWorkUnit = state.getPropAsLong(MAX_WORK_UNITS_PER_BIN, 50);
       final long minWorkUnitWeight = Math.max(1, maxSizePerBin / maxWorkUnitsPerMultiWorkUnit);

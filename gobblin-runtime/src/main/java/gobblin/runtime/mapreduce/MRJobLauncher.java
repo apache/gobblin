@@ -36,7 +36,6 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,6 +107,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final FileSystem fs;
   private final Job job;
   private final Path mrJobDir;
+  private final Path jarsDir;
   private final Path jobInputPath;
   private final Path jobOutputPath;
 
@@ -146,14 +146,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
       LOG.warn("Job working directory already exists for job " + this.jobContext.getJobName());
       this.fs.delete(this.mrJobDir, true);
     }
+    this.jarsDir = this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR)
+        ? new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR)) : new Path(this.mrJobDir, JARS_DIR_NAME);
     this.fs.mkdirs(this.mrJobDir);
 
     this.jobInputPath = new Path(this.mrJobDir, INPUT_DIR_NAME);
     this.jobOutputPath = new Path(this.mrJobDir, OUTPUT_DIR_NAME);
     Path outputTaskStateDir = new Path(this.jobOutputPath, this.jobContext.getJobId());
-
-    // Add dependent jars/files
-    addDependencies();
 
     // Finally create the Hadoop job after all updates to conf are already made (including
     // adding dependent jars/files to the DistributedCache that also updates the conf)
@@ -249,37 +248,37 @@ public class MRJobLauncher extends AbstractJobLauncher {
   /**
    * Add dependent jars and files.
    */
-  private void addDependencies()
+  private void addDependencies(Configuration conf)
       throws IOException {
     TimingEvent distributedCacheSetupTimer =
         this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_DISTRIBUTED_CACHE_SETUP);
 
-    Path jarFileDir = new Path(this.mrJobDir, JARS_DIR_NAME);
+    Path jarFileDir = this.jarsDir;
 
     // Add framework jars to the classpath for the mappers/reducer
     if (this.jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
-      addJars(jarFileDir, this.jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY));
+      addJars(jarFileDir, this.jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY), conf);
     }
 
     // Add job-specific jars to the classpath for the mappers
     if (this.jobProps.containsKey(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
-      addJars(jarFileDir, this.jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY));
+      addJars(jarFileDir, this.jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY), conf);
     }
 
     // Add other files (if any) the job depends on to DistributedCache
     if (this.jobProps.containsKey(ConfigurationKeys.JOB_LOCAL_FILES_KEY)) {
       addLocalFiles(new Path(this.mrJobDir, FILES_DIR_NAME),
-          this.jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY));
+          this.jobProps.getProperty(ConfigurationKeys.JOB_LOCAL_FILES_KEY), conf);
     }
 
     // Add files (if any) already on HDFS that the job depends on to DistributedCache
     if (this.jobProps.containsKey(ConfigurationKeys.JOB_HDFS_FILES_KEY)) {
-      addHDFSFiles(this.jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY));
+      addHDFSFiles(this.jobProps.getProperty(ConfigurationKeys.JOB_HDFS_FILES_KEY), conf);
     }
 
     // Add job-specific jars existing in HDFS to the classpath for the mappers
     if (this.jobProps.containsKey(ConfigurationKeys.JOB_JAR_HDFS_FILES_KEY)) {
-      addHdfsJars(this.jobProps.getProperty(ConfigurationKeys.JOB_JAR_HDFS_FILES_KEY));
+      addHdfsJars(this.jobProps.getProperty(ConfigurationKeys.JOB_JAR_HDFS_FILES_KEY), conf);
     }
 
     distributedCacheSetupTimer.stop();
@@ -291,6 +290,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private void prepareHadoopJob(List<WorkUnit> workUnits)
       throws IOException {
     TimingEvent mrJobSetupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_JOB_SETUP);
+
+    // Add dependent jars/files
+    addDependencies(this.job.getConfiguration());
 
     this.job.setJarByClass(MRJobLauncher.class);
     this.job.setMapperClass(TaskRunner.class);
@@ -305,6 +307,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Turn off speculative execution
     this.job.setSpeculativeExecution(false);
+
+    this.job.getConfiguration().set("mapreduce.job.user.classpath.first", "true");
 
     // Job input path is where input work unit files are stored
 
@@ -346,20 +350,22 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * so the mappers can use them.
    */
   @SuppressWarnings("deprecation")
-  private void addJars(Path jarFileDir, String jarFileList)
+  private void addJars(Path jarFileDir, String jarFileList, Configuration conf)
       throws IOException {
-    LocalFileSystem lfs = FileSystem.getLocal(this.conf);
+    LocalFileSystem lfs = FileSystem.getLocal(conf);
     for (String jarFile : SPLITTER.split(jarFileList)) {
       Path srcJarFile = new Path(jarFile);
       FileStatus[] fileStatusList = lfs.globStatus(srcJarFile);
       for (FileStatus status : fileStatusList) {
         // DistributedCache requires absolute path, so we need to use makeQualified.
         Path destJarFile = new Path(this.fs.makeQualified(jarFileDir), status.getPath().getName());
-        // Copy the jar file from local file system to HDFS
-        this.fs.copyFromLocalFile(status.getPath(), destJarFile);
+        if (!this.fs.exists(destJarFile)) {
+          // Copy the jar file from local file system to HDFS
+          this.fs.copyFromLocalFile(status.getPath(), destJarFile);
+        }
         // Then add the jar file on HDFS to the classpath
         LOG.info(String.format("Adding %s to classpath", destJarFile));
-        DistributedCache.addFileToClassPath(destJarFile, this.conf, this.fs);
+        DistributedCache.addFileToClassPath(destJarFile, conf, this.fs);
       }
     }
   }
@@ -368,9 +374,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Add local non-jar files the job depends on to DistributedCache.
    */
   @SuppressWarnings("deprecation")
-  private void addLocalFiles(Path jobFileDir, String jobFileList)
+  private void addLocalFiles(Path jobFileDir, String jobFileList, Configuration conf)
       throws IOException {
-    DistributedCache.createSymlink(this.conf);
+    DistributedCache.createSymlink(conf);
     for (String jobFile : SPLITTER.split(jobFileList)) {
       Path srcJobFile = new Path(jobFile);
       // DistributedCache requires absolute path, so we need to use makeQualified.
@@ -381,7 +387,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       URI destFileUri = URI.create(destJobFile.toUri().getPath() + "#" + destJobFile.getName());
       LOG.info(String.format("Adding %s to DistributedCache", destFileUri));
       // Finally add the file to DistributedCache with a symlink named after the file name
-      DistributedCache.addCacheFile(destFileUri, this.conf);
+      DistributedCache.addCacheFile(destFileUri, conf);
     }
   }
 
@@ -389,8 +395,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Add non-jar files already on HDFS that the job depends on to DistributedCache.
    */
   @SuppressWarnings("deprecation")
-  private void addHDFSFiles(String jobFileList) {
-    DistributedCache.createSymlink(this.conf);
+  private void addHDFSFiles(String jobFileList, Configuration conf) {
+    DistributedCache.createSymlink(conf);
     jobFileList = PasswordManager.getInstance(this.jobProps).readPassword(jobFileList);
     for (String jobFile : SPLITTER.split(jobFileList)) {
       Path srcJobFile = new Path(jobFile);
@@ -398,11 +404,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
       URI srcFileUri = URI.create(srcJobFile.toUri().getPath() + "#" + srcJobFile.getName());
       LOG.info(String.format("Adding %s to DistributedCache", srcFileUri));
       // Finally add the file to DistributedCache with a symlink named after the file name
-      DistributedCache.addCacheFile(srcFileUri, this.conf);
+      DistributedCache.addCacheFile(srcFileUri, conf);
     }
   }
 
-  private void addHdfsJars(String hdfsJarFileList)
+  private void addHdfsJars(String hdfsJarFileList, Configuration conf)
       throws IOException {
     for (String jarFile : SPLITTER.split(hdfsJarFileList)) {
       FileStatus[] status = this.fs.listStatus(new Path(jarFile));
@@ -410,7 +416,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         if (!fileStatus.isDirectory()) {
           Path path = new Path(jarFile, fileStatus.getPath().getName());
           LOG.info(String.format("Adding %s to classpath", path));
-          DistributedCache.addFileToClassPath(path, this.conf, this.fs);
+          DistributedCache.addFileToClassPath(path, conf, this.fs);
         }
       }
     }

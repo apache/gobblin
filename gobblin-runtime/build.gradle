@@ -55,6 +55,7 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.kafka
   compile externalDependency.scala
+  compile externalDependency.guavaretrying
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile externalDependency.calciteCore

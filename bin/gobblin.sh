@@ -5,7 +5,23 @@ calling_dir() {
 }
 classpath() {
   DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-  echo "$DIR/../lib/*";
+
+  for i in `ls $DIR/../lib`
+  do
+      if [[ $i != hadoop* ]]
+      then
+        CLASSPATH=${CLASSPATH:+${CLASSPATH}:}$DIR/../lib/$i
+      else
+        HADOOP_CLASSPATH=${HADOOP_CLASSPATH:+${HADOOP_CLASSPATH}:}$DIR/../lib/$i
+      fi
+  done
+
+  if [ ! -z "$HADOOP_HOME" ] && [ -f $HADOOP_HOME/bin/hadoop ]
+  then
+    HADOOP_CLASSPATH=$($HADOOP_HOME/bin/hadoop classpath)
+  fi
+
+  echo $CLASSPATH:$HADOOP_CLASSPATH
 }
 
 for i in "$@"

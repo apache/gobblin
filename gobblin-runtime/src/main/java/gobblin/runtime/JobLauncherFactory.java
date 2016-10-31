@@ -15,6 +15,7 @@ package gobblin.runtime;
 import java.util.Properties;
 
 import javax.annotation.Nonnull;
+import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
@@ -30,6 +31,7 @@ import gobblin.util.JobConfigurationUtils;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class JobLauncherFactory {
 
   /**
