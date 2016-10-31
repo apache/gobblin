@@ -298,6 +298,11 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
 
   }
 
+  //TODO
+  // HttpRequest constructHttpRequest(String rootUrl, Map<String, String> query) {
+  //
+  // }
+
   private Queue<JsonElement> retrievePageRevisions(Map<String, String> query)
       throws IOException, URISyntaxException {
 
@@ -349,6 +354,12 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
     LOG.info(retrievedRevisions.size() + " record(s) retrieved for title " + this.requestedTitle);
     return retrievedRevisions;
   }
+
+  // TODO
+  // protected HttpClient createHttpClient() {
+  //
+  //   return httpClient;
+  //}
 
   private HttpURLConnection getHttpConnection(URL url) throws IOException {
     Proxy proxy = Proxy.NO_PROXY;
