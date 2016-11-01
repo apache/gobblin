@@ -121,12 +121,17 @@ if (!project.hasProperty('version') || project.version == 'unspecified') {
 println "name=" + project.name + " group=" + project.group
 println "project.version=" + project.version
 
+def gradleVersionDotIdx = project.gradle.gradleVersion.indexOf(".")
+ext.gradleVersionMajor = Integer.parseInt(project.gradle.gradleVersion.substring(0, gradleVersionDotIdx))
+ext.gradleVersionMinor = Integer.parseInt(project.gradle.gradleVersion.substring(gradleVersionDotIdx + 1))
+println "Detected Gradle version major=" + gradleVersionMajor + "minor=" + gradleVersionMinor
+
 if (!project.hasProperty('hiveVersion')) {
   ext.hiveVersion = '1.0.1'
 }
 
 if (!project.hasProperty('pegasusVersion')) {
-  ext.pegasusVersion = '1.15.9'
+  ext.pegasusVersion = '2.6.0'
 }
 
 if (!project.hasProperty('bytemanVersion')) {
@@ -289,7 +294,7 @@ if (!isDefaultEnvironment)
   }
 }
 
-task wrapper(type: Wrapper) { gradleVersion = '1.12' }
+task wrapper(type: Wrapper) { gradleVersion = '2.13' }
 
 import javax.tools.ToolProvider
 
