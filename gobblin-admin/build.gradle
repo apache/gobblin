@@ -30,4 +30,4 @@ dependencies {
     testCompile externalDependency.testng
 }
 
-classification="library"
+ext.classification="library"
