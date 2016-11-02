@@ -22,12 +22,14 @@ import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.recovery.RecoveryHelper;
+import gobblin.instrumented.writer.InstrumentedDataWriter;
 import gobblin.state.ConstructState;
 import gobblin.util.FinalState;
 import gobblin.util.PathUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.WriterUtils;
+import gobblin.util.io.StreamCopier;
 import gobblin.util.io.StreamUtils;
 import gobblin.writer.DataWriter;
 
@@ -49,6 +51,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 
+import com.codahale.metrics.Meter;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
@@ -60,7 +63,9 @@ import com.google.common.io.Closer;
  * A {@link DataWriter} to write {@link FileAwareInputStream}
  */
 @Slf4j
-public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInputStream>, FinalState {
+public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileAwareInputStream> implements FinalState {
+
+  public static final String GOBBLIN_COPY_BYTES_COPIED_METER = "gobblin.copy.bytesCopiedMeter";
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
@@ -71,6 +76,9 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   protected final Closer closer = Closer.create();
   protected CopyableDatasetMetadata copyableDatasetMetadata;
   protected final RecoveryHelper recoveryHelper;
+
+  protected final Meter copySpeedMeter;
+
   /**
    * The copyable file in the WorkUnit might be modified by converters (e.g. output extensions added / removed).
    * This field is set when {@link #write} is called, and points to the actual, possibly modified {@link gobblin.data.management.copy.CopyEntity}
@@ -79,6 +87,7 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
   protected Optional<CopyableFile> actualProcessedCopyableFile;
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId) throws IOException {
+    super(state);
 
     if (numBranches > 1) {
       throw new IOException("Distcp can only operate with one branch.");
@@ -97,10 +106,12 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
         CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.actualProcessedCopyableFile = Optional.absent();
+
+    this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
   }
 
   @Override
-  public final void write(FileAwareInputStream fileAwareInputStream) throws IOException {
+  public final void writeImpl(FileAwareInputStream fileAwareInputStream) throws IOException {
     CopyableFile copyableFile = fileAwareInputStream.getFile();
     Path stagingFile = getStagingFilePath(copyableFile);
     if (this.actualProcessedCopyableFile.isPresent()) {
@@ -151,8 +162,16 @@ public class FileAwareInputStreamDataWriter implements DataWriter<FileAwareInput
       FSDataOutputStream os =
           this.fs.create(writeAt, true, this.fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
       try {
-        this.bytesWritten.addAndGet(StreamUtils.copy(inputStream, os));
-        log.info("bytes written: " + this.bytesWritten.get() + " for file " + copyableFile);
+        StreamCopier copier = new StreamCopier(inputStream, os);
+        if (isInstrumentationEnabled()) {
+          copier.withCopySpeedMeter(this.copySpeedMeter);
+        }
+        this.bytesWritten.addAndGet(copier.copy());
+        if (isInstrumentationEnabled()) {
+          log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(), this.copySpeedMeter.getCount(), this.copySpeedMeter.getMeanRate());
+        } else {
+          log.info("File {} copied.", copyableFile.getOrigin().getPath());
+        }
       } finally {
         os.close();
         inputStream.close();
