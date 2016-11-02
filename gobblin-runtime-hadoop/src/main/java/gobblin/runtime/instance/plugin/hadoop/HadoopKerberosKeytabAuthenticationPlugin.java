@@ -18,41 +18,75 @@ import com.typesafe.config.Config;
 
 import gobblin.annotation.Alias;
 import gobblin.runtime.api.GobblinInstanceDriver;
+import gobblin.runtime.api.GobblinInstancePlugin;
+import gobblin.runtime.api.GobblinInstancePluginFactory;
 import gobblin.runtime.instance.hadoop.HadoopConfigLoader;
 import gobblin.runtime.instance.plugin.BaseIdlePluginImpl;
+import gobblin.runtime.plugins.PluginStaticKeys;
+
+import lombok.RequiredArgsConstructor;
+
 
 /**
  * Loads a Kerberos keytab file for Hadoop authentication.
  */
-@Alias(value="hadoopLoginFromKeytab")
 public class HadoopKerberosKeytabAuthenticationPlugin extends BaseIdlePluginImpl {
-  public static final String INSTANCE_CONFIG_PREFIX = "gobblin.instance";
-  public static final String CONFIG_PREFIX = INSTANCE_CONFIG_PREFIX + ".hadoop";
-  public static final String LOGIN_USER_KEY = "loginUser";
-  public static final String LOGIN_USER_KEYTAB_FILE_KEY = "loginUserKeytabFile";
-  public static final String LOGIN_USER_FULL_KEY = CONFIG_PREFIX + "." + LOGIN_USER_KEY;
-  public static final String LOGIN_USER_KEYTAB_FILE_FULL_KEY =
-      CONFIG_PREFIX + "." + LOGIN_USER_KEYTAB_FILE_KEY;
+
+  /**
+   * A {@link GobblinInstancePluginFactory} that instantiates {@link HadoopKerberosKeytabAuthenticationPlugin} inferring
+   * credentials from sys config. Sys config must contains the keys {@link PluginStaticKeys#LOGIN_USER_FULL_KEY} and
+   * {@link PluginStaticKeys#LOGIN_USER_KEYTAB_FILE_FULL_KEY}.
+   */
+  @Alias(PluginStaticKeys.HADOOP_LOGIN_FROM_KEYTAB_ALIAS)
+  public static class ConfigBasedFactory implements GobblinInstancePluginFactory {
+    @Override
+    public GobblinInstancePlugin createPlugin(GobblinInstanceDriver instance) {
+
+      Config sysConfig = instance.getSysConfig().getConfig();
+      if (!sysConfig.hasPath(PluginStaticKeys.LOGIN_USER_FULL_KEY)) {
+        throw new RuntimeException("Missing required sys config: " + PluginStaticKeys.LOGIN_USER_FULL_KEY);
+      }
+      if (!sysConfig.hasPath(PluginStaticKeys.LOGIN_USER_KEYTAB_FILE_FULL_KEY)) {
+        throw new RuntimeException("Missing required sys config: " + PluginStaticKeys.LOGIN_USER_KEYTAB_FILE_FULL_KEY);
+      }
+
+      String loginUser = sysConfig.getString(PluginStaticKeys.LOGIN_USER_FULL_KEY);
+      String loginUserKeytabFile = sysConfig.getString(PluginStaticKeys.LOGIN_USER_KEYTAB_FILE_FULL_KEY);
+
+      return new HadoopKerberosKeytabAuthenticationPlugin(instance, loginUser, loginUserKeytabFile);
+    }
+  }
+
+  /**
+   * A {@link GobblinInstancePluginFactory} that instantiates {@link HadoopKerberosKeytabAuthenticationPlugin} with
+   * credentials specified at construction time.
+   */
+  @RequiredArgsConstructor
+  public static class CredentialsBasedFactory implements GobblinInstancePluginFactory {
+    private final String _loginUser;
+    private final String _loginUserKeytabFile;
+
+    @Override
+    public GobblinInstancePlugin createPlugin(GobblinInstanceDriver instance) {
+      return new HadoopKerberosKeytabAuthenticationPlugin(instance, _loginUser, _loginUserKeytabFile);
+    }
+  }
 
   private final String _loginUser;
   private final String _loginUserKeytabFile;
   private final Configuration _hadoopConf;
 
-  public HadoopKerberosKeytabAuthenticationPlugin(GobblinInstanceDriver instance) {
+  private HadoopKerberosKeytabAuthenticationPlugin(GobblinInstanceDriver instance, String loginUser, String loginUserKeytabFile) {
     super(instance);
     Config sysConfig = instance.getSysConfig().getConfig();
-    if (!sysConfig.hasPath(LOGIN_USER_FULL_KEY)) {
-      throw new RuntimeException("Missing required sys config: " + LOGIN_USER_FULL_KEY);
-    }
-    if (!sysConfig.hasPath(LOGIN_USER_KEYTAB_FILE_FULL_KEY)) {
-      throw new RuntimeException("Missing required sys config: " + LOGIN_USER_KEYTAB_FILE_FULL_KEY);
-    }
 
-    _loginUser = sysConfig.getString(LOGIN_USER_FULL_KEY);
-    _loginUserKeytabFile = sysConfig.getString(LOGIN_USER_KEYTAB_FILE_FULL_KEY);
+    _loginUser = loginUser;
+    _loginUserKeytabFile = loginUserKeytabFile;
     HadoopConfigLoader configLoader =  new HadoopConfigLoader(sysConfig);
     _hadoopConf = configLoader.getConf();
   }
+
+
 
   /** {@inheritDoc} */
   @Override
@@ -74,6 +108,4 @@ public class HadoopKerberosKeytabAuthenticationPlugin extends BaseIdlePluginImpl
   public Configuration getHadoopConf() {
     return _hadoopConf;
   }
-
-
 }

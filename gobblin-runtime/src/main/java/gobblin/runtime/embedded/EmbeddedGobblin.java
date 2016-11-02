@@ -61,6 +61,7 @@ import gobblin.runtime.Task;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceDriver;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
+import gobblin.runtime.api.GobblinInstancePluginFactory;
 import gobblin.runtime.api.JobCatalog;
 import gobblin.runtime.api.JobExecutionDriver;
 import gobblin.runtime.api.JobExecutionResult;
@@ -68,12 +69,15 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.cli.ConstructorAndPublicMethodsGobblinCliFactory;
+import gobblin.runtime.cli.EmbeddedGobblinCliOption;
 import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
 import gobblin.runtime.cli.NotOnCli;
 import gobblin.runtime.instance.SimpleGobblinInstanceEnvironment;
 import gobblin.runtime.instance.StandardGobblinInstanceDriver;
 import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import gobblin.runtime.job_catalog.StaticJobCatalog;
+import gobblin.runtime.plugins.GobblinInstancePluginUtils;
+import gobblin.runtime.plugins.PluginStaticKeys;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
 import gobblin.util.PathUtils;
@@ -120,6 +124,7 @@ public class EmbeddedGobblin {
   private FullTimeout launchTimeout = new FullTimeout(10, TimeUnit.SECONDS);
   private FullTimeout jobTimeout = new FullTimeout(10, TimeUnit.DAYS);
   private FullTimeout shutdownTimeout = new FullTimeout(10, TimeUnit.SECONDS);
+  private List<GobblinInstancePluginFactory> plugins = Lists.newArrayList();
 
   public EmbeddedGobblin() {
     this("EmbeddedGobblin");
@@ -182,6 +187,60 @@ public class EmbeddedGobblin {
   public EmbeddedGobblin setTemplate(String templateURI) throws URISyntaxException, SpecNotFoundException,
                                                         JobTemplate.TemplateException {
     return setTemplate(new PackagedTemplatesJobCatalogDecorator().getTemplate(new URI(templateURI)));
+  }
+
+  /**
+   * Use a {@link gobblin.runtime.api.GobblinInstancePlugin}.
+   */
+  public EmbeddedGobblin usePlugin(GobblinInstancePluginFactory pluginFactory) {
+    this.plugins.add(pluginFactory);
+    return this;
+  }
+
+  /**
+   * Use a {@link gobblin.runtime.api.GobblinInstancePlugin} identified by name.
+   */
+  public EmbeddedGobblin usePlugin(String pluginAlias) throws ClassNotFoundException, IllegalAccessException, InstantiationException {
+    return usePlugin(GobblinInstancePluginUtils.instantiatePluginByAlias(pluginAlias));
+  }
+
+  /**
+   * Override a Gobblin system configuration.
+   */
+  public EmbeddedGobblin sysConfig(String key, String value) {
+    this.sysConfigOverrides.put(key, value);
+    return this;
+  }
+
+  /**
+   * Override a Gobblin system configuration. Format "<key>:<value>"
+   */
+  public EmbeddedGobblin sysConfig(String keyValue) {
+    List<String> split = KEY_VALUE_SPLITTER.splitToList(keyValue);
+    if (split.size() != 2) {
+      throw new RuntimeException("Cannot parse " + keyValue + ". Expected <key>:<value>.");
+    }
+    return sysConfig(split.get(0), split.get(1));
+  }
+
+  /**
+   * Load Kerberos keytab for authentication. Crendetials format "<login-user>:<keytab-file>".
+   */
+  @EmbeddedGobblinCliOption(description = "Authenticate using kerberos. Format: \"<login-user>:<keytab-file>\".")
+  public EmbeddedGobblin kerberosAuthentication(String credentials) {
+    List<String> split = Splitter.on(":").splitToList(credentials);
+    if (split.size() != 2) {
+      throw new RuntimeException("Cannot parse " + credentials + ". Expected <login-user>:<keytab-file>");
+    }
+    try {
+      usePlugin(PluginStaticKeys.HADOOP_LOGIN_FROM_KEYTAB_ALIAS);
+    } catch (ReflectiveOperationException roe) {
+      throw new RuntimeException(String.format("Could not instantiate %s. Make sure gobblin-runtime-hadoop is in your classpath.",
+          PluginStaticKeys.HADOOP_LOGIN_FROM_KEYTAB_ALIAS), roe);
+    }
+    sysConfig(PluginStaticKeys.LOGIN_USER_FULL_KEY, split.get(0));
+    sysConfig(PluginStaticKeys.LOGIN_USER_KEYTAB_FILE_FULL_KEY, split.get(1));
+    return this;
   }
 
   /**
@@ -305,11 +364,16 @@ public class EmbeddedGobblin {
     SimpleGobblinInstanceEnvironment instanceEnvironment =
         new SimpleGobblinInstanceEnvironment("EmbeddedGobblinInstance", this.useLog, getSysConfig());
 
-    final GobblinInstanceDriver driver =
+    StandardGobblinInstanceDriver.Builder builder =
         new StandardGobblinInstanceDriver.Builder(Optional.<GobblinInstanceEnvironment>of(instanceEnvironment)).withLog(this.useLog)
         .withJobCatalog(jobCatalog)
-        .withImmediateJobScheduler()
-        .build();
+        .withImmediateJobScheduler();
+
+    for (GobblinInstancePluginFactory plugin : this.plugins) {
+      builder.addPlugin(plugin);
+    }
+
+    final GobblinInstanceDriver driver = builder.build();
 
     EmbeddedJobLifecycleListener listener = new EmbeddedJobLifecycleListener(this.useLog);
     driver.registerJobLifecycleListener(listener);

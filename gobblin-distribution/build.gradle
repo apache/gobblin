@@ -41,6 +41,7 @@ dependencies {
   compile project(':gobblin-cluster')
   compile project(':gobblin-yarn')
   compile project(':gobblin-aws')
+  compile project(':gobblin-runtime-hadoop')
 }
 
 task buildDistributionTar(type: Tar, overwrite: true) {
@@ -49,10 +50,10 @@ task buildDistributionTar(type: Tar, overwrite: true) {
   compression = Compression.GZIP
 
   into("conf") { from "../conf/" }
-  into("bin") { 
-    from "../bin/" 
+  into("bin") {
+    from "../bin/"
     from project(':gobblin-utility').projectDir.path + '/src/main/bash/gobblin_password_encryptor.sh'
-    filter { String line -> line.replace("GOBBLIN_VERSION=@project.version@", 
+    filter { String line -> line.replace("GOBBLIN_VERSION=@project.version@",
       "GOBBLIN_VERSION="+'"' + project.version + '"') }
   }
   into("lib") {
