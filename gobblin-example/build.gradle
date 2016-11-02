@@ -29,6 +29,7 @@ dependencies {
     compile externalDependency.jodaTime
     compile externalDependency.httpcore
     compile externalDependency.httpclient
+    compile externalDependency.commonsCli
 
     testCompile externalDependency.testng
 }
