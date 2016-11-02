@@ -165,7 +165,7 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
 
     TrieNode(String val) {
       this.val = val;
-      this.children = Maps.newHashMap();
+      this.children = Maps.newLinkedHashMap();
     }
 
     void add(String fqn) {
