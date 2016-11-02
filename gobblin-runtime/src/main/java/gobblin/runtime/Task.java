@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import gobblin.Constructs;
+import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
@@ -89,6 +90,11 @@ public class Task implements Runnable {
   // Number of task retries
   private final AtomicInteger retryCount = new AtomicInteger();
 
+  private final Converter converter;
+  private final InstrumentedExtractorBase extractor;
+  private final Closer closer;
+
+
   /**
    * Instantiate a new {@link Task}.
    *
@@ -106,6 +112,12 @@ public class Task implements Runnable {
     this.taskStateTracker = taskStateTracker;
     this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
+    this.closer = Closer.create();
+    this.extractor =
+        closer.register(new InstrumentedExtractorDecorator<>(this.taskState, this.taskContext.getExtractor()));
+
+    this.converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
+
   }
 
   @Override
@@ -117,17 +129,8 @@ public class Task implements Runnable {
 
     // Clear the map so it starts with a fresh set of forks for each run/retry
     this.forks.clear();
-
-    Closer closer = Closer.create();
-    Converter converter = null;
-    InstrumentedExtractorBase extractor = null;
     RowLevelPolicyChecker rowChecker = null;
     try {
-      extractor =
-          closer.register(new InstrumentedExtractorDecorator<>(this.taskState, this.taskContext.getExtractor()));
-
-      converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
-
       // Get the fork operator. By default IdentityForkOperator is used with a single branch.
       ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
       forkOperator.init(this.taskState);
@@ -563,5 +566,39 @@ public class Task implements Runnable {
     }
 
     constructState.mergeIntoWorkUnitState(this.taskState);
+  }
+
+  /**
+   * Commit this task by doing the following things:
+   * 1. Committing each fork by {@link Fork#commit()}.
+   * 2. Update final state of construct in {@link #taskState}.
+   * 3. Check whether to publish data in task.
+   */
+  public void commit() {
+    // TODO- refactor the current Task.run() method to run & commit phases, and add commit content here.
+  }
+
+  /**
+   * @return true if the current {@link Task} is safe to have duplicate attempts; false, otherwise.
+   */
+  public boolean isSpeculativeExecutionSafe() {
+    if (this.extractor instanceof SpeculativeAttemptAwareConstruct) {
+      if (!((SpeculativeAttemptAwareConstruct)this.extractor).isSpeculativeAttemptSafe()) {
+        return false;
+      }
+    }
+
+    if (this.converter instanceof SpeculativeAttemptAwareConstruct) {
+      if (!((SpeculativeAttemptAwareConstruct)this.extractor).isSpeculativeAttemptSafe()) {
+        return false;
+      }
+    }
+
+    for (Optional<Fork> fork : this.forks.keySet()) {
+      if (fork.isPresent() && !fork.get().isSpeculativeExecutionSafe()) {
+        return false;
+      }
+    }
+    return true;
   }
 }
