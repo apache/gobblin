@@ -136,8 +136,10 @@ public class ConvertibleHiveDatasetTest {
 
     Assert.assertEquals(conversionConfig.getDestinationDbName(), "db1_nestedOrcDb");
     Assert.assertEquals(conversionConfig.getDestinationTableName(), "tb1_nestedOrc");
+    Assert.assertEquals(conversionConfig.getDestinationViewName().get(), "tb1_view");
     Assert.assertEquals(conversionConfig.getDestinationDataPath(), "/tmp/data_nestedOrc/db1/tb1");
 
+    Assert.assertEquals(conversionConfig.isUpdateViewAlwaysEnabled(), false);
     Assert.assertEquals(conversionConfig.getClusterBy(), ImmutableList.of("c3", "c4"));
     Assert.assertEquals(conversionConfig.getNumBuckets().get(), Integer.valueOf(5));
 

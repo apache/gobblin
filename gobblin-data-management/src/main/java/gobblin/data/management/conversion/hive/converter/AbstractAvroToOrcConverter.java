@@ -192,6 +192,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     Optional<Table> destinationTableMeta = destinationMeta.getLeft();
 
     // Optional
+    Optional<String> wrapperViewName = getConversionConfig().getDestinationViewName();
+    boolean shouldUpdateView = getConversionConfig().isUpdateViewAlwaysEnabled();
     Optional<List<String>> clusterBy =
         getConversionConfig().getClusterBy().isEmpty()
             ? Optional.<List<String>> absent()
@@ -381,6 +383,9 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     log.debug("Evolve final table DDLs: " + evolutionDDLs);
     EventWorkunitUtils.setEvolutionMetadata(workUnit, evolutionDDLs);
 
+    // View (if present) must be updated if evolution happens
+    shouldUpdateView |= evolutionDDLs.size() > 0;
+
     publishQueries.addAll(evolutionDDLs);
 
 
@@ -457,6 +462,18 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     publishQueries.addAll(HiveAvroORCQueryGenerator.generateDropPartitionsDDL(orcTableDatabase,
         orcTableName,
         getDropPartitionsDDLInfo(conversionEntity)));
+
+    /*
+     * Create or update view over the ORC table if specified in the config (ie. wrapper view name is present in config)
+     */
+    if (wrapperViewName.isPresent()) {
+      String viewName = wrapperViewName.get();
+      List<String> createOrUpdateViewDDLs = HiveAvroORCQueryGenerator.generateCreateOrUpdateViewDDL(orcTableDatabase,
+          orcTableName, orcTableDatabase, viewName, shouldUpdateView);
+      log.debug("Create or update View DDLs: " + createOrUpdateViewDDLs);
+      publishQueries.addAll(createOrUpdateViewDDLs);
+
+    }
 
     HiveAvroORCQueryGenerator.serializePublishCommands(workUnit, publishEntity);
     log.debug("Publish partition entity: " + publishEntity);
