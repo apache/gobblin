@@ -17,6 +17,7 @@ import lombok.Getter;
 
 import com.codahale.metrics.Counter;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
 import gobblin.instrumented.writer.InstrumentedDataWriter;
 
@@ -24,6 +25,7 @@ import gobblin.instrumented.writer.InstrumentedDataWriter;
  * A writer to execute operations on a object in any object store. The record type of this writer is an {@link ObjectStoreOperation}.
  * The {@link ObjectStoreOperation} encapsulates operation specific metadata and actions.
  */
+@Alpha
 @SuppressWarnings("rawtypes")
 public class ObjectStoreWriter extends InstrumentedDataWriter<ObjectStoreOperation> {
 

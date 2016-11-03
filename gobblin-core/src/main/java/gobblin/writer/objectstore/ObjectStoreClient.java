@@ -18,11 +18,13 @@ import javax.annotation.Nonnull;
 
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
 import gobblin.writer.objectstore.response.GetObjectResponse;
 
 /**
  * A client interface to interact with an object store. Supports basic operations like put,delete and get.
  */
+@Alpha
 public interface ObjectStoreClient {
 
   /**
@@ -67,10 +69,10 @@ public interface ObjectStoreClient {
   /**
    * Set metadata associated with an object
    * @param objectId for which metadata is set
-   * @return object metadata
+   * @param objectProps to set for this object
    * @throws IOException if setting metadata fails
    */
-  public Config setObjectProps(@Nonnull byte[] objectId) throws IOException;
+  public void setObjectProps(@Nonnull byte[] objectId, Config objectProps) throws IOException;
 
   /**
    * Get an object with id <code>objectId</code> stored in the store.
