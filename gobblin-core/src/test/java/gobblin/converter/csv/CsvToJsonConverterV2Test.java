@@ -1,9 +1,10 @@
 package gobblin.converter.csv;
 
+import gobblin.configuration.WorkUnitState;
+import gobblin.converter.DataConversionException;
+
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Arrays;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -27,14 +28,16 @@ public class CsvToJsonConverterV2Test {
     String[] inputRecord = csvParser.parseLine(row10Cols);
 
     CsvToJsonConverterV2 converter = new CsvToJsonConverterV2();
+    converter.init(new WorkUnitState());
     JsonObject actual = converter.createOutput(outputSchema, inputRecord);
     JsonObject expected = parser.parse(new InputStreamReader(getClass().getResourceAsStream("/converter/csv/10_fields.json")))
                                 .getAsJsonObject();
 
     Assert.assertEquals(expected, actual);
+    converter.close();
   }
 
-  public void convertOutputSkippingField() throws IOException {
+  public void convertOutputSkippingField() throws IOException, DataConversionException {
     JsonParser parser = new JsonParser();
     JsonElement jsonElement = parser.parse(new InputStreamReader(getClass().getResourceAsStream("/converter/csv/schema_with_10_fields.json")));
 
@@ -43,12 +46,16 @@ public class CsvToJsonConverterV2Test {
     String[] inputRecord = csvParser.parseLine(row11Cols);
 
     CsvToJsonConverterV2 converter = new CsvToJsonConverterV2();
-    String[] customOrder = {"0","1","3","4","5","6","7","8","9","10"};
-    JsonObject actual = converter.createOutput(outputSchema, inputRecord, Arrays.asList(customOrder));
+    WorkUnitState wuState = new WorkUnitState();
+    wuState.setProp(CsvToJsonConverterV2.CUSTOM_ORDERING, "0,1,3,4,5,6,7,8,9,10");
+    converter.init(wuState);
+
+    JsonObject actual = converter.convertRecord(outputSchema, inputRecord, wuState).iterator().next();
     JsonObject expected = parser.parse(new InputStreamReader(getClass().getResourceAsStream("/converter/csv/10_fields.json")))
                                 .getAsJsonObject();
 
     Assert.assertEquals(expected, actual);
+    converter.close();
   }
 
   public void convertOutputMismatchFields() throws IOException {
@@ -66,9 +73,10 @@ public class CsvToJsonConverterV2Test {
     } catch (Exception e) {
 
     }
+    converter.close();
   }
 
-  public void convertOutputAddingNull() throws IOException {
+  public void convertOutputAddingNull() throws IOException, DataConversionException {
     JsonParser parser = new JsonParser();
     JsonElement jsonElement = parser.parse(new InputStreamReader(getClass().getResourceAsStream("/converter/csv/schema_with_11_fields.json")));
 
@@ -77,10 +85,14 @@ public class CsvToJsonConverterV2Test {
     String[] inputRecord = csvParser.parseLine(row11Cols);
 
     CsvToJsonConverterV2 converter = new CsvToJsonConverterV2();
-    String[] customOrder = {"0","1","-1","3","4","5","6","7","8","9","10"};
-    JsonObject actual = converter.createOutput(outputSchema, inputRecord, Arrays.asList(customOrder));
+    WorkUnitState wuState = new WorkUnitState();
+    wuState.setProp(CsvToJsonConverterV2.CUSTOM_ORDERING, "0,1,-1,3,4,5,6,7,8,9,10");
+    converter.init(wuState);
+
+    JsonObject actual = converter.convertRecord(outputSchema, inputRecord, wuState).iterator().next();
     JsonObject expected = parser.parse(new InputStreamReader(getClass().getResourceAsStream("/converter/csv/11_fields_with_null.json")))
                                 .getAsJsonObject();
     Assert.assertEquals(expected, actual);
+    converter.close();
   }
 }
