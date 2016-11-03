@@ -356,4 +356,20 @@ public class HiveAvroORCQueryGeneratorTest {
     // Check for in-compatible types
     HiveAvroORCQueryGenerator.isTypeEvolved("boolean", "int");
   }
+
+  @Test
+  public void testCreateOrUpdateViewDDL() throws Exception {
+    // Check if two queries for Create and Update View have been generated
+    List<String> ddls = HiveAvroORCQueryGenerator.generateCreateOrUpdateViewDDL("db1", "tbl1", "db2" ,"view1", true);
+
+    Assert.assertEquals(ddls.size(), 2, "Two queries for Create and Update should have been generated");
+    Assert.assertEquals(ddls.get(0), "CREATE VIEW IF NOT EXISTS `db2`.`view1` AS SELECT * FROM `db1`.`tbl1`");
+    Assert.assertEquals(ddls.get(1), "ALTER VIEW `db2`.`view1` AS SELECT * FROM `db1`.`tbl1`");
+
+    // Check if two queries for Create and Update View have been generated
+    ddls = HiveAvroORCQueryGenerator.generateCreateOrUpdateViewDDL("db1", "tbl1", "db2" ,"view1", false);
+
+    Assert.assertEquals(ddls.size(), 1, "One query for Create only should have been generated");
+    Assert.assertEquals(ddls.get(0), "CREATE VIEW IF NOT EXISTS `db2`.`view1` AS SELECT * FROM `db1`.`tbl1`");
+  }
 }
