@@ -16,8 +16,10 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -27,6 +29,7 @@ import com.google.common.collect.Lists;
 import gobblin.annotation.Alpha;
 import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.StateStore;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.Either;
@@ -68,7 +71,25 @@ public class GobblinMultiTaskAttempt {
    */
   public void run()
       throws IOException, InterruptedException {
-    // TODO -  add workunits execution.
+    if (workUnits.isEmpty()) {
+      log.warn("No work units to run in container " + containerIdOptional.or(""));
+      return;
+    }
+
+    CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
+    this.tasks = AbstractJobLauncher
+        .runWorkUnits(jobId, jobState, workUnits, containerIdOptional, taskStateTracker, taskExecutor, countDownLatch);
+    log.info(String.format("Waiting for submitted tasks of job %s to complete in container %s...", jobId,
+        containerIdOptional.or("")));
+    while (countDownLatch.getCount() > 0) {
+      log.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
+          workUnits.size(), jobId, containerIdOptional.or("")));
+      if (countDownLatch.await(10, TimeUnit.SECONDS)) {
+        break;
+      }
+    }
+    log.info(String
+        .format("All assigned tasks of job %s have completed in container %s", jobId, containerIdOptional.or("")));
   }
 
   /**
@@ -95,7 +116,6 @@ public class GobblinMultiTaskAttempt {
         });
 
     try {
-
       List<Either<Void, ExecutionException>> executionResults =
           new IteratorExecutor<>(callableIterator, this.getTaskCommitThreadPoolSize(),
               ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("Task-committing-pool-%d")))
@@ -105,22 +125,65 @@ public class GobblinMultiTaskAttempt {
       log.error("Committing of tasks interrupted. Aborting.");
       throw new RuntimeException(ie);
     } finally {
-      // persistTaskStateStore();
-      for (CommitStep cleanupCommitStep : this.cleanupCommitSteps) {
-        log.info("Executing additional commit step.");
-        cleanupCommitStep.execute();
+      persistTaskStateStore();
+      if (this.cleanupCommitSteps != null) {
+        for (CommitStep cleanupCommitStep : this.cleanupCommitSteps) {
+          log.info("Executing additional commit step.");
+          cleanupCommitStep.execute();
+        }
       }
+    }
+  }
+
+  private void persistTaskStateStore()
+      throws IOException {
+    if (!this.taskStateStoreOptional.isPresent()) {
+      log.info("Task state store does not exist.");
+      return;
+    }
+
+    StateStore<TaskState> taskStateStore = this.taskStateStoreOptional.get();
+    for (WorkUnit workUnit : workUnits) {
+      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+      // Delete the task state file for the task if it already exists.
+      // This usually happens if the task is retried upon failure.
+      if (taskStateStore.exists(jobId, taskId + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)) {
+        taskStateStore.delete(jobId, taskId + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX);
+      }
+    }
+
+    boolean hasTaskFailure = false;
+    for (Task task : tasks) {
+      log.info("Writing task state for task " + task.getTaskId());
+      taskStateStore.put(task.getJobId(), task.getTaskId() + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX,
+          task.getTaskState());
+
+      if (task.getTaskState().getWorkingState() == WorkUnitState.WorkingState.FAILED) {
+        hasTaskFailure = true;
+      }
+    }
+
+    if (hasTaskFailure) {
+      for (Task task : tasks) {
+        if (task.getTaskState().contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
+          log.error(String.format("Task %s failed due to exception: %s", task.getTaskId(),
+              task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)));
+        }
+      }
+
+      throw new IOException(
+          String.format("Not all tasks running in container %s completed successfully", containerIdOptional.or("")));
     }
   }
 
   public boolean isSpeculativeExecutionSafe() {
     for (Task task : tasks) {
       if (!task.isSpeculativeExecutionSafe()) {
-        log.info("one task is not safe");
+        log.info("One task is not safe for speculative execution.");
         return false;
       }
     }
-    log.info("all tasks are safe");
+    log.info("All tasks are safe for speculative execution.");
     return true;
   }
 

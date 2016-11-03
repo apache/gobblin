@@ -82,10 +82,12 @@ public class TaskTest {
 
     // The first run of the Task should fail
     task.run();
+    task.commit();
     Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.FAILED);
 
     // The second run of the Task should succeed
     task.run();
+    task.commit();
     Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
   }
 

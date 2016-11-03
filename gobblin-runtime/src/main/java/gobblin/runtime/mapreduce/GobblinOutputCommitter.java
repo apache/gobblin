@@ -15,6 +15,8 @@ package gobblin.runtime.mapreduce;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -34,10 +36,13 @@ import com.google.common.io.Closer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.GobblinMultiTaskAttempt;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
+
+import lombok.Getter;
 
 
 /**
@@ -52,6 +57,9 @@ import gobblin.util.JobLauncherUtils;
 public class GobblinOutputCommitter extends OutputCommitter {
 
   private static final Logger LOG = LoggerFactory.getLogger(GobblinOutputFormat.class);
+
+  @Getter
+  private Map<String, GobblinMultiTaskAttempt> attemptIdToMultiTaskAttempt = new ConcurrentHashMap<>();
 
   @Override
   public void abortJob(JobContext jobContext, JobStatus.State state) throws IOException {
@@ -113,11 +121,15 @@ public class GobblinOutputCommitter extends OutputCommitter {
   public void abortTask(TaskAttemptContext arg0) throws IOException {}
 
   @Override
-  public void commitTask(TaskAttemptContext arg0) throws IOException {}
+  public void commitTask(TaskAttemptContext arg0) throws IOException {
+    String taskAttemptId = arg0.getTaskAttemptID().toString();
+    LOG.info("Committing task attempt: "+ taskAttemptId);
+    this.attemptIdToMultiTaskAttempt.get(taskAttemptId).commit();
+  }
 
   @Override
   public boolean needsTaskCommit(TaskAttemptContext arg0) throws IOException {
-    return false;
+    return this.attemptIdToMultiTaskAttempt.containsKey(arg0.getTaskAttemptID().toString());
   }
 
   @Override

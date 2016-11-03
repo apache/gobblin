@@ -130,7 +130,7 @@ public class GobblinHelixTask implements Task {
       }
 
       AbstractJobLauncher.runWorkUnits(this.jobId, this.participantId, this.jobState, workUnits, this.taskStateTracker,
-          this.taskExecutor, this.taskStateStore, LOGGER);
+          this.taskExecutor, this.taskStateStore, LOGGER, true);
       return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnits.size()));
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();

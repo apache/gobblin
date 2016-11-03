@@ -62,10 +62,8 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
       throws DataRecordException, IOException {
 
     if (!this.recordRead) {
-      Configuration conf = HadoopUtils.newConfiguration();
-      FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
       this.recordRead = true;
-      return new FileAwareInputStream(this.file, fsFromFile.open(this.file.getFileStatus().getPath()));
+      return new FileAwareInputStream(this.file, this.fs.open(this.file.getFileStatus().getPath()));
     }
     return null;
 
