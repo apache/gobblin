@@ -64,6 +64,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   public static final String HIVE_TABLE_NAME_SUFFIX = "hive.table.name.suffix";
   public static final String HIVE_SANITIZE_INVALID_NAMES = "hive.sanitize.invalid.names";
   public static final String HIVE_FS_URI = "hive.registration.fs.uri";
+  public static final String PRIMARY_TABLE_TOKEN = "$PRIMARY_TABLE";
 
   /**
    * A valid db or table name should start with an alphanumeric character, and contains only
@@ -160,26 +161,69 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
             + this.tableNameSuffix);
   }
 
-  /**
-   * Obtain Hive table names. The returned {@link Iterable} contains the table name returned by
-   * {@link #getTableName(Path)} (if present) plus additional table names specified in
-   * {@link #ADDITIONAL_HIVE_TABLE_NAMES}.
+  /***
+   * Obtain Hive table names.
+   *
+   * The returned {@link Iterable} contains:
+   *  1. Table name returned by {@link #getTableName(Path)}
+   *  2. Table names specified by <code>additional.hive.table.names</code>
+   *
+   * In table names above, the {@value PRIMARY_TABLE_TOKEN} if present is also replaced by the
+   * table name obtained via {@link #getTableName(Path)}.
+   *
+   * @param path Path for the table on filesystem.
+   * @return Table names to register.
    */
   protected Iterable<String> getTableNames(Path path) {
+    List<String> tableNames = getTableNames(Optional.<String>absent(), path);
+
+    Preconditions.checkState(!tableNames.isEmpty(), "Hive table name not specified");
+    return tableNames;
+  }
+
+  /***
+   * Obtain Hive table names filtered by <code>dbPropertyFilter</code> (if present).
+   *
+   * The returned {@link List} contains:
+   *  A. If <code>dbPropertyFilter</code> is absent:
+   *    1. Table name returned by {@link #getTableName(Path)}
+   *    2. Table names specified by <code>additional.hive.table.names</code>
+   *  B. If dbPropertyFilter is present:
+   *    1. Table names specified by <code>dbPropertyFilter.additional.hive.table.names</code>
+   *
+   * In table names above, the {@value PRIMARY_TABLE_TOKEN} if present is also replaced by the
+   * table name obtained via {@link #getTableName(Path)}.
+   *
+   * @param dbPropertyFilter Prefix to the property <code>additional.table.names</code>, to obtain table names only
+   *                         for the specified db. Eg. If <code>dbPropertyFilter</code> is db, then
+   *                         <code>db.additional.table.names</code> is the resolved property name.
+   * @param path Path for the table on filesystem.
+   * @return Table names to register.
+   */
+  protected List<String> getTableNames(Optional<String> dbPropertyFilter, Path path) {
     List<String> tableNames = Lists.newArrayList();
 
-    Optional<String> tableName;
-    if ((tableName = getTableName(path)).isPresent()) {
-      tableNames.add(tableName.get());
+    Optional<String> primaryTableName;
+    if ((primaryTableName = getTableName(path)).isPresent() && !dbPropertyFilter.isPresent()) {
+      tableNames.add(primaryTableName.get());
     }
 
-    if (!Strings.isNullOrEmpty(this.props.getProp(ADDITIONAL_HIVE_TABLE_NAMES))) {
-      for (String additionalTableName : this.props.getPropAsList(ADDITIONAL_HIVE_TABLE_NAMES)) {
-        tableNames.add(this.tableNamePrefix + additionalTableName + this.tableNameSuffix);
+    String additionalNamesProp;
+    if (dbPropertyFilter.isPresent()) {
+      additionalNamesProp = String.format("%s.%s", dbPropertyFilter.get(), ADDITIONAL_HIVE_TABLE_NAMES);
+    } else {
+      additionalNamesProp = ADDITIONAL_HIVE_TABLE_NAMES;
+    }
+
+    if (!Strings.isNullOrEmpty(this.props.getProp(additionalNamesProp))) {
+      for (String additionalTableName : this.props.getPropAsList(additionalNamesProp)) {
+        String resolvedTableName = primaryTableName.isPresent() ?
+            StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN, primaryTableName.get()) :
+            additionalTableName;
+        tableNames.add(this.tableNamePrefix + resolvedTableName + this.tableNameSuffix);
       }
     }
 
-    Preconditions.checkState(!tableNames.isEmpty(), "Hive table name not specified");
     return tableNames;
   }
 
@@ -225,6 +269,17 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     List<HiveTable> tables = Lists.newArrayList();
 
     for (String databaseName : getDatabaseNames(path)) {
+      // Get tables to register ONLY for this Hive database (specified via prefix filter in properties)
+      boolean foundTablesViaDbFilter = false;
+      for (String tableName : getTableNames(Optional.of(databaseName), path)) {
+        tables.add(getTable(path, databaseName, tableName));
+        foundTablesViaDbFilter = true;
+      }
+
+      // If no tables found via db filter, get tables to register in all Hive databases and add them for this database
+      if (foundTablesViaDbFilter) {
+        continue;
+      }
       for (String tableName : getTableNames(path)) {
         tables.add(getTable(path, databaseName, tableName));
       }
