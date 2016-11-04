@@ -12,7 +12,6 @@
 package gobblin.http;
 
 import org.apache.http.client.HttpClient;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
 import com.typesafe.config.Config;
@@ -44,6 +43,6 @@ public interface HttpClientConfigurator {
   /**
    * Typically this will use {@link HttpClientBuilder#build()} based on the configuration but
    * implementations may also return decorated instances. */
-  CloseableHttpClient createClient();
+  HttpClient createClient();
 
 }
