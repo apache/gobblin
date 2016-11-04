@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 
 import org.apache.http.HttpHost;
 import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -94,7 +95,7 @@ public class DefaultHttpClientConfigurator implements HttpClientConfigurator {
 
   /** {@inheritDoc} */
   @Override
-  public HttpClient createClient() {
+  public CloseableHttpClient createClient() {
     return _builder.build();
   }
 
