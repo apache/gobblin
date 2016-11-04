@@ -13,6 +13,7 @@ package gobblin.writer.objectstore;
 
 import java.io.IOException;
 
+import gobblin.annotation.Alpha;
 import gobblin.converter.objectstore.ObjectStoreConverter;
 
 
@@ -25,6 +26,7 @@ import gobblin.converter.objectstore.ObjectStoreConverter;
  *
  * @param <T> Response type of the operation
  */
+@Alpha
 public abstract class ObjectStoreOperation<T> {
 
   /**

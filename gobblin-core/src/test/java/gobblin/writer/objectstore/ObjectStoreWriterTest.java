@@ -111,9 +111,7 @@ public class ObjectStoreWriterTest {
     }
 
     @Override
-    public Config setObjectProps(byte[] objectId) throws IOException {
-      return ConfigFactory.empty();
-    }
+    public void setObjectProps(byte[] objectId, Config conf) throws IOException {}
 
     @Override
     public byte[] put(InputStream objectStream, byte[] objectId, Config putConfig) throws IOException {

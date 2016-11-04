@@ -11,6 +11,7 @@
  */
 package gobblin.converter.objectstore;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.SchemaConversionException;
@@ -23,6 +24,7 @@ import gobblin.writer.objectstore.ObjectStoreOperation;
  * @param <DI> Input record type
  * @param <DO> Type of {@link ObjectStoreOperation}
  */
+@Alpha
 public abstract class ObjectStoreConverter<SI, DI, DO extends ObjectStoreOperation<?>> extends Converter<SI, Class<?>, DI, DO> {
 
   public ObjectStoreConverter<SI, DI, DO> init(WorkUnitState workUnit) {
@@ -36,6 +38,6 @@ public abstract class ObjectStoreConverter<SI, DI, DO extends ObjectStoreOperati
    */
   @Override
   public Class<?> convertSchema(SI inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
-    return inputSchema.getClass();
+    return ObjectStoreOperation.class;
   }
 }

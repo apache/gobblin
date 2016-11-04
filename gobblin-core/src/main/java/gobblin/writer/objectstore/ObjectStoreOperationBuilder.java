@@ -11,9 +11,12 @@
  */
 package gobblin.writer.objectstore;
 
+import gobblin.annotation.Alpha;
+
 /**
  * Builder to build all types of {@link ObjectStoreOperation}s
  */
+@Alpha
 public class ObjectStoreOperationBuilder {
 
   /**

@@ -13,10 +13,15 @@ package gobblin.converter.objectstore;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.util.Utf8;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 
+import gobblin.annotation.Alpha;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SingleRecordIterable;
@@ -29,7 +34,10 @@ import gobblin.writer.objectstore.ObjectStoreOperationBuilder;
  * A converter to build {@link ObjectStoreDeleteOperation}s using an Avro {@link GenericRecord}. The object id field in
  * input avro record can be set using {@link #OBJECT_ID_FIELD}. The field name is a required property.
  *
+ * Supports objectIdField schema types string, int, long and bytes.
+ *
  */
+@Alpha
 public class ObjectStoreDeleteConverter extends ObjectStoreConverter<Schema, GenericRecord, ObjectStoreDeleteOperation> {
 
   @VisibleForTesting
@@ -47,7 +55,25 @@ public class ObjectStoreDeleteConverter extends ObjectStoreConverter<Schema, Gen
   @Override
   public Iterable<ObjectStoreDeleteOperation> convertRecord(Class<?> outputSchema, GenericRecord inputRecord,
       WorkUnitState workUnit) throws DataConversionException {
-    return new SingleRecordIterable<ObjectStoreDeleteOperation>(ObjectStoreOperationBuilder.deleteBuilder()
-        .withObjectId(((byte[]) AvroUtils.getFieldValue(inputRecord, this.objectIdField).orNull())).build());
+    Optional<Object> fieldValue = AvroUtils.getFieldValue(inputRecord, this.objectIdField);
+    byte[] objectId;
+    if (fieldValue.isPresent()) {
+      if (fieldValue.get() instanceof Utf8) {
+        objectId = ((Utf8) fieldValue.get()).getBytes();
+      } else if (fieldValue.get() instanceof String) {
+        objectId = ((String) fieldValue.get()).getBytes();
+      } else if (fieldValue.get() instanceof Long) {
+        objectId = Longs.toByteArray((Long) fieldValue.get());
+      } else if (fieldValue.get() instanceof Integer) {
+        objectId = Ints.toByteArray((Integer) fieldValue.get());
+      } else {
+        objectId = (byte[]) fieldValue.get();
+      }
+      return new SingleRecordIterable<ObjectStoreDeleteOperation>(ObjectStoreOperationBuilder.deleteBuilder()
+          .withObjectId(objectId).build());
+    } else {
+      throw new DataConversionException(String.format("Object Id field %s not found in record %s", this.objectIdField,
+          inputRecord));
+    }
   }
 }
