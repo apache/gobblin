@@ -16,6 +16,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
@@ -45,6 +46,7 @@ public class ObjectStoreDeleteConverter extends ObjectStoreConverter<Schema, Gen
 
   private String objectIdField;
 
+  @Override
   public ObjectStoreDeleteConverter init(WorkUnitState workUnit) {
     Preconditions.checkArgument(workUnit.contains(OBJECT_ID_FIELD),
         String.format("%s is a required property. ", OBJECT_ID_FIELD));
@@ -61,7 +63,7 @@ public class ObjectStoreDeleteConverter extends ObjectStoreConverter<Schema, Gen
       if (fieldValue.get() instanceof Utf8) {
         objectId = ((Utf8) fieldValue.get()).getBytes();
       } else if (fieldValue.get() instanceof String) {
-        objectId = ((String) fieldValue.get()).getBytes();
+        objectId = ((String) fieldValue.get()).getBytes(Charsets.UTF_8);
       } else if (fieldValue.get() instanceof Long) {
         objectId = Longs.toByteArray((Long) fieldValue.get());
       } else if (fieldValue.get() instanceof Integer) {
