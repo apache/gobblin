@@ -12,12 +12,6 @@
 
 package gobblin.source.extractor.extract.jdbc;
 
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,6 +21,8 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Preconditions;
@@ -35,11 +31,15 @@ import com.google.gson.JsonElement;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.exception.RecordCountException;
 import gobblin.source.extractor.exception.SchemaException;
 import gobblin.source.extractor.extract.Command;
+import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.Predicate;
+import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.WorkUnit;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -77,6 +77,52 @@ public class OracleExtractor extends JdbcExtractor {
         "AND UPPER(table_name) = (?) " +
         "ORDER BY " +
         "column_id, column_name";
+  
+  private static Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder()
+      .put("char", "string")
+      .put("varchar2", "string")
+      .put("varchar", "string")
+      .put("nchar", "string")
+      .put("nvarchar2", "string")
+      .put("nclob", "string")
+      .put("clob", "string")
+      .put("long", "string")
+      .put("raw", "string")
+      .put("long raw", "string")
+      .put("rowid", "string")
+      .put("urowid", "string")
+      .put("xmltype", "string")
+      .put("smallint", "int")
+      .put("int", "int")
+      .put("integer", "int")
+      .put("bigint", "long")
+      .put("binary_float", "float")
+      .put("binary_double", "double")
+      .put("float", "double")
+      .put("number", "double")
+      .put("numeric", "double")
+      .put("dec", "double")
+      .put("decimal", "double")
+      .put("real", "double")
+      .put("double precision", "double")
+      .put("date", "date")
+      .put("interval year", "date")
+      .put("interval day", "timestamp")
+      .put("datetime", "timestamp")
+      .put("timestamp", "timestamp")
+      .put("timestamp(0)", "timestamp")
+      .put("timestamp(1)", "timestamp")
+      .put("timestamp(2)", "timestamp")
+      .put("timestamp(3)", "timestamp")
+      .put("timestamp(4)", "timestamp")
+      .put("timestamp(5)", "timestamp")
+      .put("timestamp(6)", "timestamp")
+      .put("timestamp(7)", "timestamp")
+      .put("timestamp(8)", "timestamp")
+      .put("timestamp(9)", "timestamp")
+      .put("timestamp with time zone", "timestamp")
+      .put("timezone with local timezone", "timestamp")
+      .build();
   
   public OracleExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
@@ -150,51 +196,6 @@ public class OracleExtractor extends JdbcExtractor {
   
   @Override
   public Map<String, String> getDataTypeMap() {
-    Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder()
-        .put("char", "string")
-        .put("varchar2", "string")
-        .put("varchar", "string")
-        .put("nchar", "string")
-        .put("nvarchar2", "string")
-        .put("nclob", "string")
-        .put("clob", "string")
-        .put("long", "string")
-        .put("raw", "string")
-        .put("long raw", "string")
-        .put("rowid", "string")
-        .put("urowid", "string")
-        .put("xmltype", "string")
-        .put("smallint", "int")
-        .put("int", "int")
-        .put("integer", "int")
-        .put("bigint", "long")
-        .put("binary_float", "float")
-        .put("binary_double", "double")
-        .put("float", "double")
-        .put("number", "double")
-        .put("numeric", "double")
-        .put("dec", "double")
-        .put("decimal", "double")
-        .put("real", "double")
-        .put("double precision", "double")
-        .put("date", "date")
-        .put("interval year", "date")
-        .put("interval day", "timestamp")
-        .put("datetime", "timestamp")
-        .put("timestamp", "timestamp")
-        .put("timestamp(0)", "timestamp")
-        .put("timestamp(1)", "timestamp")
-        .put("timestamp(2)", "timestamp")
-        .put("timestamp(3)", "timestamp")
-        .put("timestamp(4)", "timestamp")
-        .put("timestamp(5)", "timestamp")
-        .put("timestamp(6)", "timestamp")
-        .put("timestamp(7)", "timestamp")
-        .put("timestamp(8)", "timestamp")
-        .put("timestamp(9)", "timestamp")
-        .put("timestamp with time zone", "timestamp")
-        .put("timezone with local timezone", "timestamp")
-        .build();
     return dataTypeMap;
   }
 
