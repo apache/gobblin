@@ -21,6 +21,8 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Files;
+
 import gobblin.util.PathUtils;
 import gobblin.util.test.RetentionTestDataGenerator;
 import gobblin.util.test.RetentionTestHelper;
@@ -63,7 +65,7 @@ public class RetentionIntegrationTest {
   @BeforeClass
   public void setupClass() throws Exception {
     this.fs = FileSystem.get(new Configuration());
-    testClassTempPath = new Path(RetentionIntegrationTest.class.getClassLoader().getResource("").getFile(), TEST_DATA_DIR_NAME);
+    testClassTempPath = new Path(Files.createTempDir().getAbsolutePath(), TEST_DATA_DIR_NAME);
     if (!fs.mkdirs(testClassTempPath)) {
       throw new RuntimeException("Failed to create temp directory for the test at " + testClassTempPath.toString());
     }

@@ -24,6 +24,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Files;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
@@ -38,7 +40,7 @@ public class TimestampedDatasetVersionFinderTest {
   @BeforeClass
   public void setup() throws Exception {
     this.fs = FileSystem.get(new Configuration());
-    this.testDataPathDummyPath = new Path(TimestampedDatasetVersionFinderTest.class.getClassLoader().getResource("").getFile());
+    this.testDataPathDummyPath = new Path(Files.createTempDir().getAbsolutePath());
     this.fs.mkdirs(this.testDataPathDummyPath);
   }
 

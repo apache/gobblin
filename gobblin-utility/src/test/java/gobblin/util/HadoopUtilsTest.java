@@ -30,13 +30,15 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Files;
+
 import gobblin.configuration.State;
 
 
 @Test(groups = { "gobblin.util" })
 public class HadoopUtilsTest {
 
-  private final Path hadoopUtilsTestDir = new Path(this.getClass().getClassLoader().getResource("").getFile(), "HadoopUtilsTestDir");
+  private final Path hadoopUtilsTestDir = new Path(Files.createTempDir().getAbsolutePath(), "HadoopUtilsTestDir");
 
   @BeforeClass
   public void setup() throws Exception {

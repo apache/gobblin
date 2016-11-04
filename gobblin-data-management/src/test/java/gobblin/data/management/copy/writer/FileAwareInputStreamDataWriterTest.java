@@ -56,7 +56,7 @@ public class FileAwareInputStreamDataWriterTest {
   @BeforeClass
   public void setup() throws Exception {
     fs = FileSystem.getLocal(new Configuration());
-    testTempPath = new Path(this.getClass().getClassLoader().getResource("").getFile(), "InputStreamDataWriterTest");
+    testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "InputStreamDataWriterTest");
     fs.mkdirs(testTempPath);
   }
 

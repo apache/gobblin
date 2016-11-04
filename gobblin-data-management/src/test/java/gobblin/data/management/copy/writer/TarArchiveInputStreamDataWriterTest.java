@@ -41,6 +41,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Iterables;
+import com.google.common.io.Files;
 
 
 public class TarArchiveInputStreamDataWriterTest {
@@ -52,7 +53,7 @@ public class TarArchiveInputStreamDataWriterTest {
   public void setup() throws Exception {
     fs = FileSystem.getLocal(new Configuration());
     testTempPath =
-        new Path(this.getClass().getClassLoader().getResource("").getFile(), "tarArchiveInputStreamDataWriterTest");
+        new Path(Files.createTempDir().getAbsolutePath(), "tarArchiveInputStreamDataWriterTest");
     fs.mkdirs(testTempPath);
   }
 

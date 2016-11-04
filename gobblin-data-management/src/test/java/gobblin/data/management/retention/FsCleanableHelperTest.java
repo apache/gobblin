@@ -34,6 +34,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import com.google.common.io.Files;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.retention.dataset.FsCleanableHelper;
@@ -51,7 +52,7 @@ public class FsCleanableHelperTest {
   @BeforeClass
   public void setup() throws Exception {
     this.fs = FileSystem.getLocal(new Configuration());
-    this.testTempPath = new Path(this.getClass().getClassLoader().getResource("").getFile(), "FsCleanableHelperTest");
+    this.testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "FsCleanableHelperTest");
     this.fs.mkdirs(this.testTempPath);
   }
 
