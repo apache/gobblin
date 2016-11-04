@@ -35,6 +35,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.conversion.hive.LocalHiveMetastoreTestUtils;
@@ -56,7 +57,7 @@ public class HiveRetentionTest {
   public void setup() throws Exception {
     this.hiveMetastoreTestUtils = LocalHiveMetastoreTestUtils.getInstance();
     fs = FileSystem.getLocal(new Configuration());
-    testTempPath = new Path(this.getClass().getClassLoader().getResource("").getFile(), "HiveRetentionTest");
+    testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "HiveRetentionTest");
     fs.mkdirs(testTempPath);
   }
 
