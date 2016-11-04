@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
@@ -45,7 +46,7 @@ public class KafkaDataWriter<D> extends InstrumentedDataWriter<D> {
 
   private static final long MILLIS_TO_NANOS = 1000 * 1000;
 
-  private final KafkaProducer<String, D> producer;
+  private final Producer<String, D> producer;
   private final Callback producerCallback;
   private final String topic;
   private final long commitTimeoutInNanos;
@@ -75,7 +76,7 @@ public class KafkaDataWriter<D> extends InstrumentedDataWriter<D> {
     }
   }
 
-  public static KafkaProducer getKafkaProducer(Properties props)
+  public static Producer getKafkaProducer(Properties props)
   {
     Config config = ConfigFactory.parseProperties(props);
     String kafkaProducerClass = ConfigUtils.getString(config, KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS, "");
@@ -88,10 +89,10 @@ public class KafkaDataWriter<D> extends InstrumentedDataWriter<D> {
     {
       try {
         Class<?> producerClass = (Class<?>) Class.forName(kafkaProducerClass);
-        KafkaProducer producer = (KafkaProducer) ConstructorUtils.invokeConstructor(producerClass, producerProps);
+        Producer producer = (Producer) ConstructorUtils.invokeConstructor(producerClass, producerProps);
         return producer;
       } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
-        log.error("Failed to instantiate Kafka producer " + kafkaProducerClass + " as instance of KafkaProducer.class", e);
+        log.error("Failed to instantiate Kafka producer " + kafkaProducerClass + " as instance of Producer.class", e);
         throw Throwables.propagate(e);
       }
     }
@@ -101,7 +102,7 @@ public class KafkaDataWriter<D> extends InstrumentedDataWriter<D> {
     this(getKafkaProducer(props), ConfigFactory.parseProperties(props));
   }
 
-  public KafkaDataWriter(KafkaProducer producer, Config config)
+  public KafkaDataWriter(Producer producer, Config config)
   {
     super(ConfigUtils.configToState(config));
     recordsProduced = getMetricContext().meter(KafkaWriterMetricNames.RECORDS_PRODUCED_METER);
