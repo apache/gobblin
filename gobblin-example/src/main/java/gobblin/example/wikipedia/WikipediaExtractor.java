@@ -13,6 +13,7 @@
 package gobblin.example.wikipedia;
 
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
@@ -25,15 +26,16 @@ import java.util.Map;
 import java.util.Queue;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.utils.URLEncodedUtils;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
@@ -107,7 +109,7 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
   private final WorkUnitState workUnitState;
   private final int maxRevisionsPulled;
   private final HttpClientConfigurator httpClientConfigurator;
-  private CloseableHttpClient httpClient;
+  private HttpClient httpClient;
 
   private class WikiResponseReader implements Iterator<JsonElement> {
 
@@ -273,7 +275,10 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
 
     StringBuilder sb = new StringBuilder();
     try {
-      CloseableHttpResponse response = closer.register(sendHttpRequest(req, this.httpClient));
+      HttpResponse response = sendHttpRequest(req, this.httpClient);
+      if (response instanceof CloseableHttpResponse) {
+        closer.register((CloseableHttpResponse)response);
+      }
       BufferedReader br = closer.register(
           new BufferedReader(new InputStreamReader(response.getEntity().getContent(),
                                                    ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
@@ -321,13 +326,15 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
     return req;
   }
 
-  CloseableHttpResponse sendHttpRequest(HttpUriRequest req, CloseableHttpClient httpClient)
+  HttpResponse sendHttpRequest(HttpUriRequest req, HttpClient httpClient)
       throws ClientProtocolException, IOException {
     LOG.debug("Sending request {}", req);
-    CloseableHttpResponse response = httpClient.execute(req);
+    HttpResponse response = httpClient.execute(req);
     if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK ||
         null == response.getEntity()) {
-      response.close();
+      if (response instanceof CloseableHttpResponse) {
+        ((CloseableHttpResponse)response).close();
+      }
       throw new IOException("HTTP Request " + req + " returned unexpected response " + response);
     }
     return response;
@@ -385,14 +392,14 @@ public class WikipediaExtractor implements Extractor<String, JsonElement> {
     return retrievedRevisions;
   }
 
-  protected CloseableHttpClient createHttpClient() {
+  protected HttpClient createHttpClient() {
      return this.httpClientConfigurator.createClient();
   }
 
   @Override
   public void close() throws IOException {
-    if (null != this.httpClient) {
-      this.httpClient.close();
+    if (null != this.httpClient && this.httpClient instanceof Closeable) {
+      ((Closeable)this.httpClient).close();
     }
   }
 
