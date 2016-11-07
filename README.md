@@ -13,7 +13,7 @@ The converter can only work with a Kafka-compatible source. The workflow is:
 
 Gobblin needs to be compiled against CDH hadoop dependencies with the right version:
 
-    $ ./gradlew clean build -PuseHadoop2 -PhadoopVersion=2.6.0-cdh5.4.9
+    $ ./gradlew clean build -PhadoopVersion=2.6.0-cdh5.5.2 -PexcludeHadoopDeps -PexcludeHiveDeps
 
 ## Configuration
 
