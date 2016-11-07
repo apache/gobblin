@@ -191,6 +191,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
 
     private final String destinationFormat;
     private final String destinationTableName;
+    // destinationViewName : If specified view with 'destinationViewName' is created if not already exists over destinationTableName
     private final Optional<String> destinationViewName;
     private final String destinationStagingTableName;
     private final String destinationDbName;
@@ -200,6 +201,8 @@ public class ConvertibleHiveDataset extends HiveDataset {
     private final Optional<Integer> numBuckets;
     private final Properties hiveRuntimeProperties;
     private final boolean evolutionEnabled;
+    // updateViewAlwaysEnabled: If false 'destinationViewName' is only updated when schema evolves; if true 'destinationViewName'
+    // ... is always updated (everytime publish happens)
     private final boolean updateViewAlwaysEnabled;
     private final Optional<Integer> rowLimit;
     private final List<String> sourceDataPathIdentifier;
@@ -219,11 +222,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
       this.destinationDataPath = resolveTemplate(config.getString(DESTINATION_DATA_PATH_KEY), table);
 
       // Optional
-      if (config.hasPath(DESTINATION_VIEW_KEY)) {
-        this.destinationViewName = Optional.of(resolveTemplate(config.getString(DESTINATION_VIEW_KEY), table));
-      } else {
-        this.destinationViewName = Optional.absent();
-      }
+      this.destinationViewName = Optional.fromNullable(resolveTemplate(ConfigUtils.getString(config, DESTINATION_VIEW_KEY, null), table));
       this.destinationTableProperties =
           convertKeyValueListToProperties(ConfigUtils.getStringList(config, DESTINATION_TABLE_PROPERTIES_LIST_KEY));
       this.clusterBy = ConfigUtils.getStringList(config, CLUSTER_BY_KEY);

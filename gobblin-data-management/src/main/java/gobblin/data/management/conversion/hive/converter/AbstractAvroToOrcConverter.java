@@ -192,6 +192,10 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     Optional<Table> destinationTableMeta = destinationMeta.getLeft();
 
     // Optional
+    // wrapperViewName          : If specified view with 'wrapperViewName' is created if not already exists
+    //                            over destination table
+    // isUpdateViewAlwaysEnabled: If false 'wrapperViewName' is only updated when schema evolves; if true
+    //                            'wrapperViewName' is always updated (everytime publish happens)
     Optional<String> wrapperViewName = getConversionConfig().getDestinationViewName();
     boolean shouldUpdateView = getConversionConfig().isUpdateViewAlwaysEnabled();
     Optional<List<String>> clusterBy =
