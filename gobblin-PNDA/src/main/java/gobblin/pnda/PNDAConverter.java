@@ -151,14 +151,8 @@ public class PNDAConverter extends Converter<String,
       GenericRecord record = reader.read(null, binaryDecoder);
 
       /* Do some basic checking on the deserialized AVRO fragment */
-      if (((long) record.get("timestamp")) <= 0) {
-        writeErrorData(inputRecord, "'timestamp' field cannot be negative");
-        return new EmptyIterable<>();
-      } else if (((org.apache.avro.util.Utf8) record.get("src")).length() == 0) {
+      if (((org.apache.avro.util.Utf8) record.get("src")).length() == 0) {
         writeErrorData(inputRecord, "'src' field cannot be empty");
-        return new EmptyIterable<>();
-      } else if (((java.nio.Buffer) record.get("rawdata")).limit() == 0) {
-        writeErrorData(inputRecord, "'rawdata' field cannot be empty");
         return new EmptyIterable<>();
       } else {
         /* It looks like a valid PNDA record */
