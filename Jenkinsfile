@@ -8,29 +8,17 @@ node {
 
         def workspace = pwd()
         def version = env.BRANCH_NAME
+        def java_home = env.JAVA_HOME
 
         if(env.BRANCH_NAME=="PNDA") {
             version = sh(returnStdout: true, script: 'git describe --abbrev=0 --tags').trim()
             checkout([$class: 'GitSCM', branches: [[name: "tags/${version}"]], extensions: [[$class: 'CleanCheckout']]])
         }
 
-        sh """
-            WORK_DIR=`pwd`
-            HADOOP_VERSION=2.6.0-cdh5.4.9
-            cd ~/;JAVA_BASE=`pwd`
-            cd \$WORK_DIR
-            # note: requires Java 8
-            export JAVA_HOME="\${JAVA_BASE}/jdk1.8.0_74"
-            export PATH=\$JAVA_HOME/bin:\$PATH
-            ./gradlew clean build -Pversion=${version} -PuseHadoop2 -PhadoopVersion=\${HADOOP_VERSION}         
-          """
+        sh("JAVA_HOME=${java_home} ./build.sh ${version}")
 
-        stage 'Test'
-        sh '''
-        '''
-
-        stage 'Deploy' 
-        build job: 'deploy-component', parameters: [[$class: 'StringParameterValue', name: 'branch', value: env.BRANCH_NAME],[$class: 'StringParameterValue', name: 'component', value: "gobblin"],[$class: 'StringParameterValue', name: 'release_path', value: "platform/releases"],[$class: 'StringParameterValue', name: 'release', value: "${workspace}/gobblin-distribution-${version}.tar.gz"]]
+        stage 'Deploy'
+        build job: 'deploy', parameters: [[$class: 'StringParameterValue', name: 'artifacts_path', value: "${workspace}/pnda-build"]]
 
         emailext attachLog: true, body: "Build succeeded (see ${env.BUILD_URL})", subject: "[JENKINS] ${env.JOB_NAME} succeeded", to: "${env.EMAIL_RECIPIENTS}"
 
