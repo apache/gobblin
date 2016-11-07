@@ -182,35 +182,35 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   }
 
   /***
-   * Obtain Hive table names filtered by <code>dbPropertyFilter</code> (if present).
+   * Obtain Hive table names filtered by <code>dbPrefix</code> (if present).
    *
    * The returned {@link List} contains:
-   *  A. If <code>dbPropertyFilter</code> is absent:
+   *  A. If <code>dbPrefix</code> is absent:
    *    1. Table name returned by {@link #getTableName(Path)}
    *    2. Table names specified by <code>additional.hive.table.names</code>
-   *  B. If dbPropertyFilter is present:
-   *    1. Table names specified by <code>dbPropertyFilter.additional.hive.table.names</code>
+   *  B. If dbPrefix is present:
+   *    1. Table names specified by <code>dbPrefix.hive.table.names</code>
    *
    * In table names above, the {@value PRIMARY_TABLE_TOKEN} if present is also replaced by the
    * table name obtained via {@link #getTableName(Path)}.
    *
-   * @param dbPropertyFilter Prefix to the property <code>additional.table.names</code>, to obtain table names only
-   *                         for the specified db. Eg. If <code>dbPropertyFilter</code> is db, then
-   *                         <code>db.additional.table.names</code> is the resolved property name.
+   * @param dbPrefix Prefix to the property <code>additional.table.names</code>, to obtain table names only
+   *                         for the specified db. Eg. If <code>dbPrefix</code> is db, then
+   *                         <code>db.hive.table.names</code> is the resolved property name.
    * @param path Path for the table on filesystem.
    * @return Table names to register.
    */
-  protected List<String> getTableNames(Optional<String> dbPropertyFilter, Path path) {
+  protected List<String> getTableNames(Optional<String> dbPrefix, Path path) {
     List<String> tableNames = Lists.newArrayList();
 
     Optional<String> primaryTableName;
-    if ((primaryTableName = getTableName(path)).isPresent() && !dbPropertyFilter.isPresent()) {
+    if ((primaryTableName = getTableName(path)).isPresent() && !dbPrefix.isPresent()) {
       tableNames.add(primaryTableName.get());
     }
 
     String additionalNamesProp;
-    if (dbPropertyFilter.isPresent()) {
-      additionalNamesProp = String.format("%s.%s", dbPropertyFilter.get(), ADDITIONAL_HIVE_TABLE_NAMES);
+    if (dbPrefix.isPresent()) {
+      additionalNamesProp = String.format("%s.%s", dbPrefix.get(), HIVE_TABLE_NAME);
     } else {
       additionalNamesProp = ADDITIONAL_HIVE_TABLE_NAMES;
     }
@@ -277,11 +277,10 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
       }
 
       // If no tables found via db filter, get tables to register in all Hive databases and add them for this database
-      if (foundTablesViaDbFilter) {
-        continue;
-      }
-      for (String tableName : getTableNames(path)) {
-        tables.add(getTable(path, databaseName, tableName));
+      if (!foundTablesViaDbFilter) {
+        for (String tableName : getTableNames(path)) {
+          tables.add(getTable(path, databaseName, tableName));
+        }
       }
     }
     return tables;

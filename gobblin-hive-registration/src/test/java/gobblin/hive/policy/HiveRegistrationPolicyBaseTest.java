@@ -72,7 +72,7 @@ public class HiveRegistrationPolicyBaseTest {
     state.appendToListProp(HiveRegistrationPolicyBase.HIVE_TABLE_NAME, "tbl1");
     state.appendToListProp(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_TABLE_NAMES, "tbl2,tbl3,$PRIMARY_TABLE_col");
 
-    state.appendToListProp("db2." + HiveRegistrationPolicyBase.ADDITIONAL_HIVE_TABLE_NAMES, "$PRIMARY_TABLE_col,tbl4,tbl5");
+    state.appendToListProp("db2." + HiveRegistrationPolicyBase.HIVE_TABLE_NAME, "$PRIMARY_TABLE_col,tbl4,tbl5");
 
     this.path = new Path(getClass().getResource("/test-hive-table").toString());
 
