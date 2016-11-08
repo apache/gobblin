@@ -138,12 +138,14 @@ public class ConvertibleHiveDataset extends HiveDataset {
   @ToString
   public static class ConversionConfig {
     public static final String DESTINATION_TABLE_KEY = "destination.tableName";
+    public static final String DESTINATION_VIEW_KEY = "destination.viewName";
     public static final String DESTINATION_DB_KEY = "destination.dbName";
     public static final String DESTINATION_DATA_PATH_KEY = "destination.dataPath";
     public static final String DESTINATION_TABLE_PROPERTIES_LIST_KEY = "destination.tableProperties";
     public static final String CLUSTER_BY_KEY = "clusterByList";
     public static final String NUM_BUCKETS_KEY = "numBuckets";
     public static final String EVOLUTION_ENABLED = "evolution.enabled";
+    public static final String UPDATE_VIEW_ALWAYS_ENABLED = "updateViewAlways.enabled";
     public static final String ROW_LIMIT_KEY = "rowLimit";
     public static final String HIVE_VERSION_KEY = "hiveVersion";
     private static final String HIVE_RUNTIME_PROPERTIES_LIST_KEY = "hiveRuntimeProperties";
@@ -189,6 +191,8 @@ public class ConvertibleHiveDataset extends HiveDataset {
 
     private final String destinationFormat;
     private final String destinationTableName;
+    // destinationViewName : If specified view with 'destinationViewName' is created if not already exists over destinationTableName
+    private final Optional<String> destinationViewName;
     private final String destinationStagingTableName;
     private final String destinationDbName;
     private final String destinationDataPath;
@@ -197,6 +201,9 @@ public class ConvertibleHiveDataset extends HiveDataset {
     private final Optional<Integer> numBuckets;
     private final Properties hiveRuntimeProperties;
     private final boolean evolutionEnabled;
+    // updateViewAlwaysEnabled: If false 'destinationViewName' is only updated when schema evolves; if true 'destinationViewName'
+    // ... is always updated (everytime publish happens)
+    private final boolean updateViewAlwaysEnabled;
     private final Optional<Integer> rowLimit;
     private final List<String> sourceDataPathIdentifier;
 
@@ -215,6 +222,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
       this.destinationDataPath = resolveTemplate(config.getString(DESTINATION_DATA_PATH_KEY), table);
 
       // Optional
+      this.destinationViewName = Optional.fromNullable(resolveTemplate(ConfigUtils.getString(config, DESTINATION_VIEW_KEY, null), table));
       this.destinationTableProperties =
           convertKeyValueListToProperties(ConfigUtils.getStringList(config, DESTINATION_TABLE_PROPERTIES_LIST_KEY));
       this.clusterBy = ConfigUtils.getStringList(config, CLUSTER_BY_KEY);
@@ -223,6 +231,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
       this.hiveRuntimeProperties =
           convertKeyValueListToProperties(ConfigUtils.getStringList(config, HIVE_RUNTIME_PROPERTIES_LIST_KEY));
       this.evolutionEnabled = ConfigUtils.getBoolean(config, EVOLUTION_ENABLED, false);
+      this.updateViewAlwaysEnabled = ConfigUtils.getBoolean(config, UPDATE_VIEW_ALWAYS_ENABLED, true);
       this.rowLimit = Optional.fromNullable(ConfigUtils.getInt(config, ROW_LIMIT_KEY, null));
       this.sourceDataPathIdentifier = ConfigUtils.getStringList(config, SOURCE_DATA_PATH_IDENTIFIER_KEY);
     }

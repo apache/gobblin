@@ -917,6 +917,53 @@ public class HiveAvroORCQueryGenerator {
   }
 
   /***
+   * Generate DDL for creating and updating view over a table.
+   *
+   * Create view:
+   * <p>
+   *   CREATE VIEW IF NOT EXISTS db.viewName AS SELECT * FROM db.tableName
+   * </p>
+   *
+   * Update view:
+   * <p>
+   *   ALTER VIEW db.viewName AS SELECT * FROM db.tableName
+   * </p>
+   *
+   * @param tableDbName       Database for the table over which view has to be created.
+   * @param tableName         Table over which view has to be created.
+   * @param viewDbName        Database for the view to be created.
+   * @param viewName          View to be created.
+   * @param shouldUpdateView  If view should be forced re-built.
+   * @return DDLs to create and / or update view over a table
+   */
+  public static List<String> generateCreateOrUpdateViewDDL(final String tableDbName, final String tableName,
+      final String viewDbName, final String viewName, final boolean shouldUpdateView) {
+
+    Preconditions.checkArgument(StringUtils.isNotBlank(tableName), "Table name should not be empty");
+    Preconditions.checkArgument(StringUtils.isNotBlank(viewName), "View name should not be empty");
+
+    // Resolve defaults
+    String resolvedTableDbName = (StringUtils.isBlank(tableDbName)) ? DEFAULT_DB_NAME : tableDbName;
+    String resolvedViewDbName = (StringUtils.isBlank(viewDbName)) ? DEFAULT_DB_NAME : viewDbName;
+
+    List<String> ddls = Lists.newArrayList();
+
+    // No-op if view already exists
+    ddls.add(String.format("CREATE VIEW IF NOT EXISTS `%s`.`%s` AS SELECT * FROM `%s`.`%s`",
+        resolvedViewDbName, viewName,
+        resolvedTableDbName, tableName));
+
+    // This will force re-build the view
+    if (shouldUpdateView) {
+      ddls.add(String.format("ALTER VIEW `%s`.`%s` AS SELECT * FROM `%s`.`%s`",
+          resolvedViewDbName, viewName,
+          resolvedTableDbName, tableName));
+    }
+
+    return ddls;
+  }
+
+  /***
    * Serialize a {@link QueryBasedHivePublishEntity} into a {@link State} at {@link #SERIALIZED_PUBLISH_TABLE_COMMANDS}.
    * @param state {@link State} to serialize entity into.
    * @param queryBasedHivePublishEntity to carry to publisher.
