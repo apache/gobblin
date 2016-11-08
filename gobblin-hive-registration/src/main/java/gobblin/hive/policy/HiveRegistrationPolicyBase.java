@@ -64,6 +64,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   public static final String HIVE_TABLE_NAME_SUFFIX = "hive.table.name.suffix";
   public static final String HIVE_SANITIZE_INVALID_NAMES = "hive.sanitize.invalid.names";
   public static final String HIVE_FS_URI = "hive.registration.fs.uri";
+  // {@value PRIMARY_TABLE_TOKEN} if present in {@value ADDITIONAL_HIVE_TABLE_NAMES} or dbPrefix.{@value HIVE_TABLE_NAME}
+  // .. will be replaced by the table name determined via {@link #getTableName(Path)} 
   public static final String PRIMARY_TABLE_TOKEN = "$PRIMARY_TABLE";
 
   /**
