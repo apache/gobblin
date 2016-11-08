@@ -1,0 +1,38 @@
+## Job properties
+job.name=GoogleSearchConsole_DataFetchJob
+job.description=Download Google Search Analytics data on a daily basis
+job.group=Test
+#job.schedule=0/10 * * * * ?
+
+
+## Source properties
+source.entity=[Your entity name]
+source.class=gobblin.source.extractor.extract.google.webmaster.GoogleWebMasterSource
+source.schema=[{"columnName":"Date","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Country","isNullable":"true","dataType":{"type":"string"}},{"columnName":"Page","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Query","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Clicks","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Impressions","isNullable":"false","dataType":{"type":"string"}},{"columnName":"CTR","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Position","isNullable":"false","dataType":{"type":"string"}}]
+
+## Extract properties
+extract.namespace=${source.entity}
+extract.table.name=ExtractTable
+extract.table.type=snapshot_only
+
+#Webmaster Specific
+source.google.api.scope=https://www.googleapis.com/auth/webmasters.readonly
+source.google_webmasters.property=[Your website property]
+source.google_webmasters.credential.location=[Your private key file in json format]
+source.google_webmasters.predefined_filters=psettings,legal,directory,start,help,edu,in,pub,learning,uas,badges,company,topic,grp,vsearch,jobs,pulse,title,groups,redir,profinder
+source.google_webmasters.request.date=2016-10-10
+source.google_webmasters.request.countries=all,usa,india,germany
+source.google_webmasters.request.page_limit=2
+source.google_webmasters.request.query_limit=2
+
+## Converter properties
+converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter
+
+
+## Writer properties
+writer.destination.type=HDFS
+writer.output.format=AVRO
+
+
+## Publisher properties
+data.publisher.type=gobblin.publisher.BaseDataPublisher
