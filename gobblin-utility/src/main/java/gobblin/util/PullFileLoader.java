@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
-import lombok.Getter;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -45,7 +44,7 @@ import com.typesafe.config.ConfigSyntax;
 
 import gobblin.configuration.ConfigurationKeys;
 
-import javax.annotation.Nullable;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -236,16 +235,19 @@ public class PullFileLoader {
    * @return The {@link Config} in path with fallback as fallback.
    * @throws IOException
    */
-  private Config loadJavaPropsWithFallback(Path path, Config fallback) throws IOException {
+  private Config loadJavaPropsWithFallback(Path propertiesPath, Config fallback) throws IOException {
 
     PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
-    try (InputStreamReader inputStreamReader = new InputStreamReader(this.fs.open(path),
+    try (InputStreamReader inputStreamReader = new InputStreamReader(this.fs.open(propertiesPath),
         Charsets.UTF_8)) {
       propertiesConfiguration.load(inputStreamReader);
 
+      Config configFromProps =
+          ConfigUtils.propertiesToConfig(ConfigurationConverter.getProperties(propertiesConfiguration));
+
       return ConfigFactory.parseMap(ImmutableMap.of(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-          PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
-          .withFallback(ConfigFactory.parseProperties(ConfigurationConverter.getProperties(propertiesConfiguration)))
+          PathUtils.getPathWithoutSchemeAndAuthority(propertiesPath).toString()))
+          .withFallback(configFromProps)
           .withFallback(fallback);
     } catch (ConfigurationException ce) {
       throw new IOException(ce);
