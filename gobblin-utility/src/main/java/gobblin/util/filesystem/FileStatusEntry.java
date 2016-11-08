@@ -18,48 +18,48 @@ public class FileStatusEntry extends FileStatus {
   private FileStatusEntry[] children;
 
   private boolean exists;
+  private final FileSystem fs;
 
   public Optional<FileStatus> _fileStatus;
 
   public FileStatusEntry(final Path path)
       throws IOException {
-    this(null, path);
+    this(null, path, path.getFileSystem(new Configuration()));
   }
 
-  public FileStatusEntry(final FileStatusEntry parent, final Path path)
+  private FileStatusEntry(final FileStatusEntry parent, final Path path, FileSystem fs)
       throws IOException {
     if (path == null) {
       throw new IllegalArgumentException("Path is missing");
     }
     this.parent = parent;
-    this._fileStatus = Optional.fromNullable(path.getFileSystem(new Configuration()).getFileStatus(path));
+    this.fs = fs;
+    this._fileStatus = Optional.fromNullable(this.fs.getFileStatus(path));
   }
 
   public boolean refresh(final Path path)
       throws IOException {
-    try (FileSystem fs = path.getFileSystem(new Configuration())) {
-      if (_fileStatus.isPresent()) {
-        Optional<FileStatus> oldStatus = this._fileStatus;
-        try {
-          this._fileStatus = Optional.of(fs.getFileStatus(path));
-          this.exists = this._fileStatus.isPresent();
+    if (_fileStatus.isPresent()) {
+      Optional<FileStatus> oldStatus = this._fileStatus;
+      try {
+        this._fileStatus = Optional.of(this.fs.getFileStatus(path));
+        this.exists = this._fileStatus.isPresent();
 
-          return (oldStatus.isPresent() != this._fileStatus.isPresent()
-              || oldStatus.get().getModificationTime() != this._fileStatus.get().getModificationTime()
-              || oldStatus.get().isDirectory() != this._fileStatus.get().isDirectory()
-              || oldStatus.get().getLen() != this._fileStatus.get().getLen());
-        } catch (FileNotFoundException e) {
-          _fileStatus = Optional.absent();
-          this.exists = false;
-          return true;
-        }
+        return (oldStatus.isPresent() != this._fileStatus.isPresent()
+            || oldStatus.get().getModificationTime() != this._fileStatus.get().getModificationTime()
+            || oldStatus.get().isDirectory() != this._fileStatus.get().isDirectory()
+            || oldStatus.get().getLen() != this._fileStatus.get().getLen());
+      } catch (FileNotFoundException e) {
+        _fileStatus = Optional.absent();
+        this.exists = false;
+        return true;
+      }
+    } else {
+      if (path.getFileSystem(new Configuration()).exists(path)) {
+        _fileStatus = Optional.of(this.fs.getFileStatus(path));
+        return true;
       } else {
-        if (path.getFileSystem(new Configuration()).exists(path)) {
-          _fileStatus = Optional.of(fs.getFileStatus(path));
-          return true;
-        } else {
-          return false;
-        }
+        return false;
       }
     }
   }
@@ -75,7 +75,7 @@ public class FileStatusEntry extends FileStatus {
    */
   public FileStatusEntry newChildInstance(final Path path)
       throws IOException {
-    return new FileStatusEntry(this, path);
+    return new FileStatusEntry(this, path, this.fs);
   }
 
   /**

@@ -4,8 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Map;
 
 import org.apache.commons.io.IOCase;
 import org.apache.hadoop.conf.Configuration;
@@ -14,10 +13,17 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
+import com.google.common.collect.Maps;
 
+import gobblin.util.DecoratorUtils;
+
+import lombok.extern.slf4j.Slf4j;
+
+
+@Slf4j
 public class PathAlterationObserver {
 
-  private final List<PathAlterationListener> listeners = new CopyOnWriteArrayList<>();
+  private final Map<PathAlterationListener, PathAlterationListener> listeners = Maps.newConcurrentMap();
   private final FileStatusEntry rootEntry;
   private final PathFilter pathFilter;
   private final Comparator<Path> comparator;
@@ -105,7 +111,7 @@ public class PathAlterationObserver {
    */
   public void addListener(final PathAlterationListener listener) {
     if (listener != null) {
-      listeners.add(listener);
+      this.listeners.put(listener, new ExceptionCatchingPathAlterationListenerDecorator(listener));
     }
   }
 
@@ -116,8 +122,7 @@ public class PathAlterationObserver {
    */
   public void removeListener(final PathAlterationListener listener) {
     if (listener != null) {
-      while (listeners.remove(listener)) {
-      }
+      this.listeners.remove(listener);
     }
   }
 
@@ -127,7 +132,7 @@ public class PathAlterationObserver {
    * @return The file system listeners
    */
   public Iterable<PathAlterationListener> getListeners() {
-    return listeners;
+    return listeners.keySet();
   }
 
   /**
@@ -146,7 +151,7 @@ public class PathAlterationObserver {
   public void checkAndNotify()
       throws IOException {
     /* fire onStart() */
-    for (final PathAlterationListener listener : listeners) {
+    for (final PathAlterationListener listener : listeners.values()) {
       listener.onStart(this);
     }
 
@@ -164,7 +169,7 @@ public class PathAlterationObserver {
     }
 
     /* fire onStop() */
-    for (final PathAlterationListener listener : listeners) {
+    for (final PathAlterationListener listener : listeners.values()) {
       listener.onStop(this);
     }
   }
@@ -247,7 +252,7 @@ public class PathAlterationObserver {
    */
   private void doCreate(final FileStatusEntry entry) {
 
-    for (final PathAlterationListener listener : listeners) {
+    for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {
         listener.onDirectoryCreate(entry.getPath());
       } else {
@@ -269,7 +274,7 @@ public class PathAlterationObserver {
   private void doMatch(final FileStatusEntry entry, final Path path)
       throws IOException {
     if (entry.refresh(path)) {
-      for (final PathAlterationListener listener : listeners) {
+      for (final PathAlterationListener listener : listeners.values()) {
         if (entry.isDirectory()) {
           listener.onDirectoryChange(path);
         } else {
@@ -285,7 +290,7 @@ public class PathAlterationObserver {
    * @param entry The file entry
    */
   private void doDelete(final FileStatusEntry entry) {
-    for (final PathAlterationListener listener : listeners) {
+    for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {
         listener.onDirectoryDelete(entry.getPath());
       } else {
