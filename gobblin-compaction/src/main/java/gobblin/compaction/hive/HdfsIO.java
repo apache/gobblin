@@ -12,7 +12,6 @@
 
 package gobblin.compaction.hive;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Set;
 
@@ -23,13 +22,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableSet;
 
 
 /**
  * Management for HDFS reads and writes.
- *
- * @author ziliu
  */
 public abstract class HdfsIO {
   private static final Logger LOG = LoggerFactory.getLogger(HdfsIO.class);
@@ -37,11 +33,10 @@ public abstract class HdfsIO {
   private static final String HDFS_URI = "hdfs.uri";
   private static final String HDFS_URI_DEFAULT = "hdfs://localhost:9000";
   private static final String HADOOP_CONFIGFILE_ = "hadoop.configfile.";
-  private static final String HDFS_URI_HADOOP1 = "fs.default.name";
-  private static final String HDFS_URI_HADOOP2 = "fs.defaultFS";
+  private static final String HDFS_URI_HADOOP = "fs.defaultFS";
+
+  @Deprecated // Gobblin only supports Hadoop 2.x.x
   private static final String HADOOP_VERSION = "hadoop.version";
-  private static final String HADOOP_VERSION_DEFAULT = "2";
-  private static final Set<Integer> VALID_HADOOP_VERSIONS = ImmutableSet.<Integer>builder().add(1).add(2).build();
 
   protected final String filePathInHdfs;
   protected final FileSystem fileSystem;
@@ -51,36 +46,12 @@ public abstract class HdfsIO {
     this.fileSystem = getFileSystem();
   }
 
-  private static String getHdfsUriHadoopPropertyName() {
-    int hadoopVersion = getHadoopVersion();
-    if (hadoopVersion == 1) {
-      return HDFS_URI_HADOOP1;
-    } else if (hadoopVersion == 2) {
-      return HDFS_URI_HADOOP2;
-    } else {
-      String message = hadoopVersion + " is not a valid Hadoop version.";
-      LOG.error(message);
-      throw new RuntimeException(message);
-    }
-  }
-
-  private static int getHadoopVersion() {
-    int hadoopVersion =
-        Integer.parseInt(CompactionRunner.properties.getProperty(HADOOP_VERSION, HADOOP_VERSION_DEFAULT));
-    if (!VALID_HADOOP_VERSIONS.contains(hadoopVersion)) {
-      String message = hadoopVersion + " is not a valid Hadoop version.";
-      LOG.error(message);
-      throw new RuntimeException(message);
-    }
-    return hadoopVersion;
-  }
-
   protected static FileSystem getFileSystem() throws IOException {
     Configuration conf = getConfiguration();
     return FileSystem.get(conf);
   }
 
-  protected static Configuration getConfiguration() throws FileNotFoundException {
+  protected static Configuration getConfiguration() {
     Configuration conf = new Configuration();
     addResourceToConf(conf);
     return conf;
@@ -88,14 +59,13 @@ public abstract class HdfsIO {
 
   private static void addResourceToConf(Configuration conf) {
     addHadoopConfigPropertiesToConf(conf);
-    String hdfsUriKey = getHdfsUriHadoopPropertyName();
     if (CompactionRunner.properties.containsKey(HDFS_URI)) {
-      conf.set(hdfsUriKey, CompactionRunner.properties.getProperty(HDFS_URI));
+      conf.set(HDFS_URI_HADOOP, CompactionRunner.properties.getProperty(HDFS_URI));
     }
-    if (Strings.isNullOrEmpty(conf.get(hdfsUriKey))) {
-      conf.set(hdfsUriKey, HDFS_URI_DEFAULT);
+    if (Strings.isNullOrEmpty(conf.get(HDFS_URI_HADOOP))) {
+      conf.set(HDFS_URI_HADOOP, HDFS_URI_DEFAULT);
     }
-    CompactionRunner.properties.setProperty(HDFS_URI, conf.get(hdfsUriKey));
+    CompactionRunner.properties.setProperty(HDFS_URI, conf.get(HDFS_URI_HADOOP));
   }
 
   private static void addHadoopConfigPropertiesToConf(Configuration conf) {

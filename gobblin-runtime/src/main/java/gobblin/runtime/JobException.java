@@ -18,6 +18,8 @@ package gobblin.runtime;
  */
 public class JobException extends Exception {
 
+  private static final long serialVersionUID = -7377882385877284612L;
+
   public JobException(String message, Throwable t) {
     super(message, t);
   }

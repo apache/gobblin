@@ -48,8 +48,8 @@ public interface ConfigStore {
   public String getCurrentVersion();
 
   /**
-   * Obtains the config store root URI. This typically represents the physical location of the store.
-   * It may contain the server name and the path to the physical location of the store.
+   * Obtains the config store root URI. This represents the logical location of the store.
+   *
    * @return the configuration store root URI .
    */
   public URI getStoreURI();

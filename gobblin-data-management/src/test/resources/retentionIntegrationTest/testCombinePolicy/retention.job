@@ -1,0 +1,16 @@
+# These values can be changed
+gobblin.retention.versions.retained=2
+gobblin.retention.minutes.retained=4320
+gobblin.retention.watermark.regex=^([0-9]*)\-
+
+# pattern is /user/gobblin/snapshots/DB/Table
+gobblin.retention.dataset.pattern=${testNameTempPath}/user/gobblin/snapshots/*/*
+gobblin.retention.dataset.blacklist=
+
+gobblin.retention.dataset.profile.class=gobblin.data.management.retention.profile.GlobCleanableDatasetFinder
+gobblin.retention.version.finder.class=gobblin.data.management.retention.version.finder.UnixTimestampVersionFinder
+
+gobblin.retention.retention.policy.class=gobblin.data.management.retention.policy.CombineRetentionPolicy
+gobblin.retention.combine.retention.policy.class.1=gobblin.data.management.retention.policy.NewestKRetentionPolicy
+gobblin.retention.combine.retention.policy.class.2=gobblin.data.management.retention.policy.TimeBasedRetentionPolicy
+gobblin.retention.combine.retention.policy.delete.sets.combine.operation=INTERSECT

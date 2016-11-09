@@ -22,17 +22,17 @@ import org.slf4j.LoggerFactory;
 
 import gobblin.data.management.retention.policy.RetentionPolicy;
 import gobblin.data.management.retention.policy.TimeBasedRetentionPolicy;
-import gobblin.data.management.retention.version.TimestampedDatasetVersion;
-import gobblin.data.management.retention.version.finder.ModDateTimeDatasetVersionFinder;
-import gobblin.data.management.retention.version.finder.VersionFinder;
+import gobblin.data.management.version.TimestampedDatasetVersion;
+import gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder;
+import gobblin.data.management.version.finder.VersionFinder;
 
 
 /**
- * {@link DatasetBase} for a modification time based dataset.
+ * {@link CleanableDatasetBase} for a modification time based dataset.
  *
  * Uses a {@link ModDateTimeDatasetVersionFinder} and a {@link TimeBasedRetentionPolicy}.
  */
-public class ModificationTimeDataset extends DatasetBase<TimestampedDatasetVersion> {
+public class ModificationTimeDataset extends CleanableDatasetBase<TimestampedDatasetVersion> {
 
   private final VersionFinder<TimestampedDatasetVersion> versionFinder;
   private final RetentionPolicy<TimestampedDatasetVersion> retentionPolicy;

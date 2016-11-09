@@ -21,7 +21,7 @@ import org.apache.hadoop.mapred.RecordReader;
 /**
  * An extension of {@link OldApiHadoopFileInputExtractor} for extracting {@link Writable} records.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class OldApiWritableFileExtractor extends OldApiHadoopFileInputExtractor<Object, Writable, Object, Writable> {
 

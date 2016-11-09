@@ -21,13 +21,11 @@ import java.io.Writer;
 import java.util.List;
 import java.util.Properties;
 
-import gobblin.util.JobConfigurationUtils;
-import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
-import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
@@ -43,6 +41,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.StateStore;
 import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobState;
+import gobblin.util.JobConfigurationUtils;
 
 
 /**
@@ -50,7 +49,6 @@ import gobblin.runtime.JobState;
  *
  * @author Yinan Li
  */
-@SuppressWarnings("unused")
 public class JobStateToJsonConverter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobStateToJsonConverter.class);
@@ -60,8 +58,7 @@ public class JobStateToJsonConverter {
   private final StateStore<? extends JobState> jobStateStore;
   private final boolean keepConfig;
 
-  public JobStateToJsonConverter(Properties props, String storeUrl, boolean keepConfig)
-      throws IOException {
+  public JobStateToJsonConverter(Properties props, String storeUrl, boolean keepConfig) throws IOException {
     Configuration conf = new Configuration();
     JobConfigurationUtils.putPropertiesIntoConfiguration(props, conf);
     Path storePath = new Path(storeUrl);
@@ -79,22 +76,17 @@ public class JobStateToJsonConverter {
    * @param writer {@link java.io.Writer} to write the json document
    * @throws IOException
    */
-  @SuppressWarnings("unchecked")
-  public void convert(String jobName, String jobId, Writer writer)
-      throws IOException {
+  public void convert(String jobName, String jobId, Writer writer) throws IOException {
     List<? extends JobState> jobStates = this.jobStateStore.getAll(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX);
     if (jobStates.isEmpty()) {
       LOGGER.warn(String.format("No job state found for job with name %s and id %s", jobName, jobId));
       return;
     }
 
-    JsonWriter jsonWriter = new JsonWriter(writer);
-    jsonWriter.setIndent("\t");
-    try {
+    try (JsonWriter jsonWriter = new JsonWriter(writer)) {
+      jsonWriter.setIndent("\t");
       // There should be only a single job state
       writeJobState(jsonWriter, jobStates.get(0));
-    } finally {
-      jsonWriter.close();
     }
   }
 
@@ -104,9 +96,7 @@ public class JobStateToJsonConverter {
    * @param jobName job name
    * @param writer {@link java.io.Writer} to write the json document
    */
-  @SuppressWarnings("unchecked")
-  public void convert(String jobName, Writer writer)
-      throws IOException {
+  public void convert(String jobName, Writer writer) throws IOException {
     convert(jobName, "current", writer);
   }
 
@@ -117,21 +107,16 @@ public class JobStateToJsonConverter {
    * @param writer {@link java.io.Writer} to write the json document
    * @throws IOException
    */
-  @SuppressWarnings("unchecked")
-  public void convertAll(String jobName, Writer writer)
-      throws IOException {
+  public void convertAll(String jobName, Writer writer) throws IOException {
     List<? extends JobState> jobStates = this.jobStateStore.getAll(jobName);
     if (jobStates.isEmpty()) {
       LOGGER.warn(String.format("No job state found for job with name %s", jobName));
       return;
     }
 
-    JsonWriter jsonWriter = new JsonWriter(writer);
-    jsonWriter.setIndent("\t");
-    try {
+    try (JsonWriter jsonWriter = new JsonWriter(writer)) {
+      jsonWriter.setIndent("\t");
       writeJobStates(jsonWriter, jobStates);
-    } finally {
-      jsonWriter.close();
     }
   }
 
@@ -142,8 +127,7 @@ public class JobStateToJsonConverter {
    * @param jobState {@link JobState} to write to json document
    * @throws IOException
    */
-  private void writeJobState(JsonWriter jsonWriter, JobState jobState)
-      throws IOException {
+  private void writeJobState(JsonWriter jsonWriter, JobState jobState) throws IOException {
     jobState.toJson(jsonWriter, this.keepConfig);
   }
 
@@ -154,8 +138,7 @@ public class JobStateToJsonConverter {
    * @param jobStates list of {@link JobState}s to write to json document
    * @throws IOException
    */
-  private void writeJobStates(JsonWriter jsonWriter, List<? extends JobState> jobStates)
-      throws IOException {
+  private void writeJobStates(JsonWriter jsonWriter, List<? extends JobState> jobStates) throws IOException {
     jsonWriter.beginArray();
     for (JobState jobState : jobStates) {
       writeJobState(jsonWriter, jobState);
@@ -164,48 +147,21 @@ public class JobStateToJsonConverter {
   }
 
   @SuppressWarnings("all")
-  public static void main(String[] args)
-      throws Exception {
-    Option sysConfigOption = OptionBuilder
-        .withArgName("system configuration file")
-        .withDescription("Gobblin system configuration file")
-        .withLongOpt("sysconfig")
-        .hasArgs()
-        .create("sc");
-    Option storeUrlOption = OptionBuilder
-        .withArgName("gobblin state store URL")
-        .withDescription("Gobblin state store root path URL")
-        .withLongOpt("storeurl")
-        .hasArgs()
-        .isRequired()
-        .create('u');
-    Option jobNameOption = OptionBuilder
-        .withArgName("gobblin job name")
-        .withDescription("Gobblin job name")
-        .withLongOpt("name")
-        .hasArgs()
-        .isRequired()
-        .create('n');
-    Option jobIdOption = OptionBuilder
-        .withArgName("gobblin job id")
-        .withDescription("Gobblin job id")
-        .withLongOpt("id")
-        .hasArgs()
-        .create('i');
-    Option convertAllOption = OptionBuilder
-        .withDescription("Whether to convert all past job states of the given job")
-        .withLongOpt("all")
-        .create('a');
-    Option keepConfigOption = OptionBuilder
-        .withDescription("Whether to keep all configuration properties")
-        .withLongOpt("keepConfig")
-        .create("kc");
-    Option outputToFile = OptionBuilder
-        .withArgName("output file name")
-        .withDescription("Output file name")
-        .withLongOpt("toFile")
-        .hasArgs()
-        .create("t");
+  public static void main(String[] args) throws Exception {
+    Option sysConfigOption = Option.builder("sc").argName("system configuration file")
+        .desc("Gobblin system configuration file").longOpt("sysconfig").hasArgs().build();
+    Option storeUrlOption = Option.builder("u").argName("gobblin state store URL")
+        .desc("Gobblin state store root path URL").longOpt("storeurl").hasArgs().required().build();
+    Option jobNameOption = Option.builder("n").argName("gobblin job name").desc("Gobblin job name").longOpt("name")
+        .hasArgs().required().build();
+    Option jobIdOption =
+        Option.builder("i").argName("gobblin job id").desc("Gobblin job id").longOpt("id").hasArgs().build();
+    Option convertAllOption =
+        Option.builder("a").desc("Whether to convert all past job states of the given job").longOpt("all").build();
+    Option keepConfigOption =
+        Option.builder("kc").desc("Whether to keep all configuration properties").longOpt("keepConfig").build();
+    Option outputToFile =
+        Option.builder("t").argName("output file name").desc("Output file name").longOpt("toFile").hasArgs().build();
 
     Options options = new Options();
     options.addOption(sysConfigOption);
@@ -218,7 +174,7 @@ public class JobStateToJsonConverter {
 
     CommandLine cmd = null;
     try {
-      CommandLineParser parser = new BasicParser();
+      CommandLineParser parser = new DefaultParser();
       cmd = parser.parse(options, args);
     } catch (ParseException pe) {
       HelpFormatter formatter = new HelpFormatter();
@@ -227,11 +183,12 @@ public class JobStateToJsonConverter {
     }
 
     Properties sysConfig = new Properties();
-    if (cmd.hasOption(sysConfigOption.getLongOpt()) ) {
+    if (cmd.hasOption(sysConfigOption.getLongOpt())) {
       sysConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(sysConfigOption.getLongOpt()));
     }
 
-    JobStateToJsonConverter converter = new JobStateToJsonConverter(sysConfig, cmd.getOptionValue('u'), cmd.hasOption("kc"));
+    JobStateToJsonConverter converter =
+        new JobStateToJsonConverter(sysConfig, cmd.getOptionValue('u'), cmd.hasOption("kc"));
     StringWriter stringWriter = new StringWriter();
     if (cmd.hasOption('i')) {
       converter.convert(cmd.getOptionValue('n'), cmd.getOptionValue('i'), stringWriter);

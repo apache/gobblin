@@ -19,6 +19,14 @@ package gobblin.metrics;
  */
 public class TestConstants {
 
+  public static final String METRIC_PREFIX = "com.linkedin.example";
+
+  public static final String GAUGE = "gauge";
+  public static final String COUNTER = "counter";
+  public static final String METER = "meter";
+  public static final String HISTOGRAM = "histogram";
+  public static final String TIMER = "timer";
+  
   public static final String CONTEXT_NAME = "TestContext";
   public static final String RECORDS_PROCESSED = "recordsProcessed";
   public static final String RECORD_PROCESS_RATE = "recordProcessRate";

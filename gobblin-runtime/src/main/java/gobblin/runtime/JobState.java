@@ -19,6 +19,7 @@ import java.io.StringWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.hadoop.io.Text;
 
@@ -32,13 +33,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.gson.stream.JsonWriter;
-
 import com.linkedin.data.template.StringMap;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.rest.JobExecutionInfo;
 import gobblin.rest.JobStateEnum;
 import gobblin.rest.LauncherTypeEnum;
@@ -46,8 +47,10 @@ import gobblin.rest.Metric;
 import gobblin.rest.MetricArray;
 import gobblin.rest.MetricTypeEnum;
 import gobblin.rest.TaskExecutionInfoArray;
-import gobblin.metrics.GobblinMetrics;
 import gobblin.runtime.util.JobMetrics;
+import gobblin.runtime.util.MetricGroup;
+import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -61,9 +64,54 @@ public class JobState extends SourceState {
    * An enumeration of possible job states, which are identical to
    * {@link gobblin.configuration.WorkUnitState.WorkingState}
    * in terms of naming.
+   *
+   * <p> Status state diagram:
+   * <ul>
+   *    <li> null => PENDING
+   *    <li> PENDING => RUNNING
+   *    <li> PENDING => CANCELLED
+   *    <li> RUNNING => CANCELLED
+   *    <li> RUNNING => SUCCESSFUL
+   *    <li> RUNNING => FAILED
+   *    <li> SUCCESSFUL => COMMITTED
+   *    <li> SUCCESSFUL => CANCELLED  (cancelled before committing)
+   * </ul>
    */
   public enum RunningState {
-    PENDING, RUNNING, SUCCESSFUL, COMMITTED, FAILED, CANCELLED
+    /** Pending creation of {@link WorkUnit}s. */
+    PENDING,
+    /** Starting the execution of {@link WorkUnit}s. */
+    RUNNING,
+    /** All {@link WorkUnit}s have finished successfully or the job commit policy is
+     * {@link JobCommitPolicy#COMMIT_ON_PARTIAL_SUCCESS} */
+    SUCCESSFUL,
+    /** Job state has been committed */
+    COMMITTED,
+    /** At least one {@link WorkUnit}s has failed for a job with job commit policy
+     *  {@link JobCommitPolicy#COMMIT_ON_FULL_SUCCESS}. */
+    FAILED,
+    /** The execution of the job was cancelled. */
+    CANCELLED;
+
+    public boolean isCancelled() {
+      return this.equals(CANCELLED);
+    }
+
+    public boolean isDone() {
+      return this.equals(COMMITTED) || this.equals(FAILED) || this.equals(CANCELLED);
+    }
+
+    public boolean isSuccess() {
+      return this.equals(COMMITTED);
+    }
+
+    public boolean isFailure() {
+      return this.equals(FAILED);
+    }
+
+    public boolean isRunningOrDone() {
+      return isDone() || this.equals(RUNNING);
+    }
   }
 
   private String jobName;
@@ -76,8 +124,7 @@ public class JobState extends SourceState {
   private final Map<String, TaskState> taskStates = Maps.newLinkedHashMap();
 
   // Necessary for serialization/deserialization
-  public JobState() {
-  }
+  public JobState() {}
 
   public JobState(String jobName, String jobId) {
     this.jobName = jobName;
@@ -91,6 +138,30 @@ public class JobState extends SourceState {
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);
+  }
+
+  public static String getJobNameFromState(State state) {
+    return state.getProp(ConfigurationKeys.JOB_NAME_KEY);
+  }
+
+  public static String getJobNameFromProps(Properties props) {
+    return props.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+  }
+
+  public static String getJobGroupFromState(State state) {
+    return state.getProp(ConfigurationKeys.JOB_GROUP_KEY);
+  }
+
+  public static String getJobGroupFromProps(Properties props) {
+    return props.getProperty(ConfigurationKeys.JOB_GROUP_KEY);
+  }
+
+  public static String getJobDescriptionFromProps(State state) {
+    return state.getProp(ConfigurationKeys.JOB_DESCRIPTION_KEY);
+  }
+
+  public static String getJobDescriptionFromProps(Properties props) {
+    return props.getProperty(ConfigurationKeys.JOB_DESCRIPTION_KEY);
   }
 
   /**
@@ -117,7 +188,7 @@ public class JobState extends SourceState {
    * @return job ID
    */
   public String getJobId() {
-    return jobId;
+    return this.jobId;
   }
 
   /**
@@ -135,7 +206,7 @@ public class JobState extends SourceState {
    * @return job start time
    */
   public long getStartTime() {
-    return startTime;
+    return this.startTime;
   }
 
   /**
@@ -153,7 +224,7 @@ public class JobState extends SourceState {
    * @return job end time
    */
   public long getEndTime() {
-    return endTime;
+    return this.endTime;
   }
 
   /**
@@ -171,7 +242,7 @@ public class JobState extends SourceState {
    * @return job duration in milliseconds
    */
   public long getDuration() {
-    return duration;
+    return this.duration;
   }
 
   /**
@@ -268,7 +339,7 @@ public class JobState extends SourceState {
    * @return a list of {@link TaskState}s
    */
   public List<TaskState> getTaskStates() {
-    return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
+    return ImmutableList.<TaskState> builder().addAll(this.taskStates.values()).build();
   }
 
   /**
@@ -290,7 +361,7 @@ public class JobState extends SourceState {
       String datasetUrn = taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
       if (!datasetStatesByUrns.containsKey(datasetUrn)) {
         DatasetState datasetState = newDatasetState(false);
-        datasetState.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
+        datasetState.setDatasetUrn(datasetUrn);
         datasetStatesByUrns.put(datasetUrn, datasetState);
       }
 
@@ -309,7 +380,7 @@ public class JobState extends SourceState {
   public List<WorkUnitState> getTaskStatesAsWorkUnitStates() {
     ImmutableList.Builder<WorkUnitState> builder = ImmutableList.builder();
     for (TaskState taskState : this.taskStates.values()) {
-      WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit());
+      WorkUnitState workUnitState = new WorkUnitState(taskState.getWorkunit(), taskState.getJobState());
       workUnitState.setId(taskState.getId());
       workUnitState.addAll(taskState);
       builder.add(workUnitState);
@@ -343,14 +414,13 @@ public class JobState extends SourceState {
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     Text text = new Text();
     text.readFields(in);
-    this.jobName = text.toString();
+    this.jobName = text.toString().intern();
     text.readFields(in);
-    this.jobId = text.toString();
-    this.setId(jobId);
+    this.jobId = text.toString().intern();
+    this.setId(this.jobId);
     this.startTime = in.readLong();
     this.endTime = in.readLong();
     this.duration = in.readLong();
@@ -361,14 +431,17 @@ public class JobState extends SourceState {
     for (int i = 0; i < numTaskStates; i++) {
       TaskState taskState = new TaskState();
       taskState.readFields(in);
-      this.taskStates.put(taskState.getTaskId(), taskState);
+      this.taskStates.put(taskState.getTaskId().intern(), taskState);
     }
     super.readFields(in);
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
+    write(out, true);
+  }
+
+  public void write(DataOutput out, boolean writeTasks) throws IOException {
     Text text = new Text();
     text.set(this.jobName);
     text.write(out);
@@ -380,9 +453,13 @@ public class JobState extends SourceState {
     text.set(this.state.name());
     text.write(out);
     out.writeInt(this.taskCount);
-    out.writeInt(this.taskStates.size());
-    for (TaskState taskState : this.taskStates.values()) {
-      taskState.write(out);
+    if (writeTasks) {
+      out.writeInt(this.taskStates.size());
+      for (TaskState taskState : this.taskStates.values()) {
+        taskState.write(out);
+      }
+    } else {
+      out.writeInt(0);
     }
     super.write(out);
   }
@@ -395,8 +472,7 @@ public class JobState extends SourceState {
    * @param keepConfig whether to keep all configuration properties
    * @throws IOException
    */
-  public void toJson(JsonWriter jsonWriter, boolean keepConfig)
-      throws IOException {
+  public void toJson(JsonWriter jsonWriter, boolean keepConfig) throws IOException {
     jsonWriter.beginObject();
 
     jsonWriter.name("job name").value(this.getJobName()).name("job id").value(this.getJobId()).name("job state")
@@ -406,20 +482,24 @@ public class JobState extends SourceState {
 
     jsonWriter.name("task states");
     jsonWriter.beginArray();
-    for (TaskState taskState : taskStates.values()) {
+    for (TaskState taskState : this.taskStates.values()) {
       taskState.toJson(jsonWriter, keepConfig);
     }
     jsonWriter.endArray();
 
     if (keepConfig) {
       jsonWriter.name("properties");
-      jsonWriter.beginObject();
-      for (String key : this.getPropertyNames()) {
-        jsonWriter.name(key).value(this.getProp(key));
-      }
-      jsonWriter.endObject();
+      propsToJson(jsonWriter);
     }
 
+    jsonWriter.endObject();
+  }
+
+  protected void propsToJson(JsonWriter jsonWriter) throws IOException {
+    jsonWriter.beginObject();
+    for (String key : this.getPropertyNames()) {
+      jsonWriter.name(key).value(this.getProp(key));
+    }
     jsonWriter.endObject();
   }
 
@@ -445,9 +525,8 @@ public class JobState extends SourceState {
   @Override
   public String toString() {
     StringWriter stringWriter = new StringWriter();
-    JsonWriter jsonWriter = new JsonWriter(stringWriter);
-    jsonWriter.setIndent("\t");
-    try {
+    try (JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
+      jsonWriter.setIndent("\t");
       this.toJson(jsonWriter, false);
     } catch (IOException ioe) {
       // Ignored
@@ -491,8 +570,8 @@ public class JobState extends SourceState {
     JobMetrics jobMetrics = JobMetrics.get(this);
     MetricArray metricArray = new MetricArray();
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
-        .getCounters().entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext().getCounters()
+        .entrySet()) {
       Metric counter = new Metric();
       counter.setGroup(MetricGroup.JOB.name());
       counter.setName(entry.getKey());
@@ -501,8 +580,8 @@ public class JobState extends SourceState {
       metricArray.add(counter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
-        .getMeters().entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext().getMeters()
+        .entrySet()) {
       Metric meter = new Metric();
       meter.setGroup(MetricGroup.JOB.name());
       meter.setName(entry.getKey());
@@ -511,13 +590,13 @@ public class JobState extends SourceState {
       metricArray.add(meter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext()
-        .getGauges().entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : jobMetrics.getMetricContext().getGauges()
+        .entrySet()) {
       Metric gauge = new Metric();
       gauge.setGroup(MetricGroup.JOB.name());
       gauge.setName(entry.getKey());
       gauge.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.GAUGE.name()));
-      gauge.setValue(((Gauge) entry.getValue()).getValue().toString());
+      gauge.setValue(((Gauge<?>) entry.getValue()).getValue().toString());
       metricArray.add(gauge);
     }
 
@@ -528,7 +607,7 @@ public class JobState extends SourceState {
     for (String name : this.getPropertyNames()) {
       String value = this.getProp(name);
       if (!Strings.isNullOrEmpty(value))
-      jobProperties.put(name, value);
+        jobProperties.put(name, value);
     }
     jobExecutionInfo.setJobProperties(new StringMap(jobProperties));
 
@@ -543,7 +622,6 @@ public class JobState extends SourceState {
    */
   public DatasetState newDatasetState(boolean fullCopy) {
     DatasetState datasetState = new DatasetState(this.jobName, this.jobId);
-    datasetState.addAll(this);
     datasetState.setStartTime(this.startTime);
     datasetState.setEndTime(this.endTime);
     datasetState.setDuration(this.duration);
@@ -564,8 +642,12 @@ public class JobState extends SourceState {
   }
 
   /**
-   * A subclass of {@link JobState} that is used to represent dataset states. This class is currently
-   * identical to {@link JobState} except that the name is more meaningful and less confusing.
+   * A subclass of {@link JobState} that is used to represent dataset states.
+   *
+   * <p>
+   *   A {@code DatasetState} does <em>not</em> contain any properties. Operations such as {@link #getProp(String)}
+   *   and {@link #setProp(String, Object)} are not supported.
+   * </p>
    */
   public static class DatasetState extends JobState {
 
@@ -579,11 +661,62 @@ public class JobState extends SourceState {
     }
 
     public void setDatasetUrn(String datasetUrn) {
-      setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
+      super.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
     }
 
     public String getDatasetUrn() {
-      return getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
+      return super.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
+    }
+
+    public void incrementJobFailures() {
+      super.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
+          Integer.parseInt(super.getProp(ConfigurationKeys.JOB_FAILURES_KEY, "0")) + 1);
+    }
+
+    public void setNoJobFailure() {
+      super.setProp(ConfigurationKeys.JOB_FAILURES_KEY, 0);
+    }
+
+    public int getJobFailures() {
+      return Integer.parseInt(super.getProp(ConfigurationKeys.JOB_FAILURES_KEY));
+    }
+
+    @Override
+    protected void propsToJson(JsonWriter jsonWriter) throws IOException {
+      jsonWriter.beginObject();
+      jsonWriter.name(ConfigurationKeys.DATASET_URN_KEY).value(getDatasetUrn());
+      jsonWriter.name(ConfigurationKeys.JOB_FAILURES_KEY).value(getJobFailures());
+      jsonWriter.endObject();
+    }
+
+    @Override
+    public String getProp(String key) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getProp(String key, String def) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setProp(String key, Object value) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addAll(Properties properties) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addAllIfNotExist(Properties properties) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void overrideWith(Properties properties) {
+      throw new UnsupportedOperationException();
     }
   }
 }

@@ -16,8 +16,10 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import com.google.common.base.Throwables;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Throwables;
 
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
@@ -25,7 +27,6 @@ import gobblin.source.Source;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.Decorator;
-import gobblin.util.DecoratorUtils;
 
 
 /**
@@ -35,6 +36,7 @@ import gobblin.util.DecoratorUtils;
  * @author Yinan Li
  */
 public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
+  private static final Logger LOG = LoggerFactory.getLogger(SourceDecorator.class);
 
   private final Source<S, D> source;
   private final String jobId;
@@ -43,7 +45,7 @@ public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
   public SourceDecorator(Source<S, D> source, String jobId, Logger logger) {
     this.source = source;
     this.jobId = jobId;
-    this.logger = logger;
+    this.logger = null != logger ? logger : LOG;
   }
 
   @Override
@@ -63,8 +65,7 @@ public class SourceDecorator<S, D> implements Source<S, D>, Decorator {
   }
 
   @Override
-  public Extractor<S, D> getExtractor(WorkUnitState state)
-      throws IOException {
+  public Extractor<S, D> getExtractor(WorkUnitState state) throws IOException {
     try {
       return this.source.getExtractor(state);
     } catch (Throwable t) {

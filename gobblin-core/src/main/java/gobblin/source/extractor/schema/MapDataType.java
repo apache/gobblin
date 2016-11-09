@@ -21,7 +21,7 @@ public class MapDataType extends DataType {
   }
 
   public String getValues() {
-    return values;
+    return this.values;
   }
 
   public void setValues(String values) {

@@ -19,7 +19,7 @@ import com.google.common.net.HostAndPort;
  * A kafka topic partition.
  * Two partitions are considered equivalent if they have the same topic name and partition id. They may have different leaders.
  *
- * @author ziliu
+ * @author Ziyang Liu
  *
  */
 public final class KafkaPartition {
@@ -76,7 +76,7 @@ public final class KafkaPartition {
   }
 
   public KafkaLeader getLeader() {
-    return leader;
+    return this.leader;
   }
 
   public String getTopicName() {
@@ -100,8 +100,8 @@ public final class KafkaPartition {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + id;
-    result = prime * result + ((topicName == null) ? 0 : topicName.hashCode());
+    result = prime * result + this.id;
+    result = prime * result + ((this.topicName == null) ? 0 : this.topicName.hashCode());
     return result;
   }
 
@@ -111,14 +111,14 @@ public final class KafkaPartition {
       return false;
     }
     KafkaPartition other = (KafkaPartition) obj;
-    if (id != other.id) {
+    if (this.id != other.id) {
       return false;
     }
-    if (topicName == null) {
+    if (this.topicName == null) {
       if (other.topicName != null) {
         return false;
       }
-    } else if (!topicName.equals(other.topicName)) {
+    } else if (!this.topicName.equals(other.topicName)) {
       return false;
     }
     return true;

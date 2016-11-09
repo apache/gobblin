@@ -12,8 +12,6 @@
 
 package gobblin.data.management.copy;
 
-import gobblin.data.management.retention.dataset.finder.DatasetFinder;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -23,8 +21,10 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
 
+import gobblin.dataset.DatasetsFinder;
 
-public class TestCopyableDatasetFinder implements DatasetFinder<CopyableDataset> {
+
+public class TestCopyableDatasetFinder implements DatasetsFinder<CopyableDataset> {
 
   public TestCopyableDatasetFinder(FileSystem fs, Properties pros) throws IOException {
   }

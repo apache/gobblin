@@ -58,6 +58,16 @@ public class RootMetricContextTest {
   }
 
   @Test
+  public void testReporterCanBeAddedToStartedContext() throws Exception {
+    RootMetricContext.get().startReporting();
+
+    ContextStoreReporter reporter = new ContextStoreReporter("testReporter", ConfigFactory.empty());
+    Assert.assertTrue(reporter.isStarted());
+
+    RootMetricContext.get().stopReporting();
+  }
+
+  @Test
   public void testMetricContextLifecycle() throws Exception {
 
     String name = UUID.randomUUID().toString();

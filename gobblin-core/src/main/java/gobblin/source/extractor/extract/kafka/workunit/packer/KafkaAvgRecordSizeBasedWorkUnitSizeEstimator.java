@@ -38,7 +38,7 @@ import gobblin.source.workunit.WorkUnit;
  *
  * If a partition was not pulled in the previous run, a default value of 1024 is used.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaAvgRecordSizeBasedWorkUnitSizeEstimator implements KafkaWorkUnitSizeEstimator {
 
@@ -65,11 +65,10 @@ public class KafkaAvgRecordSizeBasedWorkUnitSizeEstimator implements KafkaWorkUn
       LOG.info(String.format("Estimated avg record size for partition %s is %d", partition,
           this.estAvgSizes.get(partition)));
       return this.estAvgSizes.get(partition);
-    } else {
-      LOG.warn(String.format("Avg record size for partition %s not available, using default size %d", partition,
-          DEFAULT_AVG_RECORD_SIZE));
-      return DEFAULT_AVG_RECORD_SIZE;
     }
+    LOG.warn(String.format("Avg record size for partition %s not available, using default size %d", partition,
+        DEFAULT_AVG_RECORD_SIZE));
+    return DEFAULT_AVG_RECORD_SIZE;
   }
 
   private void readPreAvgRecordSizes(SourceState state) {

@@ -35,7 +35,7 @@ else
 fi
 
 mkdir -p pnda-build
-HADOOP_VERSION=2.6.0-cdh5.4.9
-./gradlew build -Pversion=${VERSION} -PuseHadoop2 -PhadoopVersion=${HADOOP_VERSION}
+HADOOP_VERSION=2.6.0-cdh5.5.2
+./gradlew build -Pversion=${VERSION} -PhadoopVersion=${HADOOP_VERSION} -PexcludeHadoopDeps -PexcludeHiveDeps -x gobblin-core:test
 mv gobblin-distribution-${VERSION}.tar.gz pnda-build/
 sha512sum pnda-build/gobblin-distribution-${VERSION}.tar.gz > pnda-build/gobblin-distribution-${VERSION}.tar.gz.sha512.txt

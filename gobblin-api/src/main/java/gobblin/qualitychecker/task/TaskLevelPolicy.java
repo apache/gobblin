@@ -21,18 +21,14 @@ public abstract class TaskLevelPolicy {
   private final Type type;
 
   public enum Type {
-    FAIL,          // Fail if the test does not pass
-    OPTIONAL       // The test is optional
+    FAIL, // Fail if the test does not pass
+    OPTIONAL // The test is optional
   }
-
-  ;
 
   public enum Result {
-    PASSED,          // The test passed
-    FAILED           // The test failed
+    PASSED, // The test passed
+    FAILED // The test failed
   }
-
-  ;
 
   public TaskLevelPolicy(State state, TaskLevelPolicy.Type type) {
     this.state = state;
@@ -40,11 +36,11 @@ public abstract class TaskLevelPolicy {
   }
 
   public State getTaskState() {
-    return state;
+    return this.state;
   }
 
   public Type getType() {
-    return type;
+    return this.type;
   }
 
   public abstract Result executePolicy();

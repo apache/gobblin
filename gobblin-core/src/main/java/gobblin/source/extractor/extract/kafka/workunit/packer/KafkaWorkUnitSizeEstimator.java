@@ -17,8 +17,6 @@ import gobblin.source.workunit.WorkUnit;
 
 /**
  * Estimates the size of a Kafka {@link WorkUnit}, which contains one or more partitions of the same topic.
- *
- * @author ziliu
  */
 public interface KafkaWorkUnitSizeEstimator {
 

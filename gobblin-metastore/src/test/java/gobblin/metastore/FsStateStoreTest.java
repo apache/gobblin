@@ -31,20 +31,18 @@ import gobblin.configuration.State;
 /**
  * Unit tests for {@link FsStateStore}.
  */
-@Test(groups = {"gobblin.metastore"})
+@Test(groups = { "gobblin.metastore" })
 public class FsStateStoreTest {
 
   private StateStore<State> stateStore;
 
   @BeforeClass
-  public void setUp()
-      throws IOException {
-    this.stateStore = new FsStateStore<State>("file:///", "metastore-test", State.class);
+  public void setUp() throws IOException {
+    this.stateStore = new FsStateStore<>("file:///", "metastore-test", State.class);
   }
 
   @Test
-  public void testPut()
-      throws IOException {
+  public void testPut() throws IOException {
     List<State> states = Lists.newArrayList();
 
     State state1 = new State();
@@ -67,9 +65,8 @@ public class FsStateStoreTest {
     Assert.assertTrue(this.stateStore.exists("testStore", "testTable"));
   }
 
-  @Test(dependsOnMethods = {"testPut"})
-  public void testGet()
-      throws IOException {
+  @Test(dependsOnMethods = { "testPut" })
+  public void testGet() throws IOException {
     List<State> states = this.stateStore.getAll("testStore", "testTable");
     Assert.assertEquals(states.size(), 3);
 
@@ -78,16 +75,14 @@ public class FsStateStoreTest {
     Assert.assertEquals(states.get(2).getProp("k3"), "v3");
   }
 
-  @Test(dependsOnMethods = {"testPut"})
-  public void testCreateAlias()
-      throws IOException {
+  @Test(dependsOnMethods = { "testPut" })
+  public void testCreateAlias() throws IOException {
     this.stateStore.createAlias("testStore", "testTable", "testTable1");
     Assert.assertTrue(this.stateStore.exists("testStore", "testTable1"));
   }
 
-  @Test(dependsOnMethods = {"testCreateAlias"})
-  public void testGetAlias()
-      throws IOException {
+  @Test(dependsOnMethods = { "testCreateAlias" })
+  public void testGetAlias() throws IOException {
     List<State> states = this.stateStore.getAll("testStore", "testTable1");
     Assert.assertEquals(states.size(), 3);
 
@@ -97,8 +92,7 @@ public class FsStateStoreTest {
   }
 
   @AfterClass
-  public void tearDown()
-      throws IOException {
+  public void tearDown() throws IOException {
     FileSystem fs = FileSystem.getLocal(new Configuration(false));
     Path rootDir = new Path("metastore-test");
     if (fs.exists(rootDir)) {

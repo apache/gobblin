@@ -26,7 +26,7 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 
 import gobblin.annotation.Alpha;
-import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.util.FileListUtils;
 
 
@@ -34,44 +34,44 @@ import gobblin.util.FileListUtils;
  * An abstract {@link RetentionPolicy} for {@link gobblin.data.management.retention.dataset.RawDataset}.
  *
  * This class embeds another {@link RetentionPolicy}. In {@link #listDeletableVersions(List)} it applies the
- * embedded {@link RetentionPolicy}'s predicate, as well as {@link #listQualifiedRawDatasetVersions(Collection)}.
+ * embedded {@link RetentionPolicy}'s predicate, as well as {@link #listQualifiedRawFileSystemDatasetVersions(Collection)}.
  */
 @Alpha
-public abstract class RawDatasetRetentionPolicy implements RetentionPolicy<DatasetVersion> {
+public abstract class RawDatasetRetentionPolicy implements RetentionPolicy<FileSystemDatasetVersion> {
 
   private final FileSystem fs;
-  private final Class<? extends DatasetVersion> versionClass;
-  private final RetentionPolicy<DatasetVersion> embeddedRetentionPolicy;
+  private final Class<? extends FileSystemDatasetVersion> versionClass;
+  private final RetentionPolicy<FileSystemDatasetVersion> embeddedRetentionPolicy;
 
-  public RawDatasetRetentionPolicy(FileSystem fs, Class<? extends DatasetVersion> versionClass,
-      RetentionPolicy<DatasetVersion> retentionPolicy) {
+  public RawDatasetRetentionPolicy(FileSystem fs, Class<? extends FileSystemDatasetVersion> versionClass,
+      RetentionPolicy<FileSystemDatasetVersion> retentionPolicy) {
     this.fs = fs;
     this.versionClass = versionClass;
     this.embeddedRetentionPolicy = retentionPolicy;
   }
 
   @Override
-  public Class<? extends DatasetVersion> versionClass() {
+  public Class<? extends FileSystemDatasetVersion> versionClass() {
     return this.versionClass;
   }
 
   @Override
-  public Collection<DatasetVersion> listDeletableVersions(List<DatasetVersion> allVersions) {
-    Collection<DatasetVersion> deletableVersions = this.embeddedRetentionPolicy.listDeletableVersions(allVersions);
-    return listQualifiedRawDatasetVersions(deletableVersions);
+  public Collection<FileSystemDatasetVersion> listDeletableVersions(List<FileSystemDatasetVersion> allVersions) {
+    Collection<FileSystemDatasetVersion> deletableVersions = this.embeddedRetentionPolicy.listDeletableVersions(allVersions);
+    return listQualifiedRawFileSystemDatasetVersions(deletableVersions);
   }
 
   /**
    * A raw dataset version is qualified to be deleted, iff the corresponding refined paths exist, and the latest
    * mod time of all files is in the raw dataset is earlier than the latest mod time of all files in the refined paths.
    */
-  protected Collection<DatasetVersion> listQualifiedRawDatasetVersions(Collection<DatasetVersion> allVersions) {
-    return Lists.newArrayList(Collections2.filter(allVersions, new Predicate<DatasetVersion>() {
+  protected Collection<FileSystemDatasetVersion> listQualifiedRawFileSystemDatasetVersions(Collection<FileSystemDatasetVersion> allVersions) {
+    return Lists.newArrayList(Collections2.filter(allVersions, new Predicate<FileSystemDatasetVersion>() {
       @Override
-      public boolean apply(DatasetVersion version) {
+      public boolean apply(FileSystemDatasetVersion version) {
         Iterable<Path> refinedDatasetPaths = getRefinedDatasetPaths(version);
         try {
-          Optional<Long> latestRawDatasetModTime = getLatestModTime(version.getPathsToDelete());
+          Optional<Long> latestRawDatasetModTime = getLatestModTime(version.getPaths());
           Optional<Long> latestRefinedDatasetModTime = getLatestModTime(refinedDatasetPaths);
           return latestRawDatasetModTime.isPresent() && latestRefinedDatasetModTime.isPresent()
               && latestRawDatasetModTime.get() <= latestRefinedDatasetModTime.get();
@@ -95,5 +95,5 @@ public abstract class RawDatasetRetentionPolicy implements RetentionPolicy<Datas
    * can be a file containing un-deduplicated records, whose corresponding refined dataset path is a file
    * containing the corresponding deduplicated records.
    */
-  protected abstract Iterable<Path> getRefinedDatasetPaths(DatasetVersion version);
+  protected abstract Iterable<Path> getRefinedDatasetPaths(FileSystemDatasetVersion version);
 }

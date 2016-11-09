@@ -14,10 +14,8 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -76,8 +74,7 @@ public class ProxiedFileSystemUtils {
    * @throws IOException
    */
   static FileSystem createProxiedFileSystem(@NonNull final String userNameToProxyAs, Properties properties, URI fsURI,
-      Configuration conf)
-      throws IOException {
+      Configuration conf) throws IOException {
     Preconditions.checkArgument(properties.containsKey(AUTH_TYPE_KEY));
 
     switch (AuthType.valueOf(properties.getProperty(AUTH_TYPE_KEY))) {
@@ -85,15 +82,14 @@ public class ProxiedFileSystemUtils {
         Preconditions.checkArgument(properties.containsKey(AUTH_TOKEN_PATH));
         Path tokenPath = new Path(properties.getProperty(AUTH_TOKEN_PATH));
         Optional<Token<?>> proxyToken = getTokenFromSeqFile(userNameToProxyAs, tokenPath);
-        if(proxyToken.isPresent()) {
+        if (proxyToken.isPresent()) {
           try {
             return createProxiedFileSystemUsingToken(userNameToProxyAs, proxyToken.get(), fsURI, conf);
           } catch (InterruptedException e) {
             throw new IOException("Failed to proxy as user " + userNameToProxyAs, e);
           }
-        } else {
-          throw new IOException("No delegation token found for proxy user " + userNameToProxyAs);
         }
+        throw new IOException("No delegation token found for proxy user " + userNameToProxyAs);
       case KEYTAB:
         Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS)
             && properties.containsKey(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION));
@@ -102,8 +98,6 @@ public class ProxiedFileSystemUtils {
         try {
           return createProxiedFileSystemUsingKeytab(userNameToProxyAs, superUserName, keytabPath, fsURI, conf);
         } catch (InterruptedException e) {
-          throw new IOException("Failed to proxy as user " + userNameToProxyAs, e);
-        } catch (URISyntaxException e) {
           throw new IOException("Failed to proxy as user " + userNameToProxyAs, e);
         }
       default:
@@ -126,11 +120,10 @@ public class ProxiedFileSystemUtils {
    * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
    */
   static FileSystem createProxiedFileSystemUsingKeytab(String userNameToProxyAs, String superUserName,
-      Path superUserKeytabLocation, URI fsURI, Configuration conf) throws IOException, InterruptedException,
-      URISyntaxException {
+      Path superUserKeytabLocation, URI fsURI, Configuration conf) throws IOException, InterruptedException {
 
-    return loginAndProxyAsUser(userNameToProxyAs, superUserName, superUserKeytabLocation).doAs(
-        new ProxiedFileSystem(fsURI, conf));
+    return loginAndProxyAsUser(userNameToProxyAs, superUserName, superUserKeytabLocation)
+        .doAs(new ProxiedFileSystem(fsURI, conf));
   }
 
   /**
@@ -153,7 +146,7 @@ public class ProxiedFileSystemUtils {
    * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
    */
   static FileSystem createProxiedFileSystemUsingKeytab(State state, URI fsURI, Configuration conf)
-      throws IOException, InterruptedException, URISyntaxException {
+      throws IOException, InterruptedException {
     Preconditions.checkArgument(state.contains(ConfigurationKeys.FS_PROXY_AS_USER_NAME));
     Preconditions.checkArgument(state.contains(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS));
     Preconditions.checkArgument(state.contains(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION));
@@ -210,27 +203,18 @@ public class ProxiedFileSystemUtils {
   public static Optional<Token<?>> getTokenFromSeqFile(String userNameKey, Path tokenFilePath) throws IOException {
     log.info("Reading tokens from sequence file " + tokenFilePath);
 
-    Closer closer = Closer.create();
-    try {
+    try (Closer closer = Closer.create()) {
       FileSystem localFs = FileSystem.getLocal(new Configuration());
       @SuppressWarnings("deprecation")
       SequenceFile.Reader tokenReader =
           closer.register(new SequenceFile.Reader(localFs, tokenFilePath, localFs.getConf()));
       Text key = new Text();
-      Token<?> value = new Token();
+      Token<?> value = new Token<>();
       while (tokenReader.next(key, value)) {
         log.debug("Found token for user: " + key);
         if (key.toString().equals(userNameKey)) {
           return Optional.<Token<?>> of(value);
         }
-      }
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      try {
-        closer.close();
-      } catch (IOException e) {
-        log.warn("Unable to close sequence file reader for path: " + tokenFilePath);
       }
     }
     log.warn("Did not find any tokens for user " + userNameKey);
@@ -260,7 +244,7 @@ public class ProxiedFileSystemUtils {
     public FileSystem run() throws IOException {
 
       log.info("Creating a filesystem for user: " + UserGroupInformation.getCurrentUser());
-      return FileSystem.get(fsURI, conf);
+      return FileSystem.get(this.fsURI, this.conf);
     }
   }
 }

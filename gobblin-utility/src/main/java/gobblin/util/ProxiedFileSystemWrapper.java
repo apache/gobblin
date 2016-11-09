@@ -90,7 +90,7 @@ public class ProxiedFileSystemWrapper {
         break;
       case TOKEN: // If the authentication type is TOKEN, create a proxy user and then add the token to the user.
         proxyUser = UserGroupInformation.createProxyUser(proxyUserName, UserGroupInformation.getLoginUser());
-        Optional<Token> proxyToken = getTokenFromSeqFile(authPath, proxyUserName);
+        Optional<Token<?>> proxyToken = getTokenFromSeqFile(authPath, proxyUserName);
         if (proxyToken.isPresent()) {
           proxyUser.addToken(proxyToken.get());
         } else {
@@ -124,25 +124,19 @@ public class ProxiedFileSystemWrapper {
    * @return Token for proxyUserName if it exists.
    * @throws IOException
    */
-  private Optional<Token> getTokenFromSeqFile(String authPath, String proxyUserName) throws IOException {
-    Closer closer = Closer.create();
-    try {
+  private static Optional<Token<?>> getTokenFromSeqFile(String authPath, String proxyUserName) throws IOException {
+    try (Closer closer = Closer.create()) {
       FileSystem localFs = FileSystem.getLocal(new Configuration());
-      @SuppressWarnings("deprecation")
       SequenceFile.Reader tokenReader =
           closer.register(new SequenceFile.Reader(localFs, new Path(authPath), localFs.getConf()));
       Text key = new Text();
-      Token value = new Token();
+      Token<?> value = new Token<>();
       while (tokenReader.next(key, value)) {
         LOG.info("Found token for " + key);
         if (key.toString().equals(proxyUserName)) {
-          return Optional.of(value);
+          return Optional.<Token<?>> of(value);
         }
       }
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
     return Optional.absent();
   }

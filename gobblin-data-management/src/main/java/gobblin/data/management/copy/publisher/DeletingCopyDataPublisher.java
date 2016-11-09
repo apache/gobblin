@@ -25,6 +25,7 @@ import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.ReadyCopyableFileFilter;
 import gobblin.util.HadoopUtils;
@@ -67,9 +68,11 @@ public class DeletingCopyDataPublisher extends CopyDataPublisher {
   }
 
   private void deleteFilesOnSource(WorkUnitState state) throws IOException {
-    CopyableFile copyableFile = CopySource.deserializeCopyableFile(state);
-    HadoopUtils.deletePath(this.sourceFs, copyableFile.getOrigin().getPath(), true);
-    HadoopUtils.deletePath(this.sourceFs,
-        PathUtils.addExtension(copyableFile.getOrigin().getPath(), ReadyCopyableFileFilter.READY_EXTENSION), true);
+    CopyEntity copyEntity = CopySource.deserializeCopyEntity(state);
+    if (copyEntity instanceof CopyableFile) {
+      HadoopUtils.deletePath(this.sourceFs, ((CopyableFile) copyEntity).getOrigin().getPath(), true);
+      HadoopUtils.deletePath(this.sourceFs, PathUtils.addExtension(((CopyableFile) copyEntity).getOrigin().getPath(),
+          ReadyCopyableFileFilter.READY_EXTENSION), true);
+    }
   }
 }

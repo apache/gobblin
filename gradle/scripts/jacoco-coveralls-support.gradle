@@ -1,0 +1,71 @@
+// Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at  http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied.
+
+/**
+ * Adds integration with the <a href="https://docs.gradle.org/current/userguide/jacoco_plugin.html">Gradle JaCoCo Plugin</a>
+ * as well as with <a href="https://coveralls.io/">Coveralls</a>. The script uses the
+ * <a href="https://github.com/palantir/gradle-jacoco-coverage">JacocoFullReport</a> to aggregate the JaCoCo report for
+ * each Gradle sub-module into one master report. The Gradle JaCoCo plugin does not do the aggregation by default which
+ * is why this plugin is necessary. The master report is also needed for Coveralls integration which expects a single
+ * aggregated report in <code>xml</code> format. The aggregated report will be placed under
+ * <code>build/reports/jacocoFullReport/</code>.
+ */
+
+apply plugin: 'com.github.kt3k.coveralls'
+apply plugin: 'com.palantir.jacoco-full-report'
+apply plugin: 'jacoco'
+
+ext.jacocoVersion = '0.7.2.201409121644'
+
+jacoco {
+  toolVersion = jacocoVersion
+}
+
+repositories {
+  jcenter()
+}
+
+// Add the jacoco plugin to each project
+subprojects {
+  // Can't figure out to to get the coveralls plugin to work if only some subprojects have the Java plugin, so for now the Java plugin is applied to all sub-projects
+  plugins.apply('java')
+  plugins.apply('jacoco')
+
+  repositories {
+    jcenter()
+  }
+
+  jacoco {
+    toolVersion = jacocoVersion
+  }
+
+  jacocoTestReport {
+    reports {
+      html.enabled = true
+      xml.enabled = true
+      csv.enabled = false
+    }
+
+    afterEvaluate {
+      classDirectories = files(classDirectories.files.collect {
+        println it
+        fileTree(dir: it, exclude: 'helix-*.jar')
+      })
+    }
+  }
+
+  jacocoFullReport.dependsOn test
+}
+
+// Configure the coveralls task to read the aggregated JaCoCo report
+coveralls {
+  sourceDirs = subprojects.sourceSets.main.allSource.srcDirs.flatten()
+  jacocoReportPath = "build/reports/jacoco/jacocoFullReport/jacocoFullReport.xml"
+}

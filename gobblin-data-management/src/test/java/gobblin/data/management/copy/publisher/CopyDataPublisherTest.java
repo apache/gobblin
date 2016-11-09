@@ -15,10 +15,10 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.CopyConfiguration;
-import gobblin.data.management.copy.CopyContext;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.TestCopyableDataset;
@@ -42,6 +42,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.google.common.io.Files;
 
 
 /*
@@ -66,6 +67,7 @@ public class CopyDataPublisherTest {
   public void testPublishSingleDataset() throws Exception {
 
     State state = getTestState("testPublishSingleDataset");
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
 
     Path testMethodTempPath = new Path(testClassTempPath, "testPublishSingleDataset");
 
@@ -74,7 +76,7 @@ public class CopyDataPublisherTest {
 
     TestDatasetManager datasetManager =
         new TestDatasetManager(testMethodTempPath, state, "datasetTargetPath",
-            ImmutableList.of("a/b, a/c, d/e"));
+            ImmutableList.of("a/b", "a/c", "d/e"));
 
     datasetManager.createDatasetFiles();
 
@@ -91,6 +93,7 @@ public class CopyDataPublisherTest {
   public void testPublishMultipleDatasets() throws Exception {
 
     State state = getTestState("testPublishMultipleDatasets");
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
 
     Path testMethodTempPath = new Path(testClassTempPath, "testPublishMultipleDatasets");
 
@@ -98,13 +101,13 @@ public class CopyDataPublisherTest {
 
     TestDatasetManager dataset1Manager =
         new TestDatasetManager(testMethodTempPath, state, "dataset1TargetPath",
-            ImmutableList.of("a/b, a/c, d/e"));
+            ImmutableList.of("a/b", "a/c", "d/e"));
 
     dataset1Manager.createDatasetFiles();
 
     TestDatasetManager dataset2Manager =
         new TestDatasetManager(testMethodTempPath, state, "dataset2TargetPath",
-            ImmutableList.of("a/b, a/c, d/e"));
+            ImmutableList.of("a/b", "a/c", "d/e"));
 
     dataset2Manager.createDatasetFiles();
 
@@ -125,6 +128,7 @@ public class CopyDataPublisherTest {
   public void testPublishOverlappingDatasets() throws Exception {
 
     State state = getTestState("testPublishOverlappingDatasets");
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
 
     Path testMethodTempPath = new Path(testClassTempPath, "testPublishOverlappingDatasets");
 
@@ -137,7 +141,7 @@ public class CopyDataPublisherTest {
 
     TestDatasetManager dataset2Manager =
         new TestDatasetManager(testMethodTempPath, state, "datasetTargetPath/subDir",
-            ImmutableList.of("a/c, d/e"));
+            ImmutableList.of("a/c", "d/e"));
 
     dataset2Manager.createDatasetFiles();
 
@@ -158,6 +162,7 @@ public class CopyDataPublisherTest {
   public void testPublishDatasetFailure() throws Exception {
 
     State state = getTestState("testPublishDatasetFailure");
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
 
     Path testMethodTempPath = new Path(testClassTempPath, "testPublishDatasetFailure");
 
@@ -187,7 +192,7 @@ public class CopyDataPublisherTest {
   @BeforeClass
   public void setup() throws Exception {
     fs = FileSystem.getLocal(new Configuration());
-    testClassTempPath = new Path(this.getClass().getClassLoader().getResource("").getFile(), "CopyDataPublisherTest");
+    testClassTempPath = new Path(Files.createTempDir().getAbsolutePath(), "CopyDataPublisherTest");
     fs.delete(testClassTempPath, true);
     log.info("Created a temp directory for CopyDataPublisherTest at " + testClassTempPath);
     fs.mkdirs(testClassTempPath);
@@ -223,16 +228,18 @@ public class CopyDataPublisherTest {
     private CopyableDatasetMetadata metadata;
     private List<String> relativeFilePaths;
     private Path writerOutputPath;
+    private Path targetPath;
     private FileSystem fs;
-    private CopyableFile copyableFile;
+    private CopyEntity copyEntity;
 
     private void createDatasetFiles() throws IOException {
       // Create writer output files
       Path datasetWriterOutputPath =
-          new Path(new Path(writerOutputPath, copyableFile.getDatasetAndPartition(this.metadata).identifier()),
-              PathUtils.withoutLeadingSeparator(metadata.getDatasetTargetRoot()));
+          new Path(writerOutputPath, copyEntity.getDatasetAndPartition(this.metadata).identifier());
+      Path outputPathWithCurrentDirectory = new Path(datasetWriterOutputPath,
+          PathUtils.withoutLeadingSeparator(this.targetPath));
       for (String path : relativeFilePaths) {
-        Path pathToCreate = new Path(datasetWriterOutputPath, path);
+        Path pathToCreate = new Path(outputPathWithCurrentDirectory, path);
         fs.mkdirs(pathToCreate.getParent());
         fs.create(pathToCreate);
       }
@@ -244,13 +251,17 @@ public class CopyDataPublisherTest {
       this.fs = FileSystem.getLocal(new Configuration());
       this.copyableDataset =
           new TestCopyableDataset(new Path("origin"));
-      this.metadata = new CopyableDatasetMetadata(this.copyableDataset, new Path(testMethodTempPath, datasetTargetPath));
+      this.metadata = new CopyableDatasetMetadata(this.copyableDataset);
       this.relativeFilePaths = relativeFilePaths;
       this.writerOutputPath = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
 
+      this.targetPath = new Path(testMethodTempPath, datasetTargetPath);
+
       FileStatus file = new FileStatus(0, false, 0, 0, 0, new Path("/file"));
-      this.copyableFile = CopyableFile.builder(FileSystem.getLocal(new Configuration()), file, new Path("/"),
-          CopyConfiguration.builder().targetRoot(new Path("/")).preserve(PreserveAttributes.fromMnemonicString("")).build()).build();
+      FileSystem fs = FileSystem.getLocal(new Configuration());
+      this.copyEntity = CopyableFile.fromOriginAndDestination(fs, file, new Path("/destination"),
+          CopyConfiguration.builder(fs, state.getProperties()).preserve(PreserveAttributes.fromMnemonicString(""))
+              .build()).build();
 
       fs.mkdirs(testMethodTempPath);
       log.info("Created a temp directory for test at " + testMethodTempPath);
@@ -262,21 +273,21 @@ public class CopyDataPublisherTest {
           Lists.newArrayList(new WorkUnitState(), new WorkUnitState(), new WorkUnitState());
       for (WorkUnitState wus : workUnitStates) {
         CopySource.serializeCopyableDataset(wus, metadata);
-        CopySource.serializeCopyableFile(wus, this.copyableFile);
+        CopySource.serializeCopyEntity(wus, this.copyEntity);
       }
       return workUnitStates;
     }
 
     void verifyExists() throws IOException {
       for (String fileRelativePath : relativeFilePaths) {
-        Path filePublishPath = new Path(metadata.getDatasetTargetRoot(), fileRelativePath);
+        Path filePublishPath = new Path(this.targetPath, fileRelativePath);
         Assert.assertEquals(fs.exists(filePublishPath), true);
       }
     }
 
     void verifyDoesntExist() throws IOException {
       for (String fileRelativePath : relativeFilePaths) {
-        Path filePublishPath = new Path(metadata.getDatasetTargetRoot(), fileRelativePath);
+        Path filePublishPath = new Path(this.targetPath, fileRelativePath);
         Assert.assertEquals(fs.exists(filePublishPath), false);
       }
     }

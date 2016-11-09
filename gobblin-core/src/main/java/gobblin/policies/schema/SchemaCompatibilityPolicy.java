@@ -35,16 +35,15 @@ public class SchemaCompatibilityPolicy extends TaskLevelPolicy {
   @Override
   public Result executePolicy() {
     // TODO how do you test for backwards compatibility?
-    if (previousState.getProp(ConfigurationKeys.EXTRACT_SCHEMA) == null) {
+    if (this.previousState.getProp(ConfigurationKeys.EXTRACT_SCHEMA) == null) {
       log.info("Previous Task State does not contain a schema");
       return Result.PASSED;
     }
 
-    if (state.getProp(ConfigurationKeys.EXTRACT_SCHEMA)
-        .equals(previousState.getProp(ConfigurationKeys.EXTRACT_SCHEMA))) {
+    if (this.state.getProp(ConfigurationKeys.EXTRACT_SCHEMA)
+        .equals(this.previousState.getProp(ConfigurationKeys.EXTRACT_SCHEMA))) {
       return Result.PASSED;
-    } else {
-      return Result.FAILED;
     }
+    return Result.FAILED;
   }
 }

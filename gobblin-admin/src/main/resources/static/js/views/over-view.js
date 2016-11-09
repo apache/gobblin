@@ -47,7 +47,9 @@ var app = app || {}
       var opts = {
         limit: self.table.getLimit(),
         includeTaskExecutions: false,
+        includeJobMetrics: false,
         includeTaskMetrics: false,
+        jobProperties: 'job.description,job.runonce,job.schedule',
         taskProperties: ''
       }
       var id = $('#list-jobs-toggle .active input').val()

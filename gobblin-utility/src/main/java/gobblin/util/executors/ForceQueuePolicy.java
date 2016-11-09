@@ -21,6 +21,8 @@ import java.util.concurrent.ThreadPoolExecutor;
  * {@link java.util.concurrent.RejectedExecutionHandler} that just re-attempts to put into the queue.
  */
 public class ForceQueuePolicy implements RejectedExecutionHandler {
+
+  @Override
   public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
     try {
       executor.getQueue().put(r);

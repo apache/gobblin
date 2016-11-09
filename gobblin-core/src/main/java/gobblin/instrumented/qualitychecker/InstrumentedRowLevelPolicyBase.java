@@ -58,7 +58,7 @@ abstract class InstrumentedRowLevelPolicyBase extends RowLevelPolicy implements 
     this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
     this.closer = Closer.create();
     this.metricContext =
-        closer.register(Instrumented.getMetricContext(state, classTag.or(this.getClass())));
+        this.closer.register(Instrumented.getMetricContext(state, classTag.or(this.getClass())));
 
     regenerateMetrics();
   }

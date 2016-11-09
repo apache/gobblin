@@ -42,7 +42,7 @@ import gobblin.util.AvroUtils;
  * schema registry is not used (i.e., property {@link KafkaSchemaRegistry#KAFKA_SCHEMA_REGISTRY_CLASS} is not
  * specified, method {@link #getExtractorSchema()} should be overriden.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Slf4j
 public abstract class KafkaAvroExtractor<K> extends KafkaExtractor<Schema, GenericRecord> {
@@ -74,15 +74,15 @@ public abstract class KafkaAvroExtractor<K> extends KafkaExtractor<Schema, Gener
    * will be converted to this schema.
    */
   protected Optional<Schema> getExtractorSchema() {
-    return Optional.fromNullable(getLatestSchemaByTopic());
+    return Optional.fromNullable(getLatestSchemaByTopic(this.topicName));
   }
 
-  private Schema getLatestSchemaByTopic() {
+  protected Schema getLatestSchemaByTopic(String topic) {
     Preconditions.checkState(this.schemaRegistry.isPresent());
     try {
-      return this.schemaRegistry.get().getLatestSchemaByTopic(this.topicName);
+      return this.schemaRegistry.get().getLatestSchemaByTopic(topic);
     } catch (SchemaRegistryException e) {
-      log.error(String.format("Cannot find latest schema for topic %s. This topic will be skipped", this.topicName), e);
+      log.error(String.format("Cannot find latest schema for topic %s. This topic will be skipped", topic), e);
       return null;
     }
   }

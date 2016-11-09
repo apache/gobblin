@@ -4,26 +4,24 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Properties;
 
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.joda.time.DateTime;
 
-import com.google.common.collect.Lists;
-
-import gobblin.data.management.retention.dataset.CleanableDataset;
-import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import gobblin.data.management.retention.version.DatasetVersion;
+import gobblin.dataset.Dataset;
 
 
 /**
- * {@link VersionFinder} for datasets based on modification timestamps.
+ * @deprecated
+ * See javadoc for {@link gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder}.
  */
+@Deprecated
 public class ModDateTimeDatasetVersionFinder implements VersionFinder<TimestampedDatasetVersion> {
 
-  private final FileSystem fs;
+  private final gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder realVersionFinder;
 
   public ModDateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
-    this.fs = fs;
+    this.realVersionFinder = new gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder(fs, props);
   }
 
   @Override
@@ -32,9 +30,7 @@ public class ModDateTimeDatasetVersionFinder implements VersionFinder<Timestampe
   }
 
   @Override
-  public Collection<TimestampedDatasetVersion> findDatasetVersions(CleanableDataset dataset) throws IOException {
-    FileStatus status = this.fs.getFileStatus(dataset.datasetRoot());
-    return Lists
-        .newArrayList(new TimestampedDatasetVersion(new DateTime(status.getModificationTime()), dataset.datasetRoot()));
+  public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset) throws IOException {
+    return TimestampedDatasetVersion.convertFromGeneralVersion(this.realVersionFinder.findDatasetVersions(dataset));
   }
 }

@@ -28,14 +28,14 @@ public class JobHistoryDataSourceProvider extends gobblin.util.jdbc.DataSourcePr
 
   @Inject
   public JobHistoryDataSourceProvider(@Named("dataSourceProperties") Properties properties) {
-    basicDataSource.setDriverClassName(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
+    this.basicDataSource.setDriverClassName(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER));
-    basicDataSource.setUrl(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY));
+    this.basicDataSource.setUrl(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY));
     if (properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY)
         && properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)) {
-      basicDataSource.setUsername(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY));
-      basicDataSource.setPassword(PasswordManager.getInstance(properties).readPassword(
-          properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)));
+      this.basicDataSource.setUsername(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY));
+      this.basicDataSource.setPassword(PasswordManager.getInstance(properties)
+          .readPassword(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)));
     }
   }
 }

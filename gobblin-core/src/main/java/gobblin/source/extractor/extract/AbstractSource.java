@@ -85,7 +85,7 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
             ConfigurationKeys.DEFAULT_OVERWRITE_CONFIGS_IN_STATESTORE)) {
           // We need to make a copy here since getPreviousWorkUnitStates returns ImmutableWorkUnitStates
           // for which addAll is not supported
-          WorkUnitState workUnitStateCopy = new WorkUnitState(workUnitState.getWorkunit());
+          WorkUnitState workUnitStateCopy = new WorkUnitState(workUnitState.getWorkunit(), state);
           workUnitStateCopy.addAll(workUnitState);
           workUnitStateCopy.overrideWith(state);
           previousWorkUnitStates.add(workUnitStateCopy);
@@ -106,10 +106,9 @@ public abstract class AbstractSource<S, D> implements Source<S, D> {
         || (workUnitRetryPolicy == WorkUnitRetryPolicy.ON_COMMIT_ON_FULL_SUCCESS
             && jobCommitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS)) {
       return previousWorkUnitStates;
-    } else {
-      // Return an empty list if job commit policy and work unit retry policy do not match
-      return ImmutableList.of();
     }
+    // Return an empty list if job commit policy and work unit retry policy do not match
+    return ImmutableList.of();
   }
 
   /**

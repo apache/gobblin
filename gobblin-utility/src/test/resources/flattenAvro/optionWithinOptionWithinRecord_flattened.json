@@ -1,0 +1,20 @@
+{
+  "type" : "record",
+  "name" : "parentRecordName",
+  "fields" : [ {
+    "name" : "parentFieldUnion__unionRecordMemberFieldUnion__superNestedFieldString1",
+    "type" : [ "null", "string" ],
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldUnion.superNestedFieldString1"
+  }, {
+    "name" : "parentFieldUnion__unionRecordMemberFieldUnion__superNestedFieldString2",
+    "type" : [ "null", "string" ],
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldUnion.superNestedFieldString2"
+  }, {
+    "name" : "parentFieldUnion__unionRecordMemberFieldString",
+    "type" : [ "null", "string" ],
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldString"
+  }, {
+    "name" : "parentFieldInt",
+    "type" : "int"
+  } ]
+}

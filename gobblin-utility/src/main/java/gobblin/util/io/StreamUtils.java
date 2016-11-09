@@ -14,7 +14,6 @@ package gobblin.util.io;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -45,9 +44,6 @@ import gobblin.configuration.ConfigurationKeys;
  */
 public class StreamUtils {
 
-  private static final int KB = 1024;
-  private static final int DEFAULT_BUFFER_SIZE = 32 * KB;
-
   /**
    * Convert an instance of {@link InputStream} to a {@link FSDataInputStream} that is {@link Seekable} and
    * {@link PositionedReadable}.
@@ -55,8 +51,7 @@ public class StreamUtils {
    * @see SeekableFSInputStream
    *
    */
-  public static FSDataInputStream convertStream(InputStream in)
-      throws IOException {
+  public static FSDataInputStream convertStream(InputStream in) throws IOException {
     return new FSDataInputStream(new SeekableFSInputStream(in));
   }
 
@@ -70,18 +65,8 @@ public class StreamUtils {
    *
    * @return Total bytes copied
    */
-  public static long copy(InputStream is, OutputStream os)
-      throws IOException {
-
-    final ReadableByteChannel inputChannel = Channels.newChannel(is);
-    final WritableByteChannel outputChannel = Channels.newChannel(os);
-
-    long totalBytesCopied = copy(inputChannel, outputChannel);
-
-    inputChannel.close();
-    outputChannel.close();
-
-    return totalBytesCopied;
+  public static long copy(InputStream is, OutputStream os) throws IOException {
+    return new StreamCopier(is, os).copy();
   }
 
   /**
@@ -92,28 +77,8 @@ public class StreamUtils {
    *
    * @return Total bytes copied
    */
-  public static long copy(ReadableByteChannel inputChannel, WritableByteChannel outputChannel)
-      throws IOException {
-
-    long bytesRead = 0;
-    long totalBytesRead = 0;
-    final ByteBuffer buffer = ByteBuffer.allocateDirect(DEFAULT_BUFFER_SIZE);
-    while ((bytesRead = inputChannel.read(buffer)) != -1) {
-      totalBytesRead += bytesRead;
-      // flip the buffer to be written
-      buffer.flip();
-      outputChannel.write(buffer);
-      // Clear if empty
-      buffer.compact();
-    }
-    // Done writing, now flip to read again
-    buffer.flip();
-    // check that buffer is fully written.
-    while (buffer.hasRemaining()) {
-      outputChannel.write(buffer);
-    }
-
-    return totalBytesRead;
+  public static long copy(ReadableByteChannel inputChannel, WritableByteChannel outputChannel) throws IOException {
+    return new StreamCopier(inputChannel, outputChannel).copy();
   }
 
   /**
@@ -125,18 +90,16 @@ public class StreamUtils {
    * @param sourcePath the {@link Path} of the input files, this can either be a file or a directory.
    * @param destPath the {@link Path} that tarball should be written to.
    */
-  public static void tar(FileSystem fs, Path sourcePath, Path destPath)
-      throws IOException {
+  public static void tar(FileSystem fs, Path sourcePath, Path destPath) throws IOException {
     tar(fs, fs, sourcePath, destPath);
   }
 
   /**
    * Similiar to {@link #tar(FileSystem, Path, Path)} except the source and destination {@link FileSystem} can be different.
    *
-   * @see {@link #tar(FileSystem, Path, Path)}
+   * @see #tar(FileSystem, Path, Path)
    */
-  public static void tar(FileSystem sourceFs, FileSystem destFs, Path sourcePath, Path destPath)
-      throws IOException {
+  public static void tar(FileSystem sourceFs, FileSystem destFs, Path sourcePath, Path destPath) throws IOException {
     try (FSDataOutputStream fsDataOutputStream = destFs.create(destPath);
         TarArchiveOutputStream tarArchiveOutputStream = new TarArchiveOutputStream(
             new GzipCompressorOutputStream(fsDataOutputStream), ConfigurationKeys.DEFAULT_CHARSET_ENCODING.name())) {
@@ -144,7 +107,7 @@ public class StreamUtils {
       FileStatus fileStatus = sourceFs.getFileStatus(sourcePath);
 
       if (sourceFs.isDirectory(sourcePath)) {
-        dirToTarArchiveOutputStreamRecursive(fileStatus, sourceFs, Optional.<Path>absent(), tarArchiveOutputStream);
+        dirToTarArchiveOutputStreamRecursive(fileStatus, sourceFs, Optional.<Path> absent(), tarArchiveOutputStream);
       } else {
         try (FSDataInputStream fsDataInputStream = sourceFs.open(sourcePath)) {
           fileToTarArchiveOutputStream(fileStatus, fsDataInputStream, new Path(sourcePath.getName()),
@@ -159,8 +122,7 @@ public class StreamUtils {
    * {@link TarArchiveOutputStream}.
    */
   private static void dirToTarArchiveOutputStreamRecursive(FileStatus dirFileStatus, FileSystem fs,
-      Optional<Path> destDir, TarArchiveOutputStream tarArchiveOutputStream)
-      throws IOException {
+      Optional<Path> destDir, TarArchiveOutputStream tarArchiveOutputStream) throws IOException {
 
     Preconditions.checkState(fs.isDirectory(dirFileStatus.getPath()));
 
@@ -198,8 +160,7 @@ public class StreamUtils {
    * {@link TarArchiveOutputStream} and copies the contents of the file to the new entry.
    */
   private static void fileToTarArchiveOutputStream(FileStatus fileStatus, FSDataInputStream fsDataInputStream,
-      Path destFile, TarArchiveOutputStream tarArchiveOutputStream)
-      throws IOException {
+      Path destFile, TarArchiveOutputStream tarArchiveOutputStream) throws IOException {
     TarArchiveEntry tarArchiveEntry = new TarArchiveEntry(formatPathToFile(destFile));
     tarArchiveEntry.setSize(fileStatus.getLen());
     tarArchiveEntry.setModTime(System.currentTimeMillis());

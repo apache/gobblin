@@ -23,27 +23,23 @@ import lombok.Data;
 
 
 /**
- * Implementation of {@link gobblin.data.management.retention.version.DatasetVersion} that uses a single path per
- * version and stores the {@link org.apache.hadoop.fs.FileStatus} of that path.
+ * @deprecated
+ * Extends {@link gobblin.data.management.version.FileStatusDatasetVersion} and implements
+ * {@link gobblin.data.management.retention.version.DatasetVersion}.
  */
 @Data
+@Deprecated
 public class FileStatusDatasetVersion extends StringDatasetVersion {
 
-  private final FileStatus fileStatus;
+  protected final FileStatus fileStatus;
 
   public FileStatusDatasetVersion(FileStatus fileStatus) {
     super(fileStatus.getPath().getName(), fileStatus.getPath());
     this.fileStatus = fileStatus;
   }
 
-  @Override
-  public Set<Path> getPathsToDelete() {
-    return Sets.newHashSet(this.fileStatus.getPath());
-  }
-
-  @Override
   public int compareTo(DatasetVersion other) {
-    FileStatusDatasetVersion otherAsFileStatus = (FileStatusDatasetVersion)other;
+    FileStatusDatasetVersion otherAsFileStatus = (FileStatusDatasetVersion) other;
     return this.fileStatus.getPath().compareTo(otherAsFileStatus.getFileStatus().getPath());
   }
 
@@ -55,5 +51,10 @@ public class FileStatusDatasetVersion extends StringDatasetVersion {
   @Override
   public int hashCode() {
     return this.fileStatus.hashCode();
+  }
+
+  @Override
+  public Set<Path> getPaths() {
+    return Sets.newHashSet(this.fileStatus.getPath());
   }
 }

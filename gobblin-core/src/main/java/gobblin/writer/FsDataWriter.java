@@ -26,6 +26,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
+import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.FinalState;
@@ -42,8 +43,7 @@ import gobblin.util.recordcount.IngestionRecordCountProvider;
  *
  * @author akshay@nerdwallet.com
  */
-@SuppressWarnings("deprecation")
-public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
+public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
 
   private static final Logger LOG = LoggerFactory.getLogger(FsDataWriter.class);
 
@@ -67,6 +67,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
   protected final FsPermission dirPermission;
   protected final Optional<String> group;
   protected final Closer closer = Closer.create();
+  protected final Optional<String> writerAttemptIdOptional;
 
   public FsDataWriter(FsDataWriterBuilder<?, D> builder, State properties) throws IOException {
     this.properties = properties;
@@ -74,16 +75,19 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
     this.numBranches = builder.getBranches();
     this.branchId = builder.getBranch();
     this.fileName = builder.getFileName(properties);
+    this.writerAttemptIdOptional = Optional.fromNullable(builder.getWriterAttemptId());
 
     Configuration conf = new Configuration();
     // Add all job configuration properties so they are picked up by Hadoop
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
-
     this.fs = WriterUtils.getWriterFS(properties, this.numBranches, this.branchId);
 
     // Initialize staging/output directory
-    this.stagingFile =
-        new Path(WriterUtils.getWriterStagingDir(properties, this.numBranches, this.branchId), this.fileName);
+    Path writerStagingDir = this.writerAttemptIdOptional.isPresent() ?  WriterUtils
+        .getWriterStagingDir(properties, this.numBranches, this.branchId, this.writerAttemptIdOptional.get())
+        : WriterUtils.getWriterStagingDir(properties, this.numBranches, this.branchId);
+    this.stagingFile = new Path(writerStagingDir, this.fileName);
+
     this.outputFile =
         new Path(WriterUtils.getWriterOutputDir(properties, this.numBranches, this.branchId), this.fileName);
     this.allOutputFilesPropName = ForkOperatorUtils
@@ -212,7 +216,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
 
   private synchronized String addRecordCountToFileName() throws IOException {
     String filePath = getOutputFilePath();
-    String filePathWithRecordCount = new IngestionRecordCountProvider().constructFilePath(filePath, recordsWritten());
+    String filePathWithRecordCount = IngestionRecordCountProvider.constructFilePath(filePath, recordsWritten());
     LOG.info("Renaming " + filePath + " to " + filePathWithRecordCount);
     HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount));
     this.outputFile = new Path(filePathWithRecordCount);
@@ -250,5 +254,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState {
    */
   public String getFullyQualifiedOutputFilePath() {
     return this.fs.makeQualified(this.outputFile).toString();
+  }
+
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    return this.writerAttemptIdOptional.isPresent() && this.getClass() == FsDataWriter.class;
   }
 }

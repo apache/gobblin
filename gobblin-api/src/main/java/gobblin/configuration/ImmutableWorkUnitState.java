@@ -27,8 +27,8 @@ import gobblin.source.extractor.Watermark;
 public class ImmutableWorkUnitState extends WorkUnitState {
 
   public ImmutableWorkUnitState(WorkUnitState workUnitState) {
-    super(workUnitState.getWorkunit());
-    super.addAll(workUnitState);
+    super(workUnitState.getWorkunit(), workUnitState.getJobState());
+    super.addAll(workUnitState.getProperties());
   }
 
   @Override
@@ -53,11 +53,6 @@ public class ImmutableWorkUnitState extends WorkUnitState {
   }
 
   @Override
-  public void addAll(State otherState) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public void addAll(Properties properties) {
     throw new UnsupportedOperationException();
   }
@@ -68,15 +63,7 @@ public class ImmutableWorkUnitState extends WorkUnitState {
   }
 
   @Override
-  public void addAllIfNotExist(State otherState) {
-    throw new UnsupportedOperationException();
-  }
-
   public void overrideWith(Properties properties) {
-    throw new UnsupportedOperationException();
-  }
-
-  public void overrideWith(State otherState) {
     throw new UnsupportedOperationException();
   }
 

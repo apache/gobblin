@@ -21,113 +21,111 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 
+
 /**
  * Simple wrapper around the JobExecutionInfoClient
  */
 public class AdminClient {
-    private final JobExecutionInfoClient client;
-    private Closer closer;
+  private final JobExecutionInfoClient client;
+  private Closer closer;
 
-    /**
-     * Creates a new client with the host and port specified.
-     */
-    public AdminClient(String host, int port) {
-        closer = Closer.create();
+  /**
+   * Creates a new client with the host and port specified.
+   */
+  public AdminClient(String host, int port) {
+    this.closer = Closer.create();
 
-        URI serverUri = URI.create(String.format("http://%s:%d/", host, port));
-        client = new JobExecutionInfoClient(serverUri.toString());
-        closer.register(client);
+    URI serverUri = URI.create(String.format("http://%s:%d/", host, port));
+    this.client = new JobExecutionInfoClient(serverUri.toString());
+    this.closer.register(this.client);
+  }
+
+  /**
+   * Close connections to the REST server
+   */
+  public void close() {
+    try {
+      this.closer.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  /**
+   * Retrieve a Gobblin job by its id.
+   *
+   * @param id                Id of the job to retrieve
+   * @return JobExecutionInfo representing the job
+   */
+  public Optional<JobExecutionInfo> queryByJobId(String id) throws RemoteInvocationException {
+    JobExecutionQuery query = new JobExecutionQuery();
+    query.setIdType(QueryIdTypeEnum.JOB_ID);
+    query.setId(JobExecutionQuery.Id.create(id));
+    query.setLimit(1);
+
+    List<JobExecutionInfo> results = executeQuery(query);
+    return getFirstFromQueryResults(results);
+  }
+
+  /**
+   * Retrieve all jobs
+   *
+   * @param lookupType Query type
+   * @return List of all jobs (limited by results limit)
+   */
+  public List<JobExecutionInfo> queryAllJobs(QueryListType lookupType, int resultsLimit)
+      throws RemoteInvocationException {
+    JobExecutionQuery query = new JobExecutionQuery();
+    query.setIdType(QueryIdTypeEnum.LIST_TYPE);
+    query.setId(JobExecutionQuery.Id.create(lookupType));
+
+    // Disable properties and task executions (prevents response size from ballooning)
+    query.setJobProperties(ConfigurationKeys.JOB_RUN_ONCE_KEY + "," + ConfigurationKeys.JOB_SCHEDULE_KEY);
+    query.setIncludeTaskExecutions(false);
+
+    query.setLimit(resultsLimit);
+
+    return executeQuery(query);
+  }
+
+  /**
+   * Query jobs by name
+   *
+   * @param name         Name of the job to query for
+   * @param resultsLimit Max # of results to return
+   * @return List of jobs with the name (empty list if none can be found)
+   */
+  public List<JobExecutionInfo> queryByJobName(String name, int resultsLimit) throws RemoteInvocationException {
+    JobExecutionQuery query = new JobExecutionQuery();
+    query.setIdType(QueryIdTypeEnum.JOB_NAME);
+    query.setId(JobExecutionQuery.Id.create(name));
+    query.setIncludeTaskExecutions(false);
+    query.setLimit(resultsLimit);
+
+    return executeQuery(query);
+  }
+
+  /**
+   * Execute a query and coerce the result into a java List
+   * @param query Query to execute
+   * @return List of jobs that matched the query. (Empty list if none did).
+   * @throws RemoteInvocationException If the server throws an error
+   */
+  private List<JobExecutionInfo> executeQuery(JobExecutionQuery query) throws RemoteInvocationException {
+    JobExecutionQueryResult result = this.client.get(query);
+
+    if (result != null && result.hasJobExecutions()) {
+      return result.getJobExecutions();
+    }
+    return Collections.emptyList();
+  }
+
+  private static Optional<JobExecutionInfo> getFirstFromQueryResults(List<JobExecutionInfo> results) {
+    if (results == null || results.size() == 0) {
+      return Optional.absent();
     }
 
-    /**
-     * Close connections to the REST server
-     */
-    public void close() {
-        try {
-            closer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Retrieve a Gobblin job by its id.
-     *
-     * @param id                Id of the job to retrieve
-     * @return JobExecutionInfo representing the job
-     */
-    public Optional<JobExecutionInfo> queryByJobId(String id)
-            throws RemoteInvocationException {
-        JobExecutionQuery query = new JobExecutionQuery();
-        query.setIdType(QueryIdTypeEnum.JOB_ID);
-        query.setId(JobExecutionQuery.Id.create(id));
-        query.setLimit(1);
-
-        List<JobExecutionInfo> results = executeQuery(query);
-        return getFirstFromQueryResults(results);
-    }
-
-    /**
-     * Retrieve all jobs
-     *
-     * @param lookupType Query type
-     * @return List of all jobs (limited by results limit)
-     */
-    public List<JobExecutionInfo> queryAllJobs(QueryListType lookupType, int resultsLimit)
-            throws RemoteInvocationException {
-        JobExecutionQuery query = new JobExecutionQuery();
-        query.setIdType(QueryIdTypeEnum.LIST_TYPE);
-        query.setId(JobExecutionQuery.Id.create(lookupType));
-
-        // Disable properties and task executions (prevents response size from ballooning)
-        query.setJobProperties(ConfigurationKeys.JOB_RUN_ONCE_KEY + "," + ConfigurationKeys.JOB_SCHEDULE_KEY);
-        query.setIncludeTaskExecutions(false);
-
-        query.setLimit(resultsLimit);
-
-        return executeQuery(query);
-    }
-
-    /**
-     * Query jobs by name
-     *
-     * @param name         Name of the job to query for
-     * @param resultsLimit Max # of results to return
-     * @return List of jobs with the name (empty list if none can be found)
-     */
-    public List<JobExecutionInfo> queryByJobName(String name, int resultsLimit) throws RemoteInvocationException {
-        JobExecutionQuery query = new JobExecutionQuery();
-        query.setIdType(QueryIdTypeEnum.JOB_NAME);
-        query.setId(JobExecutionQuery.Id.create(name));
-        query.setIncludeTaskExecutions(false);
-        query.setLimit(resultsLimit);
-
-        return executeQuery(query);
-    }
-
-    /**
-     * Execute a query and coerce the result into a java List
-     * @param query Query to execute
-     * @return List of jobs that matched the query. (Empty list if none did).
-     * @throws RemoteInvocationException If the server throws an error
-     */
-    private List<JobExecutionInfo> executeQuery(JobExecutionQuery query)
-            throws RemoteInvocationException {
-        JobExecutionQueryResult result = this.client.get(query);
-
-        if (result != null && result.hasJobExecutions()) {
-            return result.getJobExecutions();
-        } else {
-            return Collections.emptyList();
-        }
-    }
-
-    private Optional<JobExecutionInfo> getFirstFromQueryResults(List<JobExecutionInfo> results) {
-        if (results == null || results.size() == 0) {
-            return Optional.absent();
-        }
-
-        return Optional.of(results.get(0));
-    }
+    return Optional.of(results.get(0));
+  }
 
 }

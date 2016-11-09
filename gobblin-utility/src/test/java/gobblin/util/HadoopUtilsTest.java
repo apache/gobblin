@@ -12,27 +12,33 @@
 
 package gobblin.util;
 
-import java.io.IOException;
+import java.net.URI;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import gobblin.configuration.State;
-
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Files;
+
+import gobblin.configuration.State;
+
 
 @Test(groups = { "gobblin.util" })
 public class HadoopUtilsTest {
 
-  private final Path hadoopUtilsTestDir = new Path(this.getClass().getClassLoader().getResource("").getFile(), "HadoopUtilsTestDir");
+  private final Path hadoopUtilsTestDir = new Path(Files.createTempDir().getAbsolutePath(), "HadoopUtilsTestDir");
 
   @BeforeClass
   public void setup() throws Exception {
@@ -84,6 +90,57 @@ public class HadoopUtilsTest {
 
   }
 
+  @Test(groups = { "performance" })
+  public void testRenamePerformance() throws Exception {
+
+    FileSystem fs = Mockito.mock(FileSystem.class);
+
+    Path sourcePath = new Path("/source");
+    Path s1 = new Path(sourcePath, "d1");
+
+    FileStatus[] sourceStatuses = new FileStatus[10000];
+    FileStatus[] targetStatuses = new FileStatus[1000];
+
+    for (int i = 0; i < sourceStatuses.length; i++) {
+      sourceStatuses[i] = getFileStatus(new Path(s1, "path" + i), false);
+    }
+    for (int i = 0; i < targetStatuses.length; i++) {
+      targetStatuses[i] = getFileStatus(new Path(s1, "path" + i), false);
+    }
+
+    Mockito.when(fs.getUri()).thenReturn(new URI("file:///"));
+    Mockito.when(fs.getFileStatus(sourcePath)).thenAnswer(getDelayedAnswer(getFileStatus(sourcePath, true)));
+    Mockito.when(fs.exists(sourcePath)).thenAnswer(getDelayedAnswer(true));
+    Mockito.when(fs.listStatus(sourcePath)).thenAnswer(getDelayedAnswer(new FileStatus[]{getFileStatus(s1, true)}));
+    Mockito.when(fs.exists(s1)).thenAnswer(getDelayedAnswer(true));
+    Mockito.when(fs.listStatus(s1)).thenAnswer(getDelayedAnswer(sourceStatuses));
+
+    Path target = new Path("/target");
+    Path s1Target = new Path(target, "d1");
+    Mockito.when(fs.exists(target)).thenAnswer(getDelayedAnswer(true));
+    Mockito.when(fs.exists(s1Target)).thenAnswer(getDelayedAnswer(true));
+
+    Mockito.when(fs.mkdirs(Mockito.any(Path.class))).thenAnswer(getDelayedAnswer(true));
+    Mockito.when(fs.rename(Mockito.any(Path.class), Mockito.any(Path.class))).thenAnswer(getDelayedAnswer(true));
+
+    HadoopUtils.renameRecursively(fs, sourcePath, target);
+  }
+
+  private <T> Answer<T> getDelayedAnswer(final T result) throws Exception {
+    return new Answer<T>() {
+      @Override
+      public T answer(InvocationOnMock invocation)
+          throws Throwable {
+        Thread.sleep(50);
+        return result;
+      }
+    };
+  }
+
+  private FileStatus getFileStatus(Path path, boolean dir) {
+    return new FileStatus(1, dir, 1, 1, 1, path);
+  }
+
   @Test
   public void testSafeRenameRecursively() throws Exception {
     final FileSystem fs = FileSystem.getLocal(new Configuration());
@@ -101,6 +158,8 @@ public class HadoopUtilsTest {
 
     ExecutorService executorService = Executors.newFixedThreadPool(2);
 
+    final Throwable[] runnableErrors = {null, null};
+
     executorService.submit(new Runnable() {
 
       @Override
@@ -108,8 +167,8 @@ public class HadoopUtilsTest {
         try {
           HadoopUtils.renameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging1"), new Path(
               hadoopUtilsTestDir, "testSafeRename"));
-        } catch (IOException e) {
-          Assert.fail("Failed to rename", e);
+        } catch (Throwable e) {
+          runnableErrors[0] = e;
         }
       }
     });
@@ -121,14 +180,17 @@ public class HadoopUtilsTest {
         try {
           HadoopUtils.safeRenameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging2"), new Path(
               hadoopUtilsTestDir, "testSafeRename"));
-        } catch (IOException e) {
-          Assert.fail("Failed to rename", e);
+        } catch (Throwable e) {
+          runnableErrors[1] = e;
         }
       }
     });
 
     executorService.awaitTermination(2, TimeUnit.SECONDS);
     executorService.shutdownNow();
+
+    Assert.assertNull(runnableErrors[0], "Runnable 0 error: " + runnableErrors[0]);
+    Assert.assertNull(runnableErrors[1], "Runnable 1 error: " + runnableErrors[1]);
 
     Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/t1.txt")));
     Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/t3.txt")));

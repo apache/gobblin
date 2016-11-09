@@ -14,7 +14,7 @@ package gobblin.metrics.context.filter;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang.reflect.ConstructorUtils;
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;

@@ -61,7 +61,7 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
       this.recordDelimiter = Optional.of(delim.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)[0]);
     }
 
-    this.prependSize = properties.getPropAsBoolean(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, true);
+    this.prependSize = properties.getPropAsBoolean(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, false);
     this.recordsWritten = 0;
     this.bytesWritten = 0;
     this.stagingFileOutputStream = createStagingFileOutputStream();

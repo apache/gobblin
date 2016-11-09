@@ -53,9 +53,8 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
   }
 
   @Override
-  public void close()
-      throws IOException {
-    for(Converter<?,?,?,?> converter : this.converters) {
+  public void close() throws IOException {
+    for (Converter<?, ?, ?, ?> converter : this.converters) {
       converter.close();
     }
   }
@@ -119,13 +118,12 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
 
     public MultiConverterIterator(Object inputRecord, WorkUnitState workUnitState) throws DataConversionException {
       this.workUnitState = workUnitState;
-      this.chainedConverterIterator =
-          new ChainedConverterIterator(new SingleRecordIterable<Object>(inputRecord).iterator(), converters.isEmpty()
-              ? new IdentityConverter() : converters.get(0));
+      this.chainedConverterIterator = new ChainedConverterIterator(new SingleRecordIterable<>(inputRecord).iterator(),
+          MultiConverter.this.converters.isEmpty() ? new IdentityConverter() : MultiConverter.this.converters.get(0));
 
-      for (int i = 1; i < converters.size(); i++) {
+      for (int i = 1; i < MultiConverter.this.converters.size(); i++) {
         this.chainedConverterIterator =
-              new ChainedConverterIterator(this.chainedConverterIterator, converters.get(i));
+            new ChainedConverterIterator(this.chainedConverterIterator, MultiConverter.this.converters.get(i));
       }
     }
 
@@ -165,11 +163,10 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
         this.prevIterator = prevIterator;
 
         if (this.prevIterator.hasNext()) {
-          this.currentIterator =
-              converter.convertRecord(convertedSchemaMap.get(converter), this.prevIterator.next(), workUnitState)
-                  .iterator();
+          this.currentIterator = converter.convertRecord(MultiConverter.this.convertedSchemaMap.get(converter),
+              this.prevIterator.next(), MultiConverterIterator.this.workUnitState).iterator();
         } else {
-          this.currentIterator = new EmptyIterable<Object>().iterator();
+          this.currentIterator = new EmptyIterable<>().iterator();
         }
       }
 
@@ -181,8 +178,8 @@ public class MultiConverter extends Converter<Object, Object, Object, Object> {
         while (this.prevIterator.hasNext()) {
           try {
             this.currentIterator =
-                converter.convertRecord(convertedSchemaMap.get(converter), this.prevIterator.next(), workUnitState)
-                    .iterator();
+                this.converter.convertRecord(MultiConverter.this.convertedSchemaMap.get(this.converter),
+                    this.prevIterator.next(), MultiConverterIterator.this.workUnitState).iterator();
           } catch (DataConversionException e) {
             Throwables.propagate(e);
           }

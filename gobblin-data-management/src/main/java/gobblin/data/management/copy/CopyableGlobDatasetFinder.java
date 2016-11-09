@@ -33,6 +33,6 @@ public class CopyableGlobDatasetFinder extends ConfigurableGlobDatasetFinder<Cop
 
   @Override
   public CopyableDataset datasetAtPath(Path path) throws IOException {
-    return new RecursiveCopyableDataset(this.fs, path, this.props);
+    return new RecursiveCopyableDataset(this.fs, path, this.props, this.datasetPattern);
   }
 }

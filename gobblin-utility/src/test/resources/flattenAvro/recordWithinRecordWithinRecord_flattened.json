@@ -1,0 +1,24 @@
+{
+  "type" : "record",
+  "name" : "parentRecordName",
+  "fields":[ {
+    "name" : "parentFieldRecord__nestedFieldRecord__superNestedFieldString",
+    "type" : "string",
+    "flatten_source" : "parentFieldRecord.nestedFieldRecord.superNestedFieldString"
+  } , {
+    "name" : "parentFieldRecord__nestedFieldRecord__superNestedFieldInt",
+    "type" : "int",
+    "flatten_source" : "parentFieldRecord.nestedFieldRecord.superNestedFieldInt"
+  } , {
+    "name" : "parentFieldRecord__nestedFieldString",
+    "type" : "string",
+    "flatten_source" : "parentFieldRecord.nestedFieldString"
+  } , {
+    "name" : "parentFieldRecord__nestedFieldInt",
+    "type" : "int",
+    "flatten_source" : "parentFieldRecord.nestedFieldInt"
+  } , {
+    "name" : "parentFieldInt",
+    "type" : "int"
+  } ]
+}

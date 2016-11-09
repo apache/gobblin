@@ -12,83 +12,26 @@
 
 package gobblin.data.management.retention.version.finder;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
 import java.util.Properties;
 
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
-import com.google.common.collect.Lists;
-
-import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.util.PathUtils;
 
 
 /**
- * Class to find dataset versions in the file system.
- *
- * Concrete subclasses should implement a ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties})
- * constructor to be instantiated by {@link gobblin.data.management.retention.DatasetCleaner}.
- *
- * @param <T> Type of {@link gobblin.data.management.retention.version.DatasetVersion} expected from this class.
+ * @deprecated
+ * See {@inheritDoc}.
  */
-public abstract class DatasetVersionFinder<T extends DatasetVersion> implements VersionFinder<T> {
-
-  FileSystem fs;
+@Deprecated
+public abstract class DatasetVersionFinder<T extends DatasetVersion> extends
+    gobblin.data.management.version.finder.DatasetVersionFinder<T> implements VersionFinder<T> {
 
   public DatasetVersionFinder(FileSystem fs, Properties props) {
-    this.fs = fs;
+    super(fs, props);
   }
 
-  /**
-   * Find dataset versions in the input {@link org.apache.hadoop.fs.Path}. Dataset versions are subdirectories of the
-   * input {@link org.apache.hadoop.fs.Path} representing a single manageable unit in the dataset.
-   * See {@link gobblin.data.management.retention.DatasetCleaner} for more information.
-   *
-   * @param dataset {@link org.apache.hadoop.fs.Path} to directory containing all versions of a dataset.
-   * @return Map of {@link gobblin.data.management.retention.version.DatasetVersion} and {@link org.apache.hadoop.fs.FileStatus}
-   *        for each dataset version found.
-   * @throws IOException
-   */
-  @Override
-  public Collection<T> findDatasetVersions(CleanableDataset dataset) throws IOException {
-    Path versionGlobStatus = new Path(dataset.datasetRoot(), globVersionPattern());
-    FileStatus[] dataSetVersionPaths = this.fs.globStatus(versionGlobStatus);
-
-    List<T> dataSetVersions = Lists.newArrayList();
-    for(FileStatus dataSetVersionPath: dataSetVersionPaths) {
-      T datasetVersion = getDatasetVersion(
-          PathUtils.relativizePath(dataSetVersionPath.getPath(), dataset.datasetRoot()), dataSetVersionPath.getPath());
-      if(datasetVersion != null) {
-        dataSetVersions.add(datasetVersion);
-      }
-    }
-
-    return dataSetVersions;
+  public DatasetVersionFinder(FileSystem fs) {
+    super(fs, new Properties());
   }
-
-  /**
-   * Should return class of T.
-   */
-  public abstract Class<? extends DatasetVersion> versionClass();
-
-  /**
-   * Glob pattern relative to the root of the dataset used to find {@link org.apache.hadoop.fs.FileStatus} for each
-   * dataset version.
-   * @return glob pattern relative to dataset root.
-   */
-  public abstract Path globVersionPattern();
-
-  /**
-   * Parse {@link gobblin.data.management.retention.version.DatasetVersion} from the path of a dataset version.
-   * @param pathRelativeToDatasetRoot {@link org.apache.hadoop.fs.Path} of dataset version relative to dataset root.
-   * @param fullPath full {@link org.apache.hadoop.fs.Path} of the dataset version.
-   * @return {@link gobblin.data.management.retention.version.DatasetVersion} for that path.
-   */
-  public abstract T getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath);
-
 }

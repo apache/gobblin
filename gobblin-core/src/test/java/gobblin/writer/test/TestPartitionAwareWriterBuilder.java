@@ -12,16 +12,18 @@
 
 package gobblin.writer.test;
 
-import gobblin.writer.DataWriter;
-import gobblin.writer.PartitionAwareDataWriterBuilder;
-import lombok.Data;
-
 import java.io.IOException;
 import java.util.Queue;
 
 import org.apache.avro.Schema;
 
 import com.google.common.collect.Queues;
+
+import gobblin.commit.SpeculativeAttemptAwareConstruct;
+import gobblin.writer.DataWriter;
+import gobblin.writer.PartitionAwareDataWriterBuilder;
+
+import lombok.Data;
 
 
 public class TestPartitionAwareWriterBuilder extends PartitionAwareDataWriterBuilder<String, String> {
@@ -32,17 +34,35 @@ public class TestPartitionAwareWriterBuilder extends PartitionAwareDataWriterBui
     BUILD, WRITE, COMMIT, CLEANUP, CLOSE
   }
 
-  @Override public boolean validatePartitionSchema(Schema partitionSchema) {
+  @Override
+  public boolean validatePartitionSchema(Schema partitionSchema) {
     return true;
   }
 
-  @Override public DataWriter build() throws IOException {
+  @Override
+  public DataWriter build()
+      throws IOException {
     String partition = this.partition.get().get(TestPartitioner.PARTITION).toString();
     this.actions.add(new Action(Actions.BUILD, partition, null));
+    if (partition.matches(".*\\d+.*")) {
+      return new SpeculativeNotSafeTestWriter(partition);
+    }
     return new TestDataWriter(partition);
   }
 
-  private class TestDataWriter implements DataWriter<String> {
+  private class SpeculativeNotSafeTestWriter extends TestDataWriter {
+
+    public SpeculativeNotSafeTestWriter(String partition) {
+      super(partition);
+    }
+
+    @Override
+    public boolean isSpeculativeAttemptSafe() {
+      return false;
+    }
+  }
+
+  private class TestDataWriter implements DataWriter<String>, SpeculativeAttemptAwareConstruct {
 
     private String partition;
     private long recordsWritten = 0;
@@ -52,30 +72,46 @@ public class TestPartitionAwareWriterBuilder extends PartitionAwareDataWriterBui
       this.partition = partition;
     }
 
-    @Override public void write(String record) throws IOException {
+    @Override
+    public void write(String record)
+        throws IOException {
       actions.add(new Action(Actions.WRITE, this.partition, record));
       this.recordsWritten++;
       this.bytesWritten++;
     }
 
-    @Override public void commit() throws IOException {
+    @Override
+    public void commit()
+        throws IOException {
       actions.add(new Action(Actions.COMMIT, this.partition, null));
     }
 
-    @Override public void cleanup() throws IOException {
+    @Override
+    public void cleanup()
+        throws IOException {
       actions.add(new Action(Actions.CLEANUP, this.partition, null));
     }
 
-    @Override public long recordsWritten() {
+    @Override
+    public long recordsWritten() {
       return this.recordsWritten;
     }
 
-    @Override public long bytesWritten() throws IOException {
+    @Override
+    public long bytesWritten()
+        throws IOException {
       return this.bytesWritten;
     }
 
-    @Override public void close() throws IOException {
+    @Override
+    public void close()
+        throws IOException {
       actions.add(new Action(Actions.CLOSE, this.partition, null));
+    }
+
+    @Override
+    public boolean isSpeculativeAttemptSafe() {
+      return true;
     }
   }
 

@@ -12,6 +12,8 @@
 
 package gobblin.metrics.graphite;
 
+import gobblin.metrics.TimestampedValue;
+
 import java.io.IOException;
 import java.util.Map;
 
@@ -63,28 +65,10 @@ public class TestGraphiteSender implements GraphiteSender {
    * Get a metric with a given name.
    *
    * @param name metric name
-   * @return a {@link TestGraphiteSender.TimestampedValue}
+   * @return a {@link gobblin.metrics.TimestampedValue}
    */
   public TimestampedValue getMetric(String name) {
     return this.data.get(name);
   }
 
-  public static class TimestampedValue {
-
-    private final long timestamp;
-    private final String value;
-
-    TimestampedValue(long timestamp, String value) {
-      this.timestamp = timestamp;
-      this.value = value;
-    }
-
-    public long getTimestamp() {
-      return this.timestamp;
-    }
-
-    public String getValue() {
-      return this.value;
-    }
-  }
 }

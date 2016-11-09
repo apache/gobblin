@@ -23,6 +23,9 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import com.linkedin.r2.filter.compression.EncodingType;
+import com.linkedin.r2.filter.compression.ServerCompressionFilter;
+import com.linkedin.r2.filter.FilterChain;
 import com.linkedin.r2.filter.FilterChains;
 import com.linkedin.r2.transport.common.bridge.server.TransportDispatcher;
 import com.linkedin.r2.transport.http.server.HttpNettyServerFactory;
@@ -50,6 +53,7 @@ public class JobExecutionInfoServer extends AbstractIdleService {
   private static final Logger LOGGER = LoggerFactory.getLogger(JobExecutionInfoServer.class);
 
   private final URI serverUri;
+  private final URI serverAdvertisedUri;
   private final int port;
   private final Properties properties;
   private volatile Optional<HttpServer> httpServer;
@@ -57,18 +61,14 @@ public class JobExecutionInfoServer extends AbstractIdleService {
   public JobExecutionInfoServer(Properties properties) {
     this.properties = properties;
 
-    port = Integer.parseInt(
-            properties.getProperty(ConfigurationKeys.REST_SERVER_PORT_KEY, ConfigurationKeys.DEFAULT_REST_SERVER_PORT));
-    serverUri = URI.create(String.format("http://%s:%d",
-            properties.getProperty(ConfigurationKeys.REST_SERVER_HOST_KEY, ConfigurationKeys.DEFAULT_REST_SERVER_HOST),
-            port));
+    port = getPort(properties);
+    serverUri = getServiceUri(getHost(properties), port);
+    serverAdvertisedUri = getAdvertisedUri(properties);
   }
 
   @Override
   protected void startUp()
       throws Exception {
-    // Server port
-
     // Server configuration
     RestLiConfig config = new RestLiConfig();
     config.addResourcePackageNames(JobExecutionInfoResource.class.getPackage().getName());
@@ -85,7 +85,11 @@ public class JobExecutionInfoServer extends AbstractIdleService {
 
     // Create and start the HTTP server
     TransportDispatcher dispatcher = new DelegatingTransportDispatcher(new RestLiServer(config, factory));
-    this.httpServer = Optional.of(new HttpNettyServerFactory(FilterChains.empty()).createServer(port, dispatcher));
+    FilterChain filterChain = FilterChains.create(new ServerCompressionFilter(new EncodingType[] {
+            EncodingType.SNAPPY,
+            EncodingType.GZIP
+    }));
+    this.httpServer = Optional.of(new HttpNettyServerFactory(filterChain).createServer(port, dispatcher));
     LOGGER.info("Starting the job execution information server");
     this.httpServer.get().start();
   }
@@ -99,7 +103,29 @@ public class JobExecutionInfoServer extends AbstractIdleService {
     }
   }
 
-  public URI getServerUri() {
-    return serverUri;
+  public URI getAdvertisedServerUri() {
+    return serverAdvertisedUri;
+  }
+
+  private static URI getServiceUri(String host, int port) {
+    return URI.create(String.format("http://%s:%d", host, port));
+  }
+
+  private static int getPort(Properties properties) {
+    return Integer.parseInt(properties.getProperty(
+            ConfigurationKeys.REST_SERVER_PORT_KEY,
+            ConfigurationKeys.DEFAULT_REST_SERVER_PORT));
+  }
+
+  private static String getHost(Properties properties) {
+    return properties.getProperty(
+            ConfigurationKeys.REST_SERVER_HOST_KEY,
+            ConfigurationKeys.DEFAULT_REST_SERVER_HOST);
+  }
+
+  private static URI getAdvertisedUri(Properties properties) {
+    return URI.create(properties.getProperty(
+            ConfigurationKeys.REST_SERVER_ADVERTISED_URI_KEY,
+            getServiceUri(getHost(properties), getPort(properties)).toString()));
   }
 }

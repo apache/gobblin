@@ -62,7 +62,7 @@ abstract class InstrumentedConverterBase<SI, SO, DI, DO> extends Converter<SI, S
     Converter<SI, SO, DI, DO> converter = super.init(workUnit);
 
     this.instrumentationEnabled = GobblinMetrics.isEnabled(workUnit);
-    this.metricContext = closer.register(Instrumented.getMetricContext(workUnit, classTag));
+    this.metricContext = this.closer.register(Instrumented.getMetricContext(workUnit, classTag));
     regenerateMetrics();
 
     return converter;

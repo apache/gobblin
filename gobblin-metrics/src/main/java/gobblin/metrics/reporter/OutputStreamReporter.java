@@ -19,14 +19,11 @@ import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
 import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.SortedMap;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 
 import com.typesafe.config.Config;
 
@@ -38,7 +35,6 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
 import com.google.common.collect.Maps;
@@ -47,13 +43,18 @@ import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.MetricReport;
-import gobblin.metrics.Tag;
 import gobblin.util.ConfigUtils;
 
 
-public class OutputStreamReporter extends MetricReportReporter {
+public class OutputStreamReporter extends ConfiguredScheduledReporter {
 
+  private static final String TAGS_SECTION = "-- Tags";
+  private static final String GAUGES_SECTION = "-- Gauges";
+  private static final String COUNTERS_SECTION = "-- Counters";
+  private static final String HISTOGRAMS_SECTION = "-- Histograms";
+  private static final String METERS_SECTION = "-- Meters";
+  private static final String TIMERS_SECTION = "-- Times";
+  
   private static final Logger LOGGER = LoggerFactory.getLogger(OutputStreamReporter.class);
 
   public static class Factory {
@@ -76,8 +77,8 @@ public class OutputStreamReporter extends MetricReportReporter {
    * to {@code System.out}, converting rates to events/second, converting durations to milliseconds, and not filtering
    * metrics.
    */
-  public static abstract class Builder<T extends MetricReportReporter.Builder<T>>
-      extends MetricReportReporter.Builder<T> {
+  public static abstract class Builder<T extends ConfiguredScheduledReporter.Builder<T>>
+      extends ConfiguredScheduledReporter.Builder<T> {
 
     protected PrintStream output;
     protected Locale locale;
@@ -85,6 +86,7 @@ public class OutputStreamReporter extends MetricReportReporter {
     protected TimeZone timeZone;
 
     protected Builder() {
+      this.name = "OutputStreamReporter";
       this.output = System.out;
       this.locale = Locale.getDefault();
       this.clock = Clock.defaultClock();
@@ -159,7 +161,8 @@ public class OutputStreamReporter extends MetricReportReporter {
      * @return a {@link OutputStreamReporter}
      */
     public OutputStreamReporter build(Properties props) {
-      return new OutputStreamReporter(this, ConfigUtils.propertiesToConfig(props, Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX)));
+      return new OutputStreamReporter(this, ConfigUtils.propertiesToConfig(props,
+          Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX)));
     }
   }
 
@@ -173,8 +176,6 @@ public class OutputStreamReporter extends MetricReportReporter {
   private final PrintStream outputBufferPrintStream;
   private final Closer closer;
 
-  public final Map<String, String> tags;
-
   private OutputStreamReporter(Builder<?> builder, Config config) {
     super(builder, config);
     this.closer = Closer.create();
@@ -182,7 +183,6 @@ public class OutputStreamReporter extends MetricReportReporter {
     this.locale = builder.locale;
     this.clock = builder.clock;
     this.dateFormat = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM, locale);
-    this.tags = builder.tags;
     this.dateFormat.setTimeZone(builder.timeZone);
     this.outputBuffer = new ByteArrayOutputStream();
     try {
@@ -204,6 +204,7 @@ public class OutputStreamReporter extends MetricReportReporter {
     }
   }
 
+  @SuppressWarnings("rawtypes")
   @Override
   protected synchronized void report(SortedMap<String, Gauge> gauges,
       SortedMap<String, Counter> counters,
@@ -223,7 +224,7 @@ public class OutputStreamReporter extends MetricReportReporter {
     allTags.putAll(this.tags);
 
     if (!allTags.isEmpty()) {
-      printWithBanner("-- Tags", '-');
+      printWithBanner(TAGS_SECTION, '-');
       for (Map.Entry<String, Object> entry : allTags.entrySet()) {
         this.outputBufferPrintStream.println(String.format("%s=%s", entry.getKey(), entry.getValue()));
       }
@@ -231,7 +232,7 @@ public class OutputStreamReporter extends MetricReportReporter {
     }
 
     if (!gauges.isEmpty()) {
-      printWithBanner("-- Gauges", '-');
+      printWithBanner(GAUGES_SECTION, '-');
       for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
         this.outputBufferPrintStream.println(entry.getKey());
         printGauge(entry);
@@ -240,7 +241,7 @@ public class OutputStreamReporter extends MetricReportReporter {
     }
 
     if (!counters.isEmpty()) {
-      printWithBanner("-- Counters", '-');
+      printWithBanner(COUNTERS_SECTION, '-');
       for (Map.Entry<String, Counter> entry : counters.entrySet()) {
         this.outputBufferPrintStream.println(entry.getKey());
         printCounter(entry);
@@ -249,7 +250,7 @@ public class OutputStreamReporter extends MetricReportReporter {
     }
 
     if (!histograms.isEmpty()) {
-      printWithBanner("-- Histograms", '-');
+      printWithBanner(HISTOGRAMS_SECTION, '-');
       for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {
         this.outputBufferPrintStream.println(entry.getKey());
         printHistogram(entry.getValue());
@@ -258,7 +259,7 @@ public class OutputStreamReporter extends MetricReportReporter {
     }
 
     if (!meters.isEmpty()) {
-      printWithBanner("-- Meters", '-');
+      printWithBanner(METERS_SECTION, '-');
       for (Map.Entry<String, Meter> entry : meters.entrySet()) {
         this.outputBufferPrintStream.println(entry.getKey());
         printMeter(entry.getValue());
@@ -267,7 +268,7 @@ public class OutputStreamReporter extends MetricReportReporter {
     }
 
     if (!timers.isEmpty()) {
-      printWithBanner("-- Timers", '-');
+      printWithBanner(TIMERS_SECTION, '-');
       for (Map.Entry<String, Timer> entry : timers.entrySet()) {
         this.outputBufferPrintStream.println(entry.getKey());
         printTimer(entry.getValue());
@@ -282,16 +283,6 @@ public class OutputStreamReporter extends MetricReportReporter {
     } catch (IOException exception) {
       LOGGER.warn("Failed to write metric report to output stream.");
     }
-  }
-
-  /**
-   * Do nothing as this method is only invoked by
-   * {@link #report(SortedMap, SortedMap, SortedMap, SortedMap, SortedMap, Map)} which is overloaded in this class.
-   */
-  @Override
-  protected void emitReport(MetricReport report) {
-    throw new UnsupportedOperationException(
-        "This method should never be directly invoked, use the report() method instead!");
   }
 
   private void printMeter(Meter meter) {

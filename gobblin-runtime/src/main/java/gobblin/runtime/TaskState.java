@@ -46,6 +46,8 @@ import gobblin.source.workunit.Extract;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.metrics.GobblinMetrics;
 
+import lombok.Getter;
+
 
 /**
  * An extension to {@link WorkUnitState} with run-time task state information.
@@ -78,26 +80,28 @@ public class TaskState extends WorkUnitState {
 
   private String jobId;
   private String taskId;
+  @Getter
+  private Optional<String> taskAttemptId;
   private long startTime = 0;
   private long endTime = 0;
   private long duration;
 
   // Needed for serialization/deserialization
-  public TaskState() {
-  }
+  public TaskState() {}
 
   public TaskState(WorkUnitState workUnitState) {
     // Since getWorkunit() returns an immutable WorkUnit object,
     // the WorkUnit object in this object is also immutable.
-    super(workUnitState.getWorkunit());
+    super(workUnitState.getWorkunit(), workUnitState.getJobState());
     addAll(workUnitState);
     this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
+    this.taskAttemptId = Optional.fromNullable(workUnitState.getProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY));
     this.setId(this.taskId);
   }
 
   public TaskState(TaskState taskState) {
-    super(taskState.getWorkunit());
+    super(taskState.getWorkunit(), taskState.getJobState());
     addAll(taskState);
     this.jobId = taskState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = taskState.getProp(ConfigurationKeys.TASK_ID_KEY);
@@ -146,7 +150,7 @@ public class TaskState extends WorkUnitState {
    * @return task start time in milliseconds
    */
   public long getStartTime() {
-    return startTime;
+    return this.startTime;
   }
 
   /**
@@ -164,7 +168,7 @@ public class TaskState extends WorkUnitState {
    * @return task end time in milliseconds
    */
   public long getEndTime() {
-    return endTime;
+    return this.endTime;
   }
 
   /**
@@ -272,23 +276,20 @@ public class TaskState extends WorkUnitState {
 
     for (int i = 0; i < branches; i++) {
       String forkBranchId = ForkOperatorUtils.getForkId(this.taskId, i);
-      long recordsWritten =
-          metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, RECORDS).getCount();
-      long bytesWritten =
-          metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES).getCount();
+      long recordsWritten = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, RECORDS).getCount();
+      long bytesWritten = metrics.getCounter(MetricGroup.TASK.name(), forkBranchId, BYTES).getCount();
       metrics.getCounter(MetricGroup.JOB.name(), this.jobId, RECORDS).dec(recordsWritten);
       metrics.getCounter(MetricGroup.JOB.name(), this.jobId, BYTES).dec(bytesWritten);
     }
   }
 
   @Override
-  public void readFields(DataInput in)
-      throws IOException {
+  public void readFields(DataInput in) throws IOException {
     Text text = new Text();
     text.readFields(in);
-    this.jobId = text.toString();
+    this.jobId = text.toString().intern();
     text.readFields(in);
-    this.taskId = text.toString();
+    this.taskId = text.toString().intern();
     this.setId(this.taskId);
     this.startTime = in.readLong();
     this.endTime = in.readLong();
@@ -297,8 +298,7 @@ public class TaskState extends WorkUnitState {
   }
 
   @Override
-  public void write(DataOutput out)
-      throws IOException {
+  public void write(DataOutput out) throws IOException {
     Text text = new Text();
     text.set(this.jobId);
     text.write(out);
@@ -335,17 +335,13 @@ public class TaskState extends WorkUnitState {
    * @param jsonWriter a {@link com.google.gson.stream.JsonWriter} used to write the json document
    * @throws IOException
    */
-  public void toJson(JsonWriter jsonWriter, boolean keepConfig)
-      throws IOException {
+  public void toJson(JsonWriter jsonWriter, boolean keepConfig) throws IOException {
     jsonWriter.beginObject();
 
-    jsonWriter.name("task id").value(this.getTaskId())
-        .name("task state").value(this.getWorkingState().name())
-        .name("start time").value(this.getStartTime())
-        .name("end time").value(this.getEndTime())
-        .name("duration").value(this.getTaskDuration())
-        .name("high watermark").value(this.getHighWaterMark())
-        .name("retry count").value(this.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY, 0));
+    jsonWriter.name("task id").value(this.getTaskId()).name("task state").value(this.getWorkingState().name())
+        .name("start time").value(this.getStartTime()).name("end time").value(this.getEndTime()).name("duration")
+        .value(this.getTaskDuration()).name("retry count")
+        .value(this.getPropAsInt(ConfigurationKeys.TASK_RETRIES_KEY, 0));
 
     // Also add failure exception information if it exists. This information is useful even in the
     // case that the task finally succeeds so we know what happened in the course of task execution.
@@ -402,8 +398,8 @@ public class TaskState extends WorkUnitState {
     TaskMetrics taskMetrics = TaskMetrics.get(this);
     MetricArray metricArray = new MetricArray();
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : taskMetrics
-        .getMetricContext().getCounters().entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : taskMetrics.getMetricContext().getCounters()
+        .entrySet()) {
       Metric counter = new Metric();
       counter.setGroup(MetricGroup.TASK.name());
       counter.setName(entry.getKey());
@@ -412,8 +408,8 @@ public class TaskState extends WorkUnitState {
       metricArray.add(counter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : taskMetrics
-        .getMetricContext().getMeters().entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : taskMetrics.getMetricContext().getMeters()
+        .entrySet()) {
       Metric meter = new Metric();
       meter.setGroup(MetricGroup.TASK.name());
       meter.setName(entry.getKey());
@@ -422,13 +418,13 @@ public class TaskState extends WorkUnitState {
       metricArray.add(meter);
     }
 
-    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : taskMetrics
-        .getMetricContext().getGauges().entrySet()) {
+    for (Map.Entry<String, ? extends com.codahale.metrics.Metric> entry : taskMetrics.getMetricContext().getGauges()
+        .entrySet()) {
       Metric gauge = new Metric();
       gauge.setGroup(MetricGroup.TASK.name());
       gauge.setName(entry.getKey());
       gauge.setType(MetricTypeEnum.valueOf(GobblinMetrics.MetricType.GAUGE.name()));
-      gauge.setValue(((Gauge) entry.getValue()).getValue().toString());
+      gauge.setValue(((Gauge<?>) entry.getValue()).getValue().toString());
       metricArray.add(gauge);
     }
 

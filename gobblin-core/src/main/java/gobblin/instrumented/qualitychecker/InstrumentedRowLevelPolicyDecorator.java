@@ -36,23 +36,20 @@ public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPol
 
   public InstrumentedRowLevelPolicyDecorator(RowLevelPolicy policy) {
     super(policy.getTaskState(), policy.getType(),
-        Optional.<Class<?>>of(DecoratorUtils.resolveUnderlyingObject(policy).getClass()));
+        Optional.<Class<?>> of(DecoratorUtils.resolveUnderlyingObject(policy).getClass()));
     this.embeddedPolicy = policy;
     this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(policy);
   }
 
   @Override
   public MetricContext getMetricContext() {
-    return this.isEmbeddedInstrumented ?
-        ((InstrumentedRowLevelPolicyBase)embeddedPolicy).getMetricContext() :
-        super.getMetricContext();
+    return this.isEmbeddedInstrumented ? ((InstrumentedRowLevelPolicyBase) this.embeddedPolicy).getMetricContext()
+        : super.getMetricContext();
   }
 
   @Override
   public Result executePolicy(Object record) {
-    return this.isEmbeddedInstrumented ?
-        executePolicyImpl(record) :
-        super.executePolicy(record);
+    return this.isEmbeddedInstrumented ? executePolicyImpl(record) : super.executePolicy(record);
   }
 
   @Override
@@ -61,8 +58,7 @@ public class InstrumentedRowLevelPolicyDecorator extends InstrumentedRowLevelPol
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     this.embeddedPolicy.close();
   }
 

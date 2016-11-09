@@ -21,14 +21,15 @@ import org.apache.hadoop.io.Writable;
 
 import com.google.common.base.Throwables;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
+import gobblin.hive.HiveSerDeWrapper;
 import gobblin.instrumented.converter.InstrumentedConverter;
-import gobblin.serde.HiveSerDeWrapper;
 import gobblin.util.HadoopUtils;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -38,7 +39,20 @@ import lombok.extern.slf4j.Slf4j;
  * The serializer and deserializer are specified using {@link HiveSerDeWrapper#SERDE_SERIALIZER_TYPE}
  * and {@link HiveSerDeWrapper#SERDE_DESERIALIZER_TYPE}.
  *
- * @author ziliu
+ * <p>
+ *   Note this class has known issues when the {@link #serializer} is set to
+ *   {@link org.apache.hadoop.hive.serde2.avro.AvroSerializer}. Mainly due to the fact that the Avro Serializer caches
+ *   returned objects, which are not immediately consumed by the
+ *   {@link org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat}.
+ * </p>
+ *
+ * <p>
+ *   This class has been tested when the {@link #serializer} has been set to
+ *   {@link org.apache.hadoop.hive.ql.io.orc.OrcSerde} and should work as expected assuming the proper configurations
+ *   are set (refer to the Gobblin documentation for a full example).
+ * </p>
+ *
+ * @author Ziyang Liu
  */
 @SuppressWarnings("deprecation")
 @Slf4j
@@ -47,6 +61,7 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
   private SerDe serializer;
   private SerDe deserializer;
 
+  @Override
   public HiveSerDeConverter init(WorkUnitState state) {
     super.init(state);
     Configuration conf = HadoopUtils.getConfFromState(state);
@@ -54,8 +69,8 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
     try {
       this.serializer = HiveSerDeWrapper.getSerializer(state).getSerDe();
       this.deserializer = HiveSerDeWrapper.getDeserializer(state).getSerDe();
-      serializer.initialize(conf, state.getProperties());
-      deserializer.initialize(conf, state.getProperties());
+      this.serializer.initialize(conf, state.getProperties());
+      this.deserializer.initialize(conf, state.getProperties());
     } catch (IOException e) {
       log.error("Failed to instantiate serializer and deserializer", e);
       throw Throwables.propagate(e);
@@ -74,7 +89,7 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
     try {
       Object deserialized = this.deserializer.deserialize(inputRecord);
       Writable convertedRecord = this.serializer.serialize(deserialized, this.deserializer.getObjectInspector());
-      return new SingleRecordIterable<Writable>(convertedRecord);
+      return new SingleRecordIterable<>(convertedRecord);
     } catch (SerDeException e) {
       throw new DataConversionException(e);
     }
@@ -84,5 +99,4 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
   public Object convertSchema(Object inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     return inputSchema;
   }
-
 }

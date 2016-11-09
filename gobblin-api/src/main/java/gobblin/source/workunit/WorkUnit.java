@@ -20,12 +20,14 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.extractor.WatermarkInterval;
+import lombok.ToString;
 
 
 /**
@@ -38,11 +40,14 @@ import gobblin.source.extractor.WatermarkInterval;
  *
  * @author kgoodhop
  */
+@ToString
 public class WorkUnit extends State {
 
   private Extract extract;
 
   private static final JsonParser JSON_PARSER = new JsonParser();
+
+  private static final Gson GSON = new Gson();
 
   /**
    * Default constructor.
@@ -188,6 +193,31 @@ public class WorkUnit extends State {
   }
 
   /**
+   * Get the low {@link Watermark}.
+   *
+   * @param watermarkClass the watermark class for this {@code WorkUnit}.
+   * @param gson a {@link Gson} object used to deserialize the watermark.
+   * @return the low watermark in this {@code WorkUnit}.
+   */
+  public <T extends Watermark> T getLowWatermark(Class<T> watermarkClass, Gson gson) {
+    JsonElement json = getLowWatermark();
+    if (json == null) {
+      return null;
+    }
+    return gson.fromJson(json, watermarkClass);
+  }
+
+  /**
+   * Get the low {@link Watermark}. A default {@link Gson} object will be used to deserialize the watermark.
+   *
+   * @param watermarkClass the watermark class for this {@code WorkUnit}.
+   * @return the low watermark in this {@code WorkUnit}.
+   */
+  public <T extends Watermark> T getLowWatermark(Class<T> watermarkClass) {
+    return getLowWatermark(watermarkClass, GSON);
+  }
+
+  /**
    * Get the expected high {@link Watermark} as a {@link JsonElement}.
    *
    * @return a {@link JsonElement} representing the expected high {@link Watermark}.
@@ -195,6 +225,31 @@ public class WorkUnit extends State {
   public JsonElement getExpectedHighWatermark() {
     return JSON_PARSER.parse(getProp(ConfigurationKeys.WATERMARK_INTERVAL_VALUE_KEY)).getAsJsonObject()
         .get(WatermarkInterval.EXPECTED_HIGH_WATERMARK_TO_JSON_KEY);
+  }
+
+  /**
+   * Get the expected high {@link Watermark}.
+   * 
+   * @param watermarkClass the watermark class for this {@code WorkUnit}.
+   * @param gson a {@link Gson} object used to deserialize the watermark.
+   * @return the expected high watermark in this {@code WorkUnit}.
+   */
+  public <T extends Watermark> T getExpectedHighWatermark(Class<T> watermarkClass, Gson gson) {
+    JsonElement json = getExpectedHighWatermark();
+    if (json == null) {
+      return null;
+    }
+    return gson.fromJson(json, watermarkClass);
+  }
+
+  /**
+   * Get the expected high {@link Watermark}. A default {@link Gson} object will be used to deserialize the watermark.
+   *
+   * @param watermarkClass the watermark class for this {@code WorkUnit}.
+   * @return the expected high watermark in this {@code WorkUnit}.
+   */
+  public <T extends Watermark> T getExpectedHighWatermark(Class<T> watermarkClass) {
+    return getExpectedHighWatermark(watermarkClass, GSON);
   }
 
   /**

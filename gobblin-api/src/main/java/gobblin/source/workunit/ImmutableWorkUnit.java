@@ -28,7 +28,7 @@ public class ImmutableWorkUnit extends WorkUnit {
 
   public ImmutableWorkUnit(WorkUnit workUnit) {
     super(workUnit.getExtract());
-    super.addAll(workUnit);
+    super.addAll(workUnit.getProperties());
   }
 
   @Override
@@ -68,10 +68,12 @@ public class ImmutableWorkUnit extends WorkUnit {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public void overrideWith(Properties properties) {
     throw new UnsupportedOperationException();
   }
 
+  @Override
   public void overrideWith(State otherState) {
     throw new UnsupportedOperationException();
   }

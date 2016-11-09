@@ -38,26 +38,26 @@ public class ProxyFsInput implements Closeable, SeekableInput {
 
   @Override
   public long length() {
-    return len;
+    return this.len;
   }
 
   @Override
   public int read(byte[] b, int off, int len) throws IOException {
-    return stream.read(b, off, len);
+    return this.stream.read(b, off, len);
   }
 
   @Override
   public void seek(long p) throws IOException {
-    stream.seek(p);
+    this.stream.seek(p);
   }
 
   @Override
   public long tell() throws IOException {
-    return stream.getPos();
+    return this.stream.getPos();
   }
 
   @Override
   public void close() throws IOException {
-    stream.close();
+    this.stream.close();
   }
 }

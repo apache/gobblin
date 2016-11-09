@@ -18,11 +18,14 @@ import java.io.IOException;
 
 import org.apache.avro.Schema;
 
+import gobblin.annotation.Alias;
+
 
 /**
  * Write a fixed integer ({@link #SCHEMA_VERSION}) as schema version into the {@link java.io.DataOutputStream}.
  */
-public class FixedSchemaVersionWriter implements SchemaVersionWriter {
+@Alias(value = "FIXED_VERSION")
+public class FixedSchemaVersionWriter implements SchemaVersionWriter<Integer> {
 
   public static final int SCHEMA_VERSION = 1;
 
@@ -32,7 +35,7 @@ public class FixedSchemaVersionWriter implements SchemaVersionWriter {
   }
 
   @Override
-  public Object readSchemaVersioningInformation(DataInputStream inputStream)
+  public Integer readSchemaVersioningInformation(DataInputStream inputStream)
       throws IOException {
     return inputStream.readInt();
   }

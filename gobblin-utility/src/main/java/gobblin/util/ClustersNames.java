@@ -49,70 +49,60 @@ public class ClustersNames {
 
   private static ClustersNames THE_INSTANCE;
 
-  private Properties _urlToNameMap = new Properties();
+  private Properties urlToNameMap = new Properties();
 
   protected ClustersNames() {
-    Closer closer = Closer.create();
-    try {
-      InputStream propsInput =
-          closer.register(getClass().getResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME));
+
+    try (Closer closer = Closer.create()) {
+      InputStream propsInput = closer.register(getClass().getResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME));
       if (null == propsInput) {
-        propsInput =
-            closer.register(ClassLoader.getSystemResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME));
+        propsInput = closer.register(ClassLoader.getSystemResourceAsStream(URL_TO_NAME_MAP_RESOURCE_NAME));
       }
       if (null != propsInput) {
         try {
-          _urlToNameMap.load(propsInput);
-          LOG.info("Loaded cluster names map:" + _urlToNameMap);
-        }
-        catch (IOException e) {
+          this.urlToNameMap.load(propsInput);
+          LOG.info("Loaded cluster names map:" + this.urlToNameMap);
+        } catch (IOException e) {
           LOG.warn("Unable to load cluster names map: " + e, e);
         }
-      }
-      else {
+      } else {
         LOG.info("no default cluster mapping found");
       }
-    }
-    finally {
-      try{
-        closer.close();
-      }
-      catch (IOException e) {
-        LOG.warn("unable to close resource input stream for " + URL_TO_NAME_MAP_RESOURCE_NAME +
-            ":" + e, e);
-      }
+    } catch (IOException e) {
+      LOG.warn("unable to close resource input stream for " + URL_TO_NAME_MAP_RESOURCE_NAME + ":" + e, e);
     }
   }
 
   public String getClusterName(String clusterUrl) {
-    if (null == clusterUrl) return null;
-    String res = _urlToNameMap.getProperty(clusterUrl);
+    if (null == clusterUrl)
+      return null;
+    String res = this.urlToNameMap.getProperty(clusterUrl);
     return null != res ? res : normalizeClusterUrl(clusterUrl);
   }
 
   public void addClusterMapping(String clusterUrl, String clusterName) {
     Preconditions.checkNotNull(clusterUrl, "cluster URL expected");
     Preconditions.checkNotNull(clusterName, "cluster name expected");
-    _urlToNameMap.put(clusterUrl, clusterName);
+    this.urlToNameMap.put(clusterUrl, clusterName);
   }
 
   public void addClusterMapping(URL clusterUrl, String clusterName) {
     Preconditions.checkNotNull(clusterUrl, "cluster URL expected");
     Preconditions.checkNotNull(clusterName, "cluster name expected");
-    _urlToNameMap.put(clusterUrl.toString(), clusterName);
+    this.urlToNameMap.put(clusterUrl.toString(), clusterName);
   }
 
   // Strip out the port number if it is a valid URI
   private static String normalizeClusterUrl(String clusterIdentifier) {
-  try {
-    URI uri = new URI(clusterIdentifier.trim());
-    // URIs without protocol prefix
-    if (! uri.isOpaque() && null != uri.getHost()){
-      clusterIdentifier = uri.getHost();
+    try {
+      URI uri = new URI(clusterIdentifier.trim());
+      // URIs without protocol prefix
+      if (!uri.isOpaque() && null != uri.getHost()) {
+        clusterIdentifier = uri.getHost();
+      }
+    } catch (URISyntaxException e) {
+      //leave ID as is
     }
-  } catch (URISyntaxException e) {
-    //leave ID as is
-  }
 
     return clusterIdentifier;
   }
@@ -137,8 +127,7 @@ public class ClustersNames {
    *
    * <p>
    * <b>MapReduce mode</b> Uses the value for "yarn.resourcemanager.address" from {@link Configuration} excluding the
-   * port number. If "yarn.resourcemanager.address" is not set, (possible in Hadoop1), falls back to
-   * "mapreduce.jobtracker.address"
+   * port number.
    * </p>
    *
    * <p>
@@ -155,18 +144,11 @@ public class ClustersNames {
   public String getClusterName(Configuration conf) {
     // ResourceManager address in Hadoop2
     String clusterIdentifier = conf.get("yarn.resourcemanager.address");
-
-    // If job is running on Hadoop1 use jobtracker address
-    if (clusterIdentifier == null) {
-      clusterIdentifier = conf.get("mapreduce.jobtracker.address");
-    }
-
     clusterIdentifier = getClusterName(clusterIdentifier);
 
     // If job is running outside of Hadoop (Standalone) use hostname
     // If clusterIdentifier is localhost or 0.0.0.0 use hostname
-    if (clusterIdentifier == null
-        || StringUtils.startsWithIgnoreCase(clusterIdentifier, "localhost")
+    if (clusterIdentifier == null || StringUtils.startsWithIgnoreCase(clusterIdentifier, "localhost")
         || StringUtils.startsWithIgnoreCase(clusterIdentifier, "0.0.0.0")) {
       try {
         clusterIdentifier = InetAddress.getLocalHost().getHostName();

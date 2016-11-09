@@ -15,6 +15,7 @@ package gobblin.password;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.util.AbstractMap;
 import java.util.Map;
 import java.util.Properties;
@@ -49,7 +50,7 @@ import gobblin.configuration.State;
  * A class for managing password encryption and decryption. To encrypt or decrypt a password, a master password
  * should be provided which is used as encryption or decryption key.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class PasswordManager {
 
@@ -62,6 +63,8 @@ public class PasswordManager {
   private static final LoadingCache<Map.Entry<Optional<String>, Boolean>, PasswordManager> CACHED_INSTANCES =
       CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).expireAfterAccess(CACHE_EXPIRATION_MIN, TimeUnit.MINUTES)
           .build(new CacheLoader<Map.Entry<Optional<String>, Boolean>, PasswordManager>() {
+
+            @Override
             public PasswordManager load(Map.Entry<Optional<String>, Boolean> cacheKey) {
               return new PasswordManager(cacheKey.getKey(), cacheKey.getValue());
             }
@@ -93,8 +96,7 @@ public class PasswordManager {
   public static PasswordManager getInstance() {
     try {
       Optional<String> absent = Optional.absent();
-      return CACHED_INSTANCES
-          .get(new AbstractMap.SimpleEntry<Optional<String>, Boolean>(absent, shouldUseStrongEncryptor(new State())));
+      return CACHED_INSTANCES.get(new AbstractMap.SimpleEntry<>(absent, shouldUseStrongEncryptor(new State())));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -105,8 +107,8 @@ public class PasswordManager {
    */
   public static PasswordManager getInstance(State state) {
     try {
-      return CACHED_INSTANCES.get(new AbstractMap.SimpleEntry<Optional<String>, Boolean>(getMasterPassword(state),
-          shouldUseStrongEncryptor(state)));
+      return CACHED_INSTANCES
+          .get(new AbstractMap.SimpleEntry<>(getMasterPassword(state), shouldUseStrongEncryptor(state)));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -124,8 +126,8 @@ public class PasswordManager {
    */
   public static PasswordManager getInstance(Path masterPwdLoc) {
     try {
-      return CACHED_INSTANCES.get(new AbstractMap.SimpleEntry<Optional<String>, Boolean>(
-          getMasterPassword(masterPwdLoc), shouldUseStrongEncryptor(new State())));
+      return CACHED_INSTANCES
+          .get(new AbstractMap.SimpleEntry<>(getMasterPassword(masterPwdLoc), shouldUseStrongEncryptor(new State())));
     } catch (ExecutionException e) {
       throw new RuntimeException("Unable to get an instance of PasswordManager", e);
     }
@@ -179,9 +181,8 @@ public class PasswordManager {
     Matcher matcher = PASSWORD_PATTERN.matcher(password);
     if (matcher.find()) {
       return this.decryptPassword(matcher.group(1));
-    } else {
-      return password;
     }
+    return password;
   }
 
   private static Optional<String> getMasterPassword(State state) {
@@ -191,6 +192,11 @@ public class PasswordManager {
       return Optional.absent();
     }
     try {
+      if (state.contains(ConfigurationKeys.ENCRYPT_KEY_FS_URI)) {
+        FileSystem fs =
+            FileSystem.get(URI.create(state.getProp(ConfigurationKeys.ENCRYPT_KEY_FS_URI)), new Configuration());
+        return getMasterPassword(fs, new Path(state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC)));
+      }
       return getMasterPassword(new Path(state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC)));
     } catch (Exception e) {
       throw new RuntimeException(
@@ -198,25 +204,25 @@ public class PasswordManager {
     }
   }
 
-  @SuppressWarnings("deprecation")
-  public static Optional<String> getMasterPassword(Path masterPwdLoc) {
-    Closer closer = Closer.create();
+  public static Optional<String> getMasterPassword(Path masterPasswordFile) {
     try {
-      FileSystem fs = masterPwdLoc.getFileSystem(new Configuration());
-      if (!fs.exists(masterPwdLoc) || fs.getFileStatus(masterPwdLoc).isDir()) {
-        LOG.warn(masterPwdLoc + " does not exist or is not a file. Cannot decrypt any encrypted password.");
+      FileSystem fs = masterPasswordFile.getFileSystem(new Configuration());
+      return getMasterPassword(fs, masterPasswordFile);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to obtain master password from " + masterPasswordFile, e);
+    }
+  }
+
+  public static Optional<String> getMasterPassword(FileSystem fs, Path masterPasswordFile) {
+    try (Closer closer = Closer.create()) {
+      if (!fs.exists(masterPasswordFile) || fs.getFileStatus(masterPasswordFile).isDirectory()) {
+        LOG.warn(masterPasswordFile + " does not exist or is not a file. Cannot decrypt any encrypted password.");
         return Optional.absent();
       }
-      InputStream in = closer.register(fs.open(masterPwdLoc));
+      InputStream in = closer.register(fs.open(masterPasswordFile));
       return Optional.of(new LineReader(new InputStreamReader(in, Charsets.UTF_8)).readLine());
     } catch (IOException e) {
-      throw new RuntimeException("Failed to obtain master password from " + masterPwdLoc, e);
-    } finally {
-      try {
-        closer.close();
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to close inputstream for " + masterPwdLoc, e);
-      }
+      throw new RuntimeException("Failed to obtain master password from " + masterPasswordFile, e);
     }
   }
 }

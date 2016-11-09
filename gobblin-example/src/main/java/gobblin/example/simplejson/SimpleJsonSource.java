@@ -37,7 +37,6 @@ import gobblin.source.workunit.WorkUnit;
  *
  * @author Yinan Li
  */
-@SuppressWarnings("unused")
 public class SimpleJsonSource implements Source<String, String> {
 
   public static final String SOURCE_FILE_KEY = "source.file";
@@ -66,8 +65,7 @@ public class SimpleJsonSource implements Source<String, String> {
   }
 
   @Override
-  public Extractor<String, String> getExtractor(WorkUnitState state)
-      throws IOException {
+  public Extractor<String, String> getExtractor(WorkUnitState state) throws IOException {
     return new SimpleJsonExtractor(state);
   }
 

@@ -41,8 +41,7 @@ public class ProxiedTrash extends Trash implements GobblinProxiedTrash {
   private final Cache<String, Trash> trashCache = CacheBuilder.newBuilder().maximumSize(100).build();
   private final Properties properties;
 
-  public ProxiedTrash(FileSystem fs, Properties props, String user)
-      throws IOException {
+  public ProxiedTrash(FileSystem fs, Properties props, String user) throws IOException {
     super(fs, props, user);
     this.properties = props;
   }
@@ -94,7 +93,7 @@ public class ProxiedTrash extends Trash implements GobblinProxiedTrash {
    * @throws IOException
    */
   public void createTrashSnapshotsForAllUsers() throws IOException {
-    for(String user : getAllUsersWithTrash()) {
+    for (String user : getAllUsersWithTrash()) {
       createTrashSnapshotAsUser(user);
     }
   }
@@ -105,7 +104,7 @@ public class ProxiedTrash extends Trash implements GobblinProxiedTrash {
    * @throws IOException
    */
   public void purgeTrashSnapshotsForAllUsers() throws IOException {
-    for(String user : getAllUsersWithTrash()) {
+    for (String user : getAllUsersWithTrash()) {
       purgeTrashSnapshotsAsUser(user);
     }
   }
@@ -118,12 +117,13 @@ public class ProxiedTrash extends Trash implements GobblinProxiedTrash {
    */
   protected List<String> getAllUsersWithTrash() throws IOException {
     Path trashLocationGlob = new Path(this.properties.getProperty(TRASH_LOCATION_KEY).replaceAll("\\$USER", "*"));
-    Pattern userPattern = Pattern.compile(this.properties.getProperty(TRASH_LOCATION_KEY).replaceAll("\\$USER", "([^/])"));
+    Pattern userPattern =
+        Pattern.compile(this.properties.getProperty(TRASH_LOCATION_KEY).replaceAll("\\$USER", "([^/])"));
 
     List<String> users = Lists.newArrayList();
-    for(FileStatus fileStatus : this.fs.globStatus(trashLocationGlob)) {
+    for (FileStatus fileStatus : this.fs.globStatus(trashLocationGlob)) {
       Matcher matcher = userPattern.matcher(fileStatus.getPath().toString());
-      if(matcher.find()) {
+      if (matcher.find()) {
         users.add(matcher.group(1));
       }
     }
@@ -138,20 +138,18 @@ public class ProxiedTrash extends Trash implements GobblinProxiedTrash {
    * @throws IOException
    */
   protected Trash getUserTrash(final String user) throws IOException {
-    if(UserGroupInformation.getCurrentUser().getShortUserName().equals(user)) {
+    if (UserGroupInformation.getCurrentUser().getShortUserName().equals(user)) {
       return this;
-    } else {
-      try {
-        return this.trashCache.get(user, new Callable<Trash>() {
-          @Override
-          public Trash call()
-              throws Exception {
-            return createNewTrashForUser(fs, properties, user);
-          }
-        });
-      } catch(ExecutionException ee) {
-        throw new IOException("Failed to get trash for user " + user);
-      }
+    }
+    try {
+      return this.trashCache.get(user, new Callable<Trash>() {
+        @Override
+        public Trash call() throws Exception {
+          return createNewTrashForUser(ProxiedTrash.this.fs, ProxiedTrash.this.properties, user);
+        }
+      });
+    } catch (ExecutionException ee) {
+      throw new IOException("Failed to get trash for user " + user);
     }
   }
 

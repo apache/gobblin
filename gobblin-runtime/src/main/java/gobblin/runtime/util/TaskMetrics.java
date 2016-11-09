@@ -21,6 +21,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.metrics.event.TaskEvent;
 import gobblin.runtime.TaskState;
 
 
@@ -67,7 +68,7 @@ public class TaskMetrics extends GobblinMetrics {
 
   protected static List<Tag<?>> tagsForTask(TaskState taskState) {
     List<Tag<?>> tags = Lists.newArrayList();
-    tags.add(new Tag<>("taskId", taskState.getTaskId()));
+    tags.add(new Tag<>(TaskEvent.METADATA_TASK_ID, taskState.getTaskId()));
     tags.addAll(getCustomTagsFromState(taskState));
     return tags;
   }

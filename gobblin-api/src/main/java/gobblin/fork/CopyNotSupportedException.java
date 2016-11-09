@@ -19,6 +19,8 @@ package gobblin.fork;
  */
 public class CopyNotSupportedException extends Exception {
 
+  private static final long serialVersionUID = 1L;
+
   public CopyNotSupportedException(String message) {
     super(message);
   }

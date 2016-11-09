@@ -14,7 +14,6 @@ package gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.avro.file.CodecFactory;
@@ -71,6 +70,14 @@ public class WriterUtils {
   }
 
   /**
+   * Get the staging {@link Path} for {@link gobblin.writer.DataWriter} that has attemptId in the path.
+   */
+  public static Path getWriterStagingDir(State state, int numBranches, int branchId, String attemptId) {
+    Preconditions.checkArgument(attemptId != null && !attemptId.isEmpty(), "AttemptId cannot be null or empty: " + attemptId);
+    return new Path(getWriterStagingDir(state, numBranches, branchId), attemptId);
+  }
+
+  /**
    * Get the {@link Path} corresponding the to the directory a given {@link gobblin.writer.DataWriter} should be writing
    * its output data. The output data directory is determined by combining the
    * {@link ConfigurationKeys#WRITER_OUTPUT_DIR} and the {@link ConfigurationKeys#WRITER_FILE_PATH}.
@@ -102,9 +109,15 @@ public class WriterUtils {
     Preconditions.checkArgument(state.contains(dataPublisherFinalDirKey),
         "Missing required property " + dataPublisherFinalDirKey);
 
-    return new Path(state.getProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)),
-        WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    if (state.getPropAsBoolean(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR,
+        ConfigurationKeys.DEFAULT_DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR)) {
+      return new Path(state.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)),
+          WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    } else {
+      return new Path(state.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)));
+    }
   }
 
   /**
@@ -207,11 +220,10 @@ public class WriterUtils {
     } else if (codecName.get().equalsIgnoreCase(DataFileConstants.DEFLATE_CODEC)) {
       if (!deflateLevel.isPresent()) {
         return CodecFactory.deflateCodec(ConfigurationKeys.DEFAULT_DEFLATE_LEVEL);
-      } else {
-        return CodecFactory.deflateCodec(Integer.parseInt(deflateLevel.get()));
       }
+      return CodecFactory.deflateCodec(Integer.parseInt(deflateLevel.get()));
     } else {
-      return CodecFactory.fromString(codecName.get());
+      return CodecFactory.fromString(codecName.get().toLowerCase());
     }
   }
 
@@ -254,19 +266,17 @@ public class WriterUtils {
         String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
         Optional<Token<?>> token = ProxiedFileSystemUtils.getTokenFromSeqFile(user,
             new Path(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE)));
-        if(!token.isPresent()) {
+        if (!token.isPresent()) {
           throw new IOException("No token found for user " + user);
         }
-        return
-            ProxiedFileSystemCache.fromToken().
-                userNameToken(token.get()).
-                userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri).build();
+        return ProxiedFileSystemCache.fromToken().userNameToken(token.get())
+            .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri)
+            .conf(HadoopUtils.newConfiguration()).build();
       } catch (ExecutionException e) {
         throw new IOException(e);
       }
-    } else {
-      // Initialize file system as the current user.
-      return FileSystem.get(uri, new Configuration());
     }
+    // Initialize file system as the current user.
+    return FileSystem.get(uri, new Configuration());
   }
 }

@@ -12,48 +12,42 @@
 
 package gobblin.data.management.retention.version.finder;
 
+import java.io.IOException;
 import java.util.Properties;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.data.management.retention.DatasetCleaner;
+import com.typesafe.config.Config;
+
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 
 
 /**
- * {@link gobblin.data.management.retention.version.finder.DatasetVersionFinder} for datasets based on path timestamps.
- * Uses a datetime pattern to find dataset versions from the dataset path
- * and parse the {@link org.joda.time.DateTime} representing the version.
+ * @deprecated
+ * See javadoc for {@link gobblin.data.management.version.finder.DateTimeDatasetVersionFinder}.
  */
+@Deprecated
 public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DateTimeDatasetVersionFinder.class);
+  private final gobblin.data.management.version.finder.DateTimeDatasetVersionFinder realVersionFinder;
 
-  public static final String DATE_TIME_PATTERN_KEY = DatasetCleaner.CONFIGURATION_KEY_PREFIX + "datetime.pattern";
-  public static final String DATE_TIME_PATTERN_TIMEZONE_KEY =
-      DatasetCleaner.CONFIGURATION_KEY_PREFIX + "datetime.pattern.timezone";
-  public static final String DEFAULT_DATE_TIME_PATTERN_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
-
-  private final Path globPattern;
-  private final DateTimeFormatter formatter;
+  /**
+   * @deprecated use {@link #DATE_TIME_PATTERN_KEY} instead.
+   */
+  @Deprecated
+  public static final String RETENTION_DATE_TIME_PATTERN_KEY = "gobblin.retention.datetime.pattern";
+  /**
+   * @deprecated use {@link #DATE_TIME_PATTERN_TIMEZONE_KEY} instead.
+   */
+  @Deprecated
+  public static final String RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY = "gobblin.retention.datetime.pattern.timezone";
 
   public DateTimeDatasetVersionFinder(FileSystem fs, Properties props) {
-    super(fs, props);
-    String pattern = props.getProperty(DATE_TIME_PATTERN_KEY);
-    this.globPattern = new Path(pattern.replaceAll("[^/]+", "*"));
-    LOGGER.debug(String.format("Setting timezone for patthern: %s. By default it is %s", pattern,
-        DEFAULT_DATE_TIME_PATTERN_TIMEZONE));
-    this.formatter = DateTimeFormat.forPattern(pattern).withZone(
-        DateTimeZone.forID(props.getProperty(DATE_TIME_PATTERN_TIMEZONE_KEY, DEFAULT_DATE_TIME_PATTERN_TIMEZONE)));
-
+    super(fs, convertDeprecatedProperties(props));
+    this.realVersionFinder = new gobblin.data.management.version.finder.DateTimeDatasetVersionFinder(fs, convertDeprecatedProperties(props));
   }
 
   @Override
@@ -61,28 +55,47 @@ public class DateTimeDatasetVersionFinder extends DatasetVersionFinder<Timestamp
     return TimestampedDatasetVersion.class;
   }
 
-  /**
-   * Obtained by replacing all non-slash characters in datetime pattern by *.
-   * E.g. yyyy/MM/dd/hh/mm -> *\/*\/*\/*\/*
-   */
   @Override
   public Path globVersionPattern() {
-    return this.globPattern;
+    return this.realVersionFinder.globVersionPattern();
+  }
+
+  @Override
+  public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus) {
+    gobblin.data.management.version.TimestampedDatasetVersion timestampedDatasetVersion =
+        this.realVersionFinder.getDatasetVersion(pathRelativeToDatasetRoot, versionFileStatus);
+    if (timestampedDatasetVersion != null) {
+      return new TimestampedDatasetVersion(timestampedDatasetVersion);
+    }
+    return null;
+  }
+
+  // This Method will never be called. It exists because the deprecated super class gobblin.data.management.retention.version.finder.DatasetVersionFinder
+  // requires it. getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus) will be called instead
+  @Override
+  public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
+    throw new UnsupportedOperationException(
+        "This method should not be called. getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus) "
+        + "should have been called instead");
   }
 
   /**
-   * Parse {@link org.joda.time.DateTime} from {@link org.apache.hadoop.fs.Path} using datetime pattern.
+   * This conversion is required because the deprecated keys {@value #RETENTION_DATE_TIME_PATTERN_KEY} and
+   * {@value #RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY} are not TypeSafe compatible.
+   * The key {@value #RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY} overwrites {@value #RETENTION_DATE_TIME_PATTERN_KEY}
+   * when converted from props to {@link Config}
    */
-  @Override
-  public TimestampedDatasetVersion getDatasetVersion(Path pathRelativeToDatasetRoot, Path fullPath) {
-    try {
-      return new TimestampedDatasetVersion(this.formatter.parseDateTime(pathRelativeToDatasetRoot.toString()),
-          fullPath);
-    } catch (IllegalArgumentException exception) {
-      LOGGER.warn(
-          "Candidate dataset version at " + pathRelativeToDatasetRoot + " does not match expected pattern. Ignoring.");
-      return null;
+  private static Properties convertDeprecatedProperties(Properties props) {
+    if (props.containsKey(RETENTION_DATE_TIME_PATTERN_KEY)) {
+      props.setProperty(gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, props.getProperty(RETENTION_DATE_TIME_PATTERN_KEY));
+      props.remove(RETENTION_DATE_TIME_PATTERN_KEY);
     }
+    if (props.containsKey(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY)) {
+      props.setProperty(gobblin.data.management.version.finder.DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_TIMEZONE_KEY, props.getProperty(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY));
+      props.remove(RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY);
+    }
+    return props;
   }
+
 
 }

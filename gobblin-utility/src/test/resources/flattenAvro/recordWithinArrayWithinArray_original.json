@@ -1,0 +1,14 @@
+{
+  "type":"array",
+  "items": {
+    "type":"array",
+    "items": {
+      "type":"record",
+      "name":"nestedRecord",
+      "fields": [ {
+        "name":"nestedRecordFieldInt",
+        "type":"int"
+      } ]
+    }
+  }
+}

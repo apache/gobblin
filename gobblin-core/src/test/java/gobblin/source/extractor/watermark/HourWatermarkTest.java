@@ -1,10 +1,11 @@
 package gobblin.source.extractor.watermark;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Maps;
 
 
 /**
@@ -40,7 +41,7 @@ public class HourWatermarkTest {
     int partition = 30;
     int maxInterval = 4;
     Map<Long, Long> results = datewm.getIntervals(lwm, hwm, partition, maxInterval);
-    Map<Long, Long> expected = new HashMap<Long, Long>();
+    Map<Long, Long> expected = Maps.newHashMap();
     expected.put(20150201010000l, 20150201010000l);
     Assert.assertEquals(results, expected);
   }
@@ -59,7 +60,7 @@ public class HourWatermarkTest {
     int partition = 2;
     int maxInterval = 4;
     Map<Long, Long> results = hourwm.getIntervals(lwm, hwm, partition, maxInterval);
-    Map<Long, Long> expected = new HashMap<Long, Long>();
+    Map<Long, Long> expected = Maps.newHashMap();
     expected.put(20150201010000l, 20150201030000l);
     expected.put(20150201040000l, 20150201050000l);
     Assert.assertEquals(results, expected);
@@ -78,7 +79,7 @@ public class HourWatermarkTest {
     int partition = 2;
     int maxInterval = 2;
     Map<Long, Long> results = hourwm.getIntervals(lwm, hwm, partition, maxInterval);
-    Map<Long, Long> expected = new HashMap<Long, Long>();
+    Map<Long, Long> expected = Maps.newHashMap();
     expected.put(20150201010000l, 20150201130000l);
     expected.put(20150201140000l, 20150202010000l);
     Assert.assertEquals(results, expected);
@@ -96,7 +97,6 @@ public class HourWatermarkTest {
     int maxInterval = -1;
     hourwm.getIntervals(lwm, hwm, partition, maxInterval);
   }
-
 
   /**
    * Test the method getIntervals, when taking invalid input of partitionInterval.

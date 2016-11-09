@@ -7,7 +7,7 @@ import com.codahale.metrics.MetricFilter;
 /**
  * A utility class for working with {@link MetricFilter}s.
  *
- * @see {@link MetricFilter}
+ * @see MetricFilter
  */
 public class MetricFilters {
 

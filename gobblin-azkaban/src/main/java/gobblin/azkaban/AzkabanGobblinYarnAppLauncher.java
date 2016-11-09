@@ -41,7 +41,6 @@ import gobblin.yarn.GobblinYarnAppLauncher;
  *
  * @author Yinan Li
  */
-@SuppressWarnings("unused")
 public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
 
   private static final Logger LOGGER = Logger.getLogger(AzkabanJobLauncher.class);
@@ -50,8 +49,8 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
 
   public AzkabanGobblinYarnAppLauncher(String jobId, Properties props) throws IOException {
     super(jobId, LOGGER);
-    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(ConfigFactory.parseProperties(props),
-        new YarnConfiguration());
+    this.gobblinYarnAppLauncher =
+        new GobblinYarnAppLauncher(ConfigFactory.parseProperties(props), new YarnConfiguration());
   }
 
   @Override
@@ -63,7 +62,7 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
       @Override
       public void run() {
         try {
-          gobblinYarnAppLauncher.stop();
+          AzkabanGobblinYarnAppLauncher.this.gobblinYarnAppLauncher.stop();
         } catch (IOException ioe) {
           LOGGER.error("Failed to shutdown the " + GobblinYarnAppLauncher.class.getSimpleName(), ioe);
         } catch (TimeoutException te) {

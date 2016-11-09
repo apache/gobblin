@@ -10,7 +10,6 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-
 package gobblin.runtime;
 
 import java.io.FileReader;
@@ -25,7 +24,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -54,7 +52,7 @@ import gobblin.writer.DataWriterBuilder;
  *
  * @author Yinan Li
  */
-@Test(groups = {"gobblin.runtime"})
+@Test(groups = { "gobblin.runtime" })
 public class DatasetStateStoreTest {
 
   private static final String JOB_NAME = DatasetStateStoreTest.class.getSimpleName();
@@ -64,7 +62,6 @@ public class DatasetStateStoreTest {
   private static final String BAR = "bar";
   private static final String WORK_UNIT_INDEX_KEY = "work.unit.index";
   private static final String LAST_READ_RECORD_KEY = "last.read.record";
-  private static final String CURRENT_RUN_KEY = "current.run";
 
   private StateStore<JobState.DatasetState> datasetStateStore;
   private Properties jobConfig = new Properties();
@@ -72,12 +69,13 @@ public class DatasetStateStoreTest {
   @BeforeClass
   public void setUp() throws Exception {
     Properties properties = new Properties();
-    properties.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
+    try (FileReader fr = new FileReader("gobblin-test/resource/gobblin.test.properties")) {
+      properties.load(fr);
+    }
 
-    this.datasetStateStore = new FsStateStore<JobState.DatasetState>(
+    this.datasetStateStore = new FsStateStore<>(
         properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
-        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
-        JobState.DatasetState.class);
+        properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.DatasetState.class);
 
     this.jobConfig.putAll(properties);
     this.jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, JOB_NAME);
@@ -87,33 +85,24 @@ public class DatasetStateStoreTest {
 
   @Test
   public void testLaunchFirstJob() throws Exception {
-    Closer closer = Closer.create();
-    try {
-      closer.register(new LocalJobLauncher(this.jobConfig)).launchJob(null);
-    } finally {
-      closer.close();
+    try (JobLauncher launcher = new LocalJobLauncher(this.jobConfig)) {
+      launcher.launchJob(null);
     }
     verifyJobState(1);
   }
 
   @Test(dependsOnMethods = "testLaunchFirstJob")
   public void testLaunchSecondJob() throws Exception {
-    Closer closer = Closer.create();
-    try {
-      closer.register(new LocalJobLauncher(this.jobConfig)).launchJob(null);
-    } finally {
-      closer.close();
+    try (JobLauncher launcher = new LocalJobLauncher(this.jobConfig)) {
+      launcher.launchJob(null);
     }
     verifyJobState(2);
   }
 
   @Test(dependsOnMethods = "testLaunchSecondJob")
   public void testLaunchThirdJob() throws Exception {
-    Closer closer = Closer.create();
-    try {
-      closer.register(new LocalJobLauncher(this.jobConfig)).launchJob(null);
-    } finally {
-      closer.close();
+    try (JobLauncher launcher = new LocalJobLauncher(this.jobConfig)) {
+      launcher.launchJob(null);
     }
     verifyJobState(3);
   }
@@ -130,8 +119,6 @@ public class DatasetStateStoreTest {
     JobState jobState = datasetStateList.get(0);
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
     Assert.assertEquals(jobState.getTaskStates().size(), DummySource.NUM_WORK_UNITS);
-    Assert.assertEquals(jobState.getProp(FOO), BAR);
-    Assert.assertEquals(jobState.getPropAsInt(CURRENT_RUN_KEY), run);
 
     for (TaskState taskState : jobState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
@@ -139,15 +126,14 @@ public class DatasetStateStoreTest {
 
       // Check if the low watermark is properly kept track of
       int expectedLowWatermark =
-          (run - 1) * DummySource.NUM_WORK_UNITS * DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR +
-              taskState.getPropAsInt(WORK_UNIT_INDEX_KEY) * DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR + 1;
-      Assert.assertEquals(
-          taskState.getPropAsInt(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY), expectedLowWatermark);
+          (run - 1) * DummySource.NUM_WORK_UNITS * DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR
+              + taskState.getPropAsInt(WORK_UNIT_INDEX_KEY) * DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR + 1;
+      Assert.assertEquals(taskState.getPropAsInt(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY), expectedLowWatermark);
 
       // Check if the high watermark is properly kept track of
       int expectedHighWatermark = expectedLowWatermark + DummySource.NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR - 1;
-      Assert.assertEquals(
-          taskState.getPropAsInt(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY), expectedHighWatermark);
+      Assert.assertEquals(taskState.getPropAsInt(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY),
+          expectedHighWatermark);
 
       Assert.assertEquals(taskState.getPropAsInt(LAST_READ_RECORD_KEY), expectedHighWatermark);
     }
@@ -163,9 +149,6 @@ public class DatasetStateStoreTest {
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState sourceState) {
-      SourceState previousSourceState = sourceState.getPreviousSourceState();
-        sourceState.setProp(CURRENT_RUN_KEY,
-            previousSourceState != null ? previousSourceState.getPropAsInt(CURRENT_RUN_KEY) + 1 : 1);
       sourceState.setProp(FOO, BAR);
 
       if (Iterables.isEmpty(sourceState.getPreviousWorkUnitStates())) {
@@ -177,8 +160,8 @@ public class DatasetStateStoreTest {
         WorkUnit workUnit = WorkUnit.create(createExtract(Extract.TableType.SNAPSHOT_ONLY, NAMESPACE, TABLE));
         workUnit.setLowWaterMark(workUnitState.getPropAsInt(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY)
             + NUM_WORK_UNITS * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
-        workUnit.setHighWaterMark(workUnitState.getPropAsInt(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY) +
-            NUM_WORK_UNITS * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
+        workUnit.setHighWaterMark(workUnitState.getPropAsInt(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY)
+            + NUM_WORK_UNITS * NUM_RECORDS_TO_EXTRACT_PER_EXTRACTOR);
         workUnit.setProp(WORK_UNIT_INDEX_KEY, workUnitState.getPropAsInt(WORK_UNIT_INDEX_KEY));
         workUnits.add(workUnit);
       }

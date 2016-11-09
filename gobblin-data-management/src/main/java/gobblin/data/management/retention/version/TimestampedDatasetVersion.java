@@ -12,57 +12,44 @@
 
 package gobblin.data.management.retention.version;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 
 
 /**
- * {@link gobblin.data.management.retention.version.DatasetVersion} based on a timestamp.
+ * @deprecated
+ * Extends {@link gobblin.data.management.version.TimestampedDatasetVersion} and implements
+ * {@link gobblin.data.management.retention.version.DatasetVersion}.
  */
-public class TimestampedDatasetVersion implements DatasetVersion {
-
-  private final DateTime version;
-  private final Path path;
+@Deprecated
+public class TimestampedDatasetVersion extends gobblin.data.management.version.TimestampedDatasetVersion implements
+    DatasetVersion {
 
   public TimestampedDatasetVersion(DateTime version, Path path) {
-    this.version = version;
-    this.path = path;
+    super(version, path);
   }
 
-  public DateTime getDateTime() {
-    return this.version;
-  }
-
-  @Override
-  public int compareTo(DatasetVersion other) {
-    TimestampedDatasetVersion otherAsDateTime = (TimestampedDatasetVersion)other;
-    return this.version.equals(otherAsDateTime.version) ?
-        this.path.compareTo(otherAsDateTime.path) :
-        this.version.compareTo(otherAsDateTime.version);
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    return obj instanceof TimestampedDatasetVersion && compareTo((TimestampedDatasetVersion) obj) == 0;
-  }
-
-  @Override
-  public int hashCode() {
-    return this.version.hashCode() + this.path.hashCode();
-  }
-
-  @Override
-  public String toString() {
-    return "Version " + version.toString(DateTimeFormat.shortDateTime()) + " at path " + this.path;
+  public TimestampedDatasetVersion(gobblin.data.management.version.TimestampedDatasetVersion datasetVersion) {
+    this(datasetVersion.getVersion(), datasetVersion.getPath());
   }
 
   @Override
   public Set<Path> getPathsToDelete() {
-    return Sets.newHashSet(this.path);
+    return this.getPaths();
+  }
+
+  public static Collection<TimestampedDatasetVersion> convertFromGeneralVersion(
+      Collection<gobblin.data.management.version.TimestampedDatasetVersion> realVersions) {
+    List<TimestampedDatasetVersion> timestampedVersions = Lists.newArrayList();
+    for (gobblin.data.management.version.TimestampedDatasetVersion realVersion : realVersions) {
+      timestampedVersions.add(new TimestampedDatasetVersion(realVersion));
+    }
+    return timestampedVersions;
   }
 }

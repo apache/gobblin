@@ -17,10 +17,11 @@ import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDataset;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
-import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopyableFileUtils;
 import gobblin.data.management.copy.TestCopyableDataset;
 
+import java.io.File;
 import java.io.IOException;
 
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
+import com.google.common.io.Files;
 
 
 @Slf4j
@@ -49,17 +51,20 @@ public class DeletingCopyDataPublisherTest {
 
     DeletingCopyDataPublisher copyDataPublisher = closer.register(new DeletingCopyDataPublisher(state));
 
+    File outputDir = new File(testMethodTempPath.toString(), "task-output/jobid/1f042f494d1fe2198e0e71a17faa233f33b5099b");
+    outputDir.mkdirs();
+    outputDir.deleteOnExit();
+
     WorkUnitState wus = new WorkUnitState();
 
     CopyableDataset copyableDataset = new TestCopyableDataset(new Path("origin"));
-    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset,
-        new Path(testMethodTempPath, "testdataset"));
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(copyableDataset);
 
-    CopyableFile cf = CopyableFileUtils.createTestCopyableFile(new Path(testMethodTempPath, "test.txt").toString());
+    CopyEntity cf = CopyableFileUtils.createTestCopyableFile(new Path(testMethodTempPath, "test.txt").toString());
 
     CopySource.serializeCopyableDataset(wus, metadata);
 
-    CopySource.serializeCopyableFile(wus, cf);
+    CopySource.serializeCopyEntity(wus, cf);
 
     Assert.assertTrue(fs.exists(new Path(testMethodTempPath, "test.txt")));
 
@@ -80,7 +85,7 @@ public class DeletingCopyDataPublisherTest {
   public void setup() throws Exception {
     fs = FileSystem.getLocal(new Configuration());
     testClassTempPath =
-        new Path(this.getClass().getClassLoader().getResource("").getFile(), "DeletingCopyDataPublisherTest");
+        new Path(Files.createTempDir().getAbsolutePath(), "DeletingCopyDataPublisherTest");
     fs.delete(testClassTempPath, true);
     log.info("Created a temp directory for CopyDataPublisherTest at " + testClassTempPath);
     fs.mkdirs(testClassTempPath);

@@ -19,6 +19,7 @@ import gobblin.metrics.reporter.util.AvroJsonSerializer;
 import gobblin.metrics.reporter.util.AvroSerializer;
 import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import gobblin.metrics.reporter.util.SchemaVersionWriter;
+import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
 
 import java.io.IOException;
@@ -28,22 +29,41 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * Kafka reporter for metrics.
  *
  * @author ibuenros
  */
+@Slf4j
 public class KafkaReporter extends MetricReportReporter {
+
+  public static final String SCHEMA_VERSION_WRITER_TYPE = "metrics.kafka.schemaVersionWriterType";
 
   protected final AvroSerializer<MetricReport> serializer;
   protected final KafkaPusher kafkaPusher;
 
+
   protected KafkaReporter(Builder<?> builder, Config config) throws IOException {
     super(builder, config);
 
-    this.serializer = this.closer.register(
-        createSerializer(new FixedSchemaVersionWriter()));
+    SchemaVersionWriter versionWriter;
+    if (config.hasPath(SCHEMA_VERSION_WRITER_TYPE)) {
+      try {
+        ClassAliasResolver<SchemaVersionWriter> resolver = new ClassAliasResolver<>(SchemaVersionWriter.class);
+        Class<? extends SchemaVersionWriter> klazz = resolver.resolveClass(config.getString(SCHEMA_VERSION_WRITER_TYPE));
+        versionWriter = klazz.newInstance();
+      } catch (ReflectiveOperationException roe) {
+        throw new IOException("Could not instantiate version writer.", roe);
+      }
+    } else {
+      versionWriter = new FixedSchemaVersionWriter();
+    }
+
+    log.info("Schema version writer: " + versionWriter.getClass().getName());
+    this.serializer = this.closer.register(createSerializer(versionWriter));
 
     if (builder.kafkaPusher.isPresent()) {
       this.kafkaPusher = builder.kafkaPusher.get();
@@ -59,7 +79,7 @@ public class KafkaReporter extends MetricReportReporter {
   /**
    * A static factory class for obtaining new {@link gobblin.metrics.kafka.KafkaReporter.Builder}s
    *
-   * @see {@link gobblin.metrics.kafka.KafkaReporter.Builder}
+   * @see gobblin.metrics.kafka.KafkaReporter.Builder
    */
   public static class BuilderFactory {
 
@@ -87,6 +107,8 @@ public class KafkaReporter extends MetricReportReporter {
     protected Optional<KafkaPusher> kafkaPusher;
 
     protected Builder() {
+      super();
+      this.name = "KafkaReporter";
       this.kafkaPusher = Optional.absent();
     }
 

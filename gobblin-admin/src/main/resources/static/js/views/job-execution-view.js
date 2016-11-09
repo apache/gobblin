@@ -36,7 +36,8 @@ var app = app || {}
 
       var opts = {
         limit: 1,
-        includeTaskMetrics: true
+        taskProperties: "",
+        includeTaskMetrics: false
       }
       self.collection.fetchCurrent('JOB_ID', self.jobId, opts).done(function () {
         self.model = self.collection.get(self.jobId)

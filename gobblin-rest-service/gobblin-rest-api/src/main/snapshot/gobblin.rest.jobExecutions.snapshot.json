@@ -8,7 +8,7 @@
     "type" : "enum",
     "name" : "LauncherTypeEnum",
     "namespace" : "gobblin.rest",
-    "symbols" : [ "LOCAL", "MAPREDUCE", "YARN" ]
+    "symbols" : [ "LOCAL", "MAPREDUCE", "CLUSTER", "YARN" ]
   }, {
     "type" : "enum",
     "name" : "TaskStateEnum",
@@ -228,6 +228,7 @@
     "type" : "enum",
     "name" : "QueryListType",
     "namespace" : "gobblin.rest",
+    "doc" : "Listing distinct jobs fetches the most recent execution info for each job name in the database. Listing recent jobs fetches the most recent job executions, regardless of job name.",
     "symbols" : [ "DISTINCT", "RECENT" ]
   }, {
     "type" : "enum",

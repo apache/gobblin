@@ -33,8 +33,8 @@ import gobblin.source.extractor.extract.QueryBasedSource;
 public class MysqlSource extends QueryBasedSource<JsonArray, JsonElement> {
   private static final Logger LOG = LoggerFactory.getLogger(MysqlSource.class);
 
-  public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state)
-      throws IOException {
+  @Override
+  public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
     Extractor<JsonArray, JsonElement> extractor = null;
     try {
       extractor = new MysqlExtractor(state).build();

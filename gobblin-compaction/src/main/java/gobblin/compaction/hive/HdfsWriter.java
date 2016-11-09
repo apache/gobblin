@@ -17,16 +17,13 @@ import java.io.IOException;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.io.Closer;
+import gobblin.util.HadoopUtils;
 
 
 /**
  * A class for write operations on HDFS.
- *
- * @author ziliu
  */
 public class HdfsWriter extends HdfsIO {
 
@@ -38,12 +35,8 @@ public class HdfsWriter extends HdfsIO {
     String dirInHdfs = getDirInHdfs();
     this.fileSystem.mkdirs(new Path(dirInHdfs));
 
-    Closer closer = Closer.create();
-    try {
-      FSDataOutputStream fout = closer.register(this.fileSystem.create(new Path(filePathInHdfs)));
+    try (FSDataOutputStream fout = this.fileSystem.create(new Path(this.filePathInHdfs))) {
       fout.writeChars(text);
-    } finally {
-      closer.close();
     }
   }
 
@@ -52,18 +45,18 @@ public class HdfsWriter extends HdfsIO {
   }
 
   public boolean delete() throws IllegalArgumentException, IOException {
-    return this.fileSystem.delete(new Path(filePathInHdfs), true);
+    return this.fileSystem.delete(new Path(this.filePathInHdfs), true);
   }
 
   public static void moveSelectFiles(String extension, String source, String destination) throws IOException {
     FileSystem fs = getFileSystem();
     fs.mkdirs(new Path(destination));
-    //RemoteIterator<LocatedFileStatus> iterator = fs.listFiles(new Path(source), false);
     FileStatus[] fileStatuses = fs.listStatus(new Path(source));
     for (FileStatus fileStatus : fileStatuses) {
       Path path = fileStatus.getPath();
-      if (!fileStatus.isDir() && path.toString().toLowerCase().endsWith(extension.toLowerCase())) {
-        FileUtil.copy(fs, path, fs, new Path(destination), false, true, getConfiguration());
+      if (!fileStatus.isDirectory() && path.toString().toLowerCase().endsWith(extension.toLowerCase())) {
+        HadoopUtils.deleteIfExists(fs, new Path(destination), true);
+        HadoopUtils.copyPath(fs, path, fs, new Path(destination), getConfiguration());
       }
     }
   }

@@ -22,8 +22,7 @@ import org.apache.hadoop.fs.FileStatus;
  */
 public class NoopSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
 
-  public NoopSnapshotCleanupPolicy(Properties props) {
-  }
+  public NoopSnapshotCleanupPolicy(Properties props) {}
 
   @Override
   public boolean shouldDeleteSnapshot(FileStatus snapshot, Trash trash) {
