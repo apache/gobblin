@@ -57,13 +57,12 @@ public class AvroFileExtractor extends FileBasedExtractor<Schema, GenericRecord>
     AvroFsHelper hfsHelper = (AvroFsHelper) this.fsHelper;
     if (this.filesToPull.isEmpty()) {
       return null;
-    } else {
-      try {
-        return hfsHelper.getAvroSchema(this.filesToPull.get(0));
-      } catch (FileBasedHelperException e) {
-        Throwables.propagate(e);
-        return null;
-      }
+    }
+    try {
+      return hfsHelper.getAvroSchema(this.filesToPull.get(0));
+    } catch (FileBasedHelperException e) {
+      Throwables.propagate(e);
+      return null;
     }
   }
 }

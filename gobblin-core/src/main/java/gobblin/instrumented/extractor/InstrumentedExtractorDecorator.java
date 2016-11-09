@@ -38,35 +38,29 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
   private final boolean isEmbeddedInstrumented;
 
   public InstrumentedExtractorDecorator(WorkUnitState workUnitState, Extractor<S, D> extractor) {
-    super(workUnitState, Optional.<Class<?>>of(DecoratorUtils.resolveUnderlyingObject(extractor).getClass()));
+    super(workUnitState, Optional.<Class<?>> of(DecoratorUtils.resolveUnderlyingObject(extractor).getClass()));
     this.embeddedExtractor = this.closer.register(extractor);
     this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(extractor);
   }
 
   @Override
   public MetricContext getMetricContext() {
-    return this.isEmbeddedInstrumented ?
-        ((InstrumentedExtractorBase)embeddedExtractor).getMetricContext() :
-        super.getMetricContext();
+    return this.isEmbeddedInstrumented ? ((InstrumentedExtractorBase<S, D>) this.embeddedExtractor).getMetricContext()
+        : super.getMetricContext();
   }
 
   @Override
-  public D readRecord(D reuse)
-      throws DataRecordException, IOException {
-    return this.isEmbeddedInstrumented ?
-        readRecordImpl(reuse) :
-        super.readRecord(reuse);
+  public D readRecord(D reuse) throws DataRecordException, IOException {
+    return this.isEmbeddedInstrumented ? readRecordImpl(reuse) : super.readRecord(reuse);
   }
 
   @Override
-  public D readRecordImpl(D reuse)
-      throws DataRecordException, IOException {
+  public D readRecordImpl(D reuse) throws DataRecordException, IOException {
     return this.embeddedExtractor.readRecord(reuse);
   }
 
   @Override
-  public S getSchema()
-      throws IOException {
+  public S getSchema() throws IOException {
     return this.embeddedExtractor.getSchema();
   }
 
@@ -82,11 +76,10 @@ public class InstrumentedExtractorDecorator<S, D> extends InstrumentedExtractorB
 
   @Override
   public State getFinalState() {
-    if(this.embeddedExtractor instanceof FinalState) {
+    if (this.embeddedExtractor instanceof FinalState) {
       return ((FinalState) this.embeddedExtractor).getFinalState();
-    } else {
-      return super.getFinalState();
     }
+    return super.getFinalState();
   }
 
   @Override

@@ -24,26 +24,21 @@ import gobblin.qualitychecker.task.TaskLevelPolicy;
 
 public class TaskPublisher {
   private final TaskLevelPolicyCheckResults results;
-  private final WorkUnitState workUnitState;
-
   private static final Logger LOG = LoggerFactory.getLogger(TaskPublisher.class);
 
   public enum PublisherState {
-    SUCCESS,                 // Data and metadata are successfully published
-    CLEANUP_FAIL,            // Data and metadata were published, but cleanup failed
-    POLICY_TESTS_FAIL,       // All tests didn't pass, no data committed
-    COMPONENTS_NOT_FINISHED  // All components did not complete, no data committed
+    SUCCESS, // Data and metadata are successfully published
+    CLEANUP_FAIL, // Data and metadata were published, but cleanup failed
+    POLICY_TESTS_FAIL, // All tests didn't pass, no data committed
+    COMPONENTS_NOT_FINISHED // All components did not complete, no data committed
   }
 
-  public TaskPublisher(WorkUnitState workUnitState, TaskLevelPolicyCheckResults results)
-      throws Exception {
+  public TaskPublisher(WorkUnitState workUnitState, TaskLevelPolicyCheckResults results) throws Exception {
 
     this.results = results;
-    this.workUnitState = workUnitState;
   }
 
-  public PublisherState canPublish()
-      throws Exception {
+  public PublisherState canPublish() throws Exception {
     if (allComponentsFinished()) {
       LOG.info("All components finished successfully, checking quality tests");
       if (passedAllTests()) {
@@ -51,22 +46,19 @@ public class TaskPublisher {
         if (cleanup()) {
           LOG.info("Cleanup for task publisher executed successfully.");
           return PublisherState.SUCCESS;
-        } else {
-          return PublisherState.CLEANUP_FAIL;
         }
-      } else {
-        return PublisherState.POLICY_TESTS_FAIL;
+        return PublisherState.CLEANUP_FAIL;
       }
-    } else {
-      return PublisherState.COMPONENTS_NOT_FINISHED;
+      return PublisherState.POLICY_TESTS_FAIL;
     }
+    return PublisherState.COMPONENTS_NOT_FINISHED;
   }
 
   /**
    * Returns true if all tests from the PolicyChecker pass, false otherwise
    */
   public boolean passedAllTests() {
-    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
+    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : this.results.getPolicyResults().entrySet()) {
       if (entry.getKey().equals(TaskLevelPolicy.Result.FAILED) && entry.getValue().equals(TaskLevelPolicy.Type.FAIL)) {
         return false;
       }
@@ -86,8 +78,7 @@ public class TaskPublisher {
    * Cleans up any tmp folders used by the Task
    * Return true if successful, false otherwise
    */
-  public boolean cleanup()
-      throws Exception {
+  public boolean cleanup() throws Exception {
     return true;
   }
 }

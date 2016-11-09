@@ -40,7 +40,7 @@ public class AbstractSourceTest {
 
   @BeforeClass
   public void setUpBeforeClass() {
-    this.testSource = new TestSource<String, String>();
+    this.testSource = new TestSource<>();
 
     WorkUnitState committedWorkUnitState = new WorkUnitState();
     committedWorkUnitState.setWorkingState(WorkingState.COMMITTED);

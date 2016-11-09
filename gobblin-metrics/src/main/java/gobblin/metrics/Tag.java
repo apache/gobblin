@@ -103,7 +103,7 @@ public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
    *
    * @return a {@link List} of {@link Tag}s
    *
-   * @see {@link #tagValueToString(Tag)}
+   * @see #tagValueToString(Tag)
    */
   public static List<Tag<String>> tagValuesToString(List<? extends Tag<?>> tags) {
     return Lists.transform(tags, new Function<Tag<?>, Tag<String>>() {

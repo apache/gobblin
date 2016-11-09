@@ -1,0 +1,21 @@
+{
+  "type" : "record",
+  "name" : "parentRecordName",
+  "fields" : [ {
+    "name" : "parentFieldRecord",
+    "type" : {
+      "type" : "record",
+      "name" : "nestedRecordName",
+      "fields" : [ {
+        "name" : "nestedFieldString",
+        "type" : "string"
+      }, {
+        "name" : "nestedFieldInt",
+        "type" : "int"
+      } ]
+    }
+  }, {
+    "name" : "parentFieldInt",
+    "type" : "int"
+  } ]
+}

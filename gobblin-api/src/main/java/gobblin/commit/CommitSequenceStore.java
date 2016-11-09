@@ -23,7 +23,7 @@ import gobblin.annotation.Alpha;
 /**
  * A store for {@link CommitSequence}s. A {@link CommitSequence} is identified by job name and dataset URN.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 @Alpha
 public interface CommitSequenceStore {

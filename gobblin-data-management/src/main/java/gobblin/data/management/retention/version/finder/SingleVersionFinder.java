@@ -16,21 +16,23 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Properties;
 
-import com.google.common.collect.Lists;
-
 import org.apache.hadoop.fs.FileSystem;
+
+import com.google.common.collect.Lists;
 
 import lombok.Getter;
 
-import gobblin.data.management.retention.dataset.CleanableDataset;
 import gobblin.data.management.retention.version.DatasetVersion;
 import gobblin.data.management.retention.version.FileStatusDatasetVersion;
-import gobblin.data.management.retention.version.StringDatasetVersion;
+import gobblin.dataset.Dataset;
+import gobblin.dataset.FileSystemDataset;
+
 
 /**
- * Implementation of {@link VersionFinder} that uses a {@link StringDatasetVersion} and simply creates a single
- * {@link StringDatasetVersion} for the given {@link gobblin.data.management.retention.dataset.CleanableDataset}.
+ * @deprecated
+ * See javadoc for {@link gobblin.data.management.version.finder.SingleVersionFinder}.
  */
+@Deprecated
 public class SingleVersionFinder implements VersionFinder<FileStatusDatasetVersion> {
 
   @Getter
@@ -42,11 +44,12 @@ public class SingleVersionFinder implements VersionFinder<FileStatusDatasetVersi
 
   @Override
   public Class<? extends DatasetVersion> versionClass() {
-    return StringDatasetVersion.class;
+    return FileStatusDatasetVersion.class;
   }
 
   @Override
-  public Collection<FileStatusDatasetVersion> findDatasetVersions(CleanableDataset dataset) throws IOException {
-    return Lists.newArrayList(new FileStatusDatasetVersion(this.fs.getFileStatus(dataset.datasetRoot())));
+  public Collection<FileStatusDatasetVersion> findDatasetVersions(Dataset dataset) throws IOException {
+    return Lists.newArrayList(new FileStatusDatasetVersion(this.fs.getFileStatus(((FileSystemDataset) dataset)
+        .datasetRoot())));
   }
 }

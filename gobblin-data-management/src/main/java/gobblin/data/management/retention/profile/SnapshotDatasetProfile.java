@@ -18,27 +18,25 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.dataset.Dataset;
 import gobblin.data.management.retention.dataset.SnapshotDataset;
+import gobblin.dataset.Dataset;
 
 
 /**
- * {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} for snapshot datasets.
+ * {@link gobblin.dataset.DatasetsFinder} for snapshot datasets.
  *
  * <p>
  *   Snapshot datasets are datasets where each version is a snapshot/full-dump of a dataset (e.g. a database).
  * </p>
  */
-public class SnapshotDatasetProfile extends ConfigurableGlobDatasetFinder {
+public class SnapshotDatasetProfile extends ConfigurableGlobDatasetFinder<Dataset> {
 
-  public SnapshotDatasetProfile(FileSystem fs, Properties props)
-      throws IOException {
+  public SnapshotDatasetProfile(FileSystem fs, Properties props) {
     super(fs, props);
   }
 
   @Override
-  public Dataset datasetAtPath(Path path)
-      throws IOException {
+  public Dataset datasetAtPath(Path path) throws IOException {
     return new SnapshotDataset(this.fs, this.props, path);
   }
 

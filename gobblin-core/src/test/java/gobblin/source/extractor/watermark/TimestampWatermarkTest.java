@@ -27,10 +27,11 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.extract.jdbc.MysqlExtractor;
 import gobblin.source.extractor.extract.jdbc.SqlServerExtractor;
 
+
 /**
  * Unit tests for {@link TimestampWatermark}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class TimestampWatermarkTest {
 
@@ -46,77 +47,78 @@ public class TimestampWatermarkTest {
 
   @BeforeClass
   public void setUpBeforeClass() throws Exception {
-    tsWatermark = new TimestampWatermark(COLUMN, watermarkFormat);
-    workunitState.setId("");
+    this.tsWatermark = new TimestampWatermark(COLUMN, this.watermarkFormat);
+    this.workunitState.setId("");
   }
 
   @Test
   public void testGetWatermarkConditionMySql() throws Exception {
-    MysqlExtractor extractor = new MysqlExtractor(workunitState);
-    Assert.assertEquals(tsWatermark.getWatermarkCondition(extractor, WATERMARK_VALUE, OPERATOR),
+    MysqlExtractor extractor = new MysqlExtractor(this.workunitState);
+    Assert.assertEquals(this.tsWatermark.getWatermarkCondition(extractor, WATERMARK_VALUE, OPERATOR),
         COLUMN + " " + OPERATOR + " '2014-10-29 13:30:15'");
   }
 
   @Test
   public void testGetWatermarkConditionSqlServer() throws Exception {
-    SqlServerExtractor extractor = new SqlServerExtractor(workunitState);
-    Assert.assertEquals(tsWatermark.getWatermarkCondition(extractor, WATERMARK_VALUE, OPERATOR),
+    SqlServerExtractor extractor = new SqlServerExtractor(this.workunitState);
+    Assert.assertEquals(this.tsWatermark.getWatermarkCondition(extractor, WATERMARK_VALUE, OPERATOR),
         COLUMN + " " + OPERATOR + " '2014-10-29 13:30:15'");
   }
 
   @Test(expectedExceptions = java.lang.IllegalArgumentException.class)
   public void testGetIntervalsPartitionIntervalNegative() throws Exception {
-    tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, Integer.MIN_VALUE, 1000);
+    this.tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, Integer.MIN_VALUE, 1000);
   }
 
   @Test(expectedExceptions = java.lang.IllegalArgumentException.class)
   public void testGetIntervalsPartitionIntervalZero() throws Exception {
-    tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 0, 1000);
+    this.tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 0, 1000);
   }
 
   @Test
   public void testGetIntervalsPartitionIntervalLargerThanDiff() throws ParseException {
     Map<Long, Long> expected = getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1000);
-    Map<Long, Long> actual = tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1000, 1000);
+    Map<Long, Long> actual = this.tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1000, 1000);
     Assert.assertEquals(actual, expected);
   }
 
   @Test
   public void testGetIntervalsNumIntervalsExceedsMaxInterval() throws ParseException {
     Map<Long, Long> expected = getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1000);
-    Map<Long, Long> actual = tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1, 1);
+    Map<Long, Long> actual = this.tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1, 1);
     Assert.assertEquals(actual, expected);
   }
 
   @Test(expectedExceptions = java.lang.IllegalArgumentException.class)
   public void testGetIntervalsMaxIntervalsIsZero() {
-    tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1, 0);
+    this.tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1, 0);
   }
 
   @Test(expectedExceptions = java.lang.IllegalArgumentException.class)
   public void testGetIntervalsMaxIntervalsIsNegative() {
-    tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1, -1);
+    this.tsWatermark.getIntervals(LOW_WATERMARK_VALUE, HIGH_WATERMARK_VALUE, 1, -1);
   }
 
   @Test
   public void testGetIntervalsLowWatermarkExceedsHighWatermark() {
     Map<Long, Long> expected = new HashMap<Long, Long>();
-    Map<Long, Long> actual = tsWatermark.getIntervals(HIGH_WATERMARK_VALUE, LOW_WATERMARK_VALUE, 1, 10);
+    Map<Long, Long> actual = this.tsWatermark.getIntervals(HIGH_WATERMARK_VALUE, LOW_WATERMARK_VALUE, 1, 10);
     Assert.assertEquals(actual, expected);
   }
 
   @Test
   public void testGetIntervalsLowWatermarkEqualsHighWatermark() throws ParseException {
     Map<Long, Long> expected = getIntervals(LOW_WATERMARK_VALUE, LOW_WATERMARK_VALUE, 1000);
-    Map<Long, Long> actual = tsWatermark.getIntervals(LOW_WATERMARK_VALUE, LOW_WATERMARK_VALUE, 1, 10);
+    Map<Long, Long> actual = this.tsWatermark.getIntervals(LOW_WATERMARK_VALUE, LOW_WATERMARK_VALUE, 1, 10);
     Assert.assertEquals(actual, expected);
   }
 
-  private Map<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue, int partitionInterval) throws ParseException {
+  private Map<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue, int partitionInterval)
+      throws ParseException {
     Map<Long, Long> intervals = new HashMap<Long, Long>();
     if (lowWatermarkValue > highWatermarkValue || partitionInterval <= 0)
       return intervals;
-    final SimpleDateFormat inputFormat = new SimpleDateFormat(watermarkFormat);
+    final SimpleDateFormat inputFormat = new SimpleDateFormat(this.watermarkFormat);
     Date startTime = inputFormat.parse(String.valueOf(lowWatermarkValue));
     Date endTime = inputFormat.parse(String.valueOf(highWatermarkValue));
     Calendar cal = Calendar.getInstance();

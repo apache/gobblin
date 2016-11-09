@@ -24,12 +24,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 import gobblin.configuration.State;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.metrics.event.JobEvent;
 import gobblin.runtime.JobState;
 
-@Test(groups = {"gobblin.runtime"})
+
+@Test(groups = { "gobblin.runtime" })
 public class JobMetricsTest {
 
   @Test
@@ -48,8 +51,8 @@ public class JobMetricsTest {
     String contextName = tagMap.get(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME).toString();
 
     Assert.assertEquals(tagMap.size(), 4);
-    Assert.assertEquals(tagMap.get("jobId"), jobId);
-    Assert.assertEquals(tagMap.get("jobName"), jobName);
+    Assert.assertEquals(tagMap.get(JobEvent.METADATA_JOB_ID), jobId);
+    Assert.assertEquals(tagMap.get(JobEvent.METADATA_JOB_NAME), jobName);
     Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_ID_TAG_NAME), contextId);
     Assert.assertEquals(tagMap.get(MetricContext.METRIC_CONTEXT_NAME_TAG_NAME), contextName);
 
@@ -77,17 +80,17 @@ public class JobMetricsTest {
   public void testCustomTags() {
 
     Properties testProperties = new Properties();
-    Tag<String> expectedPropertyTag = new Tag<String>("key1", "value1");
+    Tag<String> expectedPropertyTag = new Tag<>("key1", "value1");
 
-    JobMetrics.addCustomTagToProperties(testProperties, expectedPropertyTag);
+    GobblinMetrics.addCustomTagToProperties(testProperties, expectedPropertyTag);
     State testState = new State(testProperties);
-    List<Tag<?>> tags = JobMetrics.getCustomTagsFromState(testState);
+    List<Tag<?>> tags = GobblinMetrics.getCustomTagsFromState(testState);
 
     Assert.assertEquals(Iterables.getFirst(tags, null), expectedPropertyTag);
 
-    Tag<String> expectedStateTag = new Tag<String>("key2", "value2");
-    JobMetrics.addCustomTagToState(testState, expectedStateTag);
-    tags = JobMetrics.getCustomTagsFromState(testState);
+    Tag<String> expectedStateTag = new Tag<>("key2", "value2");
+    GobblinMetrics.addCustomTagToState(testState, expectedStateTag);
+    tags = GobblinMetrics.getCustomTagsFromState(testState);
 
     Assert.assertTrue(tags.containsAll(ImmutableList.of(expectedPropertyTag, expectedStateTag)));
 

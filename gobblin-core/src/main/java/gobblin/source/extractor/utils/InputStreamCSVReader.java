@@ -68,7 +68,7 @@ public class InputStreamCSVReader {
 
   public InputStreamCSVReader(String input, char customizedSeparator) {
     this(new InputStreamReader(new ByteArrayInputStream(input.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)),
-            ConfigurationKeys.DEFAULT_CHARSET_ENCODING), customizedSeparator, '\"');
+        ConfigurationKeys.DEFAULT_CHARSET_ENCODING), customizedSeparator, '\"');
   }
 
   public InputStreamCSVReader(Reader input, char customizedSeparator, char enclosedChar) {
@@ -81,21 +81,21 @@ public class InputStreamCSVReader {
 
   public InputStreamCSVReader(String input, char customizedSeparator, char enclosedChar) {
     this(new InputStreamReader(new ByteArrayInputStream(input.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING)),
-            ConfigurationKeys.DEFAULT_CHARSET_ENCODING), customizedSeparator, enclosedChar);
+        ConfigurationKeys.DEFAULT_CHARSET_ENCODING), customizedSeparator, enclosedChar);
   }
 
   public InputStreamCSVReader(BufferedReader input, char separator, char enclosedChar) {
     this.separator = separator;
     // parser settings for the separator and escape chars
-    parser = new StreamTokenizer(input);
-    parser.ordinaryChars(0, 255);
-    parser.wordChars(0, 255);
-    parser.ordinaryChar(enclosedChar);
-    parser.ordinaryChar(separator);
-    parser.eolIsSignificant(true);
-    parser.whitespaceChars('\n', '\n');
-    parser.whitespaceChars('\r', '\r');
-    atEOF = false;
+    this.parser = new StreamTokenizer(input);
+    this.parser.ordinaryChars(0, 255);
+    this.parser.wordChars(0, 255);
+    this.parser.ordinaryChar(enclosedChar);
+    this.parser.ordinaryChar(separator);
+    this.parser.eolIsSignificant(true);
+    this.parser.whitespaceChars('\n', '\n');
+    this.parser.whitespaceChars('\r', '\r');
+    this.atEOF = false;
   }
 
   public ArrayList<String> splitRecord() throws IOException {
@@ -128,22 +128,21 @@ public class InputStreamCSVReader {
     return record;
   }
 
-  private ArrayList<String> getNextRecordFromStream()
-      throws IOException {
-    if (atEOF) {
+  private ArrayList<String> getNextRecordFromStream() throws IOException {
+    if (this.atEOF) {
       return null;
     }
 
-    ArrayList<String> record = new ArrayList<String>(maxFieldCount);
+    ArrayList<String> record = new ArrayList<>(this.maxFieldCount);
 
     StringBuilder fieldValue = null;
 
     while (true) {
-      int token = parser.nextToken();
+      int token = this.parser.nextToken();
 
       if (token == StreamTokenizer.TT_EOF) {
         addField(record, fieldValue);
-        atEOF = true;
+        this.atEOF = true;
         break;
       }
 
@@ -152,7 +151,7 @@ public class InputStreamCSVReader {
         break;
       }
 
-      if (token == separator) {
+      if (token == this.separator) {
         addField(record, fieldValue);
         fieldValue = null;
         continue;
@@ -160,28 +159,28 @@ public class InputStreamCSVReader {
 
       if (token == StreamTokenizer.TT_WORD) {
         if (fieldValue != null) {
-          throw new CSVParseException("Unknown error", parser.lineno());
+          throw new CSVParseException("Unknown error", this.parser.lineno());
         }
 
-        fieldValue = new StringBuilder(parser.sval);
+        fieldValue = new StringBuilder(this.parser.sval);
         continue;
       }
 
       if (token == '"') {
         if (fieldValue != null) {
           throw new CSVParseException("Found unescaped quote. A value with quote should be within a quote",
-              parser.lineno());
+              this.parser.lineno());
         }
 
         while (true) {
-          token = parser.nextToken();
+          token = this.parser.nextToken();
 
           if (token == StreamTokenizer.TT_EOF) {
-            atEOF = true;
-            throw new CSVParseException("EOF reached before closing an opened quote", parser.lineno());
+            this.atEOF = true;
+            throw new CSVParseException("EOF reached before closing an opened quote", this.parser.lineno());
           }
 
-          if (token == separator) {
+          if (token == this.separator) {
             fieldValue = appendFieldValue(fieldValue, token);
             continue;
           }
@@ -192,12 +191,12 @@ public class InputStreamCSVReader {
           }
 
           if (token == StreamTokenizer.TT_WORD) {
-            fieldValue = appendFieldValue(fieldValue, parser.sval);
+            fieldValue = appendFieldValue(fieldValue, this.parser.sval);
             continue;
           }
 
           if (token == '"') {
-            int nextToken = parser.nextToken();
+            int nextToken = this.parser.nextToken();
 
             if (nextToken == '"') {
               fieldValue = appendFieldValue(fieldValue, nextToken);
@@ -205,30 +204,27 @@ public class InputStreamCSVReader {
             }
 
             if (nextToken == StreamTokenizer.TT_WORD) {
-              throw new CSVParseException("Not expecting more text after end quote", parser.lineno());
-            } else {
-              parser.pushBack();
-              break;
+              throw new CSVParseException("Not expecting more text after end quote", this.parser.lineno());
             }
+            this.parser.pushBack();
+            break;
           }
         }
       }
     }
 
-    if (record.size() > maxFieldCount) {
-      maxFieldCount = record.size();
+    if (record.size() > this.maxFieldCount) {
+      this.maxFieldCount = record.size();
     }
 
     return record;
   }
 
-  private StringBuilder appendFieldValue(StringBuilder fieldValue, int token)
-      throws CSVParseException {
+  private static StringBuilder appendFieldValue(StringBuilder fieldValue, int token) {
     return appendFieldValue(fieldValue, "" + (char) token);
   }
 
-  private StringBuilder appendFieldValue(StringBuilder fieldValue, String token)
-      throws CSVParseException {
+  private static StringBuilder appendFieldValue(StringBuilder fieldValue, String token) {
     if (fieldValue == null) {
       fieldValue = new StringBuilder();
     }
@@ -237,25 +233,25 @@ public class InputStreamCSVReader {
     return fieldValue;
   }
 
-  private void addField(ArrayList<String> record, StringBuilder fieldValue)
-      throws CSVParseException {
+  private static void addField(ArrayList<String> record, StringBuilder fieldValue) {
     record.add(fieldValue == null ? null : fieldValue.toString());
   }
 
   public static class CSVParseException extends IOException {
+    private static final long serialVersionUID = 1L;
     final int recordNumber;
 
     CSVParseException(String message, int lineno) {
       super(message);
-      recordNumber = lineno;
+      this.recordNumber = lineno;
     }
 
     CSVParseException(int i) {
-      recordNumber = i;
+      this.recordNumber = i;
     }
 
     public int getRecordNumber() {
-      return recordNumber;
+      return this.recordNumber;
     }
   }
 }

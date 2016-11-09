@@ -24,6 +24,7 @@ import com.google.inject.name.Named;
 
 import gobblin.password.PasswordManager;
 
+
 /**
  * A provider class for {@link javax.sql.DataSource}s.
  */
@@ -44,18 +45,18 @@ public class DataSourceProvider implements Provider<DataSource> {
   @Inject
   public DataSourceProvider(@Named("dataSourceProperties") Properties properties) {
     this.basicDataSource = new BasicDataSource();
-    basicDataSource.setDriverClassName(properties.getProperty(CONN_DRIVER, DEFAULT_CONN_DRIVER));
-    basicDataSource.setUrl(properties.getProperty(CONN_URL));
+    this.basicDataSource.setDriverClassName(properties.getProperty(CONN_DRIVER, DEFAULT_CONN_DRIVER));
+    this.basicDataSource.setUrl(properties.getProperty(CONN_URL));
     if (properties.containsKey(USERNAME) && properties.containsKey(PASSWORD)) {
-      basicDataSource.setUsername(properties.getProperty(USERNAME));
-      basicDataSource.setPassword(PasswordManager.getInstance(properties)
-          .readPassword(properties.getProperty(PASSWORD)));
+      this.basicDataSource.setUsername(properties.getProperty(USERNAME));
+      this.basicDataSource
+          .setPassword(PasswordManager.getInstance(properties).readPassword(properties.getProperty(PASSWORD)));
     }
     if (properties.containsKey(MAX_IDLE_CONNS)) {
-      basicDataSource.setMaxIdle(Integer.parseInt(properties.getProperty(MAX_IDLE_CONNS)));
+      this.basicDataSource.setMaxIdle(Integer.parseInt(properties.getProperty(MAX_IDLE_CONNS)));
     }
     if (properties.containsKey(MAX_ACTIVE_CONNS)) {
-      basicDataSource.setMaxActive(Integer.parseInt(properties.getProperty(MAX_ACTIVE_CONNS)));
+      this.basicDataSource.setMaxActive(Integer.parseInt(properties.getProperty(MAX_ACTIVE_CONNS)));
     }
   }
 

@@ -15,4 +15,3 @@ All notable changes to this project will be documented in this file.
 ### Added 
 * A new converter to convert messages read from Kafka to the PNDA Avro schema (gobblin.pnda.PNDAConverter)
 * A new writer writing data with the kitesdk library (gobblin.pnda.PNDAKiteWriterBuilder)
-

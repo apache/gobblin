@@ -12,6 +12,8 @@
 
 package gobblin.util;
 
+import lombok.Data;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
@@ -33,7 +35,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Striped;
 
 import gobblin.configuration.State;
@@ -78,14 +79,40 @@ public class ParallelRunner implements Closeable {
   private final ExecutorService executor;
   private final FileSystem fs;
 
-  private final List<Future<?>> futures = Lists.newArrayList();
+  private final List<NamedFuture> futures = Lists.newArrayList();
 
   private final Striped<Lock> locks = Striped.lazyWeakLock(Integer.MAX_VALUE);
 
+  private final FailPolicy failPolicy;
+
   public ParallelRunner(int threads, FileSystem fs) {
+    this(threads, fs, FailPolicy.FAIL_ONE_FAIL_ALL);
+  }
+
+  public ParallelRunner(int threads, FileSystem fs, FailPolicy failPolicy) {
     this.executor = Executors.newFixedThreadPool(threads,
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ParallelRunner")));
     this.fs = fs;
+    this.failPolicy = failPolicy;
+  }
+
+  /**
+   * Policies indicating how {@link ParallelRunner} should handle failure of tasks.
+   */
+  public static enum FailPolicy {
+    /** If a task fails, a warning will be logged, but the {@link ParallelRunner} will still succeed.*/
+    ISOLATE_FAILURES,
+    /** If a task fails, all tasks will be tried, but {@link ParallelRunner#close} will throw the Exception.*/
+    FAIL_ONE_FAIL_ALL
+  }
+
+  /**
+   * A future with a name / message for reporting.
+   */
+  @Data
+  public static class NamedFuture {
+    private final Future<?> future;
+    private final String name;
   }
 
   /**
@@ -102,14 +129,14 @@ public class ParallelRunner implements Closeable {
    */
   public <T extends State> void serializeToFile(final T state, final Path outputFilePath) {
     // Use a Callable with a Void return type to allow exceptions to be thrown
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
 
       @Override
       public Void call() throws Exception {
-        SerializationUtils.serializeState(fs, outputFilePath, state);
+        SerializationUtils.serializeState(ParallelRunner.this.fs, outputFilePath, state);
         return null;
       }
-    }));
+    }), "Serialize state to " + outputFilePath));
   }
 
   /**
@@ -125,14 +152,14 @@ public class ParallelRunner implements Closeable {
    * @param <T> the {@link State} object type
    */
   public <T extends State> void deserializeFromFile(final T state, final Path inputFilePath) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
 
       @Override
       public Void call() throws Exception {
-        SerializationUtils.deserializeState(fs, inputFilePath, state);
+        SerializationUtils.deserializeState(ParallelRunner.this.fs, inputFilePath, state);
         return null;
       }
-    }));
+    }), "Deserialize state from " + inputFilePath));
   }
 
   /**
@@ -151,13 +178,12 @@ public class ParallelRunner implements Closeable {
    */
   public <T extends State> void deserializeFromSequenceFile(final Class<? extends Writable> keyClass,
       final Class<T> stateClass, final Path inputFilePath, final Collection<T> states, final boolean deleteAfter) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        Closer closer = Closer.create();
-        try {
-          @SuppressWarnings("deprecation")
-          SequenceFile.Reader reader = closer.register(new SequenceFile.Reader(fs, inputFilePath, fs.getConf()));
+        try (@SuppressWarnings("deprecation")
+        SequenceFile.Reader reader =
+            new SequenceFile.Reader(ParallelRunner.this.fs, inputFilePath, ParallelRunner.this.fs.getConf())) {
           Writable key = keyClass.newInstance();
           T state = stateClass.newInstance();
           while (reader.next(key, state)) {
@@ -166,17 +192,13 @@ public class ParallelRunner implements Closeable {
           }
 
           if (deleteAfter) {
-            HadoopUtils.deletePath(fs, inputFilePath, false);
+            HadoopUtils.deletePath(ParallelRunner.this.fs, inputFilePath, false);
           }
-        } catch (Throwable t) {
-          throw closer.rethrow(t);
-        } finally {
-          closer.close();
         }
 
         return null;
       }
-    }));
+    }), "Deserialize state from file " + inputFilePath));
   }
 
   /**
@@ -190,19 +212,19 @@ public class ParallelRunner implements Closeable {
    * @param path path to be deleted.
    */
   public void deletePath(final Path path, final boolean recursive) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        Lock lock = locks.get(path.toString());
+        Lock lock = ParallelRunner.this.locks.get(path.toString());
         lock.lock();
         try {
-          HadoopUtils.deletePath(fs, path, recursive);
+          HadoopUtils.deletePath(ParallelRunner.this.fs, path, recursive);
           return null;
         } finally {
           lock.unlock();
         }
       }
-    }));
+    }), "Delete path " + path));
   }
 
   /**
@@ -218,16 +240,16 @@ public class ParallelRunner implements Closeable {
    * @param group an optional group name for the destination path
    */
   public void renamePath(final Path src, final Path dst, final Optional<String> group) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        Lock lock = locks.get(src.toString());
+        Lock lock = ParallelRunner.this.locks.get(src.toString());
         lock.lock();
         try {
-          if (fs.exists(src)) {
-            HadoopUtils.renamePath(fs, src, dst);
+          if (ParallelRunner.this.fs.exists(src)) {
+            HadoopUtils.renamePath(ParallelRunner.this.fs, src, dst);
             if (group.isPresent()) {
-              HadoopUtils.setGroup(fs, dst, group.get());
+              HadoopUtils.setGroup(ParallelRunner.this.fs, dst, group.get());
             }
           }
           return null;
@@ -238,7 +260,7 @@ public class ParallelRunner implements Closeable {
           lock.unlock();
         }
       }
-    }));
+    }), "Rename " + src + " to " + dst));
   }
 
   /**
@@ -255,14 +277,33 @@ public class ParallelRunner implements Closeable {
    * @param group an optional group name for the destination path
    */
   public void movePath(final Path src, final FileSystem dstFs, final Path dst, final Optional<String> group) {
-    this.futures.add(this.executor.submit(new Callable<Void>() {
+    movePath(src, dstFs, dst, false, group);
+  }
+
+  /**
+   * Move a {@link Path}.
+   *
+   * <p>
+   *   This method submits a task to move a {@link Path} and returns immediately
+   *   after the task is submitted.
+   * </p>
+   *
+   * @param src path to be moved
+   * @param dstFs the destination {@link FileSystem}
+   * @param dst the destination path
+   * @param overwrite true to overwrite the destination
+   * @param group an optional group name for the destination path
+   */
+  public void movePath(final Path src, final FileSystem dstFs, final Path dst, final boolean overwrite,
+      final Optional<String> group) {
+    this.futures.add(new NamedFuture(this.executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        Lock lock = locks.get(src.toString());
+        Lock lock = ParallelRunner.this.locks.get(src.toString());
         lock.lock();
         try {
-          if (fs.exists(src)) {
-            HadoopUtils.movePath(fs, src, dstFs, dst);
+          if (ParallelRunner.this.fs.exists(src)) {
+            HadoopUtils.movePath(ParallelRunner.this.fs, src, dstFs, dst, overwrite, dstFs.getConf());
             if (group.isPresent()) {
               HadoopUtils.setGroup(dstFs, dst, group.get());
             }
@@ -275,7 +316,7 @@ public class ParallelRunner implements Closeable {
           lock.unlock();
         }
       }
-    }));
+    }), "Move " + src + " to " + dst));
   }
 
   @Override
@@ -284,25 +325,30 @@ public class ParallelRunner implements Closeable {
     try {
       boolean wasInterrupted = false;
       IOException exception = null;
-      for (Future<?> future : this.futures) {
+      for (NamedFuture future : this.futures) {
         try {
           if (wasInterrupted) {
-            future.cancel(true);
+            future.getFuture().cancel(true);
           } else {
-            future.get();
+            future.getFuture().get();
           }
         } catch (InterruptedException ie) {
+          LOGGER.warn("Task was interrupted: " + future.getName());
           wasInterrupted = true;
           if (exception == null) {
             exception = new IOException(ie);
           }
         } catch (ExecutionException ee) {
+          LOGGER.warn("Task failed: " + future.getName(), ee.getCause());
           if (exception == null) {
             exception = new IOException(ee.getCause());
           }
         }
       }
-      if (exception != null) {
+      if (wasInterrupted) {
+        Thread.currentThread().interrupt();
+      }
+      if (exception != null && this.failPolicy == FailPolicy.FAIL_ONE_FAIL_ALL) {
         throw exception;
       }
     } finally {

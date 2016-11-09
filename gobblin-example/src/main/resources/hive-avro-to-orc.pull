@@ -1,0 +1,27 @@
+# ====================================================================
+# Job configurations (can be changed)
+# ====================================================================
+
+job.name=GobblinHiveAvroToOrcConversion
+job.description=Test job to convert Avro Hive table to Orc
+
+## Change this to the db you want to use
+hive.dataset.database=default
+
+## default is all tables. Change this to the table you want to use
+hive.dataset.table.pattern=t*_avro
+
+hive.dataset.hive.metastore.uri=thrift://localhost:9083
+hiveserver.connection.string=jdbc:hive2://localhost:10000
+
+type=hadoopJava
+job.class=gobblin.azkaban.AzkabanJobLauncher
+job.lock.enabled=false
+
+data.publisher.type=gobblin.data.management.convertion.hive.HiveConvertPublisher
+source.class=gobblin.data.management.convertion.hive.HiveSource
+writer.builder.class=gobblin.data.management.convertion.hive.HiveQueryWriterBuilder
+converter.classes=gobblin.data.management.convertion.hive.HiveAvroToOrcConverter
+
+task.maxretries=0
+workunit.retry.enabled=false

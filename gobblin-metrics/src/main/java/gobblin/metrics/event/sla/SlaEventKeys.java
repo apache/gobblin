@@ -25,4 +25,6 @@ public class SlaEventKeys {
   public static final String RECORD_COUNT_KEY = EVENT_GOBBLIN_STATE_PREFIX + "recordCount";
   public static final String PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY = EVENT_GOBBLIN_STATE_PREFIX + "previousPublishTs";
 
+  public static final String EVENT_ADDITIONAL_METADATA_PREFIX = EVENT_GOBBLIN_STATE_PREFIX + "additionalMetadata.";
+
 }

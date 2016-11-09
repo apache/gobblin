@@ -54,6 +54,12 @@ public class PathUtilsTest {
 
   }
 
+  @Test
+  public void testIsNotAncestor() throws Exception {
+    Path ancestor = new Path("/user/gobblin/hourly");
+    Assert.assertFalse(PathUtils.isAncestor(ancestor, new Path("hdfs://clus-nn01.company.com:10000/user/gobblin/")));
+  }
+
   @Test public void testGetPathWithoutSchemeAndAuthority() throws Exception {
     Path schemeAndAuthority = new Path("hdfs://example.hdfs:9000/");
     Path path = new Path("/some/path");

@@ -26,7 +26,6 @@ import gobblin.converter.DataConversionException;
 import gobblin.converter.IdentityConverter;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
-import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 
 
@@ -37,7 +36,7 @@ public class InstrumentedConverterTest {
     @Override
     public Iterable<String> convertRecordImpl(String outputSchema, String inputRecord, WorkUnitState workUnit)
         throws DataConversionException {
-      return new SingleRecordIterable<String>(inputRecord);
+      return new SingleRecordIterable<>(inputRecord);
     }
 
     @Override

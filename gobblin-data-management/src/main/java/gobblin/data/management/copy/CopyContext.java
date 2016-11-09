@@ -12,29 +12,62 @@
 
 package gobblin.data.management.copy;
 
-import lombok.Getter;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Context that can hold global objects required in a single copy job.
  */
+@Slf4j
 public class CopyContext {
 
   /**
-   * Cache for {@link OwnerAndPermission} for various paths in {@link org.apache.hadoop.fs.FileSystem}s. Used to reduce
+   * Cache for {@link FileStatus}es for various paths in {@link org.apache.hadoop.fs.FileSystem}s. Used to reduce
    * the number of calls to {@link org.apache.hadoop.fs.FileSystem#getFileStatus} when replicating attributes. Keys
    * should be fully qualified paths in case multiple {@link org.apache.hadoop.fs.FileSystem}s are in use.
    */
-  @Getter
-  private final Cache<Path, OwnerAndPermission> ownerAndPermissionCache;
+  private final Cache<Path, Optional<FileStatus>> fileStatusCache;
 
   public CopyContext() {
-    this.ownerAndPermissionCache = CacheBuilder.newBuilder().build();
+    this.fileStatusCache = CacheBuilder.newBuilder().recordStats().maximumSize(10000).build();
+  }
+
+  /**
+   * Get cached {@link FileStatus}.
+   */
+  public Optional<FileStatus> getFileStatus(final FileSystem fs, final Path path) throws IOException {
+    try {
+      return this.fileStatusCache.get(fs.makeQualified(path), new Callable<Optional<FileStatus>>() {
+        @Override
+        public Optional<FileStatus> call()
+            throws Exception {
+          try {
+            return Optional.of(fs.getFileStatus(path));
+          } catch (FileNotFoundException fnfe) {
+            return Optional.absent();
+          }
+        }
+      });
+    } catch (ExecutionException ee) {
+      throw new IOException(ee.getCause());
+    }
+  }
+
+  public void logCacheStatistics() {
+    log.info(this.fileStatusCache.stats().toString());
   }
 
 }

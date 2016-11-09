@@ -1,0 +1,11 @@
+type=hadoopJava
+job.class=gobblin.data.management.retention.DatasetCleanerJob
+
+gobblin.retention.dataset.profile.class=gobblin.data.management.retention.profile.TrackingDatasetProfile
+gobblin.retention.dataset.pattern=${testNameTempPath}/user/gobblin/data/trackingData/*/daily
+gobblin.retention.datetime.pattern=yyyy/MM/dd
+
+# 3 days
+gobblin.retention.minutes.retained=4320
+gobblin.retention.simulate=false
+gobblin.retention.skip.trash=true

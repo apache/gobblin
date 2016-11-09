@@ -21,6 +21,8 @@ import com.google.common.collect.Maps;
 import gobblin.metrics.GobblinTrackingEvent;
 import gobblin.metrics.MetricContext;
 
+import lombok.Getter;
+
 
 /**
  * Wrapper around Avro {@link gobblin.metrics.GobblinTrackingEvent.Builder} simplifying handling {@link gobblin.metrics.GobblinTrackingEvent}s.
@@ -34,7 +36,9 @@ public class EventSubmitter {
   public static final String EVENT_TYPE = "eventType";
 
   private final Map<String, String> metadata;
+  @Getter
   private final String namespace;
+  @Getter
   private final Optional<MetricContext> metricContext;
 
   public static class Builder {
@@ -82,6 +86,15 @@ public class EventSubmitter {
   }
 
   /**
+   * Calls submit on submitter if present.
+   */
+  public static void submit(Optional<EventSubmitter> submitter, String name) {
+    if (submitter.isPresent()) {
+      submitter.get().submit(name);
+    }
+  }
+
+  /**
    * Submits the {@link gobblin.metrics.GobblinTrackingEvent} to the {@link gobblin.metrics.MetricContext}.
    * @param name Name of the event.
    * @param metadataEls List of keys and values for metadata of the form key1, value2, key2, value2, ...
@@ -99,6 +112,15 @@ public class EventSubmitter {
   }
 
   /**
+   * Calls submit on submitter if present.
+   */
+  public static void submit(Optional<EventSubmitter> submitter, String name, String... metadataEls) {
+    if (submitter.isPresent()) {
+      submitter.get().submit(name, metadataEls);
+    }
+  }
+
+  /**
    * Submits the {@link gobblin.metrics.GobblinTrackingEvent} to the {@link gobblin.metrics.MetricContext}.
    * @param name Name of the event.
    * @param additionalMetadata Additional metadata to be added to the event.
@@ -112,6 +134,15 @@ public class EventSubmitter {
 
       // Timestamp is set by metric context.
       this.metricContext.get().submitEvent(new GobblinTrackingEvent(0l, this.namespace, name, finalMetadata));
+    }
+  }
+
+  /**
+   * Calls submit on submitter if present.
+   */
+  public static void submit(Optional<EventSubmitter> submitter, String name, Map<String, String> additionalMetadata) {
+    if (submitter.isPresent()) {
+      submitter.get().submit(name, additionalMetadata);
     }
   }
 

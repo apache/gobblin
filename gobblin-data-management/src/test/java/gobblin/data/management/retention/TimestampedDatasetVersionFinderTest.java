@@ -14,54 +14,82 @@ package gobblin.data.management.retention;
 
 import java.util.Properties;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.google.common.io.Files;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.data.management.retention.version.TimestampedDatasetVersion;
 import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
+import gobblin.util.PathUtils;
 
 
 public class TimestampedDatasetVersionFinderTest {
 
-  @Test
-  public void testVersionParser() {
-    Properties props = new Properties();
-    props.put(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
+  private FileSystem fs;
+  private Path testDataPathDummyPath;
 
-    DateTimeDatasetVersionFinder parser = new DateTimeDatasetVersionFinder(null, props);
+  @BeforeClass
+  public void setup() throws Exception {
+    this.fs = FileSystem.get(new Configuration());
+    this.testDataPathDummyPath = new Path(Files.createTempDir().getAbsolutePath());
+    this.fs.mkdirs(this.testDataPathDummyPath);
+  }
+
+  @Test
+  public void testVersionParser() throws Exception {
+
+    Properties props = new Properties();
+    props.put(DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
+
+    DateTimeDatasetVersionFinder parser = new DateTimeDatasetVersionFinder(this.fs, props);
 
     Assert.assertEquals(parser.versionClass(), TimestampedDatasetVersion.class);
     Assert.assertEquals(parser.globVersionPattern(), new Path("*/*/*/*/*"));
-    DateTime version = parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getDateTime();
+    DateTime version = parser.getDatasetVersion(new Path("2015/06/01/10/12"), this.fs.getFileStatus(testDataPathDummyPath)).getDateTime();
     Assert.assertEquals(version.getZone(), DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME));
     Assert.assertEquals(version, new DateTime(2015, 6, 1, 10, 12, 0, 0, DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME)));
 
-    Assert.assertEquals(parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getPathsToDelete()
-        .iterator().next(), new Path("fullPath"));
+    Assert.assertEquals(
+        PathUtils.getPathWithoutSchemeAndAuthority(parser
+            .getDatasetVersion(new Path("2015/06/01/10/12"), this.fs.getFileStatus(testDataPathDummyPath))
+            .getPathsToDelete().iterator().next()),
+        PathUtils.getPathWithoutSchemeAndAuthority(this.testDataPathDummyPath));
 
   }
 
   @Test
-  public void testVersionParserWithTimeZone() {
+  public void testVersionParserWithTimeZone()  throws Exception {
 
     Properties props = new Properties();
-    props.put(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
-    props.put(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_TIMEZONE_KEY, "UTC");
+    props.put(DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh/mm");
+    props.put(DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_TIMEZONE_KEY, "UTC");
 
-    DateTimeDatasetVersionFinder parser = new DateTimeDatasetVersionFinder(null, props);
+    DateTimeDatasetVersionFinder parser = new DateTimeDatasetVersionFinder(this.fs, props);
 
     Assert.assertEquals(parser.versionClass(), TimestampedDatasetVersion.class);
     Assert.assertEquals(parser.globVersionPattern(), new Path("*/*/*/*/*"));
-    DateTime version = parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getDateTime();
+    DateTime version = parser.getDatasetVersion(new Path("2015/06/01/10/12"), this.fs.getFileStatus(testDataPathDummyPath)).getDateTime();
     Assert.assertEquals(version.getZone(), DateTimeZone.forID("UTC"));
     Assert.assertEquals(version,
         new DateTime(2015, 6, 1, 10, 12, 0, 0, DateTimeZone.forID("UTC")));
-    Assert.assertEquals(parser.getDatasetVersion(new Path("2015/06/01/10/12"), new Path("fullPath")).getPathsToDelete()
-        .iterator().next(), new Path("fullPath"));
+    Assert.assertEquals(
+        PathUtils.getPathWithoutSchemeAndAuthority(parser
+            .getDatasetVersion(new Path("2015/06/01/10/12"), this.fs.getFileStatus(testDataPathDummyPath))
+            .getPathsToDelete().iterator().next()),
+        PathUtils.getPathWithoutSchemeAndAuthority(this.testDataPathDummyPath));
   }
 
+  @AfterClass
+  public void after() throws Exception {
+    this.fs.delete(this.testDataPathDummyPath, true);
+  }
 }

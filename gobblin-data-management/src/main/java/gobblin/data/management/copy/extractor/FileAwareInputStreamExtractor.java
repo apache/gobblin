@@ -16,17 +16,19 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.util.HadoopUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
 
 /**
  * An implementation of {@link Extractor} that extracts {@link InputStream}s. This extractor is suitable for copy jobs
  * where files from any source to a sink. The extractor extracts a {@link FileAwareInputStream} which encompasses an
- * {@link InputStream} and a {@link CopyableFile} for every file that needs to be copied.
+ * {@link InputStream} and a {@link gobblin.data.management.copy.CopyEntity} for every file that needs to be copied.
  *
  * <p>
  * In Gobblin {@link Extractor} terms, each {@link FileAwareInputStream} is a record. i.e one record per copyable file.
@@ -40,8 +42,7 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   /** True indicates the unique record has already been read. */
   private boolean recordRead;
 
-  public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file) throws IOException {
-
+  public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file) {
     this.fs = fs;
     this.file = file;
     this.recordRead = false;
@@ -57,15 +58,16 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   }
 
   @Override
-  public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse) throws DataRecordException,
-      IOException {
+  public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse)
+      throws DataRecordException, IOException {
 
     if (!this.recordRead) {
+      Configuration conf = HadoopUtils.newConfiguration();
+      FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
       this.recordRead = true;
-      return new FileAwareInputStream(this.file, fs.open(this.file.getFileStatus().getPath()));
-    } else {
-      return null;
+      return new FileAwareInputStream(this.file, fsFromFile.open(this.file.getFileStatus().getPath()));
     }
+    return null;
 
   }
 
@@ -80,6 +82,5 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   }
 
   @Override
-  public void close() throws IOException {
-  }
+  public void close() throws IOException {}
 }

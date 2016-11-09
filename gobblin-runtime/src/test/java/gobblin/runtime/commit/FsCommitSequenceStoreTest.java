@@ -13,7 +13,6 @@
 package gobblin.runtime.commit;
 
 import java.io.IOException;
-import java.net.URI;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -40,7 +39,7 @@ import gobblin.util.io.GsonInterfaceAdapter;
 /**
  * Tests for {@link FsCommitSequenceStore}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class FsCommitSequenceStoreTest {
 
@@ -54,7 +53,7 @@ public class FsCommitSequenceStoreTest {
 
   @BeforeClass
   public void setUp() throws IOException {
-    FileSystem fs = FileSystem.get(URI.create("file:///"), new Configuration());
+    FileSystem fs = FileSystem.getLocal(new Configuration());
     this.store = new FsCommitSequenceStore(fs, new Path("commit-sequence-store-test"));
 
     State props = new State();
@@ -64,11 +63,10 @@ public class FsCommitSequenceStoreTest {
     DatasetState datasetState = new DatasetState();
 
     datasetState.setDatasetUrn(this.datasetUrn);
-    datasetState.setProp("prop3", "valueOfProp3");
-    datasetState.setProp("prop4", "valueOfProp4");
+    datasetState.incrementJobFailures();
     this.sequence = new CommitSequence.Builder().withJobName("testjob").withDatasetUrn("testurn")
         .beginStep(FsRenameCommitStep.Builder.class).from(new Path("/ab/cd")).to(new Path("/ef/gh")).withProps(props)
-        .endStep().beginStep(DatasetStateCommitStep.Builder.class).withDatasetUrn(datasetUrn)
+        .endStep().beginStep(DatasetStateCommitStep.Builder.class).withDatasetUrn(this.datasetUrn)
         .withDatasetState(datasetState).withProps(props).endStep().build();
   }
 

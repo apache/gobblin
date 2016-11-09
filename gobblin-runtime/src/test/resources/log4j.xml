@@ -15,4 +15,9 @@
     <appender-ref ref="console" />
   </root>
 
+  <!-- Swallow annoying exceptions when creating a configuration. -->
+  <logger name="org.apache.hadoop.conf.Configuration">
+    <level value="FATAL"/>
+  </logger>
+
 </log4j:configuration>

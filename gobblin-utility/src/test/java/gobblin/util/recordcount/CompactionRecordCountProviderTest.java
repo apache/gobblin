@@ -29,7 +29,7 @@ public class CompactionRecordCountProviderTest {
     CompactionRecordCountProvider filenameRecordCountProvider = new CompactionRecordCountProvider();
 
     Pattern pattern = Pattern.compile("part\\-r\\-123\\.[\\d]*\\.[\\d]*\\.avro");
-    Assert.assertTrue(pattern.matcher(filenameRecordCountProvider.constructFileName("part-r-", 123)).matches());
+    Assert.assertTrue(pattern.matcher(CompactionRecordCountProvider.constructFileName("part-r-", 123)).matches());
     Assert.assertEquals(filenameRecordCountProvider.getRecordCount(new Path("part-r-123.1.2.avro")), 123);
   }
 }

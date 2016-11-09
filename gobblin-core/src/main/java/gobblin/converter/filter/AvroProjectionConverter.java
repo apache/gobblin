@@ -32,7 +32,7 @@ import gobblin.util.AvroUtils;
 /**
  * A {@link Converter} that removes certain fields from an Avro schema or an Avro record.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroProjectionConverter extends AvroToAvroConverterBase {
 
@@ -66,9 +66,8 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     if (this.fieldRemover.isPresent()) {
       return this.fieldRemover.get().removeFields(inputSchema);
-    } else {
-      return inputSchema;
     }
+    return inputSchema;
   }
 
   /**
@@ -78,7 +77,7 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     try {
-      return new SingleRecordIterable<GenericRecord>(AvroUtils.convertRecordSchema(inputRecord, outputSchema));
+      return new SingleRecordIterable<>(AvroUtils.convertRecordSchema(inputRecord, outputSchema));
     } catch (IOException e) {
       throw new DataConversionException(e);
     }

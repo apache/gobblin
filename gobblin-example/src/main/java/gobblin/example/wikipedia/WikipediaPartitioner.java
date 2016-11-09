@@ -31,8 +31,7 @@ public class WikipediaPartitioner implements WriterPartitioner<GenericRecord> {
   private static final Schema SCHEMA = SchemaBuilder.record("ArticleTitle").namespace("gobblin.example.wikipedia")
       .fields().name(TITLE).type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
 
-  public WikipediaPartitioner(State state, int numBranches, int branchId) {
-  }
+  public WikipediaPartitioner(State state, int numBranches, int branchId) {}
 
   @Override
   public Schema partitionSchema() {

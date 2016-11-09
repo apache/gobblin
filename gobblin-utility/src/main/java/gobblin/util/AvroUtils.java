@@ -16,13 +16,15 @@ import static org.apache.avro.SchemaCompatibility.checkReaderWriterCompatibility
 import static org.apache.avro.SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -35,14 +37,18 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
+import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +62,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
-import com.google.common.primitives.Longs;
 
 
 /**
@@ -94,19 +99,30 @@ public class AvroUtils {
 
   /**
    * Helper method that does the actual work for {@link #getFieldSchema(Schema, String)}
-   * @param schema passed from {@link #getFieldValue(Schema, String)}
-   * @param pathList passed from {@link #getFieldValue(Schema, String)}
+   * @param schema passed from {@link #getFieldSchema(Schema, String)}
+   * @param pathList passed from {@link #getFieldSchema(Schema, String)}
    * @param field keeps track of the index used to access the list pathList
    * @return the schema of the field
    */
   private static Optional<Schema> getFieldSchemaHelper(Schema schema, List<String> pathList, int field) {
-    if (schema.getField(pathList.get(field)) == null) {
+    if (schema.getType() == Type.RECORD && schema.getField(pathList.get(field)) == null) {
       return Optional.absent();
     }
-    if ((field + 1) == pathList.size()) {
-      return Optional.fromNullable(schema.getField(pathList.get(field)).schema());
-    } else {
-      return AvroUtils.getFieldSchemaHelper(schema.getField(pathList.get(field)).schema(), pathList, ++field);
+    switch (schema.getType()) {
+      case UNION:
+        throw new AvroRuntimeException("Union of complex types cannot be handled : " + schema);
+      case MAP:
+        if ((field + 1) == pathList.size()) {
+          return Optional.fromNullable(schema.getValueType());
+        }
+        return AvroUtils.getFieldSchemaHelper(schema.getValueType(), pathList, ++field);
+      case RECORD:
+        if ((field + 1) == pathList.size()) {
+          return Optional.fromNullable(schema.getField(pathList.get(field)).schema());
+        }
+        return AvroUtils.getFieldSchemaHelper(schema.getField(pathList.get(field)).schema(), pathList, ++field);
+      default:
+        throw new AvroRuntimeException("Invalid type in schema : " + schema);
     }
   }
 
@@ -145,10 +161,28 @@ public class AvroUtils {
     }
 
     if ((field + 1) == pathList.size()) {
+      if (data instanceof Map) {
+        return Optional.fromNullable(getObjectFromMap((Map) data, pathList.get(field)));
+      }
       return Optional.fromNullable(((Record) data).get(pathList.get(field)));
-    } else {
-      return AvroUtils.getFieldHelper(((Record) data).get(pathList.get(field)), pathList, ++field);
     }
+    if (data instanceof Map) {
+      return AvroUtils.getFieldHelper(getObjectFromMap((Map) data, pathList.get(field)), pathList, ++field);
+    }
+    return AvroUtils.getFieldHelper(((Record) data).get(pathList.get(field)), pathList, ++field);
+  }
+
+  /**
+   * This method is to get object from map given a key as string.
+   * Avro persists string as Utf8
+   * @param map passed from {@link #getFieldHelper(Object, List, int)}
+   * @param key passed from {@link #getFieldHelper(Object, List, int)}
+   * @return This could again be a GenericRecord
+   */
+
+  private static Object getObjectFromMap(Map map, String key) {
+    Utf8 utf8Key = new Utf8(key);
+    return map.get(utf8Key);
   }
 
   /**
@@ -169,7 +203,7 @@ public class AvroUtils {
 
     try {
       BinaryDecoder decoder = new DecoderFactory().binaryDecoder(recordToByteArray(record), null);
-      DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>(record.getSchema(), newSchema);
+      DatumReader<GenericRecord> reader = new GenericDatumReader<>(record.getSchema(), newSchema);
       return reader.read(null, decoder);
     } catch (IOException e) {
       throw new IOException(
@@ -183,18 +217,12 @@ public class AvroUtils {
    * Convert a GenericRecord to a byte array.
    */
   public static byte[] recordToByteArray(GenericRecord record) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      ByteArrayOutputStream out = closer.register(new ByteArrayOutputStream());
+    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
       Encoder encoder = EncoderFactory.get().directBinaryEncoder(out, null);
-      DatumWriter<GenericRecord> writer = new GenericDatumWriter<GenericRecord>(record.getSchema());
+      DatumWriter<GenericRecord> writer = new GenericDatumWriter<>(record.getSchema());
       writer.write(record, encoder);
       byte[] byteArray = out.toByteArray();
       return byteArray;
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 
@@ -202,14 +230,9 @@ public class AvroUtils {
    * Get Avro schema from an Avro data file.
    */
   public static Schema getSchemaFromDataFile(Path dataFile, FileSystem fs) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      SeekableInput sin = closer.register(new FsInput(dataFile, fs.getConf()));
-      DataFileReader<GenericRecord> reader =
-          closer.register(new DataFileReader<GenericRecord>(sin, new GenericDatumReader<GenericRecord>()));
+    try (SeekableInput sin = new FsInput(dataFile, fs.getConf());
+        DataFileReader<GenericRecord> reader = new DataFileReader<>(sin, new GenericDatumReader<GenericRecord>())) {
       return reader.getSchema();
-    } finally {
-      closer.close();
     }
   }
 
@@ -217,13 +240,57 @@ public class AvroUtils {
    * Parse Avro schema from a schema file.
    */
   public static Schema parseSchemaFromFile(Path filePath, FileSystem fs) throws IOException {
-    Closer closer = Closer.create();
-    try {
-      InputStream in = closer.register(fs.open(filePath));
+    Preconditions.checkArgument(fs.exists(filePath), filePath + " does not exist");
+
+    try (InputStream in = fs.open(filePath)) {
       return new Schema.Parser().parse(in);
-    } finally {
-      closer.close();
     }
+  }
+
+  public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite)
+      throws IOException {
+    writeSchemaToFile(schema, filePath, fs, overwrite, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ));
+  }
+
+  public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite, FsPermission perm)
+    throws IOException {
+    if (!overwrite) {
+      Preconditions.checkState(!fs.exists(filePath), filePath + " already exists");
+    } else {
+      HadoopUtils.deletePath(fs, filePath, true);
+    }
+
+    try (DataOutputStream dos = fs.create(filePath)) {
+      dos.writeChars(schema.toString());
+    }
+    fs.setPermission(filePath, perm);
+  }
+
+  /**
+   * Get the latest avro schema for a directory
+   * @param directory the input dir that contains avro files
+   * @param fs the {@link FileSystem} for the given directory.
+   * @param latest true to return latest schema, false to return oldest schema
+   * @return the latest/oldest schema in the directory
+   * @throws IOException
+   */
+  public static Schema getDirectorySchema(Path directory, FileSystem fs, boolean latest) throws IOException {
+    Schema schema = null;
+    try (Closer closer = Closer.create()) {
+      List<FileStatus> files = getDirectorySchemaHelper(directory, fs);
+      if (files == null || files.size() == 0) {
+        LOG.warn("There is no previous avro file in the directory: " + directory);
+      } else {
+        FileStatus file = latest ? files.get(0) : files.get(files.size() - 1);
+        LOG.debug("Path to get the avro schema: " + file);
+        FsInput fi = new FsInput(file.getPath(), fs.getConf());
+        GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<>();
+        schema = closer.register(new DataFileReader<>(fi, genReader)).getSchema();
+      }
+    } catch (IOException ioe) {
+      throw new IOException("Cannot get the schema for directory " + directory, ioe);
+    }
+    return schema;
   }
 
   /**
@@ -235,27 +302,7 @@ public class AvroUtils {
    * @throws IOException
    */
   public static Schema getDirectorySchema(Path directory, Configuration conf, boolean latest) throws IOException {
-    Schema schema = null;
-    Closer closer = Closer.create();
-    try {
-      List<FileStatus> files = getDirectorySchemaHelper(directory, FileSystem.get(conf));
-      if (files == null || files.size() == 0) {
-        LOG.warn("There is no previous avro file in the directory: " + directory);
-      } else {
-        FileStatus file = latest ? files.get(0) : files.get(files.size() - 1);
-        LOG.info("Path to get the avro schema: " + file);
-        FsInput fi = new FsInput(file.getPath(), conf);
-        GenericDatumReader<GenericRecord> genReader = new GenericDatumReader<GenericRecord>();
-        schema = closer.register(new DataFileReader<GenericRecord>(fi, genReader)).getSchema();
-      }
-    } catch (IOException ioe) {
-      throw new IOException("Cannot get the schema for directory " + directory, ioe);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
-    }
-    return schema;
+    return getDirectorySchema(directory, FileSystem.get(conf), latest);
   }
 
   private static List<FileStatus> getDirectorySchemaHelper(Path directory, FileSystem fs) throws IOException {
@@ -263,20 +310,14 @@ public class AvroUtils {
     if (fs.exists(directory)) {
       getAllNestedAvroFiles(fs.getFileStatus(directory), files, fs);
       if (files.size() > 0) {
-        Collections.sort(files, new Comparator<FileStatus>() {
-          @Override
-          public int compare(FileStatus file1, FileStatus file2) {
-            return Longs.compare(Long.valueOf(file2.getModificationTime()), Long.valueOf(file1.getModificationTime()));
-          }
-        });
+        Collections.sort(files, FileListUtils.LATEST_MOD_TIME_ORDER);
       }
     }
     return files;
   }
 
-  @SuppressWarnings("deprecation")
   private static void getAllNestedAvroFiles(FileStatus dir, List<FileStatus> files, FileSystem fs) throws IOException {
-    if (dir.isDir()) {
+    if (dir.isDirectory()) {
       FileStatus[] filesInDir = fs.listStatus(dir.getPath());
       if (filesInDir != null) {
         for (FileStatus f : filesInDir) {
@@ -404,9 +445,8 @@ public class AvroUtils {
     // Discard the union field if one or more types are removed from the union.
     if (newUnion.size() != union.getTypes().size()) {
       return Optional.absent();
-    } else {
-      return Optional.of(Schema.createUnion(newUnion));
     }
+    return Optional.of(Schema.createUnion(newUnion));
   }
 
   /**
@@ -470,5 +510,14 @@ public class AvroUtils {
       }
     }
     return new Path(Joiner.on(Path.SEPARATOR).join(tokens));
+  }
+
+  /**
+   * Deserialize a {@link GenericRecord} from a byte array. This method is not intended for high performance.
+   */
+  public static GenericRecord slowDeserializeGenericRecord(byte[] serializedRecord, Schema schema) throws IOException {
+    Decoder decoder = DecoderFactory.get().binaryDecoder(serializedRecord, null);
+    GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
+    return reader.read(null, decoder);
   }
 }

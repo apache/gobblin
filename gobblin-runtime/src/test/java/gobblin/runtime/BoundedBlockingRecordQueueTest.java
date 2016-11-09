@@ -31,7 +31,7 @@ import com.google.common.collect.Lists;
  *
  * @author Yinan Li
  */
-@Test(groups = {"gobblin.runtime"})
+@Test(groups = { "gobblin.runtime" })
 public class BoundedBlockingRecordQueueTest {
 
   private static final String METRIC_NAME_PREFIX = "test";
@@ -40,12 +40,8 @@ public class BoundedBlockingRecordQueueTest {
 
   @BeforeClass
   public void setUp() {
-    this.boundedBlockingRecordQueue = BoundedBlockingRecordQueue.<Integer>newBuilder()
-        .hasCapacity(2)
-        .useTimeout(1000)
-        .useTimeoutTimeUnit(TimeUnit.MILLISECONDS)
-        .collectStats()
-        .build();
+    this.boundedBlockingRecordQueue = BoundedBlockingRecordQueue.<Integer> newBuilder().hasCapacity(2).useTimeout(1000)
+        .useTimeoutTimeUnit(TimeUnit.MILLISECONDS).collectStats().build();
   }
 
   @Test
@@ -56,7 +52,7 @@ public class BoundedBlockingRecordQueueTest {
       public void run() {
         for (int i = 0; i < 6; i++) {
           try {
-            boundedBlockingRecordQueue.put(i);
+            BoundedBlockingRecordQueueTest.this.boundedBlockingRecordQueue.put(i);
             produced.add(i);
           } catch (InterruptedException ie) {
             throw new RuntimeException(ie);
@@ -71,7 +67,7 @@ public class BoundedBlockingRecordQueueTest {
       public void run() {
         try {
           for (int i = 0; i < 6; i++) {
-            consumed.add(boundedBlockingRecordQueue.get());
+            consumed.add(BoundedBlockingRecordQueueTest.this.boundedBlockingRecordQueue.get());
           }
         } catch (InterruptedException ie) {
           throw new RuntimeException(ie);
@@ -113,12 +109,10 @@ public class BoundedBlockingRecordQueueTest {
     @SuppressWarnings("rawtypes")
     Map<String, Gauge> gauges = metricRegistry.getGauges();
     Assert.assertEquals(gauges.size(), 2);
-    Assert.assertEquals(
-        gauges.get(MetricRegistry.name(METRIC_NAME_PREFIX, BoundedBlockingRecordQueue.QueueStats.QUEUE_SIZE))
-            .getValue(), 2);
-    Assert.assertEquals(
-        gauges.get(MetricRegistry.name(METRIC_NAME_PREFIX, BoundedBlockingRecordQueue.QueueStats.FILL_RATIO))
-            .getValue(), 1d);
+    Assert.assertEquals(gauges
+        .get(MetricRegistry.name(METRIC_NAME_PREFIX, BoundedBlockingRecordQueue.QueueStats.QUEUE_SIZE)).getValue(), 2);
+    Assert.assertEquals(gauges
+        .get(MetricRegistry.name(METRIC_NAME_PREFIX, BoundedBlockingRecordQueue.QueueStats.FILL_RATIO)).getValue(), 1d);
     Assert.assertEquals(metricRegistry.getMeters().size(), 2);
     Assert.assertEquals(metricRegistry
         .meter(MetricRegistry.name(METRIC_NAME_PREFIX, BoundedBlockingRecordQueue.QueueStats.GET_ATTEMPT_RATE))

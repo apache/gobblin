@@ -143,11 +143,11 @@ public class ConstructState extends State {
     return props;
   }
 
-  private String serializeMap(Map<String, String> map) {
+  private static String serializeMap(Map<String, String> map) {
     return GSON.toJson(map);
   }
 
-  private Map<String, String> deserializeMap(String string) {
+  private static Map<String, String> deserializeMap(String string) {
     return GSON.fromJson(string, TYPE_OF_HASHMAP);
   }
 

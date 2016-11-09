@@ -11,8 +11,7 @@ import org.joda.time.DateTime;
  */
 public class TimeBasedSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
 
-  public static final String SNAPSHOT_RETENTION_POLICY_MINUTES_KEY =
-      "gobblin.trash.snapshot.retention.minutes";
+  public static final String SNAPSHOT_RETENTION_POLICY_MINUTES_KEY = "gobblin.trash.snapshot.retention.minutes";
   public static final int SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT = 1440; // one day
 
   private final int retentionMinutes;
@@ -25,6 +24,6 @@ public class TimeBasedSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
   @Override
   public boolean shouldDeleteSnapshot(FileStatus snapshot, Trash trash) {
     DateTime snapshotTime = Trash.TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(snapshot.getPath().getName());
-    return snapshotTime.plusMinutes(retentionMinutes).isBeforeNow();
+    return snapshotTime.plusMinutes(this.retentionMinutes).isBeforeNow();
   }
 }

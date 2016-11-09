@@ -47,7 +47,7 @@ The second one is where all data in the wrong format are stored. The schema is:
      ]
     }
 
-See the [Kite CLI reference](http://kitesdk.org/docs/1.1.0/cli-reference.html) for information on creating a Kite dataset. 
+See the [Kite CLI reference](http://kitesdk.org/docs/1.1.0/cli-reference.html) for information on creating a Kite dataset.
 
 For example, to create the first dataset with the following partition strategy (`partition.json` file):
 
@@ -117,7 +117,7 @@ For example, the following message read from Kafka:
       "host_ip": "192.168.0.15",
       "rawdata": "XXXXXxxxxXXXX"
     }
-    
+
 will be written to:
 
 ```
@@ -126,3 +126,13 @@ will be written to:
 
 Please refer to the [Gobblin](https://github.com/linkedin/gobblin) for more information about Gobblin.
 
+# Gobblin [![Build Status](https://secure.travis-ci.org/linkedin/gobblin.png)](https://travis-ci.org/linkedin/gobblin) [![Documentation Status](https://readthedocs.org/projects/gobblin/badge/?version=latest)](http://gobblin.readthedocs.org/en/latest/?badge=latest)
+
+# Quick Links
+
+  * Documentation: Check out the [Gobblin documentation](http://gobblin.readthedocs.org/en/latest/) for a complete description of Gobblin's features
+  * Powered By: Check out the [list of companies](http://gobblin.readthedocs.io/en/latest/Powered-By/) known to use Gobblin
+  * Architecture: The [Gobblin Architecture](http://gobblin.readthedocs.io/en/latest/Gobblin-Architecture/) page has a full explanation of Gobblin's architecture
+  * Getting Started with Gobblin: Refer to the [Getting Started Guide](http://gobblin.readthedocs.org/en/latest/Getting-Started/) on how to get started with Gobblin
+  * Building Gobblin: Refer to the page [Building Gobblin](http://gobblin.readthedocs.io/en/latest/user-guide/Building-Gobblin/) for directions on how to build Gobblin
+  * Javadocs: The full JavaDocs for each released version of Gobblin can be found [here](http://linkedin.github.io/gobblin/javadoc/latest/)

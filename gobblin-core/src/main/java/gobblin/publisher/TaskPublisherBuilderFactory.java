@@ -17,9 +17,8 @@ import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 
 
 public class TaskPublisherBuilderFactory {
-  public TaskPublisherBuilder newTaskPublisherBuilder(WorkUnitState workUnitState, TaskLevelPolicyCheckResults results,
-      int index) {
-
-    return TaskPublisherBuilder.newBuilder(workUnitState, results, index);
+  public static TaskPublisherBuilder newTaskPublisherBuilder(WorkUnitState workUnitState,
+      TaskLevelPolicyCheckResults results) {
+    return TaskPublisherBuilder.newBuilder(workUnitState, results);
   }
 }

@@ -44,10 +44,8 @@ import gobblin.util.PathUtils;
 public class Trash implements GobblinTrash {
 
   private static final Logger LOG = LoggerFactory.getLogger(Trash.class);
-  private static final FsPermission PERM =
-      new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
-  private static final FsPermission ALL_PERM =
-      new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
+  private static final FsPermission PERM = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
+  private static final FsPermission ALL_PERM = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
 
   /**
    * Location of trash directory in file system. The location can include a token $USER that will be automatically
@@ -93,13 +91,13 @@ public class Trash implements GobblinTrash {
    */
   protected Path createTrashLocation(FileSystem fs, Properties props, String user) throws IOException {
     Path trashLocation;
-    if(props.containsKey(TRASH_LOCATION_KEY)) {
+    if (props.containsKey(TRASH_LOCATION_KEY)) {
       trashLocation = new Path(props.getProperty(TRASH_LOCATION_KEY).replaceAll("\\$USER", user));
     } else {
       trashLocation = new Path(fs.getHomeDirectory(), DEFAULT_TRASH_DIRECTORY);
       LOG.info("Using default trash location at " + trashLocation);
     }
-    if(!trashLocation.isAbsolute()) {
+    if (!trashLocation.isAbsolute()) {
       throw new IllegalArgumentException("Trash location must be absolute. Found " + trashLocation.toString());
     }
     Path qualifiedTrashLocation = fs.makeQualified(trashLocation);
@@ -108,26 +106,24 @@ public class Trash implements GobblinTrash {
   }
 
   protected void ensureTrashLocationExists(FileSystem fs, Path trashLocation) throws IOException {
-    if(fs.exists(trashLocation)) {
-      if(!fs.isDirectory(trashLocation)) {
+    if (fs.exists(trashLocation)) {
+      if (!fs.isDirectory(trashLocation)) {
         throw new IOException(String.format("Trash location %s is not a directory.", trashLocation));
       }
 
-      if(!fs.exists(new Path(trashLocation, TRASH_IDENTIFIER_FILE))) {
+      if (!fs.exists(new Path(trashLocation, TRASH_IDENTIFIER_FILE))) {
         // If trash identifier file is not present, directory might have been created by user.
         // Add trash identifier file only if directory is empty.
-        if(fs.listStatus(trashLocation).length > 0) {
+        if (fs.listStatus(trashLocation).length > 0) {
           throw new IOException(String.format("Trash directory %s exists, but it does not look like a trash directory. "
-                  + "File: %s missing and directory is not empty.",
-              trashLocation, TRASH_IDENTIFIER_FILE));
-        } else if(!fs.createNewFile(new Path(trashLocation, TRASH_IDENTIFIER_FILE))) {
+              + "File: %s missing and directory is not empty.", trashLocation, TRASH_IDENTIFIER_FILE));
+        } else if (!fs.createNewFile(new Path(trashLocation, TRASH_IDENTIFIER_FILE))) {
           throw new IOException(String.format("Failed to create file %s in existing trash directory %s.",
               TRASH_IDENTIFIER_FILE, trashLocation));
         }
       }
-    } else if(!(fs.mkdirs(trashLocation.getParent(), ALL_PERM) &&
-        fs.mkdirs(trashLocation, PERM) &&
-        fs.createNewFile(new Path(trashLocation, TRASH_IDENTIFIER_FILE)))) {
+    } else if (!(fs.mkdirs(trashLocation.getParent(), ALL_PERM) && fs.mkdirs(trashLocation, PERM)
+        && fs.createNewFile(new Path(trashLocation, TRASH_IDENTIFIER_FILE)))) {
       // Failed to create directory or create trash identifier file.
       throw new IOException("Failed to create trash directory at " + trashLocation.toString());
     }
@@ -177,13 +173,13 @@ public class Trash implements GobblinTrash {
     this.fs = fs;
     this.trashLocation = createTrashLocation(fs, props, user);
     try {
-      Class<?> snapshotCleanupPolicyClass = Class.forName(
-          props.getProperty(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TimeBasedSnapshotCleanupPolicy.class.getCanonicalName()));
-      this.snapshotCleanupPolicy = (SnapshotCleanupPolicy) snapshotCleanupPolicyClass.
-          getConstructor(Properties.class).newInstance(props);
-    } catch(Exception exception) {
-      throw new IllegalArgumentException("Could not create snapshot cleanup policy with class " +
-          props.getProperty(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TimeBasedSnapshotCleanupPolicy.class.getCanonicalName()),
+      Class<?> snapshotCleanupPolicyClass = Class.forName(props.getProperty(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY,
+          TimeBasedSnapshotCleanupPolicy.class.getCanonicalName()));
+      this.snapshotCleanupPolicy =
+          (SnapshotCleanupPolicy) snapshotCleanupPolicyClass.getConstructor(Properties.class).newInstance(props);
+    } catch (Exception exception) {
+      throw new IllegalArgumentException("Could not create snapshot cleanup policy with class " + props
+          .getProperty(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TimeBasedSnapshotCleanupPolicy.class.getCanonicalName()),
           exception);
     }
   }
@@ -195,12 +191,12 @@ public class Trash implements GobblinTrash {
    * @throws IOException
    */
   public boolean moveToTrash(Path path) throws IOException {
-    Path fullyResolvedPath = path.isAbsolute() ? path : new Path(fs.getWorkingDirectory(), path);
+    Path fullyResolvedPath = path.isAbsolute() ? path : new Path(this.fs.getWorkingDirectory(), path);
     Path targetPathInTrash = PathUtils.mergePaths(this.trashLocation, fullyResolvedPath);
 
-    if(!this.fs.exists(targetPathInTrash.getParent())) {
+    if (!this.fs.exists(targetPathInTrash.getParent())) {
       this.fs.mkdirs(targetPathInTrash.getParent());
-    } else if(this.fs.exists(targetPathInTrash)) {
+    } else if (this.fs.exists(targetPathInTrash)) {
       targetPathInTrash = targetPathInTrash.suffix("_" + System.currentTimeMillis());
     }
 
@@ -214,43 +210,44 @@ public class Trash implements GobblinTrash {
   public void createTrashSnapshot() throws IOException {
     FileStatus[] pathsInTrash = this.fs.listStatus(this.trashLocation, TRASH_NOT_SNAPSHOT_PATH_FILTER);
 
-    if(pathsInTrash.length <= 0) {
+    if (pathsInTrash.length <= 0) {
       LOG.info("Nothing in trash. Will not create snapshot.");
       return;
     }
 
     Path snapshotDir = new Path(this.trashLocation, new DateTime().toString(TRASH_SNAPSHOT_NAME_FORMATTER));
-    if(fs.exists(snapshotDir)) {
+    if (this.fs.exists(snapshotDir)) {
       throw new IOException("New snapshot directory " + snapshotDir.toString() + " already exists.");
     }
 
-    if(!fs.mkdirs(snapshotDir, PERM)) {
+    if (!this.fs.mkdirs(snapshotDir, PERM)) {
       throw new IOException("Failed to create new snapshot directory at " + snapshotDir.toString());
     }
 
-    LOG.info(String.format("Moving %d paths in Trash directory to newly created snapshot at %s.",
-        pathsInTrash.length, snapshotDir.toString()));
+    LOG.info(String.format("Moving %d paths in Trash directory to newly created snapshot at %s.", pathsInTrash.length,
+        snapshotDir.toString()));
 
     int pathsFailedToMove = 0;
-    for(FileStatus fileStatus : pathsInTrash) {
+    for (FileStatus fileStatus : pathsInTrash) {
       Path pathRelativeToTrash = PathUtils.relativizePath(fileStatus.getPath(), this.trashLocation);
       Path targetPath = new Path(snapshotDir, pathRelativeToTrash);
       boolean movedThisPath = true;
       try {
-        movedThisPath = fs.rename(fileStatus.getPath(), targetPath);
-      } catch(IOException exception) {
+        movedThisPath = this.fs.rename(fileStatus.getPath(), targetPath);
+      } catch (IOException exception) {
         LOG.error("Failed to move path " + fileStatus.getPath().toString() + " to snapshot.", exception);
         pathsFailedToMove += 1;
         continue;
       }
-      if(!movedThisPath) {
+      if (!movedThisPath) {
         LOG.error("Failed to move path " + fileStatus.getPath().toString() + " to snapshot.");
         pathsFailedToMove += 1;
       }
     }
 
-    if(pathsFailedToMove > 0) {
-      LOG.error(String.format("Failed to move %d paths to the snapshot at %s.", pathsFailedToMove, snapshotDir.toString()));
+    if (pathsFailedToMove > 0) {
+      LOG.error(
+          String.format("Failed to move %d paths to the snapshot at %s.", pathsFailedToMove, snapshotDir.toString()));
     }
 
   }
@@ -267,30 +264,30 @@ public class Trash implements GobblinTrash {
    * @throws IOException
    */
   public void purgeTrashSnapshots() throws IOException {
-    List<FileStatus>
-        snapshotsInTrash = Arrays.asList(this.fs.listStatus(this.trashLocation, TRASH_SNAPSHOT_PATH_FILTER));
+    List<FileStatus> snapshotsInTrash =
+        Arrays.asList(this.fs.listStatus(this.trashLocation, TRASH_SNAPSHOT_PATH_FILTER));
 
     Collections.sort(snapshotsInTrash, new Comparator<FileStatus>() {
       @Override
       public int compare(FileStatus o1, FileStatus o2) {
-        return TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(o1.getPath().getName()).
-            compareTo(TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(o2.getPath().getName()));
+        return TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(o1.getPath().getName())
+            .compareTo(TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(o2.getPath().getName()));
       }
     });
 
     int totalSnapshots = snapshotsInTrash.size();
     int snapshotsDeleted = 0;
 
-    for(FileStatus snapshot : snapshotsInTrash) {
-      if(this.snapshotCleanupPolicy.shouldDeleteSnapshot(snapshot, this)) {
+    for (FileStatus snapshot : snapshotsInTrash) {
+      if (this.snapshotCleanupPolicy.shouldDeleteSnapshot(snapshot, this)) {
         try {
           boolean successfullyDeleted = this.fs.delete(snapshot.getPath(), true);
-          if(successfullyDeleted) {
+          if (successfullyDeleted) {
             snapshotsDeleted++;
           } else {
             LOG.error("Failed to delete snapshot " + snapshot.getPath());
           }
-        } catch(IOException exception){
+        } catch (IOException exception) {
           LOG.error("Failed to delete snapshot " + snapshot.getPath(), exception);
         }
       }
@@ -299,7 +296,4 @@ public class Trash implements GobblinTrash {
     LOG.info(String.format("Deleted %d out of %d existing snapshots.", snapshotsDeleted, totalSnapshots));
   }
 
-
-
 }
-

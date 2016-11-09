@@ -27,6 +27,9 @@ import org.testng.annotations.Test;
 import com.codahale.metrics.Meter;
 import com.google.common.math.DoubleMath;
 
+import gobblin.util.limiter.Limiter;
+import gobblin.util.limiter.RateBasedLimiter;
+
 
 /**
  * Unit tests for {@link RatedControlledFileSystem}.
@@ -38,9 +41,26 @@ public class RatedControlledFileSystemTest {
 
   private RateControlledFileSystem rateControlledFs;
 
+  private class TestRateControlledFileSystem extends RateControlledFileSystem {
+
+    private final Limiter limiter;
+
+    public TestRateControlledFileSystem(FileSystem fs, long limitPerSecond, Limiter limiter) {
+      super(fs, limitPerSecond);
+      this.limiter = limiter;
+    }
+
+    @Override
+    protected Limiter getRateLimiter()
+        throws ExecutionException {
+      return this.limiter;
+    }
+  }
+
   @BeforeClass
   public void setUp() throws IOException, ExecutionException {
-    this.rateControlledFs = new RateControlledFileSystem(FileSystem.getLocal(new Configuration()), 20);
+    Limiter limiter = new RateBasedLimiter(20);
+    this.rateControlledFs = new TestRateControlledFileSystem(FileSystem.getLocal(new Configuration()), 20, limiter);
     this.rateControlledFs.startRateControl();
   }
 

@@ -46,7 +46,7 @@ import gobblin.source.workunit.WorkUnit;
  * estimated avg time per record of all topics that were pulled in the previous run. If no topic was pulled in the
  * previous run, a default value of 1.0 is used.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class KafkaAvgRecordTimeBasedWorkUnitSizeEstimator implements KafkaWorkUnitSizeEstimator {
 
@@ -88,9 +88,8 @@ public class KafkaAvgRecordTimeBasedWorkUnitSizeEstimator implements KafkaWorkUn
   private double getEstAvgMillisForTopic(String topic) {
     if (this.estAvgMillis.containsKey(topic)) {
       return this.estAvgMillis.get(topic);
-    } else {
-      return this.avgEstAvgMillis;
     }
+    return this.avgEstAvgMillis;
   }
 
   /**

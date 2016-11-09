@@ -21,7 +21,7 @@ import gobblin.qualitychecker.row.RowLevelPolicy;
 /**
  * A class that checks whether an Avro record has header.time or header.timestamp field.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 public class AvroHeaderTimestampPolicy extends RowLevelPolicy {
 

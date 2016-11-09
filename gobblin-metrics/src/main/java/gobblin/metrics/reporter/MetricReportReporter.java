@@ -12,15 +12,11 @@
 
 package gobblin.metrics.reporter;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
-
-import lombok.Getter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,19 +31,14 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
-
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.io.Closer;
-
 import com.typesafe.config.Config;
 
 import gobblin.metrics.Measurements;
 import gobblin.metrics.Metric;
 import gobblin.metrics.MetricReport;
-import gobblin.metrics.Tag;
 
 
 /**
@@ -57,55 +48,28 @@ import gobblin.metrics.Tag;
  *   This class will generate a metric report, and call {@link #emitReport} to actually emit the metrics.
  * </p>
  */
-public abstract class MetricReportReporter extends ScheduledReporter {
+public abstract class MetricReportReporter extends ConfiguredScheduledReporter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MetricReportReporter.class);
 
-  private static final String FINAL_TAG_KEY = "finalMetricReport";
-
-  @Getter
-  private final TimeUnit rateUnit;
-
-  @Getter
-  private final TimeUnit durationUnit;
-
-  private final double rateFactor;
-  private final double durationFactor;
-
-  protected final ImmutableMap<String, String> tags;
-  protected final Closer closer;
-
   public MetricReportReporter(Builder<?> builder, Config config) {
-    super(builder.name, config);
-    this.rateUnit = builder.rateUnit;
-    this.durationUnit = builder.durationUnit;
-    this.rateFactor = builder.rateUnit.toSeconds(1);
-    this.durationFactor = 1.0 / builder.durationUnit.toNanos(1);
-    this.tags = ImmutableMap.copyOf(builder.tags);
-    this.closer = Closer.create();
+    super(builder, config);
   }
 
   /**
    * Builder for {@link MetricReportReporter}. Defaults to no filter, reporting rates in seconds and times in
    * milliseconds.
    */
-  public static abstract class Builder<T extends Builder<T>> {
-
-    protected String name;
+  public static abstract class Builder<T extends ConfiguredScheduledReporter.Builder<T>> extends
+      ConfiguredScheduledReporter.Builder<T> {
+ 
     protected MetricFilter filter;
-    protected TimeUnit rateUnit;
-    protected TimeUnit durationUnit;
-    protected Map<String, String> tags;
 
     protected Builder() {
+      super();
       this.name = "MetricReportReporter";
-      this.rateUnit = TimeUnit.SECONDS;
-      this.durationUnit = TimeUnit.MILLISECONDS;
       this.filter = MetricFilter.ALL;
-      this.tags = Maps.newHashMap();
     }
-
-    protected abstract T self();
 
     /**
      * Only report metrics which match the given filter.
@@ -117,75 +81,8 @@ public abstract class MetricReportReporter extends ScheduledReporter {
       this.filter = filter;
       return self();
     }
-
-    /**
-     * Convert rates to the given time unit.
-     *
-     * @param rateUnit a unit of time
-     * @return {@code this}
-     */
-    public T convertRatesTo(TimeUnit rateUnit) {
-      this.rateUnit = rateUnit;
-      return self();
-    }
-
-    /**
-     * Convert durations to the given time unit.
-     *
-     * @param durationUnit a unit of time
-     * @return {@code this}
-     */
-    public T convertDurationsTo(TimeUnit durationUnit) {
-      this.durationUnit = durationUnit;
-      return self();
-    }
-
-    /**
-     * Add tags
-     * @param tags additional {@link gobblin.metrics.Tag}s for the reporter.
-     * @return {@code this}
-     */
-    public T withTags(Map<String, String> tags) {
-      this.tags.putAll(tags);
-      return self();
-    }
-
-    /**
-     * Add tags.
-     * @param tags List of {@link gobblin.metrics.Tag}
-     * @return {@code this}
-     */
-    public T withTags(List<Tag<?>> tags) {
-      for(Tag<?> tag : tags) {
-        this.tags.put(tag.getKey(), tag.getValue().toString());
-      }
-      return self();
-    }
-
-    /**
-     * Add tag.
-     * @param key tag key
-     * @param value tag value
-     * @return {@code this}
-     */
-    public T withTag(String key, String value) {
-      this.tags.put(key, value);
-      return self();
-    }
   }
-
-  @Override
-  protected void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
-      SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
-      Map<String, Object> tags, boolean isFinal) {
-    if (isFinal) {
-      report(gauges, counters, histograms, meters, timers,
-          ImmutableMap.<String, Object>builder().putAll(tags).put(FINAL_TAG_KEY, Boolean.TRUE).build());
-    } else {
-      report(gauges, counters, histograms, meters, timers, tags);
-    }
-  }
-
+  
   /**
    * Serializes metrics and pushes the byte arrays to Kafka. Uses the serialize* methods in {@link MetricReportReporter}.
    *
@@ -340,24 +237,5 @@ public abstract class MetricReportReporter extends ScheduledReporter {
    */
   protected Metric serializeValue(String name, Number value, String... path) {
     return new Metric(MetricRegistry.name(name, path), value.doubleValue());
-  }
-
-  protected double convertDuration(double duration) {
-    return duration * this.durationFactor;
-  }
-
-  protected double convertRate(double rate) {
-    return rate * this.rateFactor;
-  }
-
-  @Override
-  public void close() throws IOException {
-    try {
-      this.closer.close();
-    } catch(Exception e) {
-      LOGGER.warn("Exception when closing KafkaReporter", e);
-    } finally {
-      super.close();
-    }
   }
 }

@@ -66,6 +66,6 @@ public class AvroFieldRetrieverConverter extends Converter<Schema, Schema, Gener
       throws DataConversionException {
     Optional<Object> field = AvroUtils.getFieldValue(inputRecord, this.fieldLocation);
 
-    return field.isPresent() ? new SingleRecordIterable<Object>(field.get()) : new EmptyIterable<Object>();
+    return field.isPresent() ? new SingleRecordIterable<>(field.get()) : new EmptyIterable<>();
   }
 }

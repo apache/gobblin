@@ -1,0 +1,34 @@
+{
+  "type" : "record",
+  "name" : "parentRecordName",
+  "fields" : [ {
+    "name" : "parentFieldRecord",
+    "type" : {
+      "type" : "record",
+      "name" : "nestedRecordName",
+      "fields" : [ {
+        "name" : "nestedFieldRecord",
+        "type" : {
+          "type" : "record",
+          "name" : "superNestedRecordName",
+          "fields" : [ {
+            "name" : "superNestedFieldString",
+            "type" : "string"
+          }, {
+            "name" : "superNestedFieldInt",
+            "type" : "int"
+          }]
+        }
+      }, {
+        "name" : "nestedFieldString",
+        "type" : "string"
+      }, {
+        "name" : "nestedFieldInt",
+        "type" : "int"
+      } ]
+    }
+  }, {
+    "name" : "parentFieldInt",
+    "type" : "int"
+  } ]
+}

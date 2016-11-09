@@ -12,26 +12,35 @@
 
 package gobblin.util;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Strings;
 
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class PathUtils {
 
-  public static final Pattern GLOB_TOKENS = Pattern.compile("[\\?\\*\\[\\{]");
+  public static final Pattern GLOB_TOKENS = Pattern.compile("[,\\?\\*\\[\\{]");
 
   public static Path mergePaths(Path path1, Path path2) {
     String path2Str = path2.toUri().getPath();
+    if (!path2Str.startsWith("/")) {
+      path2Str = "/" + path2Str;
+    }
     return new Path(path1.toUri().getScheme(), path1.toUri().getAuthority(), path1.toUri().getPath() + path2Str);
   }
 
   public static Path relativizePath(Path fullPath, Path pathPrefix) {
-    return new Path(pathPrefix.toUri().relativize(fullPath.toUri()));
+    return new Path(getPathWithoutSchemeAndAuthority(pathPrefix).toUri()
+        .relativize(getPathWithoutSchemeAndAuthority(fullPath).toUri()));
   }
 
   /**
@@ -41,13 +50,14 @@ public class PathUtils {
    * @return true if possibleAncestor is an ancestor of fullPath.
    */
   public static boolean isAncestor(Path possibleAncestor, Path fullPath) {
-    return !relativizePath(fullPath, possibleAncestor).equals(fullPath);
+    return !relativizePath(fullPath, possibleAncestor).equals(getPathWithoutSchemeAndAuthority(fullPath));
   }
 
   /**
    * Removes the Scheme and Authority from a Path.
    *
-   * @see {@link Path}, {@link URI}
+   * @see Path
+   * @see URI
    */
   public static Path getPathWithoutSchemeAndAuthority(Path path) {
     return new Path(null, null, path.toUri().getPath());
@@ -67,10 +77,17 @@ public class PathUtils {
   public static Path deepestNonGlobPath(Path input) {
     Path commonRoot = input;
 
-    while(commonRoot != null && GLOB_TOKENS.matcher(commonRoot.toString()).find()) {
+    while (commonRoot != null && isGlob(commonRoot)) {
       commonRoot = commonRoot.getParent();
     }
     return commonRoot;
+  }
+
+  /**
+   * @return true if path has glob tokens (e.g. *, {, \, }, etc.)
+   */
+  public static boolean isGlob(Path path) {
+    return (path != null) && GLOB_TOKENS.matcher(path.toString()).find();
   }
 
   /**
@@ -90,7 +107,7 @@ public class PathUtils {
    *
    * @return a new {@link Path} without <code>extensions</code>
    */
-  public static Path removeExtension(Path path, String...extensions) {
+  public static Path removeExtension(Path path, String... extensions) {
     String pathString = path.toString();
     for (String extension : extensions) {
       pathString = StringUtils.remove(pathString, extension);
@@ -114,7 +131,7 @@ public class PathUtils {
    *
    * @return a new {@link Path} with <code>extensions</code>
    */
-  public static Path addExtension(Path path, String...extensions) {
+  public static Path addExtension(Path path, String... extensions) {
     StringBuilder pathStringBuilder = new StringBuilder(path.toString());
     for (String extension : extensions) {
       if (!Strings.isNullOrEmpty(extension)) {
@@ -122,5 +139,56 @@ public class PathUtils {
       }
     }
     return new Path(pathStringBuilder.toString());
+  }
+
+  public static Path combinePaths(String... paths) {
+    if (paths.length == 0) {
+      throw new IllegalArgumentException("Paths cannot be empty!");
+    }
+
+    Path path = new Path(paths[0]);
+    for (int i = 1; i < paths.length; i++) {
+      path = new Path(path, paths[i]);
+    }
+    return path;
+  }
+
+  /**
+   * Is an absolute path (ie a slash relative path part)
+   *  AND  a scheme is null AND  authority is null.
+   */
+  public static boolean isAbsoluteAndSchemeAuthorityNull(Path path) {
+    return (path.isAbsolute() &&
+        path.toUri().getScheme() == null && path.toUri().getAuthority() == null);
+  }
+
+  /**
+   * Deletes empty directories starting with startPath and all ancestors up to but not including limitPath.
+   * @param fs {@link FileSystem} where paths are located.
+   * @param limitPath only {@link Path}s that are strict descendants of this path will be deleted.
+   * @param startPath first {@link Path} to delete. Afterwards empty ancestors will be deleted.
+   * @throws IOException
+   */
+  public static void deleteEmptyParentDirectories(FileSystem fs, Path limitPath, Path startPath)
+      throws IOException {
+    if (PathUtils.isAncestor(limitPath, startPath) && !PathUtils.getPathWithoutSchemeAndAuthority(limitPath)
+        .equals(PathUtils.getPathWithoutSchemeAndAuthority(startPath)) && fs.listStatus(startPath).length == 0) {
+      if (!fs.delete(startPath, false)) {
+        log.warn("Failed to delete empty directory " + startPath);
+      } else {
+        log.info("Deleted empty directory " + startPath);
+      }
+      deleteEmptyParentDirectories(fs, limitPath, startPath.getParent());
+    }
+  }
+
+  /**
+   * Compare two path without shedme and authority (the prefix)
+   * @param path1
+   * @param path2
+   * @return
+   */
+  public static boolean compareWithoutSchemeAndAuthority(Path path1, Path path2) {
+    return PathUtils.getPathWithoutSchemeAndAuthority(path1).equals(getPathWithoutSchemeAndAuthority(path2));
   }
 }

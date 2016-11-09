@@ -59,9 +59,8 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
     if (Strings.isNullOrEmpty(strDelimiter)) {
       throw new IllegalArgumentException("Delimiter cannot be empty");
     }
-    InputStreamCSVReader reader =
-        new InputStreamCSVReader(inputRecord, strDelimiter.charAt(0), workUnit.getProp(
-            ConfigurationKeys.CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR,
+    InputStreamCSVReader reader = new InputStreamCSVReader(inputRecord, strDelimiter.charAt(0),
+        workUnit.getProp(ConfigurationKeys.CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR,
             ConfigurationKeys.DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR).charAt(0));
     List<String> recordSplit;
     try {
@@ -78,14 +77,14 @@ public class CsvToJsonConverter extends Converter<String, JsonArray, String, Jso
         } else if (recordSplit.get(i).isEmpty() || recordSplit.get(i).toLowerCase().equals(NULL)) {
           outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
         } else {
-          outputRecord
-              .addProperty(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), recordSplit.get(i));
+          outputRecord.addProperty(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(),
+              recordSplit.get(i));
         }
       } else {
         outputRecord.add(outputSchema.get(i).getAsJsonObject().get("columnName").getAsString(), JsonNull.INSTANCE);
       }
     }
 
-    return new SingleRecordIterable<JsonObject>(outputRecord);
+    return new SingleRecordIterable<>(outputRecord);
   }
 }

@@ -24,7 +24,7 @@ public class ColumnAttributes {
   String sourceColumnName;
 
   public String getColumnName() {
-    return columnName;
+    return this.columnName;
   }
 
   public void setColumnName(String columnName) {
@@ -32,15 +32,15 @@ public class ColumnAttributes {
   }
 
   public String getAliasName() {
-    return AliasName;
+    return this.AliasName;
   }
 
   public void setAliasName(String aliasName) {
-    AliasName = aliasName;
+    this.AliasName = aliasName;
   }
 
   public String getSourceTableName() {
-    return sourceTableName;
+    return this.sourceTableName;
   }
 
   public void setSourceTableName(String sourceTableName) {
@@ -48,7 +48,7 @@ public class ColumnAttributes {
   }
 
   public String getSourceColumnName() {
-    return sourceColumnName;
+    return this.sourceColumnName;
   }
 
   public void setSourceColumnName(String sourceColumnName) {

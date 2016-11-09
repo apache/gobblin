@@ -11,8 +11,8 @@
   </appender>
 
   <appender name="file" class="org.apache.log4j.RollingFileAppender">
-    <param name="append" value="false" />
-    <param name="file" value="logs/gobblin-compaction.log" />
+    <param name="append" value="true" />
+    <param name="file" value="${gobblin.logs.dir}/gobblin-compaction.log" />
     <layout class="org.apache.log4j.PatternLayout">
       <param name="ConversionPattern"
         value="%d{yyyy-MM-dd HH:mm:ss z} %-5p [%t] %C %X{tableName} %L - %m%n" />

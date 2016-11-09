@@ -1,10 +1,11 @@
 package gobblin.source.extractor.watermark;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Maps;
 
 
 /**
@@ -40,7 +41,7 @@ public class DateWatermarkTest {
     int partition = 30;
     int maxInterval = 4;
     Map<Long, Long> results = datewm.getIntervals(lwm, hwm, partition, maxInterval);
-    Map<Long, Long> expected = new HashMap<Long, Long>();
+    Map<Long, Long> expected = Maps.newHashMap();
     expected.put(20150201000000l, 20150201000000l);
     Assert.assertEquals(results, expected);
   }
@@ -59,7 +60,7 @@ public class DateWatermarkTest {
     int partition = 30;
     int maxInterval = 4;
     Map<Long, Long> results = datewm.getIntervals(lwm, hwm, partition, maxInterval);
-    Map<Long, Long> expected = new HashMap<Long, Long>();
+    Map<Long, Long> expected = Maps.newHashMap();
     expected.put(20150201000000l, 20150202000000l);
     expected.put(20150203000000l, 20150204000000l);
     expected.put(20150205000000l, 20150206000000l);
@@ -79,7 +80,7 @@ public class DateWatermarkTest {
     int partition = 30;
     int maxInterval = 2;
     Map<Long, Long> results = datewm.getIntervals(lwm, hwm, partition, maxInterval);
-    Map<Long, Long> expected = new HashMap<Long, Long>();
+    Map<Long, Long> expected = Maps.newHashMap();
     expected.put(20150201000000l, 20150203000000l);
     expected.put(20150204000000l, 20150206000000l);
     Assert.assertEquals(results, expected);

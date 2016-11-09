@@ -205,13 +205,4 @@ public class TaskExecutor extends AbstractIdleService {
     LOG.info(String.format("Scheduled retry of failed task %s to run in %d seconds", task.getTaskId(), interval));
     task.incrementRetryCount();
   }
-
-  /**
-   * Get the {@link ExecutorService} used to run {@link Fork}s.
-   *
-   * @return the {@link ExecutorService} used to run {@link Fork}s
-   */
-  ExecutorService getForkExecutor() {
-    return this.forkExecutor;
-  }
 }

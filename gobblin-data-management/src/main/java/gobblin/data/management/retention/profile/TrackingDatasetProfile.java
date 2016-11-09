@@ -19,13 +19,13 @@ import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import gobblin.data.management.dataset.Dataset;
+import gobblin.dataset.Dataset;
 import gobblin.data.management.retention.dataset.TrackingDataset;
 import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFinder;
 
 
 /**
- * {@link gobblin.data.management.retention.dataset.finder.DatasetFinder} for tracking datasets.
+ * {@link gobblin.dataset.DatasetsFinder} for tracking datasets.
  *
  * <p>
  *   Tracking datasets are datasets where each data point represents a timestamped action, and the records are
@@ -34,21 +34,19 @@ import gobblin.data.management.retention.version.finder.DateTimeDatasetVersionFi
  */
 public class TrackingDatasetProfile extends ConfigurableGlobDatasetFinder {
 
-  public TrackingDatasetProfile(FileSystem fs, Properties props)
-      throws IOException {
+  public TrackingDatasetProfile(FileSystem fs, Properties props) {
     super(fs, props);
   }
 
   @Override
   public List<String> requiredProperties() {
     List<String> requiredProperties = super.requiredProperties();
-    requiredProperties.add(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY);
+    requiredProperties.add(DateTimeDatasetVersionFinder.RETENTION_DATE_TIME_PATTERN_KEY);
     return requiredProperties;
   }
 
   @Override
-  public Dataset datasetAtPath(Path path)
-      throws IOException {
+  public Dataset datasetAtPath(Path path) throws IOException {
     return new TrackingDataset(this.fs, this.props, path);
   }
 }

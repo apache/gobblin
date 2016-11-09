@@ -24,7 +24,7 @@ public class PublisherUtils {
   /**
    * Creates a {@link Multimap} that maps {@link Extract} to their corresponds {@link WorkUnitState}s.
    *
-   * @see {@link Multimap}
+   * @see Multimap
    */
   public static Multimap<Extract, WorkUnitState> createExtractToWorkUnitStateMap(
       Collection<? extends WorkUnitState> workUnitStates) {

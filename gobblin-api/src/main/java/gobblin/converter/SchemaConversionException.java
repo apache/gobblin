@@ -20,6 +20,8 @@ package gobblin.converter;
  */
 public class SchemaConversionException extends Exception {
 
+  private static final long serialVersionUID = 1L;
+
   public SchemaConversionException(Throwable cause) {
     super(cause);
   }

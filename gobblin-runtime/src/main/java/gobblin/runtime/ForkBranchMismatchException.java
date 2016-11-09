@@ -21,6 +21,8 @@ package gobblin.runtime;
  */
 public class ForkBranchMismatchException extends Exception {
 
+  private static final long serialVersionUID = 1L;
+
   public ForkBranchMismatchException(String message) {
     super(message);
   }

@@ -21,6 +21,8 @@ import java.io.IOException;
  * A {@link KafkaSource} implementation for SimpleKafkaExtractor.
  *
  * @author akshay@nerdwallet.com
+ *
+ * @deprecated use {@link KafkaDeserializerSource} and {@link KafkaDeserializerExtractor.Deserializers#BYTE_ARRAY} instead
  */
 public class KafkaSimpleSource extends KafkaSource<String, byte[]> {
   /**

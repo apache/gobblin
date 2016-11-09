@@ -1,0 +1,8 @@
+INSERT OVERWRITE TABLE `default`.`testRecordWithinRecordWithinRecordDDL_orc` 
+SELECT 
+  `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldString`, 
+  `parentFieldRecord`.`nestedFieldRecord`.`superNestedFieldInt`, 
+  `parentFieldRecord`.`nestedFieldString`, 
+  `parentFieldRecord`.`nestedFieldInt`, 
+  `parentFieldInt` 
+ FROM `default`.`testRecordWithinRecordWithinRecordDDL`

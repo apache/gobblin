@@ -12,15 +12,13 @@
 
 package gobblin.source.extractor.filebased;
 
+import java.io.Closeable;
 import java.io.InputStream;
 import java.util.List;
 
 
-public interface FileBasedHelper {
+public interface FileBasedHelper extends Closeable {
   public void connect()
-      throws FileBasedHelperException;
-
-  public void close()
       throws FileBasedHelperException;
 
   public List<String> ls(String path)

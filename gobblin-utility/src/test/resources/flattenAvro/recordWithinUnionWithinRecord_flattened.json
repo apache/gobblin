@@ -1,0 +1,16 @@
+{
+  "type" : "record",
+  "name" : "parentRecordName",
+  "fields" : [ {
+    "name" : "parentFieldUnion__unionRecordMemberFieldUnion1",
+    "type" : [ "string", "null" ],
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldUnion1"
+  }, {
+    "name" : "parentFieldUnion__unionRecordMemberFieldUnion2",
+    "type" : [ "string", "null" ],
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldUnion2"
+  }, {
+    "name" : "parentFieldInt",
+    "type" : "int"
+  } ]
+}

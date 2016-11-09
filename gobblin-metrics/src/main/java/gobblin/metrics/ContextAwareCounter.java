@@ -11,12 +11,12 @@
  */
 
 package gobblin.metrics;
-import lombok.experimental.Delegate;
-
 import com.codahale.metrics.Counter;
 
-import gobblin.metrics.metric.ProxyMetric;
 import gobblin.metrics.metric.InnerMetric;
+import gobblin.metrics.metric.ProxyMetric;
+
+import lombok.experimental.Delegate;
 
 
 /**
@@ -35,7 +35,7 @@ import gobblin.metrics.metric.InnerMetric;
  *
  * @author Yinan Li
  */
-class ContextAwareCounter extends Counter implements ProxyMetric, ContextAwareMetric {
+public class ContextAwareCounter extends Counter implements ProxyMetric, ContextAwareMetric {
 
   private final MetricContext metricContext;
   @Delegate
@@ -46,6 +46,7 @@ class ContextAwareCounter extends Counter implements ProxyMetric, ContextAwareMe
     this.metricContext = context;
   }
 
+  @Override
   public MetricContext getContext() {
     return this.metricContext;
   }

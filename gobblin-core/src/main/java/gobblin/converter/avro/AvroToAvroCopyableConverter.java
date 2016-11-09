@@ -49,6 +49,6 @@ public class AvroToAvroCopyableConverter extends
   @Override
   public Iterable<CopyableGenericRecord> convertRecord(CopyableSchema outputSchema, GenericRecord inputRecord,
       WorkUnitState workUnit) throws DataConversionException {
-    return new SingleRecordIterable<CopyableGenericRecord>(new CopyableGenericRecord(inputRecord));
+    return new SingleRecordIterable<>(new CopyableGenericRecord(inputRecord));
   }
 }

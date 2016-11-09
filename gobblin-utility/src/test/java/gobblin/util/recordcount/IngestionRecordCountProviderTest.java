@@ -26,7 +26,7 @@ public class IngestionRecordCountProviderTest {
   @Test
   public void testFileNameFormat() {
     IngestionRecordCountProvider filenameRecordCountProvider = new IngestionRecordCountProvider();
-    Assert.assertEquals(filenameRecordCountProvider.constructFilePath("/a/b/c.avro", 123), "/a/b/c.123.avro");
+    Assert.assertEquals(IngestionRecordCountProvider.constructFilePath("/a/b/c.avro", 123), "/a/b/c.123.avro");
     Assert.assertEquals(filenameRecordCountProvider.getRecordCount(new Path("/a/b/c.123.avro")), 123);
   }
 

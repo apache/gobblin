@@ -38,11 +38,12 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.Constructs;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.GobblinMetricsRegistry;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.converter.Converter;
 import gobblin.fork.ForkOperator;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.qualitychecker.row.RowLevelPolicy;
@@ -71,7 +72,7 @@ import gobblin.writer.DataWriter;
  */
 public class Instrumented implements Instrumentable, Closeable {
 
-  public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
+  public static final String METRIC_CONTEXT_NAME_KEY = ConfigurationKeys.METRIC_CONTEXT_NAME_KEY;
   public static final Random RAND = new Random();
 
   private final boolean instrumentationEnabled;
@@ -111,38 +112,35 @@ public class Instrumented implements Instrumentable, Closeable {
   public static MetricContext getMetricContext(State state, Class<?> klazz, List<Tag<?>> tags) {
     int randomId = RAND.nextInt(Integer.MAX_VALUE);
 
+    List<Tag<?>> generatedTags = Lists.newArrayList();
     Constructs construct = null;
-    if(Converter.class.isAssignableFrom(klazz)) {
+    if (Converter.class.isAssignableFrom(klazz)) {
       construct = Constructs.CONVERTER;
-    } else if(ForkOperator.class.isAssignableFrom(klazz)) {
+    } else if (ForkOperator.class.isAssignableFrom(klazz)) {
       construct = Constructs.FORK_OPERATOR;
-    } else if(RowLevelPolicy.class.isAssignableFrom(klazz)) {
+    } else if (RowLevelPolicy.class.isAssignableFrom(klazz)) {
       construct = Constructs.ROW_QUALITY_CHECKER;
-    } else if(Extractor.class.isAssignableFrom(klazz)) {
+    } else if (Extractor.class.isAssignableFrom(klazz)) {
       construct = Constructs.EXTRACTOR;
-    } else if(DataWriter.class.isAssignableFrom(klazz)) {
+    } else if (DataWriter.class.isAssignableFrom(klazz)) {
       construct = Constructs.WRITER;
     }
 
-    List<Tag<?>> generatedTags = Lists.newArrayList();
     if (construct != null) {
-      generatedTags.add(new Tag<>("construct", construct.toString()));
+      generatedTags.add(new Tag<>(GobblinMetricsKeys.CONSTRUCT_META, construct.toString()));
     }
     if (!klazz.isAnonymousClass()) {
-      generatedTags.add(new Tag<>("class", klazz.getCanonicalName()));
+      generatedTags.add(new Tag<>(GobblinMetricsKeys.CLASS_META, klazz.getCanonicalName()));
     }
 
-    Optional<GobblinMetrics> gobblinMetrics = state.contains(METRIC_CONTEXT_NAME_KEY) ?
-        GobblinMetricsRegistry.getInstance().get(state.getProp(METRIC_CONTEXT_NAME_KEY)) :
-        Optional.<GobblinMetrics>absent();
+    Optional<GobblinMetrics> gobblinMetrics = state.contains(METRIC_CONTEXT_NAME_KEY)
+        ? GobblinMetricsRegistry.getInstance().get(state.getProp(METRIC_CONTEXT_NAME_KEY))
+        : Optional.<GobblinMetrics> absent();
 
-    MetricContext.Builder builder = gobblinMetrics.isPresent() ?
-        gobblinMetrics.get().getMetricContext().childBuilder(klazz.getCanonicalName() + "." + randomId) :
-        MetricContext.builder(klazz.getCanonicalName() + "." + randomId);
-    return builder.
-        addTags(generatedTags).
-        addTags(tags).
-        build();
+    MetricContext.Builder builder = gobblinMetrics.isPresent()
+        ? gobblinMetrics.get().getMetricContext().childBuilder(klazz.getCanonicalName() + "." + randomId)
+        : MetricContext.builder(klazz.getCanonicalName() + "." + randomId);
+    return builder.addTags(generatedTags).addTags(tags).build();
   }
 
   /**
@@ -166,9 +164,8 @@ public class Instrumented implements Instrumentable, Closeable {
       String randomIdPrefix = "uuid:";
 
       String oldName = context.getName();
-      List<String> splitName = Strings.isNullOrEmpty(oldName) ?
-          Lists.<String>newArrayList() :
-          Lists.newArrayList(Splitter.on(".").splitToList(oldName));
+      List<String> splitName = Strings.isNullOrEmpty(oldName) ? Lists.<String> newArrayList()
+          : Lists.newArrayList(Splitter.on(".").splitToList(oldName));
       if (splitName.size() > 0 && StringUtils.startsWith(Iterables.getLast(splitName), randomIdPrefix)) {
         splitName.set(splitName.size() - 1, String.format("%s%s", randomIdPrefix, uuid.toString()));
       } else {
@@ -177,9 +174,8 @@ public class Instrumented implements Instrumentable, Closeable {
       newName = Joiner.on(".").join(splitName);
     }
 
-    MetricContext.Builder builder = context.getParent().isPresent() ?
-        context.getParent().get().childBuilder(newName) :
-        MetricContext.builder(newName);
+    MetricContext.Builder builder = context.getParent().isPresent() ? context.getParent().get().childBuilder(newName)
+        : MetricContext.builder(newName);
     return builder.addTags(context.getTags()).addTags(newTags).build();
   }
 
@@ -193,8 +189,8 @@ public class Instrumented implements Instrumentable, Closeable {
 
     List<Object> lineage = DecoratorUtils.getDecoratorLineage(obj);
 
-    for(Object node : lineage) {
-      if(node instanceof Instrumentable) {
+    for (Object node : lineage) {
+      if (node instanceof Instrumentable) {
         return true;
       }
     }
@@ -277,16 +273,14 @@ public class Instrumented implements Instrumentable, Closeable {
     state.setProp(Instrumented.METRIC_CONTEXT_NAME_KEY, name);
   }
 
-  @SuppressWarnings("unchecked")
   public Instrumented(State state, Class<?> klazz) {
-    this(state, klazz, ImmutableList.<Tag<?>>of());
+    this(state, klazz, ImmutableList.<Tag<?>> of());
   }
 
-  @SuppressWarnings("unchecked")
   public Instrumented(State state, Class<?> klazz, List<Tag<?>> tags) {
     this.closer = Closer.create();
     this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
-    this.metricContext = closer.register(getMetricContext(state, klazz, tags));
+    this.metricContext = this.closer.register(getMetricContext(state, klazz, tags));
   }
 
   /** Default with no additional tags */
@@ -307,8 +301,8 @@ public class Instrumented implements Instrumentable, Closeable {
 
   @Override
   public void switchMetricContext(List<Tag<?>> tags) {
-    this.metricContext = this.closer.register(Instrumented.newContextFromReferenceContext(this.metricContext, tags,
-        Optional.<String>absent()));
+    this.metricContext = this.closer
+        .register(Instrumented.newContextFromReferenceContext(this.metricContext, tags, Optional.<String> absent()));
   }
 
   @Override
@@ -317,8 +311,7 @@ public class Instrumented implements Instrumentable, Closeable {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     this.closer.close();
   }
 

@@ -42,20 +42,17 @@ import gobblin.configuration.State;
  *
  * @author Yinan Li
  */
-@Test(groups = {"gobblin.writer"})
+@Test(groups = { "gobblin.writer" })
 public class AvroHdfsDataWriterTest {
 
-  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {
-  }.getType();
+  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
 
   private Schema schema;
   private DataWriter<GenericRecord> writer;
   private String filePath;
 
   @BeforeClass
-  @SuppressWarnings("unchecked")
-  public void setUp()
-      throws Exception {
+  public void setUp() throws Exception {
     // Making the staging and/or output dirs if necessary
     File stagingDir = new File(TestConstants.TEST_STAGING_DIR);
     File outputDir = new File(TestConstants.TEST_OUTPUT_DIR);
@@ -68,9 +65,8 @@ public class AvroHdfsDataWriterTest {
 
     this.schema = new Schema.Parser().parse(TestConstants.AVRO_SCHEMA);
 
-    this.filePath = TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" +
-        TestConstants.TEST_EXTRACT_TABLE + "/" + TestConstants.TEST_EXTRACT_ID + "_" +
-        TestConstants.TEST_EXTRACT_PULL_TYPE;
+    this.filePath = TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + TestConstants.TEST_EXTRACT_TABLE
+        + "/" + TestConstants.TEST_EXTRACT_ID + "_" + TestConstants.TEST_EXTRACT_PULL_TYPE;
 
     State properties = new State();
     properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
@@ -81,19 +77,13 @@ public class AvroHdfsDataWriterTest {
     properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, TestConstants.TEST_FILE_NAME);
 
     // Build a writer to write test records
-    this.writer = new AvroDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
-        .writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(TestConstants.TEST_WRITER_ID)
-        .withSchema(this.schema)
-        .withBranches(1)
-        .forBranch(0)
-        .build();
+    this.writer = new AvroDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
+        .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
+        .withBranches(1).forBranch(0).build();
   }
 
   @Test
-  public void testWrite()
-      throws IOException {
+  public void testWrite() throws IOException {
     // Write all test records
     for (String record : TestConstants.JSON_RECORDS) {
       this.writer.write(convertRecord(record));
@@ -107,7 +97,7 @@ public class AvroHdfsDataWriterTest {
     File outputFile =
         new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath, TestConstants.TEST_FILE_NAME);
     DataFileReader<GenericRecord> reader =
-        new DataFileReader<GenericRecord>(outputFile, new GenericDatumReader<GenericRecord>(this.schema));
+        new DataFileReader<>(outputFile, new GenericDatumReader<GenericRecord>(this.schema));
 
     // Read the records back and assert they are identical to the ones written
     GenericRecord user1 = reader.next();
@@ -130,8 +120,7 @@ public class AvroHdfsDataWriterTest {
   }
 
   @AfterClass
-  public void tearDown()
-      throws IOException {
+  public void tearDown() throws IOException {
     // Clean up the staging and/or output directories if necessary
     File testRootDir = new File(TestConstants.TEST_ROOT_DIR);
     if (testRootDir.exists()) {
@@ -143,7 +132,7 @@ public class AvroHdfsDataWriterTest {
     Gson gson = new Gson();
     JsonElement element = gson.fromJson(inputRecord, JsonElement.class);
     Map<String, Object> fields = gson.fromJson(element, FIELD_ENTRY_TYPE);
-    GenericRecord outputRecord = new GenericData.Record(schema);
+    GenericRecord outputRecord = new GenericData.Record(this.schema);
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
       outputRecord.put(entry.getKey(), entry.getValue());
     }

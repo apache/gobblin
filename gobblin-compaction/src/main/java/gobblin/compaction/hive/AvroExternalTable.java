@@ -28,15 +28,11 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.io.Closer;
-
 import gobblin.hive.util.HiveJdbcConnector;
 
 
 /**
  * A class for managing Hive external tables created on Avro files.
- *
- * @author ziliu
  */
 public class AvroExternalTable extends HiveTable {
 
@@ -44,11 +40,11 @@ public class AvroExternalTable extends HiveTable {
   private static final String HIVE_TMPSCHEMA_DIR = "hive.tmpschema.dir";
   private static final String HIVE_TMPDATA_DIR = "hive.tmpdata.dir";
   private static final String HIVE_TMPDATA_DIR_DEFAULT = "/";
-  private static final String CREATE_TABLE_STMT = "CREATE EXTERNAL TABLE %1$s "
-      + " ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'" + " STORED AS"
-      + " INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat'"
-      + " OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'" + " LOCATION '%2$s'"
-      + " TBLPROPERTIES ('avro.schema.url'='%3$s')";
+  private static final String CREATE_TABLE_STMT =
+      "CREATE EXTERNAL TABLE %1$s " + " ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.avro.AvroSerDe'" + " STORED AS"
+          + " INPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat'"
+          + " OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'" + " LOCATION '%2$s'"
+          + " TBLPROPERTIES ('avro.schema.url'='%3$s')";
   private final String dataLocationInHdfs;
   private final String schemaLocationInHdfs;
   private final boolean deleteSchemaAfterDone;
@@ -106,33 +102,25 @@ public class AvroExternalTable extends HiveTable {
   }
 
   private List<HiveAttribute> getAttributesFromAvroSchemaFile() throws IOException {
-    Closer closer = Closer.create();
-    try {
-      InputStream schemaInputStream = closer.register(new HdfsReader(this.schemaLocationInHdfs).getInputStream());
+    try (InputStream schemaInputStream = new HdfsReader(this.schemaLocationInHdfs).getInputStream()) {
       Schema schema = new Schema.Parser().parse(schemaInputStream);
       return parseSchema(schema);
-    } finally {
-      closer.close();
     }
   }
 
   private Schema getSchemaFromAvroDataFile() throws IOException {
-    String firstDataFilePath = HdfsReader.getFirstDataFilePathInDir(dataLocationInHdfs);
-    LOG.info("Extracting schema for table " + name + " from avro data file " + firstDataFilePath);
+    String firstDataFilePath = HdfsReader.getFirstDataFilePathInDir(this.dataLocationInHdfs);
+    LOG.info("Extracting schema for table " + this.name + " from avro data file " + firstDataFilePath);
     SeekableInput sin = new HdfsReader(firstDataFilePath).getFsInput();
 
-    Closer closer = Closer.create();
-    try {
-      DataFileReader<Void> dfr = closer.register(new DataFileReader<Void>(sin, new GenericDatumReader<Void>()));
+    try (DataFileReader<Void> dfr = new DataFileReader<>(sin, new GenericDatumReader<Void>())) {
       Schema schema = dfr.getSchema();
       return schema;
-    } finally {
-      closer.close();
     }
   }
 
   private String writeSchemaToHdfs(Schema schema) throws IOException {
-    String defaultTmpSchemaDir = getParentDir(dataLocationInHdfs);
+    String defaultTmpSchemaDir = getParentDir(this.dataLocationInHdfs);
     String tmpSchemaDir = CompactionRunner.jobProperties.getProperty(HIVE_TMPSCHEMA_DIR, defaultTmpSchemaDir);
     tmpSchemaDir = addSlash(tmpSchemaDir);
     String tmpSchemaPath = tmpSchemaDir + UUID.randomUUID().toString() + ".avsc";
@@ -142,12 +130,12 @@ public class AvroExternalTable extends HiveTable {
     return tmpSchemaPath;
   }
 
-  private String getParentDir(String filePathInHdfs) {
+  private static String getParentDir(String filePathInHdfs) {
     return new Path(filePathInHdfs).getParent().toString();
   }
 
-  private List<HiveAttribute> parseSchema(Schema schema) {
-    List<HiveAttribute> attributes = new ArrayList<HiveAttribute>();
+  private static List<HiveAttribute> parseSchema(Schema schema) {
+    List<HiveAttribute> attributes = new ArrayList<>();
     List<Schema.Field> fields = schema.getFields();
 
     for (Schema.Field field : fields) {
@@ -156,7 +144,7 @@ public class AvroExternalTable extends HiveTable {
     return attributes;
   }
 
-  private HiveAttribute convertAvroSchemaFieldToHiveAttribute(Schema.Field field) {
+  private static HiveAttribute convertAvroSchemaFieldToHiveAttribute(Schema.Field field) {
     String avroFieldType = field.schema().getType().toString();
     if (avroFieldType.equalsIgnoreCase("UNION")) {
       avroFieldType = extractAvroTypeFromUnion(field);
@@ -167,7 +155,7 @@ public class AvroExternalTable extends HiveTable {
     return new HiveAttribute(field.name(), HiveAttribute.fromAvroType(avroFieldType));
   }
 
-  private String extractAvroTypeFromUnion(Schema.Field field) {
+  private static String extractAvroTypeFromUnion(Schema.Field field) {
     if (field.schema().getTypes().size() >= 3) {
       LOG.warn("Avro schema field " + field.name() + " has 3 or more types: using the first non-null type");
     }
@@ -195,9 +183,8 @@ public class AvroExternalTable extends HiveTable {
     String tableName = getNameWithJobId(jobID);
     String dropTableStmt = String.format(DROP_TABLE_STMT, tableName);
     String hdfsUri = HdfsIO.getHdfsUri();
-    String createTableStmt =
-        String.format(CREATE_TABLE_STMT, tableName, hdfsUri + this.dataLocationInHdfs, hdfsUri
-            + this.schemaLocationInHdfs);
+    String createTableStmt = String.format(CREATE_TABLE_STMT, tableName, hdfsUri + this.dataLocationInHdfs,
+        hdfsUri + this.schemaLocationInHdfs);
 
     conn.executeStatements(dropTableStmt, createTableStmt);
   }
@@ -208,9 +195,8 @@ public class AvroExternalTable extends HiveTable {
       return this;
     }
 
-    HiveManagedTable managedTable =
-        new HiveManagedTable.Builder().withName(this.name).withPrimaryKeys(this.primaryKeys)
-            .withAttributes(this.attributes).build();
+    HiveManagedTable managedTable = new HiveManagedTable.Builder().withName(this.name).withPrimaryKeys(this.primaryKeys)
+        .withAttributes(this.attributes).build();
 
     return managedTable.addNewColumnsInSchema(null, table, jobId);
   }
@@ -234,7 +220,7 @@ public class AvroExternalTable extends HiveTable {
     return destination;
   }
 
-  private String addSlash(String dir) {
+  private static String addSlash(String dir) {
     if (!dir.endsWith("/") && !dir.endsWith("\\")) {
       return dir + "/";
     }

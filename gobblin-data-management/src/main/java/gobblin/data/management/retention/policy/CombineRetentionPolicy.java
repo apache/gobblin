@@ -12,10 +12,6 @@
 
 package gobblin.data.management.retention.policy;
 
-import gobblin.data.management.retention.DatasetCleaner;
-import gobblin.data.management.retention.version.DatasetVersion;
-
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
@@ -24,6 +20,10 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -31,6 +31,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import gobblin.data.management.retention.DatasetCleaner;
+import gobblin.data.management.version.DatasetVersion;
 
 
 /**
@@ -53,66 +56,86 @@ import com.google.common.collect.Sets;
  *   Additionally, any configuration necessary for combined policies must be specified.
  * </p>
  */
-public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
+public class CombineRetentionPolicy<T extends DatasetVersion> implements RetentionPolicy<T> {
 
-  public static final String RETENTION_POLICIES_PREFIX = DatasetCleaner.CONFIGURATION_KEY_PREFIX +
-      "combine.retention.policy.class.";
-  public static final String DELETE_SETS_COMBINE_OPERATION = DatasetCleaner.CONFIGURATION_KEY_PREFIX +
-      "combine.retention.policy.delete.sets.combine.operation";
+  public static final String RETENTION_POLICIES_PREFIX =
+      DatasetCleaner.CONFIGURATION_KEY_PREFIX + "combine.retention.policy.class.";
+  public static final String DELETE_SETS_COMBINE_OPERATION =
+      DatasetCleaner.CONFIGURATION_KEY_PREFIX + "combine.retention.policy.delete.sets.combine.operation";
 
   public enum DeletableCombineOperation {
-    INTERSECT, UNION
+    INTERSECT,
+    UNION
   }
 
-  private final List<RetentionPolicy<DatasetVersion>> retentionPolicies;
+  private final List<RetentionPolicy<T>> retentionPolicies;
   private final DeletableCombineOperation combineOperation;
 
+  public CombineRetentionPolicy(List<RetentionPolicy<T>> retentionPolicies,
+      DeletableCombineOperation combineOperation) {
+    this.combineOperation = combineOperation;
+    this.retentionPolicies = retentionPolicies;
+  }
+
+  @SuppressWarnings("unchecked")
   public CombineRetentionPolicy(Properties props) throws IOException {
 
     Preconditions.checkArgument(props.containsKey(DELETE_SETS_COMBINE_OPERATION), "Combine operation not specified.");
 
-    ImmutableList.Builder<RetentionPolicy<DatasetVersion>> builder = ImmutableList.builder();
+    ImmutableList.Builder<RetentionPolicy<T>> builder = ImmutableList.builder();
 
-    for(String property : props.stringPropertyNames()) {
-      if(property.startsWith(RETENTION_POLICIES_PREFIX)) {
-        builder.add(instantiateRetentionPolicy(props.getProperty(property), props));
+    for (String property : props.stringPropertyNames()) {
+      if (property.startsWith(RETENTION_POLICIES_PREFIX)) {
+
+        try {
+          builder.add((RetentionPolicy<T>) ConstructorUtils
+              .invokeConstructor(Class.forName(props.getProperty(property)), props));
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+            | ClassNotFoundException e) {
+          throw new IllegalArgumentException(e);
+        }
       }
     }
 
     this.retentionPolicies = builder.build();
-    if(this.retentionPolicies.size() == 0) {
+    if (this.retentionPolicies.size() == 0) {
       throw new IOException("No retention policies specified for " + CombineRetentionPolicy.class.getCanonicalName());
     }
 
-    this.combineOperation = DeletableCombineOperation.valueOf(props.getProperty(DELETE_SETS_COMBINE_OPERATION).
-        toUpperCase());
+    this.combineOperation =
+        DeletableCombineOperation.valueOf(props.getProperty(DELETE_SETS_COMBINE_OPERATION).toUpperCase());
 
   }
 
   /**
    * Returns the most specific common superclass for the {@link #versionClass} of each embedded policy.
    */
-  @Override public Class<? extends DatasetVersion> versionClass() {
-    if(this.retentionPolicies.size() == 1) {
-      return this.retentionPolicies.get(0).versionClass();
+  @SuppressWarnings("unchecked")
+  @Override
+  public Class<T> versionClass() {
+    if (this.retentionPolicies.size() == 1) {
+      return (Class<T>) this.retentionPolicies.get(0).versionClass();
     }
 
-    Class<? extends DatasetVersion> klazz = this.retentionPolicies.get(0).versionClass();
-    for(RetentionPolicy<? extends DatasetVersion> policy : retentionPolicies) {
-      klazz = commonSuperclass(klazz, policy.versionClass());
+    Class<T> klazz = (Class<T>) this.retentionPolicies.get(0).versionClass();
+    for (RetentionPolicy<T> policy : this.retentionPolicies) {
+      klazz = commonSuperclass(klazz, (Class<T>) policy.versionClass());
     }
     return klazz;
   }
 
-  @Override public Collection<DatasetVersion> listDeletableVersions(final List<DatasetVersion> allVersions) {
+  @Override
+  public Collection<T> listDeletableVersions(final List<T> allVersions) {
 
-    List<Set<DatasetVersion>> candidateDeletableVersions = Lists.newArrayList(Iterables.transform(this.retentionPolicies,
-        new Function<RetentionPolicy<DatasetVersion>, Set<DatasetVersion>>() {
-      @Nullable @Override public Set<DatasetVersion> apply(RetentionPolicy<DatasetVersion> input) {
-        return Sets.newHashSet(input.listDeletableVersions(allVersions));
-      }
-    }));
-
+    List<Set<T>> candidateDeletableVersions =
+        Lists.newArrayList(Iterables.transform(this.retentionPolicies, new Function<RetentionPolicy<T>, Set<T>>() {
+          @SuppressWarnings("deprecation")
+          @Nullable
+          @Override
+          public Set<T> apply(RetentionPolicy<T> input) {
+            return Sets.newHashSet(input.listDeletableVersions(allVersions));
+          }
+        }));
 
     switch (this.combineOperation) {
       case INTERSECT:
@@ -127,68 +150,46 @@ public class CombineRetentionPolicy implements RetentionPolicy<DatasetVersion> {
 
   @VisibleForTesting
   @SuppressWarnings("unchecked")
-  public Class<? extends DatasetVersion> commonSuperclass(Class<? extends DatasetVersion> classA,
-      Class<? extends DatasetVersion> classB) {
+  public Class<T> commonSuperclass(Class<T> classA, Class<T> classB) {
 
-    if(classA.isAssignableFrom(classB)) {
+    if (classA.isAssignableFrom(classB)) {
       // a is superclass of b, so return class of a
       return classA;
-    } else {
-      // a is not superclass of b. Either b is superclass of a, or they are not in same branch
-      // find closest superclass of a that is also a superclass of b
-      Class<?> klazz = classA;
-      while(!klazz.isAssignableFrom(classB)) {
-        klazz = klazz.getSuperclass();
-      }
-      if(DatasetVersion.class.isAssignableFrom(klazz)) {
-        return (Class<? extends DatasetVersion>) klazz;
-      } else {
-        // this should never happen, but there for safety
-        return DatasetVersion.class;
-      }
     }
+    // a is not superclass of b. Either b is superclass of a, or they are not in same branch
+    // find closest superclass of a that is also a superclass of b
+    Class<?> klazz = classA;
+    while (!klazz.isAssignableFrom(classB)) {
+      klazz = klazz.getSuperclass();
+    }
+    if (DatasetVersion.class.isAssignableFrom(klazz)) {
+      return (Class<T>) klazz;
+    }
+    // this should never happen, but there for safety
+    return (Class<T>) DatasetVersion.class;
   }
 
-  private Set<DatasetVersion> intersectDatasetVersions(Collection<Set<DatasetVersion>> sets) {
-    if(sets.size() <= 0) {
+  private Set<T> intersectDatasetVersions(Collection<Set<T>> sets) {
+    if (sets.size() <= 0) {
       return Sets.newHashSet();
     }
-    Iterator<Set<DatasetVersion>> it = sets.iterator();
-    Set<DatasetVersion> outputSet = it.next();
-    while(it.hasNext()) {
+    Iterator<Set<T>> it = sets.iterator();
+    Set<T> outputSet = it.next();
+    while (it.hasNext()) {
       outputSet = Sets.intersection(outputSet, it.next());
     }
     return outputSet;
   }
 
-  private Set<DatasetVersion> unionDatasetVersions(Collection<Set<DatasetVersion>> sets) {
-    if(sets.size() <= 0) {
+  private Set<T> unionDatasetVersions(Collection<Set<T>> sets) {
+    if (sets.size() <= 0) {
       return Sets.newHashSet();
     }
-    Iterator<Set<DatasetVersion>> it = sets.iterator();
-    Set<DatasetVersion> outputSet = it.next();
-    while(it.hasNext()) {
+    Iterator<Set<T>> it = sets.iterator();
+    Set<T> outputSet = it.next();
+    while (it.hasNext()) {
       outputSet = Sets.union(outputSet, it.next());
     }
     return outputSet;
-  }
-
-  private RetentionPolicy<DatasetVersion> instantiateRetentionPolicy(String className, Properties props)
-      throws IOException {
-    try {
-      Class<?> klazz = Class.forName(className);
-      return  (RetentionPolicy) klazz.
-          getConstructor(Properties.class).newInstance(props);
-    } catch(ClassNotFoundException exception) {
-      throw new IOException(exception);
-    } catch(NoSuchMethodException exception) {
-      throw new IOException(exception);
-    } catch(InstantiationException exception) {
-      throw new IOException(exception);
-    } catch(IllegalAccessException exception) {
-      throw new IOException(exception);
-    } catch(InvocationTargetException exception) {
-      throw new IOException(exception);
-    }
   }
 }

@@ -25,7 +25,7 @@ import azkaban.utils.Props;
 
 
 /**
- * Job to run {@link gobblin.data.management.retention.DatasetCleaner} job in Azkaban or Hadoop.
+ * Job to run {@link gobblin.data.management.retention.DatasetCleanerNew} job in Azkaban or Hadoop.
  */
 public class DatasetCleanerJob extends AbstractJob implements Tool {
 

@@ -46,7 +46,7 @@ import gobblin.writer.DataWriter;
 /**
  * Package-private implementation of instrumentation for {@link gobblin.writer.DataWriter}.
  *
- * @see {@link gobblin.instrumented.writer.InstrumentedDataWriter} for extensible class.
+ * @see gobblin.instrumented.writer.InstrumentedDataWriter for extensible class.
  */
 abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumentable, Closeable, FinalState {
 
@@ -67,7 +67,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   public static final long DEFAULT_WRITER_METRICS_UPDATER_INTERVAL = 30000;
 
   public InstrumentedDataWriterBase(State state) {
-    this(state, Optional.<Class<?>>absent());
+    this(state, Optional.<Class<?>> absent());
   }
 
   protected InstrumentedDataWriterBase(State state, Optional<Class<?>> classTag) {
@@ -88,7 +88,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   @Override
   public void switchMetricContext(List<Tag<?>> tags) {
     this.metricContext = this.closer
-        .register(Instrumented.newContextFromReferenceContext(this.metricContext, tags, Optional.<String>absent()));
+        .register(Instrumented.newContextFromReferenceContext(this.metricContext, tags, Optional.<String> absent()));
     regenerateMetrics();
   }
 
@@ -149,8 +149,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   }
 
   @Override
-  public void write(D record)
-      throws IOException {
+  public void write(D record) throws IOException {
     if (!isInstrumentationEnabled()) {
       writeImpl(record);
       return;
@@ -194,8 +193,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   /**
    * Subclasses should implement this instead of {@link gobblin.writer.DataWriter#write}
    */
-  public abstract void writeImpl(D record)
-      throws IOException;
+  public abstract void writeImpl(D record) throws IOException;
 
   /**
    * Get final state for this object. By default this returns an empty {@link gobblin.configuration.State}, but
@@ -208,8 +206,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     this.closer.close();
     if (this.writerMetricsUpdater.isPresent()) {
       ExecutorsUtils.shutdownExecutorService(this.writerMetricsUpdater.get(), Optional.of(log));
@@ -227,8 +224,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
    * updated at least once.
    */
   @Override
-  public void commit()
-      throws IOException {
+  public void commit() throws IOException {
     updateRecordsWrittenMeter();
     updateBytesWrittenMeter();
   }
@@ -259,7 +255,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   /**
    * Build a {@link ScheduledThreadPoolExecutor} that updates record-level and byte-level metrics.
    */
-  private ScheduledThreadPoolExecutor buildWriterMetricsUpdater() {
+  private static ScheduledThreadPoolExecutor buildWriterMetricsUpdater() {
     return new ScheduledThreadPoolExecutor(1,
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("WriterMetricsUpdater-%d")));
   }
@@ -267,7 +263,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   /**
    * Get the interval that the Writer Metrics Updater should be scheduled on.
    */
-  private long getWriterMetricsUpdaterInterval(State state) {
+  private static long getWriterMetricsUpdaterInterval(State state) {
     return state.getPropAsLong(WRITER_METRICS_UPDATER_INTERVAL, DEFAULT_WRITER_METRICS_UPDATER_INTERVAL);
   }
 
@@ -276,8 +272,8 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
    */
   private ScheduledFuture<?> scheduleWriterMetricsUpdater(ScheduledThreadPoolExecutor writerMetricsUpdater,
       long scheduleInterval) {
-    return writerMetricsUpdater
-        .scheduleAtFixedRate(new WriterMetricsUpdater(), scheduleInterval, scheduleInterval, TimeUnit.MILLISECONDS);
+    return writerMetricsUpdater.scheduleAtFixedRate(new WriterMetricsUpdater(), scheduleInterval, scheduleInterval,
+        TimeUnit.MILLISECONDS);
   }
 
   /**

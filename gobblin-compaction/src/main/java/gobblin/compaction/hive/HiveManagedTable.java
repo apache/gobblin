@@ -18,8 +18,6 @@ import gobblin.hive.util.HiveJdbcConnector;
 
 /**
  * A class for managing Hive managed tables.
- *
- * @author ziliu
  */
 public class HiveManagedTable extends HiveTable {
   public static class Builder extends HiveTable.Builder<Builder> {

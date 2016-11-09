@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
 
@@ -46,7 +47,7 @@ public class HourWatermark implements Watermark {
   }
 
   @Override
-  public String getWatermarkCondition(QueryBasedExtractor extractor, long watermarkValue, String operator) {
+  public String getWatermarkCondition(QueryBasedExtractor<?, ?> extractor, long watermarkValue, String operator) {
     return extractor.getHourPredicateCondition(this.watermarkColumn, watermarkValue, this.watermarkFormat, operator);
   }
 
@@ -59,9 +60,9 @@ public class HourWatermark implements Watermark {
   synchronized public HashMap<Long, Long> getIntervals(long lowWatermarkValue, long highWatermarkValue,
       long partitionIntervalInHours, int maxIntervals) {
     Preconditions.checkArgument(maxIntervals > 0, "Invalid value for maxIntervals, positive value expected.");
-    Preconditions
-        .checkArgument(partitionIntervalInHours > 0, "Invalid value for partitionInterval, should be at least 1.");
-    HashMap<Long, Long> intervalMap = new HashMap<Long, Long>();
+    Preconditions.checkArgument(partitionIntervalInHours > 0,
+        "Invalid value for partitionInterval, should be at least 1.");
+    HashMap<Long, Long> intervalMap = Maps.newHashMap();
 
     if (lowWatermarkValue > highWatermarkValue) {
       LOG.warn("The low water mark is greater than the high water mark, empty intervals are returned");
@@ -70,12 +71,12 @@ public class HourWatermark implements Watermark {
 
     final Calendar calendar = Calendar.getInstance();
     Date nextTime;
-    Date lowWatermarkDate = this.extractFromTimestamp(Long.toString(lowWatermarkValue));
-    Date highWatermarkDate = this.extractFromTimestamp(Long.toString(highWatermarkValue));
+    Date lowWatermarkDate = extractFromTimestamp(Long.toString(lowWatermarkValue));
+    Date highWatermarkDate = extractFromTimestamp(Long.toString(highWatermarkValue));
     final long lowWatermark = lowWatermarkDate.getTime();
     final long highWatermark = highWatermarkDate.getTime();
 
-    int interval = this.getInterval(highWatermark - lowWatermark, partitionIntervalInHours, maxIntervals);
+    int interval = getInterval(highWatermark - lowWatermark, partitionIntervalInHours, maxIntervals);
     LOG.info("Recalculated partition interval:" + interval + " hours");
 
     Date startTime = new Date(lowWatermark);
@@ -84,7 +85,7 @@ public class HourWatermark implements Watermark {
     long lwm;
     long hwm;
     while (startTime.getTime() <= endTime.getTime()) {
-      lwm = Long.parseLong(INPUTFORMATPARSER .format(startTime));
+      lwm = Long.parseLong(INPUTFORMATPARSER.format(startTime));
       calendar.setTime(startTime);
       calendar.add(Calendar.HOUR, interval - 1);
       nextTime = calendar.getTime();
@@ -105,7 +106,7 @@ public class HourWatermark implements Watermark {
    * @param Maximum number of allowed partitions
    * @return calculated interval in hours
    */
-  private int getInterval(long diffInMilliSecs, long hourInterval, int maxIntervals) {
+  private static int getInterval(long diffInMilliSecs, long hourInterval, int maxIntervals) {
     int totalHours = DoubleMath.roundToInt((double) diffInMilliSecs / (60 * 60 * 1000), RoundingMode.CEILING);
     int totalIntervals = DoubleMath.roundToInt((double) totalHours / hourInterval, RoundingMode.CEILING);
     if (totalIntervals > maxIntervals) {
@@ -120,7 +121,7 @@ public class HourWatermark implements Watermark {
    * @param watermark value
    * @return value in hour format
    */
-  synchronized private Date extractFromTimestamp(String watermark) {
+  synchronized private static Date extractFromTimestamp(String watermark) {
     final SimpleDateFormat inputFormat = new SimpleDateFormat(INPUTFORMAT);
     final SimpleDateFormat outputFormat = new SimpleDateFormat(OUTPUTFORMAT);
     Date outDate = null;

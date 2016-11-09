@@ -14,8 +14,9 @@ package gobblin.converter.avro;
 
 public class UnsupportedDateTypeException extends Exception {
 
+  private static final long serialVersionUID = 1L;
+
   public UnsupportedDateTypeException(String arg0) {
     super(arg0);
-    // TODO Auto-generated constructor stub
   }
 }

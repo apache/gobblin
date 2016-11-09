@@ -21,8 +21,6 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.io.Closer;
-
 import gobblin.configuration.ConfigurationKeys;
 
 
@@ -56,23 +54,20 @@ public class HeapDumpForTaskUtils {
       return;
     }
 
-    Closer closer = Closer.create();
-    try {
+    try (BufferedWriter scriptWriter =
+        new BufferedWriter(new OutputStreamWriter(fs.create(dumpScript), ConfigurationKeys.DEFAULT_CHARSET_ENCODING))) {
       Path dumpDir = new Path(dumpScript.getParent(), DUMP_FOLDER);
       if (!fs.exists(dumpDir)) {
         fs.mkdirs(dumpDir);
       }
-      BufferedWriter scriptWriter =
-          closer.register(new BufferedWriter(new OutputStreamWriter(fs.create(dumpScript),
-              ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
       scriptWriter.write("#!/bin/sh\n");
       scriptWriter.write("if [ -n \"$HADOOP_PREFIX\" ]; then\n");
-      scriptWriter.write("  ${HADOOP_PREFIX}/bin/hadoop dfs -put " + heapFileName + " " + dumpDir
-          + "/${PWD//\\//_}.hprof\n");
+      scriptWriter
+          .write("  ${HADOOP_PREFIX}/bin/hadoop dfs -put " + heapFileName + " " + dumpDir + "/${PWD//\\//_}.hprof\n");
       scriptWriter.write("else\n");
-      scriptWriter.write("  ${HADOOP_HOME}/bin/hadoop dfs -put " + heapFileName + " " + dumpDir
-          + "/${PWD//\\//_}.hprof\n");
+      scriptWriter
+          .write("  ${HADOOP_HOME}/bin/hadoop dfs -put " + heapFileName + " " + dumpDir + "/${PWD//\\//_}.hprof\n");
       scriptWriter.write("fi\n");
 
     } catch (IOException ioe) {
@@ -81,10 +76,6 @@ public class HeapDumpForTaskUtils {
         fs.delete(dumpScript, true);
       }
       throw ioe;
-    } catch (Throwable t) {
-      closer.rethrow(t);
-    } finally {
-      closer.close();
     }
     Runtime.getRuntime().exec(chmod + " " + dumpScript);
   }

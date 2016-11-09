@@ -15,18 +15,21 @@ dependencies {
     compile project(":gobblin-core")
     compile project(":gobblin-runtime")
     compile project(":gobblin-data-management")
+    runtime project(":gobblin-kafka")
 
     compile externalDependency.avro
+    compile externalDependency.commonsLang3
     compile externalDependency.guava
     compile externalDependency.jacksonCore
     compile externalDependency.slf4j
     compile externalDependency.gson
     compile externalDependency.commonsVfs
-    if (project.hasProperty('useHadoop2')) {
-      compile externalDependency.avroMapredH2
-    } else {
-      compile externalDependency.avroMapredH1
-    }
+    compile externalDependency.avroMapredH2
+    compile externalDependency.lombok
+    compile externalDependency.jodaTime
+    compile externalDependency.httpcore
+    compile externalDependency.httpclient
+    compile externalDependency.commonsCli
 
     testCompile externalDependency.testng
 }
@@ -38,7 +41,6 @@ configurations {
 }
 
 test {
-    useTestNG ()
     include '**/*Test*'
 }
 

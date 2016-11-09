@@ -86,7 +86,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
     this.name = name;
     this.closer = Closer.create();
     this.parent = Optional.fromNullable(parent);
-    if(this.parent.isPresent()) {
+    if (this.parent.isPresent()) {
       this.parent.get().addChildContext(this.name, context);
       this.metricContext = new ContextWeakReference(context, this);
     } else {
@@ -102,6 +102,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
    *
    * @return the name of this {@link MetricContext}
    */
+  @Override
   public String getName() {
     return this.name;
   }
@@ -114,6 +115,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
    * @return the parent {@link MetricContext} of this {@link MetricContext} wrapped in an
    *         {@link com.google.common.base.Optional}
    */
+  @Override
   public Optional<MetricContext> getParent() {
     return this.parent;
   }
@@ -127,7 +129,8 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   public synchronized void addChildContext(String childContextName, final MetricContext childContext)
       throws NameConflictException, ExecutionException {
     if (this.children.get(childContextName, new Callable<MetricContext>() {
-      @Override public MetricContext call() throws Exception {
+      @Override
+      public MetricContext call() throws Exception {
         return childContext;
       }
     }) != childContext) {
@@ -140,6 +143,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
    * @return {@link com.google.common.collect.ImmutableMap} of
    *      child {@link gobblin.metrics.MetricContext}s keyed by their names.
    */
+  @Override
   public Map<String, MetricContext> getChildContextsAsMap() {
     return ImmutableMap.copyOf(this.children.asMap());
   }
@@ -250,14 +254,14 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   @Override
   public synchronized <T extends com.codahale.metrics.Metric> T register(String name, T metric)
       throws IllegalArgumentException {
-    if(!(metric instanceof ContextAwareMetric)) {
+    if (!(metric instanceof ContextAwareMetric)) {
       throw new UnsupportedOperationException("Can only register ContextAwareMetrics");
     }
     if (this.contextAwareMetrics.putIfAbsent(name, ((ContextAwareMetric) metric).getInnerMetric()) != null) {
       throw new IllegalArgumentException("A metric named " + name + " already exists");
     }
     MetricContext metricContext = this.metricContext.get();
-    if(metricContext != null) {
+    if (metricContext != null) {
       metricContext.addToMetrics((ContextAwareMetric) metric);
     }
     // Also register the metric with the MetricRegistry using its fully-qualified name
@@ -272,8 +276,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   }
 
   @Override
-  public void registerAll(MetricSet metrics)
-      throws IllegalArgumentException {
+  public void registerAll(MetricSet metrics) throws IllegalArgumentException {
     throw new UnsupportedOperationException();
   }
 
@@ -291,11 +294,10 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   @Override
   public synchronized boolean remove(String name) {
     MetricContext metricContext = this.metricContext.get();
-    if(metricContext != null) {
+    if (metricContext != null) {
       metricContext.removeFromMetrics(this.contextAwareMetrics.get(name).getContextAwareMetric());
     }
-    return this.contextAwareMetrics.remove(name) != null &&
-        removeChildrenMetrics(name);
+    return this.contextAwareMetrics.remove(name) != null && removeChildrenMetrics(name);
   }
 
   @Override
@@ -307,10 +309,12 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
     }
   }
 
+  @Override
   public List<Tag<?>> getTags() {
     return this.tagged.getTags();
   }
 
+  @Override
   public Map<String, Object> getTagMap() {
     return this.tagged.getTagMap();
   }
@@ -325,7 +329,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   }
 
   private Map<String, com.codahale.metrics.Metric> getSimplyNamedMetrics() {
-    return ImmutableMap.<String, com.codahale.metrics.Metric>copyOf(this.contextAwareMetrics);
+    return ImmutableMap.<String, com.codahale.metrics.Metric> copyOf(this.contextAwareMetrics);
   }
 
   @SuppressWarnings("unchecked")
@@ -344,7 +348,8 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   }
 
   @SuppressWarnings("unchecked")
-  protected synchronized <T extends ContextAwareMetric> T getOrCreate(String name, ContextAwareMetricFactory<T> factory) {
+  protected synchronized <T extends ContextAwareMetric> T getOrCreate(String name,
+      ContextAwareMetricFactory<T> factory) {
     InnerMetric metric = this.contextAwareMetrics.get(name);
     if (metric != null) {
       if (factory.isInstance(metric)) {

@@ -12,16 +12,13 @@
 
 package gobblin.converter.avro;
 
-import gobblin.converter.Converter;
-import gobblin.converter.SchemaConversionException;
-import gobblin.converter.SingleRecordIterable;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 
+import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -29,7 +26,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
+import gobblin.converter.SchemaConversionException;
+import gobblin.converter.SingleRecordIterable;
 
 
 /**
@@ -48,15 +48,14 @@ public class AvroToJsonConverter extends Converter<String, JsonArray, GenericRec
   }
 
   @Override
-  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException {
+  public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     return new JsonParser().parse(inputSchema).getAsJsonArray();
   }
 
   @Override
   public Iterable<JsonObject> convertRecord(JsonArray outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
-    Map<String, Object> record = new HashMap<String, Object>();
+    Map<String, Object> record = Maps.newHashMap();
     for (Field field : inputRecord.getSchema().getFields()) {
       Object col = inputRecord.get(field.name());
       if (col != null && col instanceof Utf8) {
@@ -65,7 +64,6 @@ public class AvroToJsonConverter extends Converter<String, JsonArray, GenericRec
       record.put(field.name(), col);
     }
 
-    return new SingleRecordIterable<JsonObject>(
-        this.gson.fromJson(this.gson.toJson(record), JsonObject.class).getAsJsonObject());
+    return new SingleRecordIterable<>(this.gson.fromJson(this.gson.toJson(record), JsonObject.class).getAsJsonObject());
   }
 }

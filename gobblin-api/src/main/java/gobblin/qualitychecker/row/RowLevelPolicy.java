@@ -19,6 +19,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.FinalState;
 
+
 /**
  * A policy that operates on each row
  * and executes a given check
@@ -29,19 +30,15 @@ public abstract class RowLevelPolicy implements Closeable, FinalState {
   private final Type type;
 
   public enum Type {
-    FAIL,          // Fail if the test does not pass
-    ERR_FILE,      // Write record to error file
-    OPTIONAL       // The test is optional
+    FAIL, // Fail if the test does not pass
+    ERR_FILE, // Write record to error file
+    OPTIONAL // The test is optional
   }
-
-  ;
 
   public enum Result {
-    PASSED,          // The test passed
-    FAILED           // The test failed
+    PASSED, // The test passed
+    FAILED // The test failed
   }
-
-  ;
 
   public RowLevelPolicy(State state, RowLevelPolicy.Type type) {
     this.state = state;
@@ -49,15 +46,14 @@ public abstract class RowLevelPolicy implements Closeable, FinalState {
   }
 
   @Override
-  public void close() throws IOException {
-  }
+  public void close() throws IOException {}
 
   public State getTaskState() {
-    return state;
+    return this.state;
   }
 
   public Type getType() {
-    return type;
+    return this.type;
   }
 
   public String getErrFileLocation() {

@@ -19,8 +19,6 @@ import gobblin.instrumented.extractor.InstrumentedExtractor;
 /**
  * A base {@link gobblin.source.extractor.Extractor} class for
  * event-based sources.
- *
- * @author ziliu
  */
 public abstract class EventBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
 

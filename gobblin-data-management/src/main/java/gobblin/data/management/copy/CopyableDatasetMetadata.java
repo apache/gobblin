@@ -12,13 +12,9 @@
 
 package gobblin.data.management.copy;
 
-import java.io.IOException;
-
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-
-import org.apache.hadoop.fs.Path;
 
 import com.google.gson.Gson;
 
@@ -28,19 +24,16 @@ import com.google.gson.Gson;
  * implementations of {@link CopyableDataset} may contain additional fields that should not be serialized.
  * The class is a data object and does not carry any functionality
  */
-@EqualsAndHashCode(callSuper=false)
+@EqualsAndHashCode(callSuper = false)
 @ToString
 public class CopyableDatasetMetadata {
 
-  public CopyableDatasetMetadata(CopyableDataset copyableDataset, Path datasetTargetRoot) {
-    this.datasetRoot = copyableDataset.datasetRoot();
-    this.datasetTargetRoot = datasetTargetRoot;
+  public CopyableDatasetMetadata(CopyableDatasetBase copyableDataset) {
+    this.datasetURN = copyableDataset.datasetURN();
   }
 
   @Getter
-  private final Path datasetRoot;
-  @Getter
-  private final Path datasetTargetRoot;
+  private final String datasetURN;
   private static final Gson GSON = new Gson();
 
   /**
@@ -48,7 +41,7 @@ public class CopyableDatasetMetadata {
    *
    * @return serialized string
    */
-  public String serialize() throws IOException {
+  public String serialize() {
     return GSON.toJson(this);
   }
 
@@ -58,7 +51,7 @@ public class CopyableDatasetMetadata {
    * @param serialized string
    * @return a new instance of {@link CopyableDatasetMetadata}
    */
-  public static CopyableDatasetMetadata deserialize(String serialized) throws IOException {
+  public static CopyableDatasetMetadata deserialize(String serialized) {
     return GSON.fromJson(serialized, CopyableDatasetMetadata.class);
   }
 

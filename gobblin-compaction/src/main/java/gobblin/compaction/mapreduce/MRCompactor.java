@@ -31,8 +31,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang.StringUtils;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -58,6 +56,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import gobblin.compaction.Compactor;
+import gobblin.compaction.listeners.CompactorListener;
 import gobblin.compaction.dataset.Dataset;
 import gobblin.compaction.dataset.DatasetsFinder;
 import gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
@@ -82,7 +81,7 @@ import gobblin.util.recordcount.IngestionRecordCountProvider;
  * MapReduce-based {@link gobblin.compaction.Compactor}. Compaction will run on each qualified {@link Dataset}
  * under {@link #COMPACTION_INPUT_DIR}.
  *
- * @author ziliu
+ * @author Ziyang Liu
  */
 
 public class MRCompactor implements Compactor {
@@ -151,7 +150,8 @@ public class MRCompactor implements Compactor {
   // The threshold of new(late) data that will trigger recompaction per dataset.
   // It follows the pattern DATASET_NAME_REGEX:THRESHOLD;DATASET_NAME_REGEX:THRESHOLD, e.g., A.*,B.*:0.2; C.*,D.*:0.3.
   // Dataset names that match A.* or B.* will have threshold 0.2. Dataset names that match C.* or D.* will have threshold 0.3.
-  public static final String COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET = COMPACTION_PREFIX + "latedata.threshold.for.recompact.per.topic";
+  public static final String COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET =
+      COMPACTION_PREFIX + "latedata.threshold.for.recompact.per.topic";
   public static final double DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET = 1.0;
 
   // Whether the input data for the compaction is deduplicated.
@@ -225,17 +225,19 @@ public class MRCompactor implements Compactor {
   private final Stopwatch stopwatch;
   private final GobblinMetrics gobblinMetrics;
   private final EventSubmitter eventSubmitter;
+  private final Optional<CompactorListener> compactorListener;
 
   private final long dataVerifTimeoutMinutes;
   private final long compactionTimeoutMinutes;
   private final boolean shouldVerifDataCompl;
   private final boolean shouldPublishDataIfCannotVerifyCompl;
 
-  public MRCompactor(Properties props, List<? extends Tag<?>> tags) throws IOException {
+  public MRCompactor(Properties props, List<? extends Tag<?>> tags, Optional<CompactorListener> compactorListener)
+      throws IOException {
     this.state = new State();
     this.state.addAll(props);
     this.tags = tags;
-    this.conf = HadoopUtils.getConfFromState(state);
+    this.conf = HadoopUtils.getConfFromState(this.state);
     this.tmpOutputDir = getTmpOutputDir();
     this.fs = getFileSystem();
     this.datasets = getDatasetsFinder().findDistinctDatasets();
@@ -247,6 +249,7 @@ public class MRCompactor implements Compactor {
     this.eventSubmitter = new EventSubmitter.Builder(
         GobblinMetrics.get(this.state.getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
         MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
+    this.compactorListener = compactorListener;
 
     this.dataVerifTimeoutMinutes = getDataVerifTimeoutMinutes();
     this.compactionTimeoutMinutes = getCompactionTimeoutMinutes();
@@ -265,16 +268,15 @@ public class MRCompactor implements Compactor {
     if (this.state.contains(COMPACTION_FILE_SYSTEM_URI)) {
       URI uri = URI.create(this.state.getProp(COMPACTION_FILE_SYSTEM_URI));
       return FileSystem.get(uri, this.conf);
-    } else {
-      return FileSystem.get(this.conf);
     }
+    return FileSystem.get(this.conf);
   }
 
   private DatasetsFinder getDatasetsFinder() {
     try {
       return (DatasetsFinder) Class
           .forName(this.state.getProp(COMPACTION_DATASETS_FINDER, DEFAULT_COMPACTION_DATASETS_FINDER))
-          .getConstructor(State.class).newInstance(state);
+          .getConstructor(State.class).newInstance(this.state);
     } catch (Exception e) {
       throw new RuntimeException("Failed to initiailize DatasetsFinder.", e);
     }
@@ -282,7 +284,7 @@ public class MRCompactor implements Compactor {
 
   private JobRunnerExecutor createJobExecutor() {
     int threadPoolSize = getThreadPoolSize();
-    BlockingQueue<Runnable> queue = new PriorityBlockingQueue<Runnable>();
+    BlockingQueue<Runnable> queue = new PriorityBlockingQueue<>();
     return new JobRunnerExecutor(threadPoolSize, threadPoolSize, Long.MAX_VALUE, TimeUnit.NANOSECONDS, queue);
   }
 
@@ -318,7 +320,7 @@ public class MRCompactor implements Compactor {
         this.closer.close();
       } finally {
         deleteDependencyJars();
-        gobblinMetrics.stopMetricsReporting();
+        this.gobblinMetrics.stopMetricsReporting();
       }
     }
   }
@@ -352,17 +354,7 @@ public class MRCompactor implements Compactor {
     }
   }
 
-  private List<Pattern> getDataComplVerifBlacklist() {
-    List<String> list = this.state.getPropAsList(COMPACTION_COMPLETENESS_VERIFICATION_BLACKLIST, StringUtils.EMPTY);
-    return DatasetFilterUtils.getPatternsFromStrings(list);
-  }
-
-  private List<Pattern> getDataComplVerifWhitelist() {
-    List<String> list = this.state.getPropAsList(COMPACTION_COMPLETENESS_VERIFICATION_WHITELIST, StringUtils.EMPTY);
-    return DatasetFilterUtils.getPatternsFromStrings(list);
-  }
-
-  private void processDatasets() throws IOException {
+  private void processDatasets() {
     createJobPropsForDatasets();
     processCompactionJobs();
   }
@@ -371,9 +363,13 @@ public class MRCompactor implements Compactor {
    * Create compaction job properties for {@link Dataset}s.
    */
   private void createJobPropsForDatasets() {
-    for (Dataset dataset : datasets) {
-      createJobPropsForDataset(dataset);
+    final Set<Dataset> datasetsWithProps = Sets.newHashSet();
+    for (Dataset dataset : this.datasets) {
+      datasetsWithProps.addAll(createJobPropsForDataset(dataset));
     }
+
+    this.datasets.clear();
+    this.datasets.addAll(datasetsWithProps);
   }
 
   /**
@@ -381,20 +377,19 @@ public class MRCompactor implements Compactor {
    * Create compaction job properties for each given {@link Dataset}.
    * Update datasets based on the results of creating job props for them.
    */
-
-  private void createJobPropsForDataset(Dataset dataset) {
-    LOG.info("Creating compaction jobs for dataset " + dataset +  " with priority " + dataset.priority()
+  private List<Dataset> createJobPropsForDataset(Dataset dataset) {
+    LOG.info("Creating compaction jobs for dataset " + dataset + " with priority " + dataset.priority()
         + " and late data threshold for recompact " + dataset.lateDataThresholdForRecompact());
-    MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(dataset);
-    this.datasets.remove(dataset);
+    final MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(dataset);
+    List<Dataset> datasetsWithProps;
     try {
-      this.datasets.addAll(jobPropCreator.createJobProps());
+      datasetsWithProps = jobPropCreator.createJobProps();
     } catch (Throwable t) {
-
       // If a throwable is caught when creating job properties for a dataset, skip the topic and add the throwable
       // to the dataset.
-      this.datasets.add(jobPropCreator.createFailedJobProps(t));
+      datasetsWithProps = ImmutableList.<Dataset> of(jobPropCreator.createFailedJobProps(t));
     }
+    return datasetsWithProps;
   }
 
   /**
@@ -409,7 +404,7 @@ public class MRCompactor implements Compactor {
     }
   }
 
-  private void processCompactionJobs() throws IOException {
+  private void processCompactionJobs() {
     if (this.shouldVerifDataCompl) {
       verifyDataCompleteness();
     } else {
@@ -425,8 +420,10 @@ public class MRCompactor implements Compactor {
   }
 
   private void verifyDataCompleteness() {
-    List<Pattern> blacklist = getDataComplVerifBlacklist();
-    List<Pattern> whitelist = getDataComplVerifWhitelist();
+    List<Pattern> blacklist =
+        DatasetFilterUtils.getPatternList(this.state, COMPACTION_COMPLETENESS_VERIFICATION_BLACKLIST);
+    List<Pattern> whitelist =
+        DatasetFilterUtils.getPatternList(this.state, COMPACTION_COMPLETENESS_VERIFICATION_WHITELIST);
     int numDatasetsVerifiedTogether = getNumDatasetsVerifiedTogether();
     List<Dataset> datasetsToBeVerified = Lists.newArrayList();
     for (Dataset dataset : this.datasets) {
@@ -475,16 +472,9 @@ public class MRCompactor implements Compactor {
   }
 
   public static long readCompactionTimestamp(FileSystem fs, Path compactionOutputPath) throws IOException {
-    Closer closer = Closer.create();
     Path completionFilePath = new Path(compactionOutputPath, COMPACTION_COMPLETE_FILE_NAME);
-    try {
-      FSDataInputStream completionFileStream = closer.register(fs.open(completionFilePath));
+    try (FSDataInputStream completionFileStream = fs.open(completionFilePath)) {
       return completionFileStream.readLong();
-    } catch (Throwable t) {
-      LOG.error("Failed to read compaction timestamp from " + compactionOutputPath, t);
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
     }
   }
 
@@ -524,6 +514,8 @@ public class MRCompactor implements Compactor {
                 datasetsToBeVerifiedAgain.add(result.dataset());
               }
               break;
+            default:
+              throw new IllegalStateException("Unrecognized result status: " + result.status());
           }
         }
 
@@ -583,7 +575,7 @@ public class MRCompactor implements Compactor {
         DEFAULT_COMPACTION_COMPLETENESS_VERIFICATION_PUBLISH_DATA_IF_CANNOT_VERIFY);
   }
 
-  private void submitCompactionJobsAndWaitForCompletion() throws IOException {
+  private void submitCompactionJobsAndWaitForCompletion() {
     LOG.info("Submitting compaction jobs. Number of datasets: " + this.datasets.size());
 
     boolean allDatasetsCompleted = false;
@@ -596,7 +588,7 @@ public class MRCompactor implements Compactor {
           allDatasetsCompleted = false;
           // Run compaction for a dataset, if it is not already running or completed
           if (jobRunner == null || jobRunner.status() == ABORTED) {
-            runCompactionForDataset(dataset, dataset.state() == VERIFIED ? true : false);
+            runCompactionForDataset(dataset, dataset.state() == VERIFIED);
           }
         } else if (dataset.state() == GIVEN_UP) {
           if (this.shouldPublishDataIfCannotVerifyCompl) {
@@ -646,7 +638,7 @@ public class MRCompactor implements Compactor {
     LOG.info("Running compaction for dataset " + dataset);
 
     try {
-      MRCompactorJobRunner jobRunner = getMRCompactorJobRunner(dataset, dataset.priority());
+      MRCompactorJobRunner jobRunner = getMRCompactorJobRunner(dataset);
       this.jobRunnables.put(dataset, jobRunner);
       if (proceed) {
         jobRunner.proceed();
@@ -660,13 +652,12 @@ public class MRCompactor implements Compactor {
   /**
    * Get an instance of {@link MRCompactorJobRunner}.
    */
-  private MRCompactorJobRunner getMRCompactorJobRunner(Dataset dataset, double priority) {
+  private MRCompactorJobRunner getMRCompactorJobRunner(Dataset dataset) {
     try {
       @SuppressWarnings("unchecked")
       Class<? extends MRCompactorJobRunner> cls = (Class<? extends MRCompactorJobRunner>) Class
           .forName(this.state.getProp(COMPACTION_JOB_RUNNER_CLASS, DEFAULT_COMPACTION_JOB_RUNNER_CLASS));
-      return cls.getDeclaredConstructor(Dataset.class, FileSystem.class, Double.class).newInstance(dataset, this.fs,
-          priority);
+      return cls.getDeclaredConstructor(Dataset.class, FileSystem.class).newInstance(dataset, this.fs);
     } catch (Exception e) {
       throw new RuntimeException("Cannot instantiate MRCompactorJobRunner", e);
     }
@@ -721,7 +712,7 @@ public class MRCompactor implements Compactor {
     return datasetsWithThrowables;
   }
 
-  private void shutdownExecutors() throws IOException {
+  private void shutdownExecutors() {
     LOG.info("Shutting down Executors");
     ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
   }
@@ -740,7 +731,9 @@ public class MRCompactor implements Compactor {
       try {
         ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG), 0, TimeUnit.NANOSECONDS);
       } finally {
-        this.verifier.get().closeNow();
+        if (this.verifier.isPresent()) {
+          this.verifier.get().closeNow();
+        }
       }
     }
   }
@@ -785,8 +778,15 @@ public class MRCompactor implements Compactor {
             // Set the dataset status to COMPACTION_COMPLETE if compaction is successful.
             jobRunner.getDataset().setState(COMPACTION_COMPLETE);
           }
-        } else
-          if (jobRunner.getDataset().state() == GIVEN_UP && !MRCompactor.this.shouldPublishDataIfCannotVerifyCompl) {
+          if (MRCompactor.this.compactorListener.isPresent()) {
+            try {
+              MRCompactor.this.compactorListener.get().onDatasetCompactionCompletion(jobRunner.getDataset());
+            } catch (Exception e) {
+              t = e;
+            }
+          }
+        } else if (jobRunner.getDataset().state() == GIVEN_UP
+            && !MRCompactor.this.shouldPublishDataIfCannotVerifyCompl) {
 
           // Compaction job of a dataset has aborted, and data completeness verification has given up.
           // This dataset will not be compacted.
@@ -798,8 +798,8 @@ public class MRCompactor implements Compactor {
           // Reduce priority and try again.
           jobRunner.getDataset().reducePriority();
         }
-      } else {
-
+      }
+      if (t != null) {
         // Compaction job of a dataset has failed with a throwable.
         afterExecuteWithThrowable(jobRunner, t);
       }

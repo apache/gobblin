@@ -38,7 +38,7 @@ public class InnerMeter extends Meter implements InnerMetric {
     } else {
       this.parentMeter = Optional.absent();
     }
-    this.contextAwareMeter = new WeakReference<ContextAwareMeter>(contextAwareMeter);
+    this.contextAwareMeter = new WeakReference<>(contextAwareMeter);
   }
 
   @Override

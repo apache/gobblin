@@ -39,7 +39,7 @@ public class InnerTimer extends Timer implements InnerMetric {
     } else {
       this.parentTimer = Optional.absent();
     }
-    this.timer = new WeakReference<ContextAwareTimer>(contextAwareTimer);
+    this.timer = new WeakReference<>(contextAwareTimer);
   }
 
   @Override
@@ -54,7 +54,8 @@ public class InnerTimer extends Timer implements InnerMetric {
     return this.name;
   }
 
-  @Override public ContextAwareMetric getContextAwareMetric() {
+  @Override
+  public ContextAwareMetric getContextAwareMetric() {
     return this.timer.get();
   }
 }

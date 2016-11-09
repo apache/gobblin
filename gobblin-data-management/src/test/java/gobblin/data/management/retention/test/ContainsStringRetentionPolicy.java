@@ -13,8 +13,8 @@
 package gobblin.data.management.retention.test;
 
 import gobblin.data.management.retention.policy.RetentionPolicy;
-import gobblin.data.management.retention.version.DatasetVersion;
-import gobblin.data.management.retention.version.StringDatasetVersion;
+import gobblin.data.management.version.DatasetVersion;
+import gobblin.data.management.version.StringDatasetVersion;
 
 import java.util.Collection;
 import java.util.List;

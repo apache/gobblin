@@ -72,10 +72,9 @@ public class ForkOperatorUtils {
 
     if (!workUnitState.contains(ConfigurationKeys.FORK_BRANCH_ID_KEY)) {
       return key;
-    } else {
-      return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY) >= 0 ? key + "."
-          + workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY) : key;
     }
+    return workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY) >= 0
+        ? key + "." + workUnitState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY) : key;
   }
 
   /**
@@ -91,10 +90,10 @@ public class ForkOperatorUtils {
     Preconditions.checkArgument(numBranches >= 0, "The number of branches is expected to be non-negative");
     Preconditions.checkArgument(branchId >= 0, "The branch id is expected to be non-negative");
 
-    return numBranches > 1 ? path
-        + Path.SEPARATOR
-        + state.getProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + branchId,
-            ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + branchId) : path;
+    return numBranches > 1
+        ? path + Path.SEPARATOR + state.getProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + branchId,
+            ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + branchId)
+        : path;
   }
 
   /**

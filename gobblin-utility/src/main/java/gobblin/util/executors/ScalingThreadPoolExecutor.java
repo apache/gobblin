@@ -44,18 +44,18 @@ public class ScalingThreadPoolExecutor extends ThreadPoolExecutor {
    * @param threadFactory thread factory to use.
    * @return A {@link ScalingThreadPoolExecutor}.
    */
-  public static ScalingThreadPoolExecutor newScalingThreadPool(int min, int max,
-      long keepAliveTime, ThreadFactory threadFactory) {
+  public static ScalingThreadPoolExecutor newScalingThreadPool(int min, int max, long keepAliveTime,
+      ThreadFactory threadFactory) {
     ScalingQueue queue = new ScalingQueue();
-    ScalingThreadPoolExecutor executor = new ScalingThreadPoolExecutor(min, max, keepAliveTime,
-        TimeUnit.MILLISECONDS, queue, threadFactory);
+    ScalingThreadPoolExecutor executor =
+        new ScalingThreadPoolExecutor(min, max, keepAliveTime, TimeUnit.MILLISECONDS, queue, threadFactory);
     executor.setRejectedExecutionHandler(new ForceQueuePolicy());
     queue.setThreadPoolExecutor(executor);
     return executor;
   }
 
-  private ScalingThreadPoolExecutor(int corePoolSize, int maximumPoolSize,
-      long keepAliveTime, TimeUnit unit, BlockingQueue workQueue, ThreadFactory threadFactory) {
+  private ScalingThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit,
+      BlockingQueue<Runnable> workQueue, ThreadFactory threadFactory) {
     super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory);
   }
 

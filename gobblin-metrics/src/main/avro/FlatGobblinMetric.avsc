@@ -1,0 +1,33 @@
+// Avro Schema for flat metrics objects used by gobblin-metrics
+// Compile with:
+// java -jar /path/to/avro-tools-1.7.7.jar compile -string schema gobblin-metrics/src/main/avro/FlatGobblinMetric.avsc gobblin-metrics/src/main/gen-java
+{
+  "type": "record",
+  "name": "FlatGobblinMetric",
+  "namespace": "gobblin.metrics",
+  "fields" : [
+    {
+      "name": "tags",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "doc": "Tags associated with the metrics in the form key:value."
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "doc": "Time at which metrics were reported."
+    },
+    {
+      "name": "metricName",
+      "type": "string",
+      "doc": "The name of this metric."
+    },
+    {
+      "name": "metricValue",
+      "type": "double",
+      "doc": "The value of this metric."
+    }
+  ]
+}
