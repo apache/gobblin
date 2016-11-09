@@ -15,6 +15,7 @@ package gobblin.util;
 import java.net.URI;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.conf.Configuration;
@@ -25,6 +26,8 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -143,6 +146,7 @@ public class HadoopUtilsTest {
 
   @Test
   public void testSafeRenameRecursively() throws Exception {
+    final Logger log = LoggerFactory.getLogger("HadoopUtilsTest.testSafeRenameRecursively");
     final FileSystem fs = FileSystem.getLocal(new Configuration());
     fs.mkdirs(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c"));
 
@@ -160,7 +164,7 @@ public class HadoopUtilsTest {
 
     final Throwable[] runnableErrors = {null, null};
 
-    executorService.submit(new Runnable() {
+    Future<?> renameFuture = executorService.submit(new Runnable() {
 
       @Override
       public void run() {
@@ -168,12 +172,13 @@ public class HadoopUtilsTest {
           HadoopUtils.renameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging1"), new Path(
               hadoopUtilsTestDir, "testSafeRename"));
         } catch (Throwable e) {
+          log.error("Rename error: " + e, e);
           runnableErrors[0] = e;
         }
       }
     });
 
-    executorService.submit(new Runnable() {
+    Future<?> safeRenameFuture = executorService.submit(new Runnable() {
 
       @Override
       public void run() {
@@ -181,12 +186,16 @@ public class HadoopUtilsTest {
           HadoopUtils.safeRenameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging2"), new Path(
               hadoopUtilsTestDir, "testSafeRename"));
         } catch (Throwable e) {
+          log.error("Safe rename error: " + e, e);
           runnableErrors[1] = e;
         }
       }
     });
 
-    executorService.awaitTermination(2, TimeUnit.SECONDS);
+    // Wait for the executions to complete
+    renameFuture.get(10, TimeUnit.SECONDS);
+    safeRenameFuture.get(10, TimeUnit.SECONDS);
+
     executorService.shutdownNow();
 
     Assert.assertNull(runnableErrors[0], "Runnable 0 error: " + runnableErrors[0]);
