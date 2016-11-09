@@ -7,7 +7,7 @@ import java.util.HashMap;
 public class GoogleWebmasterFilter {
 
   public enum Dimension {
-    DATE, PAGE, COUNTRY, QUERY
+    DATE, PAGE, COUNTRY, QUERY, DEVICE, SEARCH_TYPE, SEARCH_APPEARANCE
   }
 
   public enum Country {

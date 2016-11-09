@@ -2,13 +2,13 @@
 job.name=GoogleSearchConsole_DataFetchJob
 job.description=Download Google Search Analytics data on a daily basis
 job.group=Test
-job.schedule=0/10 * * * * ?
+#job.schedule=0/10 * * * * ?
 
 
 ## Source properties
 source.entity=[Complete This]
 source.class=gobblin.source.extractor.extract.google.webmaster.GoogleWebMasterSource
-source.schema=[{"columnName":"Date","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Country","isNullable":"true","dataType":{"type":"string"}},{"columnName":"Page","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Query","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Clicks","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Impressions","isNullable":"false","dataType":{"type":"string"}},{"columnName":"CTR","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Position","isNullable":"false","dataType":{"type":"string"}}]
+source.schema=[{"columnName":"Date","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Country","isNullable":"true","dataType":{"type":"string"}},{"columnName":"Page","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Query","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Clicks","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Impressions","isNullable":"false","dataType":{"type":"string"}},{"columnName":"CTR","isNullable":"true","dataType":{"type":"string"}},{"columnName":"Position","isNullable":"false","dataType":{"type":"string"}}]
 
 ## Extract properties
 extract.namespace=${source.entity}
@@ -29,8 +29,10 @@ source.querybased.append.max.watermark.limit=CURRENTDATE-5
 source.google.api.scope=https://www.googleapis.com/auth/webmasters.readonly
 source.google_webmasters.property=[Complete This]
 source.google_webmasters.credential.location=[Complete This]
-source.google_webmasters.predefined_filters=psettings,legal,directory,start,help,edu,in,pub,learning,uas,badges,company,topic,grp,vsearch,jobs,pulse,title,groups,redir,profinder
-source.google_webmasters.request.countries=usa
+source.google_webmasters.request.page_check_list=psettings,legal,directory,start,help,edu,in,pub,learning,uas,badges,company,topic,grp,vsearch,jobs,pulse,title,groups,redir,profinder
+source.google_webmasters.request.dimensions=Date,Country,Page,Query
+source.google_webmasters.request.metrics=Clicks,Impressions,CTR,Position
+source.google_webmasters.request.filters=Country.ALL,Country.USA
 source.google_webmasters.request.page_limit=1
 source.google_webmasters.request.query_limit=1
 

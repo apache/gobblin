@@ -8,6 +8,11 @@ import java.util.Set;
 
 
 public interface GoogleWebmasterClient {
+
+  enum Metric {
+    CLICKS, IMPRESSIONS, CTR, POSITION
+  }
+
   /**
    * Given (date, country), return as many unique pages with clicks as possible. The upper bound is limited by rowLimit.
    */
@@ -19,6 +24,16 @@ public interface GoogleWebmasterClient {
   List<String> getPages(String date, int rowLimit, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filterMap) throws IOException;
 
+  /**
+   * The return value is composed of [requestedDimensions, clicks, impressions, ctr, position]
+   * @param date
+   * @param rowLimit
+   * @param requestedDimensions this serves as an list of dimension requests. The first part of the return value will match the requestDimensions
+   * @param filterMap filters of your request
+   * @return
+   * @throws IOException
+   */
   List<String[]> doQuery(String date, int rowLimit, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filterMap) throws IOException;
+      List<Metric> requestedMetrics, Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filterMap)
+      throws IOException;
 }
