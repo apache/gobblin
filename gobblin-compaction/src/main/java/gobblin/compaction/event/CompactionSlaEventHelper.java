@@ -15,7 +15,6 @@ package gobblin.compaction.event;
 
 import java.io.IOException;
 
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Counter;
@@ -32,86 +31,100 @@ import gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
 import gobblin.compaction.mapreduce.avro.AvroKeyMapper;
 import gobblin.configuration.State;
 import gobblin.metrics.event.sla.SlaEventKeys;
+import gobblin.metrics.event.sla.SlaEventSubmitter;
+import gobblin.metrics.event.sla.SlaEventSubmitter.SlaEventSubmitterBuilder;
 
 
 /**
- * Helper class to populate sla event metadata in state.
+ * Helper class to build compaction sla event metadata.
  */
 public class CompactionSlaEventHelper {
 
   private static final Logger LOG = LoggerFactory.getLogger(CompactionSlaEventHelper.class);
+  public static final String RECOMPATED_METADATA_NAME = "recompacted";
+  public static final String COMPACTION_COMPLETED_EVENT_NAME = "CompactionCompleted";
+  public static final String COMPACTION_FAILED_EVENT_NAME = "CompactionFailed";
+  public static final String COMPLETION_VERIFICATION_FAILED_EVENT_NAME = "CompletenessCannotBeVerified";
+  public static final String COMPLETION_VERIFICATION_SUCCESS_EVENT_NAME = "CompletenessVerified";
 
+  /**
+   * Get an {@link SlaEventSubmitterBuilder} that has dataset urn, partition, record count, previous publish timestamp
+   * and dedupe status set.
+   * The caller MUST set eventSubmitter, eventname before submitting.
+   *
+   */
+  public static SlaEventSubmitterBuilder getEventSubmitterBuilder(Dataset dataset, Optional<Job> job, FileSystem fs) {
+    return SlaEventSubmitter
+        .builder()
+        .datasetUrn(dataset.getUrn())
+        .partition(dataset.jobProps().getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, ""))
+        .dedupeStatus(getOutputDedupeStatus(dataset.jobProps()))
+        .previousPublishTimestamp(Long.toString(getPreviousPublishTime(dataset, fs)))
+        .upstreamTimestamp(dataset.jobProps().getProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, Long.toString(-1l)))
+        .recordCount(Long.toString(getRecordCount(job)));
+  }
+
+  /**
+   * {@link Deprecated} use {@link #getEventSubmitterBuilder(Dataset, Optional, FileSystem)}
+   */
+  @Deprecated
   public static void populateState(Dataset dataset, Optional<Job> job, FileSystem fs) {
-    setDatasetUrn(dataset);
-    setPartition(dataset);
-    setOutputDedupeStatus(dataset.jobProps());
-    setPreviousPublishTime(dataset, fs);
-    if (job.isPresent()) {
-      setRecordCount(dataset.jobProps(), job.get());
-    }
+    dataset.jobProps().setProp(SlaEventKeys.DATASET_URN_KEY, dataset.getUrn());
+    dataset.jobProps().setProp(SlaEventKeys.PARTITION_KEY,
+        dataset.jobProps().getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, ""));
+    dataset.jobProps().setProp(SlaEventKeys.DEDUPE_STATUS_KEY, getOutputDedupeStatus(dataset.jobProps()));
+    dataset.jobProps().setProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY, getPreviousPublishTime(dataset, fs));
+    dataset.jobProps().setProp(SlaEventKeys.RECORD_COUNT_KEY, getRecordCount(job));
   }
 
   public static void setUpstreamTimeStamp(State state, long time) {
     state.setProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, Long.toString(time));
   }
 
-  private static void setDatasetUrn(Dataset dataset) {
-    dataset.jobProps().setProp(SlaEventKeys.DATASET_URN_KEY, dataset.getUrn());
-  }
-
-  private static void setPartition(Dataset dataset) {
-    dataset.jobProps().setProp(SlaEventKeys.PARTITION_KEY,
-        dataset.jobProps().getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, ""));
-  }
-
-  private static void setPreviousPublishTime(Dataset dataset, FileSystem fs) {
-
+  private static long getPreviousPublishTime(Dataset dataset, FileSystem fs) {
     Path compactionCompletePath = new Path(dataset.outputPath(), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
-
     try {
-      FileStatus fileStatus = fs.getFileStatus(compactionCompletePath);
-      dataset.jobProps().setProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY,
-          Long.toString(fileStatus.getModificationTime()));
+      return fs.getFileStatus(compactionCompletePath).getModificationTime();
     } catch (IOException e) {
       LOG.debug("Failed to get previous publish time.", e);
     }
+    return -1l;
   }
 
-  private static void setOutputDedupeStatus(State state) {
-    if (state.getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
-        MRCompactor.DEFAULT_COMPACTION_OUTPUT_DEDUPLICATED)) {
-      state.setProp(SlaEventKeys.DEDUPE_STATUS_KEY, DedupeStatus.DEDUPED);
+  private static String getOutputDedupeStatus(State state) {
+    return state.getPropAsBoolean(MRCompactor.COMPACTION_OUTPUT_DEDUPLICATED,
+        MRCompactor.DEFAULT_COMPACTION_OUTPUT_DEDUPLICATED) ? DedupeStatus.DEDUPED.toString()
+        : DedupeStatus.NOT_DEDUPED.toString();
+  }
 
-    } else {
-      state.setProp(SlaEventKeys.DEDUPE_STATUS_KEY, DedupeStatus.NOT_DEDUPED);
+  private static long getRecordCount(Optional<Job> job) {
+
+    if (!job.isPresent()) {
+      return -1l;
     }
-  }
-
-  private static void setRecordCount(State state, Job job) {
 
     Counters counters = null;
     try {
-      counters = job.getCounters();
+      counters = job.get().getCounters();
     } catch (IOException e) {
-      LOG.info("Failed to get job counters. Record count will not be set. ", e);
-      return;
+      LOG.debug("Failed to get job counters. Record count will not be set. ", e);
+      return -1l;
     }
 
     Counter recordCounter = counters.findCounter(AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT);
 
     if (recordCounter != null && recordCounter.getValue() != 0) {
-      state.setProp(SlaEventKeys.RECORD_COUNT_KEY, Long.toString(recordCounter.getValue()));
-      return;
+      return recordCounter.getValue();
     }
 
     recordCounter = counters.findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
 
     if (recordCounter != null && recordCounter.getValue() != 0) {
-      state.setProp(SlaEventKeys.RECORD_COUNT_KEY, Long.toString(recordCounter.getValue()));
-      return;
+      return recordCounter.getValue();
     }
 
-    LOG.info("Non zero record count not found in both mapper and reducer counters");
+    LOG.debug("Non zero record count not found in both mapper and reducer counters");
 
+    return -1l;
   }
 }
