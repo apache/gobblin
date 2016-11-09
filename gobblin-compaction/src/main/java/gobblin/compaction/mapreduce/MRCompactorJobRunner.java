@@ -41,6 +41,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 
@@ -50,7 +52,6 @@ import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.FileListUtils;
 import gobblin.util.HadoopUtils;
@@ -140,6 +141,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private volatile Policy policy = Policy.DO_NOT_PUBLISH_DATA;
   private volatile Status status = Status.RUNNING;
+  private final Cache<Path, List<Path>> applicablePathCache;
 
   protected MRCompactorJobRunner(Dataset dataset, FileSystem fs) {
     this.dataset = dataset;
@@ -180,6 +182,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     } catch (Exception e) {
       throw new RuntimeException("Failed to instantiate RecordCountProvider", e);
     }
+    this.applicablePathCache = CacheBuilder.newBuilder().maximumSize(2000).build();
   }
 
   @Override
@@ -499,8 +502,24 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
   private void submitSlaEvent(Job job) {
-    CompactionSlaEventHelper.populateState(this.dataset, Optional.of(job), this.fs);
-    new SlaEventSubmitter(this.eventSubmitter, "CompactionCompleted", this.dataset.jobProps().getProperties()).submit();
+    try {
+      CompactionSlaEventHelper
+          .getEventSubmitterBuilder(this.dataset, Optional.of(job), this.fs)
+          .eventSubmitter(this.eventSubmitter)
+          .eventName(CompactionSlaEventHelper.COMPACTION_COMPLETED_EVENT_NAME)
+          .additionalMetadata(
+              CompactionRecordCountEvent.LATE_RECORD_COUNT,
+              Long.toString(this.lateOutputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
+                  .outputLatePath()))))
+          .additionalMetadata(
+              CompactionRecordCountEvent.REGULAR_RECORD_COUNT,
+              Long.toString(this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
+                  .outputPath()))))
+          .additionalMetadata(CompactionSlaEventHelper.RECOMPATED_METADATA_NAME, Boolean.toString(this.dataset.needToRecompact()))
+          .build().submit();
+    } catch (Exception e) {
+      LOG.error("Failed to submit compcation completed event:" + e, e);
+    }
   }
 
   /**
@@ -531,25 +550,36 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
    * Get the list of file {@link Path}s in the given dataDir, which satisfy the extension requirements
    *  of {@link #getApplicableFileExtensions()}.
    */
-  private List<Path> getApplicableFilePaths(Path dataDir) throws IOException {
-    if (!this.fs.exists(dataDir)) {
-      return Lists.newArrayList();
-    }
-    List<Path> paths = Lists.newArrayList();
-    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(this.fs, dataDir, new PathFilter() {
-      @Override
-      public boolean accept(Path path) {
-        for (String validExtention : getApplicableFileExtensions()) {
-          if (path.getName().endsWith(validExtention)) {
-            return true;
+  private List<Path> getApplicableFilePaths(final Path dataDir) throws IOException {
+    try {
+      return applicablePathCache.get(dataDir, new Callable<List<Path>>() {
+
+        @Override
+        public List<Path> call() throws Exception {
+          if (!MRCompactorJobRunner.this.fs.exists(dataDir)) {
+            return Lists.newArrayList();
           }
+          List<Path> paths = Lists.newArrayList();
+          for (FileStatus fileStatus : FileListUtils.listFilesRecursively(MRCompactorJobRunner.this.fs, dataDir,
+              new PathFilter() {
+            @Override
+            public boolean accept(Path path) {
+              for (String validExtention : getApplicableFileExtensions()) {
+                if (path.getName().endsWith(validExtention)) {
+                  return true;
+                }
+              }
+              return false;
+            }
+          })) {
+            paths.add(fileStatus.getPath());
+          }
+          return paths;
         }
-        return false;
-      }
-    })) {
-      paths.add(fileStatus.getPath());
+      });
+    } catch (ExecutionException e) {
+      throw new IOException(e);
     }
-    return paths;
   }
 
   /**

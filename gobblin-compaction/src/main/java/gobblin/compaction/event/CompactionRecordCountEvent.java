@@ -31,10 +31,10 @@ import gobblin.metrics.event.EventSubmitter;
 public class CompactionRecordCountEvent {
 
   public static final String COMPACTION_RECORD_COUNT_EVENT = "CompactionRecordCounts";
-  public static final String DATASET_OUTPUT_PATH = "DatasetOutputPath";
-  public static final String LATE_RECORD_COUNT = "LateRecordCount";
-  public static final String REGULAR_RECORD_COUNT = "RegularRecordCount";
-  public static final String NEED_RECOMPACT = "NeedRecompact";
+  public static final String DATASET_OUTPUT_PATH = "datasetOutputPath";
+  public static final String LATE_RECORD_COUNT = "lateRecordCount";
+  public static final String REGULAR_RECORD_COUNT = "regularRecordCount";
+  public static final String NEED_RECOMPACT = "needRecompact";
 
   private final Dataset dataset;
   private final long outputRecordCount;
@@ -50,7 +50,7 @@ public class CompactionRecordCountEvent {
     eventMetadataMap.put(LATE_RECORD_COUNT, Long.toString(this.lateOutputRecordCount));
     eventMetadataMap.put(REGULAR_RECORD_COUNT, Long.toString(this.outputRecordCount));
     eventMetadataMap.put(NEED_RECOMPACT, Boolean.toString(this.dataset.needToRecompact()));
-    log.info("Compaction record count event metadata: " + eventMetadataMap);
+    log.debug("Compaction record count event metadata: " + eventMetadataMap);
     return eventMetadataMap;
   }
 
