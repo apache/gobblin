@@ -1,128 +1,61 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
-import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.common.base.Splitter;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.LongWatermark;
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import java.util.Queue;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static gobblin.configuration.ConfigurationKeys.*;
 
-//Doesn't implement Iterator<String[]> because I want to throw exception.
-class GoogleWebmasterDataIterator {
-  private final GoogleWebmasterClient _webmaster;
-  private final String _date;
-  private final GoogleWebmasterFilter.Country _country;
-  private final int _pageLimit;
-  private final int _queryLimit;
-  private Deque<String> _cachedPages = null;
-  private Deque<String[]> _cachedQueries = new LinkedList<>();
-
-  private final Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> _filterMap = new HashMap<>();
-  private final List<GoogleWebmasterFilter.Dimension> _requestedDimensions;
-
-  public GoogleWebmasterDataIterator(GoogleWebmasterClient webmaster, String date,
-      GoogleWebmasterFilter.Country country, int pageLimit, int queryLimit) {
-    _webmaster = webmaster;
-    _date = date;
-    _country = country;
-    _pageLimit = pageLimit;
-    _queryLimit = queryLimit;
-
-    //The requested dimension order must match the order of output schema
-    if (_country == GoogleWebmasterFilter.Country.ALL) {
-      _requestedDimensions = Arrays.asList(GoogleWebmasterFilter.Dimension.DATE, GoogleWebmasterFilter.Dimension.PAGE,
-          GoogleWebmasterFilter.Dimension.QUERY);
-    } else {
-      _requestedDimensions =
-          Arrays.asList(GoogleWebmasterFilter.Dimension.DATE, GoogleWebmasterFilter.Dimension.COUNTRY,
-              GoogleWebmasterFilter.Dimension.PAGE, GoogleWebmasterFilter.Dimension.QUERY);
-      _filterMap.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryFilter(_country));
-    }
-  }
-
-  public boolean hasNext() throws IOException {
-    if (_cachedPages == null) {
-      _cachedPages = new ArrayDeque<>(_webmaster.getAllPages(_date, _country, _pageLimit));
-    }
-
-    if (!_cachedQueries.isEmpty()) {
-      return true;
-    }
-
-    while (_cachedQueries.isEmpty()) {
-      if (_cachedPages.isEmpty()) {
-        return false;
-      }
-      String nextPage = _cachedPages.remove();
-      _filterMap.remove(GoogleWebmasterFilter.Dimension.PAGE);
-      _filterMap.put(GoogleWebmasterFilter.Dimension.PAGE,
-          GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, nextPage));
-      List<String[]> response = _webmaster.doQuery(_date, _queryLimit, _requestedDimensions, _filterMap);
-      if (_country == GoogleWebmasterFilter.Country.ALL) {
-        //TODO: can this be generalized?
-        for (String[] r : response) {
-          String[] countryIsGlobal = new String[8];
-          countryIsGlobal[0] = r[0];
-          countryIsGlobal[1] = null; //country is global, set to null
-          System.arraycopy(r, 1, countryIsGlobal, 2, r.length - 1);
-          _cachedQueries.add(countryIsGlobal);
-        }
-      } else {
-        _cachedQueries = new ArrayDeque<>(response);
-      }
-    }
-    return true;
-  }
-
-  public String[] next() throws IOException {
-    if (hasNext()) {
-      return _cachedQueries.remove();
-    }
-    return null;
-  }
-}
 
 public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterExtractor.class);
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
   private final String _schema;
-  private final WorkUnitState workUnitState;
-  private Queue<GoogleWebmasterDataIterator> _iterators = new ArrayDeque<>();
+  private final WorkUnitState _wuState;
+  private final DateTimeFormatter _watermarkFormatter;
+  private Queue<GoogleWebmasterExtractorIterator> _iterators = new ArrayDeque<>();
+  private final DateTime _currentDate;
+  private boolean _successful = false;
 
-  public GoogleWebmasterExtractor(WorkUnitState workUnitState) {
-    this.workUnitState = workUnitState;
-    _schema = workUnitState.getWorkunit().getProp(ConfigurationKeys.SOURCE_SCHEMA);
+  public GoogleWebmasterExtractor(WorkUnitState wuState) {
+    this._wuState = wuState;
+    _watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss")
+        .withZone(DateTimeZone.forID(wuState.getProp(SOURCE_TIMEZONE, DEFAULT_SOURCE_TIMEZONE)));
+    _currentDate = _watermarkFormatter.parseDateTime(
+        Long.toString(wuState.getWorkunit().getLowWatermark(LongWatermark.class).getValue()));
 
-    int pageLimit = Integer.parseInt(workUnitState.getProp(GoogleWebMasterSource.KEY_REQUEST_PAGE_LIMIT));
-    int queryLimit = Integer.parseInt(workUnitState.getProp(GoogleWebMasterSource.KEY_REQUEST_QUERY_LIMIT));
-    String dateString = workUnitState.getProp(GoogleWebMasterSource.KEY_REQUEST_DATE);
+    String date = DateTimeFormat.forPattern("yyyy-MM-dd").print(_currentDate);
+    LOG.info("Creating GoogleWebmasterExtractor for " + date);
+
+    _schema = wuState.getWorkunit().getProp(ConfigurationKeys.SOURCE_SCHEMA);
+
+    int pageLimit = Integer.parseInt(wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_PAGE_LIMIT));
+    int queryLimit = Integer.parseInt(wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_QUERY_LIMIT));
 
     try {
-      String property = workUnitState.getProp(GoogleWebMasterSource.KEY_PROPERTY);
-      String credential = workUnitState.getProp(GoogleWebMasterSource.KEY_CREDENTIAL_LOCATION);
-      Iterable<String> filters = splitter.split(workUnitState.getProp(GoogleWebMasterSource.KEY_PREDEFINED_FILTERS));
-      String appName = workUnitState.getProp(ConfigurationKeys.SOURCE_ENTITY);
-      String scope = workUnitState.getProp(GoogleWebMasterSource.KEY_API_SCOPE);
+      String property = wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY);
+      String credential = wuState.getProp(GoogleWebMasterSource.KEY_CREDENTIAL_LOCATION);
+      Iterable<String> filters = splitter.split(wuState.getProp(GoogleWebMasterSource.KEY_PREDEFINED_FILTERS));
+      String appName = wuState.getProp(ConfigurationKeys.SOURCE_ENTITY);
+      String scope = wuState.getProp(GoogleWebMasterSource.KEY_API_SCOPE);
       GoogleWebmasterClientImpl webmaster =
           new GoogleWebmasterClientImpl(property, credential, appName, scope, filters);
 
-      Iterable<String> countries = splitter.split(workUnitState.getProp(GoogleWebMasterSource.KEY_COUNTRIES));
+      Iterable<String> countries = splitter.split(wuState.getProp(GoogleWebMasterSource.KEY_COUNTRIES));
       for (String country : countries) {
-        _iterators.add(new GoogleWebmasterDataIterator(webmaster, dateString,
+        _iterators.add(new GoogleWebmasterExtractorIterator(webmaster, date,
             GoogleWebmasterFilter.Country.valueOf(country.toUpperCase()), pageLimit, queryLimit));
       }
     } catch (IOException e) {
@@ -138,12 +71,16 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   @Override
   public String[] readRecord(@Deprecated String[] reuse) throws DataRecordException, IOException {
     while (!_iterators.isEmpty()) {
-      GoogleWebmasterDataIterator iterator = _iterators.peek();
+      GoogleWebmasterExtractorIterator iterator = _iterators.peek();
       if (iterator.hasNext()) {
         return iterator.next();
       }
       _iterators.remove();
     }
+//    if (1 == 1) {
+//      throw new DataRecordException("Fail me!!! at " + _currentDate.toString());
+//    }
+    _successful = true;
     return null;
   }
 
@@ -159,8 +96,12 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
 
   @Override
   public void close() throws IOException {
-    State previousTableState = workUnitState.getPreviousTableState();
-    workUnitState.setActualHighWatermark(
-        new LongWatermark(previousTableState.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE, 0) + 100));
+    if (_successful) {
+      LOG.info("Successfully finished fetching data from Google Search Console for " + _currentDate.toString());
+      _wuState.setActualHighWatermark(
+          new LongWatermark(Long.parseLong(_watermarkFormatter.print(_currentDate.plusDays(1)))));
+    } else {
+      LOG.warn("Had problems fetching all data from Google Search Console for " + _currentDate.toString());
+    }
   }
 }

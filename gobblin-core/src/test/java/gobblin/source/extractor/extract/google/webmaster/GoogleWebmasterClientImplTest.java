@@ -4,22 +4,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 
+@Test(groups = {"gobblin.source.extractor.extract.google.webmaster"})
 public class GoogleWebmasterClientImplTest {
-  @Before
-  public void setUp() throws Exception {
-
-  }
-
-  @After
-  public void tearDown() throws Exception {
-
-  }
 
   @Test
   public void getPagePrefixes() throws Exception {
