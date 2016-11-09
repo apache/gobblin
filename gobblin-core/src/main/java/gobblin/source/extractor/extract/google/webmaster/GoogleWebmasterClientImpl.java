@@ -193,7 +193,8 @@ public class GoogleWebmasterClientImpl implements GoogleWebmasterClient {
 
   @Override
   public List<String[]> doQuery(String date, int rowLimit, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filterMap) throws IOException {
+      List<Metric> requestedMetrics, Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filterMap)
+      throws IOException {
 
     SearchAnalyticsQueryResponse response = doQuery(date, requestedDimensions, FilterGroupAnd(filterMap), rowLimit);
 
@@ -213,10 +214,21 @@ public class GoogleWebmasterClientImpl implements GoogleWebmasterClient {
       for (; i < keys.size(); ++i) {
         data[i] = keys.get(i);
       }
-      data[i] = row.getClicks().toString();
-      data[i + 1] = row.getImpressions().toString();
-      data[i + 2] = String.format("%.5f", row.getCtr());
-      data[i + 3] = String.format("%.2f", row.getPosition());
+
+      for (Metric requestedMetric : requestedMetrics) {
+        if (requestedMetric == Metric.CLICKS) {
+          data[i] = row.getClicks().toString();
+        } else if (requestedMetric == Metric.IMPRESSIONS) {
+          data[i] = row.getImpressions().toString();
+        } else if (requestedMetric == Metric.CTR) {
+          data[i] = String.format("%.5f", row.getCtr());
+        } else if (requestedMetric == Metric.POSITION) {
+          data[i] = String.format("%.2f", row.getPosition());
+        } else {
+          throw new RuntimeException("Unknown Google Webmaster Metric Type");
+        }
+        ++i;
+      }
       ret.add(data);
     }
     return ret;
