@@ -34,9 +34,8 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.collect.Multimaps;
+import com.google.common.collect.SetMultimap;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
@@ -82,6 +81,9 @@ import gobblin.util.request_allocation.HierarchicalPrioritizer;
 import gobblin.util.request_allocation.RequestAllocator;
 import gobblin.util.request_allocation.RequestAllocatorConfig;
 import gobblin.util.request_allocation.RequestAllocatorUtils;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -167,7 +169,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       Iterator<CopyableDatasetRequestor> requestorIterator = Iterators.filter(requestorIteratorWithNulls,
           Predicates.<CopyableDatasetRequestor>notNull());
 
-      final HashMultimap<FileSet<CopyEntity>, WorkUnit> workUnitsMap = HashMultimap.create();
+      final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitsMap =
+          Multimaps.<FileSet<CopyEntity>, WorkUnit>synchronizedSetMultimap(
+              HashMultimap.<FileSet<CopyEntity>, WorkUnit>create());
 
       RequestAllocator<FileSet<CopyEntity>> allocator = createRequestAllocator(copyConfiguration, maxThreads);
       Iterator<FileSet<CopyEntity>> prioritizedFileSets = allocator.allocateRequests(requestorIterator, copyConfiguration.getMaxToCopy());
@@ -258,7 +262,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     private final CopyableDatasetBase copyableDataset;
     private final FileSet<CopyEntity> fileSet;
     private final State state;
-    private final HashMultimap<FileSet<CopyEntity>, WorkUnit> workUnitList;
+    private final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitList;
     private final Optional<CopyableFileWatermarkGenerator> watermarkGenerator;
     private final long minWorkUnitWeight;
 
