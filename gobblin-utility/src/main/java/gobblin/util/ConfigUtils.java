@@ -198,6 +198,8 @@ public class ConfigUtils {
           !blacklistedKeys.contains(entryKey)) {
         if (fullPrefixKeys.contains(entryKey)) {
           entryKey = sanitizeFullPrefixKey(entryKey);
+        } else if (entryKey.endsWith(STRIP_SUFFIX)) {
+          throw new RuntimeException("Properties are not allowed to end in " + STRIP_SUFFIX);
         }
         immutableMapBuilder.put(entryKey, entry.getValue());
       }
