@@ -318,14 +318,14 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
     if (CopyableFile.class.isAssignableFrom(copyEntityClass)) {
       CopyableFile copyEntity = (CopyableFile) deserializeCopyEntity(state);
-      return extractorForCopyableFile(getSourceFileSystem(state), copyEntity);
+      return extractorForCopyableFile(getSourceFileSystem(state), copyEntity, state);
     }
     return new EmptyExtractor<>("empty");
   }
 
-  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf)
+  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf, WorkUnitState state)
       throws IOException {
-    return new FileAwareInputStreamExtractor(fs, cf);
+    return new FileAwareInputStreamExtractor(fs, cf, state);
   }
 
   @Override

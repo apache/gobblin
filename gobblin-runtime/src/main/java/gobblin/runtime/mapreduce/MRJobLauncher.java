@@ -29,6 +29,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.CounterGroup;
 import org.apache.hadoop.mapreduce.Counters;
@@ -49,6 +50,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ServiceManager;
 
+import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
@@ -57,6 +59,7 @@ import gobblin.metrics.Tag;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.password.PasswordManager;
 import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.GobblinMultiTaskAttempt;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobState;
 import gobblin.runtime.Task;
@@ -138,16 +141,15 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     this.fs = buildFileSystem(jobProps, this.conf);
 
-    this.mrJobDir =
-        new Path(
-            new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobContext.getJobName()),
-            this.jobContext.getJobId());
+    this.mrJobDir = new Path(
+        new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobContext.getJobName()),
+        this.jobContext.getJobId());
     if (this.fs.exists(this.mrJobDir)) {
       LOG.warn("Job working directory already exists for job " + this.jobContext.getJobName());
       this.fs.delete(this.mrJobDir, true);
     }
-    this.jarsDir = this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR)
-        ? new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR)) : new Path(this.mrJobDir, JARS_DIR_NAME);
+    this.jarsDir = this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR) ? new Path(
+        this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR)) : new Path(this.mrJobDir, JARS_DIR_NAME);
     this.fs.mkdirs(this.mrJobDir);
 
     this.jobInputPath = new Path(this.mrJobDir, INPUT_DIR_NAME);
@@ -305,8 +307,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.job.setMapOutputKeyClass(NullWritable.class);
     this.job.setMapOutputValueClass(NullWritable.class);
 
-    // Turn off speculative execution
-    this.job.setSpeculativeExecution(false);
+    // Set speculative execution
+    this.job.setSpeculativeExecution(isSpeculativeExecutionEnabled(HadoopUtils.getConfFromProperties(this.jobProps)));
 
     this.job.getConfiguration().set("mapreduce.job.user.classpath.first", "true");
 
@@ -328,6 +330,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     mrJobSetupTimer.stop();
+  }
+
+  static boolean isSpeculativeExecutionEnabled(Configuration conf) {
+    return conf.getBoolean(JobContext.MAP_SPECULATIVE, ConfigurationKeys.DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION);
   }
 
   @VisibleForTesting
@@ -455,7 +461,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
     } finally {
       closer.close();
     }
-
   }
 
   /**
@@ -521,7 +526,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     private TaskStateTracker taskStateTracker;
     private ServiceManager serviceManager;
     private Optional<JobMetrics> jobMetrics = Optional.absent();
-
+    private boolean isSpeculativeEnabled;
     private final JobState jobState = new JobState();
 
     // A list of WorkUnits (flattened for MultiWorkUnits) to be run by this mapper
@@ -530,6 +535,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     @Override
     protected void setup(Context context) {
       try (Closer closer = Closer.create()) {
+        this.isSpeculativeEnabled = isSpeculativeExecutionEnabled(context.getConfiguration());
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore =
             new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
@@ -577,17 +583,56 @@ public class MRJobLauncher extends AbstractJobLauncher {
     public void run(Context context)
         throws IOException, InterruptedException {
       this.setup(context);
-
+      GobblinMultiTaskAttempt gobblinMultiTaskAttempt = null;
       try {
         // De-serialize and collect the list of WorkUnits to run
         while (context.nextKeyValue()) {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
+        MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy =
+            isSpeculativeEnabled ? MULTI_TASK_ATTEMPT_COMMIT_POLICY.CUSTOMIZED
+                : MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE;
         // Actually run the list of WorkUnits
-        runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(), this.jobState, this.workUnits,
-            this.taskStateTracker, this.taskExecutor, this.taskStateStore, LOG);
+        gobblinMultiTaskAttempt =
+            runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(), this.jobState, this.workUnits,
+                this.taskStateTracker, this.taskExecutor, this.taskStateStore, LOG, multiTaskAttemptCommitPolicy);
+
+        if (this.isSpeculativeEnabled) {
+          LOG.info("will not commit in task attempt");
+          GobblinOutputCommitter gobblinOutputCommitter = (GobblinOutputCommitter) context.getOutputCommitter();
+          gobblinOutputCommitter.getAttemptIdToMultiTaskAttempt()
+              .put(context.getTaskAttemptID().toString(), gobblinMultiTaskAttempt);
+        }
       } finally {
-        this.cleanup(context);
+        CommitStep cleanUpCommitStep = new CommitStep() {
+
+          @Override
+          public boolean isCompleted()
+              throws IOException {
+            return !serviceManager.isHealthy();
+          }
+
+          @Override
+          public void execute()
+              throws IOException {
+            LOG.info("Starting the clean-up steps.");
+            try {
+              serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
+            } catch (TimeoutException te) {
+              // Ignored
+            } finally {
+              if (jobMetrics.isPresent()) {
+                // TODO: Add "committed" tag to final metrics.
+              }
+            }
+          }
+        };
+        if (!this.isSpeculativeEnabled || gobblinMultiTaskAttempt == null) {
+          cleanUpCommitStep.execute();
+        } else {
+          LOG.info("Adding additional commit step");
+          gobblinMultiTaskAttempt.addCleanupCommitStep(cleanUpCommitStep);
+        }
       }
     }
 
@@ -604,26 +649,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
         this.workUnits.addAll(flattenedWorkUnits);
       } else {
         this.workUnits.add(workUnit);
-      }
-    }
-
-    @Override
-    protected void cleanup(Context context)
-        throws IOException, InterruptedException {
-      try {
-        this.serviceManager.stopAsync().awaitStopped(5, TimeUnit.SECONDS);
-      } catch (TimeoutException te) {
-        // Ignored
-      } finally {
-        if (this.jobMetrics.isPresent()) {
-          try {
-            this.jobMetrics.get().stopMetricsReporting();
-          } catch (Throwable throwable) {
-            LOG.error("Failed to stop job metrics reporting.", throwable);
-          } finally {
-            GobblinMetrics.remove(this.jobMetrics.get().getName());
-          }
-        }
       }
     }
   }

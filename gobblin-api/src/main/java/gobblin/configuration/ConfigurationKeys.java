@@ -454,6 +454,7 @@ public class ConfigurationKeys {
   public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
   public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
+  public static final boolean DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION = false;
 
   /**
    * Configuration properties used by the distributed job launcher.

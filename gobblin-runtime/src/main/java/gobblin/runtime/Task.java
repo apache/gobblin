@@ -13,6 +13,7 @@
 package gobblin.runtime;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -92,7 +93,11 @@ public class Task implements Runnable {
 
   private final Converter converter;
   private final InstrumentedExtractorBase extractor;
+  private final RowLevelPolicyChecker rowChecker;
+
   private final Closer closer;
+
+  private long startTime;
 
 
   /**
@@ -117,13 +122,22 @@ public class Task implements Runnable {
         closer.register(new InstrumentedExtractorDecorator<>(this.taskState, this.taskContext.getExtractor()));
 
     this.converter = closer.register(new MultiConverter(this.taskContext.getConverters()));
-
+    try {
+      this.rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
+    } catch (Exception e) {
+      try {
+        closer.close();
+      } catch (Throwable t) {
+        LOG.error("Failed to close all open resources", t);
+      }
+      throw new RuntimeException("Failed to instantiate row checker.", e);
+    }
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public void run() {
-    long startTime = System.currentTimeMillis();
+    this.startTime = System.currentTimeMillis();
     this.taskState.setStartTime(startTime);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.RUNNING);
 
@@ -199,69 +213,10 @@ public class Task implements Runnable {
         }
       }
 
-      // Check if all forks succeeded
-      boolean allForksSucceeded = true;
-      for (Optional<Fork> fork : this.forks.keySet()) {
-        if (fork.isPresent()) {
-          if (fork.get().isSucceeded()) {
-            if (!fork.get().commit()) {
-              allForksSucceeded = false;
-            }
-          } else {
-            allForksSucceeded = false;
-          }
-        }
-      }
-
-      if (allForksSucceeded) {
-        // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
-        // as the data publisher will do that upon successful data publishing.
-        this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
-      } else {
-        LOG.error(String.format("Not all forks of task %s succeeded", this.taskId));
-        this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-      }
-
     } catch (Throwable t) {
       failTask(t);
     } finally {
-
-      addConstructsFinalStateToTaskState(extractor, converter, rowChecker);
-
-      this.taskState.setProp(ConfigurationKeys.WRITER_RECORDS_WRITTEN, getRecordsWritten());
-      this.taskState.setProp(ConfigurationKeys.WRITER_BYTES_WRITTEN, getBytesWritten());
-
-      try {
-        closer.close();
-      } catch (Throwable t) {
-        LOG.error("Failed to close all open resources", t);
-      }
-
-      for (Map.Entry<Optional<Fork>, Optional<Future<?>>> forkAndFuture : this.forks.entrySet()) {
-        if (forkAndFuture.getKey().isPresent() && forkAndFuture.getValue().isPresent()) {
-          try {
-            forkAndFuture.getValue().get().cancel(true);
-          } catch (Throwable t) {
-            LOG.error(String.format("Failed to cancel Fork \"%s\"", forkAndFuture.getKey().get()), t);
-          }
-        }
-      }
-
-      try {
-        if (shouldPublishDataInTask()) {
-          // If data should be published by the task, publish the data and set the task state to COMMITTED.
-          // Task data can only be published after all forks have been closed by closer.close().
-          publishTaskData();
-          this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-        }
-      } catch (IOException ioe) {
-        failTask(ioe);
-      } finally {
-        long endTime = System.currentTimeMillis();
-        this.taskState.setEndTime(endTime);
-        this.taskState.setTaskDuration(endTime - startTime);
-        this.taskStateTracker.onTaskCompletion(this);
-      }
+      this.taskStateTracker.onTaskRunCompletion(this);
     }
   }
 
@@ -575,7 +530,68 @@ public class Task implements Runnable {
    * 3. Check whether to publish data in task.
    */
   public void commit() {
-    // TODO- refactor the current Task.run() method to run & commit phases, and add commit content here.
+    try {
+      // Check if all forks succeeded
+      List<Integer> failedForkIds = new ArrayList<>();
+      for (Optional<Fork> fork : this.forks.keySet()) {
+        if (fork.isPresent()) {
+          if (fork.get().isSucceeded()) {
+            if (!fork.get().commit()) {
+              failedForkIds.add(fork.get().getIndex());
+            }
+          } else {
+            failedForkIds.add(fork.get().getIndex());
+          }
+        }
+      }
+
+      if (failedForkIds.size() == 0) {
+        // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
+        // as the data publisher will do that upon successful data publishing.
+        this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
+      } else {
+        failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
+      }
+    } catch (Throwable t) {
+      failTask(t);
+    } finally {
+      addConstructsFinalStateToTaskState(extractor, converter, rowChecker);
+
+      this.taskState.setProp(ConfigurationKeys.WRITER_RECORDS_WRITTEN, getRecordsWritten());
+      this.taskState.setProp(ConfigurationKeys.WRITER_BYTES_WRITTEN, getBytesWritten());
+
+      try {
+        closer.close();
+      } catch (Throwable t) {
+        LOG.error("Failed to close all open resources", t);
+      }
+
+      for (Map.Entry<Optional<Fork>, Optional<Future<?>>> forkAndFuture : this.forks.entrySet()) {
+        if (forkAndFuture.getKey().isPresent() && forkAndFuture.getValue().isPresent()) {
+          try {
+            forkAndFuture.getValue().get().cancel(true);
+          } catch (Throwable t) {
+            LOG.error(String.format("Failed to cancel Fork \"%s\"", forkAndFuture.getKey().get()), t);
+          }
+        }
+      }
+
+      try {
+        if (shouldPublishDataInTask()) {
+          // If data should be published by the task, publish the data and set the task state to COMMITTED.
+          // Task data can only be published after all forks have been closed by closer.close().
+          publishTaskData();
+          this.taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+        }
+      } catch (IOException ioe) {
+        failTask(ioe);
+      } finally {
+        long endTime = System.currentTimeMillis();
+        this.taskState.setEndTime(endTime);
+        this.taskState.setTaskDuration(endTime - startTime);
+        this.taskStateTracker.onTaskCommitCompletion(this);
+      }
+    }
   }
 
   /**

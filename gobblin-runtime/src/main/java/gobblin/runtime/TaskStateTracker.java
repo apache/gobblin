@@ -30,9 +30,16 @@ public interface TaskStateTracker extends Service {
   public void registerNewTask(Task task);
 
   /**
-   * Callback method when the {@link Task} is completed.
+   * Callback method when the {@link Task} completes running.
    *
-   * @param task {@link Task} that is completed
+   * @param task {@link Task} that runs completely.
    */
-  public void onTaskCompletion(Task task);
+  public void onTaskRunCompletion(Task task);
+
+  /**
+   * Callback method when the {@link Task} completes committing.
+   *
+   * @param task {@link Task} that commits completely.
+   */
+  public void onTaskCommitCompletion(Task task);
 }
