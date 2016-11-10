@@ -101,7 +101,6 @@ public class IteratorExecutorTest {
 
   /**
    * Verify exactly retrieved tasks have been retrieved, and exactly completed tasks have completed.
-   * @throws Exception
    */
   private void verify(final int retrieved, final int completed) throws Exception {
     AssertWithBackoff.assertTrue(new Predicate<Void>() {
@@ -111,15 +110,6 @@ public class IteratorExecutorTest {
         return (nextCallCount.get() == retrieved && completedCount.get() == completed);
       }
     }, 30000, "Waiting for callcount", log, 1.5, 1000);
-//    for (int i = 0; i < 20; i++) {
-//      if (nextCallCount.get() >= retrieved || completedCount.get() >= completed) {
-//        break;
-//      }
-//      Thread.sleep(100);
-//    }
-//    Thread.sleep(100);
-//    Assert.assertEquals(nextCallCount.get(), retrieved);
-//    Assert.assertEquals(completedCount.get(), completed);
   }
 
   /**
