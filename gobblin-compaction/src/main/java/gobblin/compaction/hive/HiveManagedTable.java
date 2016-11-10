@@ -14,7 +14,7 @@ package gobblin.compaction.hive;
 
 import java.sql.SQLException;
 
-import gobblin.hive.util.HiveJdbcConnector;
+import gobblin.util.HiveJdbcConnector;
 
 /**
  * A class for managing Hive managed tables.

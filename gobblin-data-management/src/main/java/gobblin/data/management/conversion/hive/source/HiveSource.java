@@ -20,12 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -99,6 +97,9 @@ public class HiveSource implements Source {
   public static final String DISTCP_REGISTRATION_GENERATION_TIME_KEY = "registrationGenerationTimeMillis";
   public static final String HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY = "hive.source.watermarker.factoryClass";
   public static final String DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS = PartitionLevelWatermarker.Factory.class.getName();
+
+  public static final String HIVE_SOURCE_EXTRACTOR_TYPE = "hive.source.extractorType";
+  public static final String DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE = HiveConvertExtractor.class.getName();
 
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
@@ -330,8 +331,10 @@ public class HiveSource implements Source {
   @Override
   public Extractor getExtractor(WorkUnitState state) throws IOException {
     try {
-      return new HiveConvertExtractor(state, getSourceFs());
-    } catch (TException | HiveException e) {
+      return (Extractor) Class.forName(state.getProp(HIVE_SOURCE_EXTRACTOR_TYPE, DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE))
+          .getConstructor(WorkUnitState.class, FileSystem.class)
+          .newInstance(state, getSourceFs());
+    } catch (Exception e) {
       throw new IOException(e);
     }
   }

@@ -106,7 +106,8 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
   }
 
   private String getTmpOutputDir() {
-    return this.state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR, MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR);
+    return new Path(this.state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR,
+        MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR), "output").toString();
   }
 
   private FileSystem getFileSystem() {

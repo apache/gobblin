@@ -22,7 +22,7 @@ import org.apache.commons.lang.StringUtils;
 
 import com.google.common.base.Splitter;
 
-import gobblin.hive.util.HiveJdbcConnector;
+import gobblin.util.HiveJdbcConnector;
 
 
 /**

@@ -69,7 +69,7 @@ import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
 import gobblin.hive.HiveMetastoreClientPool;
-import gobblin.hive.util.HiveJdbcConnector;
+import gobblin.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
