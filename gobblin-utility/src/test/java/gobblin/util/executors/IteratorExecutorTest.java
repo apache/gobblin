@@ -105,8 +105,8 @@ public class IteratorExecutorTest {
   private void verify(final int retrieved, final int completed) throws Exception {
     AssertWithBackoff.assertTrue(new Predicate<Void>() {
       @Override public boolean apply(Void input) {
-        log.debug("Waiting for {}={} and {}={}", retrieved, nextCallCount.get(), completed,
-                  completedCount.get());
+        log.info("Waiting for {} retrieved -> {} and {} completed -> {}", retrieved,
+                 nextCallCount.get(), completed, completedCount.get());
         return (nextCallCount.get() == retrieved && completedCount.get() == completed);
       }
     }, 30000, "Waiting for callcount retrieved=" + retrieved + "/completed=" + completed, log,
