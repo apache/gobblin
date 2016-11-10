@@ -84,7 +84,7 @@ public class JobConfigFileMonitorTest {
     SchedulerService quartzService = new SchedulerService(new Properties());
     this.jobScheduler = new JobScheduler(properties, quartzService);
     this.serviceManager = new ServiceManager(Lists.newArrayList(quartzService, this.jobScheduler));
-    this.serviceManager.startAsync();
+    this.serviceManager.startAsync().awaitHealthy(10, TimeUnit.SECONDS);;
   }
 
   @Test
@@ -172,6 +172,6 @@ public class JobConfigFileMonitorTest {
     if (jobConfigDir != null) {
       FileUtils.forceDelete(new File(jobConfigDir));
     }
-    this.serviceManager.stopAsync().awaitStopped(8, TimeUnit.SECONDS);
+    this.serviceManager.stopAsync().awaitStopped(10, TimeUnit.SECONDS);
   }
 }

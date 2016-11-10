@@ -53,7 +53,7 @@ public class TestStandardGobblinInstanceLauncher {
     StandardGobblinInstanceLauncher instanceLauncher =
         instanceLauncherBuilder.build();
     instanceLauncher.startAsync();
-    instanceLauncher.awaitRunning(50, TimeUnit.MILLISECONDS);
+    instanceLauncher.awaitRunning(5, TimeUnit.SECONDS);
 
     JobSpec js1 = JobSpec.builder()
         .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
@@ -99,7 +99,7 @@ public class TestStandardGobblinInstanceLauncher {
     Assert.assertTrue(jobResult.isSuccessful());
 
     instanceLauncher.stopAsync();
-    instanceLauncher.awaitTerminated(500, TimeUnit.MILLISECONDS);
+    instanceLauncher.awaitTerminated(5, TimeUnit.SECONDS);
     Assert.assertEquals(instance.getMetrics().getUpFlag().getValue().intValue(), 0);
     Assert.assertEquals(instance.getMetrics().getUptimeMs().getValue().longValue(), 0);
   }
@@ -115,7 +115,7 @@ public class TestStandardGobblinInstanceLauncher {
     StandardGobblinInstanceLauncher instanceLauncher =
         instanceLauncherBuilder.build();
     instanceLauncher.startAsync();
-    instanceLauncher.awaitRunning(50, TimeUnit.MILLISECONDS);
+    instanceLauncher.awaitRunning(5, TimeUnit.SECONDS);
 
     JobSpec js1 = JobSpec.builder()
         .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
@@ -131,7 +131,7 @@ public class TestStandardGobblinInstanceLauncher {
             @Override public void onJobLaunch(JobExecutionDriver jobDriver) {
               super.onJobLaunch(jobDriver);
               try {
-                jobDrivers.offer(jobDriver, 500, TimeUnit.MILLISECONDS);
+                jobDrivers.offer(jobDriver, 5, TimeUnit.SECONDS);
               } catch (InterruptedException e) {
                 instance.getLog().error("Offer interrupted.");
               }
@@ -149,7 +149,7 @@ public class TestStandardGobblinInstanceLauncher {
     Assert.assertTrue(jobResult.isSuccessful());
 
     instanceLauncher.stopAsync();
-    instanceLauncher.awaitTerminated(500, TimeUnit.MILLISECONDS);
+    instanceLauncher.awaitTerminated(5, TimeUnit.SECONDS);
   }
 
 
@@ -163,7 +163,7 @@ public class TestStandardGobblinInstanceLauncher {
     StandardGobblinInstanceLauncher instanceLauncher =
         instanceLauncherBuilder.build();
     instanceLauncher.startAsync();
-    instanceLauncher.awaitRunning(50, TimeUnit.MILLISECONDS);
+    instanceLauncher.awaitRunning(5, TimeUnit.SECONDS);
 
     JobSpec js1 = JobSpec.builder()
         .withConfig(ConfigFactory.parseResources("gobblin/runtime/instance/SimpleHelloWorldJob.jobconf"))
@@ -183,7 +183,7 @@ public class TestStandardGobblinInstanceLauncher {
             @Override public void onJobLaunch(JobExecutionDriver jobDriver) {
               super.onJobLaunch(jobDriver);
               try {
-                jobDrivers.offer(jobDriver, 500, TimeUnit.MILLISECONDS);
+                jobDrivers.offer(jobDriver, 5, TimeUnit.SECONDS);
               } catch (InterruptedException e) {
                 instance.getLog().error("Offer interrupted.");
               }
@@ -208,7 +208,7 @@ public class TestStandardGobblinInstanceLauncher {
     asserter.assertNextValuesEq(expectedEvents);
     asserter.close();
 
-    instanceLauncher.awaitTerminated(500, TimeUnit.MILLISECONDS);
+    instanceLauncher.awaitTerminated(5, TimeUnit.SECONDS);
   }
 
 
