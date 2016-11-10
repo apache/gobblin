@@ -79,8 +79,8 @@ public class GobblinMultiTaskAttempt {
     CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
     this.tasks = AbstractJobLauncher
         .runWorkUnits(jobId, jobState, workUnits, containerIdOptional, taskStateTracker, taskExecutor, countDownLatch);
-    log.info(String.format("Waiting for submitted tasks of job %s to complete in container %s...", jobId,
-        containerIdOptional.or("")));
+    log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId,
+        containerIdOptional.or(""));
     while (countDownLatch.getCount() > 0) {
       log.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
           workUnits.size(), jobId, containerIdOptional.or("")));
@@ -88,8 +88,7 @@ public class GobblinMultiTaskAttempt {
         break;
       }
     }
-    log.info(String
-        .format("All assigned tasks of job %s have completed in container %s", jobId, containerIdOptional.or("")));
+    log.info("All assigned tasks of job {} have completed in container {}", jobId, containerIdOptional.or(""));
   }
 
   /**

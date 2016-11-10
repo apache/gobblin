@@ -117,7 +117,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.WORK_UNITS_RUN);
 
     AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), this.jobContext.getJobState(), workUnitsToRun,
-        this.taskStateTracker, this.taskExecutor, true);
+        this.taskStateTracker, this.taskExecutor, MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE);
 
     workUnitsRunTimer.stop();
 

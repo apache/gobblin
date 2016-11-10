@@ -13,6 +13,7 @@
 package gobblin.runtime;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -531,26 +532,25 @@ public class Task implements Runnable {
   public void commit() {
     try {
       // Check if all forks succeeded
-      boolean allForksSucceeded = true;
+      List<Integer> failedForkIds = new ArrayList<>();
       for (Optional<Fork> fork : this.forks.keySet()) {
         if (fork.isPresent()) {
           if (fork.get().isSucceeded()) {
             if (!fork.get().commit()) {
-              allForksSucceeded = false;
+              failedForkIds.add(fork.get().getIndex());
             }
           } else {
-            allForksSucceeded = false;
+            failedForkIds.add(fork.get().getIndex());
           }
         }
       }
 
-      if (allForksSucceeded) {
+      if (failedForkIds.size() == 0) {
         // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
         // as the data publisher will do that upon successful data publishing.
         this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
       } else {
-        LOG.error(String.format("Not all forks of task %s succeeded", this.taskId));
-        this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+        failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
       }
     } catch (Throwable t) {
       failTask(t);

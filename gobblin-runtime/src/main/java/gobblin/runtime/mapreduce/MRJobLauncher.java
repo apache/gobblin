@@ -308,8 +308,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.job.setMapOutputValueClass(NullWritable.class);
 
     // Set speculative execution
-    this.job.setSpeculativeExecution(
-        Boolean.valueOf(this.jobProps.getProperty(JobContext.MAP_SPECULATIVE, Boolean.FALSE.toString())));
+    this.job.setSpeculativeExecution(isSpeculativeExecutionEnabled(HadoopUtils.getConfFromProperties(this.jobProps)));
 
     this.job.getConfiguration().set("mapreduce.job.user.classpath.first", "true");
 
@@ -331,6 +330,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
     }
 
     mrJobSetupTimer.stop();
+  }
+
+  static boolean isSpeculativeExecutionEnabled(Configuration conf) {
+    return conf.getBoolean(JobContext.MAP_SPECULATIVE, ConfigurationKeys.DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION);
   }
 
   @VisibleForTesting
@@ -524,7 +527,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
     private ServiceManager serviceManager;
     private Optional<JobMetrics> jobMetrics = Optional.absent();
     private boolean isSpeculativeEnabled;
-
     private final JobState jobState = new JobState();
 
     // A list of WorkUnits (flattened for MultiWorkUnits) to be run by this mapper
@@ -533,7 +535,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     @Override
     protected void setup(Context context) {
       try (Closer closer = Closer.create()) {
-        this.isSpeculativeEnabled = context.getConfiguration().getBoolean(JobContext.MAP_SPECULATIVE, false);
+        this.isSpeculativeEnabled = isSpeculativeExecutionEnabled(context.getConfiguration());
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore =
             new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
@@ -587,10 +589,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
         while (context.nextKeyValue()) {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
+        MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy =
+            isSpeculativeEnabled ? MULTI_TASK_ATTEMPT_COMMIT_POLICY.CUSTOMIZED
+                : MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE;
         // Actually run the list of WorkUnits
         gobblinMultiTaskAttempt =
             runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(), this.jobState, this.workUnits,
-                this.taskStateTracker, this.taskExecutor, this.taskStateStore, LOG, !this.isSpeculativeEnabled);
+                this.taskStateTracker, this.taskExecutor, this.taskStateStore, LOG, multiTaskAttemptCommitPolicy);
 
         if (this.isSpeculativeEnabled) {
           LOG.info("will not commit in task attempt");
@@ -604,7 +609,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           @Override
           public boolean isCompleted()
               throws IOException {
-            throw new UnsupportedOperationException("Not supported.");
+            return !serviceManager.isHealthy();
           }
 
           @Override

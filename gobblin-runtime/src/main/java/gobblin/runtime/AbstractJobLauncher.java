@@ -120,6 +120,20 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // A list of JobListeners that will be injected into the user provided JobListener
   private final List<JobListener> mandatoryJobListeners = Lists.newArrayList();
 
+  /**
+   * An enumeration of policies on when a {@link GobblinMultiTaskAttempt} will be committed.
+   */
+  public enum MULTI_TASK_ATTEMPT_COMMIT_POLICY {
+    /**
+     * Commit {@link GobblinMultiTaskAttempt} immediately after running is done.
+     */
+    IMMEDIATE,
+    /**
+     * Not committing {@link GobblinMultiTaskAttempt} but leaving it to user customized launcher.
+     */
+    CUSTOMIZED
+  }
+
   public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
       throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
@@ -625,37 +639,39 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * @param taskExecutor a {@link TaskExecutor} for task execution
    * @param taskStateStore a {@link StateStore} for storing {@link TaskState}s
    * @param logger a {@link Logger} for logging
-   * @param shouldCommitTasks whether should commit {@link GobblinMultiTaskAttempt}
+   * @param multiTaskAttemptCommitPolicy {@link MULTI_TASK_ATTEMPT_COMMIT_POLICY} for committing {@link GobblinMultiTaskAttempt}
    * @throws IOException if there's something wrong with any IO operations
    * @throws InterruptedException if the task execution gets cancelled
    */
   public static GobblinMultiTaskAttempt runWorkUnits(String jobId, String containerId, JobState jobState,
       List<WorkUnit> workUnits, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
-      StateStore<TaskState> taskStateStore, Logger logger, boolean shouldCommitTasks)
+      StateStore<TaskState> taskStateStore, Logger logger,
+      MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy)
       throws IOException, InterruptedException {
     GobblinMultiTaskAttempt multiTaskAttempt =
         new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
             Optional.of(containerId), Optional.of(taskStateStore));
 
-    runAndOptionallyCommitTaskAttempt(multiTaskAttempt, shouldCommitTasks);
+    runAndOptionallyCommitTaskAttempt(multiTaskAttempt, multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
   }
 
   public static GobblinMultiTaskAttempt runWorkUnits(String jobId, JobState jobState, List<WorkUnit> workUnits,
-      TaskStateTracker taskStateTracker, TaskExecutor taskExecutor, boolean shouldCommitTasks)
+      TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
+      MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy)
       throws IOException, InterruptedException {
     GobblinMultiTaskAttempt multiTaskAttempt =
         new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
             Optional.<String>absent(), Optional.<StateStore<TaskState>>absent());
-    runAndOptionallyCommitTaskAttempt(multiTaskAttempt, shouldCommitTasks);
+    runAndOptionallyCommitTaskAttempt(multiTaskAttempt, multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
   }
 
   private static void runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt multiTaskAttempt,
-      boolean shouldCommitTaskAttempt)
+      MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy)
       throws IOException, InterruptedException {
     multiTaskAttempt.run();
-    if (shouldCommitTaskAttempt) {
+    if (multiTaskAttemptCommitPolicy.equals(MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE)) {
       LOG.info("Will commit tasks directly.");
       multiTaskAttempt.commit();
     } else if (!multiTaskAttempt.isSpeculativeExecutionSafe()) {
