@@ -109,7 +109,8 @@ public class IteratorExecutorTest {
                   completedCount.get());
         return (nextCallCount.get() == retrieved && completedCount.get() == completed);
       }
-    }, 30000, "Waiting for callcount", log, 1.5, 1000);
+    }, 30000, "Waiting for callcount retrieved=" + retrieved + "/completed=" + completed, log,
+        1.5, 1000);
   }
 
   /**
