@@ -19,11 +19,12 @@ import java.util.concurrent.TimeoutException;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.log4j.Logger;
 
-import azkaban.jobExecutor.AbstractJob;
+import com.typesafe.config.Config;
 
-import com.typesafe.config.ConfigFactory;
-
+import gobblin.util.ConfigUtils;
 import gobblin.yarn.GobblinYarnAppLauncher;
+
+import azkaban.jobExecutor.AbstractJob;
 
 
 /**
@@ -49,8 +50,8 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
 
   public AzkabanGobblinYarnAppLauncher(String jobId, Properties props) throws IOException {
     super(jobId, LOGGER);
-    this.gobblinYarnAppLauncher =
-        new GobblinYarnAppLauncher(ConfigFactory.parseProperties(props), new YarnConfiguration());
+    Config gobblinConfig = ConfigUtils.propertiesToConfig(props);
+    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(gobblinConfig, new YarnConfiguration());
   }
 
   @Override

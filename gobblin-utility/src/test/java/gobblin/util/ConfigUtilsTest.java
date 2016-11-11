@@ -12,8 +12,11 @@
 
 package gobblin.util;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -26,6 +29,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import gobblin.configuration.State;
+
 
 public class ConfigUtilsTest {
 
@@ -36,11 +41,17 @@ public class ConfigUtilsTest {
     properties.setProperty("k1.kk1", "v1");
     properties.setProperty("k1.kk2", "v2");
     properties.setProperty("k2.kk", "v3");
+    properties.setProperty("k3", "v4");
+    properties.setProperty("k3.kk1", "v5");
+    properties.setProperty("k3.kk1.kkk1", "v6");
 
     Config conf = ConfigUtils.propertiesToConfig(properties);
     Assert.assertEquals(conf.getString("k1.kk1"), "v1");
     Assert.assertEquals(conf.getString("k1.kk2"), "v2");
     Assert.assertEquals(conf.getString("k2.kk"), "v3");
+    Assert.assertEquals(conf.getString(ConfigUtils.sanitizeFullPrefixKey("k3")), "v4");
+    Assert.assertEquals(conf.getString(ConfigUtils.sanitizeFullPrefixKey("k3.kk1")), "v5");
+    Assert.assertEquals(conf.getString("k3.kk1.kkk1"), "v6");
 
   }
 
@@ -123,6 +134,27 @@ public class ConfigUtilsTest {
   }
 
   @Test
+  public void testPropertiesToConfigToState() {
+
+    Properties properties = new Properties();
+    properties.setProperty("k1.kk1", "v1");
+    properties.setProperty("k1.kk2", "v2");
+    properties.setProperty("k2.kk", "v3");
+    properties.setProperty("k3", "v4");
+    properties.setProperty("k3.kk1", "v5");
+    properties.setProperty("k3.kk1.kkk1", "v6");
+
+    Config conf = ConfigUtils.propertiesToConfig(properties);
+    State state = ConfigUtils.configToState(conf);
+    Assert.assertEquals(state.getProp("k1.kk1"), "v1");
+    Assert.assertEquals(state.getProp("k1.kk2"), "v2");
+    Assert.assertEquals(state.getProp("k2.kk"), "v3");
+    Assert.assertEquals(state.getProp("k3"), "v4");
+    Assert.assertEquals(state.getProp("k3.kk1"), "v5");
+    Assert.assertEquals(state.getProp("k3.kk1.kkk1"), "v6");
+  }
+
+  @Test
   public void testConfigToPropertiesWithPrefix() {
     Config cfg = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
         .put("a.key1", 1)
@@ -134,5 +166,38 @@ public class ConfigUtilsTest {
     Assert.assertEquals(props.getProperty("a.key1"), "1");
     Assert.assertNull(props.getProperty("b.key2"));
     Assert.assertEquals(props.getProperty("a.key3"), "true");
+  }
+
+  @Test
+  public void testFindFullPrefixKeys() {
+    Properties props = new Properties();
+    props.setProperty("a.b", "123");
+    props.setProperty("a.b1", "123");
+    props.setProperty("b", "123");
+    props.setProperty("b_a", "123");
+    props.setProperty("a.b.c", "123");
+    props.setProperty("a.b.c.d.e", "123");
+    props.setProperty("b.a", "123");
+
+    Set<String> fullPrefixKeys =
+        ConfigUtils.findFullPrefixKeys(props, Optional.<String>absent());
+    Assert.assertEquals(fullPrefixKeys, new HashSet<>(Arrays.asList("a.b", "a.b.c", "b")));
+
+    fullPrefixKeys =
+        ConfigUtils.findFullPrefixKeys(props, Optional.of("a."));
+    Assert.assertEquals(fullPrefixKeys, new HashSet<>(Arrays.asList("a.b", "a.b.c")));
+
+    fullPrefixKeys =
+        ConfigUtils.findFullPrefixKeys(props, Optional.of("c."));
+    Assert.assertTrue(fullPrefixKeys.isEmpty());
+
+    props = new Properties();
+    props.setProperty("a.b", "123");
+    props.setProperty("a.b1", "123");
+    props.setProperty("b", "123");
+    props.setProperty("b_a", "123");
+    fullPrefixKeys =
+        ConfigUtils.findFullPrefixKeys(props, Optional.<String>absent());
+    Assert.assertTrue(fullPrefixKeys.isEmpty());
   }
 }
