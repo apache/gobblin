@@ -15,6 +15,7 @@ package gobblin.compaction.verify;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -153,10 +155,22 @@ public class DataCompletenessVerifier implements Closeable {
 
       private final Dataset dataset;
       private final Status status;
+      /**
+       * Data used to compute this result. A verification context is used to communicate to the caller how this {@link #status()}
+       * for data completeness was derived.
+       */
+      private final Map<String, Object> verificationContext;
 
       public Result(Dataset dataset, Status status) {
         this.dataset = dataset;
         this.status = status;
+        this.verificationContext = ImmutableMap.of();
+      }
+
+      public Result(Dataset dataset, Status status, Map<String, Object> verificationContext) {
+        this.dataset = dataset;
+        this.status = status;
+        this.verificationContext = verificationContext;
       }
 
       public Dataset dataset() {
@@ -165,6 +179,10 @@ public class DataCompletenessVerifier implements Closeable {
 
       public Status status() {
         return this.status;
+      }
+
+      public Map<String, Object> verificationContext() {
+        return this.verificationContext;
       }
     }
   }
