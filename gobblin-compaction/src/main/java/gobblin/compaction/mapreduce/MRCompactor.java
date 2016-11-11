@@ -38,10 +38,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Functions;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -495,7 +495,7 @@ public class MRCompactor implements Compactor {
           switch (result.status()) {
             case PASSED:
               LOG.info("Completeness verification for dataset " + result.dataset() + " passed.");
-              submitSlaEvent(result.dataset(), CompactionSlaEventHelper.COMPLETION_VERIFICATION_SUCCESS_EVENT_NAME);
+              submitVerificationSlaEvent(result, CompactionSlaEventHelper.COMPLETION_VERIFICATION_SUCCESS_EVENT_NAME);
               result.dataset().setState(VERIFIED);
               if (jobRunner.isPresent()) {
                 jobRunner.get().proceed();
@@ -504,7 +504,7 @@ public class MRCompactor implements Compactor {
             case FAILED:
               if (shouldGiveUpVerification()) {
                 LOG.info("Completeness verification for dataset " + result.dataset() + " has timed out.");
-                submitSlaEvent(result.dataset(), CompactionSlaEventHelper.COMPLETION_VERIFICATION_FAILED_EVENT_NAME);
+                submitVerificationSlaEvent(result, CompactionSlaEventHelper.COMPLETION_VERIFICATION_FAILED_EVENT_NAME);
                 result.dataset().setState(GIVEN_UP);
                 result.dataset().addThrowable(new RuntimeException(
                     String.format("Completeness verification for dataset %s failed or timed out.", result.dataset())));
@@ -693,9 +693,16 @@ public class MRCompactor implements Compactor {
     }
   }
 
+  private void submitVerificationSlaEvent(Results.Result result, String eventName) {
+    CompactionSlaEventHelper.getEventSubmitterBuilder(result.dataset(), Optional.<Job> absent(), this.fs)
+        .eventSubmitter(this.eventSubmitter).eventName(eventName)
+        .additionalMetadata(Maps.transformValues(result.verificationContext(), Functions.toStringFunction())).build()
+        .submit();
+  }
+
   private void submitSlaEvent(Dataset dataset, String eventName) {
-    CompactionSlaEventHelper.getEventSubmitterBuilder(dataset, Optional.<Job> absent(), this.fs).eventSubmitter(this.eventSubmitter)
-        .eventName(eventName).build().submit();
+    CompactionSlaEventHelper.getEventSubmitterBuilder(dataset, Optional.<Job> absent(), this.fs)
+        .eventSubmitter(this.eventSubmitter).eventName(eventName).build().submit();
   }
 
   /**
