@@ -17,6 +17,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -120,7 +122,8 @@ public class IteratorExecutorTest {
 
     private final int maxCallables;
     private Lock lock = new ReentrantLock();
-    private Condition condition = lock.newCondition();
+    private Condition endCallTransitionCondition = lock.newCondition();
+    private boolean endCallEnqueued = false;
 
     public TestIterator(int maxCallables) {
       this.maxCallables = maxCallables;
@@ -142,21 +145,48 @@ public class IteratorExecutorTest {
 
           log.debug("Blocking at {}", nextCallCount.get());
           lock.lock();
-          condition.await();
-          lock.unlock();
+          try {
+            // wait for endCall request
+            while (!endCallEnqueued) {
+              if (!endCallTransitionCondition.await(30, TimeUnit.SECONDS)) {
+                throw new TimeoutException("Waiting for endCall to be enqueued: retrieved=" +
+                      IteratorExecutorTest.this.nextCallCount.get()
+                      + " completed=" + IteratorExecutorTest.this.completedCount.get()
+                      + " endCallEnqueued=" + endCallEnqueued);
+              }
+            }
+            completedCount.incrementAndGet();
+            endCallEnqueued = false;
+            endCallTransitionCondition.signalAll();
+          } finally {
+            lock.unlock();
+          }
 
-          completedCount.incrementAndGet();
           log.debug("Completed {}", completedCount.get());
           return null;
         }
       };
     }
 
-    public void endOneCallable() {
+    public void endOneCallable() throws InterruptedException, TimeoutException {
       log.debug("End one {}", nextCallCount.get());
       lock.lock();
-      condition.signal();
-      lock.unlock();
+      try {
+        // wait till the last endCall was processed
+        while (endCallEnqueued) {
+          if (!endCallTransitionCondition.await(30, TimeUnit.SECONDS)) {
+            throw new TimeoutException("Waiting for endCall to be processed: retrieved=" +
+                IteratorExecutorTest.this.nextCallCount.get()
+                + " completed=" + IteratorExecutorTest.this.completedCount.get()
+                + " endCallEnqueued=" + endCallEnqueued);
+          }
+        }
+        endCallEnqueued = true;
+        endCallTransitionCondition.signalAll();
+      }
+      finally {
+        lock.unlock();
+      }
     }
 
     @Override
