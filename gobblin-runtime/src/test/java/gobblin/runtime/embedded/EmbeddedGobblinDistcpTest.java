@@ -13,6 +13,7 @@
 package gobblin.runtime.embedded;
 
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -40,6 +41,7 @@ public class EmbeddedGobblinDistcpTest {
 
     EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
         new Path(tmpTarget.getAbsolutePath()));
+    embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
     embedded.run();
 
     Assert.assertTrue(new File(tmpSource, fileName).exists());
