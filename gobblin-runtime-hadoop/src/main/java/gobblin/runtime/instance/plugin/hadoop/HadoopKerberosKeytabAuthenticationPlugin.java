@@ -25,11 +25,13 @@ import gobblin.runtime.instance.plugin.BaseIdlePluginImpl;
 import gobblin.runtime.plugins.PluginStaticKeys;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Loads a Kerberos keytab file for Hadoop authentication.
  */
+@Slf4j
 public class HadoopKerberosKeytabAuthenticationPlugin extends BaseIdlePluginImpl {
 
   /**
@@ -91,10 +93,16 @@ public class HadoopKerberosKeytabAuthenticationPlugin extends BaseIdlePluginImpl
   /** {@inheritDoc} */
   @Override
   protected void startUp() throws Exception {
-    UserGroupInformation.setConfiguration(_hadoopConf);
-    if (UserGroupInformation.isSecurityEnabled()) {
-      UserGroupInformation.loginUserFromKeytab(_loginUser, _loginUserKeytabFile);
+    try {
+      UserGroupInformation.setConfiguration(_hadoopConf);
+      if (UserGroupInformation.isSecurityEnabled()) {
+        UserGroupInformation.loginUserFromKeytab(_loginUser, _loginUserKeytabFile);
+      }
+    } catch (Throwable t) {
+      log.error("Failed to start up HadoopKerberosKeytabAuthenticationPlugin", t);
+      throw t;
     }
+
   }
 
   public String getLoginUser() {
