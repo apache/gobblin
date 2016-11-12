@@ -1,0 +1,63 @@
+## Job properties
+job.name=GoogleSearchConsole_DataFetchJob
+job.description=Download Google Search Analytics data on a daily basis
+job.group=GoogleAPI
+#job.schedule=0/10 * * * * ?
+workunit.retry.policy=never
+workunit.retry.enabled=false
+task.maxretries=0
+job.commit.policy=partial
+
+
+## Source properties
+source.entity=[Complete This]
+source.class=gobblin.source.extractor.extract.google.webmaster.GoogleWebMasterSource
+source.schema=[{"columnName":"Date","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Country","isNullable":"true","dataType":{"type":"string"}},{"columnName":"Page","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Query","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Clicks","isNullable":"false","dataType":{"type":"string"}},{"columnName":"Impressions","isNullable":"false","dataType":{"type":"string"}},{"columnName":"CTR","isNullable":"true","dataType":{"type":"string"}},{"columnName":"Position","isNullable":"false","dataType":{"type":"string"}}]
+
+
+## Extract properties
+extract.namespace=${source.entity}
+extract.table.name=DailyExtract
+extract.table.type=snapshot_only
+extract.delta.fields=dummy
+source.querybased.start.value=20161101000000
+source.querybased.end.value=20161102235959
+source.querybased.is.watermark.override=true
+source.timezone=America/Los_Angeles
+source.max.number.of.partitions=3650
+source.querybased.extract.type=append_batch
+source.querybased.watermark.type=hour
+source.querybased.partition.interval=23
+source.querybased.append.max.watermark.limit=CURRENTDATE-1
+
+
+#Webmaster Specific
+source.google.api.scope=https://www.googleapis.com/auth/webmasters.readonly
+source.google_webmasters.property=[Complete This]
+source.google_webmasters.credential.location=[Complete This]
+source.google_webmasters.request.page_check_list=psettings,legal,directory,start,help,edu,in,pub,learning,uas,badges,company,topic,grp,vsearch,jobs,pulse,title,groups,redir,profinder
+source.google_webmasters.request.dimensions=Date,Country,Page,Query
+source.google_webmasters.request.metrics=Clicks,Impressions,CTR,Position
+source.google_webmasters.request.filters=Country.ALL,Country.USA
+source.google_webmasters.request.page_limit=1
+source.google_webmasters.request.query_limit=1
+
+
+## Converter properties
+converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter
+
+
+## Writer properties
+writer.output.format=AVRO
+
+
+## Publisher properties
+data.publisher.type=gobblin.publisher.BaseDataPublisher
+
+
+## Configurations for saving to HDFS
+#fs.uri=hdfs://localhost:9000
+#writer.destination.type=HDFS
+#writer.fs.uri=${fs.uri}
+#state.store.fs.uri=${fs.uri}
+#data.publisher.fs.uri=${fs.uri}

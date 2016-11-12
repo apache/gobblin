@@ -277,6 +277,7 @@ ext.externalDependency = [
   "oltu": "org.apache.oltu.oauth2:org.apache.oltu.oauth2.client:1.0.2",
   "googleAnalytics": "com.google.apis:google-api-services-analytics:v3-rev134-1.22.0",
   "googleDrive": "com.google.apis:google-api-services-drive:v3-rev42-1.22.0",
+  "googleWebmasters": "com.google.apis:google-api-services-webmasters:v3-rev17-1.22.0",
   "googleHttpClient": "com.google.http-client:google-http-client:" + googleVersion,
   "googleHttpClientGson": "com.google.http-client:google-http-client-gson:" + googleVersion,
   "googleOauthClient": "com.google.oauth-client:google-oauth-client:" + googleVersion,
