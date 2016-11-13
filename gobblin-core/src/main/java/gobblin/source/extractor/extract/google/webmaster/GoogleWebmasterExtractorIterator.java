@@ -5,9 +5,10 @@ import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 //Doesn't implement Iterator<String[]> because I want to throw exception.
 
@@ -16,13 +17,16 @@ import java.util.Map;
  * Basically, it first get all pages, and cache them. Then for each page, get all the detailed query data.
  */
 class GoogleWebmasterExtractorIterator {
+  private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterExtractorIterator.class);
   private final GoogleWebmasterClient _webmaster;
   private final String _date;
   private final int _pageLimit;
   private final int _queryLimit;
   private GoogleWebmasterFilter.Country _country;
   private Deque<String> _cachedPages = null;
-  private Deque<String[]> _cachedQueries = new LinkedList<>();
+  private int _totalPages;
+  private int _pageCheckPoint;
+  private Deque<String[]> _cachedQueries = new ArrayDeque<>();
 
   private final Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> _filterMap;
   //This is the requested dimensions sent to Google API
@@ -52,9 +56,7 @@ class GoogleWebmasterExtractorIterator {
   }
 
   public boolean hasNext() throws IOException {
-    if (_cachedPages == null) {
-      _cachedPages = new ArrayDeque<>(_webmaster.getAllPages(_date, _country, _pageLimit));
-    }
+    initialize();
 
     if (!_cachedQueries.isEmpty()) {
       return true;
@@ -65,6 +67,12 @@ class GoogleWebmasterExtractorIterator {
         return false;
       }
       String nextPage = _cachedPages.remove();
+      if (_cachedPages.size() % _pageCheckPoint == 0) {
+        //Report progress every 5%
+        LOG.info(String.format("Country-%s iterator progress: %d out of %d left to be processed", _country,
+            _cachedPages.size(), _totalPages));
+      }
+
       _filterMap.remove(GoogleWebmasterFilter.Dimension.PAGE);
       _filterMap.put(GoogleWebmasterFilter.Dimension.PAGE,
           GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, nextPage));
@@ -73,6 +81,14 @@ class GoogleWebmasterExtractorIterator {
       _cachedQueries = new ArrayDeque<>(response);
     }
     return true;
+  }
+
+  private void initialize() throws IOException {
+    if (_cachedPages == null) {
+      _cachedPages = new ArrayDeque<>(_webmaster.getAllPages(_date, _country, _pageLimit));
+      _totalPages = _cachedPages.size();
+      _pageCheckPoint = Math.max(1, (int) Math.round(Math.ceil(_totalPages / 20.0)));
+    }
   }
 
   public String[] next() throws IOException {

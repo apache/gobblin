@@ -40,14 +40,14 @@ public class GoogleWebmasterClientImpl implements GoogleWebmasterClient {
   private final List<String> pagePrefixFilters;
 
   public GoogleWebmasterClientImpl(String siteProperty, String credentialFile, String appName, String scope,
-      Iterable<String> filters) throws IOException {
+      Iterable<String> pageCheckList) throws IOException {
     //Missing "/" in the end will affect the getPagePrefixes logic
     Preconditions.checkArgument(siteProperty.endsWith("/"), "The site property must end in \"/\"");
     Preconditions.checkArgument(
         Objects.equals(WebmastersScopes.WEBMASTERS_READONLY, scope) || Objects.equals(WebmastersScopes.WEBMASTERS,
             scope), "The scope for WebMaster must either be WEBMASTERS_READONLY or WEBMASTERS");
     this.siteProperty = siteProperty;
-    pagePrefixFilters = Lists.newArrayList(filters);
+    pagePrefixFilters = Lists.newArrayList(pageCheckList);
     GoogleCredential credential =
         GoogleCredential.fromStream(new FileInputStream(credentialFile)).createScoped(Collections.singletonList(scope));
 
@@ -195,7 +195,7 @@ public class GoogleWebmasterClientImpl implements GoogleWebmasterClient {
     }
 
     List<String[]> ret = new ArrayList<>(rows.size());
-    LOG.info("doQuery: Total number of pages returned:" + rows.size());
+    LOG.info("doQuery: Total number of rows returned:" + rows.size());
     for (ApiDataRow row : rows) {
       List<String> keys = row.getKeys();
       String[] data = new String[keys.size() + 4];
