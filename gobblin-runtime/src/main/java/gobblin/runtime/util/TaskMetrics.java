@@ -15,6 +15,7 @@ package gobblin.runtime.util;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -69,6 +70,7 @@ public class TaskMetrics extends GobblinMetrics {
   protected static List<Tag<?>> tagsForTask(TaskState taskState) {
     List<Tag<?>> tags = Lists.newArrayList();
     tags.add(new Tag<>(TaskEvent.METADATA_TASK_ID, taskState.getTaskId()));
+    tags.add(new Tag<>(TaskEvent.METADATA_TASK_ATTEMPT_ID, taskState.getTaskAttemptId().or("")));
     tags.addAll(getCustomTagsFromState(taskState));
     return tags;
   }

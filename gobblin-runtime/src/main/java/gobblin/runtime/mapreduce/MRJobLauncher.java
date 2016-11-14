@@ -622,12 +622,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
               // Ignored
             } finally {
               if (jobMetrics.isPresent()) {
-                // TODO: Add "committed" tag to final metrics.
+                try {
+                  jobMetrics.get().stopMetricsReporting();
+                } catch (Throwable throwable) {
+                  LOG.error("Failed to stop job metrics reporting.", throwable);
+                } finally {
+                  GobblinMetrics.remove(jobMetrics.get().getName());
+                }
               }
             }
           }
-        };
-        if (!this.isSpeculativeEnabled || gobblinMultiTaskAttempt == null) {
+        }; if (!this.isSpeculativeEnabled || gobblinMultiTaskAttempt == null) {
           cleanUpCommitStep.execute();
         } else {
           LOG.info("Adding additional commit step");
