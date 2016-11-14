@@ -70,6 +70,14 @@ public class WriterUtils {
   }
 
   /**
+   * Get the staging {@link Path} for {@link gobblin.writer.DataWriter} that has attemptId in the path.
+   */
+  public static Path getWriterStagingDir(State state, int numBranches, int branchId, String attemptId) {
+    Preconditions.checkArgument(attemptId != null && !attemptId.isEmpty(), "AttemptId cannot be null or empty: " + attemptId);
+    return new Path(getWriterStagingDir(state, numBranches, branchId), attemptId);
+  }
+
+  /**
    * Get the {@link Path} corresponding the to the directory a given {@link gobblin.writer.DataWriter} should be writing
    * its output data. The output data directory is determined by combining the
    * {@link ConfigurationKeys#WRITER_OUTPUT_DIR} and the {@link ConfigurationKeys#WRITER_FILE_PATH}.
@@ -101,9 +109,15 @@ public class WriterUtils {
     Preconditions.checkArgument(state.contains(dataPublisherFinalDirKey),
         "Missing required property " + dataPublisherFinalDirKey);
 
-    return new Path(state.getProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)),
-        WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    if (state.getPropAsBoolean(ConfigurationKeys.DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR,
+        ConfigurationKeys.DEFAULT_DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR)) {
+      return new Path(state.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)),
+          WriterUtils.getWriterFilePath(state, numBranches, branchId));
+    } else {
+      return new Path(state.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, numBranches, branchId)));
+    }
   }
 
   /**

@@ -13,6 +13,7 @@ package gobblin.runtime.job_catalog;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.Assert.ThrowingRunnable;
@@ -54,7 +55,7 @@ public class TestImmutableFSJobCatalog {
 
     Assert.assertEquals(cfgAccessor2.getJobConfDir(), "file:///tmp2");
     Assert.assertEquals(cfgAccessor2.getJobConfDirPath(), new Path("file:///tmp2"));
-    Assert.assertEquals(cfgAccessor2.getJobConfDirFileSystem(), FileSystem.getLocal(new Configuration()));
+    Assert.assertTrue(cfgAccessor2.getJobConfDirFileSystem() instanceof LocalFileSystem);
     Assert.assertEquals(cfgAccessor2.getPollingInterval(), 100);
 
     Assert.assertThrows(new ThrowingRunnable() {

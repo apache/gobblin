@@ -107,8 +107,8 @@ if [ "$TYPE" == "hive" ]; then
 else
   
   LIBJARS=(
-    $FWDIR_LIB/avro-1.7.7.jar
-    $FWDIR_LIB/avro-mapred-1.7.7-hadoop2.jar
+    $FWDIR_LIB/avro-1.8.1.jar
+    $FWDIR_LIB/avro-mapred-1.8.1.jar
     $FWDIR_LIB/commons-cli-1.3.1.jar
     $FWDIR_LIB/commons-lang3-3.4.jar
     $FWDIR_LIB/gobblin-api-$GOBBLIN_VERSION.jar

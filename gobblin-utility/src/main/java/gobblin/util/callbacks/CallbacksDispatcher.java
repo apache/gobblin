@@ -11,6 +11,8 @@
  */
 package gobblin.util.callbacks;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +44,7 @@ import lombok.Data;
  * @param L     the listener type; it is strongly advised that the class implements toString() to
  *              provide useful logging
  */
-public class CallbacksDispatcher<L> {
+public class CallbacksDispatcher<L> implements Closeable {
   private final Logger _log;
   private final List<L> _listeners = new ArrayList<>();
   private final WeakHashMap<L, Void> _autoListeners = new WeakHashMap<>();
@@ -76,6 +79,12 @@ public class CallbacksDispatcher<L> {
 
   public CallbacksDispatcher(ExecutorService execService, Logger log) {
     this(Optional.of(execService), Optional.of(log));
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    ExecutorsUtils.shutdownExecutorService(_execService, Optional.of(_log), 5, TimeUnit.SECONDS);
   }
 
   public synchronized List<L> getListeners() {

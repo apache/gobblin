@@ -46,6 +46,8 @@ import gobblin.source.workunit.Extract;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.metrics.GobblinMetrics;
 
+import lombok.Getter;
+
 
 /**
  * An extension to {@link WorkUnitState} with run-time task state information.
@@ -78,6 +80,8 @@ public class TaskState extends WorkUnitState {
 
   private String jobId;
   private String taskId;
+  @Getter
+  private Optional<String> taskAttemptId;
   private long startTime = 0;
   private long endTime = 0;
   private long duration;
@@ -92,6 +96,7 @@ public class TaskState extends WorkUnitState {
     addAll(workUnitState);
     this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
+    this.taskAttemptId = Optional.fromNullable(workUnitState.getProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY));
     this.setId(this.taskId);
   }
 

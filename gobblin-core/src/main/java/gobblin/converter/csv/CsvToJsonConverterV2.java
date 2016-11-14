@@ -72,12 +72,13 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
   @Override
   public Converter<String, JsonArray, String[], JsonObject> init(WorkUnitState workUnit) {
     super.init(workUnit);
-    customOrder = workUnit.getPropAsList(CUSTOM_ORDERING);
+    customOrder = workUnit.getPropAsList(CUSTOM_ORDERING, "");
     if (!customOrder.isEmpty()) {
       LOG.info("Will use custom order to generate JSON from CSV: " + customOrder);
     }
     return this;
   }
+
   @Override
   public JsonArray convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
     Preconditions.checkNotNull(inputSchema, "inputSchema is required.");
@@ -183,7 +184,7 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
   JsonObject createOutput(JsonArray outputSchema, String[] inputRecord, List<String> customOrder) {
 
     Preconditions.checkArgument(outputSchema.size() == customOrder.size(), "# of columns mismatch. Input "
-        + inputRecord.length + " , output: " + outputSchema.size());
+        + outputSchema.size() + " , output: " + customOrder.size());
     JsonObject outputRecord = new JsonObject();
     Iterator<JsonElement> outputSchemaIterator = outputSchema.iterator();
     Iterator<String> customOrderIterator = customOrder.iterator();

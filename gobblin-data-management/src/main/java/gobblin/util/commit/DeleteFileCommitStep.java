@@ -20,6 +20,8 @@ import java.util.Properties;
 import java.util.Set;
 
 import javax.annotation.Nullable;
+import lombok.Getter;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -42,6 +44,7 @@ import gobblin.util.PathUtils;
  * If {@link #parentDeletionLimit} is present, will also delete newly empty parent directories up to but not including
  * that limit.
  */
+@Getter
 public class DeleteFileCommitStep implements CommitStep {
 
   private final Collection<FileStatus> pathsToDelete;
@@ -63,7 +66,15 @@ public class DeleteFileCommitStep implements CommitStep {
     return new DeleteFileCommitStep(fs, toFileStatus(fs, paths), properties, Optional.of(parentDeletionLimit));
   }
 
-  private DeleteFileCommitStep(FileSystem fs, Collection<FileStatus> paths, Properties properties,
+  /**
+   * @param fs {@link FileSystem} where files need to be deleted.
+   * @param paths Collection of {@link FileStatus}es to deleted.
+   * @param properties {@link Properties} object including {@link Trash} configuration.
+   * @param parentDeletionLimit if present, will delete empty parent directories up to but not including this path. If
+   *                            absent, will not delete empty parent directories.
+   * @throws IOException
+   */
+  public DeleteFileCommitStep(FileSystem fs, Collection<FileStatus> paths, Properties properties,
       Optional<Path> parentDeletionLimit) throws IOException {
     this.fsUri = fs.getUri();
     this.pathsToDelete = paths;

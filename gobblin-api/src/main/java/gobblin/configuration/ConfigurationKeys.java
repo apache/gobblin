@@ -143,6 +143,7 @@ public class ConfigurationKeys {
    */
   public static final String JOB_ID_KEY = "job.id";
   public static final String TASK_ID_KEY = "task.id";
+  public static final String TASK_ATTEMPT_ID_KEY = "task.AttemptId";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
   public static final String TASK_RETRIES_KEY = "task.retries";
@@ -324,6 +325,8 @@ public class ConfigurationKeys {
   public static final String DEFAULT_DATA_PUBLISHER_TYPE = "gobblin.publisher.BaseDataPublisher";
   public static final String DATA_PUBLISHER_FILE_SYSTEM_URI = DATA_PUBLISHER_PREFIX + ".fs.uri";
   public static final String DATA_PUBLISHER_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".final.dir";
+  public static final String DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".appendExtractToFinalDir";
+  public static final boolean DEFAULT_DATA_PUBLISHER_APPEND_EXTRACT_TO_FINAL_DIR = true;
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
   public static final String DATA_PUBLISHER_OVERWRITE_ENABLED = DATA_PUBLISHER_PREFIX + ".overwrite.enabled";
@@ -401,24 +404,26 @@ public class ConfigurationKeys {
   /**
    * Configuration properties for source connection.
    */
-  public static final String SOURCE_CONN_USE_AUTHENTICATION = "source.conn.use.authentication";
-  public static final String SOURCE_CONN_PRIVATE_KEY = "source.conn.private.key";
-  public static final String SOURCE_CONN_KNOWN_HOSTS = "source.conn.known.hosts";
-  public static final String SOURCE_CONN_CLIENT_SECRET = "source.conn.client.secret";
-  public static final String SOURCE_CONN_CLIENT_ID = "source.conn.client.id";
-  public static final String SOURCE_CONN_DOMAIN = "source.conn.domain";
-  public static final String SOURCE_CONN_USERNAME = "source.conn.username";
-  public static final String SOURCE_CONN_PASSWORD = "source.conn.password";
-  public static final String SOURCE_CONN_SECURITY_TOKEN = "source.conn.security.token";
-  public static final String SOURCE_CONN_HOST_NAME = "source.conn.host";
-  public static final String SOURCE_CONN_VERSION = "source.conn.version";
-  public static final String SOURCE_CONN_TIMEOUT = "source.conn.timeout";
-  public static final String SOURCE_CONN_REST_URL = "source.conn.rest.url";
-  public static final String SOURCE_CONN_USE_PROXY_URL = "source.conn.use.proxy.url";
-  public static final String SOURCE_CONN_USE_PROXY_PORT = "source.conn.use.proxy.port";
-  public static final String SOURCE_CONN_DRIVER = "source.conn.driver";
-  public static final String SOURCE_CONN_PORT = "source.conn.port";
+  public static final String SOURCE_CONN_PREFIX = "source.conn.";
+  public static final String SOURCE_CONN_USE_AUTHENTICATION = SOURCE_CONN_PREFIX + "use.authentication";
+  public static final String SOURCE_CONN_PRIVATE_KEY = SOURCE_CONN_PREFIX + "private.key";
+  public static final String SOURCE_CONN_KNOWN_HOSTS = SOURCE_CONN_PREFIX + "known.hosts";
+  public static final String SOURCE_CONN_CLIENT_SECRET = SOURCE_CONN_PREFIX + "client.secret";
+  public static final String SOURCE_CONN_CLIENT_ID = SOURCE_CONN_PREFIX + "client.id";
+  public static final String SOURCE_CONN_DOMAIN = SOURCE_CONN_PREFIX + "domain";
+  public static final String SOURCE_CONN_USERNAME = SOURCE_CONN_PREFIX + "username";
+  public static final String SOURCE_CONN_PASSWORD = SOURCE_CONN_PREFIX + "password";
+  public static final String SOURCE_CONN_SECURITY_TOKEN = SOURCE_CONN_PREFIX + "security.token";
+  public static final String SOURCE_CONN_HOST_NAME = SOURCE_CONN_PREFIX + "host";
+  public static final String SOURCE_CONN_VERSION = SOURCE_CONN_PREFIX + "version";
+  public static final String SOURCE_CONN_TIMEOUT = SOURCE_CONN_PREFIX + "timeout";
+  public static final String SOURCE_CONN_REST_URL = SOURCE_CONN_PREFIX + "rest.url";
+  public static final String SOURCE_CONN_USE_PROXY_URL = SOURCE_CONN_PREFIX + "use.proxy.url";
+  public static final String SOURCE_CONN_USE_PROXY_PORT = SOURCE_CONN_PREFIX + "use.proxy.port";
+  public static final String SOURCE_CONN_DRIVER = SOURCE_CONN_PREFIX + "driver";
+  public static final String SOURCE_CONN_PORT = SOURCE_CONN_PREFIX + "port";
   public static final int SOURCE_CONN_DEFAULT_PORT = 22;
+  public static final String SOURCE_CONN_SID = SOURCE_CONN_PREFIX + "sid";
 
   /**
    * Source default configurations.
@@ -444,10 +449,13 @@ public class ConfigurationKeys {
    * Configuration properties used by the Hadoop MR job launcher.
    */
   public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
+  /** Specifies a static location in HDFS to upload jars to. Useful for sharing jars across different Gobblin runs.*/
+  public static final String MR_JARS_DIR = "mr.jars.dir";
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
   public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
   public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
+  public static final boolean DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION = false;
 
   /**
    * Configuration properties used by the distributed job launcher.
@@ -636,5 +644,4 @@ public class ConfigurationKeys {
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
   public static final int PERMISSION_PARSING_RADIX = 8;
-
 }

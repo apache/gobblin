@@ -12,6 +12,7 @@
 package gobblin.runtime.job_catalog;
 
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
 
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -32,11 +33,16 @@ public class TestMutableCachingJobCatalog {
   public void test() throws Exception {
     InMemoryJobCatalog baseCat =
         new InMemoryJobCatalog(Optional.<Logger>of(LoggerFactory.getLogger("baseCat")));
+    baseCat.startAsync();
+    baseCat.awaitRunning(2, TimeUnit.SECONDS);
     MutableCachingJobCatalog cachedCat =
         new MutableCachingJobCatalog(baseCat, Optional.<Logger>of(LoggerFactory.getLogger("cachedCat")));
 
     JobCatalogListener l = Mockito.mock(JobCatalogListener.class);
     cachedCat.addListener(l);
+
+    cachedCat.startAsync();
+    cachedCat.awaitRunning(10, TimeUnit.SECONDS);
 
     JobSpec js1_1 = JobSpec.builder("test:job1").withVersion("1").build();
     JobSpec js1_2 = JobSpec.builder("test:job1").withVersion("2").build();
@@ -85,6 +91,11 @@ public class TestMutableCachingJobCatalog {
     Mockito.verify(l).onDeleteJob(Mockito.eq(js1_2.getUri()), Mockito.eq(js1_2.getVersion()));
 
     Mockito.verifyNoMoreInteractions(l);
+
+    cachedCat.stopAsync();
+    cachedCat.awaitTerminated(10, TimeUnit.SECONDS);
+    baseCat.stopAsync();
+    baseCat.awaitTerminated(2, TimeUnit.SECONDS);
   }
 
 }

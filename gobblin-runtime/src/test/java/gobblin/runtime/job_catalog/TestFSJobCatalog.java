@@ -17,6 +17,7 @@ import java.net.URI;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
@@ -55,6 +56,8 @@ public class TestFSJobCatalog {
 
     /* Exposed the observer so that checkAndNotify can be manually invoked. */
     FSJobCatalog cat = new FSJobCatalog(ConfigUtils.propertiesToConfig(properties), observer);
+    cat.startAsync();
+    cat.awaitRunning(10, TimeUnit.SECONDS);
 
     final Map<URI, JobSpec> specs = new Hashtable<>();
 
@@ -128,5 +131,8 @@ public class TestFSJobCatalog {
     // enough time for file deletion.
     observer.checkAndNotify();
     Assert.assertFalse(specs.containsKey(js2.getUri()));
+
+    cat.stopAsync();
+    cat.awaitTerminated(10, TimeUnit.SECONDS);
   }
 }

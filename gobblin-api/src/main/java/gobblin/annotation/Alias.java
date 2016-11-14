@@ -26,4 +26,5 @@ public @interface Alias {
    * Alias for that class
    */
   public String value();
+  public String description() default "";
 }

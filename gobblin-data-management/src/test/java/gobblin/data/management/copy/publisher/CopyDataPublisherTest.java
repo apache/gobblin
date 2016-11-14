@@ -42,6 +42,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+import com.google.common.io.Files;
 
 
 /*
@@ -191,7 +192,7 @@ public class CopyDataPublisherTest {
   @BeforeClass
   public void setup() throws Exception {
     fs = FileSystem.getLocal(new Configuration());
-    testClassTempPath = new Path(this.getClass().getClassLoader().getResource("").getFile(), "CopyDataPublisherTest");
+    testClassTempPath = new Path(Files.createTempDir().getAbsolutePath(), "CopyDataPublisherTest");
     fs.delete(testClassTempPath, true);
     log.info("Created a temp directory for CopyDataPublisherTest at " + testClassTempPath);
     fs.mkdirs(testClassTempPath);

@@ -1,5 +1,7 @@
 package gobblin.runtime.job_catalog;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -19,7 +21,7 @@ import gobblin.util.callbacks.CallbacksDispatcher;
 
 /** A helper class to manage a list of {@link JobCatalogListener}s for a
  * {@link JobCatalog}. It will dispatch the callbacks to each listener sequentially.*/
-public class JobCatalogListenersList implements JobCatalogListener, JobCatalogListenersContainer {
+public class JobCatalogListenersList implements JobCatalogListener, JobCatalogListenersContainer, Closeable {
   private final CallbacksDispatcher<JobCatalogListener> _disp;
 
   public JobCatalogListenersList() {
@@ -77,6 +79,12 @@ public class JobCatalogListenersList implements JobCatalogListener, JobCatalogLi
     } catch (InterruptedException e) {
       getLog().warn("onUpdateJob interrupted.");
     }
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    _disp.close();
   }
 
   public void callbackOneListener(Function<JobCatalogListener, Void> callback,

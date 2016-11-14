@@ -17,6 +17,7 @@ import java.net.URISyntaxException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -72,6 +73,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
 
   }
 
+  @SuppressWarnings("rawtypes")
   public AbstractHttpWriter(AbstractHttpWriterBuilder builder) {
     super(builder.getState());
     this.log = builder.getLogger().isPresent() ? (Logger)builder.getLogger() : LoggerFactory.getLogger(this.getClass());

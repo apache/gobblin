@@ -135,11 +135,11 @@ LIBJARS=(
   $FWDIR_LIB/gobblin-api-$GOBBLIN_VERSION.jar
   $FWDIR_LIB/gobblin-utility-$GOBBLIN_VERSION.jar
   $FWDIR_LIB/guava-15.0.jar
-  $FWDIR_LIB/avro-1.7.7.jar
-  $FWDIR_LIB/avro-mapred-1.7.7-hadoop2.jar
+  $FWDIR_LIB/avro-1.8.1.jar
+  $FWDIR_LIB/avro-mapred-1.8.1.jar
   $FWDIR_LIB/commons-lang3-3.4.jar
   $FWDIR_LIB/config-1.2.1.jar
-  $FWDIR_LIB/data-1.15.9.jar
+  $FWDIR_LIB/data-2.6.0.jar
   $FWDIR_LIB/gson-2.6.2.jar
   $FWDIR_LIB/joda-time-2.9.3.jar
   $FWDIR_LIB/kafka_2.11-0.8.2.2.jar

@@ -11,10 +11,13 @@
  */
 package gobblin.runtime.api;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.Service;
 
 /**
@@ -30,7 +33,7 @@ import com.google.common.util.concurrent.Service;
  * <ul>
  */
 public interface JobExecutionDriver
-       extends Service, JobExecutionStateListenerContainer, Future<JobExecutionResult> {
+       extends JobExecutionStateListenerContainer, ListenableFuture<JobExecutionResult>, RunnableFuture<JobExecutionResult> {
 
   /** The job execution ID */
   JobExecution getJobExecution();

@@ -13,6 +13,7 @@ package gobblin.data.management.copy;
 
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.copy.extractor.CloseableFsFileAwareInputStreamExtractor;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.sftp.SftpLightWeightFileSystem;
@@ -51,7 +52,8 @@ public class CloseableFsCopySource extends CopySource {
   private final Closer closer = Closer.create();
 
   @Override
-  protected FileSystem getSourceFileSystem(State state) throws IOException {
+  protected FileSystem getSourceFileSystem(State state)
+      throws IOException {
     return this.closer.register(super.getSourceFileSystem(state));
   }
 
@@ -65,8 +67,9 @@ public class CloseableFsCopySource extends CopySource {
   }
 
   @Override
-  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf)
+  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf,
+      WorkUnitState state)
       throws IOException {
-    return new CloseableFsFileAwareInputStreamExtractor(fs, cf);
+    return new CloseableFsFileAwareInputStreamExtractor(fs, cf, state);
   }
 }

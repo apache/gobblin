@@ -11,6 +11,8 @@
  */
 package gobblin.runtime.std;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -34,7 +36,7 @@ import gobblin.util.callbacks.CallbacksDispatcher;
  * A default implementation to manage a list of {@link JobLifecycleListener}
  *
  */
-public class JobLifecycleListenersList implements JobLifecycleListenersContainer {
+public class JobLifecycleListenersList implements JobLifecycleListenersContainer, Closeable {
   private final CallbacksDispatcher<JobLifecycleListener> _dispatcher;
   private final JobCatalogListenersContainer _jobCatalogDelegate;
   private final JobSpecSchedulerListenersContainer _jobSchedulerDelegate;
@@ -75,6 +77,12 @@ public class JobLifecycleListenersList implements JobLifecycleListenersContainer
     _jobSchedulerDelegate.unregisterJobSpecSchedulerListener(listener);
     _jobCatalogDelegate.removeListener(listener);
     _dispatcher.removeListener(listener);
+  }
+
+  @Override
+  public void close()
+      throws IOException {
+    _dispatcher.close();
   }
 
   /** {@inheritDoc} */

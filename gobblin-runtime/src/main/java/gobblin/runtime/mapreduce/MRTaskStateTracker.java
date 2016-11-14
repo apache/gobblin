@@ -62,25 +62,26 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
   }
 
   @Override
-  public void onTaskCompletion(Task task) {
+  public void onTaskRunCompletion(Task task) {
+    task.markTaskCompletion();
+    LOG.info(String
+        .format("Task %s completed running in %dms with state %s", task.getTaskId(), task.getTaskState().getTaskDuration(),
+            task.getTaskState().getWorkingState()));
+  }
+
+  @Override
+  public void onTaskCommitCompletion(Task task) {
     WorkUnit workUnit = task.getTaskState().getWorkunit();
 
-    try {
-      if (GobblinMetrics.isEnabled(workUnit)) {
-        task.updateRecordMetrics();
-        task.updateByteMetrics();
+    if (GobblinMetrics.isEnabled(workUnit)) {
+      task.updateRecordMetrics();
+      task.updateByteMetrics();
 
-        if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
-            ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
-          updateCounters(task);
-        }
+      if (workUnit.getPropAsBoolean(ConfigurationKeys.MR_REPORT_METRICS_AS_COUNTERS_KEY,
+          ConfigurationKeys.DEFAULT_MR_REPORT_METRICS_AS_COUNTERS)) {
+        updateCounters(task);
       }
-    } finally {
-      task.markTaskCompletion();
     }
-
-    LOG.info(String.format("Task %s completed in %dms with state %s",
-        task.getTaskId(), task.getTaskState().getTaskDuration(), task.getTaskState().getWorkingState()));
   }
 
   /**

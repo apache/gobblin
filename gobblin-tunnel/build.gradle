@@ -34,4 +34,4 @@ test {
   include '**/*Test*'
 }
 
-classification="library"
+ext.classification="library"

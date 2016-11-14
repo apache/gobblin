@@ -146,6 +146,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
    * and {@link Table#getTableName()}
    */
   public static String resolveTemplate(String rawString, Table table) {
+    if (StringUtils.isBlank(rawString)) {
+      return rawString;
+    }
     return StringUtils.replaceEach(rawString, new String[] { DATABASE_TOKEN, TABLE_TOKEN }, new String[] { table.getDbName(), table.getTableName() });
   }
 }

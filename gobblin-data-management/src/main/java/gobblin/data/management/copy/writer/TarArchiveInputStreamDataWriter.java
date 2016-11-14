@@ -15,6 +15,7 @@ package gobblin.data.management.copy.writer;
 import gobblin.configuration.State;
 import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
+import gobblin.util.io.StreamCopier;
 import gobblin.util.io.StreamUtils;
 
 import java.io.IOException;
@@ -81,7 +82,16 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
           FSDataOutputStream out = this.fs.create(tarEntryStagingPath, true);
           final WritableByteChannel outputChannel = Channels.newChannel(out);
           try {
-            this.bytesWritten.addAndGet(StreamUtils.copy(inputChannel, outputChannel));
+            StreamCopier copier = new StreamCopier(inputChannel, outputChannel);
+            if (isInstrumentationEnabled()) {
+              copier.withCopySpeedMeter(this.copySpeedMeter);
+            }
+            this.bytesWritten.addAndGet(copier.copy());
+            if (isInstrumentationEnabled()) {
+              log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(), this.copySpeedMeter.getCount(), this.copySpeedMeter.getMeanRate());
+            } else {
+              log.info("File {} copied.", copyableFile.getOrigin().getPath());
+            }
           } finally {
             out.close();
             outputChannel.close();

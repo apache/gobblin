@@ -14,5 +14,6 @@
     <li><a href="http://www.ibm.com" target="_blank"><b>IBM</b></li>
     <li><a href="http://www.paypal.com" target="_blank"><b>Paypal</b></li>
     <li><a href="http://www.sandia.gov/" target="_blank"><b>Sandia National Laboratories</b></li>
+    <li><a href="http://www.applift.com" target="_blank"><b>AppLift</b></li>
   </ul>
 </p>

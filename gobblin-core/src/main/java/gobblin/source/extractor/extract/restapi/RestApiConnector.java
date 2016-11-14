@@ -18,16 +18,14 @@ import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.conn.params.ConnRoutePNames;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
 
+import com.google.common.base.Charsets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -35,11 +33,13 @@ import com.google.gson.JsonObject;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.http.HttpClientConfiguratorLoader;
 import gobblin.source.extractor.exception.RestApiConnectionException;
 import gobblin.source.extractor.exception.RestApiProcessingException;
 import gobblin.source.extractor.extract.Command;
 import gobblin.source.extractor.extract.CommandOutput;
 import gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
+
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -96,7 +96,7 @@ public abstract class RestApiConnector {
           log.error("entity class: " + httpEntity.getClass().getName());
           log.error("entity string size: " + EntityUtils.toString(httpEntity).length());
           log.error("content length: " + httpEntity.getContentLength());
-          log.error("content: " + IOUtils.toString(httpEntity.getContent()));
+          log.error("content: " + IOUtils.toString(httpEntity.getContent(), Charsets.UTF_8));
           throw new RestApiConnectionException(
               "JSON is NULL ! Failed on authentication with the following HTTP response received:\n"
                   + EntityUtils.toString(httpEntity));
@@ -130,16 +130,11 @@ public abstract class RestApiConnector {
 
   protected HttpClient getHttpClient() {
     if (this.httpClient == null) {
-      this.httpClient = new DefaultHttpClient();
-
-      if (this.state.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL)
-          && !this.state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL).isEmpty()) {
-        log.info("Connecting via proxy: " + this.state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL));
-
-        HttpHost proxy = new HttpHost(this.state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
-            this.state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
-        this.httpClient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy);
-      }
+      HttpClientConfiguratorLoader configuratorLoader = new HttpClientConfiguratorLoader(this.state);
+      this.httpClient = configuratorLoader.getConfigurator()
+          .setStatePropertiesPrefix(ConfigurationKeys.SOURCE_CONN_PREFIX)
+          .configure(this.state)
+          .createClient();
     }
     return this.httpClient;
   }

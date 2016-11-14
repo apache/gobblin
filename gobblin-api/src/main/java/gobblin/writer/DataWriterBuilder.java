@@ -34,6 +34,7 @@ public abstract class DataWriterBuilder<S, D> {
   protected S schema;
   protected int branches;
   protected int branch;
+  protected String writerAttemptId;
 
   /**
    * Tell the writer the destination to write to.
@@ -98,6 +99,15 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> forBranch(int branch) {
     this.branch = branch;
+    return this;
+  }
+
+  /**
+   * Attempt Id for this writer. There could be two duplicate writers with the same {@link #writerId},
+   * their writerAttemptId should be different.
+   */
+  public DataWriterBuilder<S, D> withAttemptId(String attemptId) {
+    this.writerAttemptId = attemptId;
     return this;
   }
 

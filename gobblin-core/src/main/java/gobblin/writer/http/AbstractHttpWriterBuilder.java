@@ -13,10 +13,7 @@ package gobblin.writer.http;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import lombok.Getter;
 
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.HttpClientConnectionManager;
@@ -34,8 +31,11 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.State;
+import gobblin.http.HttpClientConfiguratorLoader;
 import gobblin.writer.Destination;
 import gobblin.writer.FluentDataWriterBuilder;
+
+import lombok.Getter;
 
 @Getter
 public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWriterBuilder<S, D, B>>
@@ -55,21 +55,17 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
     BASIC;
   }
 
-  private static final Config FALLBACK;
-  static {
-    Map<String, Object> configMap = ImmutableMap.<String, Object>builder()
-                                                .put(REQUEST_TIME_OUT_MS_KEY, TimeUnit.SECONDS.toMillis(5L))
-                                                .put(CONNECTION_TIME_OUT_MS_KEY, TimeUnit.SECONDS.toMillis(5L))
-                                                .put(HTTP_CONN_MANAGER, ConnManager.BASIC.name())
-                                                .put(POOLING_CONN_MANAGER_MAX_TOTAL_CONN, 20)
-                                                .put(POOLING_CONN_MANAGER_MAX_PER_CONN, 2)
-                                                .build();
-    FALLBACK = ConfigFactory.parseMap(configMap);
-  }
+  private static final Config FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(REQUEST_TIME_OUT_MS_KEY, TimeUnit.SECONDS.toMillis(5L))
+          .put(CONNECTION_TIME_OUT_MS_KEY, TimeUnit.SECONDS.toMillis(5L))
+          .put(HTTP_CONN_MANAGER, ConnManager.BASIC.name())
+          .put(POOLING_CONN_MANAGER_MAX_TOTAL_CONN, 20)
+          .put(POOLING_CONN_MANAGER_MAX_PER_CONN, 2)
+          .build());
 
-  private State state;
-  private HttpClientBuilder httpClientBuilder =
-      HttpClientBuilder.create().disableCookieManagement().useSystemProperties();
+  private State state = new State();
+  private Optional<HttpClientBuilder> httpClientBuilder = Optional.absent();
 
   private HttpClientConnectionManager httpConnManager;
   private long reqTimeOut;
@@ -103,7 +99,7 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
                                                .setConnectionRequestTimeout(config.getInt(CONNECTION_TIME_OUT_MS_KEY))
                                                .build();
 
-    httpClientBuilder.setDefaultRequestConfig(requestConfig);
+    getHttpClientBuilder().setDefaultRequestConfig(requestConfig);
 
     if (config.hasPath(STATIC_SVC_ENDPOINT)) {
       try {
@@ -131,8 +127,24 @@ public abstract class AbstractHttpWriterBuilder<S, D, B extends AbstractHttpWrit
     return typedSelf();
   }
 
+  public HttpClientBuilder getDefaultHttpClientBuilder() {
+    HttpClientConfiguratorLoader clientConfiguratorLoader =
+        new HttpClientConfiguratorLoader(getState());
+    clientConfiguratorLoader.getConfigurator().setStatePropertiesPrefix(AbstractHttpWriterBuilder.CONF_PREFIX);
+    return clientConfiguratorLoader.getConfigurator().configure(getState())
+        .getBuilder().disableCookieManagement().useSystemProperties();
+  }
+
+  public HttpClientBuilder getHttpClientBuilder() {
+    if (!this.httpClientBuilder.isPresent()) {
+      this.httpClientBuilder = Optional.of(getDefaultHttpClientBuilder());
+    }
+
+    return this.httpClientBuilder.get();
+  }
+
   public B withHttpClientBuilder(HttpClientBuilder builder) {
-    this.httpClientBuilder = builder;
+    this.httpClientBuilder = Optional.of(builder);
     return typedSelf();
   }
 

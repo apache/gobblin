@@ -19,8 +19,9 @@ dependencies {
   compile project(":gobblin-metastore")
   compile project(":gobblin-utility")
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
-  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate', classifier: 'data-template')
+  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate')
   compile project(":gobblin-rest-service:gobblin-rest-server")
+  compile project(":gobblin-data-management")
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2
@@ -54,6 +55,7 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.kafka
   compile externalDependency.scala
+  compile externalDependency.guavaretrying
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile externalDependency.calciteCore

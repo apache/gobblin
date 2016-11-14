@@ -13,7 +13,6 @@
 package gobblin.util;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
@@ -32,15 +31,14 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import gobblin.runtime.template.ResourceBasedJobTemplate;
-import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationDetector;
+import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationObserver;
 
 
@@ -59,16 +57,17 @@ public class SchedulerUtils {
   /**
    * Load job configuration from job configuration files stored in general file system,
    * located by Path
-   * @param properties Gobblin framework configuration properties
+   * @param sysProps Gobblin framework configuration properties
    * @return a list of job configurations in the form of {@link java.util.Properties}
    */
-  public static List<Properties> loadGenericJobConfigs(Properties properties)
+  public static List<Properties> loadGenericJobConfigs(Properties sysProps)
       throws ConfigurationException, IOException {
-    Path rootPath = new Path(properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
+    Path rootPath = new Path(sysProps.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
     PullFileLoader loader = new PullFileLoader(rootPath, rootPath.getFileSystem(new Configuration()),
-        getJobConfigurationFileExtensions(properties), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
+        getJobConfigurationFileExtensions(sysProps), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
+    Config sysConfig = ConfigUtils.propertiesToConfig(sysProps);
     Collection<Config> configs =
-        loader.loadPullFilesRecursively(rootPath, ConfigFactory.parseProperties(properties), true);
+        loader.loadPullFilesRecursively(rootPath, sysConfig, true);
 
     List<Properties> jobConfigs = Lists.newArrayList();
     for (Config config : configs) {
@@ -86,19 +85,20 @@ public class SchedulerUtils {
   /**
    * Load job configurations from job configuration files affected by changes to the given common properties file.
    * From a general file system.
-   * @param properties Gobblin framework configuration properties
+   * @param sysProps Gobblin framework configuration properties
    * @param commonPropsPath the path of common properties file with changes
    * @param jobConfigPathDir the path for root job configuration file directory
    * @return a list of job configurations in the form of {@link java.util.Properties}
    */
-  public static List<Properties> loadGenericJobConfigs(Properties properties, Path commonPropsPath,
+  public static List<Properties> loadGenericJobConfigs(Properties sysProps, Path commonPropsPath,
       Path jobConfigPathDir)
       throws ConfigurationException, IOException {
 
     PullFileLoader loader = new PullFileLoader(jobConfigPathDir, jobConfigPathDir.getFileSystem(new Configuration()),
-        getJobConfigurationFileExtensions(properties), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
+        getJobConfigurationFileExtensions(sysProps), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
+    Config sysConfig = ConfigUtils.propertiesToConfig(sysProps);
     Collection<Config> configs =
-        loader.loadPullFilesRecursively(commonPropsPath.getParent(), ConfigFactory.parseProperties(properties), true);
+        loader.loadPullFilesRecursively(commonPropsPath.getParent(), sysConfig, true);
 
     List<Properties> jobConfigs = Lists.newArrayList();
     for (Config config : configs) {
@@ -116,18 +116,19 @@ public class SchedulerUtils {
   /**
    * Load a given job configuration file from a general file system.
    *
-   * @param properties Gobblin framework configuration properties
+   * @param sysProps Gobblin framework configuration properties
    * @param jobConfigPath job configuration file to be loaded
    * @param jobConfigPathDir root job configuration file directory
    * @return a job configuration in the form of {@link java.util.Properties}
    */
-  public static Properties loadGenericJobConfig(Properties properties, Path jobConfigPath, Path jobConfigPathDir)
+  public static Properties loadGenericJobConfig(Properties sysProps, Path jobConfigPath, Path jobConfigPathDir)
       throws ConfigurationException, IOException {
 
     PullFileLoader loader = new PullFileLoader(jobConfigPathDir, jobConfigPathDir.getFileSystem(new Configuration()),
-        getJobConfigurationFileExtensions(properties), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
+        getJobConfigurationFileExtensions(sysProps), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
 
-    Config config = loader.loadPullFile(jobConfigPath, ConfigFactory.parseProperties(properties), true);
+    Config sysConfig = ConfigUtils.propertiesToConfig(sysProps);
+    Config config = loader.loadPullFile(jobConfigPath, sysConfig, true);
     return resolveTemplate(ConfigUtils.configToProperties(config));
   }
 
@@ -165,10 +166,11 @@ public class SchedulerUtils {
   private static Properties resolveTemplate(Properties jobProps) throws IOException {
     try {
       if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+        Config jobConfig = ConfigUtils.propertiesToConfig(jobProps);
         Properties resolvedProps = ConfigUtils.configToProperties((ResourceBasedJobTemplate
             .forResourcePath(jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH),
                 new PackagedTemplatesJobCatalogDecorator()))
-            .getResolvedConfig(ConfigFactory.parseProperties(jobProps)));
+            .getResolvedConfig(jobConfig));
         return resolvedProps;
       } else {
         return jobProps;

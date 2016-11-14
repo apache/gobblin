@@ -36,7 +36,7 @@ public class PartitionedWriterTest {
 
     TestPartitionAwareWriterBuilder builder = new TestPartitionAwareWriterBuilder();
 
-    DataWriter<String> writer = new PartitionedDataWriter<String, String>(builder, state);
+    PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
 
     Assert.assertEquals(builder.actions.size(), 0);
 
@@ -52,17 +52,19 @@ public class PartitionedWriterTest {
     Assert.assertEquals(action.getPartition(), "a");
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.WRITE);
     Assert.assertEquals(action.getTarget(), record1);
+    Assert.assertTrue(writer.isSpeculativeAttemptSafe());
 
-    String record2 = "bcd";
+    String record2 = "123";
     writer.write(record2);
 
     Assert.assertEquals(builder.actions.size(), 2);
     action = builder.actions.poll();
-    Assert.assertEquals(action.getPartition(), "b");
+    Assert.assertEquals(action.getPartition(), "1");
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.BUILD);
+    Assert.assertFalse(writer.isSpeculativeAttemptSafe());
 
     action = builder.actions.poll();
-    Assert.assertEquals(action.getPartition(), "b");
+    Assert.assertEquals(action.getPartition(), "1");
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.WRITE);
     Assert.assertEquals(action.getTarget(), record2);
 
@@ -77,6 +79,7 @@ public class PartitionedWriterTest {
 
     Assert.assertEquals(writer.recordsWritten(), 3);
     Assert.assertEquals(writer.bytesWritten(), 3);
+    Assert.assertFalse(writer.isSpeculativeAttemptSafe());
 
     writer.cleanup();
     Assert.assertEquals(builder.actions.size(), 2);
@@ -98,7 +101,5 @@ public class PartitionedWriterTest {
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.COMMIT);
     action = builder.actions.poll();
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.COMMIT);
-
   }
-
 }
