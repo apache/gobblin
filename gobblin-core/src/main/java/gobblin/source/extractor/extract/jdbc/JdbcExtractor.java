@@ -267,6 +267,13 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     this.timeOut = timeOut;
   }
 
+  /**
+   * @return private static final Gson factory
+   */
+  public Gson getGson() {
+    return this.gson;
+  }
+
   public JdbcExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
   }
