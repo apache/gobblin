@@ -15,7 +15,6 @@ package gobblin.runtime.util;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -34,12 +33,10 @@ import gobblin.runtime.TaskState;
 public class TaskMetrics extends GobblinMetrics {
 
   protected final String jobId;
-  private final Optional<String> taskAttemptId;
 
   protected TaskMetrics(TaskState taskState) {
     super(name(taskState), parentContextForTask(taskState), tagsForTask(taskState));
     this.jobId = taskState.getJobId();
-    this.taskAttemptId = taskState.getTaskAttemptId();
   }
 
   /**
@@ -69,11 +66,6 @@ public class TaskMetrics extends GobblinMetrics {
 
   private static String name(TaskState taskState) {
     return "gobblin.metrics." + taskState.getJobId() + "." + taskState.getTaskId();
-  }
-
-  @Override
-  protected String getMetricsFileNameIdentifier() {
-    return this.id + (this.taskAttemptId.isPresent() ? "." + this.taskAttemptId.get() : "");
   }
 
   protected static List<Tag<?>> tagsForTask(TaskState taskState) {

@@ -580,7 +580,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
         this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
         this.jobMetrics.get().startMetricReportingWithFileSuffix(HadoopUtils.getStateFromConf(configuration),
-            context.getTaskAttemptID().getTaskID().toString());
+            context.getTaskAttemptID().toString());
       }
     }
 
