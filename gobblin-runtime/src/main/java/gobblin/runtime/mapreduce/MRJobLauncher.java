@@ -52,6 +52,7 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
@@ -71,6 +72,7 @@ import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ConfigUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.JobConfigurationUtils;
 import gobblin.util.JobLauncherUtils;
@@ -308,7 +310,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.job.setMapOutputValueClass(NullWritable.class);
 
     // Set speculative execution
-    this.job.setSpeculativeExecution(isSpeculativeExecutionEnabled(HadoopUtils.getConfFromProperties(this.jobProps)));
+
+    this.job.setSpeculativeExecution(isSpeculativeExecutionEnabled(this.jobProps));
 
     this.job.getConfiguration().set("mapreduce.job.user.classpath.first", "true");
 
@@ -332,8 +335,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     mrJobSetupTimer.stop();
   }
 
-  static boolean isSpeculativeExecutionEnabled(Configuration conf) {
-    return conf.getBoolean(JobContext.MAP_SPECULATIVE, ConfigurationKeys.DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION);
+  static boolean isSpeculativeExecutionEnabled(Properties props) {
+    return Boolean.valueOf(
+        props.getProperty(JobContext.MAP_SPECULATIVE, ConfigurationKeys.DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION));
   }
 
   @VisibleForTesting
@@ -535,7 +539,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     @Override
     protected void setup(Context context) {
       try (Closer closer = Closer.create()) {
-        this.isSpeculativeEnabled = isSpeculativeExecutionEnabled(context.getConfiguration());
+        this.isSpeculativeEnabled =
+            isSpeculativeExecutionEnabled(HadoopUtils.getStateFromConf(context.getConfiguration()).getProperties());
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore =
             new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
@@ -632,7 +637,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
               }
             }
           }
-        }; if (!this.isSpeculativeEnabled || gobblinMultiTaskAttempt == null) {
+        };
+        if (!this.isSpeculativeEnabled || gobblinMultiTaskAttempt == null) {
           cleanUpCommitStep.execute();
         } else {
           LOG.info("Adding additional commit step");
