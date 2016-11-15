@@ -2,6 +2,8 @@ package gobblin.source.extractor.extract.google.webmaster;
 
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
@@ -62,11 +64,17 @@ public class GoogleWebmasterFilter {
     return country;
   }
 
-  static ApiDimensionFilterGroup andGroupFilters(List<ApiDimensionFilter> filters) {
+  static ApiDimensionFilterGroup andGroupFilters(Collection<ApiDimensionFilter> filters) {
     if (filters == null || filters.isEmpty()) {
       return null;
     }
-    return new ApiDimensionFilterGroup().setFilters(filters).setGroupType("and");
+    List<ApiDimensionFilter> filtersList;
+    if (filters instanceof List) {
+      filtersList = (List<ApiDimensionFilter>) filters;
+    } else {
+      filtersList = new ArrayList<>(filters);
+    }
+    return new ApiDimensionFilterGroup().setFilters(filtersList).setGroupType("and");
   }
 
     /* All country codes:

@@ -1,16 +1,17 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
-import com.mysql.jdbc.log.LogFactory;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.collections.CollectionUtils;
 import org.junit.Assert;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +19,20 @@ import org.testng.annotations.Test;
 
 import static org.mockito.Matchers.*;
 
+
+class CollectionEquals extends ArgumentMatcher<Collection> {
+
+  private final Collection _expected;
+
+  public CollectionEquals(Collection expected) {
+    _expected = expected;
+  }
+
+  @Override
+  public boolean matches(Object actual) {
+    return CollectionUtils.isEqualCollection((Collection) actual, _expected);
+  }
+}
 
 @Test(groups = {"gobblin.source.extractor.extract.google.webmaster"})
 public class GoogleWebmasterExtractorIteratorTest {
@@ -51,8 +66,8 @@ public class GoogleWebmasterExtractorIteratorTest {
     List<ApiDimensionFilter> filters1 = new ArrayList<>();
     filters1.add(GoogleWebmasterFilter.countryFilter(country));
     filters1.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page1));
-    Mockito.when(client.doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics), eq(filters1)))
-        .thenReturn(results1);
+    Mockito.when(client.doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+        argThat(new CollectionEquals(filters1)))).thenReturn(results1);
 
     //Set doQuery Mock2
     String[] a2 = {"r2-c1", "r2-c2"};
@@ -61,8 +76,8 @@ public class GoogleWebmasterExtractorIteratorTest {
     List<ApiDimensionFilter> filters2 = new ArrayList<>();
     filters2.add(GoogleWebmasterFilter.countryFilter(country));
     filters2.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page2));
-    Mockito.when(client.doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics), eq(filters2)))
-        .thenReturn(results2);
+    Mockito.when(client.doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+        argThat(new CollectionEquals(filters2)))).thenReturn(results2);
 
     Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
     map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryFilter(country));
@@ -73,16 +88,15 @@ public class GoogleWebmasterExtractorIteratorTest {
     response.add(iterator.next());
     response.add(iterator.next());
     Assert.assertTrue(!iterator.hasNext());
-    //Very Weird!!! if I don't logger.info, the gradle build will fail???!!!
-    logger.info(Arrays.toString(response.get(0)));
-    logger.info(Arrays.toString(response.get(1)));
     Assert.assertTrue(response.contains(a1));
     Assert.assertTrue(response.contains(a2));
 
     Mockito.verify(client, Mockito.times(1)).getAllPages(eq(date), eq(country), eq(5000));
     Mockito.verify(client, Mockito.times(1))
-        .doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics), eq(filters1));
+        .doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+            argThat(new CollectionEquals(filters1)));
     Mockito.verify(client, Mockito.times(1))
-        .doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics), eq(filters2));
+        .doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+            argThat(new CollectionEquals(filters2)));
   }
 }

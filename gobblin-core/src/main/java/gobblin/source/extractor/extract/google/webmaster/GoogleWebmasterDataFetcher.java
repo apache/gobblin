@@ -2,6 +2,7 @@ package gobblin.source.extractor.extract.google.webmaster;
 
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -44,6 +45,6 @@ public interface GoogleWebmasterDataFetcher {
    * @throws IOException
    */
   List<String[]> doQuery(String date, int rowLimit, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<Metric> requestedMetrics, List<ApiDimensionFilter> filters) throws IOException;
+      List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters) throws IOException;
 }
 
