@@ -445,10 +445,6 @@ public class GobblinMetrics {
     this.metricsReportingStarted = false;
   }
 
-  protected String getMetricsFileNameIdentifier() {
-    return this.id;
-  }
-
   private void buildFileMetricReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_FILE_ENABLED))) {
@@ -482,7 +478,7 @@ public class GobblinMetrics {
 
       // Each job run gets its own metric log file
       Path metricLogFile =
-          new Path(metricsLogDir, this.getMetricsFileNameIdentifier() + metricsFileSuffix + ".metrics.log");
+          new Path(metricsLogDir, this.id + metricsFileSuffix + ".metrics.log");
       boolean append = false;
       // Append to the metric file if it already exists
       if (fs.exists(metricLogFile)) {
