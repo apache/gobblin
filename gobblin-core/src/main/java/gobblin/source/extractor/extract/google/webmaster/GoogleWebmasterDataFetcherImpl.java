@@ -7,6 +7,7 @@ import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -248,7 +249,7 @@ public class GoogleWebmasterDataFetcherImpl implements GoogleWebmasterDataFetche
 
   @Override
   public List<String[]> doQuery(String date, int rowLimit, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<Metric> requestedMetrics, List<ApiDimensionFilter> filters) throws IOException {
+      List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters) throws IOException {
 
     SearchAnalyticsQueryResponse response = _client.searchAnalyticsQuery(_siteProperty, date, requestedDimensions,
         GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, 0);
