@@ -27,11 +27,11 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
    */
   public static final String KEY_PROPERTY = "source.google_webmasters.property";
   /**
-   * This provides a list of pages that the GoogleWebmasterClient must check.
-   * This list keeps the pages that we are most interested in and cannot be missed by GoogleWebmasterClient when calling the getAllPages method.
-   * Other pages returned by getAllPages are like icing on the cake.
+   * This configuration defaults to false. Set it to true ONLY when you extremely care about the completeness of the available data set.
+   * However, if you set it to true, the code will throw an exception if it cannot achieve the perfect completeness of available data set.
+   * Set it to false if you can "endure" the incompleteness, which normally should be very minimal.
    */
-  public static final String KEY_REQUEST_PAGE_CHECK_LIST = "source.google_webmasters.request.page_check_list";
+  public static final String KEY_REQUEST_HYPERCRITICAL = "source.google_webmasters.request.isHypercritical";
   /**
    * Give a Google API service scope.
    * For Webmaster, only two scopes are supported. WebmastersScopes.WEBMASTERS_READONLY and WebmastersScopes.WEBMASTERS
@@ -48,7 +48,7 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
    */
   public static final String KEY_REQUEST_DIMENSIONS = "source.google_webmasters.request.dimensions";
   /**
-   * Allowed metrics can be found in the enum GoogleWebmasterClient.Metric
+   * Allowed metrics can be found in the enum GoogleWebmasterDataFetcher.Metric
    */
   public static final String KEY_REQUEST_METRICS = "source.google_webmasters.request.metrics";
   /**
@@ -64,7 +64,7 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
   @Override
   public Extractor<String, String[]> getExtractor(WorkUnitState state) throws IOException {
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = getRequestedDimensions(state);
-    List<GoogleWebmasterClient.Metric> requestedMetrics = getRequestedMetrics(state);
+    List<GoogleWebmasterDataFetcher.Metric> requestedMetrics = getRequestedMetrics(state);
 
     String schema = state.getWorkunit().getProp(ConfigurationKeys.SOURCE_SCHEMA);
     JsonArray schemaJson = new JsonParser().parse(schema).getAsJsonArray();
@@ -80,12 +80,13 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
   }
 
   private void ValidateRequests(Map<String, Integer> columnPositionMap,
-      List<GoogleWebmasterFilter.Dimension> requestedDimensions, List<GoogleWebmasterClient.Metric> requestedMetrics) {
+      List<GoogleWebmasterFilter.Dimension> requestedDimensions,
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics) {
     for (GoogleWebmasterFilter.Dimension dimension : requestedDimensions) {
       Preconditions.checkState(columnPositionMap.containsKey(dimension.toString()),
           "Your requested dimension must exist in the source.schema.");
     }
-    for (GoogleWebmasterClient.Metric metric : requestedMetrics) {
+    for (GoogleWebmasterDataFetcher.Metric metric : requestedMetrics) {
       Preconditions.checkState(columnPositionMap.containsKey(metric.toString()),
           "Your requested metric must exist in the source.schema.");
     }
@@ -100,11 +101,11 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
     return dimensions;
   }
 
-  private List<GoogleWebmasterClient.Metric> getRequestedMetrics(WorkUnitState wuState) {
-    List<GoogleWebmasterClient.Metric> metrics = new ArrayList<>();
+  private List<GoogleWebmasterDataFetcher.Metric> getRequestedMetrics(WorkUnitState wuState) {
+    List<GoogleWebmasterDataFetcher.Metric> metrics = new ArrayList<>();
     String metricsString = wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_METRICS);
     for (String metric : splitter.split(metricsString)) {
-      metrics.add(GoogleWebmasterClient.Metric.valueOf(metric.toUpperCase()));
+      metrics.add(GoogleWebmasterDataFetcher.Metric.valueOf(metric.toUpperCase()));
     }
     return metrics;
   }

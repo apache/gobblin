@@ -4,7 +4,9 @@ import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -13,16 +15,15 @@ import org.slf4j.LoggerFactory;
 //Doesn't implement Iterator<String[]> because I want to throw exception.
 
 /**
- * This iterator iterates through all queried data given all the constraints passed to the constructor.
- * Basically, it first get all pages, and cache them. Then for each page, get all the detailed query data.
+ * This iterator holds a GoogleWebmasterDataFetcher, through which it get all pages. And then for each page, it will get all query data(Clicks, Impressions, CTR, Position). Basically, it will cache all pages got, and for each page, cache the detailed query data, and then iterate through them one by one.
  */
 class GoogleWebmasterExtractorIterator {
   private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterExtractorIterator.class);
-  private final GoogleWebmasterClient _webmaster;
+  private final GoogleWebmasterDataFetcher _webmaster;
   private final String _date;
   private final int _pageLimit;
   private final int _queryLimit;
-  private GoogleWebmasterFilter.Country _country;
+  private final GoogleWebmasterFilter.Country _country;
   private Deque<String> _cachedPages = null;
   private int _totalPages;
   private int _pageCheckPoint;
@@ -31,10 +32,11 @@ class GoogleWebmasterExtractorIterator {
   private final Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> _filterMap;
   //This is the requested dimensions sent to Google API
   private final List<GoogleWebmasterFilter.Dimension> _requestedDimensions;
-  private final List<GoogleWebmasterClient.Metric> _requestedMetrics;
+  private final List<GoogleWebmasterDataFetcher.Metric> _requestedMetrics;
 
-  public GoogleWebmasterExtractorIterator(GoogleWebmasterClient webmaster, String date,
-      List<GoogleWebmasterFilter.Dimension> requestedDimensions, List<GoogleWebmasterClient.Metric> requestedMetrics,
+  public GoogleWebmasterExtractorIterator(GoogleWebmasterDataFetcher webmaster, String date,
+      List<GoogleWebmasterFilter.Dimension> requestedDimensions,
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics,
       Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filterMap, int pageLimit, int queryLimit) {
     Preconditions.checkArgument(!filterMap.containsKey(GoogleWebmasterFilter.Dimension.PAGE),
         "Doesn't support filters for page for the time being. Will implement support later. If page filter is provided, the code won't take the responsibility of get all pages, so it will just return all queries for that page.");
@@ -43,16 +45,10 @@ class GoogleWebmasterExtractorIterator {
     _date = date;
     _requestedDimensions = requestedDimensions;
     _requestedMetrics = requestedMetrics;
-    _filterMap = filterMap;
+    _filterMap = new HashMap<>(filterMap);
     _pageLimit = pageLimit;
     _queryLimit = queryLimit;
-
-    ApiDimensionFilter countryFilter = filterMap.get(GoogleWebmasterFilter.Dimension.COUNTRY);
-    if (countryFilter == null) {
-      _country = GoogleWebmasterFilter.Country.ALL;
-    } else {
-      _country = GoogleWebmasterFilter.Country.valueOf(countryFilter.getExpression().toUpperCase());
-    }
+    _country = GoogleWebmasterFilter.countryFilterToEnum(filterMap.get(GoogleWebmasterFilter.Dimension.COUNTRY));
   }
 
   public boolean hasNext() throws IOException {
@@ -76,8 +72,8 @@ class GoogleWebmasterExtractorIterator {
       _filterMap.remove(GoogleWebmasterFilter.Dimension.PAGE);
       _filterMap.put(GoogleWebmasterFilter.Dimension.PAGE,
           GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, nextPage));
-      List<String[]> response =
-          _webmaster.doQuery(_date, _queryLimit, _requestedDimensions, _requestedMetrics, _filterMap);
+      List<String[]> response = _webmaster.doQuery(_date, _queryLimit, _requestedDimensions, _requestedMetrics,
+          new ArrayList<>(_filterMap.values()));
       _cachedQueries = new ArrayDeque<>(response);
     }
     return true;
@@ -96,5 +92,12 @@ class GoogleWebmasterExtractorIterator {
       return _cachedQueries.remove();
     }
     return null;
+  }
+
+  /**
+   * For test only
+   */
+  GoogleWebmasterFilter.Country getCountry() {
+    return _country;
   }
 }

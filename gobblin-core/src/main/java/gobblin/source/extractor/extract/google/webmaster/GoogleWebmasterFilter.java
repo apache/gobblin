@@ -1,42 +1,72 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
+import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
 import java.util.HashMap;
+import java.util.List;
 
 
 public class GoogleWebmasterFilter {
 
-  public enum Dimension {
+  enum Dimension {
     DATE, PAGE, COUNTRY, QUERY, DEVICE, SEARCH_TYPE, SEARCH_APPEARANCE
   }
 
-  public enum Country {
+  enum Country {
     ALL, USA, INDIA, GERMANY
   }
 
-  public enum FilterOperator {
-    EQUALS, CONTAINS
+  //TODO: this is case insensitive
+  enum FilterOperator {
+    EQUALS, CONTAINS, NOTCONTAINS
   }
 
   private static HashMap<Country, String> countryToCode = new HashMap<>();
+  private static HashMap<String, Country> codeToCountry = new HashMap<>();
 
   static {
     countryToCode.put(Country.USA, "usa");
+    codeToCountry.put("usa", Country.USA);
+
     countryToCode.put(Country.INDIA, "ind");
+    codeToCountry.put("ind", Country.INDIA);
+
     countryToCode.put(Country.GERMANY, "deu");
+    codeToCountry.put("deu", Country.GERMANY);
   }
 
   private static ApiDimensionFilter build(String dimension, String operator, String expression) {
     return new ApiDimensionFilter().setDimension(dimension).setOperator(operator).setExpression(expression);
   }
 
-  public static ApiDimensionFilter pageFilter(FilterOperator op, String expression) {
-    return build(Dimension.PAGE.toString().toLowerCase(), op.toString().toLowerCase(), expression);
+  static ApiDimensionFilter pageFilter(FilterOperator op, String expression) {
+    //Operator string is case insensitive
+    return build(Dimension.PAGE.toString(), op.toString(), expression);
   }
 
-  public static ApiDimensionFilter countryFilter(Country country) {
-    return build(Dimension.COUNTRY.toString().toLowerCase(), FilterOperator.EQUALS.toString().toLowerCase(),
+  static ApiDimensionFilter countryFilter(Country country) {
+    if (country == Country.ALL) {
+      return null;
+    }
+    return build(Dimension.COUNTRY.toString(), FilterOperator.EQUALS.toString().toLowerCase(),
         countryToCode.get(country));
+  }
+
+  static Country countryFilterToEnum(ApiDimensionFilter countryFilter) {
+    Country country;
+    if (countryFilter == null) {
+      country = Country.ALL;
+    } else {
+      country = codeToCountry.get(countryFilter.getExpression());
+    }
+    return country;
+  }
+
+  static ApiDimensionFilterGroup andGroupFilters(List<ApiDimensionFilter> filters) {
+    if (filters == null || filters.isEmpty()) {
+      return null;
+    }
+    return new ApiDimensionFilterGroup().setFilters(filters).setGroupType("and");
   }
 
     /* All country codes:
