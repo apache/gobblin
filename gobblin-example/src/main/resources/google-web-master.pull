@@ -35,7 +35,6 @@ source.querybased.append.max.watermark.limit=CURRENTDATE-1
 source.google.api.scope=https://www.googleapis.com/auth/webmasters.readonly
 source.google_webmasters.property=[Complete This]
 source.google_webmasters.credential.location=[Complete This]
-source.google_webmasters.request.page_check_list=psettings,legal,directory,start,help,edu,in,pub,learning,uas,badges,company,topic,grp,vsearch,jobs,pulse,title,groups,redir,profinder
 source.google_webmasters.request.dimensions=Date,Country,Page,Query
 source.google_webmasters.request.metrics=Clicks,Impressions,CTR,Position
 source.google_webmasters.request.filters=Country.ALL,Country.USA
