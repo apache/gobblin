@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
@@ -39,10 +40,14 @@ import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
 import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
+import gobblin.metrics.MetricContext;
+import gobblin.metrics.event.EventSubmitter;
+import gobblin.metrics.event.TaskEvent;
 import gobblin.publisher.DataPublisher;
 import gobblin.publisher.SingleTaskDataPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.state.ConstructState;
 
@@ -98,7 +103,6 @@ public class Task implements Runnable {
   private final Closer closer;
 
   private long startTime;
-
 
   /**
    * Instantiate a new {@link Task}.
@@ -156,8 +160,9 @@ public class Task implements Runnable {
       Object schema = converter.convertSchema(extractor.getSchema(), this.taskState);
       List<Boolean> forkedSchemas = forkOperator.forkSchema(this.taskState, schema);
       if (forkedSchemas.size() != branches) {
-        throw new ForkBranchMismatchException(String.format(
-            "Number of forked schemas [%d] is not equal to number of branches [%d]", forkedSchemas.size(), branches));
+        throw new ForkBranchMismatchException(String
+            .format("Number of forked schemas [%d] is not equal to number of branches [%d]", forkedSchemas.size(),
+                branches));
       }
 
       if (inMultipleBranches(forkedSchemas) && !(schema instanceof Copyable)) {
@@ -167,12 +172,13 @@ public class Task implements Runnable {
       // Create one fork for each forked branch
       for (int i = 0; i < branches; i++) {
         if (forkedSchemas.get(i)) {
-          Fork fork = closer.register(new Fork(this.taskContext,
-              schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i));
+          Fork fork = closer.register(
+              new Fork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches,
+                  i));
           // Run the Fork
-          this.forks.put(Optional.of(fork), Optional.<Future<?>> of(this.taskExecutor.submit(fork)));
+          this.forks.put(Optional.of(fork), Optional.<Future<?>>of(this.taskExecutor.submit(fork)));
         } else {
-          this.forks.put(Optional.<Fork> absent(), Optional.<Future<?>> absent());
+          this.forks.put(Optional.<Fork>absent(), Optional.<Future<?>>absent());
         }
       }
 
@@ -212,7 +218,6 @@ public class Task implements Runnable {
           }
         }
       }
-
     } catch (Throwable t) {
       failTask(t);
     } finally {
@@ -244,8 +249,8 @@ public class Task implements Runnable {
     boolean publishDataAtJobLevel = this.taskState.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
         ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
     if (publishDataAtJobLevel) {
-      LOG.info(String.format("%s is true. Will publish data at the job level.",
-          ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL));
+      LOG.info(String
+          .format("%s is true. Will publish data at the job level.", ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL));
       return false;
     }
 
@@ -263,7 +268,8 @@ public class Task implements Runnable {
     return false;
   }
 
-  private void publishTaskData() throws IOException {
+  private void publishTaskData()
+      throws IOException {
     Closer closer = Closer.create();
     try {
       Class<? extends DataPublisher> dataPublisherClass = getTaskPublisherClass();
@@ -286,7 +292,8 @@ public class Task implements Runnable {
   }
 
   @SuppressWarnings("unchecked")
-  private Class<? extends DataPublisher> getTaskPublisherClass() throws ReflectiveOperationException {
+  private Class<? extends DataPublisher> getTaskPublisherClass()
+      throws ReflectiveOperationException {
     if (this.taskState.contains(ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE)) {
       return (Class<? extends DataPublisher>) Class
           .forName(this.taskState.getProp(ConfigurationKeys.TASK_DATA_PUBLISHER_TYPE));
@@ -406,7 +413,8 @@ public class Task implements Runnable {
    */
   @SuppressWarnings("unchecked")
   private void processRecord(Object convertedRecord, ForkOperator forkOperator, RowLevelPolicyChecker rowChecker,
-      RowLevelPolicyCheckResults rowResults, int branches) throws Exception {
+      RowLevelPolicyCheckResults rowResults, int branches)
+      throws Exception {
     // Skip the record if quality checking fails
     if (!rowChecker.executePolicies(convertedRecord, rowResults)) {
       return;
@@ -414,9 +422,9 @@ public class Task implements Runnable {
 
     List<Boolean> forkedRecords = forkOperator.forkDataRecord(this.taskState, convertedRecord);
     if (forkedRecords.size() != branches) {
-      throw new ForkBranchMismatchException(
-          String.format("Number of forked data records [%d] is not equal to number of branches [%d]",
-              forkedRecords.size(), branches));
+      throw new ForkBranchMismatchException(String
+          .format("Number of forked data records [%d] is not equal to number of branches [%d]", forkedRecords.size(),
+              branches));
     }
 
     if (inMultipleBranches(forkedRecords) && !(convertedRecord instanceof Copyable)) {
@@ -442,8 +450,8 @@ public class Task implements Runnable {
           continue;
         }
         if (fork.isPresent() && forkedRecords.get(branch)) {
-          boolean succeeded = fork.get()
-              .putRecord(convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord);
+          boolean succeeded = fork.get().putRecord(
+              convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord);
           succeededPuts[branch] = succeeded;
           if (!succeeded) {
             allPutsSucceeded = false;
@@ -560,6 +568,8 @@ public class Task implements Runnable {
       this.taskState.setProp(ConfigurationKeys.WRITER_RECORDS_WRITTEN, getRecordsWritten());
       this.taskState.setProp(ConfigurationKeys.WRITER_BYTES_WRITTEN, getBytesWritten());
 
+      this.submitTaskCommittedEvent();
+
       try {
         closer.close();
       } catch (Throwable t) {
@@ -594,18 +604,26 @@ public class Task implements Runnable {
     }
   }
 
+  protected void submitTaskCommittedEvent() {
+    MetricContext taskMetricContext = TaskMetrics.get(this.taskState).getMetricContext();
+    EventSubmitter eventSubmitter = new EventSubmitter.Builder(taskMetricContext, "gobblin.runtime.task").build();
+    eventSubmitter.submit(TaskEvent.TASK_COMMITTED_EVENT_NAME, ImmutableMap
+        .of(TaskEvent.METADATA_TASK_ID, this.taskId, TaskEvent.METADATA_TASK_ATTEMPT_ID,
+            this.taskState.getTaskAttemptId().or("")));
+  }
+
   /**
    * @return true if the current {@link Task} is safe to have duplicate attempts; false, otherwise.
    */
   public boolean isSpeculativeExecutionSafe() {
     if (this.extractor instanceof SpeculativeAttemptAwareConstruct) {
-      if (!((SpeculativeAttemptAwareConstruct)this.extractor).isSpeculativeAttemptSafe()) {
+      if (!((SpeculativeAttemptAwareConstruct) this.extractor).isSpeculativeAttemptSafe()) {
         return false;
       }
     }
 
     if (this.converter instanceof SpeculativeAttemptAwareConstruct) {
-      if (!((SpeculativeAttemptAwareConstruct)this.extractor).isSpeculativeAttemptSafe()) {
+      if (!((SpeculativeAttemptAwareConstruct) this.extractor).isSpeculativeAttemptSafe()) {
         return false;
       }
     }
