@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
@@ -33,6 +34,7 @@ import com.google.common.io.CharStreams;
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.Watermark;
 import gobblin.util.FileListUtils;
+import gobblin.util.WriterUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -69,6 +71,11 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
     
     this.filesInitialized = true;
     FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
+    
+    if(!fs.exists(this.rc.getPath())){
+      WriterUtils.mkdirsWithRecursivePermission(fs, this.rc.getPath(), FsPermission.createImmutable((short)0755));
+    }
+    
     List<FileStatus> files = FileListUtils.listFilesRecursively(fs, this.rc.getPath());
     this.allFileStatus = files;
     return this.allFileStatus;
