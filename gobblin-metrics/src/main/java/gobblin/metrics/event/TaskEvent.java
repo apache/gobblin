@@ -24,8 +24,10 @@ public class TaskEvent {
 
   public static final String TASK_STATE = "TaskStateEvent";
   public static final String TASK_FAILED = "TaskFailed";
+  public static final String TASK_COMMITTED_EVENT_NAME = "taskCommitted";
 
   public static final String METADATA_TASK_ID = "taskId";
+  public static final String METADATA_TASK_ATTEMPT_ID = "taskAttemptId";
   public static final String METADATA_TASK_START_TIME = "taskStartTime";
   public static final String METADATA_TASK_END_TIME = "taskEndTime";
   public static final String METADATA_TASK_WORKING_STATE = "taskWorkingState";
