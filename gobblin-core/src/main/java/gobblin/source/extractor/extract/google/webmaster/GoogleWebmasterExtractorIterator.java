@@ -24,7 +24,7 @@ class GoogleWebmasterExtractorIterator {
   private final String _date;
   private final int _pageLimit;
   private final int _queryLimit;
-  private final GoogleWebmasterFilter.Country _country;
+  private final String _country;
   private Deque<String> _cachedPages = null;
   private int _totalPages;
   private int _pageCheckPoint;
@@ -49,7 +49,7 @@ class GoogleWebmasterExtractorIterator {
     _filterMap = new HashMap<>(filterMap);
     _pageLimit = pageLimit;
     _queryLimit = queryLimit;
-    _country = GoogleWebmasterFilter.countryFilterToEnum(filterMap.get(GoogleWebmasterFilter.Dimension.COUNTRY));
+    _country = GoogleWebmasterFilter.countryFilterToString(filterMap.get(GoogleWebmasterFilter.Dimension.COUNTRY));
   }
 
   public boolean hasNext() throws IOException {
@@ -98,7 +98,7 @@ class GoogleWebmasterExtractorIterator {
   /**
    * For test only
    */
-  GoogleWebmasterFilter.Country getCountry() {
+  String getCountry() {
     return _country;
   }
 }

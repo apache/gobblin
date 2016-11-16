@@ -4,37 +4,31 @@ import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 
 
 public class GoogleWebmasterFilter {
+
+  //Reference http://www.nationsonline.org/oneworld/country_code_list.htm for a full list of "ISO 3166-1 alpha-3 country code"
+  private static HashSet<String> countryCodes;
+
+  static {
+    String[] countries = Locale.getISOCountries();
+    countryCodes = new HashSet<>(countries.length);
+    for (String country : countries) {
+      Locale locale = new Locale("", country);
+      countryCodes.add(locale.getISO3Country());
+    }
+  }
 
   enum Dimension {
     DATE, PAGE, COUNTRY, QUERY, DEVICE, SEARCH_TYPE, SEARCH_APPEARANCE
   }
 
-  enum Country {
-    ALL, USA, INDIA, GERMANY
-  }
-
-  //TODO: this is case insensitive
   enum FilterOperator {
     EQUALS, CONTAINS, NOTCONTAINS
-  }
-
-  private static HashMap<Country, String> countryToCode = new HashMap<>();
-  private static HashMap<String, Country> codeToCountry = new HashMap<>();
-
-  static {
-    countryToCode.put(Country.USA, "usa");
-    codeToCountry.put("usa", Country.USA);
-
-    countryToCode.put(Country.INDIA, "ind");
-    codeToCountry.put("ind", Country.INDIA);
-
-    countryToCode.put(Country.GERMANY, "deu");
-    codeToCountry.put("deu", Country.GERMANY);
   }
 
   private static ApiDimensionFilter build(String dimension, String operator, String expression) {
@@ -46,20 +40,20 @@ public class GoogleWebmasterFilter {
     return build(Dimension.PAGE.toString(), op.toString(), expression);
   }
 
-  static ApiDimensionFilter countryFilter(Country country) {
-    if (country == Country.ALL) {
+  static ApiDimensionFilter countryEqFilter(String country) {
+    String countryCode = validateCountryCode(country);
+    if (countryCode.equals("ALL")) {
       return null;
     }
-    return build(Dimension.COUNTRY.toString(), FilterOperator.EQUALS.toString().toLowerCase(),
-        countryToCode.get(country));
+    return build(Dimension.COUNTRY.toString(), FilterOperator.EQUALS.toString().toLowerCase(), countryCode);
   }
 
-  static Country countryFilterToEnum(ApiDimensionFilter countryFilter) {
-    Country country;
+  static String countryFilterToString(ApiDimensionFilter countryFilter) {
+    String country;
     if (countryFilter == null) {
-      country = Country.ALL;
+      country = "ALL";
     } else {
-      country = codeToCountry.get(countryFilter.getExpression());
+      country = countryFilter.getExpression();
     }
     return country;
   }
@@ -77,249 +71,13 @@ public class GoogleWebmasterFilter {
     return new ApiDimensionFilterGroup().setFilters(filtersList).setGroupType("and");
   }
 
-    /* All country codes:
-    "usa",  USA
-    "ind",  India
-    "gbr",
-    "can",
-    "bra",
-    "fra",
-    "deu",  Germany
-    "ita",
-    "phl",
-    "aus",
-    "esp",
-    "nld",
-    "idn",
-    "tur",
-    "pak",
-    "are",
-    "zaf",
-    "pol",
-    "vnm",
-    "bel",
-    "sgp",
-    "mys",
-    "irn",
-    "mex",
-    "bgd",
-    "irl",
-    "che",
-    "sau",
-    "swe",
-    "rou",
-    "egy",
-    "grc",
-    "hkg",
-    "nga",
-    "dnk",
-    "jpn",
-    "arg",
-    "ken",
-    "prt",
-    "ukr",
-    "fin",
-    "rus",
-    "srb",
-    "col",
-    "per",
-    "mar",
-    "isr",
-    "tha",
-    "twn",
-    "nor",
-    "nzl",
-    "hun",
-    "aut",
-    "chl",
-    "zzz",
-    "kor",
-    "hrv",
-    "cze",
-    "dza",
-    "qat",
-    "bgr",
-    "lka",
-    "tun",
-    "chn",
-    "gha",
-    "jor",
-    "svk",
-    "ven",
-    "lbn",
-    "npl",
-    "kwt",
-    "ltu",
-    "pri",
-    "svn",
-    "irq",
-    "omn",
-    "tza",
-    "uga",
-    "ecu",
-    "cri",
-    "lux",
-    "cyp",
-    "bih",
-    "jam",
-    "mkd",
-    "bhr",
-    "aze",
-    "lva",
-    "alb",
-    "dom",
-    "zwe",
-    "mus",
-    "pan",
-    "blr",
-    "est",
-    "mlt",
-    "tto",
-    "eth",
-    "blz",
-    "gtm",
-    "kaz",
-    "ury",
-    "geo",
-    "zmb",
-    "xkk",
-    "khm",
-    "mmr",
-    "slv",
-    "sdn",
-    "arm",
-    "civ",
-    "cmr",
-    "bol",
-    "syr",
-    "afg",
-    "ago",
-    "nic",
-    "mda",
-    "moz",
-    "yem",
-    "pse",
-    "sen",
-    "hnd",
-    "brb",
-    "nam",
-    "lby",
-    "bwa",
-    "mdv",
-    "rwa",
-    "isl",
-    "mne",
-    "brn",
-    "som",
-    "pry",
-    "bhs",
-    "mng",
-    "reu",
-    "mdg",
-    "cod",
-    "png",
-    "jey",
-    "mwi",
-    "mac",
-    "cym",
-    "uzb",
-    "bmu",
-    "hti",
-    "fji",
-    "ben",
-    "imn",
-    "gum",
-    "mli",
-    "ggy",
-    "cuw",
-    "lao",
-    "lso",
-    "cub",
-    "vir",
-    "lbr",
-    "sur",
-    "guy",
-    "sle",
-    "gib",
-    "kgz",
-    "abw",
-    "bfa",
-    "swz",
-    "btn",
-    "tgo",
-    "lca",
-    "glp",
-    "grd",
-    "mtq",
-    "gin",
-    "cog",
-    "mrt",
-    "atg",
-    "gab",
-    "tkm",
-    "gmb",
-    "and",
-    "mco",
-    "ssd",
-    "vct",
-    "bdi",
-    "ner",
-    "dji",
-    "ncl",
-    "pyf",
-    "sxm",
-    "tjk",
-    "cpv",
-    "syc",
-    "kna",
-    "lie",
-    "dma",
-    "tcd",
-    "tca",
-    "vgb",
-    "tls",
-    "maf",
-    "mnp",
-    "ala",
-    "fro",
-    "aia",
-    "guf",
-    "slb",
-    "smr",
-    "grl",
-    "myt",
-    "gnq",
-    "wsm",
-    "caf",
-    "bes",
-    "cok",
-    "asm",
-    "vut",
-    "prk",
-    "ton",
-    "eri",
-    "blm",
-    "fsm",
-    "gnb",
-    "kir",
-    "plw",
-    "com",
-    "ata",
-    "stp",
-    "mhl",
-    "iot",
-    "msr",
-    "flk",
-    "sjm",
-    "nfk",
-    "shn",
-    "spm",
-    "nru",
-    "cxr",
-    "esh",
-    "tuv",
-    "wlf",
-    "niu",
-    "umi"
-     */
+  static String validateCountryCode(String countryCode) {
+    String upper = countryCode.toUpperCase();
+    if (upper.equals("ALL") || countryCodes.contains(upper)) {
+      return upper;
+    }
+    throw new RuntimeException(String.format(
+        "Unknown country code '%s' in configuration file. Please provide a valid ISO 3166-1 alpha-3 country code. Use 'ALL' if you want to download data without a country filter.",
+        countryCode));
+  }
 }

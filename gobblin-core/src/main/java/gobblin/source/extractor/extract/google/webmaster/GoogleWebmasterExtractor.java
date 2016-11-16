@@ -90,8 +90,8 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       for (; i < actualDimensionRequests.size(); ++i) {
         positionMapping[i] = columnPositionMap.get(actualDimensionRequests.get(i).toString());
       }
-      for (int j = 0; j < requestedMetrics.size(); ++j) {
-        positionMapping[i++] = columnPositionMap.get(requestedMetrics.get(j).toString());
+      for (GoogleWebmasterDataFetcher.Metric requestedMetric : requestedMetrics) {
+        positionMapping[i++] = columnPositionMap.get(requestedMetric.toString());
       }
       _iterators.add(iterator);
       _positionMaps.add(positionMapping);
@@ -101,8 +101,6 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   /**
    * Currently, the filter group is just one filter at a time, there is no cross-dimension filters combination.
    * TODO: May need to implement this feature in the future based on use cases.
-   * @param wuState
-   * @return
    */
   private Iterable<Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter>> getFilterGroups(WorkUnitState wuState) {
     List<Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter>> filters = new ArrayList<>();
@@ -115,12 +113,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
 
       if (dimension == GoogleWebmasterFilter.Dimension.COUNTRY) {
-        GoogleWebmasterFilter.Country value = GoogleWebmasterFilter.Country.valueOf(valueString);
-        if (value == GoogleWebmasterFilter.Country.ALL) {
-          map.put(GoogleWebmasterFilter.Dimension.COUNTRY, null);
-        } else {
-          map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryFilter(value));
-        }
+        map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryEqFilter(valueString));
       } else {
         throw new UnsupportedOperationException("Only country filter is supported for now");
       }

@@ -47,9 +47,9 @@ public class GoogleWebmasterExtractorTest {
 
     Queue<GoogleWebmasterExtractorIterator> iterators = extractor.getIterators();
     GoogleWebmasterExtractorIterator iteratorUSA = iterators.poll();
-    Assert.assertEquals(GoogleWebmasterFilter.Country.USA, iteratorUSA.getCountry());
+    Assert.assertEquals("USA", iteratorUSA.getCountry());
     GoogleWebmasterExtractorIterator iteratorALL = iterators.poll();
-    Assert.assertEquals(GoogleWebmasterFilter.Country.ALL, iteratorALL.getCountry());
+    Assert.assertEquals("ALL", iteratorALL.getCountry());
     Assert.assertTrue(iterators.isEmpty());
 
     Queue<int[]> responseToOutputSchema = extractor.getPositionMaps();

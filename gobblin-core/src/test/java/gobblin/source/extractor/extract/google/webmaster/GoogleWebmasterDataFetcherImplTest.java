@@ -23,17 +23,16 @@ public class GoogleWebmasterDataFetcherImplTest {
     GoogleWebmasterClient client = Mockito.mock(GoogleWebmasterClient.class);
     List<String> retVal = Arrays.asList("abc", "def");
 
-    Mockito.when(
-        client.getPages(eq(_property), any(String.class), any(GoogleWebmasterFilter.Country.class), any(Integer.class),
-            any(List.class), any(List.class), eq(0))).thenReturn(retVal);
+    Mockito.when(client.getPages(eq(_property), any(String.class), eq("ALL"), any(Integer.class), any(List.class),
+        any(List.class), eq(0))).thenReturn(retVal);
 
     GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, true, client);
-    Set<String> allPages = dataFetcher.getAllPages(null, null, 2);
+    Set<String> allPages = dataFetcher.getAllPages(null, "ALL", 2);
 
     Assert.assertTrue(CollectionUtils.isEqualCollection(retVal, allPages));
     Mockito.verify(client, Mockito.times(1))
-        .getPages(eq(_property), any(String.class), any(GoogleWebmasterFilter.Country.class), any(Integer.class),
-            any(List.class), any(List.class), eq(0));
+        .getPages(eq(_property), any(String.class), eq("ALL"), any(Integer.class), any(List.class), any(List.class),
+            eq(0));
   }
 
   @Test
@@ -43,17 +42,16 @@ public class GoogleWebmasterDataFetcherImplTest {
     for (int i = 0; i < 10; ++i) {
       allPages.add(Integer.toString(i));
     }
-    Mockito.when(
-        client.getPages(eq(_property), any(String.class), any(GoogleWebmasterFilter.Country.class), any(Integer.class),
-            any(List.class), any(List.class), eq(0))).thenReturn(allPages);
+    Mockito.when(client.getPages(eq(_property), any(String.class), eq("ALL"), any(Integer.class), any(List.class),
+        any(List.class), eq(0))).thenReturn(allPages);
 
     GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, true, client);
-    Set<String> response = dataFetcher.getAllPages(null, null, 5000);
+    Set<String> response = dataFetcher.getAllPages(null, "ALL", 5000);
 
     Assert.assertTrue(CollectionUtils.isEqualCollection(response, allPages));
     Mockito.verify(client, Mockito.times(1))
-        .getPages(eq(_property), any(String.class), any(GoogleWebmasterFilter.Country.class), any(Integer.class),
-            any(List.class), any(List.class), eq(0));
+        .getPages(eq(_property), any(String.class), eq("ALL"), any(Integer.class), any(List.class), any(List.class),
+            eq(0));
   }
 
   @Test
@@ -73,8 +71,8 @@ public class GoogleWebmasterDataFetcherImplTest {
 
     GoogleWebmasterClient client = Mockito.mock(GoogleWebmasterClient.class);
     Mockito.when(
-        client.getPages(eq(_property), any(String.class), any(GoogleWebmasterFilter.Country.class), any(Integer.class),
-            any(List.class), any(List.class), eq(0))).thenReturn(allPages);
+        client.getPages(eq(_property), any(String.class), any(String.class), any(Integer.class), any(List.class),
+            any(List.class), eq(0))).thenReturn(allPages);
 
     GoogleWebmasterDataFetcherImpl dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, true, client);
     ImmutableTriple<Set<String>, Set<String>, Integer> results = dataFetcher.getPagePrefixes(null, null, null);
