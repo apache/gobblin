@@ -29,12 +29,10 @@ public interface GoogleWebmasterDataFetcher {
   /**
    * Return all pages given (date, country) filter
    * @param date date string
-   * @param country country enum
+   * @param country country code string
    * @param rowLimit this is mostly for testing purpose. In order to get all pages, set this to the API row limit, which is 5000
-   * @return
-   * @throws IOException
    */
-  Set<String> getAllPages(String date, GoogleWebmasterFilter.Country country, int rowLimit) throws IOException;
+  Set<String> getAllPages(String date, String country, int rowLimit) throws IOException;
 
   /**
    * @param date date filter
@@ -42,7 +40,6 @@ public interface GoogleWebmasterDataFetcher {
    * @param requestedDimensions a list of dimension requests. The dimension values can be found at the first part of the return value
    * @param filters filters of your request
    * @return the response from the API call. The value is composed of [[requestedDimension list], clicks, impressions, ctr, position]
-   * @throws IOException
    */
   List<String[]> doQuery(String date, int rowLimit, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters) throws IOException;

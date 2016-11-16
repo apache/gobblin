@@ -47,7 +47,7 @@ public class GoogleWebmasterExtractorIteratorTest {
   @Test
   public void testIterator() throws IOException {
     GoogleWebmasterDataFetcher client = Mockito.mock(GoogleWebmasterDataFetcher.class);
-    GoogleWebmasterFilter.Country country = GoogleWebmasterFilter.Country.USA;
+    String country = "USA";
     String date = "2016-11-01";
     ArrayList<GoogleWebmasterFilter.Dimension> requestedDimensions = new ArrayList<>();
     ArrayList<GoogleWebmasterDataFetcher.Metric> requestedMetrics = new ArrayList<>();
@@ -64,7 +64,7 @@ public class GoogleWebmasterExtractorIteratorTest {
     List<String[]> results1 = new ArrayList<>();
     results1.add(a1);
     List<ApiDimensionFilter> filters1 = new ArrayList<>();
-    filters1.add(GoogleWebmasterFilter.countryFilter(country));
+    filters1.add(GoogleWebmasterFilter.countryEqFilter(country));
     filters1.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page1));
     Mockito.when(client.doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
         argThat(new CollectionEquals(filters1)))).thenReturn(results1);
@@ -74,13 +74,13 @@ public class GoogleWebmasterExtractorIteratorTest {
     List<String[]> results2 = new ArrayList<>();
     results2.add(a2);
     List<ApiDimensionFilter> filters2 = new ArrayList<>();
-    filters2.add(GoogleWebmasterFilter.countryFilter(country));
+    filters2.add(GoogleWebmasterFilter.countryEqFilter(country));
     filters2.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page2));
     Mockito.when(client.doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
         argThat(new CollectionEquals(filters2)))).thenReturn(results2);
 
     Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
-    map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryFilter(country));
+    map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryEqFilter(country));
     GoogleWebmasterExtractorIterator iterator =
         new GoogleWebmasterExtractorIterator(client, date, requestedDimensions, requestedMetrics, map, 5000, 5000);
 

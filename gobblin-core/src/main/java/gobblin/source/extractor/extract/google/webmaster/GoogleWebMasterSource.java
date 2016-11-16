@@ -16,23 +16,35 @@ import java.util.List;
 import java.util.Map;
 
 
+/**
+ * Google Webmaster API enables you to download data from Google Search Console for search analytics of the verified sites. See more here https://developers.google.com/webmaster-tools/. Configure the Google Webmaster Source for starting a daily job to download search analytics data. This gobblin job partitions the whole task into sub-tasks for each day. Each sub-task is handled by a GoogleWebmasterExtractor for that date, and each GoogleWebmasterExtractor holds a queue of GoogleWebmasterExtractorIterators, each of which does the query task for each filter(Currently, only the country filter is supported.) on that date.
+ *
+ * The minimum unit of querying range is date. Change the range by configuring "source.querybased.start.value" and "source.querybased.end.value". Note that the analytics data for Google Search Console has a delay or 3 days. So cap your configuration of "source.querybased.append.max.watermark.limit" by "CURRENTDATE-3". See the documentation details of each configuration in the GoogleWebMasterSource fields.
+ *
+ */
 public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
 
   /**
+   * Must Provide.
    * Provide the location for your Google Service Account private key. This can be generated in your Google API Manager.
    */
   public static final String KEY_CREDENTIAL_LOCATION = "source.google_webmasters.credential.location";
   /**
+   * Must Provide.
    * Provide the property site URL whose google search analytics data you want to download
    */
   public static final String KEY_PROPERTY = "source.google_webmasters.property";
   /**
-   * This configuration defaults to false. Set it to true ONLY when you extremely care about the completeness of the available data set.
+   * Optional: Default to false.
+   *
+   * Set it to true ONLY when you extremely care about the completeness of the available data set.
    * However, if you set it to true, the code will throw an exception if it cannot achieve the perfect completeness of available data set.
    * Set it to false if you can "endure" the incompleteness, which normally should be very minimal.
    */
   public static final String KEY_REQUEST_HYPERCRITICAL = "source.google_webmasters.request.isHypercritical";
   /**
+   * Optional: Default to WebmastersScopes.WEBMASTERS_READONLY(which is https://www.googleapis.com/auth/webmasters.readonly)
+   *
    * Give a Google API service scope.
    * For Webmaster, only two scopes are supported. WebmastersScopes.WEBMASTERS_READONLY and WebmastersScopes.WEBMASTERS
    */
@@ -44,18 +56,26 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
    */
   public static final String KEY_REQUEST_FILTERS = "source.google_webmasters.request.filters";
   /**
+   * Must Provide.
+   *
    * Allowed dimensions can be found in the enum GoogleWebmasterFilter.Dimension
    */
   public static final String KEY_REQUEST_DIMENSIONS = "source.google_webmasters.request.dimensions";
   /**
+   * Must Provide.
+   *
    * Allowed metrics can be found in the enum GoogleWebmasterDataFetcher.Metric
    */
   public static final String KEY_REQUEST_METRICS = "source.google_webmasters.request.metrics";
   /**
-   * The response row limit when you ask for pages.
+   * Optional: Default to 5000, which is the maximum allowed.
+   *
+   * The response row limit when you ask for pages. Set it to 5000 when you want to get all pages, which might be larger than 5000.
    */
   public static final String KEY_REQUEST_PAGE_LIMIT = "source.google_webmasters.request.page_limit";
   /**
+   * Optional: Default to 5000, which is the maximum allowed.
+   *
    * The response row limit when you ask for queries.
    */
   public static final String KEY_REQUEST_QUERY_LIMIT = "source.google_webmasters.request.query_limit";
@@ -74,12 +94,24 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
       String columnName = jsonElement.getAsJsonObject().get("columnName").getAsString().toUpperCase();
       columnPositionMap.put(columnName, i);
     }
-    ValidateRequests(columnPositionMap, requestedDimensions, requestedMetrics);
+
+    validateFilters(state.getProp(GoogleWebMasterSource.KEY_REQUEST_FILTERS));
+    validateRequests(columnPositionMap, requestedDimensions, requestedMetrics);
 
     return new GoogleWebmasterExtractor(state, columnPositionMap, requestedDimensions, requestedMetrics);
   }
 
-  private void ValidateRequests(Map<String, Integer> columnPositionMap,
+  private void validateFilters(String filters) {
+    String countryPrefix = "COUNTRY.";
+
+    for (String filter : splitter.split(filters)) {
+      if (filter.toUpperCase().startsWith(countryPrefix)) {
+        GoogleWebmasterFilter.validateCountryCode(filter.substring(countryPrefix.length()));
+      }
+    }
+  }
+
+  private void validateRequests(Map<String, Integer> columnPositionMap,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics) {
     for (GoogleWebmasterFilter.Dimension dimension : requestedDimensions) {

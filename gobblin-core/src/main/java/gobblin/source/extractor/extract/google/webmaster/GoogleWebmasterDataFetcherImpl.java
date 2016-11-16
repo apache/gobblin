@@ -59,15 +59,10 @@ public class GoogleWebmasterDataFetcherImpl implements GoogleWebmasterDataFetche
    *    In detail, for example, you want all pages for your https://www.linkedin.com/ property. This property has several page prefixes such as https://www.linkedin.com/topic/, https://www.linkedin.com/jobs/, https://www.linkedin.com/groups/ etc.. For each prefix, you request for all pages starting with that prefix.
    * 8. Union all pages from last step and return.
    *
-   * @param date
-   * @param country
-   * @param rowLimit
-   * @return
-   * @throws IOException
    */
   @Override
-  public Set<String> getAllPages(String date, GoogleWebmasterFilter.Country country, int rowLimit) throws IOException {
-    ApiDimensionFilter countryFilter = GoogleWebmasterFilter.countryFilter(country);
+  public Set<String> getAllPages(String date, String country, int rowLimit) throws IOException {
+    ApiDimensionFilter countryFilter = GoogleWebmasterFilter.countryEqFilter(country);
 
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = new ArrayList<>();
     requestedDimensions.add(GoogleWebmasterFilter.Dimension.PAGE);
@@ -112,16 +107,11 @@ public class GoogleWebmasterDataFetcherImpl implements GoogleWebmasterDataFetche
   }
 
   /**
-   *
-   * @param date
-   * @param requestedDimensions
-   * @param countryFilter
    * @return return <pages w/o root paths, unique page root paths, size of the data set>
-   * @throws IOException
    */
   ImmutableTriple<Set<String>, Set<String>, Integer> getPagePrefixes(String date,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions, ApiDimensionFilter countryFilter) throws IOException {
-    Country country = GoogleWebmasterFilter.countryFilterToEnum(countryFilter);
+    String country = GoogleWebmasterFilter.countryFilterToString(countryFilter);
     Set<String> pagesNoRoots = new HashSet<>();  //Accumulating all pages w/o roots
     Set<String> pagesRoots = new HashSet<>(); //Accumulating all pages with roots
 
@@ -194,11 +184,10 @@ public class GoogleWebmasterDataFetcherImpl implements GoogleWebmasterDataFetche
    * 4. Perform another request for each new prefix at last step. If the number of pages is 5000, repeat steps 3~4; otherwise, end of the process, we've already got all pages.
    * 5. Union all pages as the return value
    *
-   * @param date
+   * @param date the date string
    * @param dimensions requested dimensions
    * @param pagePrefixes a pagePrefix must end with "/"
    * @return all pages given the page prefixes/keywords, or page root paths.
-   * @throws IOException
    */
   private Set<String> pagesWithRootPaths(String date, List<Dimension> dimensions, ApiDimensionFilter countryFilter,
       Set<String> pagePrefixes) throws IOException {
@@ -206,18 +195,17 @@ public class GoogleWebmasterDataFetcherImpl implements GoogleWebmasterDataFetche
     for (String prefix : pagePrefixes) {
       Preconditions.checkArgument(prefix.endsWith("/"), "Starting prefix must end with '/'");
     }
-    Country countryString = countryFilterToEnum(countryFilter);
-
-    List<ApiDimensionFilter> filters = new LinkedList<>();
-    filters.add(countryFilter);
-    filters.add(null); //placeholder for page filter
+    String countryString = countryFilterToString(countryFilter);
 
     Set<String> uniquePages = new HashSet<>();
     Deque<String> toProcess = new LinkedList<>(pagePrefixes);
     while (!toProcess.isEmpty()) {
       String prefix = toProcess.remove();
       LOG.info("Current page prefix is " + prefix);
-      filters.set(1, GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.CONTAINS, prefix));
+      List<ApiDimensionFilter> filters = new LinkedList<>();
+      filters.add(countryFilter);
+      filters.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.CONTAINS, prefix));
+
       List<String> pages =
           _client.getPages(_siteProperty, date, countryString, GoogleWebmasterClient.API_ROW_LIMIT, dimensions, filters,
               0);
@@ -241,7 +229,7 @@ public class GoogleWebmasterDataFetcherImpl implements GoogleWebmasterDataFetche
       }
       uniquePages.addAll(pages);
     }
-    LOG.info(String.format("Total number of unique pages found for market-%s on %s is %d", countryString, date,
+    LOG.info(String.format("Number of pages given prefixes for market-%s on %s is %d", countryString, date,
         uniquePages.size()));
 
     return uniquePages;
@@ -257,12 +245,21 @@ public class GoogleWebmasterDataFetcherImpl implements GoogleWebmasterDataFetche
     List<ApiDataRow> rows = response.getRows();
 
     if (rows == null || rows.isEmpty()) {
-      LOG.info("searchAnalyticsQuery: no pages returned");
       return new ArrayList<>();
     }
+    int responseSize = rows.size();
+    if (responseSize == GoogleWebmasterClient.API_ROW_LIMIT) {
+      StringBuilder filterString = new StringBuilder();
+      for (ApiDimensionFilter filter : filters) {
+        filterString.append(filter.toString());
+        filterString.append(" ");
+      }
+      LOG.warn(String.format(
+          "A total of %d rows returned. There might be more data based on your constraints: date - %s, filters - %s. Current code doesn't download more data beyond 5000 rows.",
+          GoogleWebmasterClient.API_ROW_LIMIT, date, filterString.toString()));
+    }
 
-    List<String[]> ret = new ArrayList<>(rows.size());
-    LOG.info("searchAnalyticsQuery: Total number of rows returned:" + rows.size());
+    List<String[]> ret = new ArrayList<>(responseSize);
     for (ApiDataRow row : rows) {
       List<String> keys = row.getKeys();
       String[] data = new String[keys.size() + 4];

@@ -18,11 +18,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class GoogleWebmasterClientImpl implements GoogleWebmasterClient {
+public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
+
   private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterClientImpl.class);
 
   private final Webmasters.Searchanalytics _analytics;
@@ -43,7 +45,7 @@ public class GoogleWebmasterClientImpl implements GoogleWebmasterClient {
   }
 
   @Override
-  public List<String> getPages(String siteProperty, String date, GoogleWebmasterFilter.Country country, int rowLimit,
+  public List<String> getPages(String siteProperty, String date, String country, int rowLimit,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions, List<ApiDimensionFilter> filters, int startRow)
       throws IOException {
     checkRowLimit(rowLimit);
