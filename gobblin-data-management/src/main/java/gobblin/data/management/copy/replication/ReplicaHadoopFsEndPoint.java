@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
@@ -73,7 +74,7 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
     FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
     
     if(!fs.exists(this.rc.getPath())){
-      WriterUtils.mkdirsWithRecursivePermission(fs, this.rc.getPath(), FsPermission.createImmutable((short)0755));
+      return Collections.emptyList();
     }
     
     List<FileStatus> files = FileListUtils.listFilesRecursively(fs, this.rc.getPath());
