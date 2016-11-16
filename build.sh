@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Important note
 # 
@@ -12,6 +12,8 @@
 #
 # Please check pnda-build/ for the build products
 
+export LC_ALL=C
+
 VERSION=${1}
 
 function error {
@@ -19,13 +21,6 @@ function error {
     echo "Please run the build dependency installer script"
     exit -1
 }
-
-echo -n "Gradle: "
-if [[ $(gradle --version 2>&1) != *"Gradle 1.4"* ]]; then
-    error
-else
-    echo "OK"
-fi
 
 echo -n "Java 1.8.0_74: "
 if [[ $($JAVA_HOME/bin/javac -version 2>&1) != "javac 1.8.0_74" ]]; then
