@@ -15,16 +15,15 @@ package gobblin.data.management.copy.replication;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
@@ -35,7 +34,6 @@ import com.google.common.io.CharStreams;
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.Watermark;
 import gobblin.util.FileListUtils;
-import gobblin.util.WriterUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,17 +49,20 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   @Getter
   private final String replicaName;
   
+  @Getter
+  private final ReplicationDataRetentionCategory rdc;
+  
   private boolean watermarkInitialized = false;
   private boolean filesInitialized = false;
   private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
-  private Collection<FileStatus> allFileStatus;
+  private Collection<FileStatus> allFileStatus = new ArrayList<>();
 
-  public ReplicaHadoopFsEndPoint(HadoopFsReplicaConfig rc, String replicaName) {
+  public ReplicaHadoopFsEndPoint(HadoopFsReplicaConfig rc, String replicaName, ReplicationDataRetentionCategory rdc) {
     Preconditions.checkArgument(!replicaName.equals(ReplicationConfiguration.REPLICATION_SOURCE),
         "replicaName can not be " + ReplicationConfiguration.REPLICATION_SOURCE);
     this.rc = rc;
     this.replicaName = replicaName;
-    
+    this.rdc = rdc;
   }
 
   @Override
@@ -77,8 +78,10 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
       return Collections.emptyList();
     }
     
-    List<FileStatus> files = FileListUtils.listFilesRecursively(fs, this.rc.getPath());
-    this.allFileStatus = files;
+    Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
+    for(Path p: validPaths){
+      this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p));
+    }
     return this.allFileStatus;
   }
   

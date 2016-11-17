@@ -14,8 +14,8 @@ package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -38,12 +38,17 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   @Getter
   private final HadoopFsReplicaConfig rc;
 
+  @Getter
+  private final ReplicationDataRetentionCategory rdc;
+  
   private boolean initialized = false;
   private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
-  private Collection<FileStatus> allFileStatus;
+  private Collection<FileStatus> allFileStatus = new ArrayList<>();
   
-  public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc) {
+  public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc, ReplicationDataRetentionCategory rdc) {
     this.rc = rc;
+    this.rdc = rdc;
+    log.info("AAA rdc type is " + rdc.getType() );
   }
 
   @Override
@@ -65,15 +70,22 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
     try {
       long curTs = -1;
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
-      List<FileStatus> allFileStatus = FileListUtils.listFilesRecursively(fs, rc.getPath());
-      for (FileStatus f : allFileStatus) {
+      
+      Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
+      log.info("AAA validPaths is null ? " + (validPaths==null));
+      log.info("AAA size is " + validPaths.size());
+      
+      for(Path p: validPaths){
+        this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p));
+      }
+      
+      for (FileStatus f : this.allFileStatus) {
         if (f.getModificationTime() > curTs) {
           curTs = f.getModificationTime();
         }
       }
 
       ComparableWatermark result = new LongWatermark(curTs);
-      this.allFileStatus = allFileStatus;
       this.cachedWatermark = Optional.of(result);
       return this.cachedWatermark;
     } catch (IOException e) {
