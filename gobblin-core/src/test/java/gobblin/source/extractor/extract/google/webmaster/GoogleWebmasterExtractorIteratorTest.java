@@ -82,7 +82,8 @@ public class GoogleWebmasterExtractorIteratorTest {
     Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
     map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryEqFilter(country));
     GoogleWebmasterExtractorIterator iterator =
-        new GoogleWebmasterExtractorIterator(client, date, requestedDimensions, requestedMetrics, map, 5000, 5000);
+        new GoogleWebmasterExtractorIterator(client, date, requestedDimensions, requestedMetrics, map,
+            GoogleWebmasterExtractorTest.getWorkUnitState1());
 
     List<String[]> response = new ArrayList<>();
     response.add(iterator.next());

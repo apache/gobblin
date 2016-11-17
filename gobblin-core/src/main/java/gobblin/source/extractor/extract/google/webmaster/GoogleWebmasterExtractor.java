@@ -68,10 +68,6 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
     _wuState = wuState;
 
     Iterable<Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter>> filterGroups = getFilterGroups(wuState);
-    int pageLimit =
-        wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_PAGE_LIMIT, GoogleWebmasterClient.API_ROW_LIMIT);
-    int queryLimit =
-        wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_QUERY_LIMIT, GoogleWebmasterClient.API_ROW_LIMIT);
 
     for (Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filters : filterGroups) {
       List<GoogleWebmasterFilter.Dimension> actualDimensionRequests = new ArrayList<>(requestedDimensions);
@@ -83,7 +79,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       }
       GoogleWebmasterExtractorIterator iterator =
           new GoogleWebmasterExtractorIterator(dataFetcher, dateString, actualDimensionRequests, requestedMetrics,
-              filters, pageLimit, queryLimit);
+              filters, wuState);
       //positionMapping is to address the problems that requested dimensions/metrics order might be different from the column order in source.schema
       int[] positionMapping = new int[actualDimensionRequests.size() + requestedMetrics.size()];
       int i = 0;

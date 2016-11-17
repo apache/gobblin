@@ -79,6 +79,29 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
    * The response row limit when you ask for queries.
    */
   public static final String KEY_REQUEST_QUERY_LIMIT = "source.google_webmasters.request.query_limit";
+
+  /**
+   * Tune the maximum rounds of retries allowed when API calls failed because of exceeding quota.
+   */
+  public static final String KEY_REQUEST_TUNING_RETRIES =
+      "source.google_webmasters.request.performance_tuning.max_retry_rounds";
+  /**
+   * Tune the initial cool down time before starting another round of retry.
+   */
+  public static final String KEY_REQUEST_TUNING_INITIAL_COOL_DOWN =
+      "source.google_webmasters.request.performance_tuning.initial_cool_down";
+  /**
+   * Tune the extra cool down sleep time for each round before starting another round of retry.
+   * The total cool down time will be calculated as "initial_cool_down + cool_down_step * round"
+   */
+  public static final String KEY_REQUEST_TUNING_COOL_DOWN_STEP =
+      "source.google_webmasters.request.performance_tuning.cool_down_step";
+  /**
+   * Tune the speed of API requests.
+   */
+  public static final String KEY_REQUEST_TUNING_REQUESTS_PER_SECOND =
+      "source.google_webmasters.request.performance_tuning.requests_per_second";
+
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
 
   @Override
