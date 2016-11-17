@@ -25,11 +25,7 @@ public class GoogleWebmasterExtractorTest {
    */
   @Test
   public void testConstructor() throws IOException, DataRecordException {
-    WorkUnit wu = new WorkUnit(new Extract(Extract.TableType.APPEND_ONLY, "namespace", "table"));
-    wu.setWatermarkInterval(
-        new WatermarkInterval(new LongWatermark(20160101235959L), new LongWatermark(20160102235959L)));
-    State js = new State();
-    WorkUnitState wuState = new WorkUnitState(wu, js);
+    WorkUnitState wuState = getWorkUnitState1();
     wuState.setProp(GoogleWebMasterSource.KEY_REQUEST_FILTERS, "Country.USA,Country.ALL");
 
     List<GoogleWebmasterFilter.Dimension> dimensions =
@@ -59,5 +55,13 @@ public class GoogleWebmasterExtractorTest {
         responseToOutputSchema.poll(); //country is Country.ALL, so the country request will be removed.
     Assert.assertArrayEquals(new int[]{2, 0}, positionMap2);
     Assert.assertTrue(responseToOutputSchema.isEmpty());
+  }
+
+  public static WorkUnitState getWorkUnitState1() {
+    WorkUnit wu = new WorkUnit(new Extract(Extract.TableType.APPEND_ONLY, "namespace", "table"));
+    wu.setWatermarkInterval(
+        new WatermarkInterval(new LongWatermark(20160101235959L), new LongWatermark(20160102235959L)));
+    State js = new State();
+    return new WorkUnitState(wu, js);
   }
 }
