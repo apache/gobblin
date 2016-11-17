@@ -64,7 +64,7 @@ public class TestTunnelWithArbitraryTCPTraffic {
     delayedDoubleEchoServer = startDoubleEchoServer(1000);
     LOG.info("Delayed DoubleEchoServer on " + delayedDoubleEchoServer.getServerSocketPort());
     talkFirstEchoServer = startTalkFirstEchoServer();
-    LOG.info("TalkFirstEchoServer on " + delayedDoubleEchoServer.getServerSocketPort());
+    LOG.info("TalkFirstEchoServer on " + talkFirstEchoServer.getServerSocketPort());
   }
 
   @AfterClass
@@ -527,7 +527,11 @@ public class TestTunnelWithArbitraryTCPTraffic {
       String response0 = readFromSocket(client);
       LOG.info(response0);
 
-      client.write(ByteBuffer.wrap("Knock\n".getBytes()));
+      // write a lot of data to increase chance of response after close
+      for (int i = 0; i < 1000; i++) {
+        client.write(ByteBuffer.wrap("Knock\n".getBytes()));
+      }
+
       // don't wait for response
       client.close();
 
