@@ -15,13 +15,17 @@ package gobblin.data.management.copy.replication;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Properties;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.eclipse.jetty.util.log.Log;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -29,6 +33,14 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import com.typesafe.config.ConfigFactory;
+
+import gobblin.data.management.version.TimestampedDatasetVersion;
+import gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder;
+import gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder;
+import gobblin.data.management.version.finder.UnixTimestampVersionFinder;
+import gobblin.dataset.FileSystemDataset;
 
 public class ReplicationDataValidPathPicker {
   
@@ -161,4 +173,53 @@ public class ReplicationDataValidPathPicker {
     else 
       throw new IllegalArgumentException("Unsupported type " + rdc.getType());
   }
+  
+  public static Collection<Path> getValidPaths(HadoopFsEndPoint hadoopFsEndPoint) throws IOException{
+    ReplicationDataRetentionCategory rdc = hadoopFsEndPoint.getReplicationDataRetentionCategory();
+    if(rdc.getType() == ReplicationDataRetentionCategory.Type.SYNC){
+      return Lists.newArrayList(hadoopFsEndPoint.getDatasetPath());
+    }
+    
+    Preconditions.checkArgument(rdc.getFiniteInstance().isPresent());
+    int finiteInstance = rdc.getFiniteInstance().get();
+    
+    FileSystemDataset tmpDataset = new HadoopFsEndPointDataset(hadoopFsEndPoint);
+    
+    // for snapshots, get the latest dirs
+    if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_SNAPSHOT){
+      GlobModTimeDatasetVersionFinder finder = 
+          new GlobModTimeDatasetVersionFinder(FileSystem.get(hadoopFsEndPoint.getFsURI(), new Configuration()), ConfigFactory.empty());
+      List<TimestampedDatasetVersion> versions = 
+          Ordering.natural().reverse().sortedCopy(finder.findDatasetVersions(tmpDataset));
+      
+
+      for(TimestampedDatasetVersion v: versions){
+        System.out.println("BBB " + v);
+      }
+      
+      System.out.println("BBB instance num is " + finiteInstance);
+      
+      versions = versions.subList(0, Math.min(finiteInstance, versions.size()));
+      
+      return Lists.transform(versions, new Function<TimestampedDatasetVersion, Path>() {
+        @Override
+        public Path apply(TimestampedDatasetVersion input) {
+          return input.getPath();
+        }
+      });
+    }
+    
+    //TODO
+//    // format is YYYY/MM/DD
+//    else if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_DAILY_PARTITION){
+//       
+//    }
+//    // format is YYYY/MM/DD/HH
+//    else if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_HOURLY_PARTITION){
+//       
+//    }
+    else 
+      throw new IllegalArgumentException("Unsupported type " + rdc.getType());
+  }
+  
 }

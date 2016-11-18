@@ -71,7 +71,8 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
       long curTs = -1;
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       
-      Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
+      Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(this); 
+        //ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
       log.info("AAA validPaths is null ? " + (validPaths==null));
       log.info("AAA size is " + validPaths.size());
       
@@ -148,5 +149,10 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
     } else if (!rc.equals(other.rc))
       return false;
     return true;
+  }
+
+  @Override
+  public ReplicationDataRetentionCategory getReplicationDataRetentionCategory() {
+    return this.rdc;
   }
 }

@@ -42,6 +42,8 @@ public abstract class HadoopFsEndPoint implements EndPoint{
    */
   public abstract Path getDatasetPath();
   
+  public abstract ReplicationDataRetentionCategory getReplicationDataRetentionCategory();
+  
   @Override
   public boolean isAvailable() {
     try {

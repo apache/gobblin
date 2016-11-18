@@ -78,7 +78,9 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
       return Collections.emptyList();
     }
     
-    Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
+    Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(this);
+        //ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
+        
     for(Path p: validPaths){
       this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p));
     }
@@ -180,5 +182,8 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
     return true;
   }
 
-
+  @Override
+  public ReplicationDataRetentionCategory getReplicationDataRetentionCategory() {
+    return this.rdc;
+  }
 }
