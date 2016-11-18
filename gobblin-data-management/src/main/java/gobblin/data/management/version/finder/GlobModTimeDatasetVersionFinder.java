@@ -13,12 +13,14 @@
 package gobblin.data.management.version.finder;
 
 import java.io.IOException;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.version.FileSystemDatasetVersion;
 import gobblin.data.management.version.TimestampedDatasetVersion;
@@ -36,6 +38,10 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Config config) {
     this(fs, config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY)
         ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY)) : new Path("*"));
+  }
+  
+  public GlobModTimeDatasetVersionFinder(FileSystem fs, Properties props) {
+    this(fs, ConfigFactory.parseProperties(props));
   }
 
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern) {

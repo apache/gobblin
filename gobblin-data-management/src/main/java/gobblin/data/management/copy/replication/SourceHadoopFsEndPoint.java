@@ -48,7 +48,6 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
   public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc, ReplicationDataRetentionCategory rdc) {
     this.rc = rc;
     this.rdc = rdc;
-    log.info("AAA rdc type is " + rdc.getType() );
   }
 
   @Override
@@ -72,10 +71,6 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
       FileSystem fs = FileSystem.get(rc.getFsURI(), new Configuration());
       
       Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(this); 
-        //ReplicationDataValidPathPicker.getValidPaths(fs, this.rc.getPath(), this.rdc);
-      log.info("AAA validPaths is null ? " + (validPaths==null));
-      log.info("AAA size is " + validPaths.size());
-      
       for(Path p: validPaths){
         this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p));
       }
