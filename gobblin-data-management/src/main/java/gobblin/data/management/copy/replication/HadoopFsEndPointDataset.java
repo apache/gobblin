@@ -21,7 +21,11 @@ import org.apache.hadoop.fs.Path;
 import gobblin.dataset.FileSystemDataset;
 import gobblin.util.HadoopUtils;
 
-
+/**
+ * {@link FileSystemDataset} wrapper class for {@link HadoopFsEndPoint}
+ * @author mitu
+ *
+ */
 public class HadoopFsEndPointDataset implements FileSystemDataset{
   
   private final HadoopFsEndPoint endPoint;

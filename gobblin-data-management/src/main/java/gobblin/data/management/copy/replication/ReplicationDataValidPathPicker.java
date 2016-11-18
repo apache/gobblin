@@ -33,7 +33,7 @@ import gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder;
 import gobblin.dataset.FileSystemDataset;
 
 /**
- * Used to pick the valid Path for data replication based on {@link #ReplicationDataRetentionCategory.Type}
+ * Used to pick the valid Paths for data replication based on {@link #ReplicationDataRetentionCategory.Type}
  * @author mitu
  *
  */

@@ -21,10 +21,11 @@ import lombok.Getter;
 
 
 /**
- * Specify the replication data type: sync, finite_append or finite_snapshot
+ * Specify the replication data type: sync, finite_snapshot,  finite_daily_partition or finite_hourly_partition
  * <ul>
  *  <li>sync: all files in source need to be copied to target
- *  <li>finite_append : only limited append directories in source need to be copied to target
+ *  <li>finite_daily_partition : only limited daily partitions in source need to be copied to target
+ *  <li>finite_daily_partition : only limited hourly partitions in source need to be copied to target
  *  <li>finite_snapshot: only limited snapshot directories in source need to be copied to target
  * </ul>
  * @author mitu
