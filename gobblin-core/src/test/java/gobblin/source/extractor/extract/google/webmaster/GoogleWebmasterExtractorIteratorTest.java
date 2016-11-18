@@ -1,6 +1,7 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
+import gobblin.configuration.WorkUnitState;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -81,9 +82,10 @@ public class GoogleWebmasterExtractorIteratorTest {
 
     Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
     map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryEqFilter(country));
+    WorkUnitState defaultState = GoogleWebmasterExtractorTest.getWorkUnitState1();
+    defaultState.setProp(GoogleWebMasterSource.KEY_REQUEST_TUNING_BATCH_SIZE, 1);
     GoogleWebmasterExtractorIterator iterator =
-        new GoogleWebmasterExtractorIterator(client, date, requestedDimensions, requestedMetrics, map,
-            GoogleWebmasterExtractorTest.getWorkUnitState1());
+        new GoogleWebmasterExtractorIterator(client, date, requestedDimensions, requestedMetrics, map, defaultState);
 
     List<String[]> response = new ArrayList<>();
     response.add(iterator.next());

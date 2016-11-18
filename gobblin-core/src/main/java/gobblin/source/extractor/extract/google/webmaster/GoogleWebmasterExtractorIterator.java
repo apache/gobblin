@@ -12,7 +12,6 @@ import gobblin.configuration.WorkUnitState;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -152,7 +151,7 @@ class GoogleWebmasterExtractorIterator {
     //Will report every (100% / reportPartitions), e.g. 20 -> report every 5% done. 10 -> report every 10% done.
     private double reportPartitions = 20;
 
-    public ResponseProducer(Deque<String> pagesToProcess) {
+    ResponseProducer(Deque<String> pagesToProcess) {
       _pagesToProcess = pagesToProcess;
     }
 
@@ -229,15 +228,14 @@ class GoogleWebmasterExtractorIterator {
           String.format("Terminating current ResponseProducer for %s on %s at retry round %d", _country, _date, r));
     }
 
-    private void submitJob(long requestSleep, ConcurrentLinkedDeque<String> pagesToRetry, ExecutorService es,
+    private Future<Void> submitJob(long requestSleep, ConcurrentLinkedDeque<String> pagesToRetry, ExecutorService es,
         List<String> pagesBatch) {
       try {
         Thread.sleep(requestSleep); //Control the speed of sending API requests
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
-      //assign to submit to suppress gradlew warnings.
-      Future<Void> submit = es.submit(getResponses(pagesBatch, pagesToRetry, _cachedQueries));
+      return es.submit(getResponses(pagesBatch, pagesToRetry, _cachedQueries));
     }
 
     /**

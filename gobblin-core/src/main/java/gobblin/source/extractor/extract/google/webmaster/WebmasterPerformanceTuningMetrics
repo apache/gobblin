@@ -1,0 +1,41 @@
+##Test group 1:
+Page size	200
+cool down step	500
+initial cool down	1000
+
+
+batch size	batch request per second	page request per second	start time	first round errors	rounds	end time	Time elapsed
+9	2	18	17:46:06	140	8	17:47:14	0:01:08
+5	2	10	17:48:27	100	4	17:49:18	0:00:51
+4	2	8	17:51:05	73	4	17:51:56	0:00:51
+3	3	9	17:52:48	86	4	17:53:39	0:00:51
+2	4	8	17:54:50	73	4	17:55:42	0:00:52
+1	5	5	17:56:44	0	0	17:57:26	0:00:42
+1	6	6	17:58:28	36	2	17:59:15	0:00:47
+
+
+##Test group 2:
+Page size	200
+cool down step	0
+initial cool down	1000
+
+
+batch size	batch request per second	page request per second	start time	first round errors	rounds	end time	Time elapsed
+3	3	9	18:00:53	85	4	18:01:38	0:00:45
+2	4	8	18:03:12	72	3	18:03:56	0:00:44
+4	2	8	18:04:33	76	3	18:05:18	0:00:45
+
+
+##Test group 3:
+Page size	200
+cool down step	0
+initial cool down	200
+
+
+batch size	batch request per second	page request per second	start time	first round errors	rounds	end time	Time elapsed
+3	2	6	18:06:43	37	2	18:07:27	0:00:44
+2	3	6	18:08:03	34	3	18:08:48	0:00:45
+5	1	5	18:10:11	0	0	18:10:53	0:00:42
+1	5	5	18:11:21	3	1	18:12:04	0:00:43
+6	1	6	18:12:46	33	2	18:13:30	0:00:44
+
