@@ -20,17 +20,15 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
-
 import org.apache.curator.test.TestingServer;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -39,9 +37,9 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
@@ -68,8 +66,7 @@ import gobblin.util.ConfigUtils;
  */
 @Test(groups = { "gobblin.cluster" })
 public class GobblinHelixJobLauncherTest {
-
-  private static final int TEST_ZK_PORT = 3084;
+  public final static Logger LOG = LoggerFactory.getLogger(GobblinHelixJobLauncherTest.class);
 
   private HelixManager helixManager;
 
@@ -93,13 +90,17 @@ public class GobblinHelixJobLauncherTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    this.closer.register(new TestingServer(TEST_ZK_PORT));
+    TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
+    LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     URL url = GobblinHelixJobLauncherTest.class.getClassLoader().getResource(
         GobblinHelixJobLauncherTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
-    Config config = ConfigFactory.parseURL(url).resolve();
+    Config config = ConfigFactory.parseURL(url)
+        .withValue("gobblin.cluster.zk.connection.string",
+                   ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .resolve();
 
     String zkConnectingString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     String helixClusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
