@@ -37,20 +37,22 @@ import com.google.common.collect.Ordering;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.data.management.version.TimestampedDatasetVersion;
+import gobblin.data.management.version.finder.AbstractDatasetVersionFinder;
+import gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
 import gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder;
 import gobblin.data.management.version.finder.ModDateTimeDatasetVersionFinder;
 import gobblin.data.management.version.finder.UnixTimestampVersionFinder;
 import gobblin.dataset.FileSystemDataset;
 
 public class ReplicationDataValidPathPicker {
-  
+
   /**
    * Under root Path, based on the modification time, select the latest snapshot directories, defined by finiteInstance. 
    */
   private static Collection<Path> getValidSnapshotPaths(FileSystem fs, Path root, int finiteInstance) throws IOException{
     Preconditions.checkArgument(finiteInstance>0);
     FileStatus[] fileStatus = fs.listStatus(root); 
-    
+
     PriorityQueue<FileStatus> pq = new PriorityQueue<FileStatus>(new Comparator<FileStatus>(){
       @Override
       public int compare(FileStatus o1, FileStatus o2) {
@@ -59,10 +61,10 @@ public class ReplicationDataValidPathPicker {
         else return -1;
       }
     });
-    
+
     for(FileStatus f: fileStatus){
       if(!f.isDirectory()) continue;
-      
+
       if(pq.size()<finiteInstance){
         pq.add(f);
       }
@@ -73,7 +75,7 @@ public class ReplicationDataValidPathPicker {
         }
       }
     }
-    
+
     return Collections2.transform(pq, new Function<FileStatus, Path>() {
       @Override
       public Path apply(FileStatus t) {
@@ -81,7 +83,7 @@ public class ReplicationDataValidPathPicker {
       }
     });
   }
-  
+
   /**
    * Under root Path, the sub directory should have YYYY/MM/DD format
    * Based on lookbackDays parameter, pick the corresponding directory
@@ -97,7 +99,7 @@ public class ReplicationDataValidPathPicker {
       String day = f.getPath().getName();
       String month = f.getPath().getParent().getName();
       String year = f.getPath().getParent().getParent().getName();
-      
+
       try{
         DateTime dirTime = new DateTime(Integer.parseInt(year), Integer.parseInt(month), Integer.parseInt(day), 0, 0, 0, 0, PST);
         if(dirTime.getMillis() > oldDate.getMillis()){
@@ -108,10 +110,10 @@ public class ReplicationDataValidPathPicker {
         // ignored
       }
     }
-    
+
     return validPaths;
   }
-  
+
   /**
    * Under root Path, the sub directory should have YYYY/MM/DD/HH format
    * Based on lookbackDays parameter, pick the corresponding directory
@@ -128,7 +130,7 @@ public class ReplicationDataValidPathPicker {
       String day   = f.getPath().getParent().getName();
       String month = f.getPath().getParent().getParent().getName();
       String year  = f.getPath().getParent().getParent().getParent().getName();
-      
+
       try{
         DateTime dirTime = new DateTime(Integer.parseInt(year), Integer.parseInt(month), Integer.parseInt(day), Integer.parseInt(hour), 0, 0, 0, PST);
         if(dirTime.getMillis() > oldDate.getMillis()){
@@ -139,10 +141,10 @@ public class ReplicationDataValidPathPicker {
         // ignored
       }
     }
-    
+
     return validPaths;
   }
-  
+
   /**
    * @param fs The {@link FileSystem} where the root Path located
    * @param root The root Path
@@ -154,53 +156,65 @@ public class ReplicationDataValidPathPicker {
     if(rdc.getType() == ReplicationDataRetentionCategory.Type.SYNC){
       return Lists.newArrayList(root);
     }
-    
+
     Preconditions.checkArgument(rdc.getFiniteInstance().isPresent());
     int finiteInstance = rdc.getFiniteInstance().get();
-    
+
     // for snapshots, get the latest dirs
     if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_SNAPSHOT){
       return getValidSnapshotPaths(fs, root, finiteInstance);
     }
     // format is YYYY/MM/DD
     else if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_DAILY_PARTITION){
-       return getValidDailyPartitionPaths(fs, root, finiteInstance);
+      return getValidDailyPartitionPaths(fs, root, finiteInstance);
     }
     // format is YYYY/MM/DD/HH
     else if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_HOURLY_PARTITION){
-       return getValidHourlyPartitionPaths(fs, root, finiteInstance);
+      return getValidHourlyPartitionPaths(fs, root, finiteInstance);
     }
     else 
       throw new IllegalArgumentException("Unsupported type " + rdc.getType());
   }
-  
+
   public static Collection<Path> getValidPaths(HadoopFsEndPoint hadoopFsEndPoint) throws IOException{
     ReplicationDataRetentionCategory rdc = hadoopFsEndPoint.getReplicationDataRetentionCategory();
     if(rdc.getType() == ReplicationDataRetentionCategory.Type.SYNC){
       return Lists.newArrayList(hadoopFsEndPoint.getDatasetPath());
     }
-    
+
     Preconditions.checkArgument(rdc.getFiniteInstance().isPresent());
     int finiteInstance = rdc.getFiniteInstance().get();
-    
+
     FileSystemDataset tmpDataset = new HadoopFsEndPointDataset(hadoopFsEndPoint);
+    FileSystem theFs = FileSystem.get(hadoopFsEndPoint.getFsURI(), new Configuration());
     
-    // for snapshots, get the latest dirs
+    AbstractDatasetVersionFinder absfinder;
+    switch(rdc.getType()){
+      case FINITE_SNAPSHOT: 
+        absfinder = new GlobModTimeDatasetVersionFinder(theFs, ConfigFactory.empty());
+      case FINITE_DAILY_PARTITION:
+        
+       
+        default:
+          
+    }
+
     if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_SNAPSHOT){
+      // for snapshots, get the latest dirs based on the modification time of FileStatus
       GlobModTimeDatasetVersionFinder finder = 
-          new GlobModTimeDatasetVersionFinder(FileSystem.get(hadoopFsEndPoint.getFsURI(), new Configuration()), ConfigFactory.empty());
+          new GlobModTimeDatasetVersionFinder(theFs, ConfigFactory.empty());
       List<TimestampedDatasetVersion> versions = 
           Ordering.natural().reverse().sortedCopy(finder.findDatasetVersions(tmpDataset));
-      
 
-      for(TimestampedDatasetVersion v: versions){
-        System.out.println("BBB " + v);
-      }
-      
-      System.out.println("BBB instance num is " + finiteInstance);
-      
+      //
+      //      for(TimestampedDatasetVersion v: versions){
+      //        System.out.println("BBB " + v);
+      //      }
+      //      
+      //      System.out.println("BBB instance num is " + finiteInstance);
+
       versions = versions.subList(0, Math.min(finiteInstance, versions.size()));
-      
+
       return Lists.transform(versions, new Function<TimestampedDatasetVersion, Path>() {
         @Override
         public Path apply(TimestampedDatasetVersion input) {
@@ -208,18 +222,35 @@ public class ReplicationDataValidPathPicker {
         }
       });
     }
-    
-    //TODO
-//    // format is YYYY/MM/DD
-//    else if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_DAILY_PARTITION){
-//       
-//    }
-//    // format is YYYY/MM/DD/HH
-//    else if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_HOURLY_PARTITION){
-//       
-//    }
+    // format is YYYY/MM/DD
+    else if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_DAILY_PARTITION){
+      Properties p = new Properties();
+      p.setProperty(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd");
+      DateTimeDatasetVersionFinder finder = new DateTimeDatasetVersionFinder(theFs, p);
+      List<TimestampedDatasetVersion> versions = 
+          Ordering.natural().reverse().sortedCopy(finder.findDatasetVersions(tmpDataset));
+
+      for(TimestampedDatasetVersion v: versions){
+        System.out.println("CCC " + v);
+      }
+
+      System.out.println("CCC instance num is " + finiteInstance);
+
+      versions = versions.subList(0, Math.min(finiteInstance, versions.size()));
+
+      return Lists.transform(versions, new Function<TimestampedDatasetVersion, Path>() {
+        @Override
+        public Path apply(TimestampedDatasetVersion input) {
+          return input.getPath();
+        }
+      });
+    }
+    //    // format is YYYY/MM/DD/HH
+    //    else if(rdc.getType() == ReplicationDataRetentionCategory.Type.FINITE_HOURLY_PARTITION){
+    //       
+    //    }
     else 
       throw new IllegalArgumentException("Unsupported type " + rdc.getType());
   }
-  
+
 }
