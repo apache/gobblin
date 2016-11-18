@@ -1,7 +1,6 @@
 package gobblin.compaction.hivebasedconstructs;
 
 import java.io.IOException;
-import org.apache.avro.Schema;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -19,6 +18,7 @@ import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.AutoReturnableObject;
+import gobblin.data.management.conversion.hive.extractor.HiveBaseExtractor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -27,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
  * creates an {@link MRCompactionEntity}
  */
 @Slf4j
-public class HiveMetadataForCompactionExtractor implements Extractor<Schema, MRCompactionEntity> {
+public class HiveMetadataForCompactionExtractor extends HiveBaseExtractor<Void, MRCompactionEntity> {
 
   public static final String COMPACTION_PRIMARY_KEY = "hive.metastore.primaryKey";
   public static final String COMPACTION_DELTA = "hive.metastore.delta";
@@ -72,20 +72,7 @@ public class HiveMetadataForCompactionExtractor implements Extractor<Schema, MRC
   }
 
   @Override
-  public Schema getSchema() throws IOException {
+  public Void getSchema() throws IOException {
     return null;
   }
-
-  @Override
-  public long getExpectedRecordCount() {
-    return 1;
-  }
-
-  @Override
-  public long getHighWatermark() {
-    return 0;
-  }
-
-  @Override
-  public void close() throws IOException {}
 }

@@ -39,7 +39,6 @@ import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.avro.SchemaNotFoundException;
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
-import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
 import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 import gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
 import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
@@ -62,6 +61,9 @@ import gobblin.util.AutoReturnableObject;
 import gobblin.util.HadoopUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
 import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.util.ClassAliasResolver;
+import gobblin.data.management.conversion.hive.extractor.HiveBaseExtractorFactory;
+import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractorFactory;
 
 
 /**
@@ -99,7 +101,7 @@ public class HiveSource implements Source {
   public static final String DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS = PartitionLevelWatermarker.Factory.class.getName();
 
   public static final String HIVE_SOURCE_EXTRACTOR_TYPE = "hive.source.extractorType";
-  public static final String DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE = HiveConvertExtractor.class.getName();
+  public static final String DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE = HiveConvertExtractorFactory.class.getName();
 
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
@@ -331,9 +333,9 @@ public class HiveSource implements Source {
   @Override
   public Extractor getExtractor(WorkUnitState state) throws IOException {
     try {
-      return (Extractor) Class.forName(state.getProp(HIVE_SOURCE_EXTRACTOR_TYPE, DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE))
-          .getConstructor(WorkUnitState.class, FileSystem.class)
-          .newInstance(state, getSourceFs());
+      return (new ClassAliasResolver<>(HiveBaseExtractorFactory.class))
+          .resolveClass(state.getProp(HIVE_SOURCE_EXTRACTOR_TYPE, DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE))
+          .newInstance().createExtractor(state, getSourceFs());
     } catch (Exception e) {
       throw new IOException(e);
     }

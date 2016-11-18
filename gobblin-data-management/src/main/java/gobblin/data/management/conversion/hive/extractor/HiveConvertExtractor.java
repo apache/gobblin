@@ -40,7 +40,6 @@ import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWaterma
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
 import gobblin.util.AutoReturnableObject;
 
 
@@ -57,7 +56,7 @@ import gobblin.util.AutoReturnableObject;
  * </p>
  */
 @Slf4j
-public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveConversionEntity> {
+public class HiveConvertExtractor extends HiveBaseExtractor<Schema, QueryBasedHiveConversionEntity> {
 
   private List<QueryBasedHiveConversionEntity> conversionEntities = Lists.newArrayList();
 
@@ -125,22 +124,4 @@ public class HiveConvertExtractor implements Extractor<Schema, QueryBasedHiveCon
 
     return this.conversionEntities.remove(0);
   }
-
-  @Override
-  public long getExpectedRecordCount() {
-    return 1;
-  }
-
-  /**
-   * Watermark is not managed by this extractor.
-   */
-  @Override
-  public long getHighWatermark() {
-    return 0;
-  }
-
-  @Override
-  public void close() throws IOException {
-  }
-
 }

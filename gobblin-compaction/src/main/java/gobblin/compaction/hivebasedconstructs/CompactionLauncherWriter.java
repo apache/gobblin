@@ -16,6 +16,8 @@ import gobblin.compaction.mapreduce.avro.ConfBasedDeltaFieldProvider;
 /**
  * {@link DataWriter} that launches an {@link MRCompactor} job given an {@link MRCompactionEntity} specifying config
  * for compaction
+ *
+ * Delta field is passed using {@link ConfBasedDeltaFieldProvider}
  */
 public class CompactionLauncherWriter implements DataWriter<MRCompactionEntity> {
   @Override
@@ -24,11 +26,12 @@ public class CompactionLauncherWriter implements DataWriter<MRCompactionEntity> 
 
     List<? extends Tag<?>> list = new ArrayList<>();
 
-    Properties props = compactionEntity.getProps();
-    props.setProperty(ConfBasedDeltaFieldProvider.DELTA_FIELDS_KEY, compactionEntity.getDelta());
+    Properties props = new Properties();
+    props.putAll(compactionEntity.getProps());
+    props.setProperty(ConfBasedDeltaFieldProvider.DELTA_FIELDS_KEY, compactionEntity.getDeltaInfo());
     props.setProperty(MRCompactor.COMPACTION_INPUT_DIR, compactionEntity.getLocation());
 
-    MRCompactor compactor = new MRCompactor(compactionEntity.getProps(), list, Optional.<CompactorListener>absent());
+    MRCompactor compactor = new MRCompactor(props, list, Optional.<CompactorListener>absent());
     compactor.compact();
   }
 
