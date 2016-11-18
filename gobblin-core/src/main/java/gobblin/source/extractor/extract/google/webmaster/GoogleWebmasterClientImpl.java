@@ -1,6 +1,7 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
@@ -18,7 +19,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +28,7 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
   private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterClientImpl.class);
 
   private final Webmasters.Searchanalytics _analytics;
+  private final Webmasters _service;
 
   public GoogleWebmasterClientImpl(String credentialFile, String appName, String scope) throws IOException {
     Preconditions.checkArgument(
@@ -36,12 +37,16 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
 
     GoogleCredential credential =
         GoogleCredential.fromStream(new FileInputStream(credentialFile)).createScoped(Collections.singletonList(scope));
-    //GoogleNetHttpTransport.newTrustedTransport(),
-    //JacksonFactory.getDefaultInstance(),
-    Webmasters service =
+    //GoogleNetHttpTransport.newTrustedTransport(), JacksonFactory.getDefaultInstance(),
+    _service =
         new Webmasters.Builder(new NetHttpTransport(), new JacksonFactory(), credential).setApplicationName(appName)
             .build();
-    _analytics = service.searchanalytics();
+    _analytics = _service.searchanalytics();
+  }
+
+  @Override
+  public BatchRequest createBatch() {
+    return _service.batch();
   }
 
   @Override
@@ -51,9 +56,8 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
     checkRowLimit(rowLimit);
     Preconditions.checkArgument(requestedDimensions.contains(GoogleWebmasterFilter.Dimension.PAGE));
 
-    SearchAnalyticsQueryResponse rspByCountry =
-        searchAnalyticsQuery(siteProperty, date, requestedDimensions, GoogleWebmasterFilter.andGroupFilters(filters),
-            rowLimit, startRow);
+    SearchAnalyticsQueryResponse rspByCountry = createSearchAnalyticsQuery(siteProperty, date, requestedDimensions,
+        GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, startRow).execute();
 
     List<ApiDataRow> pageRows = rspByCountry.getRows();
     List<String> pages = new ArrayList<>(rowLimit);
@@ -72,7 +76,7 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
   }
 
   @Override
-  public SearchAnalyticsQueryResponse searchAnalyticsQuery(String siteProperty, String date,
+  public Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String siteProperty, String date,
       List<GoogleWebmasterFilter.Dimension> dimensions, ApiDimensionFilterGroup filterGroup, int rowLimit, int startRow)
       throws IOException {
     List<String> dimensionStrings = new ArrayList<>();
@@ -90,7 +94,7 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
       request.setDimensionFilterGroups(Arrays.asList(filterGroup));
     }
 
-    return _analytics.query(siteProperty, request).execute();
+    return _analytics.query(siteProperty, request);
   }
 
   private static void checkRowLimit(int rowLimit) {

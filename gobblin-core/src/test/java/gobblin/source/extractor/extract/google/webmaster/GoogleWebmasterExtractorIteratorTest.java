@@ -59,24 +59,24 @@ public class GoogleWebmasterExtractorIteratorTest {
     allPages.add(page2);
     Mockito.when(client.getAllPages(eq(date), eq(country), eq(5000))).thenReturn(allPages);
 
-    //Set doQuery Mock1
+    //Set performSearchAnalyticsQuery Mock1
     String[] a1 = {"r1-c1", "r1-c2"};
     List<String[]> results1 = new ArrayList<>();
     results1.add(a1);
     List<ApiDimensionFilter> filters1 = new ArrayList<>();
     filters1.add(GoogleWebmasterFilter.countryEqFilter(country));
     filters1.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page1));
-    Mockito.when(client.doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+    Mockito.when(client.performSearchAnalyticsQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
         argThat(new CollectionEquals(filters1)))).thenReturn(results1);
 
-    //Set doQuery Mock2
+    //Set performSearchAnalyticsQuery Mock2
     String[] a2 = {"r2-c1", "r2-c2"};
     List<String[]> results2 = new ArrayList<>();
     results2.add(a2);
     List<ApiDimensionFilter> filters2 = new ArrayList<>();
     filters2.add(GoogleWebmasterFilter.countryEqFilter(country));
     filters2.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page2));
-    Mockito.when(client.doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+    Mockito.when(client.performSearchAnalyticsQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
         argThat(new CollectionEquals(filters2)))).thenReturn(results2);
 
     Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
@@ -94,10 +94,10 @@ public class GoogleWebmasterExtractorIteratorTest {
 
     Mockito.verify(client, Mockito.times(1)).getAllPages(eq(date), eq(country), eq(5000));
     Mockito.verify(client, Mockito.times(1))
-        .doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+        .performSearchAnalyticsQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
             argThat(new CollectionEquals(filters1)));
     Mockito.verify(client, Mockito.times(1))
-        .doQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+        .performSearchAnalyticsQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
             argThat(new CollectionEquals(filters2)));
   }
 }

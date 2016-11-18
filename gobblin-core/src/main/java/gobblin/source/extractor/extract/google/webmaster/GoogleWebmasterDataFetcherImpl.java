@@ -1,7 +1,8 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
+import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
-import com.google.api.services.webmasters.model.ApiDataRow;
+import com.google.api.services.webmasters.Webmasters;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 import java.io.IOException;
@@ -21,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import static gobblin.source.extractor.extract.google.webmaster.GoogleWebmasterFilter.*;
 
 
-public class GoogleWebmasterDataFetcherImpl implements GoogleWebmasterDataFetcher {
+public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
   private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterDataFetcherImpl.class);
   private final String _siteProperty; //Also used as a prefix
@@ -236,54 +237,27 @@ public class GoogleWebmasterDataFetcherImpl implements GoogleWebmasterDataFetche
   }
 
   @Override
-  public List<String[]> doQuery(String date, int rowLimit, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
+  public BatchRequest createBatch() {
+    return _client.createBatch();
+  }
+
+  @Override
+  public Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String date, List<Dimension> requestedDimensions,
+      Collection<ApiDimensionFilter> filters, int rowLimit, int startRow) throws IOException {
+    return _client.createSearchAnalyticsQuery(_siteProperty, date, requestedDimensions,
+        GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, startRow);
+  }
+
+  @Override
+  public List<String[]> performSearchAnalyticsQuery(String date, int rowLimit, List<Dimension> requestedDimensions,
       List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters) throws IOException {
+    SearchAnalyticsQueryResponse response =
+        createSearchAnalyticsQuery(date, requestedDimensions, filters, rowLimit, 0).execute();
 
-    SearchAnalyticsQueryResponse response = _client.searchAnalyticsQuery(_siteProperty, date, requestedDimensions,
-        GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, 0);
-
-    List<ApiDataRow> rows = response.getRows();
-
-    if (rows == null || rows.isEmpty()) {
-      return new ArrayList<>();
+    List<String[]> converted = convertResponse(requestedMetrics, response);
+    if (converted.size() == GoogleWebmasterClient.API_ROW_LIMIT) {
+      LOG.warn(getWarningMessage(date, filters));
     }
-    int responseSize = rows.size();
-    if (responseSize == GoogleWebmasterClient.API_ROW_LIMIT) {
-      StringBuilder filterString = new StringBuilder();
-      for (ApiDimensionFilter filter : filters) {
-        filterString.append(filter.toString());
-        filterString.append(" ");
-      }
-      LOG.warn(String.format(
-          "A total of %d rows returned. There might be more data based on your constraints: date - %s, filters - %s. Current code doesn't download more data beyond 5000 rows.",
-          GoogleWebmasterClient.API_ROW_LIMIT, date, filterString.toString()));
-    }
-
-    List<String[]> ret = new ArrayList<>(responseSize);
-    for (ApiDataRow row : rows) {
-      List<String> keys = row.getKeys();
-      String[] data = new String[keys.size() + 4];
-      int i = 0;
-      for (; i < keys.size(); ++i) {
-        data[i] = keys.get(i);
-      }
-
-      for (Metric requestedMetric : requestedMetrics) {
-        if (requestedMetric == Metric.CLICKS) {
-          data[i] = row.getClicks().toString();
-        } else if (requestedMetric == Metric.IMPRESSIONS) {
-          data[i] = row.getImpressions().toString();
-        } else if (requestedMetric == Metric.CTR) {
-          data[i] = String.format("%.5f", row.getCtr());
-        } else if (requestedMetric == Metric.POSITION) {
-          data[i] = String.format("%.2f", row.getPosition());
-        } else {
-          throw new RuntimeException("Unknown Google Webmaster Metric Type");
-        }
-        ++i;
-      }
-      ret.add(data);
-    }
-    return ret;
+    return converted;
   }
 }

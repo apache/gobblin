@@ -1,11 +1,18 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
+import avro.shaded.com.google.common.base.Joiner;
+import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
+import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 import gobblin.configuration.WorkUnitState;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -28,10 +35,11 @@ import org.slf4j.LoggerFactory;
 class GoogleWebmasterExtractorIterator {
 
   private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterExtractorIterator.class);
+  private final int BATCH_SIZE;
   private final int MAX_RETRY_ROUNDS;
   private final int INITIAL_COOL_DOWN;
   private final int COOL_DOWN_STEP;
-  private final int REQUESTS_PER_SECOND;
+  private final double REQUESTS_PER_SECOND;
   private final int PAGE_LIMIT;
   private final int QUERY_LIMIT;
 
@@ -62,12 +70,26 @@ class GoogleWebmasterExtractorIterator {
 
     PAGE_LIMIT =
         wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_PAGE_LIMIT, GoogleWebmasterClient.API_ROW_LIMIT);
+    Preconditions.checkArgument(PAGE_LIMIT >= 1, "Page limit must be at least 1.");
+
     QUERY_LIMIT =
         wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_QUERY_LIMIT, GoogleWebmasterClient.API_ROW_LIMIT);
-    MAX_RETRY_ROUNDS = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_RETRIES, 5);
-    INITIAL_COOL_DOWN = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_INITIAL_COOL_DOWN, 1000);
-    COOL_DOWN_STEP = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_COOL_DOWN_STEP, 500);
-    REQUESTS_PER_SECOND = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_REQUESTS_PER_SECOND, 5);
+    Preconditions.checkArgument(QUERY_LIMIT >= 1, "Query limit must be at least 1.");
+
+    MAX_RETRY_ROUNDS = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_RETRIES, 10);
+    Preconditions.checkArgument(MAX_RETRY_ROUNDS >= 0, "Retry rounds cannot be negative.");
+
+    INITIAL_COOL_DOWN = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_INITIAL_COOL_DOWN, 300);
+    Preconditions.checkArgument(INITIAL_COOL_DOWN >= 0, "Initial cool down time cannot be negative.");
+
+    COOL_DOWN_STEP = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_COOL_DOWN_STEP, 50);
+    Preconditions.checkArgument(COOL_DOWN_STEP >= 0, "Cool down step time cannot be negative.");
+
+    REQUESTS_PER_SECOND = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_REQUEST_TUNING_REQUESTS_PER_SECOND, 1);
+    Preconditions.checkArgument(REQUESTS_PER_SECOND > 0, "Requests per second must be positive.");
+
+    BATCH_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_BATCH_SIZE, 5);
+    Preconditions.checkArgument(BATCH_SIZE >= 1, "Batch size must be at least 1.");
   }
 
   public boolean hasNext() throws IOException {
@@ -75,30 +97,28 @@ class GoogleWebmasterExtractorIterator {
     if (!_cachedQueries.isEmpty()) {
       return true;
     }
-    while (true) {
-      try {
-        String[] next = _cachedQueries.poll(1, TimeUnit.SECONDS);
-        while (next == null) {
-          if (_producerThread.isAlive()) {
-            //Job not done yet. Keep waiting.
-            next = _cachedQueries.poll(1, TimeUnit.SECONDS);
-          } else {
-            LOG.info("Producer job has finished. No more query data in the queue.");
-            return false;
-          }
+    try {
+      String[] next = _cachedQueries.poll(1, TimeUnit.SECONDS);
+      while (next == null) {
+        if (_producerThread.isAlive()) {
+          //Job not done yet. Keep waiting.
+          next = _cachedQueries.poll(1, TimeUnit.SECONDS);
+        } else {
+          LOG.info("Producer job has finished. No more query data in the queue.");
+          return false;
         }
-        //Must put it back. Implement in this way because LinkedBlockingDeque doesn't support blocking peek.
-        _cachedQueries.putFirst(next);
-        return true;
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
       }
+      //Must put it back. Implement in this way because LinkedBlockingDeque doesn't support blocking peek.
+      _cachedQueries.putFirst(next);
+      return true;
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
     }
   }
 
   private void initialize() throws IOException {
     if (_cachedPages == null) {
-      //Doesn't need to be a ConcurrentLinkedDeque upon creation.
+      //Doesn't need to be a ConcurrentLinkedDeque upon creation, because it will only be read by one thread.
       _cachedPages = new ArrayDeque<>(_webmaster.getAllPages(_date, _country, PAGE_LIMIT));
       //start the response producer
       _producerThread = new Thread(new ResponseProducer(_cachedPages));
@@ -143,19 +163,20 @@ class GoogleWebmasterExtractorIterator {
       //check if any seed got adding back.
       while (r <= MAX_RETRY_ROUNDS) {
         LOG.info("Currently at round " + r);
+        long requestSleep = (long) Math.ceil(1000 / REQUESTS_PER_SECOND);
         int totalPages = _pagesToProcess.size();
         int pageCheckPoint = Math.max(1, (int) Math.round(Math.ceil(totalPages / reportPartitions)));
-
+        //pagesToRetry needs to be concurrent because multiple threads will write to it.
         ConcurrentLinkedDeque<String> pagesToRetry = new ConcurrentLinkedDeque<>();
         ExecutorService es = Executors.newCachedThreadPool();
         int checkPointCount = 0;
         int sum = 0;
+        List<String> pagesBatch = new ArrayList<>(BATCH_SIZE);
+
         while (!_pagesToProcess.isEmpty()) {
+          //This is the only place to poll page from queue. Writing to a new queue is async.
           String page = _pagesToProcess.poll();
-          //This check is a MUST because seeds might be empty now even if the outer while loop has checked that it was not empty.
-          if (page == null) {
-            break;
-          }
+
           if (++checkPointCount == pageCheckPoint) {
             checkPointCount = 0;
             sum += pageCheckPoint;
@@ -163,14 +184,21 @@ class GoogleWebmasterExtractorIterator {
                 totalPages));
           }
 
-          try {
-            Thread.sleep(1000 / REQUESTS_PER_SECOND); //Control the speed of sending API requests
-          } catch (InterruptedException e) {
-            e.printStackTrace();
+          if (pagesBatch.size() < BATCH_SIZE) {
+            pagesBatch.add(page);
           }
-          Future<Void> submit = es.submit(
-              getResponse(page, pagesToRetry, _cachedQueries)); //assign to submit to suppress gradlew warnings.
+
+          if (pagesBatch.size() == BATCH_SIZE) {
+            submitJob(requestSleep, pagesToRetry, es, pagesBatch);
+            pagesBatch = new ArrayList<>(BATCH_SIZE);
+          }
         }
+
+        //Send the last batch
+        if (!pagesBatch.isEmpty()) {
+          submitJob(requestSleep, pagesToRetry, es, pagesBatch);
+        }
+
         try {
           es.shutdown(); //stop accepting new requests
           es.awaitTermination(4, TimeUnit.HOURS); //await for all submitted job to finish
@@ -201,10 +229,21 @@ class GoogleWebmasterExtractorIterator {
           String.format("Terminating current ResponseProducer for %s on %s at retry round %d", _country, _date, r));
     }
 
+    private void submitJob(long requestSleep, ConcurrentLinkedDeque<String> pagesToRetry, ExecutorService es,
+        List<String> pagesBatch) {
+      try {
+        Thread.sleep(requestSleep); //Control the speed of sending API requests
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+      //assign to submit to suppress gradlew warnings.
+      Future<Void> submit = es.submit(getResponses(pagesBatch, pagesToRetry, _cachedQueries));
+    }
+
     /**
      * Call the API, then
      * OnSuccess: put each record into the responseQueue
-     * OnFailure: add current page to pagesToRetry.
+     * OnFailure: add current page to pagesToRetry
      */
     private Callable<Void> getResponse(final String page, final ConcurrentLinkedDeque<String> pagesToRetry,
         final LinkedBlockingDeque<String[]> responseQueue) {
@@ -218,21 +257,92 @@ class GoogleWebmasterExtractorIterator {
           filters.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page));
           List<String[]> results;
           try {
-            results = _webmaster.doQuery(_date, QUERY_LIMIT, _requestedDimensions, _requestedMetrics, filters);
-            //LOG.info(String.format("Fetched %s. Result size %d.", page, results.size()));
+            results =
+                _webmaster.performSearchAnalyticsQuery(_date, QUERY_LIMIT, _requestedDimensions, _requestedMetrics,
+                    filters);
           } catch (IOException e) {
-            //On failure
-            LOG.debug(String.format("Adding back for retry: %s.%s%s", page, System.lineSeparator(), e.getMessage()));
-            pagesToRetry.add(page);
+            onFailure(e.getMessage(), page, pagesToRetry);
             return null;
           }
-          //On success
-          for (String[] r : results) {
-            responseQueue.put(r);
-          }
+          onSuccess(page, results, responseQueue);
           return null;
         }
       };
+    }
+
+    /**
+     * Call the APIs with a batch request
+     * OnSuccess: put each record into the responseQueue
+     * OnFailure: add current page to pagesToRetry
+     */
+    private Callable<Void> getResponses(final List<String> pages, final ConcurrentLinkedDeque<String> pagesToRetry,
+        final LinkedBlockingDeque<String[]> responseQueue) {
+      if (pages == null) {
+        LOG.error("How come this is null?");
+        throw new RuntimeException("pages is null in thread pool. Won't be seen in main thread.");
+      }
+
+      if (pages.size() == 1) {
+        return getResponse(pages.get(0), pagesToRetry, responseQueue);
+      }
+      final ResponseProducer producer = this;
+
+      return new Callable<Void>() {
+        @Override
+        public Void call() throws Exception {
+          BatchRequest batchRequest = _webmaster.createBatch();
+          try {
+            for (String p : pages) {
+              final String page = p;
+              final ArrayList<ApiDimensionFilter> filters = new ArrayList<>();
+              filters.addAll(_filterMap.values());
+              filters.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page));
+
+              _webmaster.createSearchAnalyticsQuery(_date, _requestedDimensions, filters, QUERY_LIMIT, 0)
+                  .queue(batchRequest, new JsonBatchCallback<SearchAnalyticsQueryResponse>() {
+                    @Override
+                    public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
+                      producer.onFailure(e.getMessage(), page, pagesToRetry);
+                    }
+
+                    @Override
+                    public void onSuccess(SearchAnalyticsQueryResponse searchAnalyticsQueryResponse,
+                        HttpHeaders responseHeaders) throws IOException {
+                      producer.onSuccess(page,
+                          GoogleWebmasterDataFetcher.convertResponse(_requestedMetrics, searchAnalyticsQueryResponse),
+                          responseQueue);
+                    }
+                  });
+            }
+          } catch (IOException e) {
+            LOG.warn("Fail creating batch request for pages: " + Joiner.on(",").join(pages));
+            for (String page : pages) {
+              pagesToRetry.add(page);
+            }
+            return null;
+          }
+
+          batchRequest.execute();
+          return null;
+        }
+      };
+    }
+
+    private void onFailure(String errMsg, String page, ConcurrentLinkedDeque<String> pagesToRetry) {
+      LOG.debug(
+          String.format("OnFailure: adding back for retry: %s.%sReason:%s", page, System.lineSeparator(), errMsg));
+      pagesToRetry.add(page);
+    }
+
+    private void onSuccess(String page, List<String[]> results, LinkedBlockingDeque<String[]> responseQueue) {
+      try {
+        for (String[] r : results) {
+          responseQueue.put(r);
+        }
+        LOG.debug(String.format("Fetched %s. Result size %d.", page, results.size()));
+      } catch (InterruptedException e) {
+        LOG.warn(String.format("Adding to queue gets interrupted. Don't add back failed page - %s", page));
+      }
     }
   }
 }
