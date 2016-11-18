@@ -16,28 +16,25 @@ import java.net.URL;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.io.Closer;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.cluster.event.ClusterManagerShutdownRequest;
 import gobblin.testing.AssertWithBackoff;
@@ -57,8 +54,7 @@ import gobblin.testing.AssertWithBackoff;
  */
 @Test(groups = { "gobblin.cluster" })
 public class GobblinClusterManagerTest implements HelixMessageTestBase {
-
-  private static final int TEST_ZK_PORT = 3085;
+  public final static Logger LOG = LoggerFactory.getLogger(GobblinClusterManagerTest.class);
 
   private TestingServer testingZKServer;
 
@@ -68,13 +64,18 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
 
   @BeforeClass
   public void setUp() throws Exception {
-    this.testingZKServer = new TestingServer(TEST_ZK_PORT);
+    // Use a random ZK port
+    this.testingZKServer = new TestingServer(-1);
+    LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     URL url = GobblinClusterManagerTest.class.getClassLoader().getResource(
         GobblinClusterManager.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
-    Config config = ConfigFactory.parseURL(url).resolve();
+    Config config = ConfigFactory.parseURL(url)
+        .withValue("gobblin.cluster.zk.connection.string",
+                   ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .resolve();
 
     String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     HelixUtils.createGobblinHelixCluster(zkConnectionString,

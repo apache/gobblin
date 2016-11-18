@@ -18,32 +18,29 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
-
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
-
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
-
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.cluster.GobblinClusterConfigurationKeys;
-import gobblin.cluster.HelixUtils;
 import gobblin.cluster.HelixMessageTestBase;
+import gobblin.cluster.HelixUtils;
 import gobblin.cluster.TestHelper;
 import gobblin.cluster.TestShutdownMessageHandlerFactory;
 import gobblin.testing.AssertWithBackoff;
@@ -64,8 +61,7 @@ import gobblin.testing.AssertWithBackoff;
  */
 @Test(groups = { "gobblin.yarn" }, singleThreaded=true)
 public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
-
-  private static final int TEST_ZK_PORT = 3081;
+  final Logger LOG = LoggerFactory.getLogger(GobblinYarnAppLauncherTest.class);
 
   private YarnClient yarnClient;
 
@@ -92,7 +88,9 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     this.yarnClient.init(clusterConf);
     this.yarnClient.start();
 
-    TestingServer testingZKServer = this.closer.register(new TestingServer(TEST_ZK_PORT));
+    // Use a random ZK port
+    TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
+    LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
 
@@ -100,7 +98,10 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         .getResource(GobblinYarnAppLauncherTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
-    this.config = ConfigFactory.parseURL(url).resolve();
+    this.config = ConfigFactory.parseURL(url)
+        .withValue("gobblin.cluster.zk.connection.string",
+                   ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .resolve();
 
     String zkConnectionString = this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     this.helixManager = HelixManagerFactory.getZKHelixManager(

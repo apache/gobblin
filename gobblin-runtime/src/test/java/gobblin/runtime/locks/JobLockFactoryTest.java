@@ -12,16 +12,16 @@
 
 package gobblin.runtime.locks;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.Properties;
 
-import com.google.common.io.Closer;
 import org.apache.curator.test.TestingServer;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
+
+import com.google.common.io.Closer;
 
 import gobblin.configuration.ConfigurationKeys;
 
@@ -102,7 +102,7 @@ public class JobLockFactoryTest {
   public void testGetZookeeperBasedJobLock() throws Exception {
     Closer closer = Closer.create();
     try {
-      TestingServer testingServer = closer.register(new TestingServer(11111));
+      TestingServer testingServer = closer.register(new TestingServer(-1));
       Properties properties = new Properties();
       properties.setProperty(ConfigurationKeys.JOB_NAME_KEY, "JobLockFactoryTest-" + System.currentTimeMillis());
       properties.setProperty(ConfigurationKeys.JOB_LOCK_TYPE, ZookeeperBasedJobLock.class.getName());
