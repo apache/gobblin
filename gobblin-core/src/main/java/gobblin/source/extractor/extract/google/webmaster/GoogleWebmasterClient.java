@@ -1,11 +1,12 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
+import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.services.webmasters.Webmasters;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
-import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
+import gobblin.source.extractor.extract.google.webmaster.GoogleWebmasterFilter.Dimension;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.Callable;
 
 
 /**
@@ -26,20 +27,7 @@ public abstract class GoogleWebmasterClient {
    * @return Return all pages given all constraints.
    */
   public abstract List<String> getPages(String siteProperty, String date, String country, int rowLimit,
-      List<GoogleWebmasterFilter.Dimension> requestedDimensions, List<ApiDimensionFilter> filters, int startRow)
-      throws IOException;
-
-  public Callable<List<String>> getPagesCallable(final String siteProperty, final String date, final String country,
-      final int rowLimit, final List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      final List<ApiDimensionFilter> filters, final int startRow) {
-    final GoogleWebmasterClient client = this;
-    return new Callable<List<String>>() {
-      @Override
-      public List<String> call() throws Exception {
-        return client.getPages(siteProperty, date, country, rowLimit, requestedDimensions, filters, startRow);
-      }
-    };
-  }
+      List<Dimension> requestedDimensions, List<ApiDimensionFilter> filters, int startRow) throws IOException;
 
   /**
    * Perform the api call for search analytics query
@@ -51,20 +39,8 @@ public abstract class GoogleWebmasterClient {
    * @param startRow this is a 0 based index configuration to set the starting row of your API request. Even though the API row limit is 5000, you can send a request starting from row 5000, so you will be able to get data from row 5000 to row 9999.
    * @return return the response of Google Webmaster API
    */
-  public abstract SearchAnalyticsQueryResponse searchAnalyticsQuery(String siteProperty, String date,
-      List<GoogleWebmasterFilter.Dimension> dimensions, ApiDimensionFilterGroup filterGroup, int rowLimit, int startRow)
-      throws IOException;
+  public abstract Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String siteProperty, String date,
+      List<Dimension> dimensions, ApiDimensionFilterGroup filterGroup, int rowLimit, int startRow) throws IOException;
 
-  public Callable<SearchAnalyticsQueryResponse> searchAnalyticsQueryCallable(final String siteProperty,
-      final String date, final List<GoogleWebmasterFilter.Dimension> dimensions,
-      final ApiDimensionFilterGroup filterGroup, final int rowLimit, final int startRow) {
-
-    final GoogleWebmasterClient client = this;
-    return new Callable<SearchAnalyticsQueryResponse>() {
-      @Override
-      public SearchAnalyticsQueryResponse call() throws Exception {
-        return client.searchAnalyticsQuery(siteProperty, date, dimensions, filterGroup, rowLimit, startRow);
-      }
-    };
-  }
+  public abstract BatchRequest createBatch();
 }

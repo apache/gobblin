@@ -102,6 +102,14 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
   public static final String KEY_REQUEST_TUNING_REQUESTS_PER_SECOND =
       "source.google_webmasters.request.performance_tuning.requests_per_second";
 
+  /**
+   * Tune the size of a batch. Batch API calls together to reduce the number of HTTP connections.
+   * Note: A set of n requests batched together counts toward your usage limit as n requests, not as one request. The batch request is taken apart into a set of requests before processing.
+   * Read more at https://developers.google.com/webmaster-tools/v3/how-tos/batch
+   */
+  public static final String KEY_REQUEST_TUNING_BATCH_SIZE =
+      "source.google_webmasters.request.performance_tuning.batch_size";
+
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
 
   @Override
