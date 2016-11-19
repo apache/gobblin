@@ -1,14 +1,15 @@
 language: java
 
+dist: trusty
+sudo: required
+
 addons:
   apt:
     packages:
       - libaio-dev
       - libdbus-glib-1-dev
       - xsltproc
-
-services:
-  - mysql
+      - mysql-server-5.6
 
 before_cache:
   - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
