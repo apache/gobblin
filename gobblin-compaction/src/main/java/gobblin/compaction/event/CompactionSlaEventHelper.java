@@ -42,26 +42,44 @@ public class CompactionSlaEventHelper {
 
   private static final Logger LOG = LoggerFactory.getLogger(CompactionSlaEventHelper.class);
   public static final String RECOMPATED_METADATA_NAME = "recompacted";
+  public static final String DATASET_OUTPUT_PATH = "datasetOutputPath";
+  public static final String LATE_RECORD_COUNT = "lateRecordCount";
+  public static final String REGULAR_RECORD_COUNT = "regularRecordCount";
+  public static final String NEED_RECOMPACT = "needRecompact";
+
   public static final String COMPACTION_COMPLETED_EVENT_NAME = "CompactionCompleted";
   public static final String COMPACTION_FAILED_EVENT_NAME = "CompactionFailed";
   public static final String COMPLETION_VERIFICATION_FAILED_EVENT_NAME = "CompletenessCannotBeVerified";
   public static final String COMPLETION_VERIFICATION_SUCCESS_EVENT_NAME = "CompletenessVerified";
+  public static final String COMPACTION_RECORD_COUNT_EVENT = "CompactionRecordCounts";
 
   /**
    * Get an {@link SlaEventSubmitterBuilder} that has dataset urn, partition, record count, previous publish timestamp
    * and dedupe status set.
    * The caller MUST set eventSubmitter, eventname before submitting.
-   *
    */
   public static SlaEventSubmitterBuilder getEventSubmitterBuilder(Dataset dataset, Optional<Job> job, FileSystem fs) {
-    return SlaEventSubmitter
-        .builder()
-        .datasetUrn(dataset.getUrn())
-        .partition(dataset.jobProps().getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, ""))
-        .dedupeStatus(getOutputDedupeStatus(dataset.jobProps()))
-        .previousPublishTimestamp(Long.toString(getPreviousPublishTime(dataset, fs)))
-        .upstreamTimestamp(dataset.jobProps().getProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, Long.toString(-1l)))
-        .recordCount(Long.toString(getRecordCount(job)));
+    SlaEventSubmitterBuilder builder =
+        SlaEventSubmitter.builder().datasetUrn(dataset.getUrn())
+            .partition(dataset.jobProps().getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, ""))
+            .dedupeStatus(getOutputDedupeStatus(dataset.jobProps()));
+
+    long previousPublishTime = getPreviousPublishTime(dataset, fs);
+    long upstreamTime = dataset.jobProps().getPropAsLong(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, -1l);
+    long recordCount = getRecordCount(job);
+
+    // Previous publish only exists when this is a recompact job
+    if (previousPublishTime != -1l) {
+      builder.previousPublishTimestamp(Long.toString(previousPublishTime));
+    }
+    // Upstream time is the logical time represented by the compaction input directory
+    if (upstreamTime != -1l) {
+      builder.upstreamTimestamp(Long.toString(upstreamTime));
+    }
+    if (recordCount != -1l) {
+      builder.recordCount(Long.toString(recordCount));
+    }
+    return builder;
   }
 
   /**
