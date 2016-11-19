@@ -23,6 +23,9 @@ before_install:
   - "sh -e /etc/init.d/xvfb start"
   - sleep 3 # give xvfb some time to start
 
+before_script:
+  - mysql -uroot -e "create user testUser identified by 'testPassword';"
+
 script: ./travis/test.sh
 
 after_success: ./gradlew coveralls
