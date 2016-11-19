@@ -109,6 +109,7 @@ artifacts {
 test {
     workingDir rootProject.rootDir
     maxParallelForks = 1
+    jvmArgs '-Dgobblin.metastore.testing.embeddedMysqlEnabled=false'
 }
 
 clean {
