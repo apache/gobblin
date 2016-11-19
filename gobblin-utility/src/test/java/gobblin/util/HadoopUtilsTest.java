@@ -143,64 +143,69 @@ public class HadoopUtilsTest {
     final Path hadoopUtilsTestDir = new Path(Files.createTempDir().getAbsolutePath(), "HadoopUtilsTestDir");
     final FileSystem fs = FileSystem.getLocal(new Configuration());
     try {
-      fs.mkdirs(hadoopUtilsTestDir);
-      fs.mkdirs(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c"));
+      // do many iterations to catch rename race conditions
+      for (int i = 0; i < 100; i++) {
+        fs.mkdirs(hadoopUtilsTestDir);
+        fs.mkdirs(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c"));
 
-      fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging1/a/b/c"));
-      fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging1/a/b/c/e"));
-      fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging1/a/b/c/t1.txt"));
-      fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging1/a/b/c/e/t2.txt"));
+        fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging1/a/b/c"));
+        fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging1/a/b/c/e"));
+        fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging1/a/b/c/t1.txt"));
+        fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging1/a/b/c/e/t2.txt"));
 
-      fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging2/a/b/c"));
-      fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging2/a/b/c/e"));
-      fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging2/a/b/c/t3.txt"));
-      fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging2/a/b/c/e/t4.txt"));
+        fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging2/a/b/c"));
+        fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging2/a/b/c/e"));
+        fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging2/a/b/c/t3.txt"));
+        fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging2/a/b/c/e/t4.txt"));
 
-      ExecutorService executorService = Executors.newFixedThreadPool(2);
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
 
-      final Throwable[] runnableErrors = {null, null};
+        final Throwable[] runnableErrors = {null, null};
 
-      Future<?> renameFuture = executorService.submit(new Runnable() {
+        Future<?> renameFuture = executorService.submit(new Runnable() {
 
-        @Override
-        public void run() {
-          try {
-            HadoopUtils.renameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging1"), new Path(
-                hadoopUtilsTestDir, "testSafeRename"));
-          } catch (Throwable e) {
-            log.error("Rename error: " + e, e);
-            runnableErrors[0] = e;
+          @Override
+          public void run() {
+            try {
+              HadoopUtils.renameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging1"), new Path(
+                  hadoopUtilsTestDir, "testSafeRename"));
+            } catch (Throwable e) {
+              log.error("Rename error: " + e, e);
+              runnableErrors[0] = e;
+            }
           }
-        }
-      });
+        });
 
-      Future<?> safeRenameFuture = executorService.submit(new Runnable() {
+        Future<?> safeRenameFuture = executorService.submit(new Runnable() {
 
-        @Override
-        public void run() {
-          try {
-            HadoopUtils.safeRenameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging2"), new Path(
-                hadoopUtilsTestDir, "testSafeRename"));
-          } catch (Throwable e) {
-            log.error("Safe rename error: " + e, e);
-            runnableErrors[1] = e;
+          @Override
+          public void run() {
+            try {
+              HadoopUtils.safeRenameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging2"), new Path(
+                  hadoopUtilsTestDir, "testSafeRename"));
+            } catch (Throwable e) {
+              log.error("Safe rename error: " + e, e);
+              runnableErrors[1] = e;
+            }
           }
-        }
-      });
+        });
 
-      // Wait for the executions to complete
-      renameFuture.get(10, TimeUnit.SECONDS);
-      safeRenameFuture.get(10, TimeUnit.SECONDS);
+        // Wait for the executions to complete
+        renameFuture.get(10, TimeUnit.SECONDS);
+        safeRenameFuture.get(10, TimeUnit.SECONDS);
 
-      executorService.shutdownNow();
+        executorService.shutdownNow();
 
-      Assert.assertNull(runnableErrors[0], "Runnable 0 error: " + runnableErrors[0]);
-      Assert.assertNull(runnableErrors[1], "Runnable 1 error: " + runnableErrors[1]);
+        Assert.assertNull(runnableErrors[0], "Runnable 0 error: " + runnableErrors[0]);
+        Assert.assertNull(runnableErrors[1], "Runnable 1 error: " + runnableErrors[1]);
 
-      Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/t1.txt")));
-      Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/t3.txt")));
-      Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/e/t2.txt")));
-      Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/e/t4.txt")));
+        Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/t1.txt")));
+        Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/t3.txt")));
+        Assert.assertTrue(!fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/e/e/t2.txt")));
+        Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/e/t2.txt")));
+        Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testSafeRename/a/b/c/e/t4.txt")));
+        fs.delete(hadoopUtilsTestDir, true);
+      }
     } finally {
       fs.delete(hadoopUtilsTestDir, true);
     }
