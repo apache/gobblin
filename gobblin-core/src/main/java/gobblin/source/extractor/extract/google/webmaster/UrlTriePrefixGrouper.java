@@ -7,6 +7,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.apache.commons.lang3.tuple.Pair;
+import gobblin.source.extractor.extract.google.webmaster.GoogleWebmasterFilter.FilterOperator;
+import org.apache.commons.lang3.tuple.Triple;
 
 
 /**
@@ -26,7 +28,7 @@ public class UrlTriePrefixGrouper implements Iterator<Pair<String, UrlTrieNode>>
   private UrlTrieNode _toReturn;
 
   public UrlTriePrefixGrouper(UrlTrie trie, int groupSize) {
-    Preconditions.checkArgument(groupSize >= 0);
+    Preconditions.checkArgument(groupSize > 0);
     _currentNode = trie.getRoot();
     String prefix = trie.getPrefix();
     _currentPrefixSb = new StringBuilder();
@@ -42,9 +44,9 @@ public class UrlTriePrefixGrouper implements Iterator<Pair<String, UrlTrieNode>>
       return true;
     }
 
-    while (!_unprocessed.isEmpty() || _currentNode != null) {
-      if (_currentNode != null) {
-        //push current and move to left.
+    while (!_unprocessed.isEmpty() || !isStoppingNode(_currentNode)) {
+      if (!isStoppingNode(_currentNode)) {
+        //keep going down if not at leaf
         _unprocessed.push(_currentNode);
         _currentPrefixSb.append(_currentNode.getValue());
 
@@ -55,27 +57,48 @@ public class UrlTriePrefixGrouper implements Iterator<Pair<String, UrlTrieNode>>
           _currentNode = next.getValue();
         }
       } else {
+
         UrlTrieNode peekNode = _unprocessed.peek();
+        if (_currentNode != null || peekNode.children.isEmpty()
+            || peekNode.children.lastEntry().getValue() == _lastVisited) {
+          //_currentNode is a returnable stopping node
+          if (_currentNode != null) {
+            _toReturn = _currentNode;
+          } else {
+            _toReturn = _unprocessed.pop();
+            _currentPrefixSb.setLength(_currentPrefixSb.length() - 1);
+          }
 
-        if (!peekNode.children.isEmpty() && peekNode.children.lastEntry().getValue() != _lastVisited) {
-          _currentNode = peekNode;
-        } else {
-          _toReturn = _unprocessed.pop(); //we found the next one.
-          _currentPrefixSb.setLength(_currentPrefixSb.length() - 1);
-
+          //If there is no parent, it's the last one; otherwise, move to right
           UrlTrieNode parent = _unprocessed.peek();
           if (parent == null) {
             return true; //we've got the last one.
           }
+          //move to the right sibling. Set to null, if there is no right sibling.
           Map.Entry<Character, UrlTrieNode> sibling = parent.children.higherEntry(_toReturn.getValue());
-          if (sibling != null) {
+          if (sibling == null) {
+            _currentNode = null;
+          } else {
             _currentNode = sibling.getValue();
           }
+
           return true;
+        } else {
+          //hand over to the next loop to move right
+          _currentNode = peekNode;
         }
       }
     }
     return false;
+  }
+
+  /**
+   * A node is a stopping node, from which you cannot go deeper, if
+   *   1. this node is null
+   *   2. this node has descendants <= groupSize, but this node is returnable
+   */
+  private boolean isStoppingNode(UrlTrieNode node) {
+    return node == null || node.getDescendants() <= _groupSize;
   }
 
   @Override
