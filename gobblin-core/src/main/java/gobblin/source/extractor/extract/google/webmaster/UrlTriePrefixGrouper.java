@@ -12,7 +12,8 @@ import org.apache.commons.lang3.tuple.Triple;
 
 
 /**
- * Transverse the tree in post order.
+ * Transverse the trie in post order and group the leaves together into group size.
+ *
  * If see a node with count <= groupsize, find a group.
  * If see a node with count > groupsize && node.isExist, find a single value.
  *
@@ -109,6 +110,20 @@ public class UrlTriePrefixGrouper implements Iterator<Pair<String, UrlTrieNode>>
       return Pair.of(_currentPrefixSb.toString(), _lastVisited);
     }
     throw new NoSuchElementException();
+  }
+
+  public Triple<String, FilterOperator, UrlTrieNode> nextGroup() {
+    Triple<String, FilterOperator, UrlTrieNode> retVal = null;
+    while (hasNext() && retVal == null) {
+      Pair<String, UrlTrieNode> nextPair = next();
+      UrlTrieNode nextNode = nextPair.getRight();
+      if (nextNode.getDescendants() <= _groupSize) {
+        retVal = Triple.of(nextPair.getLeft() + nextNode.getValue(), FilterOperator.CONTAINS, nextNode);
+      } else if (nextNode.isExist()) {
+        retVal = Triple.of(nextPair.getLeft() + nextNode.getValue(), FilterOperator.EQUALS, nextNode);
+      }
+    }
+    return retVal;
   }
 
   @Override
