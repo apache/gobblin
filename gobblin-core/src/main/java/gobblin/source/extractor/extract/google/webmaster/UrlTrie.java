@@ -57,10 +57,10 @@ public class UrlTrie {
 
 class UrlTrieNode {
   private UrlTrieNode _parent;
-  public TreeMap<Character, UrlTrieNode> children = new TreeMap<>();
+  public TreeMap<Character, UrlTrieNode> children = new TreeMap<>();  //immediate, first level children.
   private Character _value;
   private boolean _exist = false;
-  private long _count = 0;
+  private long _descendants = 0; //include all children, grand-children, etc...
 
   public UrlTrieNode(UrlTrieNode parent, Character value) {
     _parent = parent;
@@ -116,8 +116,8 @@ class UrlTrieNode {
     return _exist;
   }
 
-  public long getCount() {
-    return _count;
+  public long getDescendants() {
+    return _descendants;
   }
 
   public int getImmediateChildrenSize() {
@@ -129,7 +129,7 @@ class UrlTrieNode {
   }
 
   public void increaseCount() {
-    ++_count;
+    ++_descendants;
   }
 
   public UrlTrieNode getParent() {
@@ -138,6 +138,6 @@ class UrlTrieNode {
 
   @Override
   public String toString() {
-    return "UrlTrieNode{" + "_value=" + _value + ", _exist=" + _exist + ", _count=" + _count + '}';
+    return "UrlTrieNode{" + "_value=" + _value + ", _exist=" + _exist + ", _descendants=" + _descendants + '}';
   }
 }
