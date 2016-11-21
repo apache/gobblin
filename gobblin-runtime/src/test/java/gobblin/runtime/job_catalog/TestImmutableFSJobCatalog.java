@@ -41,7 +41,8 @@ public class TestImmutableFSJobCatalog {
 
     Assert.assertEquals(cfgAccessor1.getJobConfDir(), "/tmp");
     Assert.assertEquals(cfgAccessor1.getJobConfDirPath(), new Path("/tmp"));
-    Assert.assertEquals(cfgAccessor1.getJobConfDirFileSystem(), FileSystem.get(new Configuration()));
+    Assert.assertEquals(cfgAccessor1.getJobConfDirFileSystem().getClass(),
+        FileSystem.get(new Configuration()).getClass());
     Assert.assertEquals(cfgAccessor1.getPollingInterval(),
         ConfigurationKeys.DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL);
 
