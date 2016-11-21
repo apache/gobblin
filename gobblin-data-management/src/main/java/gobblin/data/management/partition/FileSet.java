@@ -88,7 +88,7 @@ public abstract class FileSet<T extends CopyEntity> implements Request<FileSet<C
   private ImmutableList<T> generatedEntities;
   private long totalSize = -1;
   private int totalEntities = -1;
-  @Setter(value = AccessLevel.PACKAGE)
+  @Setter
   @Getter
   private Requestor<FileSet<CopyEntity>> requestor;
 
@@ -112,7 +112,7 @@ public abstract class FileSet<T extends CopyEntity> implements Request<FileSet<C
       try {
         this.generatedEntities = ImmutableList.copyOf(generateCopyEntities());
       } catch (Exception exc) {
-        throw new RuntimeException("Failed to generate files for file set " + name);
+        throw new RuntimeException("Failed to generate files for file set " + name, exc);
       }
       recomputeStats();
     }
