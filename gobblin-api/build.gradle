@@ -34,6 +34,9 @@ configurations {
 
 test {
     workingDir rootProject.rootDir
+    testLogging {
+        events "started", "passed", "skipped", "failed"
+    }
 }
 
 ext.classification="library"
