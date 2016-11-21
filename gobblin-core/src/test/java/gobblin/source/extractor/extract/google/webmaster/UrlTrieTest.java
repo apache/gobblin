@@ -13,7 +13,7 @@ public class UrlTrieTest {
     UrlTrie trie = new UrlTrie("", new ArrayList<String>());
     UrlTrieNode root = trie.getRoot();
     Assert.assertTrue(root.getValue() == null);
-    Assert.assertTrue(root.getParent() == null);
+    //Assert.assertTrue(root.getParent() == null);
   }
 
   @Test
@@ -21,7 +21,7 @@ public class UrlTrieTest {
     UrlTrie trie = new UrlTrie(null, new ArrayList<String>());
     UrlTrieNode root = trie.getRoot();
     Assert.assertTrue(root.getValue() == null);
-    Assert.assertTrue(root.getParent() == null);
+    //Assert.assertTrue(root.getParent() == null);
   }
 
   @Test
@@ -29,15 +29,18 @@ public class UrlTrieTest {
     UrlTrie trie = new UrlTrie("www.linkedin.com/", new ArrayList<String>());
     UrlTrieNode root = trie.getRoot();
     Assert.assertTrue(root.getValue().equals('/'));
-    Assert.assertTrue(root.getParent() == null);
+    Assert.assertEquals(0, root.getSize());
+    //Assert.assertTrue(root.getParent() == null);
   }
 
   @Test
   public void testParent() {
     UrlTrie trie = new UrlTrie("www.linkedin.com/", Arrays.asList("www.linkedin.com/in/"));
     UrlTrieNode root = trie.getRoot();
+    Assert.assertEquals(1, root.getSize());
     UrlTrieNode child = root.getChild("in/");
-    Assert.assertEquals(root, child.getParent().getParent().getParent());
+    Assert.assertEquals(1, child.getSize());
+    //Assert.assertEquals(root, child.getParent().getParent().getParent());
   }
 
   @Test
@@ -46,11 +49,11 @@ public class UrlTrieTest {
         Arrays.asList("https://www.linkedin.com/a", "https://www.linkedin.com/b"));
 
     UrlTrieNode root = trie.getRoot();
-    Assert.assertEquals(root.nextSibling(), null);
+    //Assert.assertEquals(root.nextSibling(), null);
 
     UrlTrieNode bNode = root.getChild("b");
-    Assert.assertEquals(root.getChild("a").nextSibling(), bNode);
-    Assert.assertEquals(bNode.nextSibling(), null);
+    //Assert.assertEquals(root.getChild("a").nextSibling(), bNode);
+    //Assert.assertEquals(bNode.nextSibling(), null);
   }
 
   @Test
@@ -61,16 +64,16 @@ public class UrlTrieTest {
     UrlTrieNode root = trie.getRoot();
 
     Assert.assertTrue(root.getValue().equals('/'));
-    Assert.assertEquals(2, root.getImmediateChildrenSize());
+    Assert.assertEquals(2, root.children.size());
     Assert.assertFalse(root.isExist());
-    Assert.assertEquals(2, root.getDescendants());
+    Assert.assertEquals(2, root.getSize());
 
     // Path1
     String path1 = "jobs/";
     checkEmptyPath(trie, path1, 1);
     UrlTrieNode jobNode = trie.getChild("jobs/");
     Assert.assertTrue(jobNode.getValue().equals('/'));
-    Assert.assertEquals(1, jobNode.getDescendants());
+    Assert.assertEquals(1, jobNode.getSize());
     Assert.assertTrue(jobNode.isExist());
 
     // Path2
@@ -78,7 +81,7 @@ public class UrlTrieTest {
     checkEmptyPath(trie, path2, 1);
     UrlTrieNode inNode = trie.getChild("in/");
     Assert.assertTrue(inNode.getValue().equals('/'));
-    Assert.assertEquals(1, inNode.getDescendants());
+    Assert.assertEquals(1, inNode.getSize());
     Assert.assertTrue(inNode.isExist());
   }
 
@@ -90,16 +93,16 @@ public class UrlTrieTest {
     UrlTrieNode root = trie.getRoot();
 
     Assert.assertTrue(root.getValue().equals('/'));
-    Assert.assertEquals(1, root.getImmediateChildrenSize());
+    Assert.assertEquals(1, root.children.size());
     Assert.assertTrue(root.isExist());
-    Assert.assertEquals(3, root.getDescendants());
+    Assert.assertEquals(3, root.getSize());
 
     // Path1
     String path1 = "in/";
     checkEmptyPath(trie, path1, 1);
     UrlTrieNode inNode = trie.getChild("in/");
     Assert.assertTrue(inNode.getValue().equals('/'));
-    Assert.assertEquals(1, inNode.getDescendants());
+    Assert.assertEquals(1, inNode.getSize());
     Assert.assertTrue(inNode.isExist());
   }
 
@@ -112,22 +115,22 @@ public class UrlTrieTest {
     UrlTrieNode root = trie.getRoot();
 
     Assert.assertTrue(root.getValue().equals('/'));
-    Assert.assertEquals(1, root.getImmediateChildrenSize());
+    Assert.assertEquals(1, root.children.size());
     Assert.assertTrue(root.isExist());
-    Assert.assertEquals(3, root.getDescendants());
+    Assert.assertEquals(3, root.getSize());
 
     // Path1
     String path1 = "in/";
     checkEmptyPath(trie, path1, 2);
     UrlTrieNode inNode = trie.getChild("in/");
     Assert.assertTrue(inNode.getValue().equals('/'));
-    Assert.assertEquals(2, inNode.getDescendants());
+    Assert.assertEquals(2, inNode.getSize());
     Assert.assertTrue(inNode.isExist());
 
     UrlTrieNode chenguo = inNode.getChild("chenguo");
     Assert.assertEquals(root.getChild("in/chenguo"), chenguo);
     Assert.assertTrue(chenguo.getValue().equals('o'));
-    Assert.assertEquals(1, chenguo.getDescendants());
+    Assert.assertEquals(1, chenguo.getSize());
     Assert.assertTrue(chenguo.isExist());
   }
 
@@ -135,7 +138,7 @@ public class UrlTrieTest {
     for (int i = 1; i < path.length(); ++i) {
       UrlTrieNode node = trie.getChild(path.substring(0, i));
       Assert.assertTrue(node.getValue().equals(path.charAt(i - 1)));
-      Assert.assertEquals(pathChildrenCount, node.getDescendants());
+      Assert.assertEquals(pathChildrenCount, node.getSize());
       Assert.assertFalse(node.isExist());
     }
   }
