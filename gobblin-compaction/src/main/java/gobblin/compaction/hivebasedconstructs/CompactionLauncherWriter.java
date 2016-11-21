@@ -28,8 +28,9 @@ public class CompactionLauncherWriter implements DataWriter<MRCompactionEntity> 
 
     Properties props = new Properties();
     props.putAll(compactionEntity.getProps());
-    props.setProperty(ConfBasedDeltaFieldProvider.DELTA_FIELDS_KEY, compactionEntity.getDeltaInfo());
-    props.setProperty(MRCompactor.COMPACTION_INPUT_DIR, compactionEntity.getLocation());
+    props.setProperty(ConfBasedDeltaFieldProvider.DELTA_FIELDS_KEY,
+        compactionEntity.getDeltaList().toString().replace("[", "").replace("]", ""));
+    props.setProperty(MRCompactor.COMPACTION_INPUT_DIR, compactionEntity.getDataFilesPath().toString());
 
     MRCompactor compactor = new MRCompactor(props, list, Optional.<CompactorListener>absent());
     compactor.compact();

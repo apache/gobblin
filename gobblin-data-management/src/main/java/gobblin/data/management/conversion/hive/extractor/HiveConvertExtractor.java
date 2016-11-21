@@ -35,10 +35,7 @@ import gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHivePartition;
 import gobblin.data.management.conversion.hive.entities.SchemaAwareHiveTable;
-import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.util.AutoReturnableObject;
 
@@ -61,41 +58,35 @@ public class HiveConvertExtractor extends HiveBaseExtractor<Schema, QueryBasedHi
   private List<QueryBasedHiveConversionEntity> conversionEntities = Lists.newArrayList();
 
   public HiveConvertExtractor(WorkUnitState state, FileSystem fs) throws IOException, TException, HiveException {
+    super(state);
 
     if (Boolean.valueOf(state.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
       log.info("Ignoring Watermark workunit for {}", state.getProp(ConfigurationKeys.DATASET_URN_KEY));
       return;
     }
 
-    HiveWorkUnit hiveWokUnit = new HiveWorkUnit(state.getWorkunit());
-
-    if (!(hiveWokUnit.getHiveDataset() instanceof ConvertibleHiveDataset)) {
+    if (!(this.hiveDataset instanceof ConvertibleHiveDataset)) {
       throw new IllegalStateException("HiveConvertExtractor is only compatible with ConvertibleHiveDataset");
     }
 
-    ConvertibleHiveDataset hiveDataset = (ConvertibleHiveDataset) hiveWokUnit.getHiveDataset();
-    String dbName = hiveDataset.getDbAndTable().getDb();
-    String tableName = hiveDataset.getDbAndTable().getTable();
+    ConvertibleHiveDataset convertibleHiveDataset = (ConvertibleHiveDataset) this.hiveDataset;
 
-    HiveMetastoreClientPool pool =
-        HiveMetastoreClientPool.get(state.getJobState().getProperties(),
-            Optional.fromNullable(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
-    try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
-      Table table = client.get().getTable(dbName, tableName);
+    try (AutoReturnableObject<IMetaStoreClient> client = this.pool.getClient()) {
+      Table table = client.get().getTable(this.dbName, this.tableName);
 
-      SchemaAwareHiveTable schemaAwareHiveTable = new SchemaAwareHiveTable(table, AvroSchemaManager.getSchemaFromUrl(hiveWokUnit.getTableSchemaUrl(), fs));
+      SchemaAwareHiveTable schemaAwareHiveTable = new SchemaAwareHiveTable(table, AvroSchemaManager.getSchemaFromUrl(this.hiveWorkUnit.getTableSchemaUrl(), fs));
 
       SchemaAwareHivePartition schemaAwareHivePartition = null;
 
-      if (hiveWokUnit.getPartitionName().isPresent() && hiveWokUnit.getPartitionSchemaUrl().isPresent()) {
+      if (this.hiveWorkUnit.getPartitionName().isPresent() && this.hiveWorkUnit.getPartitionSchemaUrl().isPresent()) {
 
-        Partition partition = client.get().getPartition(dbName, tableName, hiveWokUnit.getPartitionName().get());
+        Partition partition = client.get().getPartition(this.dbName, this.tableName, this.hiveWorkUnit.getPartitionName().get());
         schemaAwareHivePartition =
-            new SchemaAwareHivePartition(table, partition, AvroSchemaManager.getSchemaFromUrl(hiveWokUnit.getPartitionSchemaUrl().get(), fs));
+            new SchemaAwareHivePartition(table, partition, AvroSchemaManager.getSchemaFromUrl(this.hiveWorkUnit.getPartitionSchemaUrl().get(), fs));
       }
 
       QueryBasedHiveConversionEntity entity =
-          new QueryBasedHiveConversionEntity(hiveDataset, schemaAwareHiveTable, Optional.fromNullable(schemaAwareHivePartition));
+          new QueryBasedHiveConversionEntity(convertibleHiveDataset, schemaAwareHiveTable, Optional.fromNullable(schemaAwareHivePartition));
       this.conversionEntities.add(entity);
     }
 

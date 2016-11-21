@@ -1,21 +1,18 @@
 package gobblin.compaction.hivebasedconstructs;
 
 import java.io.IOException;
+import java.util.List;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.thrift.TException;
-import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
-import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
-import gobblin.data.management.copy.hive.HiveDataset;
-import gobblin.data.management.copy.hive.HiveDatasetFinder;
-import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.AutoReturnableObject;
 import gobblin.data.management.conversion.hive.extractor.HiveBaseExtractor;
@@ -36,28 +33,26 @@ public class HiveMetadataForCompactionExtractor extends HiveBaseExtractor<Void, 
   private boolean extracted = false;
 
   public HiveMetadataForCompactionExtractor(WorkUnitState state, FileSystem fs) throws IOException, TException, HiveException {
+    super(state);
+
     if (Boolean.valueOf(state.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {
       log.info("Ignoring Watermark workunit for {}", state.getProp(ConfigurationKeys.DATASET_URN_KEY));
       return;
     }
 
-    HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(state.getWorkunit());
-    HiveDataset hiveDataset = hiveWorkUnit.getHiveDataset();
-    String dbName = hiveDataset.getDbAndTable().getDb();
-    String tableName = hiveDataset.getDbAndTable().getTable();
+    try (AutoReturnableObject<IMetaStoreClient> client = this.pool.getClient()) {
+      Table table = client.get().getTable(this.dbName, this.tableName);
 
-    HiveMetastoreClientPool pool =
-        HiveMetastoreClientPool.get(state.getJobState().getProperties(),
-            Optional.fromNullable(state.getJobState().getProp(HiveDatasetFinder.HIVE_METASTORE_URI_KEY)));
-    try (AutoReturnableObject<IMetaStoreClient> client = pool.getClient()) {
-      Table table = client.get().getTable(dbName, tableName);
+      String primaryKeyString = table.getParameters().get(state.getProp(COMPACTION_PRIMARY_KEY));
+      List<String> primaryKeyList = Splitter.on(',').omitEmptyStrings().trimResults().splitToList(primaryKeyString);
 
-      String primaryKey = table.getParameters().get(state.getProp(COMPACTION_PRIMARY_KEY));
-      String delta = table.getParameters().get(state.getProp(COMPACTION_DELTA));
-      String topicName = AvroSchemaManager.getSchemaFromUrl(hiveWorkUnit.getTableSchemaUrl(), fs).getName();
-      String location = new Path(table.getSd().getLocation(), topicName).toString();
+      String deltaString = table.getParameters().get(state.getProp(COMPACTION_DELTA));
+      List<String> deltaList = Splitter.on(',').omitEmptyStrings().trimResults().splitToList(deltaString);
 
-      compactionEntity = new MRCompactionEntity(primaryKey, delta, location, state.getProperties());
+      String topicName = AvroSchemaManager.getSchemaFromUrl(this.hiveWorkUnit.getTableSchemaUrl(), fs).getName();
+      Path dataFilesPath = new Path(table.getSd().getLocation(), topicName);
+
+      compactionEntity = new MRCompactionEntity(primaryKeyList, deltaList, dataFilesPath, state.getProperties());
     }
   }
 

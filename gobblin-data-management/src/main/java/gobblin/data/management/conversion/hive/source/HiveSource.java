@@ -116,6 +116,9 @@ public class HiveSource implements Source {
   private long maxLookBackTime;
   private long beginGetWorkunitsTime;
 
+  private final ClassAliasResolver<HiveBaseExtractorFactory> classAliasResolver =
+      new ClassAliasResolver<>(HiveBaseExtractorFactory.class);
+
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     try {
@@ -333,8 +336,7 @@ public class HiveSource implements Source {
   @Override
   public Extractor getExtractor(WorkUnitState state) throws IOException {
     try {
-      return (new ClassAliasResolver<>(HiveBaseExtractorFactory.class))
-          .resolveClass(state.getProp(HIVE_SOURCE_EXTRACTOR_TYPE, DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE))
+      return classAliasResolver.resolveClass(state.getProp(HIVE_SOURCE_EXTRACTOR_TYPE, DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE))
           .newInstance().createExtractor(state, getSourceFs());
     } catch (Exception e) {
       throw new IOException(e);
