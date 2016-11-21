@@ -90,18 +90,44 @@ public class UrlTriePrefixGrouperTest {
         new FilterOperator[]{FilterOperator.CONTAINS, FilterOperator.CONTAINS, FilterOperator.CONTAINS, FilterOperator.CONTAINS, FilterOperator.EQUALS},
         operators.toArray());
 
-    //The group is at www.linkedin.com/2 in the end.
+    //The group is at www.linkedin.com/2 in the end with operator EQUALS
     ArrayList<String> pages = UrlTriePrefixGrouper.groupToPages(group);
-    Assert.assertEquals(pages.toArray(),
-        new String[]{_property + "257", _property + "25", _property + "26", _property + "2"});
+    Assert.assertEquals(pages.toArray(), new String[]{_property + "2"});
   }
 
   @Test
-  public void testGroupToPages() {
+  public void testGroupToPagesWithContainsOperator() {
     List<String> pages = Arrays.asList(_property + "13", _property + "14");
     UrlTrie trie = new UrlTrie(_property, pages);
-    ArrayList<String> actual = UrlTriePrefixGrouper.groupToPages(_property, trie.getRoot());
+    ArrayList<String> actual =
+        UrlTriePrefixGrouper.groupToPages(Triple.of(_property, FilterOperator.CONTAINS, trie.getRoot()));
     Assert.assertEquals(actual.toArray(), pages.toArray());
+  }
+
+  @Test
+  public void testGroupToPagesWithContainsOperator2() {
+    List<String> pages = Arrays.asList(_property + "13", _property + "14", _property + "1", _property + "1");
+    UrlTrie trie = new UrlTrie(_property, pages);
+    ArrayList<String> actual =
+        UrlTriePrefixGrouper.groupToPages(Triple.of(_property, FilterOperator.CONTAINS, trie.getRoot()));
+    Assert.assertEquals(actual.toArray(), new String[]{_property + "13", _property + "14", _property + "1"});
+  }
+
+  @Test
+  public void testGroupToPagesWithEqualsOperator() {
+    List<String> pages = Arrays.asList(_property + "13", _property + "14");
+    UrlTrie trie1 = new UrlTrie(_property, pages);
+    ArrayList<String> actual1 =
+        UrlTriePrefixGrouper.groupToPages(Triple.of(_property, FilterOperator.EQUALS, trie1.getRoot()));
+    Assert.assertEquals(actual1.size(), 0);
+
+    List<String> pagesWithRoot = new ArrayList<>();
+    pagesWithRoot.addAll(pages);
+    pagesWithRoot.add(_property);
+    UrlTrie trie2 = new UrlTrie(_property, pagesWithRoot);
+    ArrayList<String> actual2 =
+        UrlTriePrefixGrouper.groupToPages(Triple.of(_property, FilterOperator.EQUALS, trie2.getRoot()));
+    Assert.assertEquals(actual2.toArray(), new String[]{_property});
   }
 
 //  @Test

@@ -39,8 +39,7 @@ public class UrlTriePostOrderIteratorTest {
     ArrayList<String> chars = new ArrayList<>();
     while (iterator.hasNext()) {
       Pair<String, UrlTrieNode> next = iterator.next();
-      Character value = next.getRight().getValue();
-      chars.add(next.getLeft() + value);
+      chars.add(next.getLeft());
     }
     Assert.assertEquals(new String[]{_property + "012", _property + "01", _property + "0", _property}, chars.toArray());
   }
@@ -59,8 +58,7 @@ public class UrlTriePostOrderIteratorTest {
     ArrayList<String> chars = new ArrayList<>();
     while (iterator.hasNext()) {
       Pair<String, UrlTrieNode> next = iterator.next();
-      Character value = next.getRight().getValue();
-      chars.add(next.getLeft() + value);
+      chars.add(next.getLeft());
     }
     Assert.assertEquals(new String[]{_property + "01", _property + "0", _property}, chars.toArray());
   }
@@ -72,8 +70,7 @@ public class UrlTriePostOrderIteratorTest {
     ArrayList<String> chars = new ArrayList<>();
     while (iterator.hasNext()) {
       Pair<String, UrlTrieNode> next = iterator.next();
-      Character value = next.getRight().getValue();
-      chars.add(next.getLeft() + value);
+      chars.add(next.getLeft());
     }
     Assert.assertEquals(new String[]{_property + "0", _property + "13", _property + "14", _property + "1", _property},
         chars.toArray());
@@ -86,8 +83,7 @@ public class UrlTriePostOrderIteratorTest {
     ArrayList<String> chars = new ArrayList<>();
     while (iterator.hasNext()) {
       Pair<String, UrlTrieNode> next = iterator.next();
-      Character value = next.getRight().getValue();
-      chars.add(next.getLeft() + value);
+      chars.add(next.getLeft());
     }
     Assert.assertEquals(new String[]{
             _property + "03",
@@ -104,8 +100,7 @@ public class UrlTriePostOrderIteratorTest {
     ArrayList<String> chars = new ArrayList<>();
     while (iterator.hasNext()) {
       Pair<String, UrlTrieNode> next = iterator.next();
-      Character value = next.getRight().getValue();
-      chars.add(next.getLeft() + value);
+      chars.add(next.getLeft());
     }
     Assert.assertEquals(new String[]{//
         _property + "03", //group size 1, contains
@@ -126,8 +121,7 @@ public class UrlTriePostOrderIteratorTest {
     ArrayList<String> chars = new ArrayList<>();
     while (iterator.hasNext()) {
       Pair<String, UrlTrieNode> next = iterator.next();
-      Character value = next.getRight().getValue();
-      chars.add(next.getLeft() + value);
+      chars.add(next.getLeft());
     }
     Assert.assertEquals(new String[]{//
         _property + "0", //group size 3, contains

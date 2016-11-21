@@ -42,10 +42,10 @@ public class UrlTriePrefixGrouper implements Iterator<Triple<String, FilterOpera
       Pair<String, UrlTrieNode> nextPair = _iterator.next();
       UrlTrieNode nextNode = nextPair.getRight();
       if (nextNode.getSize() <= _groupSize) {
-        _retVal = Triple.of(nextPair.getLeft() + nextNode.getValue(), FilterOperator.CONTAINS, nextNode);
+        _retVal = Triple.of(nextPair.getLeft(), FilterOperator.CONTAINS, nextNode);
         return true;
       } else if (nextNode.isExist()) {
-        _retVal = Triple.of(nextPair.getLeft() + nextNode.getValue(), FilterOperator.EQUALS, nextNode);
+        _retVal = Triple.of(nextPair.getLeft(), FilterOperator.EQUALS, nextNode);
         return true;
       }
     }
@@ -70,19 +70,22 @@ public class UrlTriePrefixGrouper implements Iterator<Triple<String, FilterOpera
    * Get the detailed pages under this group
    */
   public static ArrayList<String> groupToPages(Triple<String, FilterOperator, UrlTrieNode> group) {
-    return groupToPages(group.getLeft(), group.getRight());
-  }
-
-  public static ArrayList<String> groupToPages(String rootPage, UrlTrieNode node) {
-    UrlTrie trie = new UrlTrie(rootPage, node);
-    UrlTriePrefixGrouper grouper = new UrlTriePrefixGrouper(trie, 1);
-    ArrayList<String> pages = new ArrayList<>();
-
-    while (grouper.hasNext()) {
-      Triple<String, FilterOperator, UrlTrieNode> group = grouper.next();
-      pages.add(group.getLeft());
+    ArrayList<String> ret = new ArrayList<>();
+    if (group.getMiddle().equals(FilterOperator.EQUALS)) {
+      if (group.getRight().isExist()) {
+        ret.add(group.getLeft());
+      }
+    } else if (group.getMiddle().equals(FilterOperator.CONTAINS)) {
+      UrlTrie trie = new UrlTrie(group.getLeft(), group.getRight());
+      Iterator<Pair<String, UrlTrieNode>> iterator = new UrlTriePostOrderIterator(trie, 1);
+      while (iterator.hasNext()) {
+        Pair<String, UrlTrieNode> next = iterator.next();
+        if (next.getRight().isExist()) {
+          ret.add(next.getLeft());
+        }
+      }
     }
-    return pages;
+    return ret;
   }
 
   @Override
