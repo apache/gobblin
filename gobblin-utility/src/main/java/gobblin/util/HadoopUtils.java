@@ -160,6 +160,30 @@ public class HadoopUtils {
   }
 
   /**
+   * Renames a src {@link Path} on fs {@link FileSystem} to a dst {@link Path}. If fs is a {@link LocalFileSystem} and
+   * src is a directory then {@link File#renameTo} is called directly to avoid a directory rename race condition where
+   * {@link org.apache.hadoop.fs.RawLocalFileSystem#rename} copies the conflicting src directory into dst resulting in
+   * an extra nested level, such as /root/a/b/c/e/e where e is repeated.
+   *
+   * @param fs the {@link FileSystem} where the src {@link Path} exists
+   * @param src the source {@link Path} which will be renamed
+   * @param dst the {@link Path} to rename to
+   * @return true if rename succeeded, false if rename failed.
+   * @throws IOException if rename failed for reasons other than target exists.
+   */
+  public static boolean renamePathHandleLocalFSRace(FileSystem fs, Path src, Path dst) throws IOException {
+    if (fs instanceof LocalFileSystem && fs.isDirectory(src)) {
+      File srcFile = ((LocalFileSystem) fs).pathToFile(src);
+      File dstFile = ((LocalFileSystem) fs).pathToFile(dst);
+
+      return srcFile.renameTo(dstFile);
+    }
+    else {
+      return fs.rename(src, dst);
+    }
+  }
+
+  /**
    * A wrapper around {@link FileSystem#rename(Path, Path)} which throws {@link IOException} if
    * {@link FileSystem#rename(Path, Path)} returns False.
    */
@@ -553,27 +577,12 @@ public class HadoopUtils {
         fs.mkdirs(to.getParent());
       }
 
-      boolean renamed;
-
-      // Use Java rename when renaming a directory for LocalFileSystem so that directory name conflict can be detected.
-      // This is to avoid the directory being copied into a subdirectory of the same name by LocalFileSystem rename due
-      // to a race condition where another thread created the directory after this one decided to rename.
-      if (fs.isDirectory(from)) {
-        if (fs instanceof LocalFileSystem) {
-          File srcFile = ((LocalFileSystem) fs).pathToFile(from);
-          File dstFile = ((LocalFileSystem) fs).pathToFile(to);
-
-          // failure to rename directory occurs when target name already exists
-          return srcFile.renameTo(dstFile);
+      if (!renamePathHandleLocalFSRace(fs, from, to)) {
+        if (!fs.exists(to)) {
+          throw new IOException(String.format("Failed to rename %s to %s.", from, to));
         }
-        else if (fs instanceof RateControlledFileSystem &&
-              ((RateControlledFileSystem) fs).getDecoratedObject() instanceof LocalFileSystem) {
-          return fs.rename(from, to);
-        }
-      }
 
-      if (!fs.rename(from, to)) {
-        throw new IOException(String.format("Failed to rename %s to %s.", from, to));
+        return false;
       }
       return true;
     }

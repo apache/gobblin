@@ -24,7 +24,6 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -141,24 +140,8 @@ public class RateControlledFileSystem extends FileSystem implements Decorator {
 
   @Override
   public boolean rename(Path path0, Path path1) throws IOException {
-    boolean renamed;
-
     this.acquirePermit();
-
-    // Use Java rename when renaming a directory for LocalFileSystem.
-    // This is to avoid the directory being copied into a subdirectory of the same name by LocalFileSystem rename due
-    // to a race condition where another thread created the directory after this one decided to rename.
-    if (fs instanceof LocalFileSystem && fs.isDirectory(path0)) {
-      File srcFile = ((LocalFileSystem)fs).pathToFile(path0);
-      File dstFile = ((LocalFileSystem)fs).pathToFile(path1);
-
-      renamed = srcFile.renameTo(dstFile);
-    }
-    else {
-      renamed = this.fs.rename(path0, path1);
-    }
-
-    return renamed;
+    return HadoopUtils.renamePathHandleLocalFSRace(fs, path0, path1);
   }
 
   @Override
