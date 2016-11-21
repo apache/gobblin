@@ -34,8 +34,13 @@ configurations {
 
 test {
     workingDir rootProject.rootDir
-    testLogging {
-        events "started", "passed", "skipped", "failed"
+    beforeTest { testDescriptor ->
+       println String.format("%20s STARTED : %s", new Date(), testDescriptor.getClassName())
+    }
+    afterTest { testDescriptor, testResult -> 
+       println String.format("%20s FINISHED: %s %s (%7.3g s)", 
+                          new Date(), testDescriptor.getClassName(), testResult,
+                          (testResult.getEndTime() - testResult.getStartTime())/1000.0)
     }
 }
 
