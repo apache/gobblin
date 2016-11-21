@@ -12,6 +12,9 @@
 #
 # Please check pnda-build/ for the build products
 
+export LC_ALL=en_US.utf8
+HADOOP_VERSION=2.6.0-cdh5.5.2
+
 VERSION=${1}
 
 function error {
@@ -28,7 +31,6 @@ else
 fi
 
 mkdir -p pnda-build
-HADOOP_VERSION=2.6.0-cdh5.5.2
 ./gradlew clean build -Pversion=${VERSION} -PhadoopVersion=${HADOOP_VERSION} -PexcludeHadoopDeps -PexcludeHiveDeps -x gobblin-core:test
 mv gobblin-distribution-${VERSION}.tar.gz pnda-build/
 sha512sum pnda-build/gobblin-distribution-${VERSION}.tar.gz > pnda-build/gobblin-distribution-${VERSION}.tar.gz.sha512.txt
