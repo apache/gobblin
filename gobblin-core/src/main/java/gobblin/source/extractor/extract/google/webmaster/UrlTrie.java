@@ -1,7 +1,6 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
-import java.util.List;
-import java.util.Map;
+import java.util.Collection;
 import java.util.TreeMap;
 
 
@@ -16,17 +15,26 @@ public class UrlTrie {
    *                 And the last "/" will be used as a TrieRoot.
    * @param pages
    */
-  public UrlTrie(String rootPage, List<String> pages) {
+  public UrlTrie(String rootPage, Collection<String> pages) {
     if (rootPage == null || rootPage.isEmpty()) {
       _prefix = null;
-      _root = new UrlTrieNode(null, null);
+      _root = new UrlTrieNode(null);
     } else {
       _prefix = rootPage.substring(0, rootPage.length() - 1);
       Character lastChar = rootPage.charAt(rootPage.length() - 1);
-      _root = new UrlTrieNode(null, lastChar);
+      _root = new UrlTrieNode(lastChar);
     }
     for (String page : pages) {
       add(page);
+    }
+  }
+
+  public UrlTrie(String rootPage, UrlTrieNode root) {
+    _root = root;
+    if (rootPage == null || rootPage.isEmpty()) {
+      _prefix = null;
+    } else {
+      _prefix = rootPage.substring(0, rootPage.length() - 1);
     }
   }
 
@@ -56,14 +64,13 @@ public class UrlTrie {
 }
 
 class UrlTrieNode {
-  private UrlTrieNode _parent;
   public TreeMap<Character, UrlTrieNode> children = new TreeMap<>();  //immediate, first level children.
   private Character _value;
   private boolean _exist = false;
-  private long _descendants = 0; //include all children, grand-children, etc...
+  //the count/size for all nodes with actual values/pages starting from itself and include all children, grand-children, etc...
+  private long _size = 0;
 
-  public UrlTrieNode(UrlTrieNode parent, Character value) {
-    _parent = parent;
+  public UrlTrieNode(Character value) {
     _value = value;
   }
 
@@ -74,7 +81,7 @@ class UrlTrieNode {
       Character c = path.charAt(i);
       UrlTrieNode child = parent.children.get(c);
       if (child == null) {
-        child = new UrlTrieNode(parent, c);
+        child = new UrlTrieNode(c);
         parent.children.put(c, child);
       }
       child.increaseCount();
@@ -96,16 +103,16 @@ class UrlTrieNode {
     return parent;
   }
 
-  public UrlTrieNode nextSibling() {
-    if (_parent == null) {
-      return null;
-    }
-    Map.Entry<Character, UrlTrieNode> sibling = _parent.children.higherEntry(_value);
-    if (sibling == null) {
-      return null;
-    }
-    return sibling.getValue();
-  }
+//  public UrlTrieNode nextSibling() {
+//    if (_parent == null) {
+//      return null;
+//    }
+//    Map.Entry<Character, UrlTrieNode> sibling = _parent.children.higherEntry(_value);
+//    if (sibling == null) {
+//      return null;
+//    }
+//    return sibling.getValue();
+//  }
 
   public Character getValue() {
 
@@ -116,28 +123,16 @@ class UrlTrieNode {
     return _exist;
   }
 
-  public long getDescendants() {
-    return _descendants;
-  }
-
-  public int getImmediateChildrenSize() {
-    return children.size();
-  }
-
-  public void setExist() {
-    _exist = true;
+  public long getSize() {
+    return _size;
   }
 
   public void increaseCount() {
-    ++_descendants;
-  }
-
-  public UrlTrieNode getParent() {
-    return _parent;
+    ++_size;
   }
 
   @Override
   public String toString() {
-    return "UrlTrieNode{" + "_value=" + _value + ", _exist=" + _exist + ", _descendants=" + _descendants + '}';
+    return "UrlTrieNode{" + "_value=" + _value + ", _exist=" + _exist + ", _size=" + _size + '}';
   }
 }
