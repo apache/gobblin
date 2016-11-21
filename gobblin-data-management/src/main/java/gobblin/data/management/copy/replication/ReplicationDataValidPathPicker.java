@@ -13,6 +13,7 @@
 package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
@@ -50,7 +51,7 @@ public class ReplicationDataValidPathPicker {
 
     FileSystemDataset tmpDataset = new HadoopFsEndPointDataset(hadoopFsEndPoint);
     FileSystem theFs = FileSystem.get(hadoopFsEndPoint.getFsURI(), new Configuration());
-    
+
     AbstractDatasetVersionFinder<TimestampedDatasetVersion> absfinder = null;
     Properties p = new Properties();
     switch(rdc.getType()){
@@ -68,17 +69,17 @@ public class ReplicationDataValidPathPicker {
       default:
         throw new IllegalArgumentException("Unsupported type " + rdc.getType());
     }
-    
+
     List<TimestampedDatasetVersion> versions = 
         Ordering.natural().reverse().sortedCopy(absfinder.findDatasetVersions(tmpDataset));
 
     versions = versions.subList(0, Math.min(finiteInstance, versions.size()));
 
-    return Lists.transform(versions, new Function<TimestampedDatasetVersion, Path>() {
-      @Override
-      public Path apply(TimestampedDatasetVersion input) {
-        return input.getPath();
-      }
-    });
+    List<Path> result = new ArrayList<Path>();
+    for(TimestampedDatasetVersion t: versions){
+      result.add(t.getPath());
+    }
+    return result;
+
   }
 }
