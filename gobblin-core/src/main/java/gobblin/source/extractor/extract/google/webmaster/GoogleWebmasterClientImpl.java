@@ -62,15 +62,10 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
     List<ApiDataRow> pageRows = rspByCountry.getRows();
     List<String> pages = new ArrayList<>(rowLimit);
     if (pageRows != null) {
-      LOG.info(String.format("%d pages fetched for market-%s on %s. The last page has %.1f clicks.", pageRows.size(),
-          country, date, pageRows.get(pageRows.size() - 1).getClicks()));
-
       int pageIndex = requestedDimensions.indexOf(GoogleWebmasterFilter.Dimension.PAGE);
       for (ApiDataRow row : pageRows) {
         pages.add(row.getKeys().get(pageIndex));
       }
-    } else {
-      LOG.info(String.format("0 pages fetched for market-%s on %s.", country, date));
     }
     return pages;
   }

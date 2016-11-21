@@ -47,9 +47,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics) throws IOException {
     this(wuState, columnPositionMap, requestedDimensions, requestedMetrics,
-        new GoogleWebmasterDataFetcherImpl(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY),
-            wuState.getPropAsBoolean(GoogleWebMasterSource.KEY_REQUEST_HYPERCRITICAL, false),
-            wuState.getProp(GoogleWebMasterSource.KEY_CREDENTIAL_LOCATION),
+        new GoogleWebmasterDataFetcherImpl(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY), wuState.getProp(GoogleWebMasterSource.KEY_CREDENTIAL_LOCATION),
             wuState.getProp(ConfigurationKeys.SOURCE_ENTITY),
             wuState.getProp(GoogleWebMasterSource.KEY_API_SCOPE, WebmastersScopes.WEBMASTERS_READONLY)));
   }
