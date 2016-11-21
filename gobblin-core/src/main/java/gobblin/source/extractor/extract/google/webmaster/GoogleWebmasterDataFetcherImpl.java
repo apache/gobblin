@@ -6,16 +6,22 @@ import com.google.api.services.webmasters.Webmasters;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Deque;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
-import org.apache.commons.lang3.tuple.ImmutableTriple;
-import org.apache.commons.lang3.tuple.Triple;
+import java.util.Queue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,44 +31,26 @@ import static gobblin.source.extractor.extract.google.webmaster.GoogleWebmasterF
 public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
   private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterDataFetcherImpl.class);
-  private final String _siteProperty; //Also used as a prefix
+  private final String _siteProperty;
   private final GoogleWebmasterClient _client;
-  private boolean _isHypercritical;
 
-  public GoogleWebmasterDataFetcherImpl(String siteProperty, boolean isHypercritical, String credentialFile,
-      String appName, String scope) throws IOException {
-    this(siteProperty, isHypercritical, new GoogleWebmasterClientImpl(credentialFile, appName, scope));
+  public GoogleWebmasterDataFetcherImpl(String siteProperty, String credentialFile, String appName, String scope)
+      throws IOException {
+    this(siteProperty, new GoogleWebmasterClientImpl(credentialFile, appName, scope));
   }
 
-  public GoogleWebmasterDataFetcherImpl(String siteProperty, boolean isHypercritical, GoogleWebmasterClient client)
-      throws IOException {
-    //Missing "/" in the end will affect the getPagePrefixes logic
+  public GoogleWebmasterDataFetcherImpl(String siteProperty, GoogleWebmasterClient client) throws IOException {
     Preconditions.checkArgument(siteProperty.endsWith("/"), "The site property must end in \"/\"");
     _siteProperty = siteProperty;
-    _isHypercritical = isHypercritical;
     _client = client;
   }
 
   /**
-   * Due to the limitation of the API, we can get a maximum of 5000 rows at a time. Another limitation is that, results are sorted by click count descending. If two rows have the same click count, they are sorted in an arbitrary way. (Read more at https://developers.google.com/webmaster-tools/v3/searchanalytics)
-   *
-   * In order to get all pages in a given date and country, we need to first figure out what is the total size of the data set. We achieve this by utilizing the feature of configuring the starting row when sending an API request. Keep asking for the maximum number of lines, which is 5000, allowed by the API until it returns fewer than 5000 lines, which indicates that you are at the last block of your data set. So we can sum up all lines to get the total count. But because the order is not guaranteed, only the count is reliable. The actual result will contain duplicates. Then it comes to the next step.
-   *
-   * In short, the steps of this algorithm are:
-   *
-   * 1. Request for all pages. If the request is less than 5000 or the response has fewer than 5000 rows, we've got all pages to return. Otherwise, go to next step for special handling.
-   * 2. Now we need to know a full list of unique page prefixes/root paths. We will keep asking for the maximum number(5000) of rows until it comes to the last block, which is indicated by response giving less than 5000 rows.
-   * 3. Remove duplicated pages got in last step.
-   * 4. Parse out the list of keywords from last step.
-   * 5. Send another request by adding the filters to exclude any pages/keywords in last step.
-   * 6. Repeat steps 4 to 5 until we get a full union list of keywords, or prefixes, or root paths(e.g. www.property.com/path1/, www.property.com/path2/)
-   * 7. For each page root path, apply the logic in pagesWithRootPaths to get all pages with that page root path/prefix.
-   *    In detail, for example, you want all pages for your https://www.linkedin.com/ property. This property has several page prefixes such as https://www.linkedin.com/topic/, https://www.linkedin.com/jobs/, https://www.linkedin.com/groups/ etc.. For each prefix, you request for all pages starting with that prefix.
-   * 8. Union all pages from last step and return.
+   * Due to the limitation of the API, we can get a maximum of 5000 rows at a time. Another limitation is that, results are sorted by click count descending. If two rows have the same click count, they are sorted in an arbitrary way. (Read more at https://developers.google.com/webmaster-tools/v3/searchanalytics). So we try to get all pages by partitions, if a partition has 5000 rows returned. We try partition current partition into more granular levels.
    *
    */
   @Override
-  public Set<String> getAllPages(String date, String country, int rowLimit) throws IOException {
+  public Collection<String> getAllPages(String date, String country, int rowLimit) throws IOException {
     ApiDimensionFilter countryFilter = GoogleWebmasterFilter.countryEqFilter(country);
 
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = new ArrayList<>();
@@ -70,170 +58,212 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
     List<String> response =
         _client.getPages(_siteProperty, date, country, rowLimit, requestedDimensions, Arrays.asList(countryFilter), 0);
-    if (rowLimit < GoogleWebmasterClient.API_ROW_LIMIT || response.size() < 5000) {
-      return new HashSet<>(response);
+    if (rowLimit < GoogleWebmasterClient.API_ROW_LIMIT || response.size() < GoogleWebmasterClient.API_ROW_LIMIT) {
+      LOG.info(String.format("A total of %d pages fetched for market-%s on %s", response.size(), country, date));
+      return response;
     }
 
-    Triple<Set<String>, Set<String>, Integer> results = getPagePrefixes(date, requestedDimensions, countryFilter);
-
-    //A page w/o root path can be https://www.linkedin.com/no_root_path
-    Set<String> pagesNoRoots = results.getLeft();
-    //A page with root path can be https://www.linkedin.com/root_path_here/
-    Set<String> pagesRoots = results.getMiddle();
-    Integer expectedSize = results.getRight();
-
-    LOG.info(String.format("Total number of pages w/o root paths is %d.", pagesNoRoots.size()));
-    LOG.info(String.format("Total of %d prefixes found. They are:", pagesRoots.size()));
-    for (String prefix : pagesRoots) {
-      LOG.info(prefix);
+    int expectedSize = getPagesSize(date, country, requestedDimensions, Arrays.asList(countryFilter));
+    LOG.info(String.format("Total number of pages is %d for market-%s on date %s", expectedSize,
+        GoogleWebmasterFilter.countryFilterToString(countryFilter), date));
+    Queue<Pair<String, FilterOperator>> jobs = new ArrayDeque<>();
+    expandJobs(jobs, _siteProperty);
+    Collection<String> allPages = getPagesAsync(date, requestedDimensions, countryFilter, jobs);
+    allPages.add(_siteProperty);
+    int actualSize = allPages.size();
+    if (actualSize != expectedSize) {
+      LOG.warn(String.format("Expected page size is %d, but only able to get %d", expectedSize, actualSize));
     }
-
-    Set<String> allPages = pagesWithRootPaths(date, requestedDimensions, countryFilter, pagesRoots);
-    allPages.addAll(pagesNoRoots);
-    int size = allPages.size();
-    if (size < expectedSize) {
-      String msg =
-          String.format("Size of the whole data set is %d, but only able to get %d lines. Date is %s and Market is %s.",
-              expectedSize, size, date, country);
-      if (_isHypercritical) {
-        LOG.error(msg);
-        throw new RuntimeException(
-            "Cannot get all pages kept by Google Webmaster Service. There seems to be a defect with this algorithm.");
-      } else {
-        LOG.warn(msg);
-      }
-    }
-    LOG.info(String.format("A total of %d pages fetched for market-%s on %s", allPages.size(), country, date));
+    LOG.info(String.format("A total of %d pages fetched for market-%s on %s", actualSize, country, date));
     return allPages;
   }
 
-  /**
-   * @return return <pages w/o root paths, unique page root paths, size of the data set>
-   */
-  ImmutableTriple<Set<String>, Set<String>, Integer> getPagePrefixes(String date,
-      List<GoogleWebmasterFilter.Dimension> requestedDimensions, ApiDimensionFilter countryFilter) throws IOException {
-    String country = GoogleWebmasterFilter.countryFilterToString(countryFilter);
-    Set<String> pagesNoRoots = new HashSet<>();  //Accumulating all pages w/o roots
-    Set<String> pagesRoots = new HashSet<>(); //Accumulating all pages with roots
+  private int getPagesSize(final String date, final String country, final List<Dimension> requestedDimensions,
+      final List<ApiDimensionFilter> apiDimensionFilters) throws IOException {
 
-    int entireSize = -1;
-    List<ApiDimensionFilter> filters = new ArrayList<>();
-    filters.add(countryFilter);
     int startRow = 0;
-    while (true) {
-      LOG.info(String.format("Start fetching from row %d with %d filters...", startRow, filters.size()));
+    int count = 4;
+    final ExecutorService es = Executors.newFixedThreadPool(count);
+    int r = 0;
+    while (r < 50) {
+      r++;
+      List<Future<Integer>> results = new ArrayList<>(count);
 
-      List<String> responsePages =
-          _client.getPages(_siteProperty, date, country, GoogleWebmasterClient.API_ROW_LIMIT, requestedDimensions,
-              filters, startRow);
-      for (String p : responsePages) {
-        //_siteProperty URL ends with "/". And we care about the first slash after property URL string
-        int fourthSlashIndex = p.indexOf("/", _siteProperty.length());
-        if (fourthSlashIndex == -1) {
-          pagesNoRoots.add(p); //Add all pages without the forth slash, it's a page w/o root path
-        } else {
-          pagesRoots.add(p.substring(0, fourthSlashIndex + 1));
+      for (int i = 0; i < count; ++i) {
+        startRow += GoogleWebmasterClient.API_ROW_LIMIT;
+        final int start = startRow;
+        Future<Integer> submit = es.submit(new Callable<Integer>() {
+          @Override
+          public Integer call() {
+            LOG.info(String.format("Getting page size from %s...", start));
+            while (true) {
+              try {
+                List<String> pages = _client.getPages(_siteProperty, date, country, GoogleWebmasterClient.API_ROW_LIMIT,
+                    requestedDimensions, apiDimensionFilters, start);
+                if (pages.size() < GoogleWebmasterClient.API_ROW_LIMIT) {
+                  //Figured out the size
+                  return pages.size() + start;
+                } else {
+                  //The size is not determined.
+                  return -1;
+                }
+              } catch (IOException e) {
+                LOG.info(String.format("Getting page size from %s failed. Retrying...", start));
+              }
+              try {
+                Thread.sleep(200);
+              } catch (InterruptedException e) {
+                LOG.error(e.getMessage());
+              }
+            }
+          }
+        });
+        results.add(submit);
+        try {
+          Thread.sleep(250);
+        } catch (InterruptedException e) {
+          LOG.error(e.getMessage());
         }
       }
 
-      int fetchedSize = responsePages.size();
-      LOG.info("Number of pages fetched is " + fetchedSize);
-      startRow += fetchedSize;
-      if (fetchedSize < GoogleWebmasterClient.API_ROW_LIMIT) {
-        //fetchedSize < rowLimit indicates that we are at the last block of the data set.
-        if (entireSize != -1) {
-          //only break after we've known the total size of the data set.
-          break;
-        }
-
-        if (entireSize == -1) {
-          LOG.info(String.format("Total size of the data set for market-%s on %s is %d", country, date, startRow));
-          entireSize = startRow;
-        }
-
-        //update starting row and filters before starting
-        startRow = 0;
-        filters = new ArrayList<>();
-        filters.add(countryFilter);
-        for (String p : pagesRoots) {
-          filters.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.NOTCONTAINS, p));
-        }
-        for (String p : pagesNoRoots) {
-          if (_siteProperty.equals(p)) {
-            //Must NOT add site property to the exclusion list, otherwise no pages will be returned.
-            continue;
+      for (Future<Integer> result : results) {
+        try {
+          Integer integer = result.get(2, TimeUnit.MINUTES);
+          if (integer > 0) {
+            es.shutdownNow();
+            return integer;
           }
-          filters.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.NOTCONTAINS, p));
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+          throw new RuntimeException(e);
+        } catch (TimeoutException e) {
+          throw new RuntimeException(e);
         }
-        LOG.info(String.format(
-            "Starting another round of fetching for all pages. Currently there are %d pages w/o roots, and %d pages with roots",
-            pagesNoRoots.size(), pagesRoots.size()));
       }
     }
-
-    return new ImmutableTriple<>(pagesNoRoots, pagesRoots, entireSize);
+    throw new RuntimeException("Something seems wrong here. Having more than 5000*4*50 pages?");
   }
 
   /**
-   * This method gives you all pages given the page prefixes/keywords/root paths.
-   *
-   * The detailed steps are as follows:
-   *
-   * 1. For each page prefix, construct a filter group with two filters. One for country; the other for containing that page prefix.
-   * 2. Request for all pages with the filter group. If the count is 5000, go to step 3; otherwise, end of the process, we've already got all pages.
-   * 3. Expand current prefix by appending a char from the list [a-z,0-9,%,_,-,/].
-   * 4. Perform another request for each new prefix at last step. If the number of pages is 5000, repeat steps 3~4; otherwise, end of the process, we've already got all pages.
-   * 5. Union all pages as the return value
-   *
-   * @param date the date string
-   * @param dimensions requested dimensions
-   * @param pagePrefixes a pagePrefix must end with "/"
-   * @return all pages given the page prefixes/keywords, or page root paths.
+   * Get all pages in an async mode.
    */
-  private Set<String> pagesWithRootPaths(String date, List<Dimension> dimensions, ApiDimensionFilter countryFilter,
-      Set<String> pagePrefixes) throws IOException {
-
-    for (String prefix : pagePrefixes) {
-      Preconditions.checkArgument(prefix.endsWith("/"), "Starting prefix must end with '/'");
-    }
-    String countryString = countryFilterToString(countryFilter);
-
-    Set<String> uniquePages = new HashSet<>();
-    Deque<String> toProcess = new LinkedList<>(pagePrefixes);
-    while (!toProcess.isEmpty()) {
-      String prefix = toProcess.remove();
-      LOG.info("Current page prefix is " + prefix);
-      List<ApiDimensionFilter> filters = new LinkedList<>();
-      filters.add(countryFilter);
-      filters.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.CONTAINS, prefix));
-
-      List<String> pages =
-          _client.getPages(_siteProperty, date, countryString, GoogleWebmasterClient.API_ROW_LIMIT, dimensions, filters,
-              0);
-
-      if (pages.size() == GoogleWebmasterClient.API_ROW_LIMIT) {
-        //If the number of pages is at the LIMIT, we need to create sub-tasks and redo query
-        LOG.info(String.format(
-            "Number of pages fetched for prefix %s reaches the MAX request limit %d. Expanding the prefix...", prefix,
-            GoogleWebmasterClient.API_ROW_LIMIT));
-        //The page prefix is case insensitive, A-Z is not necessary.
-        for (char c = 'a'; c <= 'z'; ++c) {
-          toProcess.add(prefix + c);
+  private Collection<String> getPagesAsync(String date, List<Dimension> dimensions, ApiDimensionFilter countryFilter,
+      Queue<Pair<String, FilterOperator>> toProcess) throws IOException {
+    ConcurrentLinkedDeque<String> allPages = new ConcurrentLinkedDeque<>();
+    final int retry = 20;
+    int r = 0;
+    while (r <= retry) {
+      ++r;
+      LOG.info("Get pages current round: " + r);
+      ConcurrentLinkedDeque<Pair<String, FilterOperator>> nextRound = new ConcurrentLinkedDeque<>();
+      ExecutorService es = Executors.newCachedThreadPool();
+      while (!toProcess.isEmpty()) {
+        submitJob(toProcess.poll(), countryFilter, date, dimensions, es, allPages, nextRound);
+        try {
+          Thread.sleep(200); //Submit 5 jobs per second.
+        } catch (InterruptedException ignored) {
         }
-        for (int num = 0; num <= 9; ++num) {
-          toProcess.add(prefix + num);
-        }
-        toProcess.add(prefix + "%");
-        toProcess.add(prefix + "_");
-        toProcess.add(prefix + "-");
-        toProcess.add(prefix + "/");
       }
-      uniquePages.addAll(pages);
-    }
-    LOG.info(String.format("Number of pages given prefixes for market-%s on %s is %d", countryString, date,
-        uniquePages.size()));
+      //wait for jobs to finish and start next round if necessary.
+      try {
+        es.shutdown();
+        es.awaitTermination(1, TimeUnit.HOURS);
+        Thread.sleep(1000); //sleep for 1 second before starting another round.
+      } catch (InterruptedException e) {
+        LOG.error(e.getMessage());
+      }
 
-    return uniquePages;
+      if (nextRound.isEmpty()) {
+        break;
+      }
+      toProcess = nextRound;
+    }
+    if (r == retry) {
+      throw new RuntimeException(
+          String.format("Getting all pages reaches the maximum number of retires. Current date is %s, Market is %s.",
+              date, GoogleWebmasterFilter.countryFilterToString(countryFilter)));
+    }
+    return allPages;
+  }
+
+  private void submitJob(final Pair<String, FilterOperator> job, final ApiDimensionFilter countryFilter,
+      final String date, final List<Dimension> dimensions, ExecutorService es,
+      final ConcurrentLinkedDeque<String> allPages,
+      final ConcurrentLinkedDeque<Pair<String, FilterOperator>> nextRound) {
+    es.submit(new Runnable() {
+      @Override
+      public void run() {
+        String countryString = countryFilterToString(countryFilter);
+        List<ApiDimensionFilter> filters = new LinkedList<>();
+        filters.add(countryFilter);
+
+        String prefix = job.getLeft();
+        FilterOperator operator = job.getRight();
+        String jobString = String.format("job(prefix: %s, operator: %s)", prefix, operator);
+        filters.add(GoogleWebmasterFilter.pageFilter(operator, prefix));
+        List<String> pages;
+        try {
+          pages = _client.getPages(_siteProperty, date, countryString, GoogleWebmasterClient.API_ROW_LIMIT, dimensions,
+              filters, 0);
+          LOG.info(
+              String.format("%d pages fetched for %s market-%s on %s.", pages.size(), jobString, countryString, date));
+        } catch (IOException e) {
+          //OnFailure
+          LOG.error(jobString + " failed. " + e.getMessage());
+          nextRound.add(job);
+          return;
+        }
+
+        //If the number of pages is at the LIMIT, it must be a "CONTAINS" job.
+        //We need to create sub-tasks, and check current page with "EQUALS"
+        if (pages.size() == GoogleWebmasterClient.API_ROW_LIMIT) {
+          LOG.info(String.format("Expanding the prefix '%s'", prefix));
+          expandJobs(nextRound, prefix);
+          nextRound.add(Pair.of(prefix, FilterOperator.EQUALS));
+        } else {
+          //Otherwise, we've done with current job.
+          allPages.addAll(pages);
+        }
+      }
+    });
+  }
+
+  private void expandJobs(Queue<Pair<String, FilterOperator>> jobs, String prefix) {
+    for (String expanded : getUrlPartitions(prefix)) {
+      jobs.add(Pair.of(expanded, FilterOperator.CONTAINS));
+    }
+  }
+
+  /**
+   * This doesn't cover all cases but more than 99.9% captured
+   */
+  private ArrayList<String> getUrlPartitions(String prefix) {
+    ArrayList<String> expanded = new ArrayList<>();
+    //The page prefix is case insensitive, A-Z is not necessary.
+    for (char c = 'a'; c <= 'z'; ++c) {
+      expanded.add(prefix + c);
+    }
+    for (int num = 0; num <= 9; ++num) {
+      expanded.add(prefix + num);
+    }
+    expanded.add(prefix + "-");
+    expanded.add(prefix + ".");
+    expanded.add(prefix + "_"); //most important
+    expanded.add(prefix + "~");
+
+    expanded.add(prefix + "/"); //most important
+    expanded.add(prefix + "%"); //most important
+    expanded.add(prefix + ":");
+    expanded.add(prefix + "?");
+    expanded.add(prefix + "#");
+    expanded.add(prefix + "@");
+    expanded.add(prefix + "!");
+    expanded.add(prefix + "$");
+    expanded.add(prefix + "&");
+    expanded.add(prefix + "+");
+    expanded.add(prefix + "=");
+    return expanded;
   }
 
   @Override

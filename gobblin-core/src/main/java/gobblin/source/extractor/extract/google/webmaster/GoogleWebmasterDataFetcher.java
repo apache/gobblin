@@ -38,7 +38,7 @@ public abstract class GoogleWebmasterDataFetcher {
    * @param country country code string
    * @param rowLimit this is mostly for testing purpose. In order to get all pages, set this to the API row limit, which is 5000
    */
-  public abstract Set<String> getAllPages(String date, String country, int rowLimit) throws IOException;
+  public abstract Collection<String> getAllPages(String date, String country, int rowLimit) throws IOException;
 
   /**
    * @param date date filter
