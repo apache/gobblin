@@ -13,7 +13,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * Traverse the trie in post order and the nodes with descendants <= stoppingSize will be treated as a leaf node and will be returned. The traversal won't go deeper into the nodes with descendants <= stoppingSize.
  *
  * Iteration value:
- * Pair.1 is the prefix(previous path) to current node.
+ * Pair.1 is the full path to current node.
  * Pair.2 is current node.
  */
 public class UrlTriePostOrderIterator implements Iterator<Pair<String, UrlTrieNode>> {
@@ -104,7 +104,7 @@ public class UrlTriePostOrderIterator implements Iterator<Pair<String, UrlTrieNo
     if (hasNext()) {
       _lastVisited = _toReturn;
       _toReturn = null;
-      return Pair.of(_currentPrefixSb.toString(), _lastVisited);
+      return Pair.of(_currentPrefixSb.toString() + _lastVisited.getValue(), _lastVisited);
     }
     throw new NoSuchElementException();
   }
