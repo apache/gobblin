@@ -109,7 +109,9 @@ artifacts {
 test {
     workingDir rootProject.rootDir
     maxParallelForks = 1
-    jvmArgs '-Dgobblin.metastore.testing.embeddedMysqlEnabled=false'
+    if (project.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(project.usePreinstalledMysql)) {
+      jvmArgs '-Dgobblin.metastore.testing.embeddedMysqlEnabled=false'
+    }
 }
 
 clean {
