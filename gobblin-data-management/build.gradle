@@ -70,7 +70,7 @@ artifacts {
 test {
   workingDir rootProject.rootDir
   maxHeapSize = "1g"
-  maxParallelForks = 1
+  maxParallelForks = 2
   beforeTest { testDescriptor ->
      println String.format("%20s STARTED : %s", new Date(), testDescriptor.getClassName())
   }
