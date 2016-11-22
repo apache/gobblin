@@ -61,15 +61,22 @@ public class HiveRetentionTest {
     fs.mkdirs(testTempPath);
   }
 
-  private void testTimeBasedHiveRetention(String dbName, String tableName, String configFileName) throws Exception {
+  private void testTimeBasedHiveRetention(String purgedDbName, String purgedTableName, String configFileName, boolean isReplacementTest) throws Exception {
 
     try {
       DateTimeUtils.setCurrentMillisProvider(new FixedThreadLocalMillisProvider(FORMATTER.parseDateTime("2016-01-10-00").getMillis()));
 
-      // Setup 4 partitions. 2 will be deleted and 2 will be retained
-      String tableSdLoc = new Path(testTempPath, dbName + tableName).toString();
-      this.hiveMetastoreTestUtils.dropDatabaseIfExists(dbName);
-      final Table tbl = this.hiveMetastoreTestUtils.createTestTable(dbName, tableName, tableSdLoc, ImmutableList.of("datepartition"), false);
+      // Setup db, table to purge. Creating 4 partitions. 2 will be deleted and 2 will be retained
+      String purgedTableSdLoc = new Path(testTempPath, purgedDbName + purgedTableName).toString();
+      this.hiveMetastoreTestUtils.dropDatabaseIfExists(purgedDbName);
+      final Table purgedTbl = this.hiveMetastoreTestUtils.createTestTable(purgedDbName, purgedTableName, purgedTableSdLoc, ImmutableList.of("datepartition"), false);
+
+      // Setup db, table and partitions to act as replacement partitions source
+      String replacementSourceTableSdLoc = new Path(testTempPath, purgedDbName + purgedTableName + "_source").toString();
+      String replacementDbName = purgedDbName + "_source";
+      String replacementTableName = purgedTableName + "_source";
+      this.hiveMetastoreTestUtils.dropDatabaseIfExists(replacementDbName);
+      final Table replacementTbl = this.hiveMetastoreTestUtils.createTestTable(replacementDbName, replacementTableName, replacementSourceTableSdLoc, ImmutableList.of("datepartition"), false);
 
       String deleted1 = "2016-01-01-00";
       String deleted2 = "2016-01-02-02";
@@ -77,40 +84,90 @@ public class HiveRetentionTest {
       String retained1 = "2016-01-03-04";
       String retained2 = "2016-01-07-06";
 
-      Partition pDeleted1 = this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of(deleted1), (int) System.currentTimeMillis());
-      Partition pDeleted2 = this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of(deleted2), (int) System.currentTimeMillis());
-      Partition pRetained1 = this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of(retained1), (int) System.currentTimeMillis());
-      Partition pRetained2 = this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of(retained2), (int) System.currentTimeMillis());
+      // Create partitions in table being purged
+      Partition pDeleted1 = this.hiveMetastoreTestUtils.addTestPartition(purgedTbl, ImmutableList.of(deleted1), (int) System.currentTimeMillis());
+      Partition pDeleted2 = this.hiveMetastoreTestUtils.addTestPartition(purgedTbl, ImmutableList.of(deleted2), (int) System.currentTimeMillis());
+      Partition pRetained1 = this.hiveMetastoreTestUtils.addTestPartition(purgedTbl, ImmutableList.of(retained1), (int) System.currentTimeMillis());
+      Partition pRetained2 = this.hiveMetastoreTestUtils.addTestPartition(purgedTbl, ImmutableList.of(retained2), (int) System.currentTimeMillis());
 
       this.fs.mkdirs(new Path(pDeleted1.getSd().getLocation()));
       this.fs.mkdirs(new Path(pDeleted2.getSd().getLocation()));
       this.fs.mkdirs(new Path(pRetained1.getSd().getLocation()));
       this.fs.mkdirs(new Path(pRetained2.getSd().getLocation()));
 
-      List<Partition> partitions = this.hiveMetastoreTestUtils.getLocalMetastoreClient().listPartitions(dbName, tableName, (short) 10);
-      Assert.assertEquals(partitions.size(), 4);
+      // Create partitions in table that is replacement source
+      Partition rReplaced1 = this.hiveMetastoreTestUtils.addTestPartition(replacementTbl, ImmutableList.of(deleted1), (int) System.currentTimeMillis());
+      Partition rReplaced2 = this.hiveMetastoreTestUtils.addTestPartition(replacementTbl, ImmutableList.of(deleted2), (int) System.currentTimeMillis());
+      Partition rUntouched1 = this.hiveMetastoreTestUtils.addTestPartition(replacementTbl, ImmutableList.of(retained1), (int) System.currentTimeMillis());
+      Partition rUntouched2 = this.hiveMetastoreTestUtils.addTestPartition(replacementTbl, ImmutableList.of(retained2), (int) System.currentTimeMillis());
 
+      this.fs.mkdirs(new Path(rReplaced1.getSd().getLocation()));
+      this.fs.mkdirs(new Path(rReplaced2.getSd().getLocation()));
+      this.fs.mkdirs(new Path(rUntouched1.getSd().getLocation()));
+      this.fs.mkdirs(new Path(rUntouched2.getSd().getLocation()));
+
+      List<Partition> pPartitions = this.hiveMetastoreTestUtils.getLocalMetastoreClient().listPartitions(purgedDbName, purgedTableName, (short) 10);
+      Assert.assertEquals(pPartitions.size(), 4);
+
+      List<Partition> rPartitions = this.hiveMetastoreTestUtils.getLocalMetastoreClient().listPartitions(replacementDbName, replacementTableName, (short) 10);
+      Assert.assertEquals(rPartitions.size(), 4);
+
+      // Run retention
       RetentionTestHelper.clean(fs, PathUtils.combinePaths(RetentionIntegrationTest.TEST_PACKAGE_RESOURCE_NAME, "testHiveTimeBasedRetention", configFileName),
           Optional.of(PathUtils.combinePaths(RetentionIntegrationTest.TEST_PACKAGE_RESOURCE_NAME, "testHiveTimeBasedRetention", "jobProps.properties")),
           testTempPath);
 
-      partitions = this.hiveMetastoreTestUtils.getLocalMetastoreClient().listPartitions(dbName, tableName, (short) 10);
+      pPartitions = this.hiveMetastoreTestUtils.getLocalMetastoreClient().listPartitions(purgedDbName, purgedTableName, (short) 10);
+      String[] expectedRetainedPartitions;
+      if (isReplacementTest) {
+        // If replacement test, 2 partitions must be replaced - hence total count must be 4
+        Assert.assertEquals(pPartitions.size(), 4);
+        expectedRetainedPartitions = new String[] {
+            getQlPartition(purgedTbl, pRetained1).getName(),
+            getQlPartition(purgedTbl, pRetained2).getName(),
+            getQlPartition(purgedTbl, pDeleted1).getName(),
+            getQlPartition(purgedTbl, pDeleted2).getName()};
+      } else {
+        // If not a replacement test, 2 partitions must be purged
+        Assert.assertEquals(pPartitions.size(), 2);
+        expectedRetainedPartitions = new String[] {
+            getQlPartition(purgedTbl, pRetained1).getName(),
+            getQlPartition(purgedTbl, pRetained2).getName()};
+      }
 
-      Assert.assertEquals(partitions.size(), 2);
-
-      assertThat(FluentIterable.from(partitions).transform(new Function<Partition, String>() {
-
+      // Check if all available partitions are that which are expected
+      assertThat(FluentIterable.from(pPartitions).transform(new Function<Partition, String>() {
         @Override
         public String apply(Partition input) {
-          return getQlPartition(tbl, input).getName();
+          return getQlPartition(purgedTbl, input).getName();
         }
-      }).toList(), containsInAnyOrder(getQlPartition(tbl, pRetained1).getName(), getQlPartition(tbl, pRetained2).getName()));
+      }).toList(), containsInAnyOrder(expectedRetainedPartitions));
 
+      // Check that replaced partitions are pointing to correct physical location
+      if (isReplacementTest) {
+        for (Partition partition : pPartitions) {
+          if (getQlPartition(purgedTbl, partition).getName().equalsIgnoreCase(getQlPartition(purgedTbl, pDeleted1).getName())) {
+            Assert.assertEquals(partition.getSd().getLocation(), rReplaced1.getSd().getLocation(),
+                "Replaced partition location not updated.");
+          }
+          if (getQlPartition(purgedTbl, partition).getName().equalsIgnoreCase(getQlPartition(purgedTbl, pDeleted2).getName())) {
+            Assert.assertEquals(partition.getSd().getLocation(), rReplaced2.getSd().getLocation(),
+                "Replaced partition location not updated.");
+          }
+        }
+      }
 
+      // Irrespective of whether it is a replacement test, purged partition directories must be deleted
       Assert.assertTrue(this.fs.exists(new Path(pRetained1.getSd().getLocation())));
       Assert.assertTrue(this.fs.exists(new Path(pRetained2.getSd().getLocation())));
       Assert.assertFalse(this.fs.exists(new Path(pDeleted1.getSd().getLocation())));
       Assert.assertFalse(this.fs.exists(new Path(pDeleted2.getSd().getLocation())));
+
+      // Replacement source partition directories must be left untouched
+      Assert.assertTrue(this.fs.exists(new Path(rReplaced1.getSd().getLocation())));
+      Assert.assertTrue(this.fs.exists(new Path(rReplaced2.getSd().getLocation())));
+      Assert.assertTrue(this.fs.exists(new Path(rUntouched1.getSd().getLocation())));
+      Assert.assertTrue(this.fs.exists(new Path(rUntouched2.getSd().getLocation())));
 
     } finally {
       DateTimeUtils.setCurrentMillisSystem();
@@ -118,19 +175,25 @@ public class HiveRetentionTest {
 
   }
 
+  @Test(dependsOnMethods = { "testTimeBasedHiveRetentionWithConfigStore" })
+  public void testTimeBasedHivePartitionReplacementWithConfigStore() throws Exception {
+    String dbName = "hiveTestDbConfigStore";
+    String tableName = "testTable";
+    this.testTimeBasedHiveRetention(dbName, tableName, "replacement.conf", true);
+  }
 
   @Test(dependsOnMethods = { "testTimeBasedHiveRetentionWithJobProps" })
   public void testTimeBasedHiveRetentionWithConfigStore() throws Exception {
     String dbName = "hiveTestDbConfigStore";
     String tableName = "testTable";
-    this.testTimeBasedHiveRetention(dbName, tableName, "selection.conf");
+    this.testTimeBasedHiveRetention(dbName, tableName, "selection.conf", false);
   }
 
   @Test
   public void testTimeBasedHiveRetentionWithJobProps() throws Exception {
     String dbName = "hiveTestDb";
     String tableName = "testTable";
-    this.testTimeBasedHiveRetention(dbName, tableName, "hive-retention.job");
+    this.testTimeBasedHiveRetention(dbName, tableName, "hive-retention.job", false);
   }
 
   private static org.apache.hadoop.hive.ql.metadata.Partition getQlPartition(final Table table, final Partition partition) {
