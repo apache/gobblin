@@ -50,10 +50,22 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
         new GoogleWebmasterDataFetcherImpl(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY),
             wuState.getProp(GoogleWebMasterSource.KEY_CREDENTIAL_LOCATION),
             wuState.getProp(ConfigurationKeys.SOURCE_ENTITY),
-            wuState.getProp(GoogleWebMasterSource.KEY_API_SCOPE, WebmastersScopes.WEBMASTERS_READONLY)));
+            wuState.getProp(GoogleWebMasterSource.KEY_API_SCOPE, WebmastersScopes.WEBMASTERS_READONLY),
+            getHotStartJobs(wuState)));
   }
 
-  public GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long highWatermark,
+  public static List<ProducerJob> getHotStartJobs(WorkUnitState wuState) {
+    String hotStartString = wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_HOT_START, "");
+    if (!hotStartString.isEmpty()) {
+      return ProducerJob.deserialize(hotStartString);
+    }
+    return new ArrayList<>();
+  }
+
+  /**
+   * For test only
+   */
+  GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long highWatermark,
       Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, GoogleWebmasterDataFetcher dataFetcher) {
     _startDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));

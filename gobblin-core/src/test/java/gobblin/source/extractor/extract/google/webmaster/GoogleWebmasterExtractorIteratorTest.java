@@ -3,6 +3,7 @@ package gobblin.source.extractor.extract.google.webmaster;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import gobblin.configuration.WorkUnitState;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -53,12 +54,13 @@ public class GoogleWebmasterExtractorIteratorTest {
     ArrayList<GoogleWebmasterFilter.Dimension> requestedDimensions = new ArrayList<>();
     ArrayList<GoogleWebmasterDataFetcher.Metric> requestedMetrics = new ArrayList<>();
 
-    Set<String> allPages = new HashSet<>();
+    ArrayDeque<ProducerJob> allJobs = new ArrayDeque<>();
     String page1 = siteProperty + "a/1";
     String page2 = siteProperty + "b/1";
-    allPages.add(page1);
-    allPages.add(page2);
-    Mockito.when(client.getAllPages(eq(date), eq(date), eq(country), eq(5000))).thenReturn(allPages);
+    allJobs.add(new ProducerJob(page1, date, date, GoogleWebmasterFilter.FilterOperator.EQUALS));
+    allJobs.add(new ProducerJob(page2, date, date, GoogleWebmasterFilter.FilterOperator.EQUALS));
+    Mockito.when(client.getAllPages(eq(date), eq(date), eq(country), eq(GoogleWebmasterClient.API_ROW_LIMIT)))
+        .thenReturn(allJobs);
 
     //Set performSearchAnalyticsQuery Mock1
     String[] a1 = {"r1-c1", "r1-c2"};
@@ -67,9 +69,8 @@ public class GoogleWebmasterExtractorIteratorTest {
     List<ApiDimensionFilter> filters1 = new ArrayList<>();
     filters1.add(GoogleWebmasterFilter.countryEqFilter(country));
     filters1.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page1));
-    Mockito.when(
-        client.performSearchAnalyticsQuery(eq(date), eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
-            argThat(new CollectionEquals(filters1)))).thenReturn(results1);
+    Mockito.when(client.performSearchAnalyticsQuery(eq(date), eq(date), eq(GoogleWebmasterClient.API_ROW_LIMIT),
+        eq(requestedDimensions), eq(requestedMetrics), argThat(new CollectionEquals(filters1)))).thenReturn(results1);
 
     //Set performSearchAnalyticsQuery Mock2
     String[] a2 = {"r2-c1", "r2-c2"};
