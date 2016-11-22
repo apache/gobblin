@@ -69,7 +69,7 @@ artifacts {
 
 test {
   workingDir rootProject.rootDir
-  jvmArgs '-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps'
+  maxHeapSize = "1g"
   maxParallelForks = 1
   beforeTest { testDescriptor ->
      println String.format("%20s STARTED : %s", new Date(), testDescriptor.getClassName())
