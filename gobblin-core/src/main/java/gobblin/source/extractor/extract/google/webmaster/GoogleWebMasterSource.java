@@ -66,6 +66,11 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    */
   public static final String KEY_REQUEST_PAGE_LIMIT = "source.google_webmasters.request.page_limit";
   /**
+   * Optional: Default to String.empty
+   * Hot start this service with pre-set pages. Once this is set, the service will ignore KEY_REQUEST_PAGE_LIMIT, and won't get all pages, but use the pre-set pages instead.
+   */
+  public static final String KEY_REQUEST_HOT_START = "source.google_webmasters.request.hot_start";
+  /**
    * Optional: Default to 5000, which is the maximum allowed.
    *
    * The response row limit when you ask for queries.

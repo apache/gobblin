@@ -25,10 +25,16 @@ public class GoogleWebmasterDataFetcherImplTest {
     Mockito.when(client.getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class),
         any(List.class), any(List.class), eq(0))).thenReturn(retVal);
 
-    GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, client);
-    Collection<String> allPages = dataFetcher.getAllPages(null, null, "ALL", 2);
+    GoogleWebmasterDataFetcher dataFetcher =
+        new GoogleWebmasterDataFetcherImpl(_property, client, new ArrayList<ProducerJob>());
+    Collection<ProducerJob> allPages = dataFetcher.getAllPages(null, null, "ALL", 2);
 
-    Assert.assertTrue(CollectionUtils.isEqualCollection(retVal, allPages));
+    List<String> pageStrings = new ArrayList<>();
+    for (ProducerJob page : allPages) {
+      pageStrings.add(page.getPage());
+    }
+
+    Assert.assertTrue(CollectionUtils.isEqualCollection(retVal, pageStrings));
     Mockito.verify(client, Mockito.times(1))
         .getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class), any(List.class),
             any(List.class), eq(0));
@@ -44,10 +50,16 @@ public class GoogleWebmasterDataFetcherImplTest {
     Mockito.when(client.getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class),
         any(List.class), any(List.class), eq(0))).thenReturn(allPages);
 
-    GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, client);
-    Collection<String> response = dataFetcher.getAllPages(null, null, "ALL", 5000);
+    GoogleWebmasterDataFetcher dataFetcher =
+        new GoogleWebmasterDataFetcherImpl(_property, client, new ArrayList<ProducerJob>());
+    Collection<ProducerJob> response = dataFetcher.getAllPages(null, null, "ALL", 5000);
 
-    Assert.assertTrue(CollectionUtils.isEqualCollection(response, allPages));
+    List<String> pageStrings = new ArrayList<>();
+    for (ProducerJob page : response) {
+      pageStrings.add(page.getPage());
+    }
+
+    Assert.assertTrue(CollectionUtils.isEqualCollection(pageStrings, allPages));
     Mockito.verify(client, Mockito.times(1))
         .getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class), any(List.class),
             any(List.class), eq(0));
