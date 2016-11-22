@@ -18,7 +18,9 @@ public abstract class GoogleWebmasterClient {
 
   /**
    * Return all pages given all constraints.
-   * @param date date string with format "yyyy-MM-dd"
+   * @param siteProperty your site property string
+   * @param startDate date string with format "yyyy-MM-dd"
+   * @param endDate date string with format "yyyy-MM-dd"
    * @param country country code string
    * @param rowLimit limit the number of rows returned by the API. The API maximum limit is 5000.
    * @param requestedDimensions requested dimensions of the API call.
@@ -26,21 +28,24 @@ public abstract class GoogleWebmasterClient {
    * @param startRow this is a 0 based index configuration to set the starting row of your API request. Even though the API row limit is 5000, you can send a request starting from row 5000, so you will be able to get data from row 5000 to row 9999.
    * @return Return all pages given all constraints.
    */
-  public abstract List<String> getPages(String siteProperty, String date, String country, int rowLimit,
-      List<Dimension> requestedDimensions, List<ApiDimensionFilter> filters, int startRow) throws IOException;
+  public abstract List<String> getPages(String siteProperty, String startDate, String endDate, String country,
+      int rowLimit, List<Dimension> requestedDimensions, List<ApiDimensionFilter> filters, int startRow)
+      throws IOException;
 
   /**
    * Perform the api call for search analytics query
    * @param siteProperty your site property string
-   * @param date date string with format "yyyy-MM-dd"
+   * @param startDate date string with format "yyyy-MM-dd"
+   * @param endDate date string with format "yyyy-MM-dd"
    * @param dimensions your requested dimensions
    * @param filterGroup filters for your API request. Provide your filters in a group, find utility functions in GoogleWebmasterFilter
    * @param rowLimit the row limit for your API response
    * @param startRow this is a 0 based index configuration to set the starting row of your API request. Even though the API row limit is 5000, you can send a request starting from row 5000, so you will be able to get data from row 5000 to row 9999.
    * @return return the response of Google Webmaster API
    */
-  public abstract Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String siteProperty, String date,
-      List<Dimension> dimensions, ApiDimensionFilterGroup filterGroup, int rowLimit, int startRow) throws IOException;
+  public abstract Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String siteProperty, String startDate,
+      String endDate, List<Dimension> dimensions, ApiDimensionFilterGroup filterGroup, int rowLimit, int startRow)
+      throws IOException;
 
   public abstract BatchRequest createBatch();
 }

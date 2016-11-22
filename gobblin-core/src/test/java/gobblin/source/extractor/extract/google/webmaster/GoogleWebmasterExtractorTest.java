@@ -39,7 +39,9 @@ public class GoogleWebmasterExtractorTest {
     GoogleWebmasterDataFetcher dataFetcher = Mockito.mock(GoogleWebmasterDataFetcher.class);
 
     GoogleWebmasterExtractor extractor =
-        new GoogleWebmasterExtractor(wuState, positionMap, dimensions, metrics, dataFetcher);
+        new GoogleWebmasterExtractor(wuState, wuState.getWorkunit().getLowWatermark(LongWatermark.class).getValue(),
+            wuState.getWorkunit().getExpectedHighWatermark(LongWatermark.class).getValue(), positionMap, dimensions,
+            metrics, dataFetcher);
 
     Queue<GoogleWebmasterExtractorIterator> iterators = extractor.getIterators();
     GoogleWebmasterExtractorIterator iteratorUSA = iterators.poll();

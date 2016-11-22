@@ -58,7 +58,7 @@ public class GoogleWebmasterExtractorIteratorTest {
     String page2 = siteProperty + "b/1";
     allPages.add(page1);
     allPages.add(page2);
-    Mockito.when(client.getAllPages(eq(date), eq(country), eq(5000))).thenReturn(allPages);
+    Mockito.when(client.getAllPages(eq(date), eq(date), eq(country), eq(5000))).thenReturn(allPages);
 
     //Set performSearchAnalyticsQuery Mock1
     String[] a1 = {"r1-c1", "r1-c2"};
@@ -67,8 +67,9 @@ public class GoogleWebmasterExtractorIteratorTest {
     List<ApiDimensionFilter> filters1 = new ArrayList<>();
     filters1.add(GoogleWebmasterFilter.countryEqFilter(country));
     filters1.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page1));
-    Mockito.when(client.performSearchAnalyticsQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
-        argThat(new CollectionEquals(filters1)))).thenReturn(results1);
+    Mockito.when(
+        client.performSearchAnalyticsQuery(eq(date), eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+            argThat(new CollectionEquals(filters1)))).thenReturn(results1);
 
     //Set performSearchAnalyticsQuery Mock2
     String[] a2 = {"r2-c1", "r2-c2"};
@@ -77,15 +78,17 @@ public class GoogleWebmasterExtractorIteratorTest {
     List<ApiDimensionFilter> filters2 = new ArrayList<>();
     filters2.add(GoogleWebmasterFilter.countryEqFilter(country));
     filters2.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page2));
-    Mockito.when(client.performSearchAnalyticsQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
-        argThat(new CollectionEquals(filters2)))).thenReturn(results2);
+    Mockito.when(
+        client.performSearchAnalyticsQuery(eq(date), eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+            argThat(new CollectionEquals(filters2)))).thenReturn(results2);
 
     Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
     map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryEqFilter(country));
     WorkUnitState defaultState = GoogleWebmasterExtractorTest.getWorkUnitState1();
     defaultState.setProp(GoogleWebMasterSource.KEY_REQUEST_TUNING_BATCH_SIZE, 1);
     GoogleWebmasterExtractorIterator iterator =
-        new GoogleWebmasterExtractorIterator(client, date, requestedDimensions, requestedMetrics, map, defaultState);
+        new GoogleWebmasterExtractorIterator(client, date, date, requestedDimensions, requestedMetrics, map,
+            defaultState);
 
     List<String[]> response = new ArrayList<>();
     response.add(iterator.next());
@@ -94,12 +97,12 @@ public class GoogleWebmasterExtractorIteratorTest {
     Assert.assertTrue(response.contains(a1));
     Assert.assertTrue(response.contains(a2));
 
-    Mockito.verify(client, Mockito.times(1)).getAllPages(eq(date), eq(country), eq(5000));
+    Mockito.verify(client, Mockito.times(1)).getAllPages(eq(date), eq(date), eq(country), eq(5000));
     Mockito.verify(client, Mockito.times(1))
-        .performSearchAnalyticsQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+        .performSearchAnalyticsQuery(eq(date), eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
             argThat(new CollectionEquals(filters1)));
     Mockito.verify(client, Mockito.times(1))
-        .performSearchAnalyticsQuery(eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+        .performSearchAnalyticsQuery(eq(date), eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
             argThat(new CollectionEquals(filters2)));
   }
 }

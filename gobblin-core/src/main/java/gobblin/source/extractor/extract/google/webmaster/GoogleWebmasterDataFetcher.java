@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 
 /**
@@ -34,26 +33,25 @@ public abstract class GoogleWebmasterDataFetcher {
 
   /**
    * Return all pages given (date, country) filter
-   * @param date date string
    * @param country country code string
    * @param rowLimit this is mostly for testing purpose. In order to get all pages, set this to the API row limit, which is 5000
    */
-  public abstract Collection<String> getAllPages(String date, String country, int rowLimit) throws IOException;
+  public abstract Collection<String> getAllPages(String startDate, String endDate, String country, int rowLimit)
+      throws IOException;
 
   /**
-   * @param date date filter
    * @param rowLimit row limit for this API call
    * @param requestedDimensions a list of dimension requests. The dimension values can be found at the first part of the return value
    * @param filters filters of your request
    * @return the response from the API call. The value is composed of [[requestedDimension list], clicks, impressions, ctr, position]
    */
-  public abstract List<String[]> performSearchAnalyticsQuery(String date, int rowLimit,
+  public abstract List<String[]> performSearchAnalyticsQuery(String startDate, String endDate, int rowLimit,
       List<Dimension> requestedDimensions, List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters)
       throws IOException;
 
   public abstract BatchRequest createBatch();
 
-  public abstract Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String date,
+  public abstract Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String startDate, String endDate,
       List<Dimension> requestedDimensions, Collection<ApiDimensionFilter> filters, int rowLimit, int startRow)
       throws IOException;
 
@@ -90,15 +88,15 @@ public abstract class GoogleWebmasterDataFetcher {
     return ret;
   }
 
-  public static String getWarningMessage(String date, Collection<ApiDimensionFilter> filters) {
+  public static String getWarningMessage(String startDate, String endDate, Collection<ApiDimensionFilter> filters) {
     StringBuilder filterString = new StringBuilder();
     for (ApiDimensionFilter filter : filters) {
       filterString.append(filter.toString());
       filterString.append(" ");
     }
     return String.format(
-        "There might be more data based on your query: date - %s, filters - %s. Currently, downloading more than the Google API limit '%d' is not supported.",
-        date, filterString.toString(), GoogleWebmasterClient.API_ROW_LIMIT);
+        "There might be more data based on your query: StartDate - %s, EndDate - %s, filters - %s. Currently, downloading more than the Google API limit '%d' is not supported.",
+        startDate, endDate, filterString.toString(), GoogleWebmasterClient.API_ROW_LIMIT);
   }
 }
 
