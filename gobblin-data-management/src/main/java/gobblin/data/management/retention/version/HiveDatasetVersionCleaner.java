@@ -149,7 +149,7 @@ public class HiveDatasetVersionCleaner extends VersionCleaner {
    * @return  True if partition should be replaced-in from another table.
    */
   @VisibleForTesting
-  public static boolean shouldReplacePartition(Config config,
+  protected static boolean shouldReplacePartition(Config config,
       String replacedPartitionDbName, String replacedPartitionTableName,
       Optional<String> replacementPartitionDbName, Optional<String> replacementPartitionTableName) {
     // If disabled explicitly, rest does not matters

@@ -190,7 +190,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
    * @return  Parsed logical DB and Table.
    */
   @VisibleForTesting
-  public static DbAndTable parseLogicalDbAndTable(String datasetNamePattern, DbAndTable dbAndTable,
+  protected static DbAndTable parseLogicalDbAndTable(String datasetNamePattern, DbAndTable dbAndTable,
       String logicalDbToken, String logicalTableToken) {
     Preconditions.checkArgument(StringUtils.isNotBlank(datasetNamePattern), "Dataset name pattern must not be empty.");
 
@@ -222,7 +222,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
    * @return Extracted token value from the source entity.
    */
   @VisibleForTesting
-  public static String extractTokenValueFromEntity(String sourceEntity, String sourceTemplate, String token) {
+  protected static String extractTokenValueFromEntity(String sourceEntity, String sourceTemplate, String token) {
     Preconditions.checkArgument(StringUtils.isNotBlank(sourceEntity), "Source entity should not be blank");
     Preconditions.checkArgument(StringUtils.isNotBlank(sourceTemplate), "Source template should not be blank");
     Preconditions.checkArgument(sourceTemplate.contains(token), String.format("Source template: %s should contain token: %s", sourceTemplate, token));
@@ -245,7 +245,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
    * @return Resolved config object.
    */
   @VisibleForTesting
-  public static Config resolveConfig(Config datasetConfig, DbAndTable realDbAndTable, DbAndTable logicalDbAndTable) {
+  protected static Config resolveConfig(Config datasetConfig, DbAndTable realDbAndTable, DbAndTable logicalDbAndTable) {
     Preconditions.checkNotNull(datasetConfig, "Dataset config should not be null");
     Preconditions.checkNotNull(realDbAndTable, "Real DB and table should not be null");
     Preconditions.checkNotNull(logicalDbAndTable, "Logical DB and table should not be null");
