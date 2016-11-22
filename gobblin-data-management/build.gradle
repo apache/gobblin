@@ -69,8 +69,8 @@ artifacts {
 
 test {
   workingDir rootProject.rootDir
-  maxHeapSize = "1g"
-  maxParallelForks = 2
+  maxHeapSize = "2g"
+  maxParallelForks = 1
   beforeTest { testDescriptor ->
      println String.format("%20s STARTED : %s", new Date(), testDescriptor.getClassName())
   }
