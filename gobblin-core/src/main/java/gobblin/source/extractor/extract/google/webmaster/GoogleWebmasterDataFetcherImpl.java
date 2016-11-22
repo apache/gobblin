@@ -1,8 +1,8 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
 import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
-import com.google.api.services.webmasters.Webmasters;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 import java.io.IOException;
@@ -296,29 +296,29 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   }
 
   @Override
-  public BatchRequest createBatch() {
-    return _client.createBatch();
-  }
-
-  @Override
-  public Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String startDate, String endDate,
-      List<Dimension> requestedDimensions, Collection<ApiDimensionFilter> filters, int rowLimit, int startRow)
-      throws IOException {
-    return _client.createSearchAnalyticsQuery(_siteProperty, startDate, endDate, requestedDimensions,
-        GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, startRow);
-  }
-
-  @Override
   public List<String[]> performSearchAnalyticsQuery(String startDate, String endDate, int rowLimit,
       List<Dimension> requestedDimensions, List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters)
       throws IOException {
     SearchAnalyticsQueryResponse response =
-        createSearchAnalyticsQuery(startDate, endDate, requestedDimensions, filters, rowLimit, 0).execute();
+        _client.createSearchAnalyticsQuery(_siteProperty, startDate, endDate, requestedDimensions,
+            GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, 0).execute();
+    return convertResponse(requestedMetrics, response);
+  }
 
-    List<String[]> converted = convertResponse(requestedMetrics, response);
-    if (converted.size() == GoogleWebmasterClient.API_ROW_LIMIT) {
-      LOG.warn(getWarningMessage(startDate, endDate, filters));
+  @Override
+  public void performSearchAnalyticsQueryInBatch(List<ProducerJob> jobs, List<ArrayList<ApiDimensionFilter>> filterList,
+      List<JsonBatchCallback<SearchAnalyticsQueryResponse>> callbackList, List<Dimension> requestedDimensions,
+      int rowLimit) throws IOException {
+    BatchRequest batchRequest = _client.createBatch();
+
+    for (int i = 0; i < jobs.size(); ++i) {
+      ProducerJob job = jobs.get(i);
+      ArrayList<ApiDimensionFilter> filters = filterList.get(i);
+      JsonBatchCallback<SearchAnalyticsQueryResponse> callback = callbackList.get(i);
+      _client.createSearchAnalyticsQuery(_siteProperty, job.getStartDate(), job.getEndDate(), requestedDimensions,
+          GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, 0).queue(batchRequest, callback);
     }
-    return converted;
+
+    batchRequest.execute();
   }
 }

@@ -1,7 +1,6 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
 import avro.shaded.com.google.common.base.Joiner;
-import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.http.HttpHeaders;
@@ -18,13 +17,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -242,14 +240,14 @@ class GoogleWebmasterExtractorIterator {
           _endDate, r));
     }
 
-    private Future<Void> submitJob(long requestSleep, ConcurrentLinkedDeque<ProducerJob> pagesToRetry,
-        ExecutorService es, List<ProducerJob> pagesBatch) {
+    private void submitJob(long requestSleep, ConcurrentLinkedDeque<ProducerJob> pagesToRetry, ExecutorService es,
+        List<ProducerJob> pagesBatch) {
       try {
         Thread.sleep(requestSleep); //Control the speed of sending API requests
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
-      return es.submit(getResponses(pagesBatch, pagesToRetry, _cachedQueries));
+      es.submit(getResponses(pagesBatch, pagesToRetry, _cachedQueries));
     }
 
     /**
@@ -257,26 +255,24 @@ class GoogleWebmasterExtractorIterator {
      * OnSuccess: put each record into the responseQueue
      * OnFailure: add current page to pagesToRetry
      */
-    private Callable<Void> getResponse(final ProducerJob job, final ConcurrentLinkedDeque<ProducerJob> pagesToRetry,
+    private Runnable getResponse(final ProducerJob job, final ConcurrentLinkedDeque<ProducerJob> pagesToRetry,
         final LinkedBlockingDeque<String[]> responseQueue) {
 
-      return new Callable<Void>() {
+      return new Runnable() {
         @Override
-        public Void call() throws Exception {
-
-          final ArrayList<ApiDimensionFilter> filters = new ArrayList<>();
-          filters.addAll(_filterMap.values());
-          filters.add(GoogleWebmasterFilter.pageFilter(job.getOperator(), job.getPage()));
-          List<String[]> results;
+        public void run() {
           try {
-            results = _webmaster.performSearchAnalyticsQuery(job.getStartDate(), job.getEndDate(), QUERY_LIMIT,
-                _requestedDimensions, _requestedMetrics, filters);
+            final ArrayList<ApiDimensionFilter> filters = new ArrayList<>();
+            filters.addAll(_filterMap.values());
+            filters.add(GoogleWebmasterFilter.pageFilter(job.getOperator(), job.getPage()));
+
+            List<String[]> results =
+                _webmaster.performSearchAnalyticsQuery(job.getStartDate(), job.getEndDate(), QUERY_LIMIT,
+                    _requestedDimensions, _requestedMetrics, filters);
+            onSuccess(job, results, responseQueue, pagesToRetry);
           } catch (IOException e) {
             onFailure(e.getMessage(), job, pagesToRetry);
-            return null;
           }
-          onSuccess(job, results, responseQueue);
-          return null;
         }
       };
     }
@@ -286,23 +282,19 @@ class GoogleWebmasterExtractorIterator {
      * OnSuccess: put each record into the responseQueue
      * OnFailure: add current page to pagesToRetry
      */
-    private Callable<Void> getResponses(final List<ProducerJob> jobs,
-        final ConcurrentLinkedDeque<ProducerJob> pagesToRetry, final LinkedBlockingDeque<String[]> responseQueue) {
-      if (jobs == null) {
-        LOG.error("How come this is null?");
-        throw new RuntimeException("pages is null in thread pool. Won't be seen in main thread.");
-      }
-
-      if (jobs.size() == 1) {
+    private Runnable getResponses(final List<ProducerJob> jobs, final ConcurrentLinkedDeque<ProducerJob> pagesToRetry,
+        final LinkedBlockingDeque<String[]> responseQueue) {
+      final int size = jobs.size();
+      if (size == 1) {
         return getResponse(jobs.get(0), pagesToRetry, responseQueue);
       }
       final ResponseProducer producer = this;
-
-      return new Callable<Void>() {
+      return new Runnable() {
         @Override
-        public Void call() throws Exception {
-          BatchRequest batchRequest = _webmaster.createBatch();
+        public void run() {
           try {
+            List<ArrayList<ApiDimensionFilter>> filterList = new ArrayList<>(size);
+            List<JsonBatchCallback<SearchAnalyticsQueryResponse>> callbackList = new ArrayList<>(size);
             for (ProducerJob j : jobs) {
               final ProducerJob job = j; //to capture this variable
               final String page = job.getPage();
@@ -310,8 +302,8 @@ class GoogleWebmasterExtractorIterator {
               filters.addAll(_filterMap.values());
               filters.add(GoogleWebmasterFilter.pageFilter(job.getOperator(), page));
 
-              _webmaster.createSearchAnalyticsQuery(job.getStartDate(), job.getEndDate(), _requestedDimensions, filters,
-                  QUERY_LIMIT, 0).queue(batchRequest, new JsonBatchCallback<SearchAnalyticsQueryResponse>() {
+              filterList.add(filters);
+              callbackList.add(new JsonBatchCallback<SearchAnalyticsQueryResponse>() {
                 @Override
                 public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
                   producer.onFailure(e.getMessage(), job, pagesToRetry);
@@ -320,22 +312,20 @@ class GoogleWebmasterExtractorIterator {
                 @Override
                 public void onSuccess(SearchAnalyticsQueryResponse searchAnalyticsQueryResponse,
                     HttpHeaders responseHeaders) throws IOException {
-                  producer.onSuccess(job,
-                      GoogleWebmasterDataFetcher.convertResponse(_requestedMetrics, searchAnalyticsQueryResponse),
-                      responseQueue);
+                  List<String[]> results =
+                      GoogleWebmasterDataFetcher.convertResponse(_requestedMetrics, searchAnalyticsQueryResponse);
+                  producer.onSuccess(job, results, responseQueue, pagesToRetry);
                 }
               });
             }
+            _webmaster.performSearchAnalyticsQueryInBatch(jobs, filterList, callbackList, _requestedDimensions,
+                QUERY_LIMIT);
           } catch (IOException e) {
-            LOG.warn("Fail creating batch request for pages: " + Joiner.on(",").join(jobs));
+            LOG.warn("Batch request failed. Jobs: " + Joiner.on(",").join(jobs));
             for (ProducerJob job : jobs) {
               pagesToRetry.add(job);
             }
-            return null;
           }
-
-          batchRequest.execute();
-          return null;
         }
       };
     }
@@ -345,8 +335,26 @@ class GoogleWebmasterExtractorIterator {
       pagesToRetry.add(job);
     }
 
-    private void onSuccess(ProducerJob job, List<String[]> results, LinkedBlockingDeque<String[]> responseQueue) {
-      LOG.debug(String.format("Fetched %s. Result size %d.", job, results.size()));
+    private void onSuccess(ProducerJob job, List<String[]> results, LinkedBlockingDeque<String[]> responseQueue,
+        ConcurrentLinkedDeque<ProducerJob> pagesToRetry) {
+      int size = results.size();
+      if (size == GoogleWebmasterClient.API_ROW_LIMIT) {
+        Pair<ProducerJob, ProducerJob> granularJobs = job.divideJob();
+        if (granularJobs != null) {
+          LOG.info(String.format("Divide the job %s into 2 parts.", job));
+          pagesToRetry.add(granularJobs.getLeft());
+          pagesToRetry.add(granularJobs.getRight());
+          return;
+        } else {
+          //The job is not divisible
+          //TODO: 99.99% cases we are good. But what if it happens, what can we do?
+          LOG.warn(String.format(
+              "There might be more query data for your job %s. Currently, downloading more than the Google API limit '%d' is not supported.",
+              job, GoogleWebmasterClient.API_ROW_LIMIT));
+        }
+      }
+
+      LOG.debug(String.format("Fetched %s. Result size %d.", job, size));
       try {
         for (String[] r : results) {
           responseQueue.put(r);
