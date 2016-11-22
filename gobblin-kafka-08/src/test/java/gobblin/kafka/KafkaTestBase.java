@@ -103,7 +103,7 @@ class KafkaServerSuite {
   private KafkaServerSuite()
   {
     _kafkaServerPort = TestUtils.choosePort();
-    _zkConnectString = "localhost:" + TestUtils.choosePort(); //TestZKUtils.zookeeperConnect();
+    _zkConnectString = "localhost:" + TestUtils.choosePort();
     _numStarted = new AtomicInteger(0);
   }
 
