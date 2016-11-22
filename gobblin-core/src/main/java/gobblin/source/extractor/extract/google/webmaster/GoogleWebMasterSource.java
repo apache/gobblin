@@ -22,7 +22,7 @@ import java.util.Map;
  * The minimum unit of querying range is date. Change the range by configuring "source.querybased.start.value" and "source.querybased.end.value". Note that the analytics data for Google Search Console has a delay or 3 days. So cap your configuration of "source.querybased.append.max.watermark.limit" by "CURRENTDATE-3". See the documentation details of each configuration in the GoogleWebMasterSource fields.
  *
  */
-public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
+abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
 
   /**
    * Must Provide.
@@ -34,14 +34,6 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
    * Provide the property site URL whose google search analytics data you want to download
    */
   public static final String KEY_PROPERTY = "source.google_webmasters.property";
-  /**
-   * Optional: Default to false.
-   *
-   * Set it to true ONLY when you extremely care about the completeness of the available data set.
-   * However, if you set it to true, the code will throw an exception if it cannot achieve the perfect completeness of available data set.
-   * Set it to false if you can "endure" the incompleteness, which normally should be very minimal.
-   */
-  public static final String KEY_REQUEST_HYPERCRITICAL = "source.google_webmasters.request.isHypercritical";
   /**
    * Optional: Default to WebmastersScopes.WEBMASTERS_READONLY(which is https://www.googleapis.com/auth/webmasters.readonly)
    *
@@ -128,9 +120,12 @@ public class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
 
     validateFilters(state.getProp(GoogleWebMasterSource.KEY_REQUEST_FILTERS));
     validateRequests(columnPositionMap, requestedDimensions, requestedMetrics);
-
-    return new GoogleWebmasterExtractor(state, columnPositionMap, requestedDimensions, requestedMetrics);
+    return createExtractor(state, columnPositionMap, requestedDimensions, requestedMetrics);
   }
+
+  abstract GoogleWebmasterExtractor createExtractor(WorkUnitState state, Map<String, Integer> columnPositionMap,
+      List<GoogleWebmasterFilter.Dimension> requestedDimensions,
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics) throws IOException;
 
   private void validateFilters(String filters) {
     String countryPrefix = "COUNTRY.";

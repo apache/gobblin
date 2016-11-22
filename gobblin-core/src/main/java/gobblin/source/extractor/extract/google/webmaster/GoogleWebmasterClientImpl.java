@@ -50,14 +50,15 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
   }
 
   @Override
-  public List<String> getPages(String siteProperty, String date, String country, int rowLimit,
+  public List<String> getPages(String siteProperty, String startDate, String endDate, String country, int rowLimit,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions, List<ApiDimensionFilter> filters, int startRow)
       throws IOException {
     checkRowLimit(rowLimit);
     Preconditions.checkArgument(requestedDimensions.contains(GoogleWebmasterFilter.Dimension.PAGE));
 
-    SearchAnalyticsQueryResponse rspByCountry = createSearchAnalyticsQuery(siteProperty, date, requestedDimensions,
-        GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, startRow).execute();
+    SearchAnalyticsQueryResponse rspByCountry =
+        createSearchAnalyticsQuery(siteProperty, startDate, endDate, requestedDimensions,
+            GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, startRow).execute();
 
     List<ApiDataRow> pageRows = rspByCountry.getRows();
     List<String> pages = new ArrayList<>(rowLimit);
@@ -71,16 +72,16 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
   }
 
   @Override
-  public Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String siteProperty, String date,
-      List<GoogleWebmasterFilter.Dimension> dimensions, ApiDimensionFilterGroup filterGroup, int rowLimit, int startRow)
-      throws IOException {
+  public Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String siteProperty, String startDate,
+      String endDate, List<GoogleWebmasterFilter.Dimension> dimensions, ApiDimensionFilterGroup filterGroup,
+      int rowLimit, int startRow) throws IOException {
     List<String> dimensionStrings = new ArrayList<>();
     for (GoogleWebmasterFilter.Dimension dimension : dimensions) {
       dimensionStrings.add(dimension.toString().toLowerCase());
     }
 
-    SearchAnalyticsQueryRequest request = new SearchAnalyticsQueryRequest().setStartDate(date)
-        .setEndDate(date)
+    SearchAnalyticsQueryRequest request = new SearchAnalyticsQueryRequest().setStartDate(startDate)
+        .setEndDate(endDate)
         .setRowLimit(rowLimit)
         .setDimensions(dimensionStrings)
         .setStartRow(startRow);

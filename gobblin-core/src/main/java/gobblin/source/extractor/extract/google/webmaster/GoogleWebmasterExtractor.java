@@ -17,13 +17,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static gobblin.configuration.ConfigurationKeys.*;
 
 
 public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
@@ -31,8 +28,9 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
   private final String _schema;
   private final WorkUnitState _wuState;
-  private final DateTimeFormatter _watermarkFormatter;
   private final int _size;
+  private final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
+  private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   private Queue<GoogleWebmasterExtractorIterator> _iterators = new ArrayDeque<>();
   /**
    * Each element keeps a mapping from API response order to output schema order.
@@ -40,27 +38,27 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
    * The array values matches the order of output schema.
    */
   private Queue<int[]> _positionMaps = new ArrayDeque<>();
-  private final DateTime _currentDate;
+
+  private final DateTime _startDate;
+  private final DateTime _endDate;
   private boolean _successful = false;
 
-  public GoogleWebmasterExtractor(WorkUnitState wuState, Map<String, Integer> columnPositionMap,
-      List<GoogleWebmasterFilter.Dimension> requestedDimensions,
+  public GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long highWatermark,
+      Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics) throws IOException {
-    this(wuState, columnPositionMap, requestedDimensions, requestedMetrics,
-        new GoogleWebmasterDataFetcherImpl(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY), wuState.getProp(GoogleWebMasterSource.KEY_CREDENTIAL_LOCATION),
+    this(wuState, lowWatermark, highWatermark, columnPositionMap, requestedDimensions, requestedMetrics,
+        new GoogleWebmasterDataFetcherImpl(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY),
+            wuState.getProp(GoogleWebMasterSource.KEY_CREDENTIAL_LOCATION),
             wuState.getProp(ConfigurationKeys.SOURCE_ENTITY),
             wuState.getProp(GoogleWebMasterSource.KEY_API_SCOPE, WebmastersScopes.WEBMASTERS_READONLY)));
   }
 
-  public GoogleWebmasterExtractor(WorkUnitState wuState, Map<String, Integer> columnPositionMap,
-      List<GoogleWebmasterFilter.Dimension> requestedDimensions,
+  public GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long highWatermark,
+      Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, GoogleWebmasterDataFetcher dataFetcher) {
-    _watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss")
-        .withZone(DateTimeZone.forID(wuState.getProp(SOURCE_TIMEZONE, DEFAULT_SOURCE_TIMEZONE)));
-    _currentDate = _watermarkFormatter.parseDateTime(
-        Long.toString(wuState.getWorkunit().getLowWatermark(LongWatermark.class).getValue()));
-    String dateString = DateTimeFormat.forPattern("yyyy-MM-dd").print(_currentDate);
-    LOG.info("Creating GoogleWebmasterExtractor for " + dateString);
+    _startDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));
+    _endDate = watermarkFormatter.parseDateTime(Long.toString(highWatermark));
+
     _schema = wuState.getWorkunit().getProp(ConfigurationKeys.SOURCE_SCHEMA);
     _size = columnPositionMap.size();
     _wuState = wuState;
@@ -76,8 +74,8 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
         }
       }
       GoogleWebmasterExtractorIterator iterator =
-          new GoogleWebmasterExtractorIterator(dataFetcher, dateString, actualDimensionRequests, requestedMetrics,
-              filters, wuState);
+          new GoogleWebmasterExtractorIterator(dataFetcher, dateFormatter.print(_startDate),
+              dateFormatter.print(_endDate), actualDimensionRequests, requestedMetrics, filters, wuState);
       //positionMapping is to address the problems that requested dimensions/metrics order might be different from the column order in source.schema
       int[] positionMapping = new int[actualDimensionRequests.size() + requestedMetrics.size()];
       int i = 0;
@@ -159,11 +157,13 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   @Override
   public void close() throws IOException {
     if (_successful) {
-      LOG.info("Successfully finished fetching data from Google Search Console for " + _currentDate.toString());
+      LOG.info(String.format("Successfully finished fetching data from Google Search Console from %s to %s.",
+          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
       _wuState.setActualHighWatermark(
-          new LongWatermark(Long.parseLong(_watermarkFormatter.print(_currentDate.plusDays(1)))));
+          new LongWatermark(Long.parseLong(watermarkFormatter.print(_endDate.plusDays(1)))));
     } else {
-      LOG.warn("Had problems fetching all data from Google Search Console for " + _currentDate.toString());
+      LOG.warn(String.format("Had problems fetching all data from Google Search Console from %s to %s.",
+          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
     }
   }
 

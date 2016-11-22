@@ -43,7 +43,8 @@ class GoogleWebmasterExtractorIterator {
   private final int QUERY_LIMIT;
 
   private final GoogleWebmasterDataFetcher _webmaster;
-  private final String _date;
+  private final String _startDate;
+  private final String _endDate;
   private final String _country;
   private Deque<String> _cachedPages = null;
   private Thread _producerThread;
@@ -53,7 +54,7 @@ class GoogleWebmasterExtractorIterator {
   private final List<GoogleWebmasterFilter.Dimension> _requestedDimensions;
   private final List<GoogleWebmasterDataFetcher.Metric> _requestedMetrics;
 
-  public GoogleWebmasterExtractorIterator(GoogleWebmasterDataFetcher webmaster, String date,
+  public GoogleWebmasterExtractorIterator(GoogleWebmasterDataFetcher webmaster, String startDate, String endDate,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics,
       Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> filterMap, WorkUnitState wuState) {
@@ -61,7 +62,8 @@ class GoogleWebmasterExtractorIterator {
         "Doesn't support filters for page for the time being. Will implement support later. If page filter is provided, the code won't take the responsibility of get all pages, so it will just return all queries for that page.");
 
     _webmaster = webmaster;
-    _date = date;
+    _startDate = startDate;
+    _endDate = endDate;
     _requestedDimensions = requestedDimensions;
     _requestedMetrics = requestedMetrics;
     _filterMap = filterMap;
@@ -118,7 +120,7 @@ class GoogleWebmasterExtractorIterator {
   private void initialize() throws IOException {
     if (_cachedPages == null) {
       //Doesn't need to be a ConcurrentLinkedDeque upon creation, because it will only be read by one thread.
-      _cachedPages = new ArrayDeque<>(_webmaster.getAllPages(_date, _country, PAGE_LIMIT));
+      _cachedPages = new ArrayDeque<>(_webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT));
       //start the response producer
       _producerThread = new Thread(new ResponseProducer(_cachedPages));
       _producerThread.start();
@@ -225,7 +227,8 @@ class GoogleWebmasterExtractorIterator {
             "Exceeding the number of maximum retry rounds. There are %d unprocessed pages." + _pagesToProcess.size());
       }
       LOG.info(
-          String.format("Terminating current ResponseProducer for %s on %s at retry round %d", _country, _date, r));
+          String.format("Terminating ResponseProducer for %s from %s to %s at retry round %d", _country, _startDate,
+              _endDate, r));
     }
 
     private Future<Void> submitJob(long requestSleep, ConcurrentLinkedDeque<String> pagesToRetry, ExecutorService es,
@@ -255,9 +258,8 @@ class GoogleWebmasterExtractorIterator {
           filters.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page));
           List<String[]> results;
           try {
-            results =
-                _webmaster.performSearchAnalyticsQuery(_date, QUERY_LIMIT, _requestedDimensions, _requestedMetrics,
-                    filters);
+            results = _webmaster.performSearchAnalyticsQuery(_startDate, _endDate, QUERY_LIMIT, _requestedDimensions,
+                _requestedMetrics, filters);
           } catch (IOException e) {
             onFailure(e.getMessage(), page, pagesToRetry);
             return null;
@@ -296,7 +298,7 @@ class GoogleWebmasterExtractorIterator {
               filters.addAll(_filterMap.values());
               filters.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page));
 
-              _webmaster.createSearchAnalyticsQuery(_date, _requestedDimensions, filters, QUERY_LIMIT, 0)
+              _webmaster.createSearchAnalyticsQuery(_startDate, _endDate, _requestedDimensions, filters, QUERY_LIMIT, 0)
                   .queue(batchRequest, new JsonBatchCallback<SearchAnalyticsQueryResponse>() {
                     @Override
                     public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
