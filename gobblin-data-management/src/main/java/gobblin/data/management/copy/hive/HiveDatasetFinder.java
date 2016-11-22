@@ -52,7 +52,7 @@ import gobblin.data.management.hive.HiveConfigClientUtils;
 import gobblin.dataset.IterableDatasetFinder;
 import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.metrics.event.EventSubmitter;
-import gobblin.metrics.event.sla.SlaEventKeys;
+import gobblin.metrics.event.sla.SlaEventSubmitter;
 import gobblin.util.AutoReturnableObject;
 import gobblin.util.ConfigUtils;
 
@@ -242,13 +242,21 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
             if (ConfigUtils.getBoolean(datasetConfig, HIVE_DATASET_IS_BLACKLISTED_KEY, DEFAULT_HIVE_DATASET_IS_BLACKLISTED_KEY)) {
               continue;
             }
-            EventSubmitter.submit(HiveDatasetFinder.this.eventSubmitter, DATASET_FOUND, SlaEventKeys.DATASET_URN_KEY, dbAndTable.toString());
+
+            if (HiveDatasetFinder.this.eventSubmitter.isPresent()) {
+              SlaEventSubmitter.builder().datasetUrn(dbAndTable.toString())
+              .eventSubmitter(HiveDatasetFinder.this.eventSubmitter.get()).eventName(DATASET_FOUND).build().submit();
+            }
+
             return createHiveDataset(table, datasetConfig);
           } catch (Throwable t) {
             log.error(String.format("Failed to create HiveDataset for table %s.%s", dbAndTable.getDb(), dbAndTable.getTable()), t);
-            EventSubmitter.submit(HiveDatasetFinder.this.eventSubmitter, DATASET_ERROR,
-                SlaEventKeys.DATASET_URN_KEY, dbAndTable.toString(),
-                FAILURE_CONTEXT, t.toString());
+
+            if (HiveDatasetFinder.this.eventSubmitter.isPresent()) {
+              SlaEventSubmitter.builder().datasetUrn(dbAndTable.toString())
+                  .eventSubmitter(HiveDatasetFinder.this.eventSubmitter.get()).eventName(DATASET_ERROR)
+                  .additionalMetadata(FAILURE_CONTEXT, t.toString()).build().submit();
+            }
           }
         }
         return endOfData();
