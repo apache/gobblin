@@ -47,7 +47,6 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 
 import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.event.CompactionRecordCountEvent;
 import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
@@ -501,27 +500,6 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     }
   }
 
-  private void submitSlaEvent(Job job) {
-    try {
-      CompactionSlaEventHelper
-          .getEventSubmitterBuilder(this.dataset, Optional.of(job), this.fs)
-          .eventSubmitter(this.eventSubmitter)
-          .eventName(CompactionSlaEventHelper.COMPACTION_COMPLETED_EVENT_NAME)
-          .additionalMetadata(
-              CompactionRecordCountEvent.LATE_RECORD_COUNT,
-              Long.toString(this.lateOutputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
-                  .outputLatePath()))))
-          .additionalMetadata(
-              CompactionRecordCountEvent.REGULAR_RECORD_COUNT,
-              Long.toString(this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
-                  .outputPath()))))
-          .additionalMetadata(CompactionSlaEventHelper.RECOMPATED_METADATA_NAME, Boolean.toString(this.dataset.needToRecompact()))
-          .build().submit();
-    } catch (Exception e) {
-      LOG.error("Failed to submit compcation completed event:" + e, e);
-    }
-  }
-
   /**
    * Tell the {@link MRCompactorJobRunner} that it can go ahead and publish the data.
    */
@@ -583,22 +561,51 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
   /**
+   * Submit an event when compaction MR job completes
+   */
+  private void submitSlaEvent(Job job) {
+    try {
+      CompactionSlaEventHelper
+          .getEventSubmitterBuilder(this.dataset, Optional.of(job), this.fs)
+          .eventSubmitter(this.eventSubmitter)
+          .eventName(CompactionSlaEventHelper.COMPACTION_COMPLETED_EVENT_NAME)
+          .additionalMetadata(
+              CompactionSlaEventHelper.LATE_RECORD_COUNT,
+              Long.toString(this.lateOutputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
+                  .outputLatePath()))))
+          .additionalMetadata(
+              CompactionSlaEventHelper.REGULAR_RECORD_COUNT,
+              Long.toString(this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
+                  .outputPath()))))
+          .additionalMetadata(CompactionSlaEventHelper.RECOMPATED_METADATA_NAME,
+              Boolean.toString(this.dataset.needToRecompact())).build().submit();
+    } catch (Throwable e) {
+      LOG.warn("Failed to submit compcation completed event:" + e, e);
+    }
+  }
+
+  /**
    * Submit an event reporting late record counts and non-late record counts.
    */
   private void submitRecordsCountsEvent() {
     try {
-      long lateOutputRecordCount = 0l;
-      Path outputLatePath = this.dataset.outputLatePath();
-      if (this.fs.exists(outputLatePath)) {
-        lateOutputRecordCount = this.lateOutputRecordCountProvider
-            .getRecordCount(this.getApplicableFilePaths(this.dataset.outputLatePath()));
-      }
-      long outputRecordCount =
-          this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath()));
-      new CompactionRecordCountEvent(this.dataset, outputRecordCount, lateOutputRecordCount, this.eventSubmitter)
-          .submit();
-    } catch (Exception e) {
-      LOG.error("Failed to submit late event count:" + e, e);
+      CompactionSlaEventHelper
+          .getEventSubmitterBuilder(this.dataset, Optional.<Job> absent(), this.fs)
+          .eventSubmitter(this.eventSubmitter)
+          .eventName(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT)
+          .additionalMetadata(CompactionSlaEventHelper.DATASET_OUTPUT_PATH, this.dataset.outputPath().toString())
+          .additionalMetadata(
+              CompactionSlaEventHelper.LATE_RECORD_COUNT,
+              Long.toString(this.lateOutputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
+                  .outputLatePath()))))
+          .additionalMetadata(
+              CompactionSlaEventHelper.REGULAR_RECORD_COUNT,
+              Long.toString(this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
+                  .outputPath()))))
+          .additionalMetadata(CompactionSlaEventHelper.NEED_RECOMPACT, Boolean.toString(this.dataset.needToRecompact()))
+          .build().submit();
+    } catch (Throwable e) {
+      LOG.warn("Failed to submit late event count:" + e, e);
     }
   }
 }
