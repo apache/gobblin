@@ -103,7 +103,7 @@ class KafkaServerSuite {
   private KafkaServerSuite()
   {
     _kafkaServerPort = TestUtils.choosePort();
-    _zkConnectString = TestZKUtils.zookeeperConnect();
+    _zkConnectString = "localhost:" + TestUtils.choosePort(); //TestZKUtils.zookeeperConnect();
     _numStarted = new AtomicInteger(0);
   }
 
@@ -117,6 +117,7 @@ class KafkaServerSuite {
 
 
       Properties props = TestUtils.createBrokerConfig(_brokerId, _kafkaServerPort, true);
+      props.setProperty("zookeeper.connect", _zkConnectString);
 
       KafkaConfig config = new KafkaConfig(props);
       Time mock = new MockTime();

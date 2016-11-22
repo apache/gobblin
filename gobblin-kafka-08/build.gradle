@@ -15,6 +15,7 @@ dependencies {
   compile project(":gobblin-core")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
+  compile project(":gobblin-kafka-common")
 
   compile externalDependency.avro
   compile externalDependency.jacksonCore
@@ -26,12 +27,12 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.httpclient
   compile externalDependency.httpcore
-  compile(externalDependency.kafka){
+  compile(externalDependency.kafka08){
     exclude group: "com.sun.jmx", module: "jmxri"
     exclude group: "com.sun.jdmk", module: "jmxtools"
     exclude group: "javax.jms", module: "jms"
   }  
-  compile externalDependency.kafkaClient
+  compile externalDependency.kafka08Client
   compile externalDependency.scala
   compile externalDependency.lombok
   compile externalDependency.metricsCore
@@ -47,7 +48,7 @@ dependencies {
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
-  testCompile(externalDependency.kafkaTest){
+  testCompile(externalDependency.kafka08Test){
     exclude group: "com.sun.jmx", module: "jmxri"
     exclude group: "com.sun.jdmk", module: "jmxtools"
     exclude group: "javax.jms", module: "jms"

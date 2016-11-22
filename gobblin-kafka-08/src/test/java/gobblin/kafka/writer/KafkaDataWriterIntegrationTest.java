@@ -41,8 +41,8 @@ import gobblin.runtime.JobLauncherFactory;
 @Slf4j
 public class KafkaDataWriterIntegrationTest {
 
-  private static final String TEST_LAUNCHER_PROPERTIES_FILE = "gobblin-kafka/resource/job-props/testKafkaIngest.properties";
-  private static final String TEST_INGEST_PULL_FILE = "gobblin-kafka/resource/job-props/testKafkaIngest.pull";
+  private static final String TEST_LAUNCHER_PROPERTIES_FILE = "gobblin-kafka-08/resource/job-props/testKafkaIngest.properties";
+  private static final String TEST_INGEST_PULL_FILE = "gobblin-kafka-08/resource/job-props/testKafkaIngest.pull";
   private Properties gobblinProps;
   private Properties jobProps;
   private KafkaTestBase kafkaTestHelper;

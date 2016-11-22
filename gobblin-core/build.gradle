@@ -40,8 +40,8 @@ dependencies {
   compile externalDependency.httpclient
   compile externalDependency.httpcore
   compile externalDependency.metricsCore
-  compile externalDependency.kafka
-  compile externalDependency.kafkaClient
+  //compile externalDependency.kafka08
+  //compile externalDependency.kafka08Client
   compile externalDependency.scala
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig

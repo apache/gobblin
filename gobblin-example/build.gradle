@@ -15,7 +15,7 @@ dependencies {
     compile project(":gobblin-core")
     compile project(":gobblin-runtime")
     compile project(":gobblin-data-management")
-    runtime project(":gobblin-kafka")
+    runtime project(":gobblin-kafka-08")
 
     compile externalDependency.avro
     compile externalDependency.commonsLang3

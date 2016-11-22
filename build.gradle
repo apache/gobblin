@@ -143,6 +143,8 @@ ext.dropwizardMetricsVersion = '3.1.0'
 ext.findBugsVersion = '3.0.0'
 ext.confluentVersion = '2.0.1'
 ext.googleVersion = '1.22.0'
+ext.kafka08Version = '0.8.2.2'
+ext.kafka09Version = '0.9.0.1'
 
 dependencyManagement {
   imports {
@@ -197,9 +199,12 @@ ext.externalDependency = [
   "hiveSerDe": "org.apache.hive:hive-serde:" + hiveVersion,
   "httpclient": "org.apache.httpcomponents:httpclient:4.5.2",
   "httpcore": "org.apache.httpcomponents:httpcore:4.4.4",
-  "kafka": "org.apache.kafka:kafka_2.11:0.8.2.2",
-  "kafkaTest": "org.apache.kafka:kafka_2.11:0.8.2.2:test",
-  "kafkaClient": "org.apache.kafka:kafka-clients:0.8.2.2",
+  "kafka08": "org.apache.kafka:kafka_2.11:" + kafka08Version,
+  "kafka08Test": "org.apache.kafka:kafka_2.11:" + kafka08Version + ":test",
+  "kafka08Client": "org.apache.kafka:kafka-clients:" + kafka08Version,
+  "kafka09": "org.apache.kafka:kafka_2.11:" + kafka09Version,
+  "kafka09Test": "org.apache.kafka:kafka_2.11:" + kafka09Version + ":test",
+  "kafka09Client": "org.apache.kafka:kafka-clients:" + kafka09Version,
   "confluentSchemaRegistryClient": "io.confluent:kafka-schema-registry-client:" + confluentVersion,
   "confluentAvroSerializer": "io.confluent:kafka-avro-serializer:" + confluentVersion,
   "confluentJsonSerializer": "io.confluent:kafka-json-serializer:" + confluentVersion,
