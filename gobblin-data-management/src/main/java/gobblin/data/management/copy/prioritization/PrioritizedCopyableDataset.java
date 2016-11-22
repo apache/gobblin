@@ -22,6 +22,7 @@ import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.IterableCopyableDataset;
 import gobblin.data.management.partition.FileSet;
+import gobblin.util.request_allocation.PushDownRequestor;
 
 
 /**
@@ -33,13 +34,16 @@ public interface PrioritizedCopyableDataset extends IterableCopyableDataset {
 
   /**
    * Get an iterator of {@link FileSet}s of {@link CopyEntity}, each one representing a group of files to copy and
-   * associated actions, sorted by the input {@link Comparator}.
+   * associated actions, sorted by the input {@link Comparator},
+   * and with the provided {@link gobblin.util.request_allocation.Requestor} injected (this is important for pushdown).
+   *
    * @param targetFs target {@link org.apache.hadoop.fs.FileSystem} where copied files will be placed.
    * @param configuration {@link gobblin.data.management.copy.CopyConfiguration} for this job. See {@link gobblin.data.management.copy.CopyConfiguration}.
    * @param prioritizer output {@link FileSet}s must be sorted by this {@link Comparator}.
+   * @param requestor the {@link gobblin.util.request_allocation.Requestor} object that all {@link FileSet}s should have.
    * @throws IOException
    */
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration,
-      Comparator<FileSet<CopyEntity>> prioritizer) throws IOException;
+      Comparator<FileSet<CopyEntity>> prioritizer, PushDownRequestor<FileSet<CopyEntity>> requestor) throws IOException;
 
 }

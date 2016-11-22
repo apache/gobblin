@@ -47,6 +47,7 @@ import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
 import gobblin.util.PathUtils;
+import gobblin.util.request_allocation.PushDownRequestor;
 
 
 /**
@@ -123,11 +124,11 @@ public class HiveDataset implements PrioritizedCopyableDataset {
    */
   @Override
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration,
-      Comparator<FileSet<CopyEntity>> prioritizer)
+      Comparator<FileSet<CopyEntity>> prioritizer, PushDownRequestor<FileSet<CopyEntity>> requestor)
       throws IOException {
     try {
       List<FileSet<CopyEntity>> fileSetList = Lists.newArrayList(new HiveCopyEntityHelper(this, configuration, targetFs)
-          .getCopyEntities(configuration));
+          .getCopyEntities(configuration, prioritizer, requestor));
       Collections.sort(fileSetList, prioritizer);
       return fileSetList.iterator();
     } catch (IOException ioe) {
