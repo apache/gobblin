@@ -1,6 +1,7 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
 import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.services.webmasters.Webmasters;
 import com.google.api.services.webmasters.model.ApiDataRow;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
@@ -10,6 +11,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -26,10 +29,27 @@ import java.util.List;
  *
  */
 public abstract class GoogleWebmasterDataFetcher {
-
   enum Metric {
     CLICKS, IMPRESSIONS, CTR, POSITION
   }
+
+  /**
+   * Results are composed of [[requestedDimension list], clicks, impressions, ctr, position]
+   * @param rowLimit row limit for this API call
+   * @param requestedDimensions a list of dimension requests. The dimension values can be found at the first part of the return value
+   * @param filters filters of your request
+   */
+  public abstract List<String[]> performSearchAnalyticsQuery(String startDate, String endDate, int rowLimit,
+      List<Dimension> requestedDimensions, List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters)
+      throws IOException;
+
+  /**
+   * Call API in batches
+   */
+  public abstract void performSearchAnalyticsQueryInBatch(List<ProducerJob> jobs,
+      List<ArrayList<ApiDimensionFilter>> filterList,
+      List<JsonBatchCallback<SearchAnalyticsQueryResponse>> callbackList, List<Dimension> requestedDimensions,
+      int rowLimit) throws IOException;
 
   /**
    * Return all pages given (date, country) filter
@@ -37,22 +57,6 @@ public abstract class GoogleWebmasterDataFetcher {
    * @param rowLimit this is mostly for testing purpose. In order to get all pages, set this to the API row limit, which is 5000
    */
   public abstract Collection<ProducerJob> getAllPages(String startDate, String endDate, String country, int rowLimit)
-      throws IOException;
-
-  /**
-   * @param rowLimit row limit for this API call
-   * @param requestedDimensions a list of dimension requests. The dimension values can be found at the first part of the return value
-   * @param filters filters of your request
-   * @return the response from the API call. The value is composed of [[requestedDimension list], clicks, impressions, ctr, position]
-   */
-  public abstract List<String[]> performSearchAnalyticsQuery(String startDate, String endDate, int rowLimit,
-      List<Dimension> requestedDimensions, List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters)
-      throws IOException;
-
-  public abstract BatchRequest createBatch();
-
-  public abstract Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String startDate, String endDate,
-      List<Dimension> requestedDimensions, Collection<ApiDimensionFilter> filters, int rowLimit, int startRow)
       throws IOException;
 
   public static List<String[]> convertResponse(List<Metric> requestedMetrics, SearchAnalyticsQueryResponse response) {
@@ -86,17 +90,6 @@ public abstract class GoogleWebmasterDataFetcher {
       ret.add(data);
     }
     return ret;
-  }
-
-  public static String getWarningMessage(String startDate, String endDate, Collection<ApiDimensionFilter> filters) {
-    StringBuilder filterString = new StringBuilder();
-    for (ApiDimensionFilter filter : filters) {
-      filterString.append(filter.toString());
-      filterString.append(" ");
-    }
-    return String.format(
-        "There might be more data based on your query: StartDate - %s, EndDate - %s, filters - %s. Currently, downloading more than the Google API limit '%d' is not supported.",
-        startDate, endDate, filterString.toString(), GoogleWebmasterClient.API_ROW_LIMIT);
   }
 }
 

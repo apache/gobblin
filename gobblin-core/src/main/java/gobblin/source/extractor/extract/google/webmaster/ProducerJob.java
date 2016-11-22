@@ -9,15 +9,25 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import org.apache.commons.lang3.tuple.Pair;
+import org.joda.time.DateTime;
+import org.joda.time.Days;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 
 public class ProducerJob {
+  private final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
   private static final GsonBuilder gsonBuilder = new GsonBuilder();
   private final String _page;
   private final String _startDate;
   private final String _endDate;
   private final GoogleWebmasterFilter.FilterOperator _operator;
 
+  /**
+   * @param startDate format is "yyyy-MM-dd"
+   * @param endDate format is "yyyy-MM-dd"
+   */
   ProducerJob(String page, String startDate, String endDate, GoogleWebmasterFilter.FilterOperator operator) {
     _page = page;
     _startDate = startDate;
@@ -53,6 +63,19 @@ public class ProducerJob {
 
   public GoogleWebmasterFilter.FilterOperator getOperator() {
     return _operator;
+  }
+
+  public Pair<ProducerJob, ProducerJob> divideJob() {
+    DateTime start = dateFormatter.parseDateTime(_startDate);
+    DateTime end = dateFormatter.parseDateTime(_endDate);
+    int days = Days.daysBetween(start, end).getDays();
+    if (days <= 0) {
+      return null;
+    }
+    int step = days / 2;
+
+    return Pair.of(new ProducerJob(_page, _startDate, dateFormatter.print(start.plusDays(step)), _operator),
+        new ProducerJob(_page, dateFormatter.print(start.plusDays(step + 1)), _endDate, _operator));
   }
 
   @Override
