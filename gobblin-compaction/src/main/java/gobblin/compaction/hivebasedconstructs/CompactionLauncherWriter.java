@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Properties;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Joiner;
 import gobblin.compaction.listeners.CompactorListener;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.metrics.Tag;
@@ -29,7 +30,7 @@ public class CompactionLauncherWriter implements DataWriter<MRCompactionEntity> 
     Properties props = new Properties();
     props.putAll(compactionEntity.getProps());
     props.setProperty(ConfBasedDeltaFieldProvider.DELTA_FIELDS_KEY,
-        compactionEntity.getDeltaList().toString().replace("[", "").replace("]", ""));
+        Joiner.on(',').join(compactionEntity.getDeltaList()));
     props.setProperty(MRCompactor.COMPACTION_INPUT_DIR, compactionEntity.getDataFilesPath().toString());
 
     MRCompactor compactor = new MRCompactor(props, list, Optional.<CompactorListener>absent());
