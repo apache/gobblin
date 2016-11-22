@@ -17,7 +17,7 @@ import java.sql.SQLException;
 
 import org.apache.avro.Schema;
 
-import gobblin.hive.util.HiveJdbcConnector;
+import gobblin.util.HiveJdbcConnector;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 

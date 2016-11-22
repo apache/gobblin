@@ -48,6 +48,7 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
   public static final char DATASETS_WITH_DIFFERENT_RECOMPACT_THRESHOLDS_SEPARATOR = ';';
   public static final char DATASETS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR = ',';
   public static final char DATASETS_AND_RECOMPACT_THRESHOLD_SEPARATOR = ':';
+  public static final String TMP_OUTPUT_SUBDIR = "output";
 
   protected final State state;
   protected final Configuration conf;
@@ -106,7 +107,8 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
   }
 
   private String getTmpOutputDir() {
-    return this.state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR, MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR);
+    return new Path(this.state.getProp(MRCompactor.COMPACTION_TMP_DEST_DIR,
+        MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR), TMP_OUTPUT_SUBDIR).toString();
   }
 
   private FileSystem getFileSystem() {

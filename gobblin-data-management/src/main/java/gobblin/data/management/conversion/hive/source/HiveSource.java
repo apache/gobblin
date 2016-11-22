@@ -20,12 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -41,7 +39,6 @@ import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.avro.SchemaNotFoundException;
 import gobblin.data.management.conversion.hive.events.EventConstants;
 import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
-import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractor;
 import gobblin.data.management.conversion.hive.provider.HiveUnitUpdateProvider;
 import gobblin.data.management.conversion.hive.provider.UpdateNotFoundException;
 import gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
@@ -64,6 +61,9 @@ import gobblin.util.AutoReturnableObject;
 import gobblin.util.HadoopUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
 import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.util.ClassAliasResolver;
+import gobblin.data.management.conversion.hive.extractor.HiveBaseExtractorFactory;
+import gobblin.data.management.conversion.hive.extractor.HiveConvertExtractorFactory;
 
 
 /**
@@ -100,6 +100,9 @@ public class HiveSource implements Source {
   public static final String HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY = "hive.source.watermarker.factoryClass";
   public static final String DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS = PartitionLevelWatermarker.Factory.class.getName();
 
+  public static final String HIVE_SOURCE_EXTRACTOR_TYPE = "hive.source.extractorType";
+  public static final String DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE = HiveConvertExtractorFactory.class.getName();
+
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   private MetricContext metricContext;
@@ -112,6 +115,9 @@ public class HiveSource implements Source {
   private List<WorkUnit> workunits;
   private long maxLookBackTime;
   private long beginGetWorkunitsTime;
+
+  private final ClassAliasResolver<HiveBaseExtractorFactory> classAliasResolver =
+      new ClassAliasResolver<>(HiveBaseExtractorFactory.class);
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -330,8 +336,9 @@ public class HiveSource implements Source {
   @Override
   public Extractor getExtractor(WorkUnitState state) throws IOException {
     try {
-      return new HiveConvertExtractor(state, getSourceFs());
-    } catch (TException | HiveException e) {
+      return classAliasResolver.resolveClass(state.getProp(HIVE_SOURCE_EXTRACTOR_TYPE, DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE))
+          .newInstance().createExtractor(state, getSourceFs());
+    } catch (Exception e) {
       throw new IOException(e);
     }
   }

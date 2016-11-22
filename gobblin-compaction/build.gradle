@@ -16,6 +16,7 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
   compile project(":gobblin-core")
+  compile project(":gobblin-data-management")
 
   compile externalDependency.calciteCore
   compile externalDependency.calciteAvatica
@@ -47,8 +48,8 @@ dependencies {
 }
 
 
-configurations { 
-    compile { transitive = true } 
+configurations {
+    compile { transitive = true }
 }
 
 ext.classification="library"
