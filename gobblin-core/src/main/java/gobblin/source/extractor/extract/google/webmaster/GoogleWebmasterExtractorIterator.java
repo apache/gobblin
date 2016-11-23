@@ -205,9 +205,9 @@ class GoogleWebmasterExtractorIterator {
 
         try {
           es.shutdown(); //stop accepting new requests
-          es.awaitTermination(4, TimeUnit.HOURS); //await for all submitted job to finish
+          es.awaitTermination(30, TimeUnit.HOURS); //await for all submitted job to finish
         } catch (InterruptedException e) {
-          e.printStackTrace();
+          throw new RuntimeException(e);
         }
 
         if (pagesToRetry.isEmpty()) {
@@ -226,18 +226,21 @@ class GoogleWebmasterExtractorIterator {
       }
 
       if (r == MAX_RETRY_ROUNDS + 1) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Unprocessed pages. You can added as hot start to retry: ")
-            .append(System.lineSeparator())
-            .append(System.lineSeparator());
-        sb.append(ProducerJob.serialize(_pagesToProcess));
-        sb.append(System.lineSeparator());
-        LOG.error(sb.toString());
-        LOG.error("Exceeded maximum retries. There are %d unprocessed jobs. Check the log to get the full list."
-            + _pagesToProcess.size());
+        logForHotStart("Exceeded maximum retries", _pagesToProcess);
       }
       LOG.info(String.format("ResponseProducer finishes for %s from %s to %s at retry round %d", _country, _startDate,
           _endDate, r));
+    }
+
+    private void logForHotStart(String msg, Deque<ProducerJob> unprocessed) {
+      LOG.error(String.format("%s. There are %d unprocessed jobs.", msg, _pagesToProcess.size()));
+      StringBuilder sb = new StringBuilder();
+      sb.append("You can add as hot start jobs to continue: ")
+          .append(System.lineSeparator())
+          .append(System.lineSeparator());
+      sb.append(ProducerJob.serialize(unprocessed));
+      sb.append(System.lineSeparator());
+      LOG.error(sb.toString());
     }
 
     private void submitJob(long requestSleep, ConcurrentLinkedDeque<ProducerJob> pagesToRetry, ExecutorService es,
