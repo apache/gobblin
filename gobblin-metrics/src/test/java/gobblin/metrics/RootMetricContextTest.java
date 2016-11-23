@@ -12,6 +12,8 @@
 
 package gobblin.metrics;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import java.lang.ref.WeakReference;
 import java.util.UUID;
 
@@ -38,6 +40,8 @@ import gobblin.metrics.reporter.ContextStoreReporter;
  */
 public class RootMetricContextTest {
 
+  private static final Cache<String, int[]> CACHE = CacheBuilder.newBuilder().softValues().build();
+
   @BeforeMethod
   public void setUp() throws Exception {
     System.gc();
@@ -46,6 +50,7 @@ public class RootMetricContextTest {
 
   @AfterMethod
   public void tearDown() throws Exception {
+    CACHE.invalidateAll();
     System.gc();
     RootMetricContext.get().clearNotificationTargets();
   }
@@ -171,22 +176,26 @@ public class RootMetricContextTest {
     RootMetricContext.get().removeReporter(reporter);
   }
 
-  private void ensureGarbageCollected(WeakReference<?> weakReference) {
-    int maxTries = 10;
-    while(maxTries > 0 && weakReference.get() != null) {
-      System.gc();
-      maxTries--;
+  private void triggerGarbageCollection(WeakReference<?> weakReference) {
+    System.gc();
+
+    // System.gc() might not clean up the object being checked, so allocate some memory and call System.gc() again
+    for (int i = 0; weakReference.get() != null && i <= 10000; i++) {
+      CACHE.put(Integer.toString(i), new int[10000]);
+
+      if (i % 1000 == 0) {
+        System.gc();
+      }
     }
+  }
+  private void ensureGarbageCollected(WeakReference<?> weakReference) {
+    triggerGarbageCollection(weakReference);
 
     Assert.assertNull(weakReference.get());
   }
 
   private void ensureNotGarbageCollected(WeakReference<?> weakReference) {
-    int maxTries = 10;
-    while(maxTries > 0 && weakReference.get() != null) {
-      System.gc();
-      maxTries--;
-    }
+    triggerGarbageCollection(weakReference);
 
     Assert.assertNotNull(weakReference.get());
   }
