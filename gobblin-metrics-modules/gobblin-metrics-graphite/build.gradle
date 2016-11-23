@@ -25,20 +25,15 @@ apply plugin: "com.commercehub.gradle.plugin.avro"
 */
 
 dependencies {
-  compile project(":gobblin-metrics:gobblin-metrics-base")
+  compile project(":gobblin-metrics-modules:gobblin-metrics-base")
 
   compile externalDependency.guava
   compile externalDependency.metricsCore
   compile externalDependency.slf4j
-  compile externalDependency.influxdbJava
+  compile externalDependency.metricsGraphite
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
-}
-
-test {
-    workingDir rootProject.rootDir
-    maxParallelForks = 1
 }
 
 ext.classification="library"
