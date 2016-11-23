@@ -32,6 +32,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ServiceManager;
@@ -90,6 +91,7 @@ public class JobConfigFileMonitorTest {
   @Test
   public void testAddNewJobConfigFile() throws Exception {
     final Logger log = LoggerFactory.getLogger("testAddNewJobConfigFile");
+    log.info("testAddNewJobConfigFile: start");
     AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(log).timeoutMs(15000);
     assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 3, "3 scheduled jobs");
 
@@ -108,44 +110,54 @@ public class JobConfigFileMonitorTest {
     assertWithBackoff.assertEquals(new GetNumScheduledJobs(), 4, "4 scheduled jobs");
 
     Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
-    Assert.assertEquals(jobNames.size(), 4);
-    Assert.assertTrue(jobNames.contains("GobblinTest1"));
-    Assert.assertTrue(jobNames.contains("GobblinTest2"));
-    Assert.assertTrue(jobNames.contains("GobblinTest3"));
-    // The new job should be in the set of scheduled jobs
-    Assert.assertTrue(jobNames.contains("Gobblin-test-new"));
+    Set<String> expectedJobNames =
+        ImmutableSet.<String>builder()
+          .add("GobblinTest1", "GobblinTest2", "GobblinTest3", "Gobblin-test-new")
+          .build();
+
+    Assert.assertEquals(jobNames, expectedJobNames);
+    log.info("testAddNewJobConfigFile: end");
   }
 
   @Test(dependsOnMethods = {"testAddNewJobConfigFile"})
   public void testChangeJobConfigFile()
       throws Exception {
     final Logger log = LoggerFactory.getLogger("testChangeJobConfigFile");
+    log.info("testChangeJobConfigFile: start");
     Assert.assertEquals(this.jobScheduler.getScheduledJobs().size(), 4);
 
     // Make a change to the new job configuration file
     Properties jobProps = new Properties();
     jobProps.load(new FileReader(this.newJobConfigFile));
     jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "partial");
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "Gobblin-test-new2");
     jobProps.store(new FileWriter(this.newJobConfigFile), null);
 
     AssertWithBackoff.create()
         .logger(log)
-        .timeoutMs(7500)
+        .timeoutMs(30000)
         .assertEquals(new GetNumScheduledJobs(), 4, "4 scheduled jobs");
 
-    Set<String> jobNames = Sets.newHashSet(this.jobScheduler.getScheduledJobs());
-    Assert.assertEquals(jobNames.size(), 4);
-    Assert.assertTrue(jobNames.contains("GobblinTest1"));
-    Assert.assertTrue(jobNames.contains("GobblinTest2"));
-    Assert.assertTrue(jobNames.contains("GobblinTest3"));
-    // The newly added job should still be in the set of scheduled jobs
-    Assert.assertTrue(jobNames.contains("Gobblin-test-new"));
+    final Set<String> expectedJobNames =
+        ImmutableSet.<String>builder()
+          .add("GobblinTest1", "GobblinTest2", "GobblinTest3", "Gobblin-test-new2")
+          .build();
+    AssertWithBackoff.create()
+      .logger(log)
+      .timeoutMs(30000)
+      .assertEquals(new Function<Void, Set<String>>() {
+          @Override public Set<String> apply(Void input) {
+            return Sets.newHashSet(JobConfigFileMonitorTest.this.jobScheduler.getScheduledJobs());
+          }
+        }, expectedJobNames, "Job change detected");
+    log.info("testChangeJobConfigFile: end");
   }
 
   @Test(dependsOnMethods = {"testChangeJobConfigFile"})
   public void testUnscheduleJob()
       throws Exception {
     final Logger log = LoggerFactory.getLogger("testUnscheduleJob");
+    log.info("testUnscheduleJob: start");
     Assert.assertEquals(this.jobScheduler.getScheduledJobs().size(), 4);
 
     // Disable the new job by setting job.disabled=true
@@ -164,6 +176,7 @@ public class JobConfigFileMonitorTest {
     Assert.assertTrue(jobNames.contains("GobblinTest1"));
     Assert.assertTrue(jobNames.contains("GobblinTest2"));
     Assert.assertTrue(jobNames.contains("GobblinTest3"));
+    log.info("testUnscheduleJob: end");
   }
 
   @AfterClass
