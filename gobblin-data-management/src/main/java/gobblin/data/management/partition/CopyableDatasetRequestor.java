@@ -89,12 +89,14 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
   @Override
   public Iterator<FileSet<CopyEntity>> getRequests(Comparator<FileSet<CopyEntity>> prioritizer) throws IOException {
     if (this.dataset instanceof PrioritizedCopyableDataset) {
-      return injectRequestor(((PrioritizedCopyableDataset) this.dataset).getFileSetIterator(this.targetFs, this.copyConfiguration, prioritizer));
+      return ((PrioritizedCopyableDataset) this.dataset)
+          .getFileSetIterator(this.targetFs, this.copyConfiguration, prioritizer, this);
     }
 
-    List<FileSet<CopyEntity>> entities = Lists.newArrayList(this.dataset.getFileSetIterator(this.targetFs, this.copyConfiguration));
+    List<FileSet<CopyEntity>> entities =
+        Lists.newArrayList(injectRequestor(this.dataset.getFileSetIterator(this.targetFs, this.copyConfiguration)));
     Collections.sort(entities, prioritizer);
-    return injectRequestor(entities.iterator());
+    return entities.iterator();
   }
 
   private Iterator<FileSet<CopyEntity>> injectRequestor(Iterator<FileSet<CopyEntity>> iterator) {

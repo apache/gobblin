@@ -23,6 +23,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 
 public class TestMetastoreDatabaseFactory {
     private static final Object syncObject = new Object();
@@ -32,13 +35,21 @@ public class TestMetastoreDatabaseFactory {
     private TestMetastoreDatabaseFactory() {
     }
 
+    private static Config getDefaultConfig() {
+      return ConfigFactory.defaultOverrides().withFallback(ConfigFactory.load());
+    }
+
     public static ITestMetastoreDatabase get() throws Exception {
         return TestMetastoreDatabaseFactory.get("latest");
     }
 
     public static ITestMetastoreDatabase get(String version) throws Exception {
+      return get(version, getDefaultConfig());
+    }
+
+    public static ITestMetastoreDatabase get(String version, Config dbConfig) throws Exception {
         synchronized (syncObject) {
-            ensureDatabaseExists();
+            ensureDatabaseExists(dbConfig);
             TestMetadataDatabase instance = new TestMetadataDatabase(testMetastoreDatabaseServer, version);
             instances.add(instance);
             return instance;
@@ -54,11 +65,11 @@ public class TestMetastoreDatabaseFactory {
         }
     }
 
-    private static void ensureDatabaseExists() throws Exception {
+    private static void ensureDatabaseExists(Config dbConfig) throws Exception {
         if (testMetastoreDatabaseServer == null) {
             try (Mutex ignored = new Mutex()) {
                 if (testMetastoreDatabaseServer == null) {
-                    testMetastoreDatabaseServer = new TestMetastoreDatabaseServer();
+                    testMetastoreDatabaseServer = new TestMetastoreDatabaseServer(dbConfig);
                 }
             }
         }

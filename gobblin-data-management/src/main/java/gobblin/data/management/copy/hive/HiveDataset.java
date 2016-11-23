@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import lombok.Getter;
@@ -28,11 +29,16 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
+import com.typesafe.config.ConfigValueType;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
@@ -46,7 +52,9 @@ import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.util.ConfigUtils;
 import gobblin.util.PathUtils;
+import gobblin.util.request_allocation.PushDownRequestor;
 
 
 /**
@@ -58,13 +66,19 @@ import gobblin.util.PathUtils;
 @ToString
 public class HiveDataset implements PrioritizedCopyableDataset {
 
+  private static Splitter SPLIT_ON_DOT = Splitter.on(".").omitEmptyStrings().trimResults();
+
   public static final String REGISTERER = "registerer";
   public static final String REGISTRATION_GENERATION_TIME_MILLIS = "registrationGenerationTimeMillis";
+  public static final String DATASET_NAME_PATTERN_KEY = "hive.datasetNamePattern";
   public static final String DATABASE = "Database";
   public static final String TABLE = "Table";
 
   public static final String DATABASE_TOKEN = "$DB";
   public static final String TABLE_TOKEN = "$TABLE";
+
+  public static final String LOGICAL_DB_TOKEN = "$LOGICAL_DB";
+  public static final String LOGICAL_TABLE_TOKEN = "$LOGICAL_TABLE";
 
   // Will not be serialized/de-serialized
   protected transient final Properties properties;
@@ -78,7 +92,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   // Only set if table has exactly one location
   protected final Optional<Path> tableRootPath;
   protected final String tableIdentifier;
+  protected final Optional<String> datasetNamePattern;
   protected final DbAndTable dbAndTable;
+  protected final DbAndTable logicalDbAndTable;
 
   public HiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties properties) {
     this(fs, clientPool, table, properties, ConfigFactory.empty());
@@ -93,14 +109,20 @@ public class HiveDataset implements PrioritizedCopyableDataset {
     this.clientPool = clientPool;
     this.table = table;
     this.properties = properties;
-    this.datasetConfig = datasetConfig;
 
     this.tableRootPath = PathUtils.isGlob(this.table.getDataLocation()) ? Optional.<Path> absent() : Optional.of(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
     log.info("Created Hive dataset for table " + this.tableIdentifier);
 
+    this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
     this.dbAndTable = new DbAndTable(table.getDbName(), table.getTableName());
+    if (this.datasetNamePattern.isPresent()) {
+      this.logicalDbAndTable = parseLogicalDbAndTable(this.datasetNamePattern.get(), this.dbAndTable, LOGICAL_DB_TOKEN, LOGICAL_TABLE_TOKEN);
+    } else {
+      this.logicalDbAndTable = this.dbAndTable;
+    }
+    this.datasetConfig = resolveConfig(datasetConfig, dbAndTable, logicalDbAndTable);
 
     this.metricContext = Instrumented.getMetricContext(new State(properties), HiveDataset.class,
         Lists.<Tag<?>> newArrayList(new Tag<>(DATABASE, table.getDbName()), new Tag<>(TABLE, table.getTableName())));
@@ -123,11 +145,11 @@ public class HiveDataset implements PrioritizedCopyableDataset {
    */
   @Override
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration,
-      Comparator<FileSet<CopyEntity>> prioritizer)
+      Comparator<FileSet<CopyEntity>> prioritizer, PushDownRequestor<FileSet<CopyEntity>> requestor)
       throws IOException {
     try {
       List<FileSet<CopyEntity>> fileSetList = Lists.newArrayList(new HiveCopyEntityHelper(this, configuration, targetFs)
-          .getCopyEntities(configuration));
+          .getCopyEntities(configuration, prioritizer, requestor));
       Collections.sort(fileSetList, prioritizer);
       return fileSetList.iterator();
     } catch (IOException ioe) {
@@ -150,5 +172,106 @@ public class HiveDataset implements PrioritizedCopyableDataset {
       return rawString;
     }
     return StringUtils.replaceEach(rawString, new String[] { DATABASE_TOKEN, TABLE_TOKEN }, new String[] { table.getDbName(), table.getTableName() });
+  }
+
+  /***
+   * Parse logical Database and Table name from a given DbAndTable object.
+   *
+   * Eg.
+   * Dataset Name Pattern         : prod_$LOGICAL_DB_linkedin.prod_$LOGICAL_TABLE_linkedin
+   * Source DB and Table          : prod_dbName_linkedin.prod_tableName_linkedin
+   * Logical DB Token             : $LOGICAL_DB
+   * Logical Table Token          : $LOGICAL_TABLE
+   * Parsed Logical DB and Table  : dbName.tableName
+   *
+   * @param datasetNamePattern    Dataset name pattern.
+   * @param dbAndTable            Source DB and Table.
+   * @param logicalDbToken        Logical DB token.
+   * @param logicalTableToken     Logical Table token.
+   * @return  Parsed logical DB and Table.
+   */
+  @VisibleForTesting
+  protected static DbAndTable parseLogicalDbAndTable(String datasetNamePattern, DbAndTable dbAndTable,
+      String logicalDbToken, String logicalTableToken) {
+    Preconditions.checkArgument(StringUtils.isNotBlank(datasetNamePattern), "Dataset name pattern must not be empty.");
+
+    List<String> datasetNameSplit = Lists.newArrayList(SPLIT_ON_DOT.split(datasetNamePattern));
+    Preconditions.checkArgument(datasetNameSplit.size() == 2, "Dataset name pattern must of the format: "
+        + "dbPrefix_$LOGICAL_DB_dbPostfix.tablePrefix_$LOGICAL_TABLE_tablePostfix (prefix / postfix are optional)");
+
+    String dbNamePattern = datasetNameSplit.get(0);
+    String tableNamePattern = datasetNameSplit.get(1);
+
+    String logicalDb = extractTokenValueFromEntity(dbAndTable.getDb(), dbNamePattern, logicalDbToken);
+    String logicalTable = extractTokenValueFromEntity(dbAndTable.getTable(), tableNamePattern, logicalTableToken);
+
+    return new DbAndTable(logicalDb, logicalTable);
+  }
+
+  /***
+   * Extract token value from source entity, where token value is represented by a token in the source entity.
+   *
+   * Eg.
+   * Source Entity  : prod_tableName_avro
+   * Source Template: prod_$LOGICAL_TABLE_avro
+   * Token          : $LOGICAL_TABLE
+   * Extracted Value: tableName
+   *
+   * @param sourceEntity      Source entity (typically a table or database name).
+   * @param sourceTemplate    Source template representing the source entity.
+   * @param token             Token representing the value to extract from the source entity using the template.
+   * @return Extracted token value from the source entity.
+   */
+  @VisibleForTesting
+  protected static String extractTokenValueFromEntity(String sourceEntity, String sourceTemplate, String token) {
+    Preconditions.checkArgument(StringUtils.isNotBlank(sourceEntity), "Source entity should not be blank");
+    Preconditions.checkArgument(StringUtils.isNotBlank(sourceTemplate), "Source template should not be blank");
+    Preconditions.checkArgument(sourceTemplate.contains(token), String.format("Source template: %s should contain token: %s", sourceTemplate, token));
+
+    String extractedValue = sourceEntity;
+    List<String> preAndPostFix = Lists.newArrayList(Splitter.on(token).trimResults().split(sourceTemplate));
+
+    extractedValue = StringUtils.removeStart(extractedValue, preAndPostFix.get(0));
+    extractedValue = StringUtils.removeEnd(extractedValue, preAndPostFix.get(1));
+
+    return extractedValue;
+  }
+
+  /***
+   * Replace various tokens (DB, TABLE, LOGICAL_DB, LOGICAL_TABLE) with their values.
+   *
+   * @param datasetConfig       The config object that needs to be resolved with final values.
+   * @param realDbAndTable      Real DB and Table .
+   * @param logicalDbAndTable   Logical DB and Table.
+   * @return Resolved config object.
+   */
+  @VisibleForTesting
+  protected static Config resolveConfig(Config datasetConfig, DbAndTable realDbAndTable, DbAndTable logicalDbAndTable) {
+    Preconditions.checkNotNull(datasetConfig, "Dataset config should not be null");
+    Preconditions.checkNotNull(realDbAndTable, "Real DB and table should not be null");
+    Preconditions.checkNotNull(logicalDbAndTable, "Logical DB and table should not be null");
+
+    Properties resolvedProperties = new Properties();
+    Config resolvedConfig = datasetConfig.resolve();
+    for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
+      if (ConfigValueType.LIST.equals(entry.getValue().valueType())) {
+        List<String> rawValueList = resolvedConfig.getStringList(entry.getKey());
+        List<String> resolvedValueList = Lists.newArrayList();
+        for (String rawValue : rawValueList) {
+          String resolvedValue = StringUtils.replaceEach(rawValue,
+              new String[] { DATABASE_TOKEN, TABLE_TOKEN, LOGICAL_DB_TOKEN, LOGICAL_TABLE_TOKEN },
+              new String[] { realDbAndTable.getDb(), realDbAndTable.getTable(), logicalDbAndTable.getDb(), logicalDbAndTable.getTable() });
+          resolvedValueList.add(resolvedValue);
+        }
+        resolvedProperties.setProperty(entry.getKey(), resolvedValueList.toString());
+      } else {
+        String resolvedValue = StringUtils.replaceEach(resolvedConfig.getString(entry.getKey()),
+          new String[] { DATABASE_TOKEN, TABLE_TOKEN, LOGICAL_DB_TOKEN, LOGICAL_TABLE_TOKEN },
+          new String[] { realDbAndTable.getDb(), realDbAndTable.getTable(), logicalDbAndTable.getDb(), logicalDbAndTable.getTable() });
+        resolvedProperties.setProperty(entry.getKey(), resolvedValue);
+      }
+    }
+
+    return ConfigUtils.propertiesToConfig(resolvedProperties);
   }
 }

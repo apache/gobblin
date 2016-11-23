@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.SocketException;
 
 /**
  * A double-echo TCP server that writes to a socket as soon as it accepts one. This is to simulate the behavior of
@@ -31,15 +32,26 @@ class TalkFirstDoubleEchoServer extends MockServer {
 
     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
     PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
-    out.println("Hello");
-    out.flush();
 
-    String line = in.readLine();
-    while (line != null && isServerRunning()) {
-      out.println(line + " " + line);
+    try {
+      out.println("Hello");
       out.flush();
-      line = in.readLine();
+
+      String line = in.readLine();
+      while (line != null && isServerRunning()) {
+        out.println(line + " " + line);
+        out.flush();
+        line = in.readLine();
+      }
     }
-    clientSocket.close();
+    catch (SocketException se) {
+      // don't bring down server when client disconnected abruptly
+      if (!se.getMessage().contains("Connection reset")) {
+        throw se;
+      }
+    }
+    finally {
+      clientSocket.close();
+    }
   }
 }

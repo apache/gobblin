@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.hive.util;
+package gobblin.util;
 
 import java.io.Closeable;
 import java.io.File;

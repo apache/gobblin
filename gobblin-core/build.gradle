@@ -58,6 +58,7 @@ dependencies {
   compile externalDependency.googleOauthClient
   compile externalDependency.googleApiClient
   compile externalDependency.opencsv
+  compile externalDependency.hadoopHdfs
 
   runtime externalDependency.protobuf
 

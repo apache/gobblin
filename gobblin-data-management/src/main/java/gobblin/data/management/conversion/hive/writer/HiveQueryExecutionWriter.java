@@ -20,7 +20,7 @@ import lombok.AllArgsConstructor;
 import gobblin.configuration.State;
 import gobblin.data.management.conversion.hive.entities.QueryBasedHiveConversionEntity;
 import gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
-import gobblin.hive.util.HiveJdbcConnector;
+import gobblin.util.HiveJdbcConnector;
 import gobblin.writer.DataWriter;
 import lombok.extern.slf4j.Slf4j;
 

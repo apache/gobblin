@@ -69,9 +69,9 @@ public class RootMetricContext extends MetricContext {
     addShutdownHook();
   }
 
-  private static void initialize() {
+  private static void initialize(List<Tag<?>> tags) {
     try {
-      INSTANCE = new RootMetricContext(Lists.<Tag<?>>newArrayList());
+      INSTANCE = new RootMetricContext(tags);
     } catch (NameConflictException nce) {
       // Should never happen, as there is no parent, so no conflict.
       throw new IllegalStateException("Failed to generate root metric context. This is an error in the code.", nce);
@@ -83,8 +83,16 @@ public class RootMetricContext extends MetricContext {
    * @return singleton instance of {@link RootMetricContext}.
    */
   public synchronized static RootMetricContext get() {
+    return get(Lists.<Tag<?>>newArrayList());
+  }
+
+  /**
+   * Get the singleton {@link RootMetricContext}, adding the specified tags if and only if this is the first call.
+   * @return singleton instance of {@link RootMetricContext}.
+   */
+  public synchronized static RootMetricContext get(List<Tag<?>> tags) {
     if (INSTANCE == null) {
-      initialize();
+      initialize(tags);
     }
     return INSTANCE;
   }

@@ -49,7 +49,7 @@ import gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
 import gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarkerFactory;
 import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
-import gobblin.hive.util.HiveJdbcConnector;
+import gobblin.util.HiveJdbcConnector;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;

@@ -56,7 +56,7 @@ public class ConfigurationKeys {
   public static final int DEFAULT_JOB_EXECUTOR_THREAD_POOL_SIZE = 5;
   // Job configuration file monitor polling interval in milliseconds
   public static final String JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL_KEY = "jobconf.monitor.interval";
-  public static final long DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = 300000;
+  public static final long DEFAULT_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL = 30000;
   // Directory where all job configuration files are stored WHEN ALL confs reside in local FS.
   public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
 
@@ -423,6 +423,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_CONN_DRIVER = SOURCE_CONN_PREFIX + "driver";
   public static final String SOURCE_CONN_PORT = SOURCE_CONN_PREFIX + "port";
   public static final int SOURCE_CONN_DEFAULT_PORT = 22;
+  public static final String SOURCE_CONN_SID = SOURCE_CONN_PREFIX + "sid";
 
   /**
    * Source default configurations.
@@ -454,7 +455,7 @@ public class ConfigurationKeys {
   public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
   public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
-  public static final boolean DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION = false;
+  public static final String DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION = "false";
 
   /**
    * Configuration properties used by the distributed job launcher.

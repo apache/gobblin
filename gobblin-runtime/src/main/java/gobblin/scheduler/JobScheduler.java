@@ -173,12 +173,8 @@ public class JobScheduler extends AbstractIdleService {
     }
 
     // Note: This should not be mandatory, gobblin-cluster modes have their own job configuration managers
-    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
-
-      Preconditions.checkArgument(
-          this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || this.properties.containsKey(
-              ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY),
-          "Error in configuration file: Please check your .pull file");
+    if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)
+        || this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
 
       if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) && !this.properties.containsKey(
           ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {

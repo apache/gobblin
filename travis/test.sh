@@ -18,9 +18,14 @@
 #!/bin/bash
 set -e
 
+free
+
 RUN_TEST_GROUP=${RUN_TEST_GROUP:-default}
 
 script_dir=$(dirname $0)
+echo "Old GRADLE_OPTS=$GRADLE_OPTS"
+
+GRADLE_OPTS="-Xmx 512m -Dorg.gradle.daemon=false -PusePreinstalledMysql=true"
 
 TEST_SCRIPT=${script_dir}/test-${RUN_TEST_GROUP}.sh
 if [ -x $TEST_SCRIPT ] ; then

@@ -20,23 +20,18 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.TestingServer;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
-
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
-
 import org.mockito.Mockito;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -45,9 +40,9 @@ import org.testng.annotations.Test;
 import com.google.common.base.Function;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.HelixUtils;
@@ -75,8 +70,7 @@ import gobblin.testing.AssertWithBackoff;
  */
 @Test(groups = { "gobblin.yarn" })
 public class YarnSecurityManagerTest {
-
-  private static final int TEST_ZK_PORT = 3087;
+  final Logger LOG = LoggerFactory.getLogger(YarnSecurityManagerTest.class);
 
   private CuratorFramework curatorFramework;
 
@@ -95,7 +89,9 @@ public class YarnSecurityManagerTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    TestingServer testingZKServer = this.closer.register(new TestingServer(TEST_ZK_PORT));
+    // Use a random ZK port
+    TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
+    LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     this.curatorFramework = this.closer.register(
         CuratorFrameworkFactory.newClient(testingZKServer.getConnectString(), new RetryOneTime(2000)));
@@ -105,7 +101,10 @@ public class YarnSecurityManagerTest {
         YarnSecurityManagerTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
-    Config config = ConfigFactory.parseURL(url).resolve();
+    Config config = ConfigFactory.parseURL(url)
+        .withValue("gobblin.cluster.zk.connection.string",
+                   ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .resolve();
 
     String zkConnectingString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     String helixClusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);

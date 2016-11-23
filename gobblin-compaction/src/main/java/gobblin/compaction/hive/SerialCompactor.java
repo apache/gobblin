@@ -24,7 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
 import gobblin.compaction.Compactor;
-import gobblin.hive.util.HiveJdbcConnector;
+import gobblin.util.HiveJdbcConnector;
 
 
 /**

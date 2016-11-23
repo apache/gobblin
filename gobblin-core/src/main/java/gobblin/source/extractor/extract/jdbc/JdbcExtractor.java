@@ -267,6 +267,13 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     this.timeOut = timeOut;
   }
 
+  /**
+   * @return private static final Gson factory
+   */
+  public Gson getGson() {
+    return this.gson;
+  }
+
   public JdbcExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
   }
@@ -968,6 +975,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
     if (isBlob(resultsetMetadata.getColumnType(i))) {
       return readBlobAsString(resultset.getBlob(i));
+    }
+    if (resultsetMetadata.getColumnType(i) == Types.BIT || resultsetMetadata.getColumnType(i) == Types.BOOLEAN) {
+      return Boolean.toString(resultset.getBoolean(i));
     }
     return resultset.getString(i);
   }

@@ -14,7 +14,6 @@ dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-hive-registration")
-  compile project(":gobblin-compaction")
   compile project(":gobblin-metrics")
   compile project(":gobblin-utility")
   compile project(":gobblin-config-management:gobblin-config-client")
@@ -69,7 +68,16 @@ artifacts {
 
 test {
   workingDir rootProject.rootDir
+  maxHeapSize = "2g"
   maxParallelForks = 1
+  beforeTest { testDescriptor ->
+     println String.format("%20s STARTED : %s", new Date(), testDescriptor.getClassName())
+  }
+  afterTest { testDescriptor, testResult -> 
+     println String.format("%20s FINISHED: %s %s (%7.3g s)", 
+                          new Date(), testDescriptor.getClassName(), testResult,
+                          (testResult.getEndTime() - testResult.getStartTime())/1000.0)
+  }
 }
 
 ext.classification="library"

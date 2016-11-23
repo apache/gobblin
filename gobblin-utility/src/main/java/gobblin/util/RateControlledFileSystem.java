@@ -12,6 +12,7 @@
 
 package gobblin.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -140,7 +141,7 @@ public class RateControlledFileSystem extends FileSystem implements Decorator {
   @Override
   public boolean rename(Path path0, Path path1) throws IOException {
     this.acquirePermit();
-    return this.fs.rename(path0, path1);
+    return HadoopUtils.renamePathHandleLocalFSRace(fs, path0, path1);
   }
 
   @Override

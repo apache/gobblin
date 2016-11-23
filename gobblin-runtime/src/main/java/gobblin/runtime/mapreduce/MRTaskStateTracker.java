@@ -64,9 +64,6 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
   @Override
   public void onTaskRunCompletion(Task task) {
     task.markTaskCompletion();
-    LOG.info(String
-        .format("Task %s completed running in %dms with state %s", task.getTaskId(), task.getTaskState().getTaskDuration(),
-            task.getTaskState().getWorkingState()));
   }
 
   @Override
@@ -82,6 +79,9 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
         updateCounters(task);
       }
     }
+    LOG.info(String
+        .format("Task %s completed running in %dms with state %s", task.getTaskId(), task.getTaskState().getTaskDuration(),
+            task.getTaskState().getWorkingState()));
   }
 
   /**

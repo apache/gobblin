@@ -30,6 +30,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockTestCase;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -48,6 +49,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.HelixMessageSubTypes;
@@ -67,7 +69,7 @@ import gobblin.testing.AssertWithBackoff;
 @PrepareForTest({ AWSSdkClient.class, GobblinAWSClusterLauncher.class})
 @PowerMockIgnore({"javax.*", "org.apache.*", "org.w3c.*", "org.xml.*"})
 public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements HelixMessageTestBase  {
-  private static final int TEST_ZK_PORT = 3087;
+  public final static Logger LOG = LoggerFactory.getLogger(GobblinAWSClusterLauncherTest.class);
 
   private CuratorFramework curatorFramework;
   private Config config;
@@ -158,16 +160,21 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
         .addPermissionsToSecurityGroup(Mockito.any(String.class), Mockito.any(String.class), Mockito.any(String.class),
             Mockito.any(Integer.class), Mockito.any(Integer.class));
 
+    // Local test Zookeeper
+    final TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
+    LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
+    this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
+
     // Load configuration
     final URL url = GobblinAWSClusterLauncherTest.class.getClassLoader().getResource(
         GobblinAWSClusterLauncherTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
-    this.config = ConfigFactory.parseURL(url).resolve();
+    this.config = ConfigFactory.parseURL(url)
+        .withValue("gobblin.cluster.zk.connection.string",
+                   ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .resolve();
     this.helixClusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
 
-    // Local test Zookeeper
-    final TestingServer testingZKServer = this.closer.register(new TestingServer(TEST_ZK_PORT));
-    this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
     final String zkConnectionString = this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     this.helixManager = HelixManagerFactory
         .getZKHelixManager(this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY),

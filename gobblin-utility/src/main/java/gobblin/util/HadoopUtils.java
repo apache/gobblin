@@ -16,6 +16,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +47,7 @@ import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
@@ -83,6 +85,7 @@ public class HadoopUtils {
       ImmutableSortedSet.orderedBy(String.CASE_INSENSITIVE_ORDER).add("s3").add("s3a").add("s3n").build();
   public static final String MAX_FILESYSTEM_QPS = "filesystem.throttling.max.filesystem.qps";
   private static final List<String> DEPRECATED_KEYS = Lists.newArrayList("gobblin.copy.max.filesystem.qps");
+  private static final int MAX_RENAME_TRIES = 3;
 
   public static Configuration newConfiguration() {
     Configuration conf = new Configuration();
@@ -153,6 +156,30 @@ public class HadoopUtils {
       } else {
         break;
       }
+    }
+  }
+
+  /**
+   * Renames a src {@link Path} on fs {@link FileSystem} to a dst {@link Path}. If fs is a {@link LocalFileSystem} and
+   * src is a directory then {@link File#renameTo} is called directly to avoid a directory rename race condition where
+   * {@link org.apache.hadoop.fs.RawLocalFileSystem#rename} copies the conflicting src directory into dst resulting in
+   * an extra nested level, such as /root/a/b/c/e/e where e is repeated.
+   *
+   * @param fs the {@link FileSystem} where the src {@link Path} exists
+   * @param src the source {@link Path} which will be renamed
+   * @param dst the {@link Path} to rename to
+   * @return true if rename succeeded, false if rename failed.
+   * @throws IOException if rename failed for reasons other than target exists.
+   */
+  public static boolean renamePathHandleLocalFSRace(FileSystem fs, Path src, Path dst) throws IOException {
+    if (fs instanceof LocalFileSystem && fs.isDirectory(src)) {
+      File srcFile = ((LocalFileSystem) fs).pathToFile(src);
+      File dstFile = ((LocalFileSystem) fs).pathToFile(dst);
+
+      return srcFile.renameTo(dstFile);
+    }
+    else {
+      return fs.rename(src, dst);
     }
   }
 
@@ -549,8 +576,13 @@ public class HadoopUtils {
       if (!fs.exists(to.getParent())) {
         fs.mkdirs(to.getParent());
       }
-      if (!fs.rename(from, to)) {
-        throw new IOException(String.format("Failed to rename %s to %s.", from, to));
+
+      if (!renamePathHandleLocalFSRace(fs, from, to)) {
+        if (!fs.exists(to)) {
+          throw new IOException(String.format("Failed to rename %s to %s.", from, to));
+        }
+
+        return false;
       }
       return true;
     }
@@ -585,7 +617,22 @@ public class HadoopUtils {
       Path toFilePath = new Path(to, relativeFilePath);
 
       if (!fileSystem.exists(toFilePath)) {
-        if (!fileSystem.rename(fromFile.getPath(), toFilePath)) {
+        boolean renamed = false;
+
+        // underlying file open can fail with file not found error due to some race condition
+        // when the parent directory is created in another thread, so retry a few times
+        for (int i = 0; !renamed && i < MAX_RENAME_TRIES; i++) {
+          try {
+            renamed = fileSystem.rename(fromFile.getPath(), toFilePath);
+            break;
+          } catch (FileNotFoundException e) {
+            if (i + 1 >= MAX_RENAME_TRIES) {
+              throw e;
+            }
+          }
+        }
+
+        if (!renamed) {
           throw new IOException(String.format("Failed to rename %s to %s.", fromFile.getPath(), toFilePath));
         }
         log.info(String.format("Renamed %s to %s", fromFile.getPath(), toFilePath));
