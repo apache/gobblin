@@ -12,6 +12,7 @@
 
 package gobblin.util.request_allocation;
 
+import java.io.Serializable;
 import java.util.Comparator;
 
 import lombok.AllArgsConstructor;
@@ -22,7 +23,7 @@ import lombok.AllArgsConstructor;
  * for {@link Request}.
  */
 @AllArgsConstructor
-public class SimpleHierarchicalPrioritizer<T extends Request<T>> implements HierarchicalPrioritizer<T> {
+public class SimpleHierarchicalPrioritizer<T extends Request<T>> implements HierarchicalPrioritizer<T>, Serializable {
 
   private final Comparator<Requestor<T>> requestorComparator;
   private final Comparator<T> requestComparator;
