@@ -30,7 +30,7 @@ import gobblin.metrics.callback.NotificationStore;
 import gobblin.metrics.notification.MetricContextCleanupNotification;
 import gobblin.metrics.notification.NewMetricContextNotification;
 import gobblin.metrics.notification.Notification;
-import gobblin.metrics.reporter.testing.ContextStoreReporter;
+import gobblin.metrics.test.ContextStoreReporter;
 
 
 /**

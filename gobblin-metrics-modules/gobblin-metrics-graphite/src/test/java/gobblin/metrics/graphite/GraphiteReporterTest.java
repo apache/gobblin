@@ -34,13 +34,13 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 
-import static gobblin.metrics.testing.TestConstants.METRIC_PREFIX;
-import static gobblin.metrics.testing.TestConstants.GAUGE;
-import static gobblin.metrics.testing.TestConstants.COUNTER;
-import static gobblin.metrics.testing.TestConstants.METER;
-import static gobblin.metrics.testing.TestConstants.HISTOGRAM;
-import static gobblin.metrics.testing.TestConstants.TIMER;
-import static gobblin.metrics.testing.TestConstants.CONTEXT_NAME;
+import static gobblin.metrics.test.TestConstants.METRIC_PREFIX;
+import static gobblin.metrics.test.TestConstants.GAUGE;
+import static gobblin.metrics.test.TestConstants.COUNTER;
+import static gobblin.metrics.test.TestConstants.METER;
+import static gobblin.metrics.test.TestConstants.HISTOGRAM;
+import static gobblin.metrics.test.TestConstants.TIMER;
+import static gobblin.metrics.test.TestConstants.CONTEXT_NAME;
 
 
 /**

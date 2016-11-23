@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.testing;
+package gobblin.metrics.test;
 
 /**
  * A central place for constants used in tests for gobblin-metrics.
@@ -26,7 +26,7 @@ public class TestConstants {
   public static final String METER = "meter";
   public static final String HISTOGRAM = "histogram";
   public static final String TIMER = "timer";
-  
+
   public static final String CONTEXT_NAME = "TestContext";
   public static final String RECORDS_PROCESSED = "recordsProcessed";
   public static final String RECORD_PROCESS_RATE = "recordProcessRate";

@@ -12,7 +12,7 @@
 
 package gobblin.metrics.graphite;
 
-import gobblin.metrics.testing.TimestampedValue;
+import gobblin.metrics.test.TimestampedValue;
 
 import java.io.IOException;
 import java.util.Map;

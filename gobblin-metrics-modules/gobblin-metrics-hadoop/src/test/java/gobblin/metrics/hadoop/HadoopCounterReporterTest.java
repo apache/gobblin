@@ -37,7 +37,7 @@ import com.google.common.collect.ImmutableSortedMap;
 
 import gobblin.metrics.Measurements;
 import gobblin.metrics.MetricContext;
-import static gobblin.metrics.testing.TestConstants.*;
+import static gobblin.metrics.test.TestConstants.*;
 
 
 /**
