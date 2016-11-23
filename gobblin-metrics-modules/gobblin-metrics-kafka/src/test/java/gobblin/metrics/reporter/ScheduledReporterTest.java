@@ -29,7 +29,7 @@ import com.typesafe.config.Config;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.context.ReportableContext;
 import gobblin.metrics.context.filter.ContextFilterFactory;
-import gobblin.metrics.reporter.testing.ContextStoreReporter;
+import gobblin.metrics.test.ContextStoreReporter;
 import gobblin.util.ConfigUtils;
 
 

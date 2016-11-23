@@ -10,10 +10,10 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.testing;
+package gobblin.metrics.test;
 
 /**
- * 
+ *
  * @author Yinan Li
  *
  */

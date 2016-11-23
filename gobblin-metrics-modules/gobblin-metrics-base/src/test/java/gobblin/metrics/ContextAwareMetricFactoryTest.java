@@ -21,7 +21,7 @@ import org.testng.annotations.Test;
 
 import com.codahale.metrics.MetricRegistry;
 
-import static gobblin.metrics.testing.TestConstants.*;
+import static gobblin.metrics.test.TestConstants.*;
 
 
 /**

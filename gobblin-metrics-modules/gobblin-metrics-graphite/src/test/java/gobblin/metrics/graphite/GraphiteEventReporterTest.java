@@ -18,7 +18,7 @@ import gobblin.metrics.event.EventSubmitter;
 import gobblin.metrics.event.JobEvent;
 import gobblin.metrics.event.MultiPartEvent;
 import gobblin.metrics.event.TaskEvent;
-import gobblin.metrics.testing.TimestampedValue;
+import gobblin.metrics.test.TimestampedValue;
 
 import java.io.IOException;
 import java.util.Map;

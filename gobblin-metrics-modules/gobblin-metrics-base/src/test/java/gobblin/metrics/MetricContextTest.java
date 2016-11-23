@@ -32,7 +32,7 @@ import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Timer;
 
-import static gobblin.metrics.testing.TestConstants.*;
+import static gobblin.metrics.test.TestConstants.*;
 
 import gobblin.metrics.reporter.ContextAwareScheduledReporter;
 

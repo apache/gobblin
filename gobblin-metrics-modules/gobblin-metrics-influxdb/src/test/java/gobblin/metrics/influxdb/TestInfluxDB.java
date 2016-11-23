@@ -12,7 +12,7 @@
 
 package gobblin.metrics.influxdb;
 
-import gobblin.metrics.testing.TimestampedValue;
+import gobblin.metrics.test.TimestampedValue;
 
 import java.util.List;
 import java.util.Map;

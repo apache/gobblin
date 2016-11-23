@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.metrics.reporter.testing;
+package gobblin.metrics.test;
 
 import java.util.List;
 import java.util.Map;
@@ -22,16 +22,14 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import com.typesafe.config.Config;
-
-import lombok.Getter;
 
 import gobblin.metrics.context.ReportableContext;
 import gobblin.metrics.reporter.ScheduledReporter;
+
+import lombok.Getter;
 
 
 /**
