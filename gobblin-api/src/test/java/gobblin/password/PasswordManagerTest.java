@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-
+@Test(groups = {"disabledOnTravis"} )
 public class PasswordManagerTest {
 
   @Test
