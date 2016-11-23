@@ -27,11 +27,11 @@ apply plugin: "com.commercehub.gradle.plugin.avro"
 dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-api")
-  compile project(":gobblin-metrics:gobblin-metrics-base")
-  compile project(":gobblin-metrics:gobblin-metrics-graphite")
-  compile project(":gobblin-metrics:gobblin-metrics-hadoop")
-  compile project(":gobblin-metrics:gobblin-metrics-influxdb")
-  compile project(":gobblin-metrics:gobblin-metrics-kafka")
+  compile project(":gobblin-metrics-modules:gobblin-metrics-base")
+  compile project(":gobblin-metrics-modules:gobblin-metrics-graphite")
+  compile project(":gobblin-metrics-modules:gobblin-metrics-hadoop")
+  compile project(":gobblin-metrics-modules:gobblin-metrics-influxdb")
+  compile project(":gobblin-metrics-modules:gobblin-metrics-kafka")
 
   compile externalDependency.guava
   compile externalDependency.metricsCore
