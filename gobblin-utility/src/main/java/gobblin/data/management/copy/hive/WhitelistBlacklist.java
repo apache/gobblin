@@ -13,6 +13,7 @@
 package gobblin.data.management.copy.hive;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -43,7 +44,7 @@ import com.typesafe.config.Config;
  *   * db1.table1|table2 -> combine expressions for same database with "|".
  * </p>
  */
-public class WhitelistBlacklist {
+public class WhitelistBlacklist implements Serializable {
 
   public static final String WHITELIST = "whitelist";
   public static final String BLACKLIST = "blacklist";

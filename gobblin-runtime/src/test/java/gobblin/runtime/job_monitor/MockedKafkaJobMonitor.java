@@ -19,6 +19,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -36,7 +38,6 @@ import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.testing.AssertWithBackoff;
 import gobblin.util.Either;
 
-import javax.annotation.Nullable;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import lombok.Getter;
@@ -141,6 +142,6 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
       public boolean apply(@Nullable Void input) {
         return MockedKafkaJobMonitor.this.jobSpecs.size() == n;
       }
-    }, 1000, n + " specs", log, 2, 1000);
+    }, 30000, n + " specs", log, 2, 1000);
   }
 }

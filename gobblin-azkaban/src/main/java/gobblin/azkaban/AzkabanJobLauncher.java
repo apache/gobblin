@@ -40,6 +40,7 @@ import com.google.common.io.Closer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.RootMetricContext;
 import gobblin.metrics.Tag;
 import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
@@ -141,6 +142,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
     List<Tag<?>> tags = Lists.newArrayList();
     tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
+    RootMetricContext.get(tags);
     GobblinMetrics.addCustomTagsToProperties(this.props, tags);
 
     // If the job launcher type is not specified in the job configuration,

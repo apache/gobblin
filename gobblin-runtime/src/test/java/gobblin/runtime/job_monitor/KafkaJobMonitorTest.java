@@ -18,7 +18,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
-import com.typesafe.config.ConfigFactory;
 
 import gobblin.runtime.kafka.HighLevelConsumerTest;
 
@@ -47,7 +46,7 @@ public class KafkaJobMonitorTest {
     Assert.assertFalse(monitor.getJobSpecs().containsKey(new URI("job1")));
     Assert.assertTrue(monitor.getJobSpecs().containsKey(new URI("job2")));
 
-    monitor.getMockKafkaStream().pushToStream("job1:2,job2:2");
+    monitor.getMockKafkaStream().pushToStream("job2:2,job1:2");
     monitor.awaitExactlyNSpecs(2);
     Assert.assertTrue(monitor.getJobSpecs().containsKey(new URI("job1")));
     Assert.assertEquals(monitor.getJobSpecs().get(new URI("job1")).getVersion(), "2");

@@ -13,6 +13,7 @@
 package gobblin.util.request_allocation;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Properties;
@@ -46,7 +47,10 @@ import lombok.AllArgsConstructor;
  * {@link #TIER_KEY}.1 = otherdb,thirddb
  */
 @Alias(value = "HiveSimpleTiering")
-public class SimpleHiveDatasetTieringPrioritizer extends SimpleHierarchicalPrioritizer<FileSet<CopyEntity>> implements FileSetComparator{
+public class SimpleHiveDatasetTieringPrioritizer extends SimpleHierarchicalPrioritizer<FileSet<CopyEntity>>
+    implements FileSetComparator, Serializable {
+
+
 
   public static final String CONFIGURATION_PREFIX = "gobblin.prioritizer.hiveDatasetTiering";
   public static final String TIER_KEY = CONFIGURATION_PREFIX + ".tier";
@@ -75,7 +79,7 @@ public class SimpleHiveDatasetTieringPrioritizer extends SimpleHierarchicalPrior
   }
 
   @AllArgsConstructor
-  private static class TierComparator implements Comparator<Requestor<FileSet<CopyEntity>>> {
+  private static class TierComparator implements Comparator<Requestor<FileSet<CopyEntity>>>, Serializable {
     private final TreeMap<Integer, WhitelistBlacklist> tiersMap;
 
     @Override

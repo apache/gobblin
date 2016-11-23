@@ -20,14 +20,13 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
-import org.apache.thrift.TException;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -37,6 +36,7 @@ import com.typesafe.config.ConfigRenderOptions;
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.policy.SelectBeforeTimeBasedPolicy;
 import gobblin.data.management.policy.VersionSelectionPolicy;
+import gobblin.data.management.retention.version.HiveDatasetVersionCleaner;
 import gobblin.data.management.version.HiveDatasetVersion;
 import gobblin.data.management.version.finder.AbstractHiveDatasetVersionFinder;
 import gobblin.data.management.version.finder.DatePartitionHiveVersionFinder;
@@ -60,6 +60,7 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 @SuppressWarnings({ "rawtypes", "unchecked" })
+@Getter
 public class CleanableHiveDataset extends HiveDataset implements CleanableDataset {
 
   private static final String SHOULD_DELETE_DATA_KEY = "gobblin.retention.hive.shouldDeleteData";
@@ -133,29 +134,23 @@ public class CleanableHiveDataset extends HiveDataset implements CleanableDatase
         versions.size()));
 
     List<Exception> exceptions = Lists.newArrayList();
-    Set<Path> possiblyEmptyDirectories = new HashSet<>();
 
-    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+    for (HiveDatasetVersion hiveDatasetVersion : deletableVersions) {
+      try {
+        // Initialize the version cleaner
+        HiveDatasetVersionCleaner hiveDatasetVersionCleaner = new HiveDatasetVersionCleaner(hiveDatasetVersion, this);
 
-      for (HiveDatasetVersion hiveDatasetVersion : deletableVersions) {
-        Partition partition = hiveDatasetVersion.getPartition();
-        try {
-          if (!this.simulate) {
-            client.get().dropPartition(partition.getTable().getDbName(), partition.getTable().getTableName(), partition.getValues(), false);
-            log.info("Successfully dropped partition " + partition.getCompleteName());
-          } else {
-            log.info("Simulating drop partition " + partition.getCompleteName());
-          }
-          if (this.shouldDeleteData) {
-            this.fsCleanableHelper.clean(hiveDatasetVersion, possiblyEmptyDirectories);
-          }
-        } catch (TException | IOException e) {
-          log.warn(String.format("Failed to completely delete partition %s.", partition.getCompleteName()), e);
-          exceptions.add(e);
-        }
+        // Perform pre-clean actions
+        hiveDatasetVersionCleaner.preCleanAction();
+
+        // Perform actual cleaning
+        hiveDatasetVersionCleaner.clean();
+
+        // Perform post-clean actions eg. swap partitions
+        hiveDatasetVersionCleaner.postCleanAction();
+      } catch (IOException e) {
+        exceptions.add(e);
       }
-
-      this.fsCleanableHelper.cleanEmptyDirectories(possiblyEmptyDirectories, this);
     }
 
     if (!exceptions.isEmpty()) {
