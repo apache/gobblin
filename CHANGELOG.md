@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 - Basic checks on PNDA message after deserialization
 ### Changed
 - Externalized build logic from Jenkins to shell script so it can be reused
+- Bumped Cloudera libraries to 5.9.0
 
 ## [0.1.1] 2016-09-13
 ### Changed
