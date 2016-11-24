@@ -67,7 +67,8 @@ public class WorkUnitState extends State {
     SUCCESSFUL,
     COMMITTED,
     FAILED,
-    CANCELLED
+    CANCELLED,
+    SKIPPED
   }
 
   private final WorkUnit workUnit;

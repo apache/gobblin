@@ -165,6 +165,7 @@ public class ConfigurationKeys {
    */
   public static final String WORK_UNIT_LOW_WATER_MARK_KEY = "workunit.low.water.mark";
   public static final String WORK_UNIT_HIGH_WATER_MARK_KEY = "workunit.high.water.mark";
+  public static final String WORK_UNIT_SKIP_KEY = "workunit.skip";
 
   /**
    * Work unit runtime state related configuration properties.
