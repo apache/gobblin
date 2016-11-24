@@ -178,7 +178,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       ApiDimensionFilter countryFilter, Queue<Pair<String, FilterOperator>> toProcess) throws IOException {
     ConcurrentLinkedDeque<String> allPages = new ConcurrentLinkedDeque<>();
     Random random = new Random();
-    final int retry = 20;
+    final int retry = 30;
     int r = 0;
     while (r <= retry) {
       ++r;
@@ -195,11 +195,11 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       //wait for jobs to finish and start next round if necessary.
       try {
         es.shutdown();
-        es.awaitTermination(1, TimeUnit.HOURS);
+        es.awaitTermination(2, TimeUnit.HOURS);
         //Cool down before next round.
-        Thread.sleep(1000 + 50 * random.nextInt(r));
+        Thread.sleep(1000 + 300 * random.nextInt(r));
       } catch (InterruptedException e) {
-        LOG.error(e.getMessage());
+        throw new RuntimeException(e);
       }
 
       if (nextRound.isEmpty()) {
@@ -266,7 +266,19 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   }
 
   /**
-   * This doesn't cover all cases but more than 99.9% captured
+   * This doesn't cover all cases but more than 99.9% captured.
+   *
+   * According to the standard (RFC-3986), here are possible characters:
+   * unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+   * reserved      = gen-delims / sub-delims
+   * gen-delims    = ":" / "/" / "?" / "#" / "[" / "]" / "@"
+   * sub-delims    = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
+   *
+   *
+   * Not included:
+   * reserved      = gen-delims / sub-delims
+   * gen-delims    = "[" / "]"
+   * sub-delims    = "(" / ")" / "," / ";"
    */
   private ArrayList<String> getUrlPartitions(String prefix) {
     ArrayList<String> expanded = new ArrayList<>();
@@ -292,6 +304,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     expanded.add(prefix + "$");
     expanded.add(prefix + "&");
     expanded.add(prefix + "+");
+    expanded.add(prefix + "*");
+    expanded.add(prefix + "'");
     expanded.add(prefix + "=");
     return expanded;
   }
@@ -321,5 +335,10 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     }
 
     batchRequest.execute();
+  }
+
+  @Override
+  public String getSiteProperty() {
+    return _siteProperty;
   }
 }

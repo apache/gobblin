@@ -29,6 +29,8 @@ import org.slf4j.LoggerFactory;
  *
  */
 public abstract class GoogleWebmasterDataFetcher {
+  public abstract String getSiteProperty();
+
   enum Metric {
     CLICKS, IMPRESSIONS, CTR, POSITION
   }
