@@ -31,6 +31,6 @@ else
 fi
 
 mkdir -p pnda-build
-./gradlew clean build -Pversion=${VERSION} -PhadoopVersion=${HADOOP_VERSION} -PexcludeHadoopDeps -PexcludeHiveDeps -x gobblin-core:test
+./gradlew clean build -Pversion=${VERSION} -PhadoopVersion=${HADOOP_VERSION} -PexcludeHadoopDeps -PexcludeHiveDeps -x gobblin-core:test -x gobblin-data-management:test
 mv gobblin-distribution-${VERSION}.tar.gz pnda-build/
 sha512sum pnda-build/gobblin-distribution-${VERSION}.tar.gz > pnda-build/gobblin-distribution-${VERSION}.tar.gz.sha512.txt
