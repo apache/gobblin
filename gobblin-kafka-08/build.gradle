@@ -18,15 +18,18 @@ dependencies {
   compile project(":gobblin-kafka-common")
 
   compile externalDependency.avro
-  compile externalDependency.jacksonCore
-  compile externalDependency.jacksonMapper
+  compile externalDependency.confluentAvroSerializer
+  compile externalDependency.confluentJsonSerializer
   compile externalDependency.commonsHttpClient
-  compile externalDependency.commonsPool
   compile externalDependency.commonsLang3
+  compile externalDependency.commonsMath
+  compile externalDependency.commonsPool
+  compile externalDependency.gson
   compile externalDependency.guava
-  compile externalDependency.slf4j
   compile externalDependency.httpclient
   compile externalDependency.httpcore
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
   compile(externalDependency.kafka08){
     exclude group: "com.sun.jmx", module: "jmxri"
     exclude group: "com.sun.jdmk", module: "jmxtools"
@@ -36,6 +39,7 @@ dependencies {
   compile externalDependency.scala
   compile externalDependency.lombok
   compile externalDependency.metricsCore
+  compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 

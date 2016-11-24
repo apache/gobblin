@@ -16,10 +16,6 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.reporter.util.HttpClientFactory;
-import gobblin.util.AvroUtils;
-
 import org.apache.avro.Schema;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
@@ -33,6 +29,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.kafka.schemareg.HttpClientFactory;
+import gobblin.util.AvroUtils;
 
 
 /**

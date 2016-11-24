@@ -13,9 +13,19 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
+  compile project(":gobblin-metrics")
+  compile project(":gobblin-core")
 
+  compile externalDependency.avro
+  compile externalDependency.confluentSchemaRegistryClient
   compile externalDependency.commonsCodec
+  compile externalDependency.commonsHttpClient
+  compile externalDependency.commonsLang3
+  compile externalDependency.commonsPool
   compile externalDependency.guava
+  compile externalDependency.gson
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
   compile externalDependency.slf4j
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
