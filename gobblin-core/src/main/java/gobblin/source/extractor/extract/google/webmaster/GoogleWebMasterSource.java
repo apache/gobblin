@@ -26,21 +26,9 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
 
   /**
    * Must Provide.
-   * Provide the location for your Google Service Account private key. This can be generated in your Google API Manager.
-   */
-  public static final String KEY_CREDENTIAL_LOCATION = "source.google_webmasters.credential.location";
-  /**
-   * Must Provide.
    * Provide the property site URL whose google search analytics data you want to download
    */
   public static final String KEY_PROPERTY = "source.google_webmasters.property";
-  /**
-   * Optional: Default to WebmastersScopes.WEBMASTERS_READONLY(which is https://www.googleapis.com/auth/webmasters.readonly)
-   *
-   * Give a Google API service scope.
-   * For Webmaster, only two scopes are supported. WebmastersScopes.WEBMASTERS_READONLY and WebmastersScopes.WEBMASTERS
-   */
-  public static final String KEY_API_SCOPE = "source.google.api.scope";
   /**
    * The filters that will be passed to all your API requests.
    * Filter format is [GoogleWebmasterFilter.Dimension].[DimensionValue]

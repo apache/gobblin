@@ -2,12 +2,20 @@
 job.name=GoogleSearchConsole_DataFetchJob
 job.description=Download Google Search Analytics data on a daily basis
 job.group=GoogleAPI
-#job.schedule=0/10 * * * * ?
+job.schedule=0 0 18 * * Sunday
+#job.runonce=true
 workunit.retry.policy=never
 workunit.retry.enabled=false
 task.maxretries=0
 job.commit.policy=full
 
+
+## Network Connection
+source.google.privatekey_fs_uri=file://localhost/
+source.google.api_scopes=https://www.googleapis.com/auth/webmasters.readonly
+source.conn.private.key=[Complete This]
+#source.conn.use.proxy.url=
+#source.conn.use.proxy.port=
 
 ## Source properties
 source.entity=[Complete This]
@@ -18,13 +26,13 @@ source.schema=[{"columnName":"Date","isNullable":"false","dataType":{"type":"str
 extract.namespace=${source.entity}
 extract.table.type=snapshot_only
 extract.delta.fields=dummy
-source.querybased.start.value=20161010000000
-source.querybased.end.value=20161010235959
-source.querybased.is.watermark.override=true
+source.querybased.start.value=20161127000000
+source.querybased.end.value=20161127235959
+source.querybased.is.watermark.override=false
 source.timezone=America/Los_Angeles
 source.max.number.of.partitions=3650
 source.querybased.extract.type=append_batch
-source.querybased.append.max.watermark.limit=CURRENTDATE-1
+source.querybased.append.max.watermark.limit=CURRENTDATE-0
 
 #Weekly Setup
 extract.table.name=WeeklyPull
@@ -39,21 +47,20 @@ source.class=gobblin.source.extractor.extract.google.webmaster.GoogleWebMasterSo
 #source.class=gobblin.source.extractor.extract.google.webmaster.GoogleWebMasterSourceDaily
 
 #Webmaster Specific
-source.google.api.scope=https://www.googleapis.com/auth/webmasters.readonly
 source.google_webmasters.property=[Complete This]
-source.google_webmasters.credential.location=[Complete This]
 source.google_webmasters.request.dimensions=Date,Country,Page,Query
 source.google_webmasters.request.metrics=Clicks,Impressions,CTR,Position
-source.google_webmasters.request.filters=Country.USA
-source.google_webmasters.request.page_limit=1
+source.google_webmasters.request.filters=Country.deu,Country.ind,Country.all,Country.usa
+source.google_webmasters.request.page_limit=5000
 #source.google_webmasters.request.hot_start=[]
 source.google_webmasters.request.query_limit=5000
-source.google_webmasters.request.performance_tuning.max_retry_rounds=20
-source.google_webmasters.request.performance_tuning.initial_cool_down=300
-source.google_webmasters.request.performance_tuning.cool_down_step=50
-source.google_webmasters.request.performance_tuning.requests_per_second=2
+source.google_webmasters.request.performance_tuning.max_retry_rounds=30
+source.google_webmasters.request.performance_tuning.initial_cool_down=1000
+source.google_webmasters.request.performance_tuning.cool_down_step=300
+source.google_webmasters.request.performance_tuning.requests_per_second=2.25
 source.google_webmasters.request.performance_tuning.batch_size=2
-source.google_webmasters.request.performance_tuning.group_size=1
+#source.google_webmasters.request.performance_tuning.group_size=1
+#source.google_webmasters.request.performance_tuning.advanced=false
 
 ## Converter properties
 converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter

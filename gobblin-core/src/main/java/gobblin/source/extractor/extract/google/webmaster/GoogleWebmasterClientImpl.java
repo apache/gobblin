@@ -1,8 +1,10 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.services.webmasters.Webmasters;
@@ -12,6 +14,7 @@ import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryRequest;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
+import gobblin.source.extractor.extract.google.GoogleCommon;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,6 +25,9 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static gobblin.configuration.ConfigurationKeys.*;
+import static gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
+
 
 public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
 
@@ -30,17 +36,12 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
   private final Webmasters.Searchanalytics _analytics;
   private final Webmasters _service;
 
-  public GoogleWebmasterClientImpl(String credentialFile, String appName, String scope) throws IOException {
-    Preconditions.checkArgument(
-        Objects.equals(WebmastersScopes.WEBMASTERS_READONLY, scope) || Objects.equals(WebmastersScopes.WEBMASTERS,
-            scope), "The scope for WebMaster must either be WEBMASTERS_READONLY or WEBMASTERS");
-
-    GoogleCredential credential =
-        GoogleCredential.fromStream(new FileInputStream(credentialFile)).createScoped(Collections.singletonList(scope));
-    //GoogleNetHttpTransport.newTrustedTransport(), JacksonFactory.getDefaultInstance(),
+  public GoogleWebmasterClientImpl(Credential credential, String appName) throws IOException {
+    //transport: new NetHttpTransport() or GoogleNetHttpTransport.newTrustedTransport()
+    //jsonFactory: new JacksonFactory() or JacksonFactory.getDefaultInstance()
     _service =
-        new Webmasters.Builder(new NetHttpTransport(), new JacksonFactory(), credential).setApplicationName(appName)
-            .build();
+        new Webmasters.Builder(credential.getTransport(), GoogleCommon.getJsonFactory(), credential).setApplicationName(
+            appName).build();
     _analytics = _service.searchanalytics();
   }
 

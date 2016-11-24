@@ -1,5 +1,6 @@
 package gobblin.source.extractor.extract.google.webmaster;
 
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
@@ -36,9 +37,9 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final GoogleWebmasterClient _client;
   private final List<ProducerJob> _jobs;
 
-  public GoogleWebmasterDataFetcherImpl(String siteProperty, String credentialFile, String appName, String scope,
+  public GoogleWebmasterDataFetcherImpl(String siteProperty, Credential credential, String appName,
       List<ProducerJob> jobs) throws IOException {
-    this(siteProperty, new GoogleWebmasterClientImpl(credentialFile, appName, scope), jobs);
+    this(siteProperty, new GoogleWebmasterClientImpl(credential, appName), jobs);
   }
 
   /**
