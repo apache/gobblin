@@ -14,7 +14,7 @@ dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
-  compile project(":gobblin-core")
+  compile project(":gobblin-core-base")
 
   compile externalDependency.avro
   compile externalDependency.confluentSchemaRegistryClient
