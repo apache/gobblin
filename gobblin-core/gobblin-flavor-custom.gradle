@@ -1,0 +1,7 @@
+dependencies {
+  // Kafka integration (source, writer, metrics) -- choose one
+  // compile project(':gobblin-kafka-08')
+  // compile project(':gobblin-kafka-09')
+
+}
+

@@ -31,7 +31,6 @@ dependencies {
   compile project(':gobblin-utility')
   compile project(':gobblin-metastore')
   compile project(':gobblin-metrics')
-  compile project(':gobblin-example')
   compile project(':gobblin-data-management')
   compile project(":gobblin-rest-service:gobblin-rest-api")
   compile project(":gobblin-rest-service:gobblin-rest-client")
@@ -43,6 +42,8 @@ dependencies {
   compile project(':gobblin-aws')
   compile project(':gobblin-runtime-hadoop')
 }
+
+apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"
 
 task buildDistributionTar(type: Tar, overwrite: true) {
   extension = 'tar.gz'

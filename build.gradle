@@ -47,6 +47,15 @@ idea.project {
   languageLevel = JavaVersion.VERSION_1_7
 }
 
+// Gobblin build customization
+if (!project.hasProperty('gobblinFlavor')) {
+   project.ext.gobblinFlavor = 'standard'
+}
+
+println '-----------------------'
+println 'Using ' + project.gobblinFlavor + ' build.'
+println '-----------------------'
+
 // Maven POM generation is not thread safe, so serialize all the Upload tasks we can use `--parallel`.
 // https://issues.gradle.org/browse/GRADLE-2492
 // When we start building with 2.3 and later we should remove this and just add a common output dir for all tasks and let Gradle serialize them
