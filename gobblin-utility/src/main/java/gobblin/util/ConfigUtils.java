@@ -79,11 +79,13 @@ public class ConfigUtils {
    */
   public static Properties configToProperties(Config config, Optional<String> prefix) {
     Properties properties = new Properties();
-    Config resolvedConfig = config.resolve();
-    for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
-      if (!prefix.isPresent() || entry.getKey().startsWith(prefix.get())) {
-        String propKey = desanitizeKey(entry.getKey());
-        properties.setProperty(propKey, resolvedConfig.getString(entry.getKey()));
+    if (config != null) {
+      Config resolvedConfig = config.resolve();
+      for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
+        if (!prefix.isPresent() || entry.getKey().startsWith(prefix.get())) {
+          String propKey = desanitizeKey(entry.getKey());
+          properties.setProperty(propKey, resolvedConfig.getString(entry.getKey()));
+        }
       }
     }
 
