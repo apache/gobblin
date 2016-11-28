@@ -12,54 +12,16 @@
 
 package gobblin.kafka.writer;
 
-import java.io.IOException;
 import java.util.Properties;
 
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
-import gobblin.configuration.State;
-import gobblin.util.ConfigUtils;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
 
 /**
  * Builder that hands back a {@link Kafka09DataWriter}
  */
-public class KafkaDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
-  private static final Long MILLIS_TO_NANOS = 1000L * 1000L;
-
-  /**
-   * Build a {@link DataWriter}.
-   *
-   * @throws IOException if there is anything wrong building the writer
-   * @return the built {@link DataWriter}
-   */
+public class KafkaDataWriterBuilder extends BaseKafkaDataWriterBuilder {
   @Override
-  public DataWriter<GenericRecord> build()
-      throws IOException {
-    State state = this.destination.getProperties();
-    Properties taskProps = state.getProperties();
-    Config config = ConfigFactory.parseProperties(taskProps);
-    long commitTimeoutInNanos = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
-        KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT) * MILLIS_TO_NANOS;
-    long commitStepWaitTimeMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_CONFIG,
-        KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_DEFAULT);
-    double failureAllowance = ConfigUtils.getDouble(config, KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG,
-        KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_DEFAULT) / 100.0;
-
-    AsyncDataWriter kafkaDataWriter = new Kafka09DataWriter(taskProps);
-    return new AsyncBestEffortDataWriter<>(config,
-        KafkaWriterMetricNames.RECORDS_PRODUCED_METER,
-        KafkaWriterMetricNames.RECORDS_SUCCESS_METER,
-        KafkaWriterMetricNames.RECORDS_FAILED_METER,
-        commitTimeoutInNanos,
-        commitStepWaitTimeMillis,
-        failureAllowance,
-        kafkaDataWriter);
+  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props) {
+    return new Kafka09DataWriter<>(props);
   }
-
 }

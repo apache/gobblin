@@ -27,26 +27,13 @@ import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.PartitionAwareDataWriterBuilder;
 
 /**
- * Builder that hands back a {@link KafkaDataWriter}
+ * Builder that hands back a {@link Kafka08DataWriter}
  */
-public class KafkaDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
-  /**
-   * Build a {@link DataWriter}.
-   *
-   * @throws IOException if there is anything wrong building the writer
-   * @return the built {@link DataWriter}
-   */
+public class KafkaDataWriterBuilder extends BaseKafkaDataWriterBuilder {
+
   @Override
-  public DataWriter<GenericRecord> build()
-      throws IOException {
-    State state = this.destination.getProperties();
-    Properties taskProps = state.getProperties();
-    AsyncDataWriter<GenericRecord> kafkaWriter = new Kafka08DataWriter<GenericRecord>(taskProps);
-    Config config = ConfigUtils.propertiesToConfig(taskProps);
-    return AsyncBestEffortDataWriter.builder()
-        .config(config)
-        .asyncDataWriter(kafkaWriter)
-        .build();
+  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props) {
+    return new Kafka08DataWriter<GenericRecord>(props);
   }
 
 }
