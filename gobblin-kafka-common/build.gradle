@@ -32,6 +32,7 @@ dependencies {
   compile externalDependency.findBugsAnnotations
 
 
+  testCompile project(":gobblin-test-utils")
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
 }
