@@ -4,7 +4,7 @@ job.description=Test Gobblin job for kafka writer
 
 extract.namespace=gobblin.kafka.writer.test1
 
-source.class=gobblin.kafka.SequentialTestSource
+source.class=gobblin.test.SequentialTestSource
 source.numRecordsPerExtract=5
 
 writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder

@@ -29,6 +29,7 @@ import gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
 import gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.LiAvroDeserializer;
+import gobblin.test.TestUtils;
 
 
 @Slf4j
@@ -98,7 +99,7 @@ public class KafkaDataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     KafkaDataWriter<byte[]> kafkaWriter = new KafkaDataWriter<>(props);
 
-    byte[] messageBytes = KafkaTestUtils.generateRandomBytes();
+    byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
       kafkaWriter.write(messageBytes);
@@ -133,7 +134,7 @@ public class KafkaDataWriterTest {
 
     KafkaDataWriter<GenericRecord> kafkaWriter = new KafkaDataWriter<>(props);
 
-    GenericRecord record = KafkaTestUtils.generateRandomAvroRecord();
+    GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
       kafkaWriter.write(record);
       kafkaWriter.commit();

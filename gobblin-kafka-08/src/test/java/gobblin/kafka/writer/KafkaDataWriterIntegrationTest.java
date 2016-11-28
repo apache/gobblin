@@ -41,8 +41,9 @@ import gobblin.runtime.JobLauncherFactory;
 @Slf4j
 public class KafkaDataWriterIntegrationTest {
 
-  private static final String TEST_LAUNCHER_PROPERTIES_FILE = "gobblin-kafka-08/resource/job-props/testKafkaIngest.properties";
-  private static final String TEST_INGEST_PULL_FILE = "gobblin-kafka-08/resource/job-props/testKafkaIngest.pull";
+  private static final String JOB_PROPS_DIR="gobblin-kafka-08/resource/job-props/";
+  private static final String TEST_LAUNCHER_PROPERTIES_FILE = JOB_PROPS_DIR + "testKafkaIngest.properties";
+  private static final String TEST_INGEST_PULL_FILE = JOB_PROPS_DIR + "testKafkaIngest.pull";
   private Properties gobblinProps;
   private Properties jobProps;
   private KafkaTestBase kafkaTestHelper;
@@ -108,6 +109,8 @@ public class KafkaDataWriterIntegrationTest {
       jobLauncher.launchJob(null);
     }
     catch (Exception e) {
+      log.error("Failed to run job with exception ", e);
+      Assert.fail("Should not throw exception on running the job");
     }
     finally
     {
@@ -129,6 +132,8 @@ public class KafkaDataWriterIntegrationTest {
         jobLauncher.launchJob(null);
         totalSuccessful = totalRecords / errorEvery + totalRecords%errorEvery;
       } catch (Exception e) {
+        log.error("Failed to run job with exception ", e);
+        Assert.fail("Should not throw exception on running the job");
       } finally {
         closer.close();
       }

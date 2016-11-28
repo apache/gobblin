@@ -49,6 +49,7 @@ dependencies {
   runtime externalDependency.protobuf
 
   testCompile project(":gobblin-runtime")
+  testCompile project(":gobblin-test-utils")
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.mockito
   testCompile externalDependency.testng

@@ -46,12 +46,12 @@ import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
 import kafka.utils.MockTime;
-import kafka.utils.TestUtils;
-import kafka.utils.TestZKUtils;
 import kafka.utils.Time;
 import kafka.utils.ZKStringSerializer$;
 import kafka.zk.EmbeddedZookeeper;
 import lombok.extern.slf4j.Slf4j;
+
+import gobblin.test.TestUtils;
 
 
 /**
@@ -102,8 +102,8 @@ class KafkaServerSuite {
 
   private KafkaServerSuite()
   {
-    _kafkaServerPort = TestUtils.choosePort();
-    _zkConnectString = "localhost:" + TestUtils.choosePort();
+    _kafkaServerPort = TestUtils.findFreePort();
+    _zkConnectString = "localhost:" + TestUtils.findFreePort();
     _numStarted = new AtomicInteger(0);
   }
 
@@ -116,12 +116,12 @@ class KafkaServerSuite {
       _zkClient = new ZkClient(_zkConnectString, 30000, 30000, ZKStringSerializer$.MODULE$);
 
 
-      Properties props = TestUtils.createBrokerConfig(_brokerId, _kafkaServerPort, true);
+      Properties props = kafka.utils.TestUtils.createBrokerConfig(_brokerId, _kafkaServerPort, true);
       props.setProperty("zookeeper.connect", _zkConnectString);
 
       KafkaConfig config = new KafkaConfig(props);
       Time mock = new MockTime();
-      _kafkaServer = TestUtils.createServer(config, mock);
+      _kafkaServer = kafka.utils.TestUtils.createServer(config, mock);
     }
     else
     {
@@ -233,7 +233,7 @@ public class KafkaTestBase implements Closeable {
 
       List<KafkaServer> servers = new ArrayList<>();
       servers.add(_kafkaServerSuite.getKafkaServer());
-      TestUtils.waitUntilMetadataIsPropagated(scala.collection.JavaConversions.asScalaBuffer(servers), topic, 0, 5000);
+      kafka.utils.TestUtils.waitUntilMetadataIsPropagated(scala.collection.JavaConversions.asScalaBuffer(servers), topic, 0, 5000);
       KafkaConsumerSuite consumerSuite = new KafkaConsumerSuite(_kafkaServerSuite.getZkConnectString(), topic);
       _topicConsumerMap.put(topic, consumerSuite);
     }

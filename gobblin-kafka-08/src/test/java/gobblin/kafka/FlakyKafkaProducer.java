@@ -29,6 +29,8 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.test.ErrorManager;
+
 
 /**
  * A Flaky Kafka Producer that wraps a real KafkaProducer.
