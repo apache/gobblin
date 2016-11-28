@@ -12,7 +12,7 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-kafka-common")
-  compile project(":gobblin-core")
+  compile project(":gobblin-core-base")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
 
@@ -44,6 +44,7 @@ dependencies {
   runtime externalDependency.protobuf
 
   testCompile project(":gobblin-runtime")
+  testCompile project(":gobblin-test-utils")
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
