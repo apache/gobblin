@@ -18,7 +18,10 @@ import java.util.Properties;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
+import com.typesafe.config.Config;
+
 import gobblin.configuration.State;
+import gobblin.util.ConfigUtils;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.PartitionAwareDataWriterBuilder;
@@ -38,7 +41,12 @@ public class KafkaDataWriterBuilder extends DataWriterBuilder<Schema, GenericRec
       throws IOException {
     State state = this.destination.getProperties();
     Properties taskProps = state.getProperties();
-    return new KafkaDataWriter<>(taskProps);
+    AsyncDataWriter<GenericRecord> kafkaWriter = new Kafka08DataWriter<GenericRecord>(taskProps);
+    Config config = ConfigUtils.propertiesToConfig(taskProps);
+    return AsyncBestEffortDataWriter.builder()
+        .config(config)
+        .asyncDataWriter(kafkaWriter)
+        .build();
   }
 
 }

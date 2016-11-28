@@ -27,7 +27,7 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 /**
- * Implementation of KafkaWriter that wraps a {@link KafkaProducer}.
+ * Implementation of a Kafka writer that wraps a 0.8 {@link KafkaProducer}.
  * This does not provide transactional / exactly-once semantics.
  * Applications should expect data to be possibly written to Kafka even if the overall Gobblin job fails.
  *

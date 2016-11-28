@@ -39,7 +39,7 @@ import gobblin.runtime.JobLauncherFactory;
  * Tests that set up a complete standalone Gobblin pipeline along with a Kafka suite
  */
 @Slf4j
-public class KafkaDataWriterIntegrationTest {
+public class Kafka08DataWriterIntegrationTest {
 
   private static final String JOB_PROPS_DIR="gobblin-kafka-08/resource/job-props/";
   private static final String TEST_LAUNCHER_PROPERTIES_FILE = JOB_PROPS_DIR + "testKafkaIngest.properties";
@@ -48,7 +48,7 @@ public class KafkaDataWriterIntegrationTest {
   private Properties jobProps;
   private KafkaTestBase kafkaTestHelper;
 
-  private static final String TOPIC = KafkaDataWriterIntegrationTest.class.getName();
+  private static final String TOPIC = Kafka08DataWriterIntegrationTest.class.getName();
 
   @BeforeClass
   public void setup() throws Exception {

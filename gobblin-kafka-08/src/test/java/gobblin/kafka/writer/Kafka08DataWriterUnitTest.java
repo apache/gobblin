@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
  * */
 
 @Slf4j
-public class KafkaDataWriterUnitTest {
+public class Kafka08DataWriterUnitTest {
 
   @Test
   public void testMinimalConfig()
@@ -36,7 +36,7 @@ public class KafkaDataWriterUnitTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", "localhost:9092");
 
     try {
-      KafkaDataWriter<GenericRecord> kafkaWriter = new KafkaDataWriter<>(props);
+      Kafka08DataWriter<GenericRecord> kafkaWriter = new Kafka08DataWriter<>(props);
     }
     catch (Exception e)
     {

@@ -15,6 +15,7 @@ package gobblin.kafka.writer;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
@@ -33,11 +34,11 @@ import gobblin.test.TestUtils;
 
 
 @Slf4j
-public class KafkaDataWriterTest {
+public class Kafka08DataWriterTest {
 
 
   private final KafkaTestBase _kafkaTestHelper;
-  public KafkaDataWriterTest()
+  public Kafka08DataWriterTest()
       throws InterruptedException, RuntimeException {
     _kafkaTestHelper = new KafkaTestBase();
   }
@@ -63,25 +64,42 @@ public class KafkaDataWriterTest {
   @Test
   public void testStringSerialization()
       throws IOException, InterruptedException {
-    String topic = "testStringSerialization";
+    String topic = "testStringSerialization08";
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-    KafkaDataWriter<String> kafkaWriter = new KafkaDataWriter<String>(props);
-
+    Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<String>(props);
     String messageString = "foobar";
+    final AtomicBoolean gotCallback = new AtomicBoolean(false);
+    final AtomicBoolean gotSuccess = new AtomicBoolean(false);
+    final AtomicBoolean gotFailure = new AtomicBoolean(false);
+    kafka08DataWriter.setDefaultCallback(new WriteCallback() {
+      @Override
+      public void onSuccess() {
+        gotCallback.set(true);
+        gotSuccess.set(true);
+      }
+
+      @Override
+      public void onFailure(Exception exception) {
+        gotCallback.set(true);
+        gotFailure.set(true);
+      }
+    });
+
     try {
-      kafkaWriter.write(messageString);
-      kafkaWriter.commit();
+      kafka08DataWriter.asyncWrite(messageString);
     }
     finally
     {
-      kafkaWriter.close();
+      kafka08DataWriter.close();
     }
 
-    Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
+    Assert.assertEquals(gotCallback.get(), true);
+    Assert.assertEquals(gotSuccess.get(), true);
+    Assert.assertEquals(gotFailure.get(), false);
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     String messageReceived = new String(message);
     Assert.assertEquals(messageReceived, messageString);
@@ -91,26 +109,42 @@ public class KafkaDataWriterTest {
   @Test
   public void testBinarySerialization()
       throws IOException, InterruptedException {
-    String topic = "testBinarySerialization";
+    String topic = "testBinarySerialization08";
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-    KafkaDataWriter<byte[]> kafkaWriter = new KafkaDataWriter<>(props);
+    Kafka08DataWriter<byte[]> kafka08DataWriter = new Kafka08DataWriter<byte[]>(props);
+    final AtomicBoolean gotCallback = new AtomicBoolean(false);
+    final AtomicBoolean gotSuccess = new AtomicBoolean(false);
+    final AtomicBoolean gotFailure = new AtomicBoolean(false);
+    kafka08DataWriter.setDefaultCallback(new WriteCallback() {
+      @Override
+      public void onSuccess() {
+        gotCallback.set(true);
+        gotSuccess.set(true);
+      }
 
+      @Override
+      public void onFailure(Exception exception) {
+        gotCallback.set(true);
+        gotFailure.set(true);
+      }
+    });
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
-      kafkaWriter.write(messageBytes);
-      kafkaWriter.commit();
+      kafka08DataWriter.asyncWrite(messageBytes);
     }
     finally
     {
-      kafkaWriter.close();
+      kafka08DataWriter.close();
     }
 
-    Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
+    Assert.assertEquals(gotCallback.get(), true);
+    Assert.assertEquals(gotSuccess.get(), true);
+    Assert.assertEquals(gotFailure.get(), false);
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     Assert.assertEquals(message, messageBytes);
   }
@@ -118,7 +152,7 @@ public class KafkaDataWriterTest {
   @Test
   public void testAvroSerialization()
       throws IOException, InterruptedException, SchemaRegistryException {
-    String topic = "testAvroSerialization";
+    String topic = "testAvroSerialization08";
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
@@ -132,25 +166,43 @@ public class KafkaDataWriterTest {
         + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
         ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
-    KafkaDataWriter<GenericRecord> kafkaWriter = new KafkaDataWriter<>(props);
+    Kafka08DataWriter<GenericRecord> kafka08DataWriter = new Kafka08DataWriter<>(props);
+
+    final AtomicBoolean gotCallback = new AtomicBoolean(false);
+    final AtomicBoolean gotSuccess = new AtomicBoolean(false);
+    final AtomicBoolean gotFailure = new AtomicBoolean(false);
+    kafka08DataWriter.setDefaultCallback(new WriteCallback() {
+      @Override
+      public void onSuccess() {
+        gotCallback.set(true);
+        gotSuccess.set(true);
+      }
+
+      @Override
+      public void onFailure(Exception exception) {
+        gotCallback.set(true);
+        gotFailure.set(true);
+      }
+    });
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
-      kafkaWriter.write(record);
-      kafkaWriter.commit();
+      kafka08DataWriter.asyncWrite(record);
     }
     finally
     {
-      kafkaWriter.close();
+      kafka08DataWriter.close();
     }
 
-    Assert.assertEquals(kafkaWriter.recordsWritten(), 1);
+    Assert.assertEquals(gotCallback.get(), true);
+    Assert.assertEquals(gotSuccess.get(), true);
+    Assert.assertEquals(gotFailure.get(), false);
+
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     ConfigDrivenMd5SchemaRegistry schemaReg = new ConfigDrivenMd5SchemaRegistry(topic, record.getSchema());
     LiAvroDeserializer deser = new LiAvroDeserializer(schemaReg);
     GenericRecord receivedRecord = deser.deserialize(topic, message);
-    System.out.println(record.toString());
-    System.out.println(receivedRecord.toString());
+    Assert.assertEquals(record.toString(), receivedRecord.toString());
   }
 
 
