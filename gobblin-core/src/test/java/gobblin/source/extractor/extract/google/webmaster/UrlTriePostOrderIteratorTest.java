@@ -63,6 +63,46 @@ public class UrlTriePostOrderIteratorTest {
     Assert.assertEquals(new String[]{_property + "01", _property + "0", _property}, chars.toArray());
   }
 
+  /**
+   * The trie is:
+   *  /
+   *  0
+   *  1
+   *  2
+   */
+  @Test
+  public void testVerticalTrie1TraversalWithSize3() {
+    UrlTrie trie = new UrlTrie(_property, Arrays.asList(_property + "0", _property + "01", _property + "012"));
+    UrlTriePostOrderIterator iterator = new UrlTriePostOrderIterator(trie, 3);
+    ArrayList<String> chars = new ArrayList<>();
+    while (iterator.hasNext()) {
+      Pair<String, UrlTrieNode> next = iterator.next();
+      chars.add(next.getLeft());
+    }
+    //the root node is a leaf node
+    Assert.assertEquals(new String[]{_property}, chars.toArray());
+  }
+
+  /**
+   * The trie is:
+   *  /
+   *  0
+   *  1
+   *  2
+   */
+  @Test
+  public void testVerticalTrie1TraversalWithSize4() {
+    UrlTrie trie = new UrlTrie(_property, Arrays.asList(_property + "0", _property + "01", _property + "012"));
+    UrlTriePostOrderIterator iterator = new UrlTriePostOrderIterator(trie, 4);
+    ArrayList<String> chars = new ArrayList<>();
+    while (iterator.hasNext()) {
+      Pair<String, UrlTrieNode> next = iterator.next();
+      chars.add(next.getLeft());
+    }
+    //the root node is a leaf node
+    Assert.assertEquals(new String[]{_property}, chars.toArray());
+  }
+
   @Test
   public void testTrie1TraversalWithSize1() {
     UrlTrie trie = getUrlTrie1(_property);

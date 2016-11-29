@@ -130,6 +130,32 @@ public class UrlTriePrefixGrouperTest {
     Assert.assertEquals(actual2.toArray(), new String[]{_property});
   }
 
+  @Test
+  public void testWhenTrieSizeLessThanGroupSize1() {
+    List<String> pages = Arrays.asList(_property + "13");
+    UrlTrie trie1 = new UrlTrie(_property, pages);
+    UrlTriePrefixGrouper grouper = new UrlTriePrefixGrouper(trie1, 1);
+    Triple<String, FilterOperator, UrlTrieNode> next = grouper.next();
+    Assert.assertEquals(next.getLeft(), _property);
+    Assert.assertEquals(next.getMiddle(), FilterOperator.CONTAINS);
+    Assert.assertEquals(next.getRight().getValue(), Character.valueOf('/'));
+    Assert.assertFalse(next.getRight().isExist());
+    Assert.assertFalse(grouper.hasNext());
+  }
+
+  @Test
+  public void testWhenTrieSizeLessThanGroupSize2() {
+    List<String> pages = Arrays.asList(_property + "13");
+    UrlTrie trie1 = new UrlTrie(_property, pages);
+    UrlTriePrefixGrouper grouper = new UrlTriePrefixGrouper(trie1, 2);
+    Triple<String, FilterOperator, UrlTrieNode> next = grouper.next();
+    Assert.assertEquals(next.getLeft(), _property);
+    Assert.assertEquals(next.getMiddle(), FilterOperator.CONTAINS);
+    Assert.assertEquals(next.getRight().getValue(), Character.valueOf('/'));
+    Assert.assertFalse(next.getRight().isExist());
+    Assert.assertFalse(grouper.hasNext());
+  }
+
 //  @Test
 //  public void fun() throws FileNotFoundException {
 //    UrlTrie trie = new UrlTrie("https://" + _property, new ArrayList<String>());

@@ -87,6 +87,13 @@ public class UrlTriePostOrderIterator implements Iterator<Pair<String, UrlTrieNo
         }
       }
     }
+
+    //This case happens when the whole trie has fewer URLs than the group size
+    if (_lastVisited == null && _currentNode.getSize() > 0) {
+      //_currentNode is now at the root node, which is a leaf by the iterator's definition
+      _toReturn = _currentNode;
+      return true;
+    }
     return false;
   }
 
