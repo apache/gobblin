@@ -27,8 +27,10 @@ import com.google.common.reflect.TypeToken;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.State;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 
 
 /**
@@ -38,6 +40,7 @@ import lombok.Getter;
  */
 @Getter
 @Alpha
+@ToString
 public class HiveRegistrationUnit {
 
   protected final String dbName;
