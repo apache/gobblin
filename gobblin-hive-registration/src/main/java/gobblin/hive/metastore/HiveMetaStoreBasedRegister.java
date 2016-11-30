@@ -212,7 +212,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           }
         } catch (TException e2) {
           log.error(
-              String.format("Unable to create or alter Hive table %s in db %s: " + e.getMessage(), tableName, dbName),
+              String.format("Unable to create or alter Hive table %s in db %s: " + e2.getMessage(), tableName, dbName),
               e2);
           throw e2;
         }
@@ -294,8 +294,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           if (needToUpdatePartition(existingPartition, spec.getPartition().get())) {
             log.info(String.format("Partition update required. ExistingPartition %s, newPartition %s",
                 stringifyPartition(existingPartition), stringifyPartition(spec.getPartition().get())));
-            client.alter_partition(table.getDbName(), table.getTableName(), getPartitionWithCreateTime(partition, existingPartition));
-            log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(partition),
+            Partition newPartition = getPartitionWithCreateTime(partition, existingPartition);
+            log.info(String.format("Altering partition %s", newPartition));
+            client.alter_partition(table.getDbName(), table.getTableName(), newPartition);
+            log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(newPartition),
                 table.getTableName(), partition.getSd().getLocation()));
           } else {
             log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
@@ -303,8 +305,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           }
         } catch (Throwable e2) {
           log.error(String.format(
-              "Unable to add or alter partition %s in table %s with location %s: " + e.getMessage(),
-              stringifyPartitionVerbose(partition), table.getTableName(), partition.getSd().getLocation()), e);
+              "Unable to add or alter partition %s in table %s with location %s: " + e2.getMessage(),
+              stringifyPartitionVerbose(partition), table.getTableName(), partition.getSd().getLocation()), e2);
           throw e2;
         }
       }
