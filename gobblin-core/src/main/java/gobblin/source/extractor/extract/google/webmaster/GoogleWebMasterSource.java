@@ -94,6 +94,18 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    */
   public static final String KEY_REQUEST_TUNING_BATCH_SIZE =
       "source.google_webmasters.request.performance_tuning.batch_size";
+  /**
+   * Set the group size for UrlTriePrefixGrouper
+   */
+  public static final String KEY_REQUEST_TUNING_GROUP_SIZE =
+      "source.google_webmasters.request.performance_tuning.group_size";
+
+  /**
+   * True: Trie based
+   * False: Queue based
+   */
+  public static final String KEY_REQUEST_TUNING_ALGORITHM =
+      "source.google_webmasters.request.performance_tuning.advanced";
 
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
 

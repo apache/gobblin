@@ -8,7 +8,7 @@ public class UrlTrieNode {
   private Character _value;
   private boolean _exist = false;
   //the count/size for all nodes with actual values/pages starting from itself and include all children, grand-children, etc...
-  private long _size = 0;
+  private int _size = 0;
 
   public UrlTrieNode(Character value) {
     _value = value;
@@ -63,7 +63,7 @@ public class UrlTrieNode {
     return _exist;
   }
 
-  public long getSize() {
+  public int getSize() {
     return _size;
   }
 

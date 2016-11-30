@@ -7,10 +7,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.apache.commons.collections.CollectionUtils;
 import org.junit.Assert;
 import org.mockito.ArgumentMatcher;
@@ -57,8 +55,8 @@ public class GoogleWebmasterExtractorIteratorTest {
     ArrayDeque<ProducerJob> allJobs = new ArrayDeque<>();
     String page1 = siteProperty + "a/1";
     String page2 = siteProperty + "b/1";
-    allJobs.add(new ProducerJob(page1, date, date, GoogleWebmasterFilter.FilterOperator.EQUALS));
-    allJobs.add(new ProducerJob(page2, date, date, GoogleWebmasterFilter.FilterOperator.EQUALS));
+    allJobs.add(new SimpleProducerJob(page1, date, date));
+    allJobs.add(new SimpleProducerJob(page2, date, date));
     Mockito.when(client.getAllPages(eq(date), eq(date), eq(country), eq(GoogleWebmasterClient.API_ROW_LIMIT)))
         .thenReturn(allJobs);
 

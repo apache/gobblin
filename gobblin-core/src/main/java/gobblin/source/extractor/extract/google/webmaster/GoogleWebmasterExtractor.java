@@ -63,7 +63,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private static List<ProducerJob> getHotStartJobs(WorkUnitState wuState) {
     String hotStartString = wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_HOT_START, "");
     if (!hotStartString.isEmpty()) {
-      return ProducerJob.deserialize(hotStartString);
+      return SimpleProducerJob.deserialize(hotStartString);
     }
     return new ArrayList<>();
   }
