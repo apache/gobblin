@@ -17,8 +17,8 @@ import com.typesafe.config.Config;
 
 public interface EndPointFactory {
   
-  public EndPoint buildSource(Config sourceConfig, ReplicationDataRetentionCategory rdc);
+  public EndPoint buildSource(Config sourceConfig, Config selectionConfig);
 
-  public EndPoint buildReplica(Config replicasConfig, String replicaName, ReplicationDataRetentionCategory rdc);
+  public EndPoint buildReplica(Config replicasConfig, String replicaName, Config selectionConfig);
 
 }

@@ -19,6 +19,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.typesafe.config.Config;
+
 import gobblin.util.HadoopUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,7 +44,7 @@ public abstract class HadoopFsEndPoint implements EndPoint{
    */
   public abstract Path getDatasetPath();
   
-  public abstract ReplicationDataRetentionCategory getReplicationDataRetentionCategory();
+  public abstract Config getSelectionConfig();
   
   @Override
   public boolean isAvailable() {

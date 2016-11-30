@@ -13,73 +13,75 @@
 package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Properties;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.typesafe.config.Config;
 
-import gobblin.data.management.version.TimestampedDatasetVersion;
-import gobblin.data.management.version.finder.AbstractDatasetVersionFinder;
-import gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
-import gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder;
+import gobblin.data.management.policy.VersionSelectionPolicy;
+import gobblin.data.management.version.FileSystemDatasetVersion;
+import gobblin.data.management.version.finder.VersionFinder;
 import gobblin.dataset.FileSystemDataset;
 
 /**
- * Used to pick the valid Paths for data replication based on {@link #ReplicationDataRetentionCategory.Type}
+ * Used to pick the valid Paths for data replication based on {@link Config}
  * @author mitu
  *
  */
 public class ReplicationDataValidPathPicker {
 
-  public static Collection<Path> getValidPaths(HadoopFsEndPoint hadoopFsEndPoint) throws IOException{
-    ReplicationDataRetentionCategory rdc = hadoopFsEndPoint.getReplicationDataRetentionCategory();
-    if(rdc.getType() == ReplicationDataRetentionCategory.Type.SYNC){
-      return Lists.newArrayList(hadoopFsEndPoint.getDatasetPath());
-    }
+  public static final String POLICY_CLASS = "selection.policy.class";
 
-    Preconditions.checkArgument(rdc.getFiniteInstance().isPresent());
-    int finiteInstance = rdc.getFiniteInstance().get();
+  public static final String FINDER_CLASS = "version.finder.class";
+  
+  @SuppressWarnings("unchecked")
+  public static Collection<Path> getValidPaths(HadoopFsEndPoint hadoopFsEndPoint) throws IOException{
+    Config selectionConfig = hadoopFsEndPoint.getSelectionConfig();
 
     FileSystemDataset tmpDataset = new HadoopFsEndPointDataset(hadoopFsEndPoint);
     FileSystem theFs = FileSystem.get(hadoopFsEndPoint.getFsURI(), new Configuration());
 
-    AbstractDatasetVersionFinder<TimestampedDatasetVersion> absfinder = null;
-    Properties p = new Properties();
-    switch(rdc.getType()){
-      case FINITE_SNAPSHOT: 
-        absfinder = new GlobModTimeDatasetVersionFinder(theFs, p);
-        break;
-      case FINITE_DAILY_PARTITION:
-        p.setProperty(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd");
-        absfinder = new DateTimeDatasetVersionFinder(theFs, p);
-        break;
-      case  FINITE_HOURLY_PARTITION: 
-        p.setProperty(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd/hh");
-        absfinder = new DateTimeDatasetVersionFinder(theFs, p);
-        break;
-      default:
-        throw new IllegalArgumentException("Unsupported type " + rdc.getType());
+    /**
+     * Use {@link FileSystemDatasetVersion} as
+     * {@link DateTimeDatasetVersionFinder} / {@link GlobModTimeDatasetVersionFinder} use {@link TimestampedDatasetVersion}
+     * {@link SingleVersionFinder} uses {@link FileStatusDatasetVersion}
+     */
+    VersionFinder<FileSystemDatasetVersion> finder;
+    try {
+      finder = (VersionFinder<FileSystemDatasetVersion>) ConstructorUtils
+          .invokeConstructor(Class.forName(selectionConfig.getString(FINDER_CLASS)), theFs, selectionConfig);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new IllegalArgumentException(e);
     }
 
-    List<TimestampedDatasetVersion> versions = 
-        Ordering.natural().reverse().sortedCopy(absfinder.findDatasetVersions(tmpDataset));
+    List<FileSystemDatasetVersion> versions =
+        Ordering.natural().reverse().sortedCopy(finder.findDatasetVersions(tmpDataset));
 
-    versions = versions.subList(0, Math.min(finiteInstance, versions.size()));
+    VersionSelectionPolicy<FileSystemDatasetVersion> selector;
+    try {
+      selector = (VersionSelectionPolicy<FileSystemDatasetVersion>) ConstructorUtils
+          .invokeConstructor(Class.forName(selectionConfig.getString(POLICY_CLASS)), selectionConfig);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new IllegalArgumentException(e);
+    }
+
+    Collection<FileSystemDatasetVersion> versionsSelected = selector.listSelectedVersions(versions);
 
     List<Path> result = new ArrayList<Path>();
-    for(TimestampedDatasetVersion t: versions){
-      result.add(t.getPath());
+    for(FileSystemDatasetVersion t: versionsSelected){
+      // get the first element out
+      result.add(t.getPaths().iterator().next());
     }
     return result;
-
   }
 }

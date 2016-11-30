@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
@@ -37,17 +38,17 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
 
   @Getter
   private final HadoopFsReplicaConfig rc;
-
+  
   @Getter
-  private final ReplicationDataRetentionCategory rdc;
+  private final Config selectionConfig;
   
   private boolean initialized = false;
   private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
   private Collection<FileStatus> allFileStatus = new ArrayList<>();
   
-  public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc, ReplicationDataRetentionCategory rdc) {
+  public SourceHadoopFsEndPoint(HadoopFsReplicaConfig rc, Config selectionConfig) {
     this.rc = rc;
-    this.rdc = rdc;
+    this.selectionConfig = selectionConfig;
   }
 
   @Override
@@ -144,10 +145,5 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint{
     } else if (!rc.equals(other.rc))
       return false;
     return true;
-  }
-
-  @Override
-  public ReplicationDataRetentionCategory getReplicationDataRetentionCategory() {
-    return this.rdc;
   }
 }

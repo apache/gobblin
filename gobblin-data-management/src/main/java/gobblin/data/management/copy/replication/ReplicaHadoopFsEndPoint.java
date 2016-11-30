@@ -30,6 +30,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.io.CharStreams;
+import com.typesafe.config.Config;
 
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.Watermark;
@@ -50,19 +51,19 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
   private final String replicaName;
   
   @Getter
-  private final ReplicationDataRetentionCategory rdc;
+  private final Config selectionConfig;
   
   private boolean watermarkInitialized = false;
   private boolean filesInitialized = false;
   private Optional<ComparableWatermark> cachedWatermark = Optional.absent();
   private Collection<FileStatus> allFileStatus = new ArrayList<>();
 
-  public ReplicaHadoopFsEndPoint(HadoopFsReplicaConfig rc, String replicaName, ReplicationDataRetentionCategory rdc) {
+  public ReplicaHadoopFsEndPoint(HadoopFsReplicaConfig rc, String replicaName, Config selectionConfig) {
     Preconditions.checkArgument(!replicaName.equals(ReplicationConfiguration.REPLICATION_SOURCE),
         "replicaName can not be " + ReplicationConfiguration.REPLICATION_SOURCE);
     this.rc = rc;
     this.replicaName = replicaName;
-    this.rdc = rdc;
+    this.selectionConfig = selectionConfig;
   }
 
   @Override
@@ -180,10 +181,5 @@ public class ReplicaHadoopFsEndPoint extends HadoopFsEndPoint {
     } else if (!replicaName.equals(other.replicaName))
       return false;
     return true;
-  }
-
-  @Override
-  public ReplicationDataRetentionCategory getReplicationDataRetentionCategory() {
-    return this.rdc;
   }
 }

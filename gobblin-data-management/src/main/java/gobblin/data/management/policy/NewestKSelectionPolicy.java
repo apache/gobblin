@@ -34,7 +34,7 @@ import gobblin.data.management.version.DatasetVersion;
  * Select the newest k versions of the dataset.
  */
 @ToString
-public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVersion> {
+public class NewestKSelectionPolicy<T extends DatasetVersion> implements VersionSelectionPolicy<T> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NewestKSelectionPolicy.class);
 
@@ -118,14 +118,14 @@ public class NewestKSelectionPolicy implements VersionSelectionPolicy<DatasetVer
   }
 
   @Override
-  public Collection<DatasetVersion> listSelectedVersions(List<DatasetVersion> allVersions) {
+  public Collection<T> listSelectedVersions(List<T> allVersions) {
     if (this.isExcludeMode()) {
       return getBoundarySafeSublist(allVersions, this.getVersionsSelected(), allVersions.size());
     }
     return getBoundarySafeSublist(allVersions, 0, this.getVersionsSelected());
   }
 
-  static List<DatasetVersion> getBoundarySafeSublist(List<DatasetVersion> l, int fromIndex, int toIndex) {
+  private List<T> getBoundarySafeSublist(List<T> l, int fromIndex, int toIndex) {
     fromIndex = Math.min(fromIndex, l.size());
     toIndex = Math.min(toIndex, l.size());
 
