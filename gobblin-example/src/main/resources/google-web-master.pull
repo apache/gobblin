@@ -2,7 +2,7 @@
 job.name=GoogleSearchConsole_DataFetchJob
 job.description=Download Google Search Analytics data on a daily basis
 job.group=GoogleAPI
-job.schedule=0 0 18 * * Sunday
+job.schedule=0 0 18 ? * Sunday
 #job.runonce=true
 workunit.retry.policy=never
 workunit.retry.enabled=false
@@ -59,8 +59,8 @@ source.google_webmasters.request.performance_tuning.initial_cool_down=1000
 source.google_webmasters.request.performance_tuning.cool_down_step=300
 source.google_webmasters.request.performance_tuning.requests_per_second=2.25
 source.google_webmasters.request.performance_tuning.batch_size=2
-#source.google_webmasters.request.performance_tuning.group_size=1
-#source.google_webmasters.request.performance_tuning.advanced=false
+#source.google_webmasters.request.performance_tuning.group_size=500
+#source.google_webmasters.request.performance_tuning.advanced=true
 
 ## Converter properties
 converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter

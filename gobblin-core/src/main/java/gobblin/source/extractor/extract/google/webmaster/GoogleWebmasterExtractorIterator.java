@@ -92,7 +92,7 @@ class GoogleWebmasterExtractorIterator {
     BATCH_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_BATCH_SIZE, 2);
     Preconditions.checkArgument(BATCH_SIZE >= 1, "Batch size must be at least 1.");
 
-    GROUP_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_GROUP_SIZE, 250);
+    GROUP_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_GROUP_SIZE, 500);
     Preconditions.checkArgument(GROUP_SIZE >= 1, "Group size must be at least 1.");
 
     ADVANCED_MODE = wuState.getPropAsBoolean(GoogleWebMasterSource.KEY_REQUEST_TUNING_ALGORITHM, false);
