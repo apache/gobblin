@@ -153,6 +153,14 @@ public class MRCompactor implements Compactor {
       COMPACTION_PREFIX + "latedata.threshold.for.recompact.per.topic";
   public static final double DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET = 1.0;
 
+  public static final String COMPACTION_LATEDATA_THRESHOLD_FILE_NUM =
+      COMPACTION_PREFIX + "latedata.threshold.file.num";
+  public static final int DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FILE_NUM = 1000;
+
+  public static final String COMPACTION_LATEDATA_THRESHOLD_DURATION =
+      COMPACTION_PREFIX + "latedata.threshold.duration";
+  public static final String DEFAULT_COMPACTION_LATEDATA_THRESHOLD_DURATION = "24h";
+
   // Whether the input data for the compaction is deduplicated.
   public static final String COMPACTION_INPUT_DEDUPLICATED = COMPACTION_PREFIX + "input.deduplicated";
   public static final boolean DEFAULT_COMPACTION_INPUT_DEDUPLICATED = false;
@@ -165,7 +173,9 @@ public class MRCompactor implements Compactor {
       COMPACTION_PREFIX + "completeness.verification.";
 
   public static final String COMPACTION_RECOMPACT_FROM_DEST_PATHS = COMPACTION_PREFIX + "recompact.from.dest.paths";
+  public static final String COMPACTION_RECOMPACT_ALL_DATA = COMPACTION_PREFIX + "recompact.all.data";
   public static final boolean DEFAULT_COMPACTION_RECOMPACT_FROM_DEST_PATHS = false;
+  public static final boolean DEFAULT_COMPACTION_RECOMPACT_ALL_DATA = true;
 
   /**
    * Configuration properties related to data completeness verification.
@@ -377,8 +387,7 @@ public class MRCompactor implements Compactor {
    * Update datasets based on the results of creating job props for them.
    */
   private List<Dataset> createJobPropsForDataset(Dataset dataset) {
-    LOG.info("Creating compaction jobs for dataset " + dataset + " with priority " + dataset.priority()
-        + " and late data threshold for recompact " + dataset.lateDataThresholdForRecompact());
+    LOG.info("Creating compaction jobs for dataset " + dataset + " with priority " + dataset.priority());
     final MRCompactorJobPropCreator jobPropCreator = getJobPropCreator(dataset);
     List<Dataset> datasetsWithProps;
     try {

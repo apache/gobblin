@@ -45,9 +45,6 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
   public static final double HIGH_PRIORITY = 3.0;
   public static final double NORMAL_PRIORITY = 2.0;
   public static final double LOW_PRIORITY = 1.0;
-  public static final char DATASETS_WITH_DIFFERENT_RECOMPACT_THRESHOLDS_SEPARATOR = ';';
-  public static final char DATASETS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR = ',';
-  public static final char DATASETS_AND_RECOMPACT_THRESHOLD_SEPARATOR = ':';
   public static final String TMP_OUTPUT_SUBDIR = "output";
 
   protected final State state;
@@ -148,33 +145,4 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
     return priority;
   }
 
-  private static Map<String, Double> getDatasetRegexAndRecompactThreshold(String datasetsAndRecompactThresholds) {
-    Map<String, Double> topicRegexAndRecompactThreshold = Maps.newHashMap();
-    for (String entry : Splitter.on(DATASETS_WITH_DIFFERENT_RECOMPACT_THRESHOLDS_SEPARATOR).trimResults()
-        .omitEmptyStrings().splitToList(datasetsAndRecompactThresholds)) {
-      List<String> topicsAndRecompactThreshold =
-          Splitter.on(DATASETS_AND_RECOMPACT_THRESHOLD_SEPARATOR).trimResults().omitEmptyStrings().splitToList(entry);
-      if (topicsAndRecompactThreshold.size() != 2) {
-        log.error("Invalid form (DATASET_NAME:THRESHOLD) in "
-            + MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET + ".");
-      } else {
-        topicRegexAndRecompactThreshold.put(topicsAndRecompactThreshold.get(0),
-            Double.parseDouble(topicsAndRecompactThreshold.get(1)));
-      }
-    }
-    return topicRegexAndRecompactThreshold;
-  }
-
-  protected double getDatasetRecompactThreshold(String datasetName) {
-    Map<String, Double> datasetRegexAndRecompactThreshold = getDatasetRegexAndRecompactThreshold(
-        this.state.getProp(MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET, StringUtils.EMPTY));
-    for (Map.Entry<String, Double> topicRegexEntry : datasetRegexAndRecompactThreshold.entrySet()) {
-      if (DatasetFilterUtils.stringInPatterns(datasetName,
-          DatasetFilterUtils.getPatternsFromStrings(Splitter.on(DATASETS_WITH_SAME_RECOMPACT_THRESHOLDS_SEPARATOR)
-              .trimResults().omitEmptyStrings().splitToList(topicRegexEntry.getKey())))) {
-        return topicRegexEntry.getValue();
-      }
-    }
-    return MRCompactor.DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET;
-  }
 }
