@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 class GoogleWebmasterExtractorIterator {
 
   private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterExtractorIterator.class);
+  private final int TIME_OUT;
   private final int BATCH_SIZE;
   private final int GROUP_SIZE;
   private final boolean ADVANCED_MODE;
@@ -48,7 +49,7 @@ class GoogleWebmasterExtractorIterator {
   private final String _endDate;
   private final String _country;
   private Thread _producerThread;
-  private LinkedBlockingDeque<String[]> _cachedQueries = new LinkedBlockingDeque<>(1000);
+  private LinkedBlockingDeque<String[]> _cachedQueries = new LinkedBlockingDeque<>(2000);
   private final Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> _filterMap;
   //This is the requested dimensions sent to Google API
   private final List<GoogleWebmasterFilter.Dimension> _requestedDimensions;
@@ -76,6 +77,9 @@ class GoogleWebmasterExtractorIterator {
     QUERY_LIMIT =
         wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_QUERY_LIMIT, GoogleWebmasterClient.API_ROW_LIMIT);
     Preconditions.checkArgument(QUERY_LIMIT >= 1, "Query limit must be at least 1.");
+
+    TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TIME_OUT, 5);
+    Preconditions.checkArgument(TIME_OUT > 0, "Time out must be positive.");
 
     MAX_RETRY_ROUNDS = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_RETRIES, 20);
     Preconditions.checkArgument(MAX_RETRY_ROUNDS >= 0, "Retry rounds cannot be negative.");
@@ -233,15 +237,20 @@ class GoogleWebmasterExtractorIterator {
             batch = new ArrayList<>(BATCH_SIZE);
           }
         }
-
         //Send the last batch
         if (!batch.isEmpty()) {
           submitJob(requestSleep, retries, es, batch);
         }
+        LOG.info(String.format("Submitted all jobs at round %d.", r));
 
         try {
           es.shutdown(); //stop accepting new requests
-          es.awaitTermination(30, TimeUnit.HOURS); //await for all submitted job to finish
+          LOG.info("Wait for all submitted jobs to finish...");
+          boolean terminated = es.awaitTermination(TIME_OUT, TimeUnit.MINUTES);
+          if (!terminated) {
+            es.shutdownNow();
+            throw new RuntimeException(String.format("Time out for country-%s at round %d.", _country, r));
+          }
         } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }
@@ -279,9 +288,9 @@ class GoogleWebmasterExtractorIterator {
         List<ProducerJob> batch) {
       try {
         Thread.sleep(requestSleep); //Control the speed of sending API requests
-      } catch (InterruptedException e) {
-        e.printStackTrace();
+      } catch (InterruptedException ignored) {
       }
+
       es.submit(getResponses(batch, retries, _cachedQueries));
     }
 
@@ -365,9 +374,9 @@ class GoogleWebmasterExtractorIterator {
       };
     }
 
-    private void onFailure(String errMsg, ProducerJob job, ConcurrentLinkedDeque<ProducerJob> pagesToRetry) {
+    private void onFailure(String errMsg, ProducerJob job, ConcurrentLinkedDeque<ProducerJob> retries) {
       LOG.debug(String.format("OnFailure: will retry job %s.%sReason:%s", job, System.lineSeparator(), errMsg));
-      pagesToRetry.add(job);
+      retries.add(job);
     }
 
     private void onSuccess(ProducerJob job, List<String[]> results, LinkedBlockingDeque<String[]> responseQueue,
@@ -394,6 +403,7 @@ class GoogleWebmasterExtractorIterator {
           responseQueue.put(r);
         }
       } catch (InterruptedException e) {
+        LOG.error(e.getMessage());
         throw new RuntimeException(e);
       }
     }

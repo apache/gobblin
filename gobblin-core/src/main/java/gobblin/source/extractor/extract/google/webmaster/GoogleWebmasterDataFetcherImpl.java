@@ -197,7 +197,12 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       //wait for jobs to finish and start next round if necessary.
       try {
         es.shutdown();
-        es.awaitTermination(2, TimeUnit.HOURS);
+        LOG.info("Getting all pages: Wait for all submitted jobs to finish...");
+        boolean terminated = es.awaitTermination(10, TimeUnit.MINUTES);
+        if (!terminated) {
+          es.shutdownNow();
+          throw new RuntimeException(String.format("Time out while getting pages at round %d", r));
+        }
         //Cool down before next round.
         Thread.sleep(1000 + 300 * random.nextInt(r));
       } catch (InterruptedException e) {

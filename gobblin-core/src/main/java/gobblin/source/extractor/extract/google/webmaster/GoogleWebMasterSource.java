@@ -64,7 +64,10 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    * The response row limit when you ask for queries.
    */
   public static final String KEY_REQUEST_QUERY_LIMIT = "source.google_webmasters.request.query_limit";
-
+  /**
+   * Set the time out in minutes for each round.
+   */
+  public static final String KEY_REQUEST_TIME_OUT = "source.google_webmasters.request.time_out";
   /**
    * Tune the maximum rounds of retries allowed when API calls failed because of exceeding quota.
    */
