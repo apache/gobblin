@@ -64,6 +64,8 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
     private Path outputTmpPath;
     private String datasetName;
     private double priority = DEFAULT_PRIORITY;
+
+    @Deprecated
     private double lateDataThresholdForRecompact;
 
     public Builder withInputPath(Path inputPath) {
@@ -123,10 +125,12 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   private Path inputLatePath;
   private State jobProps;
   private double priority;
-  private double lateDataThresholdForRecompact;
   private boolean needToRecompact;
   private final String datasetName;
   private AtomicReference<DatasetState> state;
+
+  @Deprecated
+  private double lateDataThresholdForRecompact;
 
   private Dataset(Builder builder) {
     this.inputPath = builder.inputPath;
@@ -241,12 +245,13 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
     return this.priority;
   }
 
-  public void checkIfNeedToRecompact(DatasetHelper metric) {
-    if (metric.getCondition().isRecompactionNeeded(metric)) {
+  public void checkIfNeedToRecompact(DatasetHelper datasetHelper) {
+    if (datasetHelper.getCondition().isRecompactionNeeded(datasetHelper)) {
       this.needToRecompact = true;
     }
   }
 
+  @Deprecated
   public void checkIfNeedToRecompact(long lateDataCount, long nonLateDataCount) {
     double lateDataPercent = lateDataCount * 1.0 / (lateDataCount + nonLateDataCount);
     log.info("Late data percentage is " + lateDataPercent + " and threshold is " + this.lateDataThresholdForRecompact);

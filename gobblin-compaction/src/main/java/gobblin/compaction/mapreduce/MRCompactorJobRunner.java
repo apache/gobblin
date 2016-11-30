@@ -139,7 +139,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private final RecordCountProvider outputRecordCountProvider;
   private final LateFileRecordCountProvider lateInputRecordCountProvider;
   private final LateFileRecordCountProvider lateOutputRecordCountProvider;
-  private final DatasetHelper metric;
+  private final DatasetHelper datasetHelper;
   private final int copyLateDataThreadPoolSize;
 
   private volatile Policy policy = Policy.DO_NOT_PUBLISH_DATA;
@@ -188,7 +188,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     }
 
     this.applicablePathCache = CacheBuilder.newBuilder().maximumSize(2000).build();
-    this.metric = new DatasetHelper(this.dataset, this.fs, this.getApplicableFileExtensions());
+    this.datasetHelper = new DatasetHelper(this.dataset, this.fs, this.getApplicableFileExtensions());
 
   }
 
@@ -230,7 +230,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         }
         this.copyDataFiles(lateDataOutputPath, newLateFilePaths);
         if (this.outputDeduplicated) {
-          dataset.checkIfNeedToRecompact (metric);
+          dataset.checkIfNeedToRecompact (datasetHelper);
         }
         this.status = Status.COMMITTED;
       } else {
@@ -619,8 +619,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
    * Submit an event reporting late record counts and non-late record counts.
    */
   private void submitRecordsCountsEvent() {
-    long lateOutputRecordCount = this.metric.getLateOutputRecordCount();
-    long outputRecordCount = this.metric.getOutputRecordCount();
+    long lateOutputRecordCount = this.datasetHelper.getLateOutputRecordCount();
+    long outputRecordCount = this.datasetHelper.getOutputRecordCount();
 
     try {
       CompactionSlaEventHelper
