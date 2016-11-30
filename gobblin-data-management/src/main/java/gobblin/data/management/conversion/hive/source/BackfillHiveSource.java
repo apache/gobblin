@@ -74,4 +74,15 @@ public class BackfillHiveSource extends HiveAvroToOrcSource {
     // If no whitelist is set, all partitions of a dataset are backfilled
     return true;
   }
+
+  @Override
+  public boolean isOlderThanLookback(Partition partition) {
+    // If partition whitelist is provided, ignore lookback
+    if (!this.partitionsWhitelist.isEmpty()) {
+      return false;
+    } else {
+      return super.isOlderThanLookback(partition);
+    }
+  }
+
 }
