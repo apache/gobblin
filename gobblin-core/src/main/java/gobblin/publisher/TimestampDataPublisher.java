@@ -15,6 +15,7 @@ package gobblin.publisher;
 import java.io.IOException;
 import java.util.Set;
 import org.apache.hadoop.fs.Path;
+import com.google.common.base.Preconditions;
 import gobblin.util.ParallelRunner;
 import gobblin.util.WriterUtils;
 import gobblin.configuration.State;
@@ -59,8 +60,8 @@ public class TimestampDataPublisher extends BaseDataPublisher {
   protected void movePath(ParallelRunner parallelRunner, State state, Path src, Path dst, int branchId)
       throws IOException {
 
-    String outputDir = dst.toString().substring(0, dst.toString().lastIndexOf('/'));
-    String schemaName = dst.toString().substring(dst.toString().lastIndexOf('/') + 1, dst.toString().length());
+    String outputDir = dst.getParent().toString();
+    String schemaName = dst.getName();
     Path newDst = new Path(new Path(outputDir, getDbTableName(schemaName)), timestamp);
 
     if (!this.publisherFileSystemByBranches.get(branchId).exists(newDst)) {
@@ -78,6 +79,7 @@ public class TimestampDataPublisher extends BaseDataPublisher {
    * @return db and table name in format "dbname.tablename"
    */
   private String getDbTableName(String schemaName) {
+    Preconditions.checkArgument(schemaName.matches(".+_.+_.+"));
     return schemaName.replaceFirst("_", ".").substring(0, schemaName.lastIndexOf('_'));
   }
 }
