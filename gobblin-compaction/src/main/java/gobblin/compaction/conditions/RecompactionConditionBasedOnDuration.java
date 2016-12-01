@@ -37,19 +37,15 @@ public class RecompactionConditionBasedOnDuration implements RecompactionConditi
     this.duration = duration;
   }
 
-  public boolean isRecompactionNeeded (DatasetHelper metric) {
-    Optional<DateTime> earliestFileModificationTime = metric.getEarliestLateFileModificationTime();
-    DateTime currentTime = metric.getCurrentTime();
-
-    logger.info ("Ealiest late file has timestamp: " + (earliestFileModificationTime.isPresent()? earliestFileModificationTime: "null"));
-    logger.info ("Current timestamp: " + currentTime);
-    logger.info ("User specified retention: " + duration);
+  public boolean isRecompactionNeeded (DatasetHelper datasetHelper) {
+    Optional<DateTime> earliestFileModificationTime = datasetHelper.getEarliestLateFileModificationTime();
+    DateTime currentTime = datasetHelper.getCurrentTime();
 
     if (earliestFileModificationTime.isPresent()) {
-      Period realDuration = new Period (earliestFileModificationTime.get(), currentTime);
-      logger.info ("Earliest file has duration: " + realDuration);
-
-      if (realDuration.getMillis() > duration.getMillis()) {
+      DateTime checkpoint = currentTime.minus(duration);
+      logger.info ("Current time is " + currentTime + " Checkpoint is " + checkpoint);
+      logger.info ("Ealiest late file has timestamp: " + earliestFileModificationTime.get());
+      if (earliestFileModificationTime.get().isBefore(checkpoint)) {
         return true;
       }
     }

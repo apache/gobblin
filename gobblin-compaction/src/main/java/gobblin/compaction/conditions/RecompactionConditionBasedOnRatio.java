@@ -22,17 +22,17 @@ import org.slf4j.LoggerFactory;
  */
 public class RecompactionConditionBasedOnRatio implements RecompactionCondition {
 
-  private static final Logger logger = LoggerFactory.getLogger(RecompactionConditionBasedOnDuration.class);
+  private static final Logger logger = LoggerFactory.getLogger(RecompactionConditionBasedOnRatio.class);
   private final double ratio;
 
   public RecompactionConditionBasedOnRatio(double ratio) {
     this.ratio = ratio;
   }
 
-  public boolean isRecompactionNeeded (DatasetHelper metric) {
+  public boolean isRecompactionNeeded (DatasetHelper datasetHelper) {
 
-    long lateDataCount = metric.getLateOutputRecordCount();
-    long nonLateDataCount = metric.getOutputRecordCount();
+    long lateDataCount = datasetHelper.getLateOutputRecordCount();
+    long nonLateDataCount = datasetHelper.getOutputRecordCount();
     double lateDataPercent = lateDataCount * 1.0 /  (lateDataCount + nonLateDataCount);
     logger.info ("Late data ratio is " + lateDataPercent + " and threshold is " + this.ratio);
     if (lateDataPercent > ratio) {

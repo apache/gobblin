@@ -23,14 +23,14 @@ import gobblin.compaction.dataset.DatasetHelper;
 public class RecompactionConditionBasedOnFileCount implements RecompactionCondition {
 
   private final int fileCountLimit;
-  private static final Logger logger = LoggerFactory.getLogger(RecompactionConditionBasedOnDuration.class);
+  private static final Logger logger = LoggerFactory.getLogger(RecompactionConditionBasedOnFileCount.class);
 
   public RecompactionConditionBasedOnFileCount (int fileCountLimit) {
     this.fileCountLimit = fileCountLimit;
   }
 
-  public boolean isRecompactionNeeded (DatasetHelper metric) {
-    long fileNum = metric.getLateOutputFileCount();
+  public boolean isRecompactionNeeded (DatasetHelper datasetHelper) {
+    long fileNum = datasetHelper.getLateOutputFileCount();
     logger.info ("File count is " + fileNum + " and threshold is " + this.fileCountLimit);
     return (fileNum >= fileCountLimit);
   }
