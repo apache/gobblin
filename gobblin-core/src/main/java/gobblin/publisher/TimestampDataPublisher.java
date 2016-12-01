@@ -23,7 +23,11 @@ import gobblin.configuration.WorkUnitState;
 
 
 /**
- * Write output to {finaldir}/{dbname.tablename}/{currenttimestamp}
+ * Path expected from writer:
+ * {writerfinaldir}/{topicname}/{dbname_tablename_xxxxx}
+ *
+ * Publisher output path:
+ * {publisherfinaldir}/{dbname.tablename}/{currenttimestamp}
  */
 public class TimestampDataPublisher extends BaseDataPublisher {
 
