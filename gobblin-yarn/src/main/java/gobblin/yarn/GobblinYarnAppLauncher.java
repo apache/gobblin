@@ -724,7 +724,8 @@ public class GobblinYarnAppLauncher {
     }
   }
 
-  private void cleanUpAppWorkDirectory(ApplicationId applicationId) throws IOException {
+  @VisibleForTesting
+  void cleanUpAppWorkDirectory(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
     if (this.fs.exists(appWorkDir)) {
       LOGGER.info("Deleting application working directory " + appWorkDir);

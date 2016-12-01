@@ -63,6 +63,33 @@ task testJar(type: Jar, dependsOn: testClasses) {
   from sourceSets.test.output
 }
 
+// create a single Jar with all dependencies
+task fatJar(type: Jar) {
+  zip64 true
+  baseName = project.name + '-all'
+
+  doFirst {
+    def serviceDir = file("$buildDir/META-INF/services")
+    serviceDir.deleteDir()
+    serviceDir.mkdirs()
+
+    // merge services files
+    for (file in configurations.runtime) {
+      zipTree(file).matching{ include 'META-INF/services/*' }.each { f ->
+        new File(serviceDir, f.name) << f.getText("UTF-8")
+      }
+    }
+  }
+
+  from(configurations.runtime.collect{ it.isDirectory() ? it : zipTree(it) }) {
+    exclude 'META-INF/services/*', 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
+  }
+  with jar
+
+  // add merged services files
+  from fileTree(buildDir).matching{ include 'META-INF/services/*' }
+}
+
 configurations {
   tests
 }
@@ -85,6 +112,7 @@ artifacts {
 }
 
 test {
+  dependsOn fatJar
   workingDir rootProject.rootDir
   maxParallelForks = 1
 }
