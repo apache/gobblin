@@ -1,0 +1,10 @@
+{"namespace": "pnda.entity",
+ "type"     : "record",
+ "name"     : "DeserializationError",
+ "fields"   : [
+   {"name": "topic",     "type": "string"},
+   {"name": "timestamp", "type": "long"},
+   {"name": "reason",    "type": ["string", "null"]},
+   {"name": "payload",   "type": "bytes"}
+ ]
+}
