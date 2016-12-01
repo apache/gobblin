@@ -21,6 +21,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -212,7 +213,15 @@ class GoogleWebmasterExtractorIterator {
         int checkPoint = Math.max(1, (int) Math.round(Math.ceil(totalPages / REPORT_PARTITIONS)));
         //retries needs to be concurrent because multiple threads will write to it.
         ConcurrentLinkedDeque<ProducerJob> retries = new ConcurrentLinkedDeque<>();
-        ExecutorService es = Executors.newCachedThreadPool();
+        ExecutorService es = Executors.newFixedThreadPool(10, new ThreadFactory() {
+          @Override
+          public Thread newThread(Runnable r) {
+            Thread t = Executors.defaultThreadFactory().newThread(r);
+            t.setDaemon(true);
+            return t;
+          }
+        });
+
         int checkPointCount = 0;
         int totalProcessed = 0;
         List<ProducerJob> batch = new ArrayList<>(BATCH_SIZE);
@@ -245,11 +254,15 @@ class GoogleWebmasterExtractorIterator {
 
         try {
           es.shutdown(); //stop accepting new requests
-          LOG.info("Wait for all submitted jobs to finish...");
+          LOG.info(
+              String.format("Wait for download-query-data jobs to finish at round %d... Next round now has size %d.", r,
+                  retries.size()));
           boolean terminated = es.awaitTermination(TIME_OUT, TimeUnit.MINUTES);
           if (!terminated) {
             es.shutdownNow();
-            throw new RuntimeException(String.format("Time out for country-%s at round %d.", _country, r));
+            LOG.warn(String.format(
+                "Timed out while downloading query data for country-%s at round %d. Next round now has size %d.",
+                _country, r, retries.size()));
           }
         } catch (InterruptedException e) {
           throw new RuntimeException(e);
@@ -361,6 +374,7 @@ class GoogleWebmasterExtractorIterator {
                   producer.onSuccess(job, results, responseQueue, retries);
                 }
               });
+              LOG.debug("Ready to submit " + job);
             }
             _webmaster.performSearchAnalyticsQueryInBatch(jobs, filterList, callbackList, _requestedDimensions,
                 QUERY_LIMIT);

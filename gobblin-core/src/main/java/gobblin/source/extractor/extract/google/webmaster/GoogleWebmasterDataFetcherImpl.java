@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.commons.lang3.tuple.Pair;
@@ -178,33 +179,47 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
    */
   private Collection<String> getPages(String startDate, String endDate, List<Dimension> dimensions,
       ApiDimensionFilter countryFilter, Queue<Pair<String, FilterOperator>> toProcess) throws IOException {
+    String country = GoogleWebmasterFilter.countryFilterToString(countryFilter);
+
     ConcurrentLinkedDeque<String> allPages = new ConcurrentLinkedDeque<>();
     Random random = new Random();
-    final int retry = 30;
+    //we need to retry many times because the path may be very long
+    final int retry = 120;
     int r = 0;
     while (r <= retry) {
       ++r;
-      LOG.info("Get pages current round: " + r);
+      LOG.info(String.format("Get pages at round %d with size %d.", r, toProcess.size()));
       ConcurrentLinkedDeque<Pair<String, FilterOperator>> nextRound = new ConcurrentLinkedDeque<>();
-      ExecutorService es = Executors.newCachedThreadPool();
+      ExecutorService es = Executors.newFixedThreadPool(10, new ThreadFactory() {
+        @Override
+        public Thread newThread(Runnable r) {
+          Thread t = Executors.defaultThreadFactory().newThread(r);
+          t.setDaemon(true);
+          return t;
+        }
+      });
+
       while (!toProcess.isEmpty()) {
         submitJob(toProcess.poll(), countryFilter, startDate, endDate, dimensions, es, allPages, nextRound);
         try {
-          Thread.sleep(250); //Submit 4 jobs per second.
+          Thread.sleep(275); //Submit roughly 4 jobs per second.
         } catch (InterruptedException ignored) {
         }
       }
       //wait for jobs to finish and start next round if necessary.
       try {
         es.shutdown();
-        LOG.info("Getting all pages: Wait for all submitted jobs to finish...");
-        boolean terminated = es.awaitTermination(10, TimeUnit.MINUTES);
+        LOG.info(String.format("Wait for get-all-pages jobs to finish at round %d... Next round now has size %d.", r,
+            nextRound.size()));
+        boolean terminated = es.awaitTermination(5, TimeUnit.MINUTES);
         if (!terminated) {
           es.shutdownNow();
-          throw new RuntimeException(String.format("Time out while getting pages at round %d", r));
+          LOG.warn(
+              String.format("Timed out while getting all pages for country-%s at round %d. Next round now has size %d.",
+                  country, r, nextRound.size()));
         }
         //Cool down before next round.
-        Thread.sleep(1000 + 300 * random.nextInt(r));
+        Thread.sleep(333 + 50 * random.nextInt(r));
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
@@ -216,8 +231,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     }
     if (r == retry) {
       throw new RuntimeException(
-          String.format("Getting all pages reaches the maximum number of retires. Date range: %s ~ %s. Market: %s.",
-              startDate, endDate, GoogleWebmasterFilter.countryFilterToString(countryFilter)));
+          String.format("Getting all pages reaches the maximum number of retires. Date range: %s ~ %s. Country: %s.",
+              startDate, endDate, country));
     }
     return allPages;
   }
