@@ -49,7 +49,7 @@ public abstract class MutableJobCatalogBase extends JobCatalogBase implements Mu
 
   @Override
   public void put(JobSpec jobSpec) {
-    Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
+    Preconditions.checkState(allowMutationsBeforeStartup() || state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     Preconditions.checkNotNull(jobSpec);
     JobSpec oldSpec = doPut(jobSpec);
     if (null == oldSpec) {
@@ -82,4 +82,11 @@ public abstract class MutableJobCatalogBase extends JobCatalogBase implements Mu
    * @return The removed {@link JobSpec}, or null if no {@link JobSpec} with the given {@link URI} existed.
    */
   protected abstract JobSpec doRemove(URI uri);
+
+  /**
+   * Specifies whether the catalog can be mutated (add or remove {@link JobSpec}) before it has been started.
+   */
+  protected boolean allowMutationsBeforeStartup() {
+    return true;
+  }
 }

@@ -11,3 +11,4 @@
 #
 
 gobblin.filesystem.InstrumentedHDFSFileSystem
+gobblin.filesystem.InstrumentedWebHdfsFileSystem
