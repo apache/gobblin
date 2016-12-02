@@ -29,17 +29,18 @@ import gobblin.kafka.KafkaTestBase;
 import gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
 import gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import gobblin.kafka.schemareg.SchemaRegistryException;
+//import gobblin.kafka.serialize.LiAvroDeserializer;
 import gobblin.kafka.serialize.LiAvroDeserializer;
-import gobblin.kafka.serialize.LiAvroDeserializerBase;
+import gobblin.kafka.serialize.LiAvroSerializer;
 import gobblin.test.TestUtils;
 
 
 @Slf4j
-public class Kafka08DataWriterTest {
+public class Kafka09DataWriterTest {
 
 
   private final KafkaTestBase _kafkaTestHelper;
-  public Kafka08DataWriterTest()
+  public Kafka09DataWriterTest()
       throws InterruptedException, RuntimeException {
     _kafkaTestHelper = new KafkaTestBase();
   }
@@ -71,12 +72,12 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-    Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<String>(props);
+    Kafka09DataWriter<String> kafka09DataWriter = new Kafka09DataWriter<String>(props);
     String messageString = "foobar";
     final AtomicBoolean gotCallback = new AtomicBoolean(false);
     final AtomicBoolean gotSuccess = new AtomicBoolean(false);
     final AtomicBoolean gotFailure = new AtomicBoolean(false);
-    kafka08DataWriter.setDefaultCallback(new WriteCallback() {
+    kafka09DataWriter.setDefaultCallback(new WriteCallback() {
       @Override
       public void onSuccess() {
         gotCallback.set(true);
@@ -91,11 +92,11 @@ public class Kafka08DataWriterTest {
     });
 
     try {
-      kafka08DataWriter.asyncWrite(messageString);
+      kafka09DataWriter.asyncWrite(messageString);
     }
     finally
     {
-      kafka08DataWriter.close();
+      kafka09DataWriter.close();
     }
 
     Assert.assertEquals(gotCallback.get(), true);
@@ -116,11 +117,11 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-    Kafka08DataWriter<byte[]> kafka08DataWriter = new Kafka08DataWriter<byte[]>(props);
+    Kafka09DataWriter<byte[]> kafka09DataWriter = new Kafka09DataWriter<byte[]>(props);
     final AtomicBoolean gotCallback = new AtomicBoolean(false);
     final AtomicBoolean gotSuccess = new AtomicBoolean(false);
     final AtomicBoolean gotFailure = new AtomicBoolean(false);
-    kafka08DataWriter.setDefaultCallback(new WriteCallback() {
+    kafka09DataWriter.setDefaultCallback(new WriteCallback() {
       @Override
       public void onSuccess() {
         gotCallback.set(true);
@@ -136,11 +137,11 @@ public class Kafka08DataWriterTest {
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
-      kafka08DataWriter.asyncWrite(messageBytes);
+      kafka09DataWriter.asyncWrite(messageBytes);
     }
     finally
     {
-      kafka08DataWriter.close();
+      kafka09DataWriter.close();
     }
 
     Assert.assertEquals(gotCallback.get(), true);
@@ -157,9 +158,10 @@ public class Kafka08DataWriterTest {
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers",
+        "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "value.serializer",
-        "gobblin.kafka.serialize.LiAvroSerializer");
+        LiAvroSerializer.class.getName());
 
     // set up mock schema registry
 
@@ -167,7 +169,7 @@ public class Kafka08DataWriterTest {
         + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
         ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
-    Kafka08DataWriter<GenericRecord> kafka08DataWriter = new Kafka08DataWriter<>(props);
+    Kafka09DataWriter<GenericRecord> kafka08DataWriter = new Kafka09DataWriter<>(props);
 
     final AtomicBoolean gotCallback = new AtomicBoolean(false);
     final AtomicBoolean gotSuccess = new AtomicBoolean(false);

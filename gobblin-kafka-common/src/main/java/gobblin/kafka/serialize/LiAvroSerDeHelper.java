@@ -20,7 +20,7 @@ import gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
 
 
 /**
- * Helper class for {@link LiAvroSerializer} and {@link LiAvroDeserializer}.
+ * Helper class for {@link LiAvroSerializer} and {@link LiAvroDeserializerBase}.
  */
 public class LiAvroSerDeHelper {
   public static final byte MAGIC_BYTE = 0x0;
