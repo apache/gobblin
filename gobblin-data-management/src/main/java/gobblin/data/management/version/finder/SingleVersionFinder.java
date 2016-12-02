@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.Properties;
 
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
 
 import org.apache.hadoop.fs.FileSystem;
 
@@ -39,6 +40,10 @@ public class SingleVersionFinder implements VersionFinder<FileStatusDatasetVersi
   private FileSystem fs;
 
   public SingleVersionFinder(FileSystem fs, Properties props) {
+    this.fs = fs;
+  }
+  
+  public SingleVersionFinder(FileSystem fs, Config config) {
     this.fs = fs;
   }
 
