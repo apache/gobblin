@@ -700,6 +700,7 @@ public class GobblinMetrics {
       } else if (CustomReporterFactory.class.isAssignableFrom(clazz)) {
         CustomReporterFactory customReporterFactory = ((CustomReporterFactory) clazz.getConstructor().newInstance());
         customReporterFactory.newScheduledReporter(properties);
+        LOGGER.info("Will start reporting metrics using " + reporterClass);
 
       } else {
         throw new IllegalArgumentException("Class " + reporterClass +
