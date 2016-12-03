@@ -35,9 +35,7 @@ def modules = ['gobblin-admin',
                'gobblin-yarn',
                'gobblin-cluster',
                'gobblin-aws',
-               'gobblin-kafka-common',
-               'gobblin-kafka-08',
-               'gobblin-kafka-09',
+               'gobblin-modules',
                'gobblin-test-utils']
 
 modules.each { module ->

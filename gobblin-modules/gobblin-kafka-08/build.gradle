@@ -15,7 +15,7 @@ dependencies {
   compile project(":gobblin-core-base")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
-  compile project(":gobblin-kafka-common")
+  compile project(":gobblin-modules:gobblin-kafka-common")
 
   compile externalDependency.avro
   compile externalDependency.confluentAvroSerializer

@@ -11,7 +11,7 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":gobblin-kafka-common")
+  compile project(":gobblin-modules:gobblin-kafka-common")
   compile project(":gobblin-core-base")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
