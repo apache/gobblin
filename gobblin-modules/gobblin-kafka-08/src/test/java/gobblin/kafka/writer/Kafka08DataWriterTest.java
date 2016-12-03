@@ -33,6 +33,8 @@ import gobblin.kafka.serialize.LiAvroDeserializer;
 import gobblin.kafka.serialize.LiAvroDeserializerBase;
 import gobblin.test.TestUtils;
 
+import static org.mockito.Mockito.*;
+
 
 @Slf4j
 public class Kafka08DataWriterTest {
@@ -73,22 +75,8 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
     Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<String>(props);
     String messageString = "foobar";
-    final AtomicBoolean gotCallback = new AtomicBoolean(false);
-    final AtomicBoolean gotSuccess = new AtomicBoolean(false);
-    final AtomicBoolean gotFailure = new AtomicBoolean(false);
-    kafka08DataWriter.setDefaultCallback(new WriteCallback() {
-      @Override
-      public void onSuccess() {
-        gotCallback.set(true);
-        gotSuccess.set(true);
-      }
-
-      @Override
-      public void onFailure(Exception exception) {
-        gotCallback.set(true);
-        gotFailure.set(true);
-      }
-    });
+    WriteCallback callback = mock(WriteCallback.class);
+    kafka08DataWriter.setDefaultCallback(callback);
 
     try {
       kafka08DataWriter.asyncWrite(messageString);
@@ -98,9 +86,8 @@ public class Kafka08DataWriterTest {
       kafka08DataWriter.close();
     }
 
-    Assert.assertEquals(gotCallback.get(), true);
-    Assert.assertEquals(gotSuccess.get(), true);
-    Assert.assertEquals(gotFailure.get(), false);
+    verify(callback, times(1)).onSuccess();
+    verify(callback, never()).onFailure(isA(Exception.class));
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     String messageReceived = new String(message);
     Assert.assertEquals(messageReceived, messageString);
@@ -117,22 +104,9 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     Kafka08DataWriter<byte[]> kafka08DataWriter = new Kafka08DataWriter<byte[]>(props);
-    final AtomicBoolean gotCallback = new AtomicBoolean(false);
-    final AtomicBoolean gotSuccess = new AtomicBoolean(false);
-    final AtomicBoolean gotFailure = new AtomicBoolean(false);
-    kafka08DataWriter.setDefaultCallback(new WriteCallback() {
-      @Override
-      public void onSuccess() {
-        gotCallback.set(true);
-        gotSuccess.set(true);
-      }
+    WriteCallback callback = mock(WriteCallback.class);
+    kafka08DataWriter.setDefaultCallback(callback);
 
-      @Override
-      public void onFailure(Exception exception) {
-        gotCallback.set(true);
-        gotFailure.set(true);
-      }
-    });
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
@@ -143,9 +117,8 @@ public class Kafka08DataWriterTest {
       kafka08DataWriter.close();
     }
 
-    Assert.assertEquals(gotCallback.get(), true);
-    Assert.assertEquals(gotSuccess.get(), true);
-    Assert.assertEquals(gotFailure.get(), false);
+    verify(callback, times(1)).onSuccess();
+    verify(callback, never()).onFailure(isA(Exception.class));
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     Assert.assertEquals(message, messageBytes);
   }
@@ -168,23 +141,8 @@ public class Kafka08DataWriterTest {
         ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
     Kafka08DataWriter<GenericRecord> kafka08DataWriter = new Kafka08DataWriter<>(props);
-
-    final AtomicBoolean gotCallback = new AtomicBoolean(false);
-    final AtomicBoolean gotSuccess = new AtomicBoolean(false);
-    final AtomicBoolean gotFailure = new AtomicBoolean(false);
-    kafka08DataWriter.setDefaultCallback(new WriteCallback() {
-      @Override
-      public void onSuccess() {
-        gotCallback.set(true);
-        gotSuccess.set(true);
-      }
-
-      @Override
-      public void onFailure(Exception exception) {
-        gotCallback.set(true);
-        gotFailure.set(true);
-      }
-    });
+    WriteCallback callback = mock(WriteCallback.class);
+    kafka08DataWriter.setDefaultCallback(callback);
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
@@ -195,9 +153,8 @@ public class Kafka08DataWriterTest {
       kafka08DataWriter.close();
     }
 
-    Assert.assertEquals(gotCallback.get(), true);
-    Assert.assertEquals(gotSuccess.get(), true);
-    Assert.assertEquals(gotFailure.get(), false);
+    verify(callback, times(1)).onSuccess();
+    verify(callback, never()).onFailure(isA(Exception.class));
 
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     ConfigDrivenMd5SchemaRegistry schemaReg = new ConfigDrivenMd5SchemaRegistry(topic, record.getSchema());
