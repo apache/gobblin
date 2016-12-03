@@ -45,8 +45,6 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 
-//  testCompile externalDependency.junit
-testCompile "junit:junit:4.11"
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
 }
