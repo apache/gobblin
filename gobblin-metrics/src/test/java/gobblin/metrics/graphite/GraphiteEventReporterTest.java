@@ -23,9 +23,8 @@ import gobblin.metrics.event.TaskEvent;
 import java.io.IOException;
 import java.util.Map;
 
-import junit.framework.Assert;
-
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 

@@ -53,7 +53,7 @@ dependencies {
   compile externalDependency.quartz
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
-  compile externalDependency.kafka
+  compile externalDependency.kafka08
   compile externalDependency.scala
   compile externalDependency.guavaretrying
 
