@@ -15,14 +15,15 @@ import gobblin.compaction.dataset.DatasetHelper;
 
 /**
  * There are different recompaction conditions and their combinations in Gobblin recompaction flow . For example,
- * based on the number of late records, number of late files, or the late files existence duration, user can choose
- * different criteria or combine all of them to decide if it is the right time to do a recompaction.
+ * depending on the number of late records, number of late files, or the late files duration, user may choose
+ * different criteria or different combination strategies to decide if a recompaction is mandatory.
  *
  * The interface {@link RecompactionCondition} provides a generic API. This is used when
- * {@link gobblin.compaction.mapreduce.MRCompactorJobRunner} try to decide if a recompaction is necessary and delegate
- * the real examination to {@link gobblin.compaction.dataset.Dataset}, which finally invokes this API.
+ * {@link gobblin.compaction.mapreduce.MRCompactorJobRunner} attempts to check if a recompaction is necessary. Real
+ * examination is delegated to {@link gobblin.compaction.dataset.Dataset#checkIfNeedToRecompact(DatasetHelper)},
+ * which finally invokes this API.
  */
 
 public interface RecompactionCondition {
-  boolean isRecompactionNeeded (DatasetHelper metric);
+  boolean isRecompactionNeeded (DatasetHelper helper);
 }

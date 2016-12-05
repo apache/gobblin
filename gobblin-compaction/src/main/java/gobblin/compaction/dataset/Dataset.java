@@ -190,7 +190,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
     return this.outputTmpPath;
   }
 
-  protected String getDatasetName() {
+  public String getDatasetName() {
     return this.datasetName;
   }
 

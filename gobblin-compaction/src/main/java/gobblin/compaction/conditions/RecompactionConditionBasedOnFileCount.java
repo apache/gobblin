@@ -14,19 +14,29 @@ package gobblin.compaction.conditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.annotation.Alias;
 import gobblin.compaction.dataset.DatasetHelper;
+import gobblin.compaction.mapreduce.MRCompactor;
+import gobblin.compaction.dataset.Dataset;
 
 /**
  * An implementation {@link RecompactionCondition} which examines the number of files in the late outputDir
  * If the file count exceeds the file count limit, a recompaction flow is triggered.
  */
+@Alias("RecompactionConditionBasedOnFileCount")
 public class RecompactionConditionBasedOnFileCount implements RecompactionCondition {
 
   private final int fileCountLimit;
-  private static final Logger logger = LoggerFactory.getLogger(RecompactionConditionBasedOnFileCount.class);
+  private static final Logger logger = LoggerFactory.getLogger (RecompactionConditionBasedOnFileCount.class);
 
-  public RecompactionConditionBasedOnFileCount (int fileCountLimit) {
-    this.fileCountLimit = fileCountLimit;
+  public RecompactionConditionBasedOnFileCount (Dataset dataset) {
+    this.fileCountLimit = getOwnFileCountThreshold (dataset);
+  }
+
+  private int getOwnFileCountThreshold (Dataset dataset) {
+    int count = dataset.jobProps().getPropAsInt(MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FILE_NUM,
+        MRCompactor.DEFAULT_COMPACTION_LATEDATA_THRESHOLD_FILE_NUM);
+    return count;
   }
 
   public boolean isRecompactionNeeded (DatasetHelper datasetHelper) {

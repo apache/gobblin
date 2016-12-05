@@ -13,14 +13,20 @@
 package gobblin.compaction.conditions;
 
 
+import gobblin.annotation.Alias;
 import gobblin.compaction.dataset.DatasetHelper;
+import gobblin.compaction.dataset.Dataset;
+import gobblin.compaction.mapreduce.MRCompactor;
 
 import org.joda.time.DateTime;
 import org.joda.time.Period;
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+
 
 
 /**
@@ -28,13 +34,26 @@ import com.google.common.base.Optional;
  * the late output directory. If the earliest file has passed a specified duration and was never cleaned up, a
  * recmpaction will be triggered.
  */
+@Alias("RecompactionConditionBasedOnDuration")
 public class RecompactionConditionBasedOnDuration implements RecompactionCondition {
 
   private final Period duration;
-  private static final Logger logger = LoggerFactory.getLogger(RecompactionConditionBasedOnDuration.class);
+  private static final Logger logger = LoggerFactory.getLogger (RecompactionConditionBasedOnDuration.class);
 
-  public RecompactionConditionBasedOnDuration(Period duration) {
-    this.duration = duration;
+  public RecompactionConditionBasedOnDuration(Dataset dataset) {
+    this.duration = getOwnDurationThreshold(dataset);
+  }
+
+  private Period getOwnDurationThreshold (Dataset dataset) {
+    String retention = dataset.jobProps().getProp(MRCompactor.COMPACTION_LATEDATA_THRESHOLD_DURATION,
+        MRCompactor.DEFAULT_COMPACTION_LATEDATA_THRESHOLD_DURATION);
+    Period period = getPeriodFormatter().parsePeriod(retention);
+    return period;
+  }
+
+  private static PeriodFormatter getPeriodFormatter() {
+    return new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
+        .appendSuffix("h").appendMinutes().appendSuffix("min").toFormatter();
   }
 
   public boolean isRecompactionNeeded (DatasetHelper datasetHelper) {
@@ -43,8 +62,11 @@ public class RecompactionConditionBasedOnDuration implements RecompactionConditi
 
     if (earliestFileModificationTime.isPresent()) {
       DateTime checkpoint = currentTime.minus(duration);
-      logger.info ("Current time is " + currentTime + " Checkpoint is " + checkpoint);
-      logger.info ("Ealiest late file has timestamp: " + earliestFileModificationTime.get());
+
+      logger.info ("Current time is " + currentTime + " checkpoint is " + checkpoint);
+      logger.info ("Earliest late file has timestamp " + earliestFileModificationTime.get() +
+          " inside " + datasetHelper.getDataset().outputLatePath());
+
       if (earliestFileModificationTime.get().isBefore(checkpoint)) {
         return true;
       }
