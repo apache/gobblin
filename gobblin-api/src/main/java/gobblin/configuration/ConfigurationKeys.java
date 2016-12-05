@@ -503,6 +503,7 @@ public class ConfigurationKeys {
   public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
+  public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS = "gobblin.metrics.kafka.KafkaReporterFactory";
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
   public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =

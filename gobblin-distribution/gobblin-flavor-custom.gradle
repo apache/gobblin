@@ -1,0 +1,6 @@
+dependencies {
+  // Example jobs
+  // compile project(':gobblin-example')
+
+}
+

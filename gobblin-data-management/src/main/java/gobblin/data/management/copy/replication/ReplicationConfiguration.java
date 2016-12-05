@@ -59,6 +59,9 @@ public class ReplicationConfiguration {
 
   public static final String DEFAULT_DATA_FLOW_TOPOLOGIES_PUSHMODE = "defaultDataFlowTopologies_PushMode";
   public static final String DEFAULT_DATA_FLOW_TOPOLOGIES_PULLMODE = "defaultDataFlowTopologies_PullMode";
+  
+  public static final String REPLICATION_DATA_CATETORY_TYPE = "replicationDataCategoryType";
+  public static final String REPLICATION_DATA_FINITE_INSTANCE = "replicationDataFiniteInstance";
 
   //copy route generator
   public static final String DELETE_TARGET_IFNOT_ON_SOURCE = "deleteTarget";
@@ -85,6 +88,9 @@ public class ReplicationConfiguration {
 
   @Getter
   private final ReplicationCopyMode copyMode;
+  
+  @Getter
+  private final Config selectionConfig;
 
   @Getter
   private final ReplicationMetaData metaData;
@@ -112,6 +118,7 @@ public class ReplicationConfiguration {
 
     return new Builder().withReplicationMetaData(ReplicationMetaData.buildMetaData(config))
         .withReplicationCopyMode(ReplicationCopyMode.getReplicationCopyMode(config))
+        .withSelectionConfig(config.getConfig("gobblin.selected.policy"))
         .withReplicationSource(config)
         .withReplicationReplica(config)
         .withDefaultDataFlowTopologyConfig_PullMode(config)
@@ -127,6 +134,7 @@ public class ReplicationConfiguration {
     this.source = builder.source;
     this.replicas = builder.replicas;
     this.copyMode = builder.copyMode;
+    this.selectionConfig = builder.selectionConfig;
     this.dataFlowToplogy = builder.dataFlowTopology;
     this.copyRouteGenerator = builder.copyRouteGenerator;
     this.deleteTargetIfNotExistOnSource = builder.deleteTargetIfNotExistOnSource;
@@ -141,6 +149,8 @@ public class ReplicationConfiguration {
     private List<EndPoint> replicas = new ArrayList<EndPoint>();
 
     private ReplicationCopyMode copyMode;
+    
+    private Config selectionConfig;
 
     private Config dataFlowTopologyConfig;
 
@@ -185,7 +195,7 @@ public class ReplicationConfiguration {
           ? sourceConfig.getString(END_POINT_FACTORY_CLASS) : DEFAULT_END_POINT_FACTORY_CLASS;
 
       EndPointFactory factory = endPointFactoryResolver.resolveClass(endPointFactory).newInstance();
-      this.source = factory.buildSource(sourceConfig);
+      this.source = factory.buildSource(sourceConfig, this.selectionConfig);
       return this;
     }
 
@@ -207,7 +217,7 @@ public class ReplicationConfiguration {
         String endPointFactory = subConfig.hasPath(END_POINT_FACTORY_CLASS)
             ? subConfig.getString(END_POINT_FACTORY_CLASS) : DEFAULT_END_POINT_FACTORY_CLASS;
         EndPointFactory factory = endPointFactoryResolver.resolveClass(endPointFactory).newInstance();
-        this.replicas.add(factory.buildReplica(subConfig, replicaName));
+        this.replicas.add(factory.buildReplica(subConfig, replicaName, this.selectionConfig));
       }
       return this;
     }
@@ -242,6 +252,11 @@ public class ReplicationConfiguration {
 
     public Builder withReplicationCopyMode(ReplicationCopyMode copyMode) {
       this.copyMode = copyMode;
+      return this;
+    }
+    
+    public Builder withSelectionConfig(Config selectionConfig) {
+      this.selectionConfig = selectionConfig;
       return this;
     }
 

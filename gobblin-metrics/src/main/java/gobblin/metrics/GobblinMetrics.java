@@ -18,6 +18,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -33,13 +34,17 @@ import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
+
+import javax.annotation.Nullable;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -49,7 +54,6 @@ import gobblin.metrics.graphite.GraphiteReporter;
 import gobblin.metrics.influxdb.InfluxDBConnectionType;
 import gobblin.metrics.influxdb.InfluxDBEventReporter;
 import gobblin.metrics.influxdb.InfluxDBReporter;
-import gobblin.metrics.kafka.KafkaEventReporter;
 import gobblin.metrics.reporter.OutputStreamEventReporter;
 import gobblin.metrics.reporter.OutputStreamReporter;
 import gobblin.metrics.reporter.ScheduledReporter;
@@ -254,7 +258,7 @@ public class GobblinMetrics {
   private Optional<JmxReporter> jmxReporter = Optional.absent();
 
   // Custom metric reporters instantiated through reflection
-  private final List<com.codahale.metrics.ScheduledReporter> scheduledReporters = Lists.newArrayList();
+  private final List<com.codahale.metrics.ScheduledReporter> codahaleScheduledReporters = Lists.newArrayList();
 
   // A flag telling whether metric reporting has started or not
   private volatile boolean metricsReportingStarted = false;
@@ -406,7 +410,7 @@ public class GobblinMetrics {
     RootMetricContext.get().startReporting();
 
     // Start reporters that implement com.codahale.metrics.ScheduledReporter
-    for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.scheduledReporters) {
+    for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.codahaleScheduledReporters) {
       scheduledReporter.start(reportInterval, reportTimeUnit);
     }
 
@@ -432,7 +436,7 @@ public class GobblinMetrics {
 
     // Trigger and stop reporters that implement com.codahale.metrics.ScheduledReporter
 
-    for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.scheduledReporters) {
+    for (com.codahale.metrics.ScheduledReporter scheduledReporter : this.codahaleScheduledReporters) {
       scheduledReporter.report();
     }
 
@@ -488,7 +492,7 @@ public class GobblinMetrics {
 
       OutputStream output = append ? fs.append(metricLogFile) : fs.create(metricLogFile, true);
       OutputStreamReporter.Factory.newBuilder().outputTo(output).build(properties);
-      this.scheduledReporters.add(this.codahaleReportersCloser
+      this.codahaleScheduledReporters.add(this.codahaleReportersCloser
           .register(OutputStreamEventReporter.forContext(RootMetricContext.get()).outputTo(output).build()));
 
       LOGGER.info("Will start reporting metrics to directory " + metricsLogDir);
@@ -513,66 +517,7 @@ public class GobblinMetrics {
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED))) {
       return;
     }
-    LOGGER.info("Reporting metrics to Kafka");
-
-    Optional<String> defaultTopic =
-        Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC));
-    Optional<String> metricsTopic =
-        Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_METRICS));
-    Optional<String> eventsTopic =
-        Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS));
-
-    boolean metricsEnabled = metricsTopic.or(defaultTopic).isPresent();
-    if (metricsEnabled) {
-      LOGGER.info("Reporting metrics to Kafka");
-    }
-    boolean eventsEnabled = eventsTopic.or(defaultTopic).isPresent();
-    if (eventsEnabled) {
-      LOGGER.info("Reporting events to Kafka");
-    }
-
-    try {
-      Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_BROKERS),
-          "Kafka metrics brokers missing.");
-      Preconditions.checkArgument(metricsTopic.or(eventsTopic).or(defaultTopic).isPresent(), "Kafka topic missing.");
-    } catch (IllegalArgumentException exception) {
-      LOGGER.error("Not reporting metrics to Kafka due to missing Kafka configuration(s).", exception);
-      return;
-    }
-
-    String brokers = properties.getProperty(ConfigurationKeys.METRICS_KAFKA_BROKERS);
-
-    String reportingFormat = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_FORMAT,
-        ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_FORMAT);
-
-    KafkaReportingFormats formatEnum;
-    try {
-      formatEnum = KafkaReportingFormats.valueOf(reportingFormat.toUpperCase());
-    } catch (IllegalArgumentException exception) {
-      LOGGER.warn("Kafka metrics reporting format " + reportingFormat +
-          " not recognized. Will report in json format.", exception);
-      formatEnum = KafkaReportingFormats.JSON;
-    }
-
-    if (metricsEnabled) {
-      try {
-        formatEnum.metricReporterBuilder(properties).build(brokers, metricsTopic.or(defaultTopic).get(), properties);
-      } catch (IOException exception) {
-        LOGGER.error("Failed to create Kafka metrics reporter. Will not report metrics to Kafka.", exception);
-      }
-    }
-
-    if (eventsEnabled) {
-      try {
-        KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(RootMetricContext.get(), properties);
-        this.scheduledReporters
-            .add(this.codahaleReportersCloser.register(builder.build(brokers, eventsTopic.or(defaultTopic).get())));
-      } catch (IOException exception) {
-        LOGGER.error("Failed to create Kafka events reporter. Will not report events to Kafka.", exception);
-      }
-    }
-
-    LOGGER.info("Will start reporting metrics to Kafka");
+    buildScheduledReporter(properties, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS, Optional.of("Kafka"));
   }
 
   private void buildGraphiteMetricReporter(Properties properties) {
@@ -637,10 +582,14 @@ public class GobblinMetrics {
           : Integer.parseInt(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_PORT)) : Integer.parseInt(eventsPortProp);
       try {
         GraphiteEventReporter eventReporter =
-            GraphiteEventReporter.Factory.forContext(RootMetricContext.get()).withConnectionType(connectionType)
-                .withConnection(hostname, eventsPort).withEmitValueAsKey(emitValueAsKey).build();
-        this.scheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));
-      } catch (IOException e) {
+            GraphiteEventReporter.Factory.forContext(RootMetricContext.get())
+              .withConnectionType(connectionType)
+              .withConnection(hostname, eventsPort)
+              .withEmitValueAsKey(emitValueAsKey)
+              .build();
+        this.codahaleScheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));
+      }
+      catch (IOException e) {
         LOGGER.error("Failed to create Graphite event reporter. Will not report events to Graphite.", e);
       }
     }
@@ -706,10 +655,13 @@ public class GobblinMetrics {
       String eventsDatabase = (eventsDbProp == null) ? (metricsEnabled ? database : null) : eventsDbProp;
       try {
         InfluxDBEventReporter eventReporter =
-            InfluxDBEventReporter.Factory.forContext(RootMetricContext.get()).withConnectionType(connectionType)
-                .withConnection(url, username, password, eventsDatabase).build();
-        this.scheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));
-      } catch (IOException e) {
+            InfluxDBEventReporter.Factory.forContext(RootMetricContext.get())
+              .withConnectionType(connectionType)
+              .withConnection(url, username, password, eventsDatabase)
+              .build();
+        this.codahaleScheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));
+      }
+      catch (IOException e) {
         LOGGER.error("Failed to create InfluxDB event reporter. Will not report events to InfluxDB.", e);
       }
     }
@@ -728,33 +680,44 @@ public class GobblinMetrics {
     }
 
     for (String reporterClass : Splitter.on(",").split(reporterClasses)) {
-      try {
-        Class<?> clazz = Class.forName(reporterClass);
+      buildScheduledReporter(properties, reporterClass, Optional.<String>absent());
+    }
+  }
 
-        if (CustomCodahaleReporterFactory.class.isAssignableFrom(clazz)) {
-          CustomCodahaleReporterFactory customCodahaleReporterFactory =
-              ((CustomCodahaleReporterFactory) clazz.getConstructor().newInstance());
-          com.codahale.metrics.ScheduledReporter scheduledReporter = this.codahaleReportersCloser
-              .register(customCodahaleReporterFactory.newScheduledReporter(RootMetricContext.get(), properties));
-          LOGGER.info("Will start reporting metrics to " + reporterClass);
-          this.scheduledReporters.add(scheduledReporter);
-        } else if (CustomReporterFactory.class.isAssignableFrom(clazz)) {
-          CustomReporterFactory customReporterFactory = ((CustomReporterFactory) clazz.getConstructor().newInstance());
-          customReporterFactory.newScheduledReporter(properties);
-        } else {
-          throw new IllegalArgumentException("Class " + reporterClass +
-              " specified by key " + ConfigurationKeys.METRICS_CUSTOM_BUILDERS + " must implement: "
-              + CustomCodahaleReporterFactory.class + " or " + CustomReporterFactory.class);
-        }
-      } catch (ClassNotFoundException exception) {
-        LOGGER.warn(String.format("Failed to create metric reporter: requested CustomReporterFactory %s not found.",
-                reporterClass), exception);
-      } catch (NoSuchMethodException exception) {
-        LOGGER.warn(String.format("Failed to create metric reporter: requested CustomReporterFactory %s "
-            + "does not have parameterless constructor.", reporterClass), exception);
-      } catch (Exception exception) {
-        LOGGER.warn("Could not create metric reporter from builder " + reporterClass + ".", exception);
+  private void buildScheduledReporter(Properties properties, String reporterClass, Optional<String> reporterSink) {
+    try {
+      Class<?> clazz = Class.forName(reporterClass);
+
+      if (CustomCodahaleReporterFactory.class.isAssignableFrom(clazz)) {
+        CustomCodahaleReporterFactory customCodahaleReporterFactory =
+            ((CustomCodahaleReporterFactory) clazz.getConstructor().newInstance());
+        com.codahale.metrics.ScheduledReporter scheduledReporter = this.codahaleReportersCloser
+            .register(customCodahaleReporterFactory.newScheduledReporter(RootMetricContext.get(), properties));
+        String reporterSinkMsg = reporterSink.isPresent()?"to " + reporterSink.get():"";
+        LOGGER.info("Will start reporting metrics " + reporterSinkMsg + " using " + reporterClass);
+        this.codahaleScheduledReporters.add(scheduledReporter);
+
+      } else if (CustomReporterFactory.class.isAssignableFrom(clazz)) {
+        CustomReporterFactory customReporterFactory = ((CustomReporterFactory) clazz.getConstructor().newInstance());
+        customReporterFactory.newScheduledReporter(properties);
+        LOGGER.info("Will start reporting metrics using " + reporterClass);
+
+      } else {
+        throw new IllegalArgumentException("Class " + reporterClass +
+            " specified by key " + ConfigurationKeys.METRICS_CUSTOM_BUILDERS + " must implement: "
+            + CustomCodahaleReporterFactory.class + " or " + CustomReporterFactory.class);
       }
+    } catch (ClassNotFoundException exception) {
+      LOGGER.warn(String
+          .format("Failed to create metric reporter: requested CustomReporterFactory %s not found.", reporterClass),
+          exception);
+
+    } catch (NoSuchMethodException exception) {
+      LOGGER.warn(String.format("Failed to create metric reporter: requested CustomReporterFactory %s "
+          + "does not have parameterless constructor.", reporterClass), exception);
+
+    } catch (Exception exception) {
+      LOGGER.warn("Could not create metric reporter from builder " + reporterClass + ".", exception);
     }
   }
 }

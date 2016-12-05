@@ -16,6 +16,7 @@ def modules = ['gobblin-admin',
                'gobblin-compaction',
                'gobblin-config-management',
                'gobblin-core',
+               'gobblin-core-base',
                'gobblin-distribution',
                'gobblin-example',
                'gobblin-hive-registration',
@@ -34,7 +35,8 @@ def modules = ['gobblin-admin',
                'gobblin-yarn',
                'gobblin-cluster',
                'gobblin-aws',
-               'gobblin-kafka']
+               'gobblin-modules',
+               'gobblin-test-utils']
 
 modules.each { module ->
   include "${module}"

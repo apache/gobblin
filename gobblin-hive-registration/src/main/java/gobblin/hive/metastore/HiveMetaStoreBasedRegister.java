@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -24,12 +26,12 @@ import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.yarn.webapp.hamlet.HamletSpec;
 import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.primitives.Ints;
 
 import gobblin.annotation.Alpha;
@@ -48,8 +50,6 @@ import gobblin.metrics.MetricContext;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.util.AutoCloseableLock;
 import gobblin.util.AutoReturnableObject;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -212,7 +212,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           }
         } catch (TException e2) {
           log.error(
-              String.format("Unable to create or alter Hive table %s in db %s: " + e.getMessage(), tableName, dbName),
+              String.format("Unable to create or alter Hive table %s in db %s: " + e2.getMessage(), tableName, dbName),
               e2);
           throw e2;
         }
@@ -292,16 +292,21 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
               .getHivePartition(client.getPartition(table.getDbName(), table.getTableName(), partition.getValues()));
 
           if (needToUpdatePartition(existingPartition, spec.getPartition().get())) {
-            client.alter_partition(table.getDbName(), table.getTableName(), getPartitionWithCreateTime(partition, existingPartition));
-            log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(partition),
+            log.info(String.format("Partition update required. ExistingPartition %s, newPartition %s",
+                stringifyPartition(existingPartition), stringifyPartition(spec.getPartition().get())));
+            Partition newPartition = getPartitionWithCreateTime(partition, existingPartition);
+            log.info(String.format("Altering partition %s", newPartition));
+            client.alter_partition(table.getDbName(), table.getTableName(), newPartition);
+            log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(newPartition),
                 table.getTableName(), partition.getSd().getLocation()));
           } else {
             log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
                 stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()));
           }
-        } catch (TException e2) {
-          log.error(String.format("Unable to add or alter partition %s in table %s with location %s: " + e.getMessage(),
-              stringifyPartition(partition), table.getTableName(), partition.getSd().getLocation()), e);
+        } catch (Throwable e2) {
+          log.error(String.format(
+              "Unable to add or alter partition %s in table %s with location %s: " + e2.getMessage(),
+              stringifyPartitionVerbose(partition), table.getTableName(), partition.getSd().getLocation()), e2);
           throw e2;
         }
       }
@@ -310,9 +315,17 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
   private static String stringifyPartition(Partition partition) {
     if (log.isDebugEnabled()) {
-      return partition.toString();
+      return stringifyPartitionVerbose(partition);
     }
     return Arrays.toString(partition.getValues().toArray());
+  }
+
+  private static String stringifyPartition(HivePartition partition) {
+    return partition.toString();
+  }
+
+  private static String stringifyPartitionVerbose(Partition partition) {
+    return partition.toString();
   }
 
   @Override

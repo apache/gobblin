@@ -12,6 +12,7 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
+  compile project(":gobblin-core-base")
   compile project(":gobblin-tunnel")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics")
@@ -39,8 +40,6 @@ dependencies {
   compile externalDependency.httpclient
   compile externalDependency.httpcore
   compile externalDependency.metricsCore
-  compile externalDependency.kafka
-  compile externalDependency.kafkaClient
   compile externalDependency.scala
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
@@ -74,6 +73,8 @@ dependencies {
   testCompile externalDependency.httpclient
 }
 
+apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"
+ 
 configurations {
   compile { transitive = false }
   // Remove xerces dependencies because of versioning issues. Standard JRE implementation should

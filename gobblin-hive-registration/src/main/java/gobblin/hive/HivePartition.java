@@ -47,7 +47,7 @@ public class HivePartition extends HiveRegistrationUnit {
 
   @Override
   public String toString() {
-    return this.values.toString();
+    return super.toString() + " Values: " + this.values.toString();
   }
 
   public static class Builder extends HiveRegistrationUnit.Builder<Builder> {
