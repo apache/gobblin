@@ -51,7 +51,6 @@ dependencies {
   compile externalDependency.oltu
   compile externalDependency.googleAnalytics
   compile externalDependency.googleDrive
-  compile externalDependency.googleWebmasters
   compile externalDependency.googleHttpClient
   compile externalDependency.googleHttpClientGson
   compile externalDependency.googleOauthClient
@@ -74,7 +73,7 @@ dependencies {
 }
 
 apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"
- 
+
 configurations {
   compile { transitive = false }
   // Remove xerces dependencies because of versioning issues. Standard JRE implementation should
