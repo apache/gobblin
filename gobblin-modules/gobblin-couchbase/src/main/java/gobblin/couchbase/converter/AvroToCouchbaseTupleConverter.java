@@ -35,19 +35,15 @@ import gobblin.couchbase.common.TupleDocument;
 
 public class AvroToCouchbaseTupleConverter extends Converter<Schema, String, GenericRecord, TupleDocument> {
 
-  private String keyField;
-  private String dataRecordField;
-  private String valueField;
-  private String flagsField;
+  private String keyField = "key";
+  private String dataRecordField = "data";
+  private String valueField = "data";
+  private String flagsField = "flags";
 
   @Override
   public String convertSchema(Schema inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
     //TODO: Use the schema and config to determine which fields to pull out
-    keyField = "key";
-    dataRecordField = "data";
-    valueField = "data";
-    flagsField = "flags";
     return "";
   }
 
