@@ -10,7 +10,7 @@ import java.util.List;
 
 
 /**
- * Provide access to the basic features of Google Webmaster API.
+ * Provide basic accesses to Google Search Console by utilizing Google Webmaster API.
  * Details about Google Webmaster or Google Search Console API can be found at https://developers.google.com/webmaster-tools/
  */
 public abstract class GoogleWebmasterClient {

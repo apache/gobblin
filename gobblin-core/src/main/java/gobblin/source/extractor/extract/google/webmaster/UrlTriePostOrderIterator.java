@@ -10,7 +10,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 
 /**
- * Traverse the trie in post order and the nodes with descendants <= stoppingSize will be treated as a leaf node and will be returned. The traversal won't go deeper into the nodes with descendants <= stoppingSize.
+ * This is a post-order iterator that traverses the nodes on the URL trie with a stopping rule, which is, it will not go deeper into the nodes whose size(defined as the number of descendant URLs and itself if itself is a URL page) is less than or equal to the stopping size. In other words, those nodes with size less than or equal to the stopping size will be treated as leaf nodes.
  *
  * Iteration value:
  * Pair.1 is the full path to current node.

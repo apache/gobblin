@@ -77,8 +77,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     int actualSize = allPages.size();
 
     if (rowLimit < GoogleWebmasterClient.API_ROW_LIMIT || actualSize < GoogleWebmasterClient.API_ROW_LIMIT) {
-      LOG.info(String.format("A total of %d pages fetched for country-%s from %s to %s", actualSize, country, startDate,
-          endDate));
+      LOG.info(String.format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize,
+          _siteProperty, country, startDate, endDate));
     } else {
       int expectedSize = getPagesSize(startDate, endDate, country, requestedDimensions, Arrays.asList(countryFilter));
       LOG.info(String.format("Total number of pages is %d for market-%s from %s to %s", expectedSize,
@@ -94,8 +94,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
             String.format("Expected page size for country-%s is %d, but only able to get %d", country, expectedSize,
                 actualSize));
       }
-      LOG.info(String.format("A total of %d pages fetched for country-%s from %s to %s", actualSize, country, startDate,
-          endDate));
+      LOG.info(String.format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize,
+          _siteProperty, country, startDate, endDate));
     }
 
     ArrayDeque<ProducerJob> jobs = new ArrayDeque<>(actualSize);

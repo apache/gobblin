@@ -5,7 +5,7 @@ import org.apache.commons.lang3.tuple.Triple;
 
 
 /**
- * Group the UrlTrie nodes into groups of given size by utilizing a UrlTriIterator.
+ * Package the URL pages/nodes into groups given the group size while traversing the UrlTrie by utilizing a TrieIterator. If the current node is not a "leaf" node defined by the TrieIterator, then a "fake" group of size 1 will be created by only including this node.
  *
  * Iterating the groups with a Triple type return value:
  *
