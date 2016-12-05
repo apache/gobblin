@@ -34,7 +34,6 @@ dependencies {
 
   testCompile project(":gobblin-runtime")
   testCompile project(":gobblin-test-utils")
-  testCompile "org.couchbase.mock:CouchbaseMock:1.4.3"
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
