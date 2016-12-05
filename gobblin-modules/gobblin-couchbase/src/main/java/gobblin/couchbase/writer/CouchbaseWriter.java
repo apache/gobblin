@@ -15,8 +15,10 @@
 package gobblin.couchbase.writer;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
+import com.couchbase.client.core.lang.Tuple;
 import com.couchbase.client.core.lang.Tuple2;
 import com.couchbase.client.core.message.ResponseStatus;
 import com.couchbase.client.core.message.kv.MutationToken;
@@ -24,20 +26,58 @@ import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.transcoder.Transcoder;
 import com.typesafe.config.Config;
 
+import gobblin.couchbase.common.TupleDocument;
 import gobblin.instrumented.writer.InstrumentedDataWriter;
 import gobblin.util.ConfigUtils;
 
 
 
-public class CouchbaseWriter<D extends KeyValueRecord<String, V>, V> extends InstrumentedDataWriter<D> {
+public class CouchbaseWriter extends InstrumentedDataWriter<TupleDocument> {
 
   private final Cluster _cluster;
   private final Bucket _bucket;
   private Long _recordsWritten = 0L;
 
+  private final Transcoder<TupleDocument, Tuple2<ByteBuf, Integer>> _defaultTranscoder =
+      new Transcoder<TupleDocument, Tuple2<ByteBuf, Integer>>()
+      {
+        @Override
+        public TupleDocument decode(String id, ByteBuf content, long cas, int expiry, int flags,
+            ResponseStatus status)
+        {
+          return newDocument(id, expiry, Tuple.create(content, flags), cas);
+        }
+
+        @Override
+        public Tuple2<ByteBuf, Integer> encode(TupleDocument document)
+        {
+          return document.content();
+        }
+
+        @Override
+        public TupleDocument newDocument(String id, int expiry, Tuple2<ByteBuf, Integer> content,
+            long cas)
+        {
+          return new TupleDocument(id, expiry, content, cas);
+        }
+
+        @Override
+        public TupleDocument newDocument(String id, int expiry, Tuple2<ByteBuf, Integer> content,
+            long cas, MutationToken mutationToken)
+        {
+          return new TupleDocument(id, expiry, content, cas);
+        }
+
+        @Override
+        public Class<TupleDocument> documentType()
+        {
+          return TupleDocument.class;
+        }
+      };
 
   public CouchbaseWriter(Config config) {
     super(ConfigUtils.configToState(config));
@@ -52,13 +92,17 @@ public class CouchbaseWriter<D extends KeyValueRecord<String, V>, V> extends Ins
 
     String bucketName = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.BUCKET, null);
 
+
+
     if (bucketName == null)
     {
       // throw instantiation exception since we need a valid bucket name
       throw new RuntimeException("Need a valid bucket name");
     }
 
-    _bucket = _cluster.openBucket(bucketName);
+    String password = "";
+    _bucket = _cluster.openBucket(bucketName, password,
+        Collections.<Transcoder<? extends Document, ?>>singletonList(_defaultTranscoder));
 
   }
 
@@ -79,43 +123,12 @@ public class CouchbaseWriter<D extends KeyValueRecord<String, V>, V> extends Ins
     return 0;
   }
 
-  ;
-
-  private final Transcoder<StringKeyValueDocument<V>, V> defaultTranscoder = new Transcoder<StringKeyValueDocument<V>, V>() {
-    @Override
-    public StringKeyValueDocument<V> decode(String id, ByteBuf content, long cas, int expiry, int flags,
-        ResponseStatus status) {
-      return null;
-    }
-
-    @Override
-    public Tuple2<ByteBuf, Integer> encode(StringKeyValueDocument<V> document) {
-      return null;
-    }
-
-    @Override
-    public StringKeyValueDocument<V> newDocument(String id, int expiry, V content, long cas) {
-      return null;
-    }
-
-    @Override
-    public StringKeyValueDocument<V> newDocument(String id, int expiry, V content, long cas,
-        MutationToken mutationToken) {
-      return null;
-    }
-
-    @Override
-    public Class<StringKeyValueDocument<V>> documentType() {
-      return StringKeyValueDocument.class<V>;
-    }
-  }
-
   @Override
-  public void writeImpl(D record)
+  public void writeImpl(TupleDocument record)
       throws IOException {
 
     try {
-      _bucket.upsert(new StringKeyValueDocument<V>(record.getKey(), record.getValue()));
+      _bucket.upsert(record);
       _recordsWritten++;
     } catch (Exception e) {
       throw new IOException("Failed to write to couchbase cluster", e);

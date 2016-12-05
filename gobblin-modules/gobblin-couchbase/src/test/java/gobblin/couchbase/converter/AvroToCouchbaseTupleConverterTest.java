@@ -12,10 +12,7 @@
  *
  */
 
-package gobblin.couchbase.writer;
-
-import java.io.IOException;
-import java.util.Properties;
+package gobblin.couchbase.converter;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -23,30 +20,15 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.testng.annotations.Test;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
 import gobblin.converter.Converter;
-import gobblin.converter.DataConversionException;
 import gobblin.couchbase.common.TupleDocument;
-import gobblin.couchbase.converter.AvroToCouchbaseTupleConverter;
 
 
-/**
- * Created by sdas on 12/4/16.
- */
-public class CouchbaseWriterTest {
 
+public class AvroToCouchbaseTupleConverterTest {
 
   @Test
-  public void testStringWrite()
-      throws IOException, DataConversionException {
-    Properties props = new Properties();
-    props.setProperty(CouchbaseWriterConfigurationKeys.BOOTSTRAP_SERVERS, "localhost");
-    props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
-    Config config = ConfigFactory.parseProperties(props);
-
-    CouchbaseWriter writer = new CouchbaseWriter(config);
+  public void testBasicConvert() throws Exception {
 
     Schema dataRecordSchema = SchemaBuilder.record("Data")
         .fields()
@@ -73,8 +55,6 @@ public class CouchbaseWriterTest {
     Converter<Schema, String, GenericRecord, TupleDocument> recordConverter = new AvroToCouchbaseTupleConverter();
 
     TupleDocument doc = recordConverter.convertRecord("", testRecord, null).iterator().next();
-    writer.write(doc);
-
   }
 
 }
