@@ -74,9 +74,11 @@ public class MRJobLauncherTest extends BMNGRunner {
 
     this.jobLauncherTestHelper = new JobLauncherTestHelper(this.launcherProps, datasetStateStore);
 
-    // Other tests may not clean up properly, clean up outputDir or some of these tests might fail.
+    // Other tests may not clean up properly, clean up outputDir and stagingDir or some of these tests might fail.
     String outputDir = this.launcherProps.getProperty(ConfigurationKeys.WRITER_OUTPUT_DIR);
+    String stagingDir = this.launcherProps.getProperty(ConfigurationKeys.WRITER_STAGING_DIR);
     FileUtils.deleteDirectory(new File(outputDir));
+    FileUtils.deleteDirectory(new File(stagingDir));
     this.testLogger.info("startUp: out");
   }
 

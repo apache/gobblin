@@ -77,6 +77,9 @@ public class DatasetStateStoreTest {
         properties.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI),
         properties.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY), JobState.DatasetState.class);
 
+    // clear data that might be there from a prior run
+    this.datasetStateStore.delete(JOB_NAME);
+
     this.jobConfig.putAll(properties);
     this.jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, JOB_NAME);
     this.jobConfig.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, DummySource.class.getName());

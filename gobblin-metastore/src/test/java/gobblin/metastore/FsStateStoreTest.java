@@ -39,6 +39,8 @@ public class FsStateStoreTest {
   @BeforeClass
   public void setUp() throws IOException {
     this.stateStore = new FsStateStore<>("file:///", "metastore-test", State.class);
+    // cleanup in case files left behind by a prior run
+    this.stateStore.delete("testStore");
   }
 
   @Test
