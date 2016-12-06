@@ -46,7 +46,6 @@ public class SimpleDatasetsFinder extends DatasetsFinder {
     Path outputLatePath = new Path(outputPath, MRCompactor.COMPACTION_LATE_DIR_SUFFIX);
     Dataset dataset =
         new Dataset.Builder().withPriority(this.getDatasetPriority(inputPath.getName()))
-            .withLateDataThresholdForRecompact(this.getDatasetRecompactThreshold(inputPath.getName()))
             .withInputPath(this.recompactDatasets ? outputPath : inputPath)
             .withInputLatePath(this.recompactDatasets ? outputLatePath : inputLatePath).withOutputPath(outputPath)
             .withOutputLatePath(outputLatePath).withOutputTmpPath(new Path(this.tmpOutputDir)).build();

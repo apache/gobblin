@@ -13,6 +13,7 @@
 package gobblin.compaction.mapreduce;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -47,6 +48,7 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 
 import gobblin.compaction.dataset.Dataset;
+import gobblin.compaction.dataset.DatasetHelper;
 import gobblin.compaction.event.CompactionSlaEventHelper;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
@@ -130,12 +132,14 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   protected final boolean shouldDeduplicate;
   protected final boolean outputDeduplicated;
   protected final boolean recompactFromDestPaths;
+  protected final boolean recompactAllData;
   protected final boolean usePrimeReducers;
   protected final EventSubmitter eventSubmitter;
   private final RecordCountProvider inputRecordCountProvider;
   private final RecordCountProvider outputRecordCountProvider;
   private final LateFileRecordCountProvider lateInputRecordCountProvider;
   private final LateFileRecordCountProvider lateOutputRecordCountProvider;
+  private final DatasetHelper datasetHelper;
   private final int copyLateDataThreadPoolSize;
 
   private volatile Policy policy = Policy.DO_NOT_PUBLISH_DATA;
@@ -149,7 +153,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         FsPermission.getDefault());
     this.recompactFromDestPaths = this.dataset.jobProps().getPropAsBoolean(
         MRCompactor.COMPACTION_RECOMPACT_FROM_DEST_PATHS, MRCompactor.DEFAULT_COMPACTION_RECOMPACT_FROM_DEST_PATHS);
-
+    this.recompactAllData = this.dataset.jobProps().getPropAsBoolean(
+        MRCompactor.COMPACTION_RECOMPACT_ALL_DATA, MRCompactor.DEFAULT_COMPACTION_RECOMPACT_ALL_DATA);
     Preconditions.checkArgument(this.dataset.jobProps().contains(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE),
         String.format("Missing property %s for dataset %s", MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, this.dataset));
     this.shouldDeduplicate = this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE);
@@ -181,7 +186,10 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     } catch (Exception e) {
       throw new RuntimeException("Failed to instantiate RecordCountProvider", e);
     }
+
     this.applicablePathCache = CacheBuilder.newBuilder().maximumSize(2000).build();
+    this.datasetHelper = new DatasetHelper(this.dataset, this.fs, this.getApplicableFileExtensions());
+
   }
 
   @Override
@@ -200,6 +208,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
     try {
       DateTime compactionTimestamp = getCompactionTimestamp();
+      LOG.info("MR Compaction Job Timestamp " + compactionTimestamp.getMillis());
       if (this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, false)) {
         List<Path> newLateFilePaths = Lists.newArrayList();
         for (String filePathString : this.dataset.jobProps()
@@ -221,11 +230,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         }
         this.copyDataFiles(lateDataOutputPath, newLateFilePaths);
         if (this.outputDeduplicated) {
-          LOG.info("Getting late record count from: " + this.dataset.outputLatePath());
-          this.dataset.checkIfNeedToRecompact(
-              this.lateOutputRecordCountProvider
-                  .getRecordCount(this.getApplicableFilePaths(this.dataset.outputLatePath())),
-              this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset.outputPath())));
+          dataset.checkIfNeedToRecompact (datasetHelper);
         }
         this.status = Status.COMMITTED;
       } else {
@@ -240,9 +245,16 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         this.configureJob(job);
         this.submitAndWait(job);
         if (shouldPublishData(compactionTimestamp)) {
-          moveTmpPathToOutputPath();
-          if (this.recompactFromDestPaths) {
-            deleteAdditionalInputPaths();
+          if (!this.recompactAllData && this.recompactFromDestPaths) {
+            // append new files without deleting output directory
+            addFilesInTmpPathToOutputPath();
+            // clean up late data from outputLateDirectory, which has been set to inputPath
+            deleteFilesByPaths(Arrays.asList(this.dataset.inputPath()));
+          } else {
+            moveTmpPathToOutputPath();
+            if (this.recompactFromDestPaths) {
+              deleteFilesByPaths(this.dataset.additionalInputPaths());
+            }
           }
           submitSlaEvent(job);
           LOG.info("Successfully published data for input folder " + this.dataset.inputPath());
@@ -259,6 +271,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
       throw Throwables.propagate(t);
     }
   }
+
 
   /**
    * For regular compactions, compaction timestamp is the time the compaction job starts.
@@ -486,7 +499,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
   private void moveTmpPathToOutputPath() throws IOException {
     LOG.info(String.format("Moving %s to %s", this.dataset.outputTmpPath(), this.dataset.outputPath()));
+
     this.fs.delete(this.dataset.outputPath(), true);
+
     WriterUtils.mkdirsWithRecursivePermission(this.fs, this.dataset.outputPath().getParent(), this.perm);
     if (!this.fs.rename(this.dataset.outputTmpPath(), this.dataset.outputPath())) {
       throw new IOException(
@@ -494,8 +509,24 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     }
   }
 
-  private void deleteAdditionalInputPaths() throws IOException {
-    for (Path path : this.dataset.additionalInputPaths()) {
+  private void addFilesInTmpPathToOutputPath () throws IOException {
+    List<Path> paths = this.getApplicableFilePaths(this.dataset.outputTmpPath());
+    for (Path path: paths) {
+      String fileName = path.getName();
+      LOG.info(String.format("Adding %s to %s", path.toString(), this.dataset.outputPath()));
+      Path outPath = MRCompactorJobRunner.this.lateOutputRecordCountProvider.constructLateFilePath(fileName,
+          MRCompactorJobRunner.this.fs, this.dataset.outputPath());
+
+      if (!this.fs.rename(path, outPath)) {
+        throw new IOException(
+            String.format("Unable to move %s to %s", path.toString(), outPath.toString()));
+      }
+    }
+  }
+
+
+  private void deleteFilesByPaths(List<Path> paths) throws IOException {
+    for (Path path : paths) {
       HadoopUtils.deletePathAndEmptyAncestors(this.fs, path, true);
     }
   }
@@ -588,6 +619,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
    * Submit an event reporting late record counts and non-late record counts.
    */
   private void submitRecordsCountsEvent() {
+    long lateOutputRecordCount = this.datasetHelper.getLateOutputRecordCount();
+    long outputRecordCount = this.datasetHelper.getOutputRecordCount();
+
     try {
       CompactionSlaEventHelper
           .getEventSubmitterBuilder(this.dataset, Optional.<Job> absent(), this.fs)
@@ -596,12 +630,10 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
           .additionalMetadata(CompactionSlaEventHelper.DATASET_OUTPUT_PATH, this.dataset.outputPath().toString())
           .additionalMetadata(
               CompactionSlaEventHelper.LATE_RECORD_COUNT,
-              Long.toString(this.lateOutputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
-                  .outputLatePath()))))
+              Long.toString(lateOutputRecordCount))
           .additionalMetadata(
               CompactionSlaEventHelper.REGULAR_RECORD_COUNT,
-              Long.toString(this.outputRecordCountProvider.getRecordCount(this.getApplicableFilePaths(this.dataset
-                  .outputPath()))))
+              Long.toString(outputRecordCount))
           .additionalMetadata(CompactionSlaEventHelper.NEED_RECOMPACT, Boolean.toString(this.dataset.needToRecompact()))
           .build().submit();
     } catch (Throwable e) {

@@ -58,6 +58,10 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   private static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_TIMEBASED_PREFIX + "folder.pattern";
   private static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
 
+  private static final String COMPACTION_TIMEBASED_SUBDIR_PATTERN = COMPACTION_TIMEBASED_PREFIX + "subdir.pattern";
+  private static final String DEFAULT_COMPACTION_TIMEBASED_SUBDIR_PATTERN = "*";
+
+
   // The earliest dataset timestamp to be processed. Format = ?m?d?h.
   private static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "max.time.ago";
   private static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";
@@ -67,6 +71,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   private static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
 
   private final String folderTimePattern;
+  private final String subDirPattern;
   private final DateTimeZone timeZone;
   private final DateTimeFormatter timeFormatter;
   private final String inputSubDir;
@@ -81,9 +86,15 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
     this.destSubDir = getDestSubDir();
     this.destLateSubDir = getDestLateSubDir();
     this.folderTimePattern = getFolderPattern();
+    this.subDirPattern = getSubDirPattern();
     this.timeZone = DateTimeZone
         .forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
     this.timeFormatter = DateTimeFormat.forPattern(this.folderTimePattern).withZone(this.timeZone);
+  }
+
+  private String getDatasetName(String path, String basePath) {
+    int startPos = path.indexOf(basePath) + basePath.length();
+    return StringUtils.removeStart(path.substring(startPos), "/");
   }
 
   /**
@@ -92,18 +103,19 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   @Override
   public Set<Dataset> findDistinctDatasets() throws IOException {
     Set<Dataset> datasets = Sets.newHashSet();
-    for (FileStatus datasetsFileStatus : this.fs.listStatus(new Path(this.inputDir))) {
+
+    for (FileStatus datasetsFileStatus : this.fs.globStatus(new Path(inputDir, subDirPattern))) {
+      log.info("Scanning directory : " + datasetsFileStatus.getPath().toString());
       if (datasetsFileStatus.isDirectory()) {
-        String datasetName = datasetsFileStatus.getPath().getName();
+        String datasetName = getDatasetName(datasetsFileStatus.getPath().toString(), inputDir);
         if (DatasetFilterUtils.survived(datasetName, this.blacklist, this.whitelist)) {
-          log.info("Found dataset: " + datasetsFileStatus.getPath().getName());
+          log.info("Found dataset: " + datasetName);
           Path inputPath = new Path(this.inputDir, new Path(datasetName, this.inputSubDir));
           Path inputLatePath = new Path(this.inputDir, new Path(datasetName, this.inputLateSubDir));
           Path outputPath = new Path(this.destDir, new Path(datasetName, this.destSubDir));
           Path outputLatePath = new Path(this.destDir, new Path(datasetName, this.destLateSubDir));
           Path outputTmpPath = new Path(this.tmpOutputDir, new Path(datasetName, this.destSubDir));
           double priority = this.getDatasetPriority(datasetName);
-          double lateDataThresholdForRecompact = this.getDatasetRecompactThreshold(datasetName);
 
           String folderStructure = getFolderStructure();
           for (FileStatus status : this.fs.globStatus(new Path(inputPath, folderStructure))) {
@@ -123,7 +135,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
               Path jobOutputTmpPath = appendFolderTime(outputTmpPath, folderTime);
 
               Dataset timeBasedDataset = new Dataset.Builder().withPriority(priority)
-                  .withLateDataThresholdForRecompact(lateDataThresholdForRecompact)
+                  .withDatasetName(datasetName)
                   .withInputPath(this.recompactDatasets ? jobOutputPath : jobInputPath)
                   .withInputLatePath(this.recompactDatasets ? jobOutputLatePath : jobInputLatePath)
                   .withOutputPath(jobOutputPath).withOutputLatePath(jobOutputLatePath)
@@ -170,6 +182,13 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
     return folderPattern;
   }
 
+  private String getSubDirPattern() {
+    String subdirPattern =
+        this.state.getProp(COMPACTION_TIMEBASED_SUBDIR_PATTERN, DEFAULT_COMPACTION_TIMEBASED_SUBDIR_PATTERN);
+    log.info("Compaction subdir pattern: " + subdirPattern);
+    return subdirPattern;
+  }
+
   private DateTime getFolderTime(Path path, Path basePath) {
     int startPos = path.toString().indexOf(basePath.toString()) + basePath.toString().length();
     return this.timeFormatter.parseDateTime(StringUtils.removeStart(path.toString().substring(startPos), "/"));
@@ -199,8 +218,8 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   }
 
   private static PeriodFormatter getPeriodFormatter() {
-    return new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
-        .appendSuffix("h").toFormatter();
+      return new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
+          .appendSuffix("h").appendMinutes().appendSuffix("min").toFormatter();
   }
 
   private DateTime getEarliestAllowedFolderTime(DateTime currentTime, PeriodFormatter periodFormatter) {

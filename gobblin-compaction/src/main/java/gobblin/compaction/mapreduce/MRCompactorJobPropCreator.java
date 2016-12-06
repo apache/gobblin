@@ -214,6 +214,7 @@ public class MRCompactorJobPropCreator {
     for (FileStatus fstat : FileListUtils.listFilesRecursively(this.fs, inputFolder)) {
       DateTime fileModificationTime = new DateTime(fstat.getModificationTime());
       if (fileModificationTime.isAfter(lastCompactionTime)) {
+        LOG.info ("[" + fileModificationTime.getMillis() + "] " + fstat.getPath() + " is after " + lastCompactionTime.getMillis());
         newFiles.add(fstat.getPath());
       }
     }
