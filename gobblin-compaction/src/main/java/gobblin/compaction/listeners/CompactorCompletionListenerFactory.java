@@ -10,12 +10,8 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-
 package gobblin.compaction.listeners;
 
-import gobblin.compaction.mapreduce.MRCompactor;
-
-
-public interface CompactorCompletionListener {
-  void onCompactionCompletion(MRCompactor compactor);
+public interface CompactorCompletionListenerFactory {
+  CompactorCompletionListener createCompactorCompactionListener ();
 }

@@ -29,8 +29,15 @@ public class RecompactionConditionBasedOnFileCount implements RecompactionCondit
   private final int fileCountLimit;
   private static final Logger logger = LoggerFactory.getLogger (RecompactionConditionBasedOnFileCount.class);
 
-  public RecompactionConditionBasedOnFileCount (Dataset dataset) {
+  private RecompactionConditionBasedOnFileCount (Dataset dataset) {
     this.fileCountLimit = getOwnFileCountThreshold (dataset);
+  }
+
+  @Alias("RecompactBasedOnFileCount")
+  public static class Factory implements RecompactionConditionFactory {
+    @Override public RecompactionCondition createRecompactionCondition (Dataset dataset) {
+      return new RecompactionConditionBasedOnFileCount (dataset);
+    }
   }
 
   private int getOwnFileCountThreshold (Dataset dataset) {

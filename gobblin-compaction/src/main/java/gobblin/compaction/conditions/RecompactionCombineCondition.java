@@ -44,13 +44,19 @@ public class RecompactionCombineCondition implements RecompactionCondition {
 
   private static final Logger logger = LoggerFactory.getLogger (RecompactionCombineCondition.class);
 
-  public RecompactionCombineCondition (Dataset dataset) {
+  private RecompactionCombineCondition (Dataset dataset) {
     this.recompactionConditions = getConditionsFromProperties (dataset);
     this.operation = getConditionOperation(dataset);
 
-
     if (this.recompactionConditions.size() == 0) {
       throw new IllegalArgumentException( "No combine conditions specified");
+    }
+  }
+
+  @Alias("RecompactBasedOnCombination")
+  public static class Factory implements RecompactionConditionFactory {
+    @Override public RecompactionCondition createRecompactionCondition (Dataset dataset) {
+      return new RecompactionCombineCondition(dataset);
     }
   }
 
@@ -72,16 +78,18 @@ public class RecompactionCombineCondition implements RecompactionCondition {
   }
 
   private ImmutableList<RecompactionCondition> getConditionsFromProperties (Dataset dataset) {
-    ClassAliasResolver<RecompactionCondition> conditionClassAliasResolver = new ClassAliasResolver<>(RecompactionCondition.class);
-    List<String> conditionNames = dataset.jobProps().getPropAsList(MRCompactor.COMPACTION_RECOMPACT_COMBINE_CONDITIONS,
+    ClassAliasResolver<RecompactionConditionFactory> conditionClassAliasResolver = new ClassAliasResolver<>(RecompactionConditionFactory.class);
+    List<String> factoryNames = dataset.jobProps().getPropAsList(MRCompactor.COMPACTION_RECOMPACT_COMBINE_CONDITIONS,
         MRCompactor.DEFAULT_COMPACTION_RECOMPACT_CONDITION);
 
     ImmutableList.Builder<RecompactionCondition> builder = ImmutableList.builder();
 
-    for (String conditionClassName : conditionNames) {
+    for (String factoryName : factoryNames) {
       try {
-        builder.add(GobblinConstructorUtils.invokeFirstConstructor(
-            conditionClassAliasResolver.resolveClass(conditionClassName), ImmutableList.<Object> of(dataset)));
+        RecompactionConditionFactory factory = GobblinConstructorUtils.invokeFirstConstructor(
+            conditionClassAliasResolver.resolveClass(factoryName), ImmutableList.of());
+        RecompactionCondition condition = factory.createRecompactionCondition(dataset);
+        builder.add(condition);
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
         throw new IllegalArgumentException(e);

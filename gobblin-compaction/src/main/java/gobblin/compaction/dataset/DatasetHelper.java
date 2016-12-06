@@ -31,6 +31,7 @@ import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
 
 import gobblin.compaction.conditions.RecompactionCondition;
+import gobblin.compaction.conditions.RecompactionConditionFactory;
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.FileListUtils;
@@ -86,12 +87,13 @@ public class DatasetHelper {
   }
 
   private RecompactionCondition createRecompactionCondition () {
-    ClassAliasResolver<RecompactionCondition> conditionClassAliasResolver = new ClassAliasResolver<>(RecompactionCondition.class);
-    String conditionName = this.dataset.jobProps().getProp(MRCompactor.COMPACTION_RECOMPACT_CONDITION,
+    ClassAliasResolver<RecompactionConditionFactory> conditionClassAliasResolver = new ClassAliasResolver<>(RecompactionConditionFactory.class);
+    String factoryName = this.dataset.jobProps().getProp(MRCompactor.COMPACTION_RECOMPACT_CONDITION,
         MRCompactor.DEFAULT_COMPACTION_RECOMPACT_CONDITION);
     try {
-      return GobblinConstructorUtils.invokeFirstConstructor(
-          conditionClassAliasResolver.resolveClass(conditionName), ImmutableList.<Object> of(this.dataset));
+      RecompactionConditionFactory factory = GobblinConstructorUtils.invokeFirstConstructor(
+          conditionClassAliasResolver.resolveClass(factoryName), ImmutableList.of());
+      return factory.createRecompactionCondition(dataset);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new IllegalArgumentException(e);

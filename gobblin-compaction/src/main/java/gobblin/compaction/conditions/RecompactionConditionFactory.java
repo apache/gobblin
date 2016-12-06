@@ -10,12 +10,10 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-
-package gobblin.compaction.listeners;
-
-import gobblin.compaction.mapreduce.MRCompactor;
+package gobblin.compaction.conditions;
+import gobblin.compaction.dataset.Dataset;
 
 
-public interface CompactorCompletionListener {
-  void onCompactionCompletion(MRCompactor compactor);
+public interface RecompactionConditionFactory {
+  RecompactionCondition createRecompactionCondition (Dataset dataset);
 }

@@ -40,8 +40,15 @@ public class RecompactionConditionBasedOnDuration implements RecompactionConditi
   private final Period duration;
   private static final Logger logger = LoggerFactory.getLogger (RecompactionConditionBasedOnDuration.class);
 
-  public RecompactionConditionBasedOnDuration(Dataset dataset) {
+  private RecompactionConditionBasedOnDuration(Dataset dataset) {
     this.duration = getOwnDurationThreshold(dataset);
+  }
+
+  @Alias("RecompactBasedOnDuration")
+  public static class Factory implements RecompactionConditionFactory {
+    @Override public RecompactionCondition createRecompactionCondition (Dataset dataset) {
+      return new RecompactionConditionBasedOnDuration (dataset);
+    }
   }
 
   private Period getOwnDurationThreshold (Dataset dataset) {

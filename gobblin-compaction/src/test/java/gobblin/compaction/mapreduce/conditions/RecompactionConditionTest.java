@@ -38,6 +38,7 @@ import gobblin.compaction.conditions.RecompactionCombineCondition;
 import gobblin.compaction.conditions.RecompactionConditionBasedOnDuration;
 import gobblin.compaction.conditions.RecompactionConditionBasedOnFileCount;
 import gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;
+import gobblin.compaction.conditions.RecompactionConditionFactory;
 import gobblin.compaction.dataset.Dataset;
 import gobblin.compaction.dataset.DatasetHelper;
 import gobblin.compaction.mapreduce.MRCompactor;
@@ -88,7 +89,8 @@ public class RecompactionConditionTest {
       FileSystem fs = FileSystem.get(conf);
       fs.delete(outputLatePath, true);
       fs.mkdirs(outputLatePath);
-      RecompactionConditionBasedOnFileCount conditionBasedOnFileCount= new RecompactionConditionBasedOnFileCount(dataset);
+      RecompactionConditionFactory factory = new RecompactionConditionBasedOnFileCount.Factory();
+      RecompactionCondition conditionBasedOnFileCount= factory.createRecompactionCondition(dataset);
       DatasetHelper helper = new DatasetHelper(dataset, fs, Lists.newArrayList("avro"));
 
       fs.createNewFile(new Path(outputLatePath, new Path ("1.avro")));
@@ -106,7 +108,8 @@ public class RecompactionConditionTest {
 
   @Test
   public void testRecompactionConditionBasedOnRatio() {
-    RecompactionConditionBasedOnRatio conditionBasedOnRatio = new RecompactionConditionBasedOnRatio(dataset);
+    RecompactionConditionFactory factory = new RecompactionConditionBasedOnRatio.Factory();
+    RecompactionCondition conditionBasedOnRatio = factory.createRecompactionCondition(dataset);
     DatasetHelper helper = mock(DatasetHelper.class);
 
     when(helper.getLateOutputRecordCount()).thenReturn(6L);
@@ -121,7 +124,8 @@ public class RecompactionConditionTest {
 
   @Test
   public void testRecompactionConditionBasedOnDuration() {
-    RecompactionConditionBasedOnDuration conditionBasedOnDuration = new RecompactionConditionBasedOnDuration(dataset);
+    RecompactionConditionFactory factory = new RecompactionConditionBasedOnDuration.Factory();
+    RecompactionCondition conditionBasedOnDuration = factory.createRecompactionCondition(dataset);
     DatasetHelper helper = mock (DatasetHelper.class);
     when(helper.getDataset()).thenReturn(dataset);
     PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()

@@ -43,11 +43,18 @@ public class RecompactionConditionBasedOnRatio implements RecompactionCondition 
   private static final Logger logger = LoggerFactory.getLogger (RecompactionConditionBasedOnRatio.class);
   private final double ratio;
 
-  public RecompactionConditionBasedOnRatio (Dataset dataset) {
+  private RecompactionConditionBasedOnRatio (Dataset dataset) {
     Map<String, Double> datasetRegexAndRecompactThreshold = getDatasetRegexAndRecompactThreshold(
         dataset.jobProps().getProp(
             MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET, StringUtils.EMPTY));
     this.ratio = getOwnRatioThreshold (dataset, datasetRegexAndRecompactThreshold);
+  }
+
+  @Alias("RecompactBasedOnRatio")
+  public static class Factory implements RecompactionConditionFactory {
+    @Override public RecompactionCondition createRecompactionCondition (Dataset dataset) {
+      return new RecompactionConditionBasedOnRatio (dataset);
+    }
   }
 
   private static Map<String, Double> getDatasetRegexAndRecompactThreshold (String datasetsAndRecompactThresholds) {

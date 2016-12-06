@@ -60,6 +60,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import gobblin.compaction.Compactor;
 import gobblin.compaction.listeners.CompactorCompletionListener;
+import gobblin.compaction.listeners.CompactorCompletionListenerFactory;
 import gobblin.compaction.listeners.CompactorListener;
 import gobblin.compaction.dataset.Dataset;
 import gobblin.compaction.dataset.DatasetsFinder;
@@ -172,14 +173,14 @@ public class MRCompactor implements Compactor {
 
 
   public static final String COMPACTION_RECOMPACT_CONDITION = COMPACTION_PREFIX + "recompact.condition";
-  public static final String DEFAULT_COMPACTION_RECOMPACT_CONDITION = "RecompactionConditionBasedOnRatio";
+  public static final String DEFAULT_COMPACTION_RECOMPACT_CONDITION = "RecompactBasedOnRatio";
 
   public static final String COMPACTION_RECOMPACT_COMBINE_CONDITIONS = COMPACTION_PREFIX + "recompact.combine.conditions";
   public static final String COMPACTION_RECOMPACT_COMBINE_CONDITIONS_OPERATION = COMPACTION_PREFIX + "recompact.combine.conditions.operation";
   public static final String DEFAULT_COMPACTION_RECOMPACT_COMBINE_CONDITIONS_OPERATION = "or";
 
   public static final String COMPACTION_COMPLETE_LISTERNER = COMPACTION_PREFIX + "complete.listener";
-  public static final String DEFAULT_COMPACTION_COMPLETE_LISTERNER = "SimpleCompactorCompletionListener";
+  public static final String DEFAULT_COMPACTION_COMPLETE_LISTERNER = "SimpleCompactorCompletionHook";
 
   // Whether the input data for the compaction is deduplicated.
   public static final String COMPACTION_INPUT_DEDUPLICATED = COMPACTION_PREFIX + "input.deduplicated";
@@ -368,13 +369,13 @@ public class MRCompactor implements Compactor {
   }
 
   private CompactorCompletionListener getCompactionCompleteListener () {
-    ClassAliasResolver<CompactorCompletionListener> classAliasResolver = new ClassAliasResolver<>(CompactorCompletionListener.class);
+    ClassAliasResolver<CompactorCompletionListenerFactory> classAliasResolver = new ClassAliasResolver<>(CompactorCompletionListenerFactory.class);
     String listenerName= this.state.getProp(MRCompactor.COMPACTION_COMPLETE_LISTERNER,
         MRCompactor.DEFAULT_COMPACTION_COMPLETE_LISTERNER);
     try {
-      CompactorCompletionListener compactorCompletionListener = GobblinConstructorUtils.invokeFirstConstructor(
+      CompactorCompletionListenerFactory factory = GobblinConstructorUtils.invokeFirstConstructor(
           classAliasResolver.resolveClass(listenerName), ImmutableList.of());
-      return compactorCompletionListener;
+      return factory.createCompactorCompactionListener();
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new IllegalArgumentException(e);
