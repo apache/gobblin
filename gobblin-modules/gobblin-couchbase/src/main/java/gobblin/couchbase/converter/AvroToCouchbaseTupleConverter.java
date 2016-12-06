@@ -53,12 +53,9 @@ public class AvroToCouchbaseTupleConverter extends Converter<Schema, String, Gen
     String key = (String) inputRecord.get(keyField);
     GenericRecord data = (GenericRecord) inputRecord.get(dataRecordField);
 
-    ByteBuffer dataBuffer = (ByteBuffer) data.get(valueField);
+    byte[] dataBytes = (byte[]) data.get(valueField);
     Integer flags = (Integer) data.get(flagsField);
 
-    byte[] bytes = new byte[dataBuffer.remaining()];
-    dataBuffer.get(bytes);
-
-    return new SingleRecordIterable<>(new TupleDocument(key, Tuple.create(Unpooled.wrappedBuffer(bytes), flags)));
+    return new SingleRecordIterable<>(new TupleDocument(key, Tuple.create(Unpooled.wrappedBuffer(dataBytes), flags)));
   }
 }

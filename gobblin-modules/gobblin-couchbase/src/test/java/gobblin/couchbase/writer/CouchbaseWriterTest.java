@@ -32,9 +32,6 @@ import gobblin.couchbase.common.TupleDocument;
 import gobblin.couchbase.converter.AvroToCouchbaseTupleConverter;
 
 
-/**
- * Created by sdas on 12/4/16.
- */
 public class CouchbaseWriterTest {
 
 
