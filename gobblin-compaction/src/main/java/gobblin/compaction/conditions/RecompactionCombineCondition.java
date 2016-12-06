@@ -54,6 +54,11 @@ public class RecompactionCombineCondition implements RecompactionCondition {
     }
   }
 
+  public RecompactionCombineCondition (List<RecompactionCondition> conditions, CombineOperation opr) {
+    this.recompactionConditions = conditions;
+    this.operation = opr;
+  }
+
   private CombineOperation getConditionOperation (Dataset dataset) {
     String oprName = dataset.jobProps().getProp (MRCompactor.COMPACTION_RECOMPACT_COMBINE_CONDITIONS_OPERATION,
         MRCompactor.DEFAULT_COMPACTION_RECOMPACT_COMBINE_CONDITIONS_OPERATION);
