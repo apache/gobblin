@@ -52,6 +52,9 @@ public class FsDatasetStateStoreTest {
         FsDatasetStateStoreTest.class.getSimpleName(), JobState.class);
     this.fsDatasetStateStore =
         new FsDatasetStateStore(ConfigurationKeys.LOCAL_FS_URI, FsDatasetStateStoreTest.class.getSimpleName());
+
+    // clear data that may have been left behind by a prior test run
+    this.fsDatasetStateStore.delete(TEST_JOB_NAME);
   }
 
   @Test
