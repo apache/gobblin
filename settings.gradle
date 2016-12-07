@@ -50,7 +50,7 @@ modules.each { module ->
   file(module).eachDir { submodule ->
     if (!submodule.name.startsWith('.') && !submodule.name.equals('src')) {
         def submoduleId = "${module}:${submodule.name}"
-        if (!project.hasProperty('jacocoReport') || !jacocoBlacklist.contains(submoduleId)) {
+        if (System.getProperty('jacocoReport') == null || !jacocoBlacklist.contains(submoduleId)) {
             include submoduleId 
         }
     }
