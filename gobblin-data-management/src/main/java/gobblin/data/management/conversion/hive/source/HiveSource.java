@@ -18,7 +18,9 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -28,6 +30,7 @@ import org.joda.time.DateTime;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
@@ -103,7 +106,20 @@ public class HiveSource implements Source {
   public static final String HIVE_SOURCE_EXTRACTOR_TYPE = "hive.source.extractorType";
   public static final String DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE = HiveConvertExtractorFactory.class.getName();
 
+  /***
+   * Comma separated list of keywords to look for in path of table (in non-partitioned case) / partition (in partitioned case)
+   * and if the keyword is found then ignore the table / partition from processing.
+   *
+   * This is useful in scenarios like:
+   * - when the user wants to ignore hourly partitions and only process daily partitions and only way to identify that
+   *   is by the path both store there data. eg: /foo/bar/2016/12/01/hourly/00
+   * - when the user wants to ignore partitions that refer to partitions pointing to /tmp location (for debug reasons)
+   */
+  public static final String HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER_KEY = "hive.source.ignoreDataPathIdentifier";
+  public static final String DEFAULT_HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER = StringUtils.EMPTY;
+
   public static final Gson GENERICS_AWARE_GSON = GsonInterfaceAdapter.getGson(Object.class);
+  public static final Splitter COMMA_BASED_SPLITTER = Splitter.on(",").omitEmptyStrings().trimResults();
 
   private MetricContext metricContext;
   private EventSubmitter eventSubmitter;
@@ -115,6 +131,7 @@ public class HiveSource implements Source {
   private List<WorkUnit> workunits;
   private long maxLookBackTime;
   private long beginGetWorkunitsTime;
+  private List<String> ignoreDataPathIdentifierList;
 
   private final ClassAliasResolver<HiveBaseExtractorFactory> classAliasResolver =
       new ClassAliasResolver<>(HiveBaseExtractorFactory.class);
@@ -177,6 +194,8 @@ public class HiveSource implements Source {
         this.eventSubmitter);
     int maxLookBackDays = state.getPropAsInt(HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS);
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
+    this.ignoreDataPathIdentifierList = COMMA_BASED_SPLITTER.splitToList(state.getProp(HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER_KEY,
+        DEFAULT_HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER));
 
     silenceHiveLoggers();
   }
@@ -193,6 +212,13 @@ public class HiveSource implements Source {
       this.watermarker.onTableProcessBegin(hiveDataset.getTable(), tableProcessTime);
 
       LongWatermark lowWatermark = this.watermarker.getPreviousHighWatermark(hiveDataset.getTable());
+
+      if (!shouldCreateWorkUnit(hiveDataset.getTable().getPath())) {
+        log.info(String.format(
+            "Not creating workunit for table %s as partition path %s contains data path tokens to ignore %s",
+            hiveDataset.getTable().getCompleteName(), hiveDataset.getTable().getPath(), this.ignoreDataPathIdentifierList));
+        return;
+      }
 
       if (shouldCreateWorkunit(hiveDataset.getTable().getTTable().getCreateTime(), updateTime, lowWatermark)) {
 
@@ -238,8 +264,14 @@ public class HiveSource implements Source {
       LongWatermark lowWatermark = watermarker.getPreviousHighWatermark(sourcePartition);
 
       try {
-        long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
+        if (!shouldCreateWorkUnit(new Path(sourcePartition.getLocation()))) {
+          log.info(String.format(
+              "Not creating workunit for partition %s as partition path %s contains data path tokens to ignore %s",
+              sourcePartition.getCompleteName(), sourcePartition.getLocation(), this.ignoreDataPathIdentifierList));
+          continue;
+        }
 
+        long updateTime = this.updateProvider.getUpdateTime(sourcePartition);
         if (shouldCreateWorkunit(sourcePartition, lowWatermark)) {
           log.debug(String.format("Processing partition: %s", sourcePartition));
 
@@ -274,6 +306,23 @@ public class HiveSource implements Source {
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
+  }
+
+  /***
+   * Check if path of Hive entity (table / partition) contains location token that should be ignored. If so, ignore
+   * the partition.
+   */
+  protected boolean shouldCreateWorkUnit(Path dataLocation) {
+    if (null == this.ignoreDataPathIdentifierList || this.ignoreDataPathIdentifierList.size() == 0) {
+      return true;
+    }
+    for (String pathToken : this.ignoreDataPathIdentifierList) {
+      if (dataLocation.toString().toLowerCase().contains(pathToken.toLowerCase())) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   protected boolean shouldCreateWorkunit(Partition sourcePartition, LongWatermark lowWatermark) throws UpdateNotFoundException {

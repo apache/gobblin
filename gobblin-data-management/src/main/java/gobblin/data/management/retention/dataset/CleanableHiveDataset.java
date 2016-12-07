@@ -80,30 +80,30 @@ public class CleanableHiveDataset extends HiveDataset implements CleanableDatase
   private final FsCleanableHelper fsCleanableHelper;
 
   public CleanableHiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties jobProps,
-      Config datasetConfig) throws IOException {
-    super(fs, clientPool, table, jobProps, datasetConfig);
+      Config config) throws IOException {
+    super(fs, clientPool, table, jobProps, config);
 
     try {
       this.hiveSelectionPolicy =
           (VersionSelectionPolicy) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(ConfigUtils.getString(
-              datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS)), ImmutableList.<Object> of(
-              datasetConfig, jobProps), ImmutableList.<Object> of(datasetConfig), ImmutableList.<Object> of(jobProps));
+              this.datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS)), ImmutableList.<Object> of(
+              this.datasetConfig, jobProps), ImmutableList.<Object> of(this.datasetConfig), ImmutableList.<Object> of(jobProps));
 
       log.info(String.format("Configured selection policy %s for dataset:%s with config %s",
-          ConfigUtils.getString(datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS),
-          datasetURN(), datasetConfig.root().render(ConfigRenderOptions.concise())));
+          ConfigUtils.getString(this.datasetConfig, SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS),
+          datasetURN(), this.datasetConfig.root().render(ConfigRenderOptions.concise())));
 
       this.hiveDatasetVersionFinder =
           (AbstractHiveDatasetVersionFinder) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(ConfigUtils
-              .getString(datasetConfig, VERSION_FINDER_CLASS_KEY, DEFAULT_VERSION_FINDER_CLASS)), ImmutableList
-              .<Object> of(this.fs, datasetConfig), ImmutableList.<Object> of(this.fs, jobProps));
+              .getString(this.datasetConfig, VERSION_FINDER_CLASS_KEY, DEFAULT_VERSION_FINDER_CLASS)), ImmutableList
+              .<Object> of(this.fs, this.datasetConfig), ImmutableList.<Object> of(this.fs, jobProps));
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       log.error("Failed to instantiate CleanableHiveDataset", e);
       throw new IllegalArgumentException(e);
     }
 
-    this.fsCleanableHelper = new FsCleanableHelper(fs, jobProps, datasetConfig, log);
+    this.fsCleanableHelper = new FsCleanableHelper(fs, jobProps, this.datasetConfig, log);
 
     this.shouldDeleteData = Boolean.valueOf(jobProps.getProperty(SHOULD_DELETE_DATA_KEY, SHOULD_DELETE_DATA_DEFAULT));
     this.simulate = Boolean.valueOf(jobProps.getProperty(FsCleanableHelper.SIMULATE_KEY, FsCleanableHelper.SIMULATE_DEFAULT));
