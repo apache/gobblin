@@ -41,17 +41,19 @@ def modules = ['gobblin-admin',
 // Disable jacoco for now as Kafka 0.8 is the default version and jacoco does not like the same classes 
 // being declared in different modules
 def jacocoBlacklist =  new HashSet([
-    'gobblin-modules:gobblin-kafka-09'
+    "gobblin-modules:gobblin-kafka-09"
 ])
-
 
 modules.each { module ->
   include "${module}"
   file(module).eachDir { submodule ->
     if (!submodule.name.startsWith('.') && !submodule.name.equals('src')) {
         def submoduleId = "${module}:${submodule.name}"
-        if (System.getProperty('jacocoReport') == null || !jacocoBlacklist.contains(submoduleId)) {
+        if (System.getProperty('jacocoBuild') == null || !jacocoBlacklist.contains(submoduleId.toString())) {
             include submoduleId 
+        }
+        else {
+            println "Ignoring blacklisted module ${submoduleId}"
         }
     }
   }
