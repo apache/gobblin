@@ -182,6 +182,8 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
       throws IOException {
     this.closer.close();
 
+    setStagingFileGroup();
+
     if (!this.fs.exists(this.stagingFile)) {
       throw new IOException(String.format("File %s does not exist", this.stagingFile));
     }

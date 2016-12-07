@@ -34,7 +34,9 @@ public class InstrumentedHDFSFileSystemTest {
   @Test(enabled = false)
   public void test() throws Exception {
 
-    FileSystem fs = FileSystem.get(new URI("instrumented-hdfs://localhost:8020"), new Configuration());
+    String uri = "instrumented-hdfs://localhost:8020";
+
+    FileSystem fs = FileSystem.get(new URI(uri), new Configuration());
 
     String name = UUID.randomUUID().toString();
     fs.mkdirs(new Path("/tmp"));
@@ -50,7 +52,7 @@ public class InstrumentedHDFSFileSystemTest {
 
 
     // Test fully qualified paths
-    Path fqPath = new Path("instrumented-hdfs://localhost:8020/tmp", name);
+    Path fqPath = new Path(uri + "/tmp", name);
     Assert.assertFalse(fs.exists(fqPath));
     fs.createNewFile(fqPath);
     Assert.assertTrue(fs.exists(fqPath));

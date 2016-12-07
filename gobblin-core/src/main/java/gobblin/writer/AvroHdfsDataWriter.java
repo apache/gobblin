@@ -66,8 +66,6 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
     this.stagingFileOutputStream = createStagingFileOutputStream();
     this.datumWriter = new GenericDatumWriter<>();
     this.writer = this.closer.register(createDataFileWriter(codecFactory));
-
-    setStagingFileGroup();
   }
 
   public FileSystem getFileSystem() {

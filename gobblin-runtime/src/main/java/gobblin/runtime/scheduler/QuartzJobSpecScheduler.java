@@ -110,6 +110,8 @@ public class QuartzJobSpecScheduler extends AbstractJobSpecScheduler {
     QuartzJobSchedule jobSchedule = new QuartzJobSchedule(jobSpec, jobRunnable, jobTrigger);
     try {
       _scheduler.getScheduler().scheduleJob(job, jobTrigger);
+      getLog().info(String.format("Scheduled job %s next two fire times: %s , %s.", jobSpec, jobTrigger.getNextFireTime(),
+          jobTrigger.getFireTimeAfter(jobTrigger.getNextFireTime())));
     } catch (SchedulerException e) {
       throw new RuntimeException("Scheduling failed for " + jobSpec + ":" + e, e);
     }
