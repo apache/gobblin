@@ -78,6 +78,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    */
   private static final String PUBLISHED_TABLE_SUBDIRECTORY = "final";
 
+  private static final String ORC_FORMAT = "orc";
+
   /**
    * Hive runtime property key names for tracking
    */
@@ -435,7 +437,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       publishDirectories.put(orcStagingDataPartitionLocation, orcFinalDataPartitionLocation);
 
       // Step:
-      // A.2.3.3, B.2.3.3: Create partition with location
+      // A.2.3.3, B.2.3.3: Create partition with location (and update storage format if not in ORC already)
       String orcDataPartitionLocation = orcDataLocation + Path.SEPARATOR + orcStagingDataPartitionDirName;
       List<String> createFinalPartitionDDL =
           HiveAvroORCQueryGenerator.generateCreatePartitionDDL(orcTableDatabase,
@@ -445,6 +447,16 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
 
       log.debug("Create final partition DDL: " + createFinalPartitionDDL);
       publishQueries.addAll(createFinalPartitionDDL);
+
+      // Updating storage format non-transactionally is a stop gap measure until Hive supports transactionally update
+      // .. storage format in ADD PARITTION command (today it only supports specifying location)
+      List<String> updatePartitionStorageFormatDDL =
+          HiveAvroORCQueryGenerator.generateAlterTableOrPartitionStorageFormatDDL(orcTableDatabase,
+              orcTableName,
+              Optional.of(partitionsDMLInfo),
+              ORC_FORMAT);
+      log.debug("Update final partition storage format to ORC (if not already in ORC)");
+      publishQueries.addAll(updatePartitionStorageFormatDDL);
 
       // Step:
       // A.2.3.4, B.2.3.4: Drop this staging table and delete directories

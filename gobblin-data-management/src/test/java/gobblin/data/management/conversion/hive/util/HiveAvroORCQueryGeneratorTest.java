@@ -372,4 +372,23 @@ public class HiveAvroORCQueryGeneratorTest {
     Assert.assertEquals(ddls.size(), 1, "One query for Create only should have been generated");
     Assert.assertEquals(ddls.get(0), "CREATE VIEW IF NOT EXISTS `db2`.`view1` AS SELECT * FROM `db1`.`tbl1`");
   }
-}
+
+  @Test
+  public void testAlterTableOrPartitionStorageFormatDDL() throws Exception {
+    Map<String, String> partitions = ImmutableMap.of("datepartition", "2016-01-01", "sizepartition", "10");
+
+    // For Partition
+    List<String> ddls = HiveAvroORCQueryGenerator
+        .generateAlterTableOrPartitionStorageFormatDDL("db1", "table1", Optional.of(partitions), "orc");
+    Assert.assertEquals(ddls.size(), 2, "Two queries to set DB and Alter table should have been created");
+    Assert.assertEquals(ddls.get(0), "USE db1\n");
+    Assert.assertEquals(ddls.get(1), "ALTER TABLE table1 PARTITION (`datepartition`='2016-01-01', `sizepartition`='10')  SET FILEFORMAT orc");
+
+    // For Table
+    ddls = HiveAvroORCQueryGenerator
+        .generateAlterTableOrPartitionStorageFormatDDL("db1", "table1", Optional.<Map<String,String>>absent(), "orc");
+    Assert.assertEquals(ddls.size(), 2, "Two queries to set DB and Alter table should have been created");
+    Assert.assertEquals(ddls.get(0), "USE db1\n");
+    Assert.assertEquals(ddls.get(1), "ALTER TABLE table1  SET FILEFORMAT orc");
+  }
+ }

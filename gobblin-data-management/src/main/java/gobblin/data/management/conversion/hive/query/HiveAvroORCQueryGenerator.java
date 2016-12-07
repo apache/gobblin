@@ -816,6 +816,11 @@ public class HiveAvroORCQueryGenerator {
 
     // Evolve schema
     Table destinationTable = destinationTableMeta.get();
+    if (destinationTable.getSd().getCols().size() == 0) {
+      log.warn("Desination Table: " + destinationTable + " does not has column details in StorageDescriptor. "
+          + "It is probably of Avro type. Cannot evolve via traditional HQL, so skipping evolution checks.");
+      return ddl;
+    }
     for (Map.Entry<String, String> evolvedColumn : evolvedColumns.entrySet()) {
       // Find evolved column in destination table
       boolean found = false;
@@ -959,6 +964,60 @@ public class HiveAvroORCQueryGenerator {
           resolvedViewDbName, viewName,
           resolvedTableDbName, tableName));
     }
+
+    return ddls;
+  }
+
+  /***
+   * Generate DDL for updating file format of table or partition.
+   * If partition spec is absent, DDL query to change storage format of Table is generated.
+   *
+   * Query syntax:
+   * <p>
+   *   ALTER TABLE tableName [PARTITION partition_spec] SET FILEFORMAT fileFormat
+   * </p>
+   *
+   * @param dbName            Database for the table for which storage format needs to be changed.
+   * @param tableName         Table for which storage format needs to be changed.
+   * @param partitionsDMLInfo Optional partition spec for which storage format needs to be changed.
+   * @param format            Storage format.
+   * @return DDL to change storage format for Table or Partition.
+   */
+  public static List<String> generateAlterTableOrPartitionStorageFormatDDL(final String dbName,
+      final String tableName,
+      final Optional<Map<String, String>> partitionsDMLInfo,
+      String format) {
+    Preconditions.checkArgument(StringUtils.isNotBlank(tableName), "Table name should not be empty");
+    Preconditions.checkArgument(StringUtils.isNotBlank(format), "Format should not be empty");
+
+    // Resolve defaults
+    String resolvedDbName = (StringUtils.isBlank(dbName)) ? DEFAULT_DB_NAME : dbName;
+
+    // Partition details
+    StringBuilder partitionSpecs = new StringBuilder();
+
+    if (partitionsDMLInfo.isPresent()) {
+      partitionSpecs.append("PARTITION (");
+      boolean isFirstPartitionSpec = true;
+      for (Map.Entry<String, String> partition : partitionsDMLInfo.get().entrySet()) {
+        if (isFirstPartitionSpec) {
+          isFirstPartitionSpec = false;
+        } else {
+          partitionSpecs.append(", ");
+        }
+        partitionSpecs.append(String.format("`%s`='%s'", partition.getKey(), partition.getValue()));
+      }
+      partitionSpecs.append(") ");
+    }
+
+    List<String> ddls = Lists.newArrayList();
+
+
+    // Note: Hive does not support fully qualified Hive table names such as db.table for ALTER TABLE in v0.13
+    // .. hence specifying 'use dbName' as a precursor to rename
+    // Refer: HIVE-2496
+    ddls.add(String.format("USE %s%n", resolvedDbName));
+    ddls.add(String.format("ALTER TABLE %s %s SET FILEFORMAT %s", tableName, partitionSpecs, format));
 
     return ddls;
   }
