@@ -66,9 +66,6 @@ configurations {
 
 test {
   workingDir rootProject.rootDir
-  // Disable jacoco for now as 0.8 is the default version and jacoco does not like the same classes 
-  // being declared in different modules
-  enabled = !project.hasProperty('jacocoTest')
 }
 
 ext.classification="library"
