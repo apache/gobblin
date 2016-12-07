@@ -263,7 +263,14 @@ public class HiveDataset implements PrioritizedCopyableDataset {
               new String[] { realDbAndTable.getDb(), realDbAndTable.getTable(), logicalDbAndTable.getDb(), logicalDbAndTable.getTable() });
           resolvedValueList.add(resolvedValue);
         }
-        resolvedProperties.setProperty(entry.getKey(), resolvedValueList.toString());
+        StringBuilder listToStringWithQuotes = new StringBuilder();
+        for (String resolvedValueStr : resolvedValueList) {
+          if (listToStringWithQuotes.length() > 0) {
+            listToStringWithQuotes.append(",");
+          }
+          listToStringWithQuotes.append("\"").append(resolvedValueStr).append("\"");
+        }
+        resolvedProperties.setProperty(entry.getKey(), listToStringWithQuotes.toString());
       } else {
         String resolvedValue = StringUtils.replaceEach(resolvedConfig.getString(entry.getKey()),
           new String[] { DATABASE_TOKEN, TABLE_TOKEN, LOGICAL_DB_TOKEN, LOGICAL_TABLE_TOKEN },

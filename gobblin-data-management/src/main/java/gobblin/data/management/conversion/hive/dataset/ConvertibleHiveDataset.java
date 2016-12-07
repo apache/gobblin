@@ -19,6 +19,7 @@ import java.util.Set;
 import lombok.Getter;
 import lombok.ToString;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
@@ -55,6 +56,7 @@ import gobblin.util.ConfigUtils;
  * @see ConversionConfig
  */
 @ToString
+@Slf4j
 public class ConvertibleHiveDataset extends HiveDataset {
 
   public static final String DESTINATION_CONVERSION_FORMATS_KEY = "destinationFormats";
@@ -91,14 +93,15 @@ public class ConvertibleHiveDataset extends HiveDataset {
         HiveDatasetFinder.HIVE_DATASET_IS_BLACKLISTED_KEY));
 
     // value for DESTINATION_CONVERSION_FORMATS_KEY can be a TypeSafe list or a comma separated list of string
-    this.destFormats = Sets.newHashSet(ConfigUtils.getStringList(config, DESTINATION_CONVERSION_FORMATS_KEY));
+    this.destFormats = Sets.newHashSet(ConfigUtils.getStringList(this.datasetConfig, DESTINATION_CONVERSION_FORMATS_KEY));
 
     // For each format create ConversionConfig and store it in a Map<format,conversionConfig>
     this.destConversionConfigs = Maps.newHashMap();
 
     for (String format : this.destFormats) {
-      if (config.hasPath(format)) {
-        this.destConversionConfigs.put(format, new ConversionConfig(config.getConfig(format), table, format));
+      if (this.datasetConfig.hasPath(format)) {
+        log.debug("Found desination format: " + format);
+        this.destConversionConfigs.put(format, new ConversionConfig(this.datasetConfig.getConfig(format), table, format));
 
       }
     }
