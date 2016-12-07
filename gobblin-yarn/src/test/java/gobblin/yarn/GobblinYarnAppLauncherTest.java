@@ -12,13 +12,21 @@
 
 package gobblin.yarn;
 
+import com.google.common.base.Predicate;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.lang.reflect.Field;
 import java.net.URL;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
@@ -76,13 +84,38 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
   private final Closer closer = Closer.create();
 
+  private static void setEnv(String key, String value) {
+    try {
+      Map<String, String> env = System.getenv();
+      Class<?> cl = env.getClass();
+      Field field = cl.getDeclaredField("m");
+      field.setAccessible(true);
+      Map<String, String> writableEnv = (Map<String, String>) field.get(env);
+      writableEnv.put(key, value);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to set environment variable", e);
+    }
+  }
+
   @BeforeClass
   public void setUp() throws Exception {
-    YarnConfiguration clusterConf = new YarnConfiguration();
+    // Set java home in environment since it isn't set on some systems
+    String javaHome = System.getProperty("java.home");
+    setEnv("JAVA_HOME", javaHome);
+
+    final YarnConfiguration clusterConf = new YarnConfiguration();
 
     MiniYARNCluster miniYARNCluster = this.closer.register(new MiniYARNCluster("TestCluster", 1, 1, 1));
     miniYARNCluster.init(clusterConf);
     miniYARNCluster.start();
+
+    // YARN client should not be started before the Resource Manager is up
+    AssertWithBackoff.create().logger(LOG).timeoutMs(10000)
+        .assertTrue(new Predicate<Void>() {
+          @Override public boolean apply(Void input) {
+            return !clusterConf.get(YarnConfiguration.RM_ADDRESS).contains(":0");
+          }
+        }, "Waiting for RM");
 
     this.yarnClient = this.closer.register(YarnClient.createYarnClient());
     this.yarnClient.init(clusterConf);
@@ -91,6 +124,22 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     // Use a random ZK port
     TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
     LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
+
+    // the zk port is dynamically configured
+    try (PrintWriter pw = new PrintWriter("dynamic.conf")) {
+      File dir = new File("target/dummydir");
+
+      // dummy directory specified in configuration
+      dir.mkdir();
+
+      pw.println("gobblin.cluster.zk.connection.string=\"" + testingZKServer.getConnectString() + "\"");
+      pw.println("jobconf.fullyQualifiedPath=\"" + dir.getAbsolutePath() + "\"");
+    }
+
+    // YARN config is dynamic and needs to be passed to other processes
+    try (OutputStream os = new FileOutputStream(new File("yarn-site.xml"))) {
+      clusterConf.writeXml(os);
+    }
 
     this.curatorFramework = TestHelper.createZkClient(testingZKServer, this.closer);
 
@@ -136,12 +185,37 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   public void testSetupAndSubmitApplication() throws Exception {
     this.gobblinYarnAppLauncher.startYarnClient();
     this.applicationId = this.gobblinYarnAppLauncher.setupAndSubmitApplication();
+
+    int i;
+
+    // wait for application to come up
+    for (i = 0; i < 120; i++) {
+      if (yarnClient.getApplicationReport(applicationId).getYarnApplicationState() ==
+          YarnApplicationState.RUNNING) {
+        break;
+      }
+      Thread.sleep(1000);
+    }
+
+    Assert.assertTrue(i < 120, "timed out waiting for RUNNING state");
+
+    // wait another 10 seconds and check state again to make sure that the application stays up
+    Thread.sleep(10000);
+
+    Assert.assertEquals(yarnClient.getApplicationReport(applicationId).getYarnApplicationState(),
+        YarnApplicationState.RUNNING, "Application may have aborted");
   }
 
   @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testSetupAndSubmitApplication")
   public void testGetReconnectableApplicationId() throws Exception {
     Assert.assertEquals(this.gobblinYarnAppLauncher.getReconnectableApplicationId().get(), this.applicationId);
     this.yarnClient.killApplication(this.applicationId);
+
+    Assert.assertEquals(yarnClient.getApplicationReport(applicationId).getYarnApplicationState(),
+        YarnApplicationState.KILLED, "Application not killed");
+
+    // takes some time for kill to take effect and app master to go down
+    Thread.sleep(5000);
   }
 
   @Test(dependsOnMethods = "testCreateHelixCluster")
@@ -177,6 +251,10 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
       }
 
       this.gobblinYarnAppLauncher.disconnectHelixManager();
+
+      if (applicationId != null) {
+        this.gobblinYarnAppLauncher.cleanUpAppWorkDirectory(applicationId);
+      }
     } finally {
       this.closer.close();
     }
