@@ -264,10 +264,10 @@ public class HiveSource implements Source {
       LongWatermark lowWatermark = watermarker.getPreviousHighWatermark(sourcePartition);
 
       try {
-        if (!shouldCreateWorkUnit(sourcePartition.getPartitionPath())) {
+        if (!shouldCreateWorkUnit(new Path(sourcePartition.getLocation()))) {
           log.info(String.format(
               "Not creating workunit for partition %s as partition path %s contains data path tokens to ignore %s",
-              sourcePartition.getCompleteName(), sourcePartition.getPartitionPath(), this.ignoreDataPathIdentifierList));
+              sourcePartition.getCompleteName(), sourcePartition.getLocation(), this.ignoreDataPathIdentifierList));
           continue;
         }
 
