@@ -68,6 +68,7 @@ pages:
         - Monitoring Design: developer-guide/Monitoring-Design.md
         - Documentation Architecture: developer-guide/Documentation-Architecture.md
         - Contributing: developer-guide/Contributing.md
+        - Gobblin Modules: developer-guide/GobblinModules.md 
     - Project:
         - Feature List: project/Feature-List.md
         - Contributors and Team: project/Team.md
