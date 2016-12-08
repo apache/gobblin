@@ -31,7 +31,6 @@ dependencies {
   compile project(":gobblin-metrics-modules:gobblin-metrics-graphite")
   compile project(":gobblin-metrics-modules:gobblin-metrics-hadoop")
   compile project(":gobblin-metrics-modules:gobblin-metrics-influxdb")
-  compile project(":gobblin-metrics-modules:gobblin-metrics-kafka")
 
   compile externalDependency.guava
   compile externalDependency.metricsCore
