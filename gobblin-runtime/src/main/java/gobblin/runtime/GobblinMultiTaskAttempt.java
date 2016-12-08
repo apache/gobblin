@@ -98,6 +98,10 @@ public class GobblinMultiTaskAttempt {
    */
   public void commit()
       throws IOException {
+    if (this.tasks == null) {
+      log.warn("No tasks to be committed in container " + containerIdOptional.or(""));
+      return;
+    }
     Iterator<Callable<Void>> callableIterator =
         Iterators.transform(this.tasks.iterator(), new Function<Task, Callable<Void>>() {
           @Override
