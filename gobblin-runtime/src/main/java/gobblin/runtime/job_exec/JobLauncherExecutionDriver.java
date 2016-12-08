@@ -18,7 +18,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.ExecutionList;
 import com.typesafe.config.ConfigFactory;
 
@@ -32,7 +31,6 @@ import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.JobLauncherFactory.JobLauncherType;
-import gobblin.runtime.JobState;
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.Configurable;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
@@ -89,17 +87,17 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
 
     Logger actualLog = log.isPresent() ? log.get() : LoggerFactory.getLogger(JobLauncherExecutionDriver.class);
 
-    JobExecutionStateListeners _callbackDispatcher = new JobExecutionStateListeners(actualLog);
-    JobExecutionUpdatable _jobExec = JobExecutionUpdatable.createFromJobSpec(jobSpec);
-    JobExecutionState _jobState = new JobExecutionState(jobSpec, _jobExec,
-        Optional.<JobExecutionStateListener>of(_callbackDispatcher));
+    JobExecutionStateListeners callbackDispatcher = new JobExecutionStateListeners(actualLog);
+    JobExecutionUpdatable jobExec = JobExecutionUpdatable.createFromJobSpec(jobSpec);
+    JobExecutionState jobState = new JobExecutionState(jobSpec, jobExec,
+        Optional.<JobExecutionStateListener>of(callbackDispatcher));
 
     JobLauncher jobLauncher = createLauncher(sysConfig, jobSpec, actualLog, jobLauncherType.isPresent() ?
         Optional.of(jobLauncherType.get().toString()) :
         Optional.<String>absent());
-    JobListenerToJobStateBridge bridge = new JobListenerToJobStateBridge(actualLog, _jobState, instrumentationEnabled, launcherMetrics);
+    JobListenerToJobStateBridge bridge = new JobListenerToJobStateBridge(actualLog, jobState, instrumentationEnabled, launcherMetrics);
 
-    DriverRunnable runnable = new DriverRunnable(jobLauncher, bridge, _jobState);
+    DriverRunnable runnable = new DriverRunnable(jobLauncher, bridge, jobState, callbackDispatcher, jobExec);
 
     return new JobLauncherExecutionDriver(jobSpec, actualLog, runnable);
   }
@@ -110,10 +108,9 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     _closer.register(runnable.getJobLauncher());
     _log = log;
     _jobSpec = jobSpec;
-    _jobExec = JobExecutionUpdatable.createFromJobSpec(jobSpec);
-    _callbackDispatcher = _closer.register(new JobExecutionStateListeners(_log));
-    _jobState = new JobExecutionState(_jobSpec, _jobExec,
-                                      Optional.<JobExecutionStateListener>of(_callbackDispatcher));
+    _jobExec = runnable.getJobExec();
+    _callbackDispatcher = _closer.register(runnable.getCallbackDispatcher());
+    _jobState = runnable.getJobState();
     _executionList = new ExecutionList();
     _runnable = runnable;
   }
@@ -128,6 +125,8 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     private final JobLauncher jobLauncher;
     private final JobListenerToJobStateBridge bridge;
     private final JobExecutionState jobState;
+    private final JobExecutionStateListeners callbackDispatcher;
+    private final JobExecutionUpdatable jobExec;
 
     @Override
     public JobExecutionResult call() throws JobException, InterruptedException, TimeoutException  {

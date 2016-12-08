@@ -45,6 +45,7 @@ import gobblin.runtime.job_catalog.FSJobCatalog;
 import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import gobblin.runtime.job_catalog.InMemoryJobCatalog;
 import gobblin.runtime.job_exec.JobLauncherExecutionDriver;
+import gobblin.runtime.plugins.email.EmailNotificationPlugin;
 import gobblin.runtime.scheduler.ImmediateJobSpecScheduler;
 import gobblin.runtime.scheduler.QuartzJobSpecScheduler;
 import gobblin.runtime.std.DefaultConfigurableImpl;
@@ -392,7 +393,9 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
 
     /**
      * Returns the list of plugins as defined in the system configuration. These are the
-     * defined in the PLUGINS_FULL_KEY config option. */
+     * defined in the PLUGINS_FULL_KEY config option.
+     * The list also includes plugins that are automatically added by gobblin.
+     * */
     public List<GobblinInstancePluginFactory> getDefaultPlugins() {
       if (!getSysConfig().getConfig().hasPath(PLUGINS_FULL_KEY)) {
         return Collections.emptyList();
@@ -401,7 +404,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       List<String> pluginNames =
           ConfigUtils.getStringList(getSysConfig().getConfig(), PLUGINS_FULL_KEY);
 
-      return Lists.transform(pluginNames, new Function<String, GobblinInstancePluginFactory>() {
+      List<GobblinInstancePluginFactory> pluginFactories = Lists.transform(pluginNames, new Function<String, GobblinInstancePluginFactory>() {
 
         @Override public GobblinInstancePluginFactory apply(String input) {
           Class<? extends GobblinInstancePluginFactory> factoryClass;
@@ -413,6 +416,14 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
           }
         }
       });
+
+      // By default email notification plugin is added.
+      if (!ConfigUtils.getBoolean(getSysConfig().getConfig(), EmailNotificationPlugin.EMAIL_NOTIFICATIONS_DISABLED_KEY,
+          EmailNotificationPlugin.EMAIL_NOTIFICATIONS_DISABLED_DEFAULT)) {
+        pluginFactories.add(new EmailNotificationPlugin.Factory());
+      }
+
+      return pluginFactories;
     }
 
     public List<GobblinInstancePluginFactory> getPlugins() {
