@@ -185,6 +185,6 @@ public class JobConfigFileMonitorTest {
     if (jobConfigDir != null) {
       FileUtils.forceDelete(new File(jobConfigDir));
     }
-    this.serviceManager.stopAsync().awaitStopped(10, TimeUnit.SECONDS);
+    this.serviceManager.stopAsync().awaitStopped(30, TimeUnit.SECONDS);
   }
 }
