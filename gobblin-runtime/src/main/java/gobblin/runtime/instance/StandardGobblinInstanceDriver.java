@@ -397,14 +397,19 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
      * The list also includes plugins that are automatically added by gobblin.
      * */
     public List<GobblinInstancePluginFactory> getDefaultPlugins() {
-      if (!getSysConfig().getConfig().hasPath(PLUGINS_FULL_KEY)) {
-        return Collections.emptyList();
-      }
 
       List<String> pluginNames =
           ConfigUtils.getStringList(getSysConfig().getConfig(), PLUGINS_FULL_KEY);
 
-      List<GobblinInstancePluginFactory> pluginFactories = Lists.transform(pluginNames, new Function<String, GobblinInstancePluginFactory>() {
+      List<GobblinInstancePluginFactory> pluginFactories = Lists.newArrayList();
+
+      // By default email notification plugin is added.
+      if (!ConfigUtils.getBoolean(getSysConfig().getConfig(), EmailNotificationPlugin.EMAIL_NOTIFICATIONS_DISABLED_KEY,
+          EmailNotificationPlugin.EMAIL_NOTIFICATIONS_DISABLED_DEFAULT)) {
+        pluginFactories.add(new EmailNotificationPlugin.Factory());
+      }
+
+      pluginFactories.addAll(Lists.transform(pluginNames, new Function<String, GobblinInstancePluginFactory>() {
 
         @Override public GobblinInstancePluginFactory apply(String input) {
           Class<? extends GobblinInstancePluginFactory> factoryClass;
@@ -415,13 +420,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
             throw new RuntimeException("Unable to instantiate plugin factory " + input + ": " + e, e);
           }
         }
-      });
-
-      // By default email notification plugin is added.
-      if (!ConfigUtils.getBoolean(getSysConfig().getConfig(), EmailNotificationPlugin.EMAIL_NOTIFICATIONS_DISABLED_KEY,
-          EmailNotificationPlugin.EMAIL_NOTIFICATIONS_DISABLED_DEFAULT)) {
-        pluginFactories.add(new EmailNotificationPlugin.Factory());
-      }
+      }));
 
       return pluginFactories;
     }
@@ -441,5 +440,4 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
   public List<GobblinInstancePlugin> getPlugins() {
     return _plugins;
   }
-
 }
