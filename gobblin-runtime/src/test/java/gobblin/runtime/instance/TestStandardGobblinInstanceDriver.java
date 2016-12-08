@@ -28,6 +28,7 @@ import gobblin.runtime.api.GobblinInstanceDriver;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.GobblinInstancePlugin;
 import gobblin.runtime.api.GobblinInstancePluginFactory;
+import gobblin.runtime.plugins.email.EmailNotificationPlugin;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 
 import avro.shaded.com.google.common.collect.ImmutableMap;
@@ -43,6 +44,7 @@ public class TestStandardGobblinInstanceDriver {
   public void testBuilder() {
     Config instanceCfg = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
         .put(StandardGobblinInstanceDriver.PLUGINS_FULL_KEY, "fake1")
+        .put(EmailNotificationPlugin.EMAIL_NOTIFICATIONS_DISABLED_KEY, Boolean.valueOf(true))
         .build());
     GobblinInstanceEnvironment mockEnv = Mockito.mock(GobblinInstanceEnvironment.class);
     Mockito.when(mockEnv.getSysConfig())
