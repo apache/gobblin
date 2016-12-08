@@ -21,9 +21,9 @@ We are moving non-core functionality which may bring conflicting or large extern
 For example, currently we have:
 
 - `gobblin-kafka-08` - source, writer, metrics reporter using Kafka 0.8 API
-- `gobblin-metrics-graphite' - metrics reporter to Graphite
+- `gobblin-metrics-graphite` - metrics reporter to Graphite
 
-Other libraries can refer to those 
+Other libraries can refer to those modules using standard Gradle dependencies.
 
 ## Gobblin flavor
 
@@ -32,7 +32,7 @@ We have added a build property `gobblinFlavor` which controls what modules to be
     ./gradlew -PgobblinFlavor=minimal build
 ```
 
-Gobblin libraries that support customization can add build files like `gobblin-flavor-&lt;FLAVOR&gt;.gradle` which declare the dependencies. For example, let's look at the current `gobblin-core/gobblin-flavor-standard.gradle` :
+Gobblin libraries that support customization can add build files like `gobblin-flavor-<FLAVOR>.gradle` which declare the dependencies. For example, let's look at the current `gobblin-core/gobblin-flavor-standard.gradle` :
 
 ```
 dependencies {
@@ -42,20 +42,20 @@ dependencies {
 
 That specifies that the "standard" flavor of Gobblin will include the Kafka 0.8 source, writer and metric reporter.
 
-When one specifies the `-PgobblinFlavor=&lt;FLAVOR&gt;` during build time, the build script will automatically include the dependencies specified in the corresponding `gobblin-flavor-&lt;FLAVOR&gt;.gradle` files in any library the includes it.
+When one specifies the `-PgobblinFlavor=<FLAVOR>` during build time, the build script will automatically include the dependencies specified in the corresponding `gobblin-flavor-<FLAVOR>.gradle` files in any library that contains such file.
 
 Currently, Gobblin defines 4 flavors out of the box:
 
 - minimal - no modules
 - standard - standard modules for frequently used components. This is the flavor used if none is explicitly specified
 - full - all non-conflicting modules
-- custom - by default, like minimal but let's users modify and customize the dependencies to be included.
+- custom - by default, like minimal but lets users/developers modify and customize the dependencies to be included.
 
-Users can define their own flavor files.
+Users/developers can define their own flavor files.
 
 # Current flavors and modules
 
-| Module           | Flavor         | Description |
+| Module           | Flavors         | Description |
 |------------------|----------------|-------------|
 | gobblin-kafka-08 | standard, full | Source, writer and metrics reporter using Kafka 0.8 APIs |
 | gobblin-kafka-09 |  | Source, writer and metrics reporter using Kafka 0.9 APIs |
@@ -68,4 +68,4 @@ Users can define their own flavor files.
 
 We are in the process of moving existing external dependencies out of `gobblin-core` into separate modules. To preserve backwards compatibility, we will preserve package and class names and make the "standard" flavor of `gobblin-core` depend on these modules.
 
-In the future, new external source, writer and other dependencies are expected to be added directly to gobblin-modules/. Further, we may decide to switch modules between flavors to conrol the number of external dependencies. This will be always be done with advanced notice.
+In the future, new external source, writer and other dependencies are expected to be added directly to gobblin-modules/. Further, we may decide to switch modules between flavors to conrol the number of external dependencies. This will always be done with advanced notice.
