@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.writer.ThrottleWriter.ThrottleType;
+import gobblin.util.FinalState;
 
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.mockito.invocation.InvocationOnMock;
@@ -46,7 +47,6 @@ public class ThrottleWriterTest {
       count++;
     }
 
-    System.out.println(count);
     int expected = (int) (qps * duration);
     Assert.assertTrue(count <= expected + qps * 2, "Request too high " + count + " , QPS " + qps + " for duration " + duration + " second ");
     Assert.assertTrue(count >= expected - qps * 2, "Request too low " + count + " , QPS " + qps + " for duration " + duration + " second ");
@@ -75,10 +75,20 @@ public class ThrottleWriterTest {
       count++;
     }
 
-    System.out.println(count);
     int expected = (int) (bps * duration);
     Assert.assertTrue(count <= expected + bps * 2);
     Assert.assertTrue(count >= expected - bps * 2);
+  }
+
+  public void testGetFinalState() throws IOException {
+    PartitionedDataWriter writer = mock(PartitionedDataWriter.class);
+    int parallelism = 2;
+    int qps = 4;
+    DataWriter<Void> throttleWriter = setup(writer, parallelism, qps, ThrottleType.QPS);
+
+    ((FinalState)throttleWriter).getFinalState();
+
+    verify(writer, times(1)).getFinalState();
   }
 
   private DataWriter<Void> setup(DataWriter<Void> writer, int parallelism, int rate, ThrottleType type) throws IOException {

@@ -16,6 +16,7 @@ import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.writer.exception.NonTransientException;
+import gobblin.util.FinalState;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
@@ -40,7 +41,7 @@ import com.google.common.base.Predicate;
  * Retry writer follows decorator pattern that retries on inner writer's failure.
  * @param <D>
  */
-public class RetryWriter<D> implements DataWriter<D>, SpeculativeAttemptAwareConstruct {
+public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
   private static final Logger LOG = LoggerFactory.getLogger(RetryWriter.class);
   public static final String RETRY_CONF_PREFIX = "gobblin.writer.retry.";
   public static final String FAILED_RETRY_WRITES_METER = RETRY_CONF_PREFIX + "failed_writes";
@@ -171,5 +172,14 @@ public class RetryWriter<D> implements DataWriter<D>, SpeculativeAttemptAwareCon
       return ((SpeculativeAttemptAwareConstruct)this.writer).isSpeculativeAttemptSafe();
     }
     return false;
+  }
+
+  @Override
+  public State getFinalState() {
+    if (this.writer instanceof FinalState) {
+      return ((FinalState)this.writer).getFinalState();
+    }
+    LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
+    return new State();
   }
 }

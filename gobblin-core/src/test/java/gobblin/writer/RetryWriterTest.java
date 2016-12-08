@@ -17,6 +17,7 @@ import java.io.IOException;
 
 import gobblin.configuration.State;
 import gobblin.writer.exception.NonTransientException;
+import gobblin.util.FinalState;
 
 import org.junit.Assert;
 import org.testng.annotations.Test;
@@ -60,5 +61,15 @@ public class RetryWriterTest {
     retryWriter.write(null);
 
     verify(writer, times(1)).write(null);
+  }
+
+  public void retryGetFinalState() throws IOException {
+    PartitionedDataWriter writer = mock(PartitionedDataWriter.class);
+
+    DataWriterWrapperBuilder<Void> builder = new DataWriterWrapperBuilder<>(writer, new State());
+    DataWriter<Void> retryWriter = builder.build();
+    ((FinalState)retryWriter).getFinalState();
+
+    verify(writer, times(1)).getFinalState();
   }
 }

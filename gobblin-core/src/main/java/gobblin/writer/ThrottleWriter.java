@@ -28,12 +28,13 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.util.FinalState;
 
 /**
  * Throttle writer follows decorator pattern that throttles inner writer by either QPS or by bytes.
  * @param <D>
  */
-public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
+public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
   private static final Logger LOG = LoggerFactory.getLogger(ThrottleWriter.class);
   public static final String WRITER_THROTTLE_TYPE_KEY = "gobblin.writer.throttle_type";
   public static final String WRITER_LIMIT_RATE_LIMIT_KEY = "gobblin.writer.throttle_rate";
@@ -181,5 +182,14 @@ public class ThrottleWriter<D> implements DataWriter<D>, Retriable {
       return ((Retriable) writer).getRetryerBuilder();
     }
     return RetryWriter.createRetryBuilder(state);
+  }
+
+  @Override
+  public State getFinalState() {
+    if (this.writer instanceof FinalState) {
+      return ((FinalState)this.writer).getFinalState();
+    }
+    LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
+    return new State();
   }
 }
