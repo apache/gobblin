@@ -12,15 +12,6 @@
 
 package gobblin.source.extractor.extract.jdbc;
 
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.exception.HighWatermarkException;
-import gobblin.source.extractor.exception.RecordCountException;
-import gobblin.source.extractor.exception.SchemaException;
-import gobblin.source.extractor.extract.Command;
-import gobblin.source.extractor.utils.Utils;
-import gobblin.source.extractor.watermark.Predicate;
-import gobblin.source.extractor.watermark.WatermarkType;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,7 +26,16 @@ import com.google.gson.JsonElement;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.exception.HighWatermarkException;
+import gobblin.source.extractor.exception.RecordCountException;
+import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.extract.Command;
+import gobblin.source.extractor.utils.Utils;
+import gobblin.source.extractor.watermark.Predicate;
+import gobblin.source.extractor.watermark.WatermarkType;
 import gobblin.source.workunit.WorkUnit;
+
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -175,6 +175,12 @@ public class MysqlExtractor extends JdbcExtractor {
       return url + "?useCompression=true";
     }
     return url;
+  }
+
+  /** {@inheritdoc} */
+  @Override
+  protected boolean convertBitToBoolean() {
+    return false;
   }
 
   @Override
