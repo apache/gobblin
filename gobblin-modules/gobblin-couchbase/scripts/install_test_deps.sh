@@ -8,5 +8,5 @@ if [ -d mock-couchbase/.git ];
     git clone https://github.com/couchbase/CouchbaseMock.git mock-couchbase
   fi
 pushd mock-couchbase
-mvn install
+mvn package -Dmaven.test.skip=true
 popd
