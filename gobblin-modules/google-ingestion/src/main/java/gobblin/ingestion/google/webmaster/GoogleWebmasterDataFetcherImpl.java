@@ -120,20 +120,25 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       for (int i = 0; i < count; ++i) {
         startRow += GoogleWebmasterClient.API_ROW_LIMIT;
         final int start = startRow;
+        //Submit the job.
         Future<Integer> submit = es.submit(new Callable<Integer>() {
           @Override
           public Integer call() {
             LOG.info(String.format("Getting page size from %s...", start));
             while (true) {
+              if (Thread.interrupted()) {
+                LOG.error(String.format(
+                    "Interrupted while trying to get the size of all pages for %s. Current start row is %d.", country,
+                    start));
+                return -1;
+              }
               try {
                 List<String> pages =
                     _client.getPages(_siteProperty, startDate, endDate, country, GoogleWebmasterClient.API_ROW_LIMIT,
                         requestedDimensions, apiDimensionFilters, start);
                 if (pages.size() < GoogleWebmasterClient.API_ROW_LIMIT) {
-                  //Figured out the size
-                  return pages.size() + start;
+                  return pages.size() + start;  //Figured out the size
                 } else {
-                  //The size is not determined.
                   return -1;
                 }
               } catch (IOException e) {
@@ -143,12 +148,18 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
                 Thread.sleep(200);
               } catch (InterruptedException e) {
                 LOG.error(e.getMessage());
+                LOG.error(String.format(
+                    "Interrupted while trying to get the size of all pages for %s. Current start row is %d.", country,
+                    start));
+                return -1;
               }
             }
           }
         });
+
         results.add(submit);
         try {
+          //Not a random number on a whim, this is a good practical number
           Thread.sleep(250);
         } catch (InterruptedException e) {
           LOG.error(e.getMessage());
@@ -167,6 +178,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         } catch (ExecutionException e) {
           throw new RuntimeException(e);
         } catch (TimeoutException e) {
+          LOG.error("Exceeding the timeout of 2 minutes to get the total size of pages.");
           throw new RuntimeException(e);
         }
       }
@@ -202,6 +214,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       while (!toProcess.isEmpty()) {
         submitJob(toProcess.poll(), countryFilter, startDate, endDate, dimensions, es, allPages, nextRound);
         try {
+          //Not a random number on a whim, this is a good practical number
           Thread.sleep(275); //Submit roughly 4 jobs per second.
         } catch (InterruptedException ignored) {
         }
