@@ -26,7 +26,7 @@ import gobblin.test.TestUtils;
 public class CouchbaseTestServer {
 
   private static final String COUCHBASE_JAR_PATH="gobblin-modules/gobblin-couchbase/mock-couchbase/target/";
-  private static final String COUCHBASE_MOCK_JAR=COUCHBASE_JAR_PATH + "CouchbaseMock-1.4.3.jar";
+  private static final String COUCHBASE_MOCK_JAR=COUCHBASE_JAR_PATH + "CouchbaseMock-1.*.jar";
 
 
   private Process couchbaseProcess;

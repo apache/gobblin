@@ -131,7 +131,7 @@ public class AsyncBestEffortDataWriter<D> extends InstrumentedDataWriter<D> {
   @Override
   public void commit()
       throws IOException {
-    log.debug("Commit called, will wait for commitTimeout : " + commitTimeoutInNanos / MILLIS_TO_NANOS + "ms");
+    log.debug("Commit called, will wait for committimeout : " + commitTimeoutInNanos / MILLIS_TO_NANOS + "ms");
     long commitStartTime = System.nanoTime();
     while (((System.nanoTime() - commitStartTime) < commitTimeoutInNanos)  &&
         (recordsAttempted.getCount() != (recordsSuccess.getCount() + recordsFailed.getCount())))
