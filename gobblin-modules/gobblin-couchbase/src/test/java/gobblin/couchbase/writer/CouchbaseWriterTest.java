@@ -15,31 +15,52 @@
 package gobblin.couchbase.writer;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.testng.Assert;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
+import com.couchbase.client.java.document.JsonDocument;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
+import gobblin.couchbase.CouchbaseTestServer;
 import gobblin.couchbase.common.TupleDocument;
 import gobblin.couchbase.converter.AvroToCouchbaseTupleConverter;
+import gobblin.test.TestUtils;
 
 
 public class CouchbaseWriterTest {
 
+  private CouchbaseTestServer _couchbaseTestServer;
+
+  @BeforeSuite
+  public void startServers()
+  {
+    _couchbaseTestServer = new CouchbaseTestServer(TestUtils.findFreePort());
+    _couchbaseTestServer.start();
+  }
+
+  @AfterSuite
+  public void stopServers()
+  {
+    _couchbaseTestServer.stop();
+  }
 
   @Test
-  public void testStringWrite()
+  public void testTupleDocumentWrite()
       throws IOException, DataConversionException {
     Properties props = new Properties();
-    props.setProperty(CouchbaseWriterConfigurationKeys.BOOTSTRAP_SERVERS, "localhost");
+    props.setProperty(CouchbaseWriterConfigurationKeys.BOOTSTRAP_SERVERS, "localhost:"+_couchbaseTestServer.getPort());
     props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
     Config config = ConfigFactory.parseProperties(props);
 
@@ -60,8 +81,10 @@ public class CouchbaseWriterTest {
     GenericData.Record testRecord = new GenericData.Record(schema);
 
 
+    String testContent = "hello world";
+
     GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
-    dataRecord.put("data", "hello world".getBytes());
+    dataRecord.put("data", testContent.getBytes(Charset.forName("UTF-8")));
     dataRecord.put("flags", 0);
 
     testRecord.put("key", "hello");
@@ -72,6 +95,16 @@ public class CouchbaseWriterTest {
     TupleDocument doc = recordConverter.convertRecord("", testRecord, null).iterator().next();
     writer.write(doc);
 
+    TupleDocument returnDoc = writer.getBucket().get("hello", TupleDocument.class);
+
+    byte[] returnedBytes = new byte[returnDoc.content().value1().readableBytes()];
+    returnDoc.content().value1().readBytes(returnedBytes);
+    Assert.assertEquals(returnedBytes, testContent.getBytes(Charset.forName("UTF-8")));
+
+    int returnedFlags = returnDoc.content().value2();
+    Assert.assertEquals(returnedFlags, 0);
+
   }
+
 
 }

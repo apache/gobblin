@@ -39,6 +39,16 @@ dependencies {
   testCompile externalDependency.testng
 }
 
+
+task installTestDependencies(type:Exec) {
+  workingDir "${project.rootDir}/gobblin-modules/gobblin-couchbase/"
+  commandLine './scripts/install_test_deps.sh'
+}
+
+
+test.dependsOn installTestDependencies
+
+
 configurations {
   compile { transitive = false }
   // Remove xerces dependencies because of versioning issues. Standard JRE implementation should

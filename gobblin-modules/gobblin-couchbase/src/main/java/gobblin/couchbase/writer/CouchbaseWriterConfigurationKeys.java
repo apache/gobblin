@@ -27,5 +27,6 @@ public class CouchbaseWriterConfigurationKeys {
   public static final List<String> BOOTSTRAP_SERVERS_DEFAULT= Collections.singletonList("localhost");
 
   public static final String BUCKET=prefix("bucket");
+  public static final String PASSWORD = prefix("password");
 
 }

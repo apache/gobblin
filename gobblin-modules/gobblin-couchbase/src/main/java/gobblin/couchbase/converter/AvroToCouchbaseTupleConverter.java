@@ -14,15 +14,10 @@
 
 package gobblin.couchbase.converter;
 
-import java.nio.ByteBuffer;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.commons.collections.iterators.SingletonIterator;
 
 import com.couchbase.client.core.lang.Tuple;
-import com.couchbase.client.core.lang.Tuple2;
-import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.deps.io.netty.buffer.Unpooled;
 
 import gobblin.configuration.WorkUnitState;

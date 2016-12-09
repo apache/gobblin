@@ -26,6 +26,7 @@ import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.document.AbstractDocument;
 import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.transcoder.Transcoder;
 import com.typesafe.config.Config;
@@ -35,14 +36,18 @@ import gobblin.instrumented.writer.InstrumentedDataWriter;
 import gobblin.util.ConfigUtils;
 
 
-
-public class CouchbaseWriter extends InstrumentedDataWriter<TupleDocument> {
+/**
+ * A single bucket couchbase writer.
+ * @param <D>
+ */
+public class CouchbaseWriter<D extends AbstractDocument> extends InstrumentedDataWriter<D> {
 
   private final Cluster _cluster;
   private final Bucket _bucket;
   private Long _recordsWritten = 0L;
 
-  private final Transcoder<TupleDocument, Tuple2<ByteBuf, Integer>> _defaultTranscoder =
+  // A basic transcoder that just passes through the embedded binary content.
+  private final Transcoder<TupleDocument, Tuple2<ByteBuf, Integer>> _tupleDocumentTranscoder =
       new Transcoder<TupleDocument, Tuple2<ByteBuf, Integer>>()
       {
         @Override
@@ -100,10 +105,17 @@ public class CouchbaseWriter extends InstrumentedDataWriter<TupleDocument> {
       throw new RuntimeException("Need a valid bucket name");
     }
 
-    String password = "";
-    _bucket = _cluster.openBucket(bucketName, password,
-        Collections.<Transcoder<? extends Document, ?>>singletonList(_defaultTranscoder));
+    String password = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.PASSWORD, "");
 
+    _bucket = _cluster.openBucket(bucketName, password,
+        Collections.<Transcoder<? extends Document, ?>>singletonList(_tupleDocumentTranscoder));
+
+  }
+
+
+  Bucket getBucket()
+  {
+    return _bucket;
   }
 
   @Override
@@ -124,14 +136,14 @@ public class CouchbaseWriter extends InstrumentedDataWriter<TupleDocument> {
   }
 
   @Override
-  public void writeImpl(TupleDocument record)
+  public void writeImpl(D record)
       throws IOException {
 
     try {
       _bucket.upsert(record);
       _recordsWritten++;
     } catch (Exception e) {
-      throw new IOException("Failed to write to couchbase cluster", e);
+      throw new IOException("Failed to write to Couchbase cluster", e);
     }
   }
 
