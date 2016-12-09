@@ -216,7 +216,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         try {
           //Not a random number on a whim, this is a good practical number
           Thread.sleep(275); //Submit roughly 4 jobs per second.
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
         }
       }
       //wait for jobs to finish and start next round if necessary.
