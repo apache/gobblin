@@ -14,10 +14,13 @@
 
 package gobblin.couchbase.converter;
 
+import java.nio.charset.Charset;
+
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import gobblin.converter.Converter;
@@ -45,8 +48,9 @@ public class AvroToCouchbaseTupleConverterTest {
     GenericData.Record testRecord = new GenericData.Record(schema);
 
 
+    String testContent = "hello world";
     GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
-    dataRecord.put("data", "hello world".getBytes());
+    dataRecord.put("data", testContent.getBytes(Charset.forName("UTF-8")));
     dataRecord.put("flags", 0);
 
     testRecord.put("key", "hello");
@@ -54,7 +58,14 @@ public class AvroToCouchbaseTupleConverterTest {
 
     Converter<Schema, String, GenericRecord, TupleDocument> recordConverter = new AvroToCouchbaseTupleConverter();
 
-    TupleDocument doc = recordConverter.convertRecord("", testRecord, null).iterator().next();
+    TupleDocument returnDoc = recordConverter.convertRecord("", testRecord, null).iterator().next();
+    byte[] returnedBytes = new byte[returnDoc.content().value1().readableBytes()];
+    returnDoc.content().value1().readBytes(returnedBytes);
+    Assert.assertEquals(returnedBytes, testContent.getBytes(Charset.forName("UTF-8")));
+
+    int returnedFlags = returnDoc.content().value2();
+    Assert.assertEquals(returnedFlags, 0);
+
   }
 
 }
