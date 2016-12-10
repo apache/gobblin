@@ -25,6 +25,7 @@ import java.util.Arrays;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.CouchbaseCluster;
@@ -70,7 +71,9 @@ public class CouchbaseTestServer {
       "-R",
       "0",
       "-b",
-      "default:"};
+      "default:",
+      "--host",
+      "127.0.0.1"};
 
     try {
       System.out.println("Will run command " + Arrays.toString(commands));
@@ -162,7 +165,8 @@ public class CouchbaseTestServer {
   }
 
 
-  public static void main(String[] args)
+  @Test
+  public static void testServer()
       throws InterruptedException, IOException {
     CouchbaseTestServer couchbaseTestServer = new CouchbaseTestServer(TestUtils.findFreePort());
     couchbaseTestServer.start();
@@ -177,15 +181,16 @@ public class CouchbaseTestServer {
           .bootstrapHttpDirectPort(port)
           .bootstrapCarrierDirectPort(serverPort)
           .bootstrapCarrierEnabled(true).build();
-      CouchbaseCluster cbCluster = CouchbaseCluster.create(cbEnv);
+      CouchbaseCluster cbCluster = CouchbaseCluster.create(cbEnv, "localhost");
       Bucket bucket = cbCluster.openBucket("default","");
-      while (true)
-      {
-        Thread.sleep(500);
+      try {
         JsonObject content = JsonObject.empty().put("name", "Michael");
         JsonDocument doc = JsonDocument.create("docId", content);
         JsonDocument inserted = bucket.insert(doc);
-        System.out.write(".".getBytes());
+      }
+      catch (Exception e)
+      {
+        Assert.fail("Should not throw exception on insert", e);
       }
     }
     finally
