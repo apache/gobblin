@@ -67,7 +67,7 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
       JsonObject map = (JsonObject) elem;
 
       String columnName = map.get("columnName").getAsString();
-      String comment = map.get("comment").getAsString();
+      String comment = map.has("comment") ? map.get("comment").getAsString() : "";
       boolean nullable = map.has("isNullable") ? map.get("isNullable").getAsBoolean() : false;
       Schema fldSchema;
 
