@@ -27,7 +27,11 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
-import com.couchbase.client.java.document.JsonDocument;
+import com.couchbase.client.java.Bucket;
+import com.couchbase.client.java.CouchbaseBucket;
+import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.env.CouchbaseEnvironment;
+import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -42,12 +46,20 @@ import gobblin.test.TestUtils;
 public class CouchbaseWriterTest {
 
   private CouchbaseTestServer _couchbaseTestServer;
+  private CouchbaseEnvironment _couchbaseEnvironment;
 
   @BeforeSuite
   public void startServers()
   {
     _couchbaseTestServer = new CouchbaseTestServer(TestUtils.findFreePort());
     _couchbaseTestServer.start();
+
+    _couchbaseEnvironment = DefaultCouchbaseEnvironment.builder().bootstrapHttpEnabled(true)
+        .bootstrapHttpDirectPort(_couchbaseTestServer.getPort())
+        .bootstrapCarrierDirectPort(_couchbaseTestServer.getServerPort())
+        .bootstrapCarrierEnabled(false)
+        .kvTimeout(10000)
+        .build();
   }
 
   @AfterSuite
@@ -60,11 +72,10 @@ public class CouchbaseWriterTest {
   public void testTupleDocumentWrite()
       throws IOException, DataConversionException {
     Properties props = new Properties();
-    props.setProperty(CouchbaseWriterConfigurationKeys.BOOTSTRAP_SERVERS, "localhost:"+_couchbaseTestServer.getPort());
     props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
     Config config = ConfigFactory.parseProperties(props);
 
-    CouchbaseWriter writer = new CouchbaseWriter(config);
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
 
     Schema dataRecordSchema = SchemaBuilder.record("Data")
         .fields()

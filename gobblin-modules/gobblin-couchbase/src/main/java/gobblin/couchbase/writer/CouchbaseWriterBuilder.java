@@ -17,6 +17,8 @@ package gobblin.couchbase.writer;
 import java.io.IOException;
 import java.util.Properties;
 
+import com.couchbase.client.java.env.CouchbaseEnvironment;
+import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.State;
@@ -34,7 +36,7 @@ public class CouchbaseWriterBuilder extends DataWriterBuilder {
     State state = this.destination.getProperties();
     Properties taskProps = state.getProperties();
     Config config = ConfigUtils.propertiesToConfig(taskProps);
-
-    return new CouchbaseWriter(config);
+    CouchbaseEnvironment couchbaseEnvironment = DefaultCouchbaseEnvironment.create();
+    return new CouchbaseWriter(couchbaseEnvironment, config);
   }
 }

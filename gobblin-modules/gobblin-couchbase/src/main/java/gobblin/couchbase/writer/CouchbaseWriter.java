@@ -28,6 +28,7 @@ import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.AbstractDocument;
 import com.couchbase.client.java.document.Document;
+import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.transcoder.Transcoder;
 import com.typesafe.config.Config;
 
@@ -84,20 +85,12 @@ public class CouchbaseWriter<D extends AbstractDocument> extends InstrumentedDat
         }
       };
 
-  public CouchbaseWriter(Config config) {
+  public CouchbaseWriter(CouchbaseEnvironment couchbaseEnvironment, Config config) {
     super(ConfigUtils.configToState(config));
-    List<String> bootstrapServers = ConfigUtils.getStringList(config,
-        CouchbaseWriterConfigurationKeys.BOOTSTRAP_SERVERS);
 
-    if (bootstrapServers.isEmpty()) {
-      bootstrapServers = CouchbaseWriterConfigurationKeys.BOOTSTRAP_SERVERS_DEFAULT;
-    }
-
-    _cluster = CouchbaseCluster.create(bootstrapServers);
+    _cluster = CouchbaseCluster.create(couchbaseEnvironment);
 
     String bucketName = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.BUCKET, null);
-
-
 
     if (bucketName == null)
     {
