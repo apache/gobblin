@@ -6,6 +6,8 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
+import com.google.common.base.Optional;
+import gobblin.util.ExecutorsUtils;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -108,16 +110,20 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private int getPagesSize(final String startDate, final String endDate, final String country,
       final List<Dimension> requestedDimensions, final List<ApiDimensionFilter> apiDimensionFilters)
       throws IOException {
+    int REQUESTS_COUNT_EACH_ROUND = 4;
+    //Each round will give you 20K(4*5000) pages. Doing 100 rounds can give 2 million pages.
+    //Normally 1 week has less than 200K pages. So 2 million pages are more than enough.
+    int MAXIMUM_ROUNDS = 100;
+    final ExecutorService es = Executors.newFixedThreadPool(REQUESTS_COUNT_EACH_ROUND,
+        ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOG), Optional.of(this.getClass().getSimpleName())));
 
     int startRow = 0;
-    int count = 4;
-    final ExecutorService es = Executors.newFixedThreadPool(count);
     int r = 0;
-    while (r < 50) {
+    while (r < MAXIMUM_ROUNDS) {
       r++;
-      List<Future<Integer>> results = new ArrayList<>(count);
+      List<Future<Integer>> results = new ArrayList<>(REQUESTS_COUNT_EACH_ROUND);
 
-      for (int i = 0; i < count; ++i) {
+      for (int i = 0; i < REQUESTS_COUNT_EACH_ROUND; ++i) {
         startRow += GoogleWebmasterClient.API_ROW_LIMIT;
         final int start = startRow;
         //Submit the job.
@@ -159,7 +165,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
         results.add(submit);
         try {
-          //Not a random number on a whim, this is a good practical number
+          //Send 4 jobs per second.
           Thread.sleep(250);
         } catch (InterruptedException e) {
           LOG.error(e.getMessage());
@@ -183,7 +189,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         }
       }
     }
-    throw new RuntimeException("Something seems wrong here. Having more than 5000*4*50 pages?");
+    throw new RuntimeException(String.format("Exceeding the limit of getting pages count. Having more than %d pages?",
+        GoogleWebmasterClient.API_ROW_LIMIT * REQUESTS_COUNT_EACH_ROUND * MAXIMUM_ROUNDS));
   }
 
   /**
@@ -195,21 +202,17 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
     ConcurrentLinkedDeque<String> allPages = new ConcurrentLinkedDeque<>();
     Random random = new Random();
-    //we need to retry many times because the path may be very long
+    //we need to retry many times because
+    // 1. the shared prefix path may be very long
+    // 2. the number of retries
     final int retry = 120;
     int r = 0;
     while (r <= retry) {
       ++r;
       LOG.info(String.format("Get pages at round %d with size %d.", r, toProcess.size()));
       ConcurrentLinkedDeque<Pair<String, FilterOperator>> nextRound = new ConcurrentLinkedDeque<>();
-      ExecutorService es = Executors.newFixedThreadPool(10, new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable r) {
-          Thread t = Executors.defaultThreadFactory().newThread(r);
-          t.setDaemon(true);
-          return t;
-        }
-      });
+      ExecutorService es = Executors.newFixedThreadPool(10,
+          ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOG), Optional.of(this.getClass().getSimpleName())));
 
       while (!toProcess.isEmpty()) {
         submitJob(toProcess.poll(), countryFilter, startDate, endDate, dimensions, es, allPages, nextRound);
@@ -232,7 +235,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
               String.format("Timed out while getting all pages for country-%s at round %d. Next round now has size %d.",
                   country, r, nextRound.size()));
         }
-        //Cool down before next round.
+        //Cool down before next round. Starting from about 1/3 of a second.
         Thread.sleep(333 + 50 * random.nextInt(r));
       } catch (InterruptedException e) {
         throw new RuntimeException(e);

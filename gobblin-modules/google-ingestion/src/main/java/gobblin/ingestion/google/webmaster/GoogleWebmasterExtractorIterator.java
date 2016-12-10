@@ -7,7 +7,9 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
+import com.google.common.base.Optional;
 import gobblin.configuration.WorkUnitState;
+import gobblin.util.ExecutorsUtils;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -213,14 +215,8 @@ class GoogleWebmasterExtractorIterator {
         int checkPoint = Math.max(1, (int) Math.round(Math.ceil(totalPages / REPORT_PARTITIONS)));
         //retries needs to be concurrent because multiple threads will write to it.
         ConcurrentLinkedDeque<ProducerJob> retries = new ConcurrentLinkedDeque<>();
-        ExecutorService es = Executors.newFixedThreadPool(10, new ThreadFactory() {
-          @Override
-          public Thread newThread(Runnable r) {
-            Thread t = Executors.defaultThreadFactory().newThread(r);
-            t.setDaemon(true);
-            return t;
-          }
-        });
+        ExecutorService es = Executors.newFixedThreadPool(10,
+            ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOG), Optional.of(this.getClass().getSimpleName())));
 
         int checkPointCount = 0;
         int totalProcessed = 0;
