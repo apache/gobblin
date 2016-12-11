@@ -38,6 +38,7 @@ import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.LiAvroDeserializer;
 import gobblin.kafka.serialize.LiAvroSerializer;
 import gobblin.test.TestUtils;
+import gobblin.writer.WriteCallback;
 
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
@@ -86,10 +87,9 @@ public class Kafka09DataWriterTest {
     Kafka09DataWriter<String> kafka09DataWriter = new Kafka09DataWriter<String>(props);
     String messageString = "foobar";
     WriteCallback callback = mock(WriteCallback.class);
-    kafka09DataWriter.setDefaultCallback(callback);
 
     try {
-      kafka09DataWriter.asyncWrite(messageString);
+      kafka09DataWriter.asyncWrite(messageString, callback);
     }
     finally
     {
@@ -115,11 +115,10 @@ public class Kafka09DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     Kafka09DataWriter<byte[]> kafka09DataWriter = new Kafka09DataWriter<byte[]>(props);
     WriteCallback callback = mock(WriteCallback.class);
-    kafka09DataWriter.setDefaultCallback(callback);
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
-      kafka09DataWriter.asyncWrite(messageBytes);
+      kafka09DataWriter.asyncWrite(messageBytes, callback);
     }
     finally
     {
@@ -152,11 +151,10 @@ public class Kafka09DataWriterTest {
 
     Kafka09DataWriter<GenericRecord> kafka09DataWriter = new Kafka09DataWriter<>(props);
     WriteCallback callback = mock(WriteCallback.class);
-    kafka09DataWriter.setDefaultCallback(callback);
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
-      kafka09DataWriter.asyncWrite(record);
+      kafka09DataWriter.asyncWrite(record, callback);
     }
     finally
     {

@@ -27,6 +27,8 @@ import com.typesafe.config.Config;
 
 import gobblin.configuration.State;
 import gobblin.util.ConfigUtils;
+import gobblin.writer.AsyncBestEffortDataWriter;
+import gobblin.writer.AsyncDataWriter;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.PartitionAwareDataWriterBuilder;
@@ -68,6 +70,7 @@ public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schem
         .commitTimeoutInNanos(commitTimeoutInNanos)
         .commitStepWaitTimeInMillis(commitStepWaitTimeMillis)
         .failureAllowance(failureAllowance)
+        .retriesEnabled(false)
         .asyncDataWriter(getAsyncDataWriter(taskProps))
         .build();
   }

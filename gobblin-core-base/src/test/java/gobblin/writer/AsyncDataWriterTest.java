@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package gobblin.writer;
 
 import java.io.IOException;
 
@@ -42,14 +42,13 @@ public class AsyncDataWriterTest {
   {
 
     TimingManager timingManager;
-    WriteCallback writeCallback;
 
     public FakeTimedAsyncWriter(TimingManager timingManager) {
       this.timingManager = timingManager;
     }
 
     @Override
-    public void asyncWrite(Object record) {
+    public void asyncWrite(Object record, final WriteCallback callback) {
       final TimingResult result = this.timingManager.nextTime();
       log.debug("sync: " + result.isSync + " time : " + result.timeValueMillis);
       if (result.isSync)
@@ -58,7 +57,7 @@ public class AsyncDataWriterTest {
           Thread.sleep(result.timeValueMillis);
         } catch (InterruptedException e) {
         }
-        writeCallback.onSuccess();
+        callback.onSuccess();
       }
       else
       {
@@ -70,17 +69,13 @@ public class AsyncDataWriterTest {
               Thread.sleep(result.timeValueMillis);
             } catch (InterruptedException e) {
             }
-            writeCallback.onSuccess();
+            callback.onSuccess();
           }
         });
         t.start();
       }
     }
 
-    @Override
-    public void setDefaultCallback(WriteCallback callback) {
-      writeCallback = callback;
-    }
 
     @Override
     public void cleanup()
@@ -168,19 +163,13 @@ public class AsyncDataWriterTest {
   public class FlakyAsyncWriter<D> implements AsyncDataWriter<D> {
 
     private final ErrorManager errorManager;
-    private WriteCallback callback;
 
     public FlakyAsyncWriter(ErrorManager errorManager) {
       this.errorManager = errorManager;
     }
 
     @Override
-    public void setDefaultCallback(WriteCallback callback) {
-      this.callback = callback;
-    }
-
-    @Override
-    public void asyncWrite(D record) {
+    public void asyncWrite(D record, WriteCallback callback) {
       boolean error = errorManager.nextError(record);
       if (errorManager.nextError(record))
       {

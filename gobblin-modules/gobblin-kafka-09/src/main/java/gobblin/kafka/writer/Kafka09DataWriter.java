@@ -35,6 +35,8 @@ import com.typesafe.config.ConfigFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.util.ConfigUtils;
+import gobblin.writer.AsyncDataWriter;
+import gobblin.writer.WriteCallback;
 
 import static gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
 /**
@@ -47,7 +49,6 @@ import static gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
 public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
 
   private final Producer<String, D> producer;
-  private Callback producerCallback;
   private final String topic;
 
   public static Producer getKafkaProducer(Properties props)
@@ -71,7 +72,6 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
   {
     this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
     this.producer = producer;
-    this.producerCallback = null;
   }
 
   @Override
@@ -95,26 +95,22 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
     return -1;
   }
 
-  @Override
-  public void setDefaultCallback(final WriteCallback callback) {
-    this.producerCallback = new Callback() {
-      @Override
-      public void onCompletion(RecordMetadata metadata, Exception exception) {
-        if (exception != null)
-        {
-          callback.onFailure(exception);
-        }
-        else
-        {
-          callback.onSuccess();
-        }
-      }
-    };
-  }
-
 
   @Override
-  public void asyncWrite(D record) {
-    this.producer.send(new ProducerRecord<String, D>(topic, record), this.producerCallback);
+  public void asyncWrite(D record, final WriteCallback callback) {
+    this.producer.send(new ProducerRecord<String, D>(topic, record),
+        new Callback() {
+          @Override
+          public void onCompletion(RecordMetadata metadata, Exception exception) {
+            if (exception != null)
+            {
+              callback.onFailure(exception);
+            }
+            else
+            {
+              callback.onSuccess();
+            }
+          }
+        });
   }
 }

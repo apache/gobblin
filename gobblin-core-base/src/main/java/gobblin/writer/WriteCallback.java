@@ -15,25 +15,11 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package gobblin.writer;
 
-import java.io.Closeable;
-import java.io.IOException;
+public interface WriteCallback {
 
+  public void onSuccess();
 
-/**
- * Created by sdas on 11/26/16.
- */
-public interface AsyncDataWriter<D> extends Closeable {
-
-  void setDefaultCallback(WriteCallback callback);
-
-  void asyncWrite(D record);
-
-  void cleanup() throws IOException;
-
-  long bytesWritten();
-
-  //public void asyncWrite(D record, WriteCallback<SuccessType> callback);
-
+  public void onFailure(Exception exception);
 }

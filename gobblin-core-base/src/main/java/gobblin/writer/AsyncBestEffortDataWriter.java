@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package gobblin.writer;
 
 import java.io.IOException;
 
@@ -40,6 +40,7 @@ import gobblin.util.ConfigUtils;
  * 1. Calculates metrics for the total number of records attempted, successfully written and failed.
  * 2. Waits for a specified amount of time on commit for all pending writes to complete.
  * 3. Do not proceed if a certain failure threshold is exceeded.
+ * 4. Support a fixed number of retries on failure of individual records
  *
  */
 @Slf4j
@@ -51,6 +52,8 @@ public class AsyncBestEffortDataWriter<D> extends InstrumentedDataWriter<D> {
   public static final long COMMIT_TIMEOUT_IN_NANOS_DEFAULT = 60000L * MILLIS_TO_NANOS; // 1 minute
   public static final long COMMIT_STEP_WAITTIME_MILLIS_DEFAULT = 500; // 500 ms sleep while waiting for commit
   public static final double FAILURE_ALLOWANCE_DEFAULT = 0.0;
+  public static final boolean RETRIES_ENABLED_DEFAULT = true;
+  public static final int NUM_RETRIES_DEFAULT = 5;
 
   @VisibleForTesting
   final Meter recordsAttempted;
@@ -63,6 +66,9 @@ public class AsyncBestEffortDataWriter<D> extends InstrumentedDataWriter<D> {
   private final double failureAllowance;
   private final AsyncDataWriter asyncDataWriter;
   private final WriteCallback writeCallback;
+  private final boolean retriesEnabled;
+  private final int numRetries;
+
 
 
   protected AsyncBestEffortDataWriter(Config config,
@@ -72,6 +78,8 @@ public class AsyncBestEffortDataWriter<D> extends InstrumentedDataWriter<D> {
       long commitTimeoutInNanos,
       long commitStepWaitTimeMillis,
       double failureAllowance,
+      boolean retriesEnabled,
+      int numRetries,
       @NonNull AsyncDataWriter asyncDataWriter)
   {
     super(ConfigUtils.configToState(config));
@@ -82,6 +90,8 @@ public class AsyncBestEffortDataWriter<D> extends InstrumentedDataWriter<D> {
     this.commitStepWaitTimeMillis = commitStepWaitTimeMillis;
     Preconditions.checkArgument((failureAllowance <= 1.0 && failureAllowance >= 0), "Failure Allowance must be a ratio between 0 and 1");
     this.failureAllowance = failureAllowance;
+    this.retriesEnabled = retriesEnabled;
+    this.numRetries = numRetries;
     this.asyncDataWriter = asyncDataWriter;
     this.writeCallback = new WriteCallback() {
       @Override
@@ -94,13 +104,39 @@ public class AsyncBestEffortDataWriter<D> extends InstrumentedDataWriter<D> {
         recordsFailed.mark();
       }
     };
-    this.asyncDataWriter.setDefaultCallback(this.writeCallback);
+//    this.asyncDataWriter.setDefaultCallback(this.writeCallback);
   }
 
   @Override
-  public void writeImpl(D record)
+  public void writeImpl(final D record)
       throws IOException {
-    this.asyncDataWriter.asyncWrite(record);
+
+    if (retriesEnabled) {
+      this.asyncDataWriter.asyncWrite(record, new WriteCallback() {
+
+        private int _localNumRetries = numRetries;
+
+        @Override
+        public void onSuccess() {
+          recordsSuccess.mark();
+        }
+
+        @Override
+        public void onFailure(Exception exception) {
+          if (_localNumRetries > 0) {
+            _localNumRetries--;
+            asyncDataWriter.asyncWrite(record, this);
+          } else {
+            recordsFailed.mark();
+            log.error("Failed to write record : " + record.toString(), exception);
+          }
+        }
+      });
+    }
+    else
+    {
+      this.asyncDataWriter.asyncWrite(record, writeCallback);
+    }
     this.recordsAttempted.mark();
   }
 
@@ -195,64 +231,78 @@ public class AsyncBestEffortDataWriter<D> extends InstrumentedDataWriter<D> {
     private long commitTimeoutInNanos = COMMIT_TIMEOUT_IN_NANOS_DEFAULT;
     private long commitStepWaitTimeMillis = COMMIT_STEP_WAITTIME_MILLIS_DEFAULT;
     private double failureAllowance = FAILURE_ALLOWANCE_DEFAULT;
+    private boolean retriesEnabled = RETRIES_ENABLED_DEFAULT;
+    private int numRetries = NUM_RETRIES_DEFAULT;
     private AsyncDataWriter asyncDataWriter;
 
-    AsyncBestEffortDataWriterBuilder config(Config config)
+    public AsyncBestEffortDataWriterBuilder config(Config config)
     {
       this.config = config;
       return this;
     }
 
-    AsyncBestEffortDataWriterBuilder recordsAttemptedMetricName(String recordsAttemptedMetricName)
+    public AsyncBestEffortDataWriterBuilder recordsAttemptedMetricName(String recordsAttemptedMetricName)
     {
       this.recordsAttemptedMetricName = recordsAttemptedMetricName;
       return this;
     }
 
-    AsyncBestEffortDataWriterBuilder recordsSuccessMetricName(String recordsSuccessMetricName)
+    public AsyncBestEffortDataWriterBuilder recordsSuccessMetricName(String recordsSuccessMetricName)
     {
       this.recordsSuccessMetricName = recordsSuccessMetricName;
       return this;
     }
 
-    AsyncBestEffortDataWriterBuilder recordsFailedMetricName(String recordsFailedMetricName)
+    public AsyncBestEffortDataWriterBuilder recordsFailedMetricName(String recordsFailedMetricName)
     {
       this.recordsFailedMetricName = recordsFailedMetricName;
       return this;
     }
 
-    AsyncBestEffortDataWriterBuilder commitTimeoutInNanos(long commitTimeoutInNanos)
+    public AsyncBestEffortDataWriterBuilder commitTimeoutInNanos(long commitTimeoutInNanos)
     {
       this.commitTimeoutInNanos = commitTimeoutInNanos;
       return this;
     }
 
-    AsyncBestEffortDataWriterBuilder commitStepWaitTimeInMillis(long commitStepWaitTimeMillis)
+    public AsyncBestEffortDataWriterBuilder commitStepWaitTimeInMillis(long commitStepWaitTimeMillis)
     {
       this.commitStepWaitTimeMillis = commitStepWaitTimeMillis;
       return this;
     }
 
-    AsyncBestEffortDataWriterBuilder failureAllowance(double failureAllowance)
+    public AsyncBestEffortDataWriterBuilder failureAllowance(double failureAllowance)
     {
       Preconditions.checkArgument((failureAllowance <= 1.0 && failureAllowance >= 0), "Failure Allowance must be a ratio between 0 and 1");
       this.failureAllowance = failureAllowance;
       return this;
     }
 
-    AsyncBestEffortDataWriterBuilder asyncDataWriter(AsyncDataWriter asyncDataWriter)
+    public AsyncBestEffortDataWriterBuilder asyncDataWriter(AsyncDataWriter asyncDataWriter)
     {
       this.asyncDataWriter = asyncDataWriter;
       return this;
     }
 
+    public AsyncBestEffortDataWriterBuilder retriesEnabled(boolean retriesEnabled)
+    {
+      this.retriesEnabled = retriesEnabled;
+      return this;
+    }
 
-    AsyncBestEffortDataWriter build()
+    public AsyncBestEffortDataWriterBuilder numRetries(int numRetries)
+    {
+      this.numRetries = numRetries;
+      return this;
+    }
+
+    public AsyncBestEffortDataWriter build()
     {
       return new AsyncBestEffortDataWriter(config, recordsAttemptedMetricName,
           recordsSuccessMetricName, recordsFailedMetricName,
           commitTimeoutInNanos, commitStepWaitTimeMillis,
-          failureAllowance, asyncDataWriter);
+          failureAllowance, retriesEnabled, numRetries,
+          asyncDataWriter);
     }
 
   }

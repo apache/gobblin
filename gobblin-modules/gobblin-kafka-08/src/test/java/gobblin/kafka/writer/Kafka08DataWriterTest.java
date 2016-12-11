@@ -37,6 +37,7 @@ import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.LiAvroDeserializer;
 import gobblin.kafka.serialize.LiAvroDeserializerBase;
 import gobblin.test.TestUtils;
+import gobblin.writer.WriteCallback;
 
 import static org.mockito.Mockito.*;
 
@@ -81,10 +82,9 @@ public class Kafka08DataWriterTest {
     Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<String>(props);
     String messageString = "foobar";
     WriteCallback callback = mock(WriteCallback.class);
-    kafka08DataWriter.setDefaultCallback(callback);
 
     try {
-      kafka08DataWriter.asyncWrite(messageString);
+      kafka08DataWriter.asyncWrite(messageString, callback);
     }
     finally
     {
@@ -110,12 +110,11 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     Kafka08DataWriter<byte[]> kafka08DataWriter = new Kafka08DataWriter<byte[]>(props);
     WriteCallback callback = mock(WriteCallback.class);
-    kafka08DataWriter.setDefaultCallback(callback);
 
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
-      kafka08DataWriter.asyncWrite(messageBytes);
+      kafka08DataWriter.asyncWrite(messageBytes, callback);
     }
     finally
     {
@@ -147,11 +146,10 @@ public class Kafka08DataWriterTest {
 
     Kafka08DataWriter<GenericRecord> kafka08DataWriter = new Kafka08DataWriter<>(props);
     WriteCallback callback = mock(WriteCallback.class);
-    kafka08DataWriter.setDefaultCallback(callback);
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
-      kafka08DataWriter.asyncWrite(record);
+      kafka08DataWriter.asyncWrite(record, callback);
     }
     finally
     {

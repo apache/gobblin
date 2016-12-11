@@ -31,6 +31,11 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
+
+import gobblin.writer.AsyncDataWriter;
+import gobblin.writer.WriteCallback;
+
+
 /**
  * Implementation of a Kafka writer that wraps a 0.8 {@link KafkaProducer}.
  * This does not provide transactional / exactly-once semantics.
@@ -41,7 +46,6 @@ import lombok.extern.slf4j.Slf4j;
 public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
 
   private final Producer<String, D> producer;
-  private Callback producerCallback;
   private final String topic;
 
   public static Producer getKafkaProducer(Properties props)
@@ -65,7 +69,6 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
   {
     this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
     this.producer = producer;
-    this.producerCallback = null;
   }
 
   @Override
@@ -90,8 +93,8 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
   }
 
   @Override
-  public void setDefaultCallback(final WriteCallback callback) {
-    this.producerCallback = new Callback() {
+  public void asyncWrite(D record, final WriteCallback callback) {
+    this.producer.send(new ProducerRecord<String, D>(topic, record), new Callback() {
       @Override
       public void onCompletion(RecordMetadata metadata, Exception exception) {
         if (exception != null)
@@ -103,12 +106,6 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
           callback.onSuccess();
         }
       }
-    };
-  }
-
-
-  @Override
-  public void asyncWrite(D record) {
-    this.producer.send(new ProducerRecord<String, D>(topic, record), this.producerCallback);
+    });
   }
 }
