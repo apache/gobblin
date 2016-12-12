@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import org.apache.hadoop.fs.Path;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Joiner;
@@ -32,6 +33,14 @@ public class CompactionLauncherWriter implements DataWriter<MRCompactionEntity> 
     props.setProperty(ConfBasedDeltaFieldProvider.DELTA_FIELDS_KEY,
         Joiner.on(',').join(compactionEntity.getDeltaList()));
     props.setProperty(MRCompactor.COMPACTION_INPUT_DIR, compactionEntity.getDataFilesPath().toString());
+
+    String dbTableName = compactionEntity.getDataFilesPath().getName();
+    String timestamp = String.valueOf(System.currentTimeMillis());
+
+    props.setProperty(MRCompactor.COMPACTION_TMP_DEST_DIR,
+        new Path(props.getProperty(MRCompactor.COMPACTION_TMP_DEST_DIR), dbTableName).toString());
+    props.setProperty(MRCompactor.COMPACTION_DEST_DIR,
+        new Path(new Path(props.getProperty(MRCompactor.COMPACTION_DEST_DIR), dbTableName), timestamp).toString());
 
     MRCompactor compactor = new MRCompactor(props, list, Optional.<CompactorListener>absent());
     compactor.compact();

@@ -16,6 +16,7 @@ import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWaterma
 import gobblin.source.extractor.Extractor;
 import gobblin.util.AutoReturnableObject;
 import gobblin.data.management.conversion.hive.extractor.HiveBaseExtractor;
+import gobblin.publisher.TimestampDataPublisher;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -49,8 +50,9 @@ public class HiveMetadataForCompactionExtractor extends HiveBaseExtractor<Void, 
       String deltaString = table.getParameters().get(state.getProp(COMPACTION_DELTA));
       List<String> deltaList = Splitter.on(',').omitEmptyStrings().trimResults().splitToList(deltaString);
 
-      String topicName = AvroSchemaManager.getSchemaFromUrl(this.hiveWorkUnit.getTableSchemaUrl(), fs).getName();
-      Path dataFilesPath = new Path(table.getSd().getLocation(), topicName);
+      String dbTableName = TimestampDataPublisher.getDbTableName(
+          AvroSchemaManager.getSchemaFromUrl(this.hiveWorkUnit.getTableSchemaUrl(), fs).getName());
+      Path dataFilesPath = new Path(table.getSd().getLocation(), dbTableName);
 
       compactionEntity = new MRCompactionEntity(primaryKeyList, deltaList, dataFilesPath, state.getProperties());
     }
