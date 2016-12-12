@@ -81,7 +81,7 @@ public class ThrottleWriterTest {
   }
 
   public void testGetFinalState() throws IOException {
-    PartitionedDataWriter writer = mock(PartitionedDataWriter.class);
+    PartitionedDataWriter writer = mock(PartitionedDataWriter.class, Mockito.CALLS_REAL_METHODS);
     int parallelism = 2;
     int qps = 4;
     DataWriter<Void> throttleWriter = setup(writer, parallelism, qps, ThrottleType.QPS);

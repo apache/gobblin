@@ -39,6 +39,7 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
   public static final String WRITER_THROTTLE_TYPE_KEY = "gobblin.writer.throttle_type";
   public static final String WRITER_LIMIT_RATE_LIMIT_KEY = "gobblin.writer.throttle_rate";
   public static final String WRITES_THROTTLED_TIMER = "gobblin.writer.throttled_time";
+  public static final String THROTTLED_TIME_KEY = "throttledTime";
 
   private static final String LOCAL_JOB_LAUNCHER_TYPE = "LOCAL";
 
@@ -52,6 +53,7 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
   private final Limiter limiter;
   private final ThrottleType type;
   private final Optional<Timer> throttledTimer;
+  private long throttledTime;
 
   public ThrottleWriter(DataWriter<D> writer, State state) {
     Preconditions.checkNotNull(writer, "DataWriter is required.");
@@ -138,14 +140,13 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
    * @throws InterruptedException
    */
   private void acquirePermits(long permits) throws InterruptedException {
-    if (!throttledTimer.isPresent()) { //Metrics is not enabled
-      limiter.acquirePermits(permits);
-      return;
-    }
-
     long startMs = System.currentTimeMillis(); //Measure in milliseconds. (Nanoseconds are more precise but expensive and not worth for this case)
     limiter.acquirePermits(permits);
-    Instrumented.updateTimer(throttledTimer, System.currentTimeMillis() - startMs, TimeUnit.MILLISECONDS);
+    long permitAcquisitionTime = System.currentTimeMillis() - startMs;
+    if (throttledTimer.isPresent()) { // Metrics enabled
+      Instrumented.updateTimer(throttledTimer, permitAcquisitionTime, TimeUnit.MILLISECONDS);
+    }
+    throttledTime += permitAcquisitionTime;
   }
 
 
@@ -186,10 +187,15 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
 
   @Override
   public State getFinalState() {
+    State state = new State();
+
     if (this.writer instanceof FinalState) {
       return ((FinalState)this.writer).getFinalState();
+    } else {
+      LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
     }
-    LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
-    return new State();
+
+    state.setProp(THROTTLED_TIME_KEY, throttledTime);
+    return state;
   }
 }

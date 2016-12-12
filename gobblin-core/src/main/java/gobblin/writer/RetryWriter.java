@@ -48,9 +48,11 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
   public static final String RETRY_MULTIPLIER = RETRY_CONF_PREFIX + "multiplier";
   public static final String RETRY_MAX_WAIT_MS_PER_INTERVAL = RETRY_CONF_PREFIX + "max_wait_ms_per_interval";
   public static final String RETRY_MAX_ATTEMPTS = RETRY_CONF_PREFIX + "max_attempts";
+  public static final String FAILED_WRITES_KEY = "failedWrites";
 
   private final DataWriter<D> writer;
   private final Retryer<Void> retryer;
+  private long failedWrites;
 
   public RetryWriter(DataWriter<D> writer, State state) {
     this.writer = writer;
@@ -84,6 +86,7 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
           if (attempt.hasException()) {
             LOG.warn("Caught exception. This may be retried.", attempt.getExceptionCause());
             Instrumented.markMeter(retryMeter);
+            failedWrites++;
           }
         }
       });
@@ -176,10 +179,15 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
 
   @Override
   public State getFinalState() {
+    State state = new State();
+
     if (this.writer instanceof FinalState) {
-      return ((FinalState)this.writer).getFinalState();
+      state.addAll(((FinalState)this.writer).getFinalState());
+    } else {
+      LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
     }
-    LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
-    return new State();
+
+    state.setProp(FAILED_WRITES_KEY, failedWrites);
+    return state;
   }
 }
