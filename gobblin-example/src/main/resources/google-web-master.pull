@@ -68,7 +68,8 @@ converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.a
 
 ## Writer properties
 writer.output.format=AVRO
-
+writer.partitioner.class=gobblin.ingestion.google.webmaster.GoogleWebmasterDayPartitioner
+writer.include.record.count.in.file.names=true
 
 ## Publisher properties
 data.publisher.type=gobblin.publisher.BaseDataPublisher

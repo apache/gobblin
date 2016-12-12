@@ -38,7 +38,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private final String _schema;
   private final WorkUnitState _wuState;
   private final int _size;
-  private final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
+  public final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
   private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   private Queue<GoogleWebmasterExtractorIterator> _iterators = new ArrayDeque<>();
   /**
