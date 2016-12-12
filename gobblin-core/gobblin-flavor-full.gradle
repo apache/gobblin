@@ -1,4 +1,5 @@
 dependencies {
   compile project(':gobblin-modules:gobblin-kafka-08')
+  compile project(':gobblin-modules:gobblin-couchbase')
 }
 
