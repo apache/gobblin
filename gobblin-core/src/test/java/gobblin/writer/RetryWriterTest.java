@@ -64,7 +64,8 @@ public class RetryWriterTest {
   }
 
   public void retryGetFinalState() throws IOException {
-    PartitionedDataWriter writer = mock(PartitionedDataWriter.class, Mockito.CALLS_REAL_METHODS);
+    PartitionedDataWriter writer = mock(PartitionedDataWriter.class);
+    when(writer.getFinalState()).thenReturn(new State());
 
     DataWriterWrapperBuilder<Void> builder = new DataWriterWrapperBuilder<>(writer, new State());
     DataWriter<Void> retryWriter = builder.build();
