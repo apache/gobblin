@@ -16,6 +16,7 @@ import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.writer.exception.NonTransientException;
+import gobblin.util.FinalState;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
@@ -40,16 +41,18 @@ import com.google.common.base.Predicate;
  * Retry writer follows decorator pattern that retries on inner writer's failure.
  * @param <D>
  */
-public class RetryWriter<D> implements DataWriter<D>, SpeculativeAttemptAwareConstruct {
+public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
   private static final Logger LOG = LoggerFactory.getLogger(RetryWriter.class);
   public static final String RETRY_CONF_PREFIX = "gobblin.writer.retry.";
   public static final String FAILED_RETRY_WRITES_METER = RETRY_CONF_PREFIX + "failed_writes";
   public static final String RETRY_MULTIPLIER = RETRY_CONF_PREFIX + "multiplier";
   public static final String RETRY_MAX_WAIT_MS_PER_INTERVAL = RETRY_CONF_PREFIX + "max_wait_ms_per_interval";
   public static final String RETRY_MAX_ATTEMPTS = RETRY_CONF_PREFIX + "max_attempts";
+  public static final String FAILED_WRITES_KEY = "failedWrites";
 
   private final DataWriter<D> writer;
   private final Retryer<Void> retryer;
+  private long failedWrites;
 
   public RetryWriter(DataWriter<D> writer, State state) {
     this.writer = writer;
@@ -83,6 +86,7 @@ public class RetryWriter<D> implements DataWriter<D>, SpeculativeAttemptAwareCon
           if (attempt.hasException()) {
             LOG.warn("Caught exception. This may be retried.", attempt.getExceptionCause());
             Instrumented.markMeter(retryMeter);
+            failedWrites++;
           }
         }
       });
@@ -171,5 +175,19 @@ public class RetryWriter<D> implements DataWriter<D>, SpeculativeAttemptAwareCon
       return ((SpeculativeAttemptAwareConstruct)this.writer).isSpeculativeAttemptSafe();
     }
     return false;
+  }
+
+  @Override
+  public State getFinalState() {
+    State state = new State();
+
+    if (this.writer instanceof FinalState) {
+      state.addAll(((FinalState)this.writer).getFinalState());
+    } else {
+      LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
+    }
+
+    state.setProp(FAILED_WRITES_KEY, this.failedWrites);
+    return state;
   }
 }
