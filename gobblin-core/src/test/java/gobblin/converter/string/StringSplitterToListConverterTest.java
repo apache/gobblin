@@ -18,11 +18,11 @@ import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Lists;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.DataConversionException;
-
-import avro.shaded.com.google.common.collect.Lists;
 
 
 /**
