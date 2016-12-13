@@ -16,10 +16,10 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import avro.shaded.com.google.common.base.Joiner;
-import junit.framework.Assert;
+import com.google.common.base.Joiner;
 
 
 /**
