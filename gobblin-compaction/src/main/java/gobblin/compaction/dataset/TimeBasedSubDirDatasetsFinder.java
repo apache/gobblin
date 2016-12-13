@@ -55,20 +55,20 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   /**
    * Configuration properties related to time based compaction jobs.
    */
-  private static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_TIMEBASED_PREFIX + "folder.pattern";
-  private static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
+  public static final String COMPACTION_TIMEBASED_FOLDER_PATTERN = COMPACTION_TIMEBASED_PREFIX + "folder.pattern";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_FOLDER_PATTERN = "YYYY/MM/dd";
 
-  private static final String COMPACTION_TIMEBASED_SUBDIR_PATTERN = COMPACTION_TIMEBASED_PREFIX + "subdir.pattern";
-  private static final String DEFAULT_COMPACTION_TIMEBASED_SUBDIR_PATTERN = "*";
+  public static final String COMPACTION_TIMEBASED_SUBDIR_PATTERN = COMPACTION_TIMEBASED_PREFIX + "subdir.pattern";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_SUBDIR_PATTERN = "*";
 
 
   // The earliest dataset timestamp to be processed. Format = ?m?d?h.
-  private static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "max.time.ago";
-  private static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";
+  public static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "max.time.ago";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";
 
   // The latest dataset timestamp to be processed. Format = ?m?d?h.
-  private static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "min.time.ago";
-  private static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
+  public static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "min.time.ago";
+  public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
 
   private final String folderTimePattern;
   private final String subDirPattern;
@@ -217,9 +217,9 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
     }
   }
 
-  private static PeriodFormatter getPeriodFormatter() {
-      return new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
-          .appendSuffix("h").appendMinutes().appendSuffix("min").toFormatter();
+  public static PeriodFormatter getPeriodFormatter() {
+    return new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
+        .appendSuffix("h").appendMinutes().appendSuffix("min").toFormatter();
   }
 
   private DateTime getEarliestAllowedFolderTime(DateTime currentTime, PeriodFormatter periodFormatter) {
