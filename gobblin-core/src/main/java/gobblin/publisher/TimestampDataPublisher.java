@@ -82,7 +82,7 @@ public class TimestampDataPublisher extends BaseDataPublisher {
    * @param schemaName In format "dbname_tablename_xxxxx"
    * @return db and table name in format "dbname.tablename"
    */
-  public static String getDbTableName(String schemaName) {
+  private String getDbTableName(String schemaName) {
     Preconditions.checkArgument(schemaName.matches(".+_.+_.+"));
     return schemaName.replaceFirst("_", ".").substring(0, schemaName.lastIndexOf('_'));
   }
