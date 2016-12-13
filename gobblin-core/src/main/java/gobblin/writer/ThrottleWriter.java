@@ -146,7 +146,7 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
     if (throttledTimer.isPresent()) { // Metrics enabled
       Instrumented.updateTimer(throttledTimer, permitAcquisitionTime, TimeUnit.MILLISECONDS);
     }
-    throttledTime += permitAcquisitionTime;
+    this.throttledTime += permitAcquisitionTime;
   }
 
 
@@ -195,7 +195,7 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
       LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
     }
 
-    state.setProp(THROTTLED_TIME_KEY, throttledTime);
+    state.setProp(THROTTLED_TIME_KEY, this.throttledTime);
     return state;
   }
 }

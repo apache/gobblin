@@ -187,7 +187,7 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
       LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
     }
 
-    state.setProp(FAILED_WRITES_KEY, failedWrites);
+    state.setProp(FAILED_WRITES_KEY, this.failedWrites);
     return state;
   }
 }
