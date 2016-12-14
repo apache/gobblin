@@ -267,6 +267,7 @@ public class MRCompactor implements Compactor {
       throws IOException {
     this.state = new State();
     this.state.addAll(props);
+    this.initilizeTime = getCurrentTime();
     this.tags = tags;
     this.conf = HadoopUtils.getConfFromState(this.state);
     this.tmpOutputDir = getTmpOutputDir();
@@ -281,7 +282,6 @@ public class MRCompactor implements Compactor {
         GobblinMetrics.get(this.state.getProp(ConfigurationKeys.JOB_NAME_KEY)).getMetricContext(),
         MRCompactor.COMPACTION_TRACKING_EVENTS_NAMESPACE).build();
     this.compactorListener = compactorListener;
-    this.initilizeTime = getCurrentTime();
     this.dataVerifTimeoutMinutes = getDataVerifTimeoutMinutes();
     this.compactionTimeoutMinutes = getCompactionTimeoutMinutes();
     this.shouldVerifDataCompl = shouldVerifyDataCompleteness();
@@ -292,7 +292,7 @@ public class MRCompactor implements Compactor {
     this.shouldPublishDataIfCannotVerifyCompl = shouldPublishDataIfCannotVerifyCompl();
   }
 
-  public DateTime getInitilizeTime() {
+  public DateTime getInitializeTime() {
     return this.initilizeTime;
   }
 
@@ -375,7 +375,7 @@ public class MRCompactor implements Compactor {
     try {
       CompactorCompletionListenerFactory factory = GobblinConstructorUtils.invokeFirstConstructor(
           classAliasResolver.resolveClass(listenerName), ImmutableList.of());
-      return factory.createCompactorCompactionListener();
+      return factory.createCompactorCompactionListener(this.state);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new IllegalArgumentException(e);
@@ -462,6 +462,10 @@ public class MRCompactor implements Compactor {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public Set<Dataset> getDatasets() {
+    return this.datasets;
   }
 
   private void processCompactionJobs() {

@@ -11,7 +11,8 @@
  */
 
 package gobblin.compaction.listeners;
+import gobblin.configuration.State;
 
 public interface CompactorCompletionListenerFactory {
-  CompactorCompletionListener createCompactorCompactionListener ();
+  CompactorCompletionListener createCompactorCompactionListener (State state);
 }
