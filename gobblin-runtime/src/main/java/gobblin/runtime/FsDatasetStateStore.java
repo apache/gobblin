@@ -12,6 +12,7 @@
 
 package gobblin.runtime;
 
+import gobblin.metastore.DatasetStateStore;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +53,8 @@ import gobblin.metastore.FsStateStore;
  *
  * @author Yinan Li
  */
-public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
+public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
+    implements DatasetStateStore<JobState.DatasetState> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FsDatasetStateStore.class);
 

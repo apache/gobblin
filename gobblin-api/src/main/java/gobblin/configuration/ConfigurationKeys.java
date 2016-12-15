@@ -47,6 +47,13 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
   // Enable / disable state store
   public static final String STATE_STORE_ENABLED = "state.store.enabled";
+  // DB state store configuration
+  public static final String STATE_STORE_DB_ENABLED_KEY = "state.store.db.enabled";
+  public static final String STATE_STORE_DB_URL_KEY = "state.store.db.url";
+  public static final String STATE_STORE_DB_USER_KEY = "state.store.db.user";
+  public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
+  public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
+  public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
 
   /**
    * Job scheduler configuration properties.

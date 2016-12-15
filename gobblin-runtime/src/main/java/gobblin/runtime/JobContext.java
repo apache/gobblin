@@ -12,6 +12,8 @@
 
 package gobblin.runtime;
 
+import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
+import gobblin.metastore.DatasetStateStore;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -88,7 +90,7 @@ public class JobContext {
 
   // State store for persisting job states
   @Getter(AccessLevel.PACKAGE)
-  private final FsDatasetStateStore datasetStateStore;
+  private final DatasetStateStore datasetStateStore;
 
   // Store for runtime job execution information
   private final Optional<JobHistoryStore> jobHistoryStoreOptional;
@@ -159,16 +161,29 @@ public class JobContext {
         : 1;
   }
 
-  protected FsDatasetStateStore createStateStore(Properties jobProps, Configuration conf) throws IOException {
-    String stateStoreFsUri =
-        jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
-    FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
-    String stateStoreRootDir = jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
-    if (jobProps.containsKey(ConfigurationKeys.STATE_STORE_ENABLED) &&
-        !Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.STATE_STORE_ENABLED))) {
-      return new NoopDatasetStateStore(stateStoreFs, stateStoreRootDir);
+  protected DatasetStateStore createStateStore(Properties jobProps, Configuration conf) throws IOException {
+    boolean stateStoreEnabled = !jobProps.containsKey(ConfigurationKeys.STATE_STORE_ENABLED)
+        || Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.STATE_STORE_ENABLED));
+
+    if (stateStoreEnabled &&
+        Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.STATE_STORE_DB_ENABLED_KEY, "false"))) {
+      MysqlDataSource mySqlDs = new MysqlDataSource();
+
+      mySqlDs.setURL(jobProps.getProperty(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
+      mySqlDs.setUser(jobProps.getProperty(ConfigurationKeys.STATE_STORE_DB_USER_KEY));
+      mySqlDs.setPassword(jobProps.getProperty(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY));
+
+      return new DbDatasetStateStore(mySqlDs, jobProps.getProperty(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
+          ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE));
     } else {
-      return new FsDatasetStateStore(stateStoreFs, stateStoreRootDir);
+      String stateStoreFsUri = jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
+      FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
+      String stateStoreRootDir = jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
+      if (jobProps.containsKey(ConfigurationKeys.STATE_STORE_ENABLED) && !Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.STATE_STORE_ENABLED))) {
+        return new NoopDatasetStateStore(stateStoreFs, stateStoreRootDir);
+      } else {
+        return new FsDatasetStateStore(stateStoreFs, stateStoreRootDir);
+      }
     }
   }
 
