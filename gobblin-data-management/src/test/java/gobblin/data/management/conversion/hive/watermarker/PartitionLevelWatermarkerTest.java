@@ -14,6 +14,7 @@ package gobblin.data.management.conversion.hive.watermarker;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.metadata.Partition;
@@ -297,6 +298,7 @@ public class PartitionLevelWatermarkerTest {
     long time5DaysAgo = new DateTime().minusDays(5).getMillis();
 
     PartitionLevelWatermarker watermarker = new PartitionLevelWatermarker(state);
+    watermarker.setLeastWatermarkToPersistInState(time5DaysAgo);
 
     Table table = mockTable("testTable2");
     Partition part2010 = mockPartition(table, ImmutableList.of("2010"));
@@ -320,8 +322,13 @@ public class PartitionLevelWatermarkerTest {
     Assert.assertEquals(workunits.size(), 1);
     WorkUnit watermarkWu = workunits.get(0);
 
-    Assert.assertEquals(watermarkWu.getExpectedHighWatermark(MultiKeyValueLongWatermark.class).getWatermarks(),
-        ImmutableMap.of("2014", time5DaysAgo + 104l, "2013", time5DaysAgo + 103l, "2012", time5DaysAgo + 102l));
+    Map<String, Long> workunitWatermarks =
+        watermarkWu.getExpectedHighWatermark(MultiKeyValueLongWatermark.class).getWatermarks();
+    Assert.assertEquals(workunitWatermarks.size(), 3, "expectedHighWatermarks size");
+
+    ImmutableMap<String, Long> expectedWatermarks =
+        ImmutableMap.of("2014", time5DaysAgo + 104l, "2013", time5DaysAgo + 103l, "2012", time5DaysAgo + 102l);
+    Assert.assertEquals(workunitWatermarks, expectedWatermarks);
 
   }
 
@@ -336,13 +343,14 @@ public class PartitionLevelWatermarkerTest {
     previousWus.setProp(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY, true);
     previousWus.setActualHighWatermark(new MultiKeyValueLongWatermark(ImmutableMap.of("2010", time5DaysAgo - 100l, // Do not retain
         "2011", time5DaysAgo - 101l, // Do not retain
-        "2012", time5DaysAgo + 102l // Do not retain
+        "2012", time5DaysAgo + 102l // Do retain
         )));
 
     SourceState state = new SourceState(new State(), Lists.newArrayList(previousWus));
     state.setProp(HiveSource.HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY, 3);
 
     PartitionLevelWatermarker watermarker = new PartitionLevelWatermarker(state);
+    watermarker.setLeastWatermarkToPersistInState(time5DaysAgo);
 
     Table table = mockTable("testTable2");
 
@@ -368,8 +376,13 @@ public class PartitionLevelWatermarkerTest {
     Assert.assertEquals(workunits.size(), 1);
     WorkUnit watermarkWu = workunits.get(0);
 
-    Assert.assertEquals(watermarkWu.getExpectedHighWatermark(MultiKeyValueLongWatermark.class).getWatermarks(),
-        ImmutableMap.of("2014", time5DaysAgo + 104l, "2013", time5DaysAgo + 103l, "2012", time5DaysAgo + 102l));
+    Map<String, Long> workunitWatermarks =
+        watermarkWu.getExpectedHighWatermark(MultiKeyValueLongWatermark.class).getWatermarks();
+    Assert.assertEquals(workunitWatermarks.size(), 3, "expectedHighWatermarks size");
+
+    ImmutableMap<String, Long> expectedWatermarks =
+        ImmutableMap.of("2014", time5DaysAgo + 104l, "2013", time5DaysAgo + 103l, "2012", time5DaysAgo + 102l);
+    Assert.assertEquals(workunitWatermarks, expectedWatermarks);
 
   }
 
