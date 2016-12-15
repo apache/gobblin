@@ -73,7 +73,7 @@ dependencies {
 }
 
 apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"
- 
+
 configurations {
   compile { transitive = false }
   // Remove xerces dependencies because of versioning issues. Standard JRE implementation should
