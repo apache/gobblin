@@ -13,8 +13,6 @@ import java.util.Queue;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
@@ -23,6 +21,7 @@ import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.common.base.Splitter;
 
 import avro.shaded.com.google.common.collect.Iterables;
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
@@ -38,8 +37,9 @@ import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT
 import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
 
 
+@Slf4j
 public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
-  private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterExtractor.class);
+
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
   private final String _schema;
   private final WorkUnitState _wuState;
@@ -60,7 +60,8 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
 
   public GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long highWatermark,
       Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics) throws IOException {
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
+      throws IOException {
     this(wuState, lowWatermark, highWatermark, columnPositionMap, requestedDimensions, requestedMetrics,
         new GoogleWebmasterDataFetcherImpl(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY), getCredential(wuState),
             wuState.getProp(ConfigurationKeys.SOURCE_ENTITY), getHotStartJobs(wuState)));
@@ -76,9 +77,9 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
 
   private static Credential getCredential(WorkUnitState wuState) {
     String scope = wuState.getProp(GoogleCommonKeys.API_SCOPES, WebmastersScopes.WEBMASTERS_READONLY);
-    Preconditions.checkArgument(
-        Objects.equals(WebmastersScopes.WEBMASTERS_READONLY, scope) || Objects.equals(WebmastersScopes.WEBMASTERS,
-            scope), "The scope for WebMaster must either be WEBMASTERS_READONLY or WEBMASTERS");
+    Preconditions.checkArgument(Objects.equals(WebmastersScopes.WEBMASTERS_READONLY, scope) || Objects
+            .equals(WebmastersScopes.WEBMASTERS, scope),
+        "The scope for WebMaster must either be WEBMASTERS_READONLY or WEBMASTERS");
 
     String credentialFile = wuState.getProp(SOURCE_CONN_PRIVATE_KEY);
     List<String> scopes = Collections.singletonList(scope);
@@ -86,12 +87,10 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
 //    return GoogleCredential.fromStream(new FileInputStream(credentialFile))
 //        .createScoped(Collections.singletonList(scope));
 
-    return new GoogleCommon.CredentialBuilder(credentialFile, scopes).fileSystemUri(
-        wuState.getProp(GoogleCommonKeys.PRIVATE_KEY_FILESYSTEM_URI))
-        .proxyUrl(wuState.getProp(SOURCE_CONN_USE_PROXY_URL))
-        .port(wuState.getProp(SOURCE_CONN_USE_PROXY_PORT))
-        .serviceAccountId(wuState.getProp(SOURCE_CONN_USERNAME))
-        .build();
+    return new GoogleCommon.CredentialBuilder(credentialFile, scopes)
+        .fileSystemUri(wuState.getProp(GoogleCommonKeys.PRIVATE_KEY_FILESYSTEM_URI))
+        .proxyUrl(wuState.getProp(SOURCE_CONN_USE_PROXY_URL)).port(wuState.getProp(SOURCE_CONN_USE_PROXY_PORT))
+        .serviceAccountId(wuState.getProp(SOURCE_CONN_USERNAME)).build();
   }
 
   /**
@@ -159,12 +158,14 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   }
 
   @Override
-  public String getSchema() throws IOException {
+  public String getSchema()
+      throws IOException {
     return this._schema;
   }
 
   @Override
-  public String[] readRecord(@Deprecated String[] reuse) throws DataRecordException, IOException {
+  public String[] readRecord(@Deprecated String[] reuse)
+      throws DataRecordException, IOException {
     while (!_iterators.isEmpty()) {
       GoogleWebmasterExtractorIterator iterator = _iterators.peek();
       int[] positionMap = _positionMaps.peek();
@@ -199,14 +200,15 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     if (_successful) {
-      LOG.info(String.format("Successfully finished fetching data from Google Search Console from %s to %s.",
+      log.info(String.format("Successfully finished fetching data from Google Search Console from %s to %s.",
           dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
-      _wuState.setActualHighWatermark(
-          new LongWatermark(Long.parseLong(watermarkFormatter.print(_endDate.plusDays(1)))));
+      _wuState
+          .setActualHighWatermark(new LongWatermark(Long.parseLong(watermarkFormatter.print(_endDate.plusDays(1)))));
     } else {
-      LOG.warn(String.format("Had problems fetching all data from Google Search Console from %s to %s.",
+      log.warn(String.format("Had problems fetching all data from Google Search Console from %s to %s.",
           dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
     }
   }

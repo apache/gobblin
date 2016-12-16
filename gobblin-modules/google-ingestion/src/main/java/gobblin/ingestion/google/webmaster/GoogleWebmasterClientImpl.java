@@ -5,9 +5,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
@@ -23,17 +20,15 @@ import gobblin.source.extractor.extract.google.GoogleCommon;
 
 public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
 
-  private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterClientImpl.class);
-
   private final Webmasters.Searchanalytics _analytics;
   private final Webmasters _service;
 
-  public GoogleWebmasterClientImpl(Credential credential, String appName) throws IOException {
+  public GoogleWebmasterClientImpl(Credential credential, String appName)
+      throws IOException {
     //transport: new NetHttpTransport() or GoogleNetHttpTransport.newTrustedTransport()
     //jsonFactory: new JacksonFactory() or JacksonFactory.getDefaultInstance()
-    _service =
-        new Webmasters.Builder(credential.getTransport(), GoogleCommon.getJsonFactory(), credential).setApplicationName(
-            appName).build();
+    _service = new Webmasters.Builder(credential.getTransport(), GoogleCommon.getJsonFactory(), credential)
+        .setApplicationName(appName).build();
     _analytics = _service.searchanalytics();
   }
 
@@ -67,17 +62,16 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
   @Override
   public Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String siteProperty, String startDate,
       String endDate, List<GoogleWebmasterFilter.Dimension> dimensions, ApiDimensionFilterGroup filterGroup,
-      int rowLimit, int startRow) throws IOException {
+      int rowLimit, int startRow)
+      throws IOException {
     List<String> dimensionStrings = new ArrayList<>();
     for (GoogleWebmasterFilter.Dimension dimension : dimensions) {
       dimensionStrings.add(dimension.toString().toLowerCase());
     }
 
-    SearchAnalyticsQueryRequest request = new SearchAnalyticsQueryRequest().setStartDate(startDate)
-        .setEndDate(endDate)
-        .setRowLimit(rowLimit)
-        .setDimensions(dimensionStrings)
-        .setStartRow(startRow);
+    SearchAnalyticsQueryRequest request =
+        new SearchAnalyticsQueryRequest().setStartDate(startDate).setEndDate(endDate).setRowLimit(rowLimit)
+            .setDimensions(dimensionStrings).setStartRow(startRow);
 
     if (filterGroup != null) {
       request.setDimensionFilterGroups(Arrays.asList(filterGroup));

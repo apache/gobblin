@@ -15,9 +15,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.http.HttpHeaders;
@@ -27,6 +24,7 @@ import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 import com.google.common.base.Optional;
 
 import avro.shaded.com.google.common.base.Joiner;
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.ExecutorsUtils;
@@ -36,9 +34,9 @@ import gobblin.util.ExecutorsUtils;
 /**
  * This iterator holds a GoogleWebmasterDataFetcher, through which it get all pages. And then for each page, it will get all query data(Clicks, Impressions, CTR, Position). Basically, it will cache all pages got, and for each page, cache the detailed query data, and then iterate through them one by one.
  */
+@Slf4j
 class GoogleWebmasterExtractorIterator {
 
-  private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterExtractorIterator.class);
   private final int TIME_OUT;
   private final int BATCH_SIZE;
   private final int GROUP_SIZE;
@@ -112,7 +110,8 @@ class GoogleWebmasterExtractorIterator {
     }
   }
 
-  public boolean hasNext() throws IOException {
+  public boolean hasNext()
+      throws IOException {
     initialize();
     if (!_cachedQueries.isEmpty()) {
       return true;
@@ -124,7 +123,7 @@ class GoogleWebmasterExtractorIterator {
           //Job not done yet. Keep waiting.
           next = _cachedQueries.poll(1, TimeUnit.SECONDS);
         } else {
-          LOG.info("Producer job has finished. No more query data in the queue.");
+          log.info("Producer job has finished. No more query data in the queue.");
           return false;
         }
       }
@@ -136,7 +135,8 @@ class GoogleWebmasterExtractorIterator {
     }
   }
 
-  private void initialize() throws IOException {
+  private void initialize()
+      throws IOException {
     if (_producerThread == null) {
       Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
       _producerThread = new Thread(new ResponseProducer(allJobs));
@@ -144,7 +144,8 @@ class GoogleWebmasterExtractorIterator {
     }
   }
 
-  public String[] next() throws IOException {
+  public String[] next()
+      throws IOException {
     if (hasNext()) {
       return _cachedQueries.remove();
     }
@@ -211,7 +212,7 @@ class GoogleWebmasterExtractorIterator {
           totalPages += job.getPagesSize();
         }
         if (r > 0) {
-          LOG.info(String.format("Starting #%d round retries of size %d for %s", r, totalPages, _country));
+          log.info(String.format("Starting #%d round retries of size %d for %s", r, totalPages, _country));
         }
 
         long requestSleep = (long) Math.ceil(1000 / REQUESTS_PER_SECOND);
@@ -219,7 +220,7 @@ class GoogleWebmasterExtractorIterator {
         //retries needs to be concurrent because multiple threads will write to it.
         ConcurrentLinkedDeque<ProducerJob> retries = new ConcurrentLinkedDeque<>();
         ExecutorService es = Executors.newFixedThreadPool(10,
-            ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOG), Optional.of(this.getClass().getSimpleName())));
+            ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
 
         int checkPointCount = 0;
         int totalProcessed = 0;
@@ -232,8 +233,8 @@ class GoogleWebmasterExtractorIterator {
           if (checkPointCount >= checkPoint) {
             totalProcessed += checkPointCount;
             checkPointCount = 0;
-            LOG.info(String.format("ResponseProducer progress: %d of %d processed for %s", totalProcessed, totalPages,
-                _country));
+            log.info(String
+                .format("ResponseProducer progress: %d of %d processed for %s", totalProcessed, totalPages, _country));
           }
 
           if (batch.size() < BATCH_SIZE) {
@@ -249,17 +250,17 @@ class GoogleWebmasterExtractorIterator {
         if (!batch.isEmpty()) {
           submitJob(requestSleep, retries, es, batch);
         }
-        LOG.info(String.format("Submitted all jobs at round %d.", r));
+        log.info(String.format("Submitted all jobs at round %d.", r));
 
         try {
           es.shutdown(); //stop accepting new requests
-          LOG.info(
-              String.format("Wait for download-query-data jobs to finish at round %d... Next round now has size %d.", r,
+          log.info(String
+              .format("Wait for download-query-data jobs to finish at round %d... Next round now has size %d.", r,
                   retries.size()));
           boolean terminated = es.awaitTermination(TIME_OUT, TimeUnit.MINUTES);
           if (!terminated) {
             es.shutdownNow();
-            LOG.warn(String.format(
+            log.warn(String.format(
                 "Timed out while downloading query data for country-%s at round %d. Next round now has size %d.",
                 _country, r, retries.size()));
           }
@@ -283,17 +284,17 @@ class GoogleWebmasterExtractorIterator {
       }
 
       if (r == MAX_RETRY_ROUNDS + 1) {
-        LOG.error(String.format("Exceeded maximum retries. There are %d unprocessed jobs.", _jobsToProcess.size()));
+        log.error(String.format("Exceeded maximum retries. There are %d unprocessed jobs.", _jobsToProcess.size()));
         StringBuilder sb = new StringBuilder();
-        sb.append("You can add as hot start jobs to continue: ")
-            .append(System.lineSeparator())
+        sb.append("You can add as hot start jobs to continue: ").append(System.lineSeparator())
             .append(System.lineSeparator());
         sb.append(ProducerJob.serialize(_jobsToProcess));
         sb.append(System.lineSeparator());
-        LOG.error(sb.toString());
+        log.error(sb.toString());
       }
-      LOG.info(String.format("ResponseProducer finishes for %s from %s to %s at retry round %d", _country, _startDate,
-          _endDate, r));
+      log.info(String
+          .format("ResponseProducer finishes for %s from %s to %s at retry round %d", _country, _startDate, _endDate,
+              r));
     }
 
     private void submitJob(long requestSleep, ConcurrentLinkedDeque<ProducerJob> retries, ExecutorService es,
@@ -322,9 +323,9 @@ class GoogleWebmasterExtractorIterator {
             filters.addAll(_filterMap.values());
             filters.add(GoogleWebmasterFilter.pageFilter(job.getOperator(), job.getPage()));
 
-            List<String[]> results =
-                _webmaster.performSearchAnalyticsQuery(job.getStartDate(), job.getEndDate(), QUERY_LIMIT,
-                    _requestedDimensions, _requestedMetrics, filters);
+            List<String[]> results = _webmaster
+                .performSearchAnalyticsQuery(job.getStartDate(), job.getEndDate(), QUERY_LIMIT, _requestedDimensions,
+                    _requestedMetrics, filters);
             onSuccess(job, results, responseQueue, retries);
           } catch (IOException e) {
             onFailure(e.getMessage(), job, retries);
@@ -361,24 +362,26 @@ class GoogleWebmasterExtractorIterator {
               filterList.add(filters);
               callbackList.add(new JsonBatchCallback<SearchAnalyticsQueryResponse>() {
                 @Override
-                public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
+                public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders)
+                    throws IOException {
                   producer.onFailure(e.getMessage(), job, retries);
                 }
 
                 @Override
                 public void onSuccess(SearchAnalyticsQueryResponse searchAnalyticsQueryResponse,
-                    HttpHeaders responseHeaders) throws IOException {
+                    HttpHeaders responseHeaders)
+                    throws IOException {
                   List<String[]> results =
                       GoogleWebmasterDataFetcher.convertResponse(_requestedMetrics, searchAnalyticsQueryResponse);
                   producer.onSuccess(job, results, responseQueue, retries);
                 }
               });
-              LOG.debug("Ready to submit " + job);
+              log.debug("Ready to submit " + job);
             }
-            _webmaster.performSearchAnalyticsQueryInBatch(jobs, filterList, callbackList, _requestedDimensions,
-                QUERY_LIMIT);
+            _webmaster
+                .performSearchAnalyticsQueryInBatch(jobs, filterList, callbackList, _requestedDimensions, QUERY_LIMIT);
           } catch (IOException e) {
-            LOG.warn("Batch request failed. Jobs: " + Joiner.on(",").join(jobs));
+            log.warn("Batch request failed. Jobs: " + Joiner.on(",").join(jobs));
             for (ProducerJob job : jobs) {
               retries.add(job);
             }
@@ -388,7 +391,7 @@ class GoogleWebmasterExtractorIterator {
     }
 
     private void onFailure(String errMsg, ProducerJob job, ConcurrentLinkedDeque<ProducerJob> retries) {
-      LOG.debug(String.format("OnFailure: will retry job %s.%sReason:%s", job, System.lineSeparator(), errMsg));
+      log.debug(String.format("OnFailure: will retry job %s.%sReason:%s", job, System.lineSeparator(), errMsg));
       retries.add(job);
     }
 
@@ -400,23 +403,23 @@ class GoogleWebmasterExtractorIterator {
         if (granularJobs.isEmpty()) {
           //The job is not divisible
           //TODO: 99.99% cases we are good. But what if it happens, what can we do?
-          LOG.warn(String.format(
+          log.warn(String.format(
               "There might be more query data for your job %s. Currently, downloading more than the Google API limit '%d' is not supported.",
               job, GoogleWebmasterClient.API_ROW_LIMIT));
         } else {
-          LOG.info(String.format("Partition current job %s", job));
+          log.info(String.format("Partition current job %s", job));
           pagesToRetry.addAll(granularJobs);
           return;
         }
       }
 
-      LOG.debug(String.format("Finished %s. Records %d.", job, size));
+      log.debug(String.format("Finished %s. Records %d.", job, size));
       try {
         for (String[] r : results) {
           responseQueue.put(r);
         }
       } catch (InterruptedException e) {
-        LOG.error(e.getMessage());
+        log.error(e.getMessage());
         throw new RuntimeException(e);
       }
     }

@@ -11,8 +11,6 @@ import java.util.Map;
 import org.apache.commons.collections.CollectionUtils;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -40,7 +38,6 @@ class CollectionEquals extends ArgumentMatcher<Collection> {
 
 @Test(groups = {"gobblin.source.extractor.extract.google.webmaster"})
 public class GoogleWebmasterExtractorIteratorTest {
-  Logger logger = LoggerFactory.getLogger(GoogleWebmasterExtractorIteratorTest.class);
   String siteProperty = "https://www.abc.com/";
 
   /**
@@ -49,7 +46,8 @@ public class GoogleWebmasterExtractorIteratorTest {
    * @throws IOException
    */
   @Test
-  public void testIterator() throws IOException {
+  public void testIterator()
+      throws IOException {
     GoogleWebmasterDataFetcher client = Mockito.mock(GoogleWebmasterDataFetcher.class);
     String country = "USA";
     String date = "2016-11-01";
@@ -81,8 +79,8 @@ public class GoogleWebmasterExtractorIteratorTest {
     List<ApiDimensionFilter> filters2 = new ArrayList<>();
     filters2.add(GoogleWebmasterFilter.countryEqFilter(country));
     filters2.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page2));
-    Mockito.when(
-        client.performSearchAnalyticsQuery(eq(date), eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+    Mockito.when(client
+        .performSearchAnalyticsQuery(eq(date), eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
             argThat(new CollectionEquals(filters2)))).thenReturn(results2);
 
     Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
