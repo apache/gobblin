@@ -40,6 +40,7 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecMonitorFactory;
 import gobblin.runtime.api.JobSpecScheduler;
 import gobblin.runtime.api.MutableJobCatalog;
+import gobblin.runtime.job_spec.ResolvedJobSpec;
 import gobblin.runtime.std.DefaultJobCatalogListenerImpl;
 import gobblin.runtime.std.DefaultJobExecutionStateListenerImpl;
 import gobblin.runtime.std.JobLifecycleListenersList;
@@ -180,15 +181,17 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   /** The runnable invoked by the Job scheduler */
   class JobSpecRunnable implements Runnable {
     private final JobSpec _jobSpec;
+    private final GobblinInstanceDriver _instanceDriver;
 
-    public JobSpecRunnable(JobSpec jobSpec) {
+    public JobSpecRunnable(JobSpec jobSpec, GobblinInstanceDriver instanceDriver) {
       _jobSpec = jobSpec;
+      _instanceDriver = instanceDriver;
     }
 
     @Override
     public void run() {
       try {
-         JobExecutionDriver driver = _jobLauncher.launchJob(_jobSpec);
+         JobExecutionDriver driver = _jobLauncher.launchJob(new ResolvedJobSpec(_jobSpec, _instanceDriver));
          _callbacksDispatcher.onJobLaunch(driver);
          driver.registerStateListener(new JobStateTracker());
         ExecutorsUtils.newThreadFactory(Optional.of(_log), Optional.of("gobblin-instance-driver")).newThread(driver).start();
@@ -227,7 +230,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   }
 
   @VisibleForTesting JobSpecRunnable createJobSpecRunnable(JobSpec addedJob) {
-    return new JobSpecRunnable(addedJob);
+    return new JobSpecRunnable(addedJob, this);
   }
 
   ConfigAccessor getInstanceCfg() {

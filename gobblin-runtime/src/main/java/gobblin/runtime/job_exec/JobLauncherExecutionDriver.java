@@ -42,6 +42,9 @@ import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobExecutionStateListener;
 import gobblin.runtime.api.JobExecutionStatus;
 import gobblin.runtime.api.JobSpec;
+import gobblin.runtime.api.JobTemplate;
+import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.job_spec.ResolvedJobSpec;
 import gobblin.runtime.listeners.AbstractJobListener;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.JobExecutionStateListeners;
@@ -416,6 +419,13 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
 
     @Override public JobExecutionDriver launchJob(JobSpec jobSpec) {
       Preconditions.checkNotNull(jobSpec);
+      if (!(jobSpec instanceof ResolvedJobSpec)) {
+        try {
+          jobSpec = new ResolvedJobSpec(jobSpec);
+        } catch (JobTemplate.TemplateException | SpecNotFoundException exc) {
+          throw new RuntimeException("Can't launch job " + jobSpec.getUri(), exc);
+        }
+      }
       return JobLauncherExecutionDriver.create(getSysConfig(), jobSpec, _jobLauncherType,
           Optional.of(getLog(jobSpec)), isInstrumentationEnabled(), getMetrics());
     }
