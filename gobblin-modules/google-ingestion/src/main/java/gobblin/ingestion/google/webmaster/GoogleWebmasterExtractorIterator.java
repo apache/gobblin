@@ -1,15 +1,5 @@
 package gobblin.ingestion.google.webmaster;
 
-import avro.shaded.com.google.common.base.Joiner;
-import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
-import com.google.api.client.googleapis.json.GoogleJsonError;
-import com.google.api.client.http.HttpHeaders;
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
-import com.google.api.services.webmasters.model.ApiDimensionFilter;
-import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
-import com.google.common.base.Optional;
-import gobblin.configuration.WorkUnitState;
-import gobblin.util.ExecutorsUtils;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -23,10 +13,23 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+import com.google.api.services.webmasters.model.ApiDimensionFilter;
+import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
+import com.google.common.base.Optional;
+
+import avro.shaded.com.google.common.base.Joiner;
+
+import gobblin.configuration.WorkUnitState;
+import gobblin.util.ExecutorsUtils;
 
 //Doesn't implement Iterator<String[]> because I want to throw exception.
 

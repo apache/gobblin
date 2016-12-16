@@ -1,15 +1,14 @@
 package gobblin.ingestion.google.webmaster;
 
-import com.google.api.client.googleapis.batch.BatchRequest;
-import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
-import com.google.api.services.webmasters.Webmasters;
-import com.google.api.services.webmasters.model.ApiDataRow;
-import com.google.api.services.webmasters.model.ApiDimensionFilter;
-import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
+import com.google.api.services.webmasters.model.ApiDataRow;
+import com.google.api.services.webmasters.model.ApiDimensionFilter;
+import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 
 
 /**

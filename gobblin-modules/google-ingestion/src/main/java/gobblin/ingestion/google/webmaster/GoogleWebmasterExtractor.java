@@ -1,18 +1,5 @@
 package gobblin.ingestion.google.webmaster;
 
-import avro.shaded.com.google.common.collect.Iterables;
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
-import com.google.api.services.webmasters.WebmastersScopes;
-import com.google.api.services.webmasters.model.ApiDimensionFilter;
-import com.google.common.base.Splitter;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.DataRecordException;
-import gobblin.source.extractor.Extractor;
-import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.extractor.extract.google.GoogleCommon;
-import gobblin.source.extractor.extract.google.GoogleCommonKeys;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -22,14 +9,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
+
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static gobblin.configuration.ConfigurationKeys.*;
-import static gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+import com.google.api.services.webmasters.WebmastersScopes;
+import com.google.api.services.webmasters.model.ApiDimensionFilter;
+import com.google.common.base.Splitter;
+
+import avro.shaded.com.google.common.collect.Iterables;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.extract.LongWatermark;
+import gobblin.source.extractor.extract.google.GoogleCommon;
+import gobblin.source.extractor.extract.google.GoogleCommonKeys;
+
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY;
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USERNAME;
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT;
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
 
 
 public class GoogleWebmasterExtractor implements Extractor<String, String[]> {

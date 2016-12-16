@@ -1,13 +1,5 @@
 package gobblin.ingestion.google.webmaster;
 
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.batch.BatchRequest;
-import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
-import com.google.api.services.webmasters.model.ApiDimensionFilter;
-import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
-import com.google.common.base.Optional;
-import gobblin.util.ExecutorsUtils;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -23,14 +15,26 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.*;
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.batch.BatchRequest;
+import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
+import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+import com.google.api.services.webmasters.model.ApiDimensionFilter;
+import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
+import com.google.common.base.Optional;
+
+import gobblin.util.ExecutorsUtils;
+
+import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.Dimension;
+import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.FilterOperator;
+import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.countryFilterToString;
 
 
 public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
@@ -41,7 +45,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final List<ProducerJob> _jobs;
 
   public GoogleWebmasterDataFetcherImpl(String siteProperty, Credential credential, String appName,
-      List<ProducerJob> jobs) throws IOException {
+      List<ProducerJob> jobs)
+      throws IOException {
     this(siteProperty, new GoogleWebmasterClientImpl(credential, appName), jobs);
   }
 
@@ -73,14 +78,15 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = new ArrayList<>();
     requestedDimensions.add(GoogleWebmasterFilter.Dimension.PAGE);
 
-    Collection<String> allPages =
-        _client.getPages(_siteProperty, startDate, endDate, country, rowLimit, requestedDimensions,
+    Collection<String> allPages = _client
+        .getPages(_siteProperty, startDate, endDate, country, rowLimit, requestedDimensions,
             Arrays.asList(countryFilter), 0);
     int actualSize = allPages.size();
 
     if (rowLimit < GoogleWebmasterClient.API_ROW_LIMIT || actualSize < GoogleWebmasterClient.API_ROW_LIMIT) {
-      LOG.info(String.format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize,
-          _siteProperty, country, startDate, endDate));
+      LOG.info(String
+          .format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize, _siteProperty,
+              country, startDate, endDate));
     } else {
       int expectedSize = getPagesSize(startDate, endDate, country, requestedDimensions, Arrays.asList(countryFilter));
       LOG.info(String.format("Total number of pages is %d for market-%s from %s to %s", expectedSize,
@@ -92,12 +98,13 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       allPages.add(_siteProperty);
       actualSize = allPages.size();
       if (actualSize != expectedSize) {
-        LOG.warn(
-            String.format("Expected page size for country-%s is %d, but only able to get %d", country, expectedSize,
+        LOG.warn(String
+            .format("Expected page size for country-%s is %d, but only able to get %d", country, expectedSize,
                 actualSize));
       }
-      LOG.info(String.format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize,
-          _siteProperty, country, startDate, endDate));
+      LOG.info(String
+          .format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize, _siteProperty,
+              country, startDate, endDate));
     }
 
     ArrayDeque<ProducerJob> jobs = new ArrayDeque<>(actualSize);
@@ -133,14 +140,14 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
             LOG.info(String.format("Getting page size from %s...", start));
             while (true) {
               if (Thread.interrupted()) {
-                LOG.error(String.format(
-                    "Interrupted while trying to get the size of all pages for %s. Current start row is %d.", country,
-                    start));
+                LOG.error(String
+                    .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.",
+                        country, start));
                 return -1;
               }
               try {
-                List<String> pages =
-                    _client.getPages(_siteProperty, startDate, endDate, country, GoogleWebmasterClient.API_ROW_LIMIT,
+                List<String> pages = _client
+                    .getPages(_siteProperty, startDate, endDate, country, GoogleWebmasterClient.API_ROW_LIMIT,
                         requestedDimensions, apiDimensionFilters, start);
                 if (pages.size() < GoogleWebmasterClient.API_ROW_LIMIT) {
                   return pages.size() + start;  //Figured out the size
@@ -154,9 +161,9 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
                 Thread.sleep(200);
               } catch (InterruptedException e) {
                 LOG.error(e.getMessage());
-                LOG.error(String.format(
-                    "Interrupted while trying to get the size of all pages for %s. Current start row is %d.", country,
-                    start));
+                LOG.error(String
+                    .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.",
+                        country, start));
                 return -1;
               }
             }
@@ -197,7 +204,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
    * Get all pages in an async mode.
    */
   private Collection<String> getPages(String startDate, String endDate, List<Dimension> dimensions,
-      ApiDimensionFilter countryFilter, Queue<Pair<String, FilterOperator>> toProcess) throws IOException {
+      ApiDimensionFilter countryFilter, Queue<Pair<String, FilterOperator>> toProcess)
+      throws IOException {
     String country = GoogleWebmasterFilter.countryFilterToString(countryFilter);
 
     ConcurrentLinkedDeque<String> allPages = new ConcurrentLinkedDeque<>();
@@ -231,8 +239,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         boolean terminated = es.awaitTermination(5, TimeUnit.MINUTES);
         if (!terminated) {
           es.shutdownNow();
-          LOG.warn(
-              String.format("Timed out while getting all pages for country-%s at round %d. Next round now has size %d.",
+          LOG.warn(String
+              .format("Timed out while getting all pages for country-%s at round %d. Next round now has size %d.",
                   country, r, nextRound.size()));
         }
         //Cool down before next round. Starting from about 1/3 of a second.
@@ -247,8 +255,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       toProcess = nextRound;
     }
     if (r == retry) {
-      throw new RuntimeException(
-          String.format("Getting all pages reaches the maximum number of retires. Date range: %s ~ %s. Country: %s.",
+      throw new RuntimeException(String
+          .format("Getting all pages reaches the maximum number of retires. Date range: %s ~ %s. Country: %s.",
               startDate, endDate, country));
     }
     return allPages;
@@ -271,11 +279,11 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         filters.add(GoogleWebmasterFilter.pageFilter(operator, prefix));
         List<String> pages;
         try {
-          pages =
-              _client.getPages(_siteProperty, startDate, endDate, countryString, GoogleWebmasterClient.API_ROW_LIMIT,
+          pages = _client
+              .getPages(_siteProperty, startDate, endDate, countryString, GoogleWebmasterClient.API_ROW_LIMIT,
                   dimensions, filters, 0);
-          LOG.debug(
-              String.format("%d pages fetched for %s market-%s from %s to %s.", pages.size(), jobString, countryString,
+          LOG.debug(String
+              .format("%d pages fetched for %s market-%s from %s to %s.", pages.size(), jobString, countryString,
                   startDate, endDate));
         } catch (IOException e) {
           //OnFailure
@@ -353,8 +361,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   public List<String[]> performSearchAnalyticsQuery(String startDate, String endDate, int rowLimit,
       List<Dimension> requestedDimensions, List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters)
       throws IOException {
-    SearchAnalyticsQueryResponse response =
-        _client.createSearchAnalyticsQuery(_siteProperty, startDate, endDate, requestedDimensions,
+    SearchAnalyticsQueryResponse response = _client
+        .createSearchAnalyticsQuery(_siteProperty, startDate, endDate, requestedDimensions,
             GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, 0).execute();
     return convertResponse(requestedMetrics, response);
   }
@@ -362,7 +370,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   @Override
   public void performSearchAnalyticsQueryInBatch(List<ProducerJob> jobs, List<ArrayList<ApiDimensionFilter>> filterList,
       List<JsonBatchCallback<SearchAnalyticsQueryResponse>> callbackList, List<Dimension> requestedDimensions,
-      int rowLimit) throws IOException {
+      int rowLimit)
+      throws IOException {
     BatchRequest batchRequest = _client.createBatch();
 
     for (int i = 0; i < jobs.size(); ++i) {

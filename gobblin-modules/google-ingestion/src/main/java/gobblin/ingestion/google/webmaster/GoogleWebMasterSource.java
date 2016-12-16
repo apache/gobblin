@@ -23,72 +23,72 @@ import java.util.Map;
  *
  */
 abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
-
+  public static final String SOURCE_GOOGLE_WEBMASTER_PREFIX = "source.google_webmasters.";
   /**
    * Must Provide.
    * Provide the property site URL whose google search analytics data you want to download
    */
-  public static final String KEY_PROPERTY = "source.google_webmasters.property_url";
+  public static final String KEY_PROPERTY = SOURCE_GOOGLE_WEBMASTER_PREFIX + "property_url";
   /**
    * The filters that will be passed to all your API requests.
    * Filter format is [GoogleWebmasterFilter.Dimension].[DimensionValue]
    * Currently, this filter operator is "EQUALS" and only Country dimension is supported. Will extend this feature according to more use cases in the futher.
    */
-  public static final String KEY_REQUEST_FILTERS = "source.google_webmasters.request.filters";
+  public static final String KEY_REQUEST_FILTERS = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.filters";
   /**
    * Must Provide.
    *
    * Allowed dimensions can be found in the enum GoogleWebmasterFilter.Dimension
    */
-  public static final String KEY_REQUEST_DIMENSIONS = "source.google_webmasters.request.dimensions";
+  public static final String KEY_REQUEST_DIMENSIONS = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.dimensions";
   /**
    * Must Provide.
    *
    * Allowed metrics can be found in the enum GoogleWebmasterDataFetcher.Metric
    */
-  public static final String KEY_REQUEST_METRICS = "source.google_webmasters.request.metrics";
+  public static final String KEY_REQUEST_METRICS = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.metrics";
   /**
    * Optional: Default to 5000, which is the maximum allowed.
    *
    * The response row limit when you ask for pages. Set it to 5000 when you want to get all pages, which might be larger than 5000.
    */
-  public static final String KEY_REQUEST_PAGE_LIMIT = "source.google_webmasters.request.page_limit";
+  public static final String KEY_REQUEST_PAGE_LIMIT = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.page_limit";
   /**
    * Optional: Default to String.empty
    * Hot start this service with pre-set pages. Once this is set, the service will ignore KEY_REQUEST_PAGE_LIMIT, and won't get all pages, but use the pre-set pages instead.
    */
-  public static final String KEY_REQUEST_HOT_START = "source.google_webmasters.request.hot_start";
+  public static final String KEY_REQUEST_HOT_START = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.hot_start";
   /**
    * Optional: Default to 5000, which is the maximum allowed.
    *
    * The response row limit when you ask for queries.
    */
-  public static final String KEY_REQUEST_QUERY_LIMIT = "source.google_webmasters.request.query_limit";
+  public static final String KEY_REQUEST_QUERY_LIMIT = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.query_limit";
   /**
    * Set the time out in minutes for each round.
    */
-  public static final String KEY_REQUEST_TIME_OUT = "source.google_webmasters.request.time_out";
+  public static final String KEY_REQUEST_TIME_OUT = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.time_out";
   /**
    * Tune the maximum rounds of retries allowed when API calls failed because of exceeding quota.
    */
   public static final String KEY_REQUEST_TUNING_RETRIES =
-      "source.google_webmasters.request.performance_tuning.max_retry_rounds";
+      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.max_retry_rounds";
   /**
    * Tune the initial cool down time before starting another round of retry.
    */
   public static final String KEY_REQUEST_TUNING_INITIAL_COOL_DOWN =
-      "source.google_webmasters.request.performance_tuning.initial_cool_down";
+      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.initial_cool_down";
   /**
    * Tune the extra cool down sleep time for each round before starting another round of retry.
    * The total cool down time will be calculated as "initial_cool_down + cool_down_step * round"
    */
   public static final String KEY_REQUEST_TUNING_COOL_DOWN_STEP =
-      "source.google_webmasters.request.performance_tuning.cool_down_step";
+      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.cool_down_step";
   /**
    * Tune the speed of API requests.
    */
   public static final String KEY_REQUEST_TUNING_REQUESTS_PER_SECOND =
-      "source.google_webmasters.request.performance_tuning.requests_per_second";
+      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.requests_per_second";
 
   /**
    * Tune the size of a batch. Batch API calls together to reduce the number of HTTP connections.
@@ -96,19 +96,19 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    * Read more at https://developers.google.com/webmaster-tools/v3/how-tos/batch
    */
   public static final String KEY_REQUEST_TUNING_BATCH_SIZE =
-      "source.google_webmasters.request.performance_tuning.batch_size";
+      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.batch_size";
   /**
    * Set the group size for UrlTriePrefixGrouper
    */
   public static final String KEY_REQUEST_TUNING_GROUP_SIZE =
-      "source.google_webmasters.request.performance_tuning.group_size";
+      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.group_size";
 
   /**
    * True: Trie based
    * False: Queue based
    */
   public static final String KEY_REQUEST_TUNING_ALGORITHM =
-      "source.google_webmasters.request.performance_tuning.advanced";
+      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.advanced";
 
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
 

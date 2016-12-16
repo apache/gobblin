@@ -1,28 +1,24 @@
 package gobblin.ingestion.google.webmaster;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.batch.BatchRequest;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.services.webmasters.Webmasters;
-import com.google.api.services.webmasters.WebmastersScopes;
 import com.google.api.services.webmasters.model.ApiDataRow;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryRequest;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
-import gobblin.source.extractor.extract.google.GoogleCommon;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import static gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
+import gobblin.source.extractor.extract.google.GoogleCommon;
 
 
 public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {

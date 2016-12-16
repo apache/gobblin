@@ -1,7 +1,5 @@
 package gobblin.ingestion.google.webmaster;
 
-import com.google.api.services.webmasters.model.ApiDimensionFilter;
-import gobblin.configuration.WorkUnitState;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -9,15 +7,21 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.collections.CollectionUtils;
-import org.testng.Assert;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.Matchers.*;
+import com.google.api.services.webmasters.model.ApiDimensionFilter;
+
+import gobblin.configuration.WorkUnitState;
+
+import static org.mockito.Matchers.argThat;
+import static org.mockito.Matchers.eq;
 
 
 class CollectionEquals extends ArgumentMatcher<Collection> {
