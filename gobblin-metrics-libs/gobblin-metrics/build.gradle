@@ -10,20 +10,6 @@
 
 apply plugin: 'java'
 
-/** TODO: Re-enable avro auto-compile once Java 1.7 is fully supported by users.
-buildscript {
-  repositories {
-    jcenter()
-  }
-  dependencies {
-    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.3.4"
-  }
-}
-apply plugin: "com.commercehub.gradle.plugin.avro"
- avro {stringType = "string"
- }
-*/
-
 dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-api")
@@ -43,25 +29,6 @@ dependencies {
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
-}
-
-task testJar(type: Jar, dependsOn: testClasses) {
-    baseName = "test-${project.archivesBaseName}"
-    from sourceSets.test.output
-}
-
-configurations {
-    tests
-}
-
-configurations {
-    compile {
-        transitive = false
-    }
-}
-
-artifacts {
-    tests testJar
 }
 
 test {
