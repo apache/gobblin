@@ -968,7 +968,7 @@ No
 # Writer Properties <a name="Writer-Properties"></a>
 #### writer.destination.type 
 ###### Description
-Writer destination type; currently only writing to HDFS is supported.
+Writer destination type. Can be HDFS, KAFKA, MYSQL or TERADATA
 ###### Default Value
 HDFS 
 ###### Required
@@ -1241,7 +1241,7 @@ Batch size for Insert operation
 No
 #### writer.jdbc.insert_max_param_size
 ###### Description
-Maximum number of parameters for JDBC insert operation.
+Maximum number of parameters for JDBC insert operation (for MySQL Writer).
 ###### Default Value
 100,000 (MySQL limitation)
 ###### Required
