@@ -179,6 +179,13 @@ public class WorkUnit extends State {
   }
 
   /**
+   * This method will allow a work unit to be skipped if needed.
+   */
+  public void skip() {
+    this.setProp(ConfigurationKeys.WORK_UNIT_SKIP_KEY, true);
+  }
+
+  /**
    * Get the low {@link Watermark} as a {@link JsonElement}.
    *
    * @return a {@link JsonElement} representing the low {@link Watermark} or

@@ -16,6 +16,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -122,6 +123,8 @@ public class JobState extends SourceState {
   private RunningState state = RunningState.PENDING;
   private int taskCount = 0;
   private final Map<String, TaskState> taskStates = Maps.newLinkedHashMap();
+  // Skipped task states shouldn't be exposed to publisher, but they need to be in JobState and DatasetState so that they can be written to StateStore.
+  private final Map<String, TaskState> skippedTaskStates = Maps.newLinkedHashMap();
 
   // Necessary for serialization/deserialization
   public JobState() {}
@@ -306,6 +309,31 @@ public class JobState extends SourceState {
     this.taskStates.put(taskState.getTaskId(), taskState);
   }
 
+  public void addSkippedTaskState(TaskState taskState) {
+    this.skippedTaskStates.put(taskState.getTaskId(), taskState);
+  }
+
+  public void removeTaskState(TaskState taskState) {
+    this.taskStates.remove(taskState.getTaskId());
+    this.taskCount--;
+  }
+
+  /**
+   * Filter the task states corresponding to the skipped work units and add it to the skippedTaskStates
+   */
+  public void filterSkippedTaskStates() {
+    List<TaskState> skippedTaskStates = new ArrayList<>();
+    for (TaskState taskState : this.taskStates.values()) {
+      if (taskState.getWorkingState() == WorkUnitState.WorkingState.SKIPPED) {
+        skippedTaskStates.add(taskState);
+      }
+    }
+    for (TaskState taskState : skippedTaskStates) {
+      removeTaskState(taskState);
+      addSkippedTaskState(taskState);
+    }
+  }
+
   /**
    * Add a collection of {@link TaskState}s.
    *
@@ -314,6 +342,12 @@ public class JobState extends SourceState {
   public void addTaskStates(Collection<TaskState> taskStates) {
     for (TaskState taskState : taskStates) {
       this.taskStates.put(taskState.getTaskId(), taskState);
+    }
+  }
+
+  public void addSkippedTaskStates(Collection<TaskState> taskStates) {
+    for (TaskState taskState : taskStates) {
+      addSkippedTaskState(taskState);
     }
   }
 
@@ -358,18 +392,28 @@ public class JobState extends SourceState {
     Map<String, DatasetState> datasetStatesByUrns = Maps.newHashMap();
 
     for (TaskState taskState : this.taskStates.values()) {
-      String datasetUrn = taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
-      if (!datasetStatesByUrns.containsKey(datasetUrn)) {
-        DatasetState datasetState = newDatasetState(false);
-        datasetState.setDatasetUrn(datasetUrn);
-        datasetStatesByUrns.put(datasetUrn, datasetState);
-      }
+      String datasetUrn = createDatasetUrn(datasetStatesByUrns, taskState);
 
       datasetStatesByUrns.get(datasetUrn).incrementTaskCount();
       datasetStatesByUrns.get(datasetUrn).addTaskState(taskState);
     }
 
+    for (TaskState taskState : this.skippedTaskStates.values()) {
+      String datasetUrn = createDatasetUrn(datasetStatesByUrns, taskState);
+      datasetStatesByUrns.get(datasetUrn).addSkippedTaskState(taskState);
+    }
+
     return ImmutableMap.copyOf(datasetStatesByUrns);
+  }
+
+  private String createDatasetUrn(Map<String, DatasetState> datasetStatesByUrns, TaskState taskState) {
+    String datasetUrn = taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
+    if (!datasetStatesByUrns.containsKey(datasetUrn)) {
+      DatasetState datasetState = newDatasetState(false);
+      datasetState.setDatasetUrn(datasetUrn);
+      datasetStatesByUrns.put(datasetUrn, datasetState);
+    }
+    return datasetUrn;
   }
 
   /**
@@ -454,8 +498,11 @@ public class JobState extends SourceState {
     text.write(out);
     out.writeInt(this.taskCount);
     if (writeTasks) {
-      out.writeInt(this.taskStates.size());
+      out.writeInt(this.taskStates.size() + this.skippedTaskStates.size());
       for (TaskState taskState : this.taskStates.values()) {
+        taskState.write(out);
+      }
+      for (TaskState taskState : this.skippedTaskStates.values()) {
         taskState.write(out);
       }
     } else {
@@ -483,6 +530,9 @@ public class JobState extends SourceState {
     jsonWriter.name("task states");
     jsonWriter.beginArray();
     for (TaskState taskState : this.taskStates.values()) {
+      taskState.toJson(jsonWriter, keepConfig);
+    }
+    for (TaskState taskState : this.skippedTaskStates.values()) {
       taskState.toJson(jsonWriter, keepConfig);
     }
     jsonWriter.endArray();
@@ -629,6 +679,7 @@ public class JobState extends SourceState {
       datasetState.setState(this.state);
       datasetState.setTaskCount(this.taskCount);
       datasetState.addTaskStates(this.taskStates.values());
+      datasetState.addSkippedTaskStates(this.skippedTaskStates.values());
     }
     return datasetState;
   }

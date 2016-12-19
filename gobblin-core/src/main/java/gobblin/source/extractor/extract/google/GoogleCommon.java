@@ -230,7 +230,7 @@ public class GoogleCommon {
     return copied;
   }
 
-  static JsonFactory getJsonFactory() {
+  public static JsonFactory getJsonFactory() {
     return JSON_FACTORY;
   }
 }

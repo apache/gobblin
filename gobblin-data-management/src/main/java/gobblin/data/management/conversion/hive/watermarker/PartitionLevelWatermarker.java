@@ -20,6 +20,7 @@ import javax.annotation.Nonnull;
 
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.hive.ql.metadata.Partition;
@@ -84,7 +85,9 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
     }
   };
 
-  private final long leastWatermarkToPersistInState;
+  @Setter(AccessLevel.PACKAGE)
+  @VisibleForTesting
+  private long leastWatermarkToPersistInState;
   // Keep an additional 2 days of updates
   private static int BUFFER_WATERMARK_DAYS_TO_PERSIST = 2;
 

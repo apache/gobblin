@@ -12,7 +12,10 @@
 
 package gobblin.runtime;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -22,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +63,7 @@ import gobblin.runtime.locks.JobLockEventListener;
 import gobblin.runtime.locks.JobLockException;
 import gobblin.runtime.locks.JobLockFactory;
 import gobblin.runtime.util.JobMetrics;
+import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ClusterNameTags;
 import gobblin.util.ExecutorsUtils;
@@ -238,6 +243,44 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
+  /**
+   * This method checks if a work unit should be skipped. If yes, then it will removed
+   * from the list of workUnits and it's state will be saved.
+   * @param workUnits passed from {@link #launchJob(JobListener)}
+   * @param jobState passed from {@link #launchJob(JobListener)}
+   */
+  private Optional<List<WorkUnit>> removeSkippedWorkUnits(Optional<List<WorkUnit>> workUnits, JobState jobState) {
+    if (!workUnits.isPresent()) {
+      return workUnits;
+    }
+    final List<WorkUnit> skippedWorkUnits = new ArrayList<>();
+    for (WorkUnit workUnit : workUnits.get()) {
+      if (workUnit instanceof MultiWorkUnit) {
+        Preconditions.checkArgument(!workUnit.contains(ConfigurationKeys.WORK_UNIT_SKIP_KEY),
+            "Error: MultiWorkUnit cannot be skipped");
+        for (WorkUnit wu : ((MultiWorkUnit) workUnit).getWorkUnits()) {
+          Preconditions.checkArgument(!wu.contains(ConfigurationKeys.WORK_UNIT_SKIP_KEY),
+              "Error: MultiWorkUnit cannot contain skipped WorkUnit");
+        }
+      }
+      if (workUnit.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_SKIP_KEY, false)) {
+        skippedWorkUnits.add(workUnit);
+        WorkUnitState workUnitState = new WorkUnitState(workUnit, jobState);
+        workUnitState.setWorkingState(WorkUnitState.WorkingState.SKIPPED);
+        jobState.addTaskState(new TaskState(workUnitState));
+      }
+    }
+    jobState.filterSkippedTaskStates();
+    Predicate<WorkUnit> executableWorkUnit = new Predicate<WorkUnit>() {
+      @Override
+      public boolean apply(@Nullable WorkUnit workUnit) {
+        return !skippedWorkUnits.contains(workUnit);
+      }
+    };
+    return Optional.fromNullable((List<WorkUnit>) (ImmutableList.<WorkUnit>builder().addAll(
+        Collections2.filter(workUnits.get(), executableWorkUnit)).build()));
+  }
+
   @Override
   public void launchJob(JobListener jobListener)
       throws JobException {
@@ -328,6 +371,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           this.jobContext.storeJobExecutionInfo();
 
           TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_RUN);
+          // Remove skipped workUnits from the list of work units to execute.
+          workUnits = removeSkippedWorkUnits(workUnits, jobState);
           // Start the job and wait for it to finish
           runWorkUnits(workUnits.get());
           jobRunTimer.stop();

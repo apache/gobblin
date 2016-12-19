@@ -106,6 +106,9 @@ public class HiveSource implements Source {
   public static final String HIVE_SOURCE_EXTRACTOR_TYPE = "hive.source.extractorType";
   public static final String DEFAULT_HIVE_SOURCE_EXTRACTOR_TYPE = HiveConvertExtractorFactory.class.getName();
 
+  public static final String HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS = "hive.source.createWorkunitsForPartitions";
+  public static final boolean DEFAULT_HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS = true;
+
   /***
    * Comma separated list of keywords to look for in path of table (in non-partitioned case) / partition (in partitioned case)
    * and if the keyword is found then ignore the table / partition from processing.
@@ -153,7 +156,9 @@ public class HiveSource implements Source {
           log.debug(String.format("Processing dataset: %s", hiveDataset));
 
           // Create workunits for partitions
-          if (HiveUtils.isPartitioned(hiveDataset.getTable())) {
+          if (HiveUtils.isPartitioned(hiveDataset.getTable())
+              && state.getPropAsBoolean(HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS,
+              DEFAULT_HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS)) {
             createWorkunitsForPartitionedTable(hiveDataset, client);
           } else {
             createWorkunitForNonPartitionedTable(hiveDataset);

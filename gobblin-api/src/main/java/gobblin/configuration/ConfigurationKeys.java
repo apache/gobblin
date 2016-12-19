@@ -165,6 +165,7 @@ public class ConfigurationKeys {
    */
   public static final String WORK_UNIT_LOW_WATER_MARK_KEY = "workunit.low.water.mark";
   public static final String WORK_UNIT_HIGH_WATER_MARK_KEY = "workunit.high.water.mark";
+  public static final String WORK_UNIT_SKIP_KEY = "workunit.skip";
 
   /**
    * Work unit runtime state related configuration properties.
@@ -210,6 +211,8 @@ public class ConfigurationKeys {
   public static final String CONVERTER_AVRO_EXTRACTOR_FIELD_PATH = "converter.avro.extractor.field.path";
   public static final String CONVERTER_STRING_FILTER_PATTERN = "converter.string.filter.pattern";
   public static final String CONVERTER_STRING_SPLITTER_DELIMITER = "converter.string.splitter.delimiter";
+  public static final String CONVERTER_STRING_SPLITTER_SHOULD_TRIM_RESULTS = "converter.string.splitter.shouldITrimResults";
+  public static final boolean DEFAULT_CONVERTER_STRING_SPLITTER_SHOULD_TRIM_RESULTS = false;
   public static final String CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "converter.csv.to.json.enclosedchar";
   public static final String DEFAULT_CONVERTER_CSV_TO_JSON_ENCLOSEDCHAR = "\0";
   public static final String CONVERTER_AVRO_FIELD_PICK_FIELDS = "converter.avro.fields";

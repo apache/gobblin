@@ -970,13 +970,35 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     return baString;
   }
 
+  /**
+   * HACK: there is a bug in the MysqlExtractor where tinyint columns are always treated as ints.
+   * There are MySQL jdbc driver setting (tinyInt1isBit=true and transformedBitIsBoolean=false) that
+   * can cause tinyint(1) columns to be treated as BIT/BOOLEAN columns. The default behavior is to
+   * treat tinyint(1) as BIT.
+   *
+   * Currently, {@link MysqlExtractor#getDataTypeMap()} uses the information_schema to check types.
+   * That does not do the above conversion. {@link #parseColumnAsString(ResultSet, ResultSetMetaData, int)}
+   * which does the above type mapping.
+   *
+   * On the other hand, SqlServerExtractor treats BIT columns as Booleans. So we can be in a bind
+   * where sometimes BIT has to be converted to an int (for backwards compatibility in MySQL) and
+   * sometimes to a Boolean (for SqlServer).
+   *
+   * This function adds configurable behavior depending on the Extractor type.
+   **/
+  protected boolean convertBitToBoolean() {
+    return true;
+  }
+
   private String parseColumnAsString(final ResultSet resultset, final ResultSetMetaData resultsetMetadata, int i)
       throws SQLException {
 
     if (isBlob(resultsetMetadata.getColumnType(i))) {
       return readBlobAsString(resultset.getBlob(i));
     }
-    if (resultsetMetadata.getColumnType(i) == Types.BIT || resultsetMetadata.getColumnType(i) == Types.BOOLEAN) {
+    if ((resultsetMetadata.getColumnType(i) == Types.BIT
+         || resultsetMetadata.getColumnType(i) == Types.BOOLEAN)
+        && convertBitToBoolean()) {
       return Boolean.toString(resultset.getBoolean(i));
     }
     return resultset.getString(i);

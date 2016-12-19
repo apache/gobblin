@@ -11,7 +11,6 @@ import org.apache.thrift.TException;
 import com.google.common.base.Splitter;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
 import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
 import gobblin.source.extractor.Extractor;
 import gobblin.util.AutoReturnableObject;
@@ -49,8 +48,7 @@ public class HiveMetadataForCompactionExtractor extends HiveBaseExtractor<Void, 
       String deltaString = table.getParameters().get(state.getProp(COMPACTION_DELTA));
       List<String> deltaList = Splitter.on(',').omitEmptyStrings().trimResults().splitToList(deltaString);
 
-      String topicName = AvroSchemaManager.getSchemaFromUrl(this.hiveWorkUnit.getTableSchemaUrl(), fs).getName();
-      Path dataFilesPath = new Path(table.getSd().getLocation(), topicName);
+      Path dataFilesPath = new Path(table.getSd().getLocation());
 
       compactionEntity = new MRCompactionEntity(primaryKeyList, deltaList, dataFilesPath, state.getProperties());
     }
