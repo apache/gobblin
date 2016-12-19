@@ -160,10 +160,9 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
               try {
                 Thread.sleep(200);
               } catch (InterruptedException e) {
-                log.error(e.getMessage());
                 log.error(String
-                    .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.",
-                        country, start));
+                    .format("Failed while getting the size of all pages for %s caused by %s. Current start row is %d.",
+                        country, e.getMessage(), start));
                 return -1;
               }
             }
