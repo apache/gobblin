@@ -12,8 +12,6 @@
 
 package gobblin.runtime;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,9 +20,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +29,8 @@ import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -70,6 +68,8 @@ import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.writer.initializer.WriterInitializerFactory;
 
+import javax.annotation.Nullable;
+
 
 /**
  * An abstract implementation of {@link JobLauncher} that handles common tasks for launching and running a job.
@@ -78,7 +78,7 @@ import gobblin.writer.initializer.WriterInitializerFactory;
  */
 public abstract class AbstractJobLauncher implements JobLauncher {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AbstractJobLauncher.class);
+  static final Logger LOG = LoggerFactory.getLogger(AbstractJobLauncher.class);
 
   public static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
 
@@ -696,7 +696,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
             Optional.of(containerId), Optional.of(taskStateStore));
 
-    runAndOptionallyCommitTaskAttempt(multiTaskAttempt, multiTaskAttemptCommitPolicy);
+    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
   }
 
@@ -707,21 +707,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     GobblinMultiTaskAttempt multiTaskAttempt =
         new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
             Optional.<String>absent(), Optional.<StateStore<TaskState>>absent());
-    runAndOptionallyCommitTaskAttempt(multiTaskAttempt, multiTaskAttemptCommitPolicy);
+    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
-  }
-
-  private static void runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt multiTaskAttempt,
-      MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy)
-      throws IOException, InterruptedException {
-    multiTaskAttempt.run();
-    if (multiTaskAttemptCommitPolicy.equals(MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE)) {
-      LOG.info("Will commit tasks directly.");
-      multiTaskAttempt.commit();
-    } else if (!multiTaskAttempt.isSpeculativeExecutionSafe()) {
-      throw new RuntimeException(
-          "Specualtive execution is enabled. However, the task context is not safe for speculative execution.");
-    }
   }
 
   /**

@@ -20,6 +20,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
@@ -39,18 +42,16 @@ import gobblin.util.ExecutorsUtils;
 import gobblin.util.executors.IteratorExecutor;
 
 import javax.annotation.Nullable;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Attempt of running multiple {@link Task}s generated from a list of{@link WorkUnit}s.
  * A {@link GobblinMultiTaskAttempt} is usually a unit of workunits that are assigned to one container.
  */
-@Slf4j
-@RequiredArgsConstructor
 @Alpha
 public class GobblinMultiTaskAttempt {
+
+  private final Logger log;
   private final List<WorkUnit> workUnits;
   private final String jobId;
   private final JobState jobState;
@@ -65,6 +66,25 @@ public class GobblinMultiTaskAttempt {
    * Usually it should be clean-up steps, which are always executed at the end of {@link #commit()}.
    */
   private List<CommitStep> cleanupCommitSteps;
+
+  public GobblinMultiTaskAttempt(List<WorkUnit> workUnits,
+                                 String jobId,
+                                 JobState jobState,
+                                 TaskStateTracker taskStateTracker,
+                                 TaskExecutor taskExecutor,
+                                 Optional<String> containerIdOptional,
+                                 Optional<StateStore<TaskState>> taskStateStoreOptional) {
+    super();
+    this.workUnits = workUnits;
+    this.jobId = jobId;
+    this.jobState = jobState;
+    this.taskStateTracker = taskStateTracker;
+    this.taskExecutor = taskExecutor;
+    this.containerIdOptional = containerIdOptional;
+    this.taskStateStoreOptional = taskStateStoreOptional;
+    this.log = LoggerFactory.getLogger(GobblinMultiTaskAttempt.class.getName() + "-" +
+               containerIdOptional.or("noattempt"));
+  }
 
   /**
    * Run {@link #workUnits} assigned in this attempt.
@@ -239,5 +259,17 @@ public class GobblinMultiTaskAttempt {
         .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
 
     return tasks;
+  }
+
+  void runAndOptionallyCommitTaskAttempt(AbstractJobLauncher.MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy)
+      throws IOException, InterruptedException {
+    run();
+    if (multiTaskAttemptCommitPolicy.equals(AbstractJobLauncher.MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE)) {
+      this.log.info("Will commit tasks directly.");
+      commit();
+    } else if (!isSpeculativeExecutionSafe()) {
+      throw new RuntimeException(
+          "Specualtive execution is enabled. However, the task context is not safe for speculative execution.");
+    }
   }
 }
