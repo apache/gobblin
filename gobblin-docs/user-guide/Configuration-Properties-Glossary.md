@@ -513,7 +513,7 @@ The name of the host to connect to.
 ###### Default Value
 None
 ###### Required
-Required for SftpExtractor, MySQLExtractor, and SQLServerExtractor.
+Required for SftpExtractor, MySQLExtractor, OracleExtractor, SQLServerExtractor and TeradataExtractor.
 #### source.conn.rest.url 
 ###### Description
 URL to connect to for REST requests. This parameter is only used for the Salesforce source.
@@ -541,7 +541,14 @@ The value of the port to connect to.
 ###### Default Value
 None
 ###### Required
-Required for SftpExtractor, MySQLExtractor, SqlServerExtractor.
+Required for SftpExtractor, MySQLExtractor, OracleExtractor, SQLServerExtractor and TeradataExtractor.
+#### source.conn.sid
+###### Description
+The Oracle System ID (SID) that identifies the database to connect to.
+###### Default Value
+None
+###### Required
+Required for OracleExtractor.
 #### extract.table.name 
 ###### Description
 Table name in Hadoop which is different table name in source.
