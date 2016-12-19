@@ -55,7 +55,7 @@ GOBBLIN 0.9.0
 ## EXTERNAL CONTRIBUTIONS
 We would like to thank all our external contributors for helping improve Gobblin.
 
-* lbending
+* lbendig
   - Teradata writer (PR 1181)
   - Oracle extractor (PR 1304)
 
