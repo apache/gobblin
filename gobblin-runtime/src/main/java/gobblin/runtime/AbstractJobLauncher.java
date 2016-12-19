@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -723,48 +722,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throw new RuntimeException(
           "Specualtive execution is enabled. However, the task context is not safe for speculative execution.");
     }
-  }
-
-  /**
-   * Run a given list of {@link WorkUnit}s of a job.
-   *
-   * <p>
-   *   This method assumes that the given list of {@link WorkUnit}s have already been flattened and
-   *   each {@link WorkUnit} contains the task ID in the property {@link ConfigurationKeys#TASK_ID_KEY}.
-   * </p>
-   *
-   * @param jobId the job ID
-   * @param workUnits the given list of {@link WorkUnit}s to submit to run
-   * @param stateTracker a {@link TaskStateTracker} for task state tracking
-   * @param taskExecutor a {@link TaskExecutor} for task execution
-   * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
-   * @return a list of {@link Task}s from the {@link WorkUnit}s
-   */
-  public static List<Task> runWorkUnits(String jobId, JobState jobState, List<WorkUnit> workUnits,
-      Optional<String> attemptIdOptional, TaskStateTracker stateTracker, TaskExecutor taskExecutor,
-      CountDownLatch countDownLatch) {
-
-    List<Task> tasks = Lists.newArrayList();
-    for (WorkUnit workUnit : workUnits) {
-      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-      WorkUnitState workUnitState = new WorkUnitState(workUnit, jobState);
-      workUnitState.setId(taskId);
-      workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-      workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-      if (attemptIdOptional.isPresent()) {
-        workUnitState.setProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY, attemptIdOptional.get());
-      }
-      // Create a new task from the work unit and submit the task to run
-      Task task = new Task(new TaskContext(workUnitState), stateTracker, taskExecutor, Optional.of(countDownLatch));
-      stateTracker.registerNewTask(task);
-      tasks.add(task);
-      taskExecutor.execute(task);
-    }
-
-    new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build()
-        .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
-
-    return tasks;
   }
 
   /**

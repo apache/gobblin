@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Function;
@@ -31,6 +30,9 @@ import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.StateStore;
+import gobblin.metrics.event.EventSubmitter;
+import gobblin.metrics.event.JobEvent;
+import gobblin.runtime.util.JobMetrics;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
@@ -77,8 +79,7 @@ public class GobblinMultiTaskAttempt {
     }
 
     CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
-    this.tasks = AbstractJobLauncher
-        .runWorkUnits(jobId, jobState, workUnits, containerIdOptional, taskStateTracker, taskExecutor, countDownLatch);
+    this.tasks = runWorkUnits(countDownLatch);
     log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId,
         containerIdOptional.or(""));
     while (countDownLatch.getCount() > 0) {
@@ -201,5 +202,42 @@ public class GobblinMultiTaskAttempt {
     } else {
       this.cleanupCommitSteps.add(commitStep);
     }
+  }
+
+  /**
+   * Run a given list of {@link WorkUnit}s of a job.
+   *
+   * <p>
+   *   This method assumes that the given list of {@link WorkUnit}s have already been flattened and
+   *   each {@link WorkUnit} contains the task ID in the property {@link ConfigurationKeys#TASK_ID_KEY}.
+   * </p>
+   *
+   * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
+   * @return a list of {@link Task}s from the {@link WorkUnit}s
+   */
+  private List<Task> runWorkUnits(CountDownLatch countDownLatch) {
+
+    List<Task> tasks = Lists.newArrayList();
+    for (WorkUnit workUnit : this.workUnits) {
+      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+      WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState);
+      workUnitState.setId(taskId);
+      workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobId);
+      workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+      if (this.containerIdOptional.isPresent()) {
+        workUnitState.setProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY, this.containerIdOptional.get());
+      }
+      // Create a new task from the work unit and submit the task to run
+      Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker, this.taskExecutor,
+                           Optional.of(countDownLatch));
+      this.taskStateTracker.registerNewTask(task);
+      tasks.add(task);
+      this.taskExecutor.execute(task);
+    }
+
+    new EventSubmitter.Builder(JobMetrics.get(this.jobId).getMetricContext(), "gobblin.runtime").build()
+        .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
+
+    return tasks;
   }
 }
