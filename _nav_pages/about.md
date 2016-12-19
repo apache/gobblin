@@ -15,23 +15,28 @@ Check out the Gobblin documentation at [https://github.com/linkedin/gobblin/wiki
 
 # Team
 
-* Abhishek Tiwari
+* [Abhishek Tiwari](https://github.com/abti)
 * [Chavdar Botev](https://github.com/chavdar)
+* [Hung Tran](https://github.com/htran1)
 * [Issac Buenrostro](https://github.com/ibuenros)
-* [Min Tu](https://github.com/tuGithub)
+* [Kuai Yu](https://github.com/yukuai518)
 * [Pradhan Cadabam](https://github.com/pcadabam)
-* [Sahil Takiar](https://github.com/sahilTakiar)
 * [Ying Dai](https://github.com/ydai1124)
-* [Yinan Li](https://github.com/liyinan926)
-* [Ziyang Liu](https://github.com/zliu41)
 
 # Friends and major contributors
 
 * Shirshanka Das
 * Narasimha Veeramreddy
+* Lorand Bendig
+* Jinhyuk Chang
+* Joel Baranick
 
 # Alumni
 
 * Lin Qiao
 * Henry Cai
 * Ken Goodhope
+* Yinan Li
+* Sahil Takiar
+* Ziyang Liu
+* Min Tu

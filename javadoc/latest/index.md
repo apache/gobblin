@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Gobblin Javadoc packages 0.8.0
+title: Gobblin Javadoc packages 0.9.0
 permalink: /javadoc/latest/
 ---
 
