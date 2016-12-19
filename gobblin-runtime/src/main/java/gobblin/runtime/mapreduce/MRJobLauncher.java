@@ -52,7 +52,6 @@ import com.google.common.util.concurrent.ServiceManager;
 
 import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.configuration.State;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
@@ -72,7 +71,6 @@ import gobblin.runtime.util.JobMetrics;
 import gobblin.runtime.util.MetricGroup;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ConfigUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.JobConfigurationUtils;
 import gobblin.util.JobLauncherUtils;
@@ -594,13 +592,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
         while (context.nextKeyValue()) {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
-        MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy =
-            isSpeculativeEnabled ? MULTI_TASK_ATTEMPT_COMMIT_POLICY.CUSTOMIZED
-                : MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE;
+        GobblinMultiTaskAttempt.CommitPolicy multiTaskAttemptCommitPolicy =
+            isSpeculativeEnabled ? GobblinMultiTaskAttempt.CommitPolicy.CUSTOMIZED
+                : GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE;
         // Actually run the list of WorkUnits
         gobblinMultiTaskAttempt =
-            runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(), this.jobState, this.workUnits,
-                this.taskStateTracker, this.taskExecutor, this.taskStateStore, LOG, multiTaskAttemptCommitPolicy);
+            GobblinMultiTaskAttempt.runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(), this.jobState, this.workUnits,
+                this.taskStateTracker, this.taskExecutor, this.taskStateStore, multiTaskAttemptCommitPolicy);
 
         if (this.isSpeculativeEnabled) {
           LOG.info("will not commit in task attempt");
