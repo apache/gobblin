@@ -12,20 +12,15 @@
 
 package gobblin.runtime;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +29,8 @@ import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -71,6 +68,8 @@ import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.writer.initializer.WriterInitializerFactory;
 
+import javax.annotation.Nullable;
+
 
 /**
  * An abstract implementation of {@link JobLauncher} that handles common tasks for launching and running a job.
@@ -79,7 +78,7 @@ import gobblin.writer.initializer.WriterInitializerFactory;
  */
 public abstract class AbstractJobLauncher implements JobLauncher {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AbstractJobLauncher.class);
+  static final Logger LOG = LoggerFactory.getLogger(AbstractJobLauncher.class);
 
   public static final String TASK_STATE_STORE_TABLE_SUFFIX = ".tst";
 
@@ -697,7 +696,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
             Optional.of(containerId), Optional.of(taskStateStore));
 
-    runAndOptionallyCommitTaskAttempt(multiTaskAttempt, multiTaskAttemptCommitPolicy);
+    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
   }
 
@@ -708,63 +707,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     GobblinMultiTaskAttempt multiTaskAttempt =
         new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
             Optional.<String>absent(), Optional.<StateStore<TaskState>>absent());
-    runAndOptionallyCommitTaskAttempt(multiTaskAttempt, multiTaskAttemptCommitPolicy);
+    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
-  }
-
-  private static void runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt multiTaskAttempt,
-      MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy)
-      throws IOException, InterruptedException {
-    multiTaskAttempt.run();
-    if (multiTaskAttemptCommitPolicy.equals(MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE)) {
-      LOG.info("Will commit tasks directly.");
-      multiTaskAttempt.commit();
-    } else if (!multiTaskAttempt.isSpeculativeExecutionSafe()) {
-      throw new RuntimeException(
-          "Specualtive execution is enabled. However, the task context is not safe for speculative execution.");
-    }
-  }
-
-  /**
-   * Run a given list of {@link WorkUnit}s of a job.
-   *
-   * <p>
-   *   This method assumes that the given list of {@link WorkUnit}s have already been flattened and
-   *   each {@link WorkUnit} contains the task ID in the property {@link ConfigurationKeys#TASK_ID_KEY}.
-   * </p>
-   *
-   * @param jobId the job ID
-   * @param workUnits the given list of {@link WorkUnit}s to submit to run
-   * @param stateTracker a {@link TaskStateTracker} for task state tracking
-   * @param taskExecutor a {@link TaskExecutor} for task execution
-   * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
-   * @return a list of {@link Task}s from the {@link WorkUnit}s
-   */
-  public static List<Task> runWorkUnits(String jobId, JobState jobState, List<WorkUnit> workUnits,
-      Optional<String> attemptIdOptional, TaskStateTracker stateTracker, TaskExecutor taskExecutor,
-      CountDownLatch countDownLatch) {
-
-    List<Task> tasks = Lists.newArrayList();
-    for (WorkUnit workUnit : workUnits) {
-      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-      WorkUnitState workUnitState = new WorkUnitState(workUnit, jobState);
-      workUnitState.setId(taskId);
-      workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-      workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
-      if (attemptIdOptional.isPresent()) {
-        workUnitState.setProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY, attemptIdOptional.get());
-      }
-      // Create a new task from the work unit and submit the task to run
-      Task task = new Task(new TaskContext(workUnitState), stateTracker, taskExecutor, Optional.of(countDownLatch));
-      stateTracker.registerNewTask(task);
-      tasks.add(task);
-      taskExecutor.execute(task);
-    }
-
-    new EventSubmitter.Builder(JobMetrics.get(jobId).getMetricContext(), "gobblin.runtime").build()
-        .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
-
-    return tasks;
   }
 
   /**
