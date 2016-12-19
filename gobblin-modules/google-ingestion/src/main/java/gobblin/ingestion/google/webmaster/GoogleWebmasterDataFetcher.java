@@ -38,7 +38,8 @@ public abstract class GoogleWebmasterDataFetcher {
    * @param filters filters of your request
    */
   public abstract List<String[]> performSearchAnalyticsQuery(String startDate, String endDate, int rowLimit,
-      List<GoogleWebmasterFilter.Dimension> requestedDimensions, List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters)
+      List<GoogleWebmasterFilter.Dimension> requestedDimensions, List<Metric> requestedMetrics,
+      Collection<ApiDimensionFilter> filters)
       throws IOException;
 
   /**
@@ -46,8 +47,9 @@ public abstract class GoogleWebmasterDataFetcher {
    */
   public abstract void performSearchAnalyticsQueryInBatch(List<ProducerJob> jobs,
       List<ArrayList<ApiDimensionFilter>> filterList,
-      List<JsonBatchCallback<SearchAnalyticsQueryResponse>> callbackList, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      int rowLimit) throws IOException;
+      List<JsonBatchCallback<SearchAnalyticsQueryResponse>> callbackList,
+      List<GoogleWebmasterFilter.Dimension> requestedDimensions, int rowLimit)
+      throws IOException;
 
   /**
    * Return all pages given (date, country) filter
@@ -62,10 +64,12 @@ public abstract class GoogleWebmasterDataFetcher {
     if (rows == null || rows.isEmpty()) {
       return new ArrayList<>();
     }
+    int arraySize = rows.get(0).getKeys().size() + requestedMetrics.size();
+
     List<String[]> ret = new ArrayList<>(rows.size());
     for (ApiDataRow row : rows) {
       List<String> keys = row.getKeys();
-      String[] data = new String[keys.size() + 4];
+      String[] data = new String[arraySize];
       int i = 0;
       for (; i < keys.size(); ++i) {
         data[i] = keys.get(i);
