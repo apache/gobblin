@@ -51,6 +51,20 @@ import javax.annotation.Nullable;
 @Alpha
 public class GobblinMultiTaskAttempt {
 
+  /**
+   * An enumeration of policies on when a {@link GobblinMultiTaskAttempt} will be committed.
+   */
+  public enum CommitPolicy {
+    /**
+     * Commit {@link GobblinMultiTaskAttempt} immediately after running is done.
+     */
+    IMMEDIATE,
+    /**
+     * Not committing {@link GobblinMultiTaskAttempt} but leaving it to user customized launcher.
+     */
+    CUSTOMIZED
+  }
+
   private final Logger log;
   private final List<WorkUnit> workUnits;
   private final String jobId;
@@ -261,15 +275,61 @@ public class GobblinMultiTaskAttempt {
     return tasks;
   }
 
-  void runAndOptionallyCommitTaskAttempt(AbstractJobLauncher.MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy)
+  public void runAndOptionallyCommitTaskAttempt(CommitPolicy multiTaskAttemptCommitPolicy)
       throws IOException, InterruptedException {
     run();
-    if (multiTaskAttemptCommitPolicy.equals(AbstractJobLauncher.MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE)) {
+    if (multiTaskAttemptCommitPolicy.equals(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE)) {
       this.log.info("Will commit tasks directly.");
       commit();
     } else if (!isSpeculativeExecutionSafe()) {
       throw new RuntimeException(
           "Specualtive execution is enabled. However, the task context is not safe for speculative execution.");
     }
+  }
+
+  /**
+   * FIXME this method is provided for backwards compatibility in the LocalJobLauncher since it does
+   * not access the task state store. This should be addressed as all task executions should be
+   * updating the task state.
+   */
+  public static GobblinMultiTaskAttempt runWorkUnits(String jobId, JobState jobState, List<WorkUnit> workUnits,
+      TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
+      CommitPolicy multiTaskAttemptCommitPolicy)
+      throws IOException, InterruptedException {
+    GobblinMultiTaskAttempt multiTaskAttempt =
+        new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
+            Optional.<String>absent(), Optional.<StateStore<TaskState>>absent());
+    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
+    return multiTaskAttempt;
+  }
+
+  /**
+   * Run a given list of {@link WorkUnit}s of a job.
+   *
+   * <p>
+   *   This method creates {@link GobblinMultiTaskAttempt} to actually run the {@link Task}s of the {@link WorkUnit}s, and optionally commit.
+   * </p>
+   *
+   * @param jobId the job ID
+   * @param workUnits the given list of {@link WorkUnit}s to submit to run
+   * @param taskStateTracker a {@link TaskStateTracker} for task state tracking
+   * @param taskExecutor a {@link TaskExecutor} for task execution
+   * @param taskStateStore a {@link StateStore} for storing {@link TaskState}s
+   * @param logger a {@link Logger} for logging
+   * @param multiTaskAttemptCommitPolicy {@link GobblinMultiTaskAttempt.CommitPolicy} for committing {@link GobblinMultiTaskAttempt}
+   * @throws IOException if there's something wrong with any IO operations
+   * @throws InterruptedException if the task execution gets cancelled
+   */
+  public static GobblinMultiTaskAttempt runWorkUnits(String jobId, String containerId, JobState jobState,
+      List<WorkUnit> workUnits, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
+      StateStore<TaskState> taskStateStore,
+      CommitPolicy multiTaskAttemptCommitPolicy)
+      throws IOException, InterruptedException {
+    GobblinMultiTaskAttempt multiTaskAttempt =
+        new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
+            Optional.of(containerId), Optional.of(taskStateStore));
+
+    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
+    return multiTaskAttempt;
   }
 }

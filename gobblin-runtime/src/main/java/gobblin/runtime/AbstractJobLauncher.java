@@ -43,7 +43,6 @@ import gobblin.commit.DeliverySemantics;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.initializer.ConverterInitializerFactory;
-import gobblin.metastore.StateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.GobblinMetricsRegistry;
 import gobblin.metrics.MetricContext;
@@ -123,20 +122,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   // A list of JobListeners that will be injected into the user provided JobListener
   private final List<JobListener> mandatoryJobListeners = Lists.newArrayList();
-
-  /**
-   * An enumeration of policies on when a {@link GobblinMultiTaskAttempt} will be committed.
-   */
-  public enum MULTI_TASK_ATTEMPT_COMMIT_POLICY {
-    /**
-     * Commit {@link GobblinMultiTaskAttempt} immediately after running is done.
-     */
-    IMMEDIATE,
-    /**
-     * Not committing {@link GobblinMultiTaskAttempt} but leaving it to user customized launcher.
-     */
-    CUSTOMIZED
-  }
 
   public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
       throws Exception {
@@ -668,47 +653,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   private EventSubmitter buildEventSubmitter(List<? extends Tag<?>> tags) {
     return new EventSubmitter.Builder(this.runtimeMetricContext, "gobblin.runtime")
         .addMetadata(Tag.toMap(Tag.tagValuesToString(tags))).build();
-  }
-
-  /**
-   * Run a given list of {@link WorkUnit}s of a job.
-   *
-   * <p>
-   *   This method creates {@link GobblinMultiTaskAttempt} to actually run the {@link Task}s of the {@link WorkUnit}s, and optionally commit.
-   * </p>
-   *
-   * @param jobId the job ID
-   * @param workUnits the given list of {@link WorkUnit}s to submit to run
-   * @param taskStateTracker a {@link TaskStateTracker} for task state tracking
-   * @param taskExecutor a {@link TaskExecutor} for task execution
-   * @param taskStateStore a {@link StateStore} for storing {@link TaskState}s
-   * @param logger a {@link Logger} for logging
-   * @param multiTaskAttemptCommitPolicy {@link MULTI_TASK_ATTEMPT_COMMIT_POLICY} for committing {@link GobblinMultiTaskAttempt}
-   * @throws IOException if there's something wrong with any IO operations
-   * @throws InterruptedException if the task execution gets cancelled
-   */
-  public static GobblinMultiTaskAttempt runWorkUnits(String jobId, String containerId, JobState jobState,
-      List<WorkUnit> workUnits, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
-      StateStore<TaskState> taskStateStore, Logger logger,
-      MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy)
-      throws IOException, InterruptedException {
-    GobblinMultiTaskAttempt multiTaskAttempt =
-        new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
-            Optional.of(containerId), Optional.of(taskStateStore));
-
-    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
-    return multiTaskAttempt;
-  }
-
-  public static GobblinMultiTaskAttempt runWorkUnits(String jobId, JobState jobState, List<WorkUnit> workUnits,
-      TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
-      MULTI_TASK_ATTEMPT_COMMIT_POLICY multiTaskAttemptCommitPolicy)
-      throws IOException, InterruptedException {
-    GobblinMultiTaskAttempt multiTaskAttempt =
-        new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
-            Optional.<String>absent(), Optional.<StateStore<TaskState>>absent());
-    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
-    return multiTaskAttempt;
   }
 
   /**

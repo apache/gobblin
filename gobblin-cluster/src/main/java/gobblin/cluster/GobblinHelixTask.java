@@ -17,12 +17,10 @@ import java.util.List;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskResult;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +33,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.GobblinMultiTaskAttempt;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
@@ -131,8 +130,8 @@ public class GobblinHelixTask implements Task {
         workUnits.add(workUnit);
       }
 
-      AbstractJobLauncher.runWorkUnits(this.jobId, this.participantId, this.jobState, workUnits, this.taskStateTracker,
-          this.taskExecutor, this.taskStateStore, LOGGER, AbstractJobLauncher.MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE);
+      GobblinMultiTaskAttempt.runWorkUnits(this.jobId, this.participantId, this.jobState, workUnits, this.taskStateTracker,
+          this.taskExecutor, this.taskStateStore, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
       return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnits.size()));
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
