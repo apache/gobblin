@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.limiter.RateBasedLimiter;
 
 //Doesn't implement Iterator<String[]> because I want to throw exception.
 
@@ -37,6 +38,7 @@ import gobblin.util.ExecutorsUtils;
 @Slf4j
 class GoogleWebmasterExtractorIterator {
 
+  private final RateBasedLimiter LIMITER;
   private final int TIME_OUT;
   private final int BATCH_SIZE;
   private final int GROUP_SIZE;
@@ -99,6 +101,8 @@ class GoogleWebmasterExtractorIterator {
 
     BATCH_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_BATCH_SIZE, 2);
     Preconditions.checkArgument(BATCH_SIZE >= 1, "Batch size must be at least 1.");
+
+    LIMITER = new RateBasedLimiter(REQUESTS_PER_SECOND * BATCH_SIZE, TimeUnit.SECONDS);
 
     GROUP_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_GROUP_SIZE, 500);
     Preconditions.checkArgument(GROUP_SIZE >= 1, "Group size must be at least 1.");
@@ -242,13 +246,13 @@ class GoogleWebmasterExtractorIterator {
           }
 
           if (batch.size() == BATCH_SIZE) {
-            submitJob(requestSleep, retries, es, batch);
+            es.submit(getResponses(batch, retries, _cachedQueries));
             batch = new ArrayList<>(BATCH_SIZE);
           }
         }
         //Send the last batch
         if (!batch.isEmpty()) {
-          submitJob(requestSleep, retries, es, batch);
+          es.submit(getResponses(batch, retries, _cachedQueries));
         }
         log.info(String.format("Submitted all jobs at round %d.", r));
 
@@ -274,13 +278,6 @@ class GoogleWebmasterExtractorIterator {
 
         ++r;
         _jobsToProcess = retries;
-        try {
-          //Cool down before starting the next round of retry. Google is already quite upset.
-          //As it gets more and more upset, we give it more and more time to cool down.
-          Thread.sleep(INITIAL_COOL_DOWN + COOL_DOWN_STEP * rand.nextInt(r));
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
       }
 
       if (r == MAX_RETRY_ROUNDS + 1) {
@@ -295,16 +292,6 @@ class GoogleWebmasterExtractorIterator {
       log.info(String
           .format("ResponseProducer finishes for %s from %s to %s at retry round %d", _country, _startDate, _endDate,
               r));
-    }
-
-    private void submitJob(long requestSleep, ConcurrentLinkedDeque<ProducerJob> retries, ExecutorService es,
-        List<ProducerJob> batch) {
-      try {
-        Thread.sleep(requestSleep); //Control the speed of sending API requests
-      } catch (InterruptedException ignored) {
-      }
-
-      es.submit(getResponses(batch, retries, _cachedQueries));
     }
 
     /**
@@ -323,12 +310,17 @@ class GoogleWebmasterExtractorIterator {
             filters.addAll(_filterMap.values());
             filters.add(GoogleWebmasterFilter.pageFilter(job.getOperator(), job.getPage()));
 
+            LIMITER.acquirePermits(1);
             List<String[]> results = _webmaster
                 .performSearchAnalyticsQuery(job.getStartDate(), job.getEndDate(), QUERY_LIMIT, _requestedDimensions,
                     _requestedMetrics, filters);
             onSuccess(job, results, responseQueue, retries);
           } catch (IOException e) {
             onFailure(e.getMessage(), job, retries);
+          } catch (InterruptedException e) {
+            log.error(String
+                .format("Interrupted while trying to get queries for job %s. Current retry size is %d.", job,
+                    retries.size()));
           }
         }
       };
@@ -378,6 +370,7 @@ class GoogleWebmasterExtractorIterator {
               });
               log.debug("Ready to submit " + job);
             }
+            LIMITER.acquirePermits(1);
             _webmaster
                 .performSearchAnalyticsQueryInBatch(jobs, filterList, callbackList, _requestedDimensions, QUERY_LIMIT);
           } catch (IOException e) {
@@ -385,6 +378,9 @@ class GoogleWebmasterExtractorIterator {
             for (ProducerJob job : jobs) {
               retries.add(job);
             }
+          } catch (InterruptedException e) {
+            log.error(String.format("Interrupted while trying to get queries for jobs %s. Current retry size is %d.",
+                Joiner.on(",").join(jobs), retries.size()));
           }
         }
       };
