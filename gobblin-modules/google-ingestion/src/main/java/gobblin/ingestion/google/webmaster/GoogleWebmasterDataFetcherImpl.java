@@ -52,6 +52,7 @@ import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.countryFi
 @Slf4j
 public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final double API_REQUESTS_PER_SECOND;
+  private final RateBasedLimiter LIMITER;
   private final int GET_PAGE_SIZE_TIME_OUT;
 
   private final String _siteProperty;
@@ -107,6 +108,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     _jobs = jobs;
     API_REQUESTS_PER_SECOND = apiRequestPerSecond == null ? 5.0 : Double.parseDouble(apiRequestPerSecond);
     GET_PAGE_SIZE_TIME_OUT = getPagesTimeOut == null ? 2 : Integer.parseInt(getPagesTimeOut);
+    LIMITER = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
   }
 
   /**
@@ -168,35 +170,35 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     final ExecutorService es = Executors.newCachedThreadPool(
         ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
 
-    RateBasedLimiter limiter = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
     int startRow = 0;
     long groupSize = Math.max(1, Math.round(API_REQUESTS_PER_SECOND));
     List<Future<Integer>> results = new ArrayList<>((int) groupSize);
 
     while (true) {
       for (int i = 0; i < groupSize; ++i) {
-        try {
-          //Control the rate.
-          limiter.acquirePermits(1);
-        } catch (InterruptedException e) {
-          throw new RuntimeException("RateBasedLimiter got interrupted.", e);
-        }
-
         startRow += GoogleWebmasterClient.API_ROW_LIMIT;
         final int start = startRow;
+        final String interruptedMsg = String
+            .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.", country,
+                start);
+
         Future<Integer> submit = es.submit(new Callable<Integer>() {
           @Override
           public Integer call() {
             log.info(String.format("Getting page size from %s...", start));
-            String interruptionMsg = String
-                .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.",
-                    country, start);
-
             while (true) {
-              if (Thread.interrupted()) {
-                log.error(interruptionMsg);
+              try {
+                LIMITER.acquirePermits(1);
+              } catch (InterruptedException e) {
+                log.error("RateBasedLimiter: " + interruptedMsg, e);
                 return -1;
               }
+
+              if (Thread.interrupted()) {
+                log.error(interruptedMsg);
+                return -1;
+              }
+
               try {
                 List<String> pages = _client
                     .getPages(_siteProperty, startDate, endDate, country, GoogleWebmasterClient.API_ROW_LIMIT,
@@ -208,13 +210,6 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
                 }
               } catch (IOException e) {
                 log.info(String.format("Getting page size from %s failed. Retrying...", start));
-              }
-
-              try {
-                Thread.sleep(200);
-              } catch (InterruptedException e) {
-                log.error(interruptionMsg);
-                return -1;
               }
             }
           }
@@ -265,12 +260,6 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
       while (!toProcess.isEmpty()) {
         submitJob(toProcess.poll(), countryFilter, startDate, endDate, dimensions, es, allPages, nextRound);
-        try {
-          //Not a random number on a whim, this is a good practical number
-          Thread.sleep(275); //Submit roughly 4 jobs per second.
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        }
       }
       //wait for jobs to finish and start next round if necessary.
       try {
@@ -284,8 +273,6 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
               .format("Timed out while getting all pages for country-%s at round %d. Next round now has size %d.",
                   country, r, nextRound.size()));
         }
-        //Cool down before next round. Starting from about 1/3 of a second.
-        Thread.sleep(333 + 50 * random.nextInt(r));
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
@@ -310,6 +297,12 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     es.submit(new Runnable() {
       @Override
       public void run() {
+        try {
+          LIMITER.acquirePermits(1);
+        } catch (InterruptedException e) {
+          throw new RuntimeException("RateBasedLimiter got interrupted.", e);
+        }
+
         String countryString = countryFilterToString(countryFilter);
         List<ApiDimensionFilter> filters = new LinkedList<>();
         filters.add(countryFilter);
@@ -327,8 +320,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
               .format("%d pages fetched for %s market-%s from %s to %s.", pages.size(), jobString, countryString,
                   startDate, endDate));
         } catch (IOException e) {
-          //OnFailure
-          log.debug(jobString + " failed. " + e.getMessage());
+          log.error(String.format("%s failed due to %s. Retrying...", jobString, e.getMessage()));
           nextRound.add(job);
           return;
         }
