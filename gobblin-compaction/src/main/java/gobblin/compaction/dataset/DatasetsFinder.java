@@ -15,7 +15,6 @@ package gobblin.compaction.dataset;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -24,12 +23,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import lombok.extern.slf4j.Slf4j;
 
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.configuration.State;
@@ -40,7 +36,6 @@ import gobblin.util.HadoopUtils;
 /**
  * {@link Dataset}s finder to identify datasets, using given properties.
  */
-@Slf4j
 public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<Dataset> {
   public static final double HIGH_PRIORITY = 3.0;
   public static final double NORMAL_PRIORITY = 2.0;
@@ -60,9 +55,14 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
   protected final boolean recompactDatasets;
 
   public DatasetsFinder(State state) {
+    this(state, getFileSystem(state));
+  }
+
+  @VisibleForTesting
+  DatasetsFinder(State state, FileSystem fs) {
     this.state = state;
     this.conf = HadoopUtils.getConfFromState(state);
-    this.fs = getFileSystem();
+    this.fs = fs;
     this.inputDir = getInputDir();
     this.destDir = getDestDir();
     this.tmpOutputDir = getTmpOutputDir();
@@ -108,13 +108,13 @@ public abstract class DatasetsFinder implements gobblin.dataset.DatasetsFinder<D
         MRCompactor.DEFAULT_COMPACTION_TMP_DEST_DIR), TMP_OUTPUT_SUBDIR).toString();
   }
 
-  private FileSystem getFileSystem() {
+  private static FileSystem getFileSystem(State state) {
     try {
-      if (this.state.contains(MRCompactor.COMPACTION_FILE_SYSTEM_URI)) {
-        URI uri = URI.create(this.state.getProp(MRCompactor.COMPACTION_FILE_SYSTEM_URI));
-        return FileSystem.get(uri, this.conf);
+      if (state.contains(MRCompactor.COMPACTION_FILE_SYSTEM_URI)) {
+        URI uri = URI.create(state.getProp(MRCompactor.COMPACTION_FILE_SYSTEM_URI));
+        return FileSystem.get(uri, HadoopUtils.getConfFromState(state));
       }
-      return FileSystem.get(this.conf);
+      return FileSystem.get(HadoopUtils.getConfFromState(state));
     } catch (IOException e) {
       throw new RuntimeException("Failed to get filesystem for datasetsFinder.", e);
     }

@@ -57,24 +57,42 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   }
 
   public static class Builder {
-    private Path inputPath;
-    private Path inputLatePath;
+
+    private List<Path> inputPaths;
+    private List<Path> inputLatePaths;
     private Path outputPath;
     private Path outputLatePath;
     private Path outputTmpPath;
     private String datasetName;
     private double priority = DEFAULT_PRIORITY;
+    private State jobProps;
+
+    public Builder() {
+      this.inputPaths = Lists.newArrayList();
+      this.inputLatePaths = Lists.newArrayList();
+      this.jobProps = new State();
+    }
 
     @Deprecated
     private double lateDataThresholdForRecompact;
 
+    @Deprecated
     public Builder withInputPath(Path inputPath) {
-      this.inputPath = inputPath;
+      return addInputPath(inputPath);
+    }
+
+    @Deprecated
+    public Builder withInputLatePath(Path inputLatePath) {
+      return addInputLatePath(inputLatePath);
+    }
+
+    public Builder addInputPath(Path inputPath) {
+      this.inputPaths.add(inputPath);
       return this;
     }
 
-    public Builder withInputLatePath(Path inputLatePath) {
-      this.inputLatePath = inputLatePath;
+    public Builder addInputLatePath(Path inputLatePath) {
+      this.inputLatePaths.add(inputLatePath);
       return this;
     }
 
@@ -103,6 +121,10 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
       return this;
     }
 
+    public Builder withJobProp(String key, Object value) {
+      this.jobProps.setProp(key, value);
+      return this;
+    }
 
     @Deprecated
     public Builder withLateDataThresholdForRecompact(double lateDataThresholdForRecompact) {
@@ -121,8 +143,8 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   private final List<Path> additionalInputPaths;
   private final Collection<Throwable> throwables;
 
-  private Path inputPath;
-  private Path inputLatePath;
+  private List<Path> inputPaths;
+  private List<Path> inputLatePaths;
   private State jobProps;
   private double priority;
   private boolean needToRecompact;
@@ -133,8 +155,8 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   private double lateDataThresholdForRecompact;
 
   private Dataset(Builder builder) {
-    this.inputPath = builder.inputPath;
-    this.inputLatePath = builder.inputLatePath;
+    this.inputPaths = builder.inputPaths;
+    this.inputLatePaths = builder.inputLatePaths;
     this.outputPath = builder.outputPath;
     this.outputLatePath = builder.outputLatePath;
     this.outputTmpPath = builder.outputTmpPath;
@@ -150,8 +172,8 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   /**
    * Input path that contains the data of this {@link Dataset} to be compacted.
    */
-  public Path inputPath() {
-    return this.inputPath;
+  public List<Path> inputPaths() {
+    return this.inputPaths;
   }
 
   /**
@@ -163,8 +185,8 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
    * If this path contains any data and this {@link Dataset} is not already compacted, deduplication
    * will be applied to this {@link Dataset}.
    */
-  public Path inputLatePath() {
-    return this.inputLatePath;
+  public List<Path> inputLatePaths() {
+    return this.inputLatePaths;
   }
 
   /**
@@ -284,12 +306,20 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
     this.jobProps.setProp(key, value);
   }
 
-  public void setInputPath(Path newInputPath) {
-    this.inputPath = newInputPath;
+  /**
+   * Overwrite current inputPaths with newInputPath
+   */
+  public void overwriteInputPath(Path newInputPath) {
+    this.inputPaths.clear();
+    this.inputPaths.add(newInputPath);
   }
 
-  public void setInputLatePath(Path newInputLatePath) {
-    this.inputLatePath = newInputLatePath;
+  /**
+   * Overwrite current inputLatePaths with newInputLatePath
+   */
+  public void overwriteInputLatePath(Path newInputLatePath) {
+    this.inputLatePaths.clear();
+    this.inputLatePaths.add(newInputLatePath);
   }
 
   public void resetNeedToRecompact() {
@@ -306,11 +336,11 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
    */
   public void modifyDatasetForRecompact(State recompactState) {
     if (!this.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_RECOMPACT_ALL_DATA, MRCompactor.DEFAULT_COMPACTION_RECOMPACT_ALL_DATA)) {
-      this.setInputPath(this.outputLatePath);
+      this.overwriteInputPath(this.outputLatePath);
       this.cleanAdditionalInputPath();
     } else {
-      this.setInputPath(this.outputPath);
-      this.setInputLatePath(this.outputLatePath);
+      this.overwriteInputPath(this.outputPath);
+      this.overwriteInputLatePath(this.outputLatePath);
       this.addAdditionalInputPath(this.outputLatePath);
     }
 
@@ -371,7 +401,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((this.inputPath == null) ? 0 : this.inputPath.hashCode());
+    result = prime * result + ((this.inputPaths == null) ? 0 : this.inputPaths.hashCode());
     return result;
   }
 
@@ -384,11 +414,11 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
       return false;
     }
     Dataset other = (Dataset) obj;
-    if (this.inputPath == null) {
-      if (other.inputPath != null) {
+    if (this.inputPaths == null) {
+      if (other.inputPaths != null) {
         return false;
       }
-    } else if (!this.inputPath.equals(other.inputPath)) {
+    } else if (!this.inputPaths.equals(other.inputPaths)) {
       return false;
     }
     return true;
@@ -399,7 +429,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
    */
   @Override
   public String toString() {
-    return this.inputPath.toString();
+    return this.inputPaths.toString();
   }
 
   @Override
