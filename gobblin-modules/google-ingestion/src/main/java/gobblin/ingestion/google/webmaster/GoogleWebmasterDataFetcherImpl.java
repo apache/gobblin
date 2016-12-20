@@ -5,8 +5,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -24,14 +26,24 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+import com.google.api.services.webmasters.WebmastersScopes;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 import com.google.common.base.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.source.extractor.extract.google.GoogleCommon;
+import gobblin.source.extractor.extract.google.GoogleCommonKeys;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.limiter.RateBasedLimiter;
 
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY;
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USERNAME;
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT;
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
 import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.Dimension;
 import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.FilterOperator;
 import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.countryFilterToString;
@@ -39,26 +51,62 @@ import static gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.countryFi
 
 @Slf4j
 public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
+  private final double API_REQUESTS_PER_SECOND;
+  private final int GET_PAGE_SIZE_TIME_OUT;
 
   private final String _siteProperty;
   private final GoogleWebmasterClient _client;
   private final List<ProducerJob> _jobs;
 
-  public GoogleWebmasterDataFetcherImpl(String siteProperty, Credential credential, String appName,
-      List<ProducerJob> jobs)
+  public GoogleWebmasterDataFetcherImpl(State wuState)
       throws IOException {
-    this(siteProperty, new GoogleWebmasterClientImpl(credential, appName), jobs);
+    this(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY),
+        new GoogleWebmasterClientImpl(getCredential(wuState), wuState.getProp(ConfigurationKeys.SOURCE_ENTITY)),
+        getHotStartJobs(wuState),
+        wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_PER_SECOND),
+        wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_TIME_OUT));
+  }
+
+  private static List<ProducerJob> getHotStartJobs(State wuState) {
+    String hotStartString = wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_HOT_START, "");
+    if (!hotStartString.isEmpty()) {
+      return SimpleProducerJob.deserialize(hotStartString);
+    }
+    return new ArrayList<>();
+  }
+
+  private static Credential getCredential(State wuState) {
+    String scope = wuState.getProp(GoogleCommonKeys.API_SCOPES, WebmastersScopes.WEBMASTERS_READONLY);
+    Preconditions.checkArgument(Objects.equals(WebmastersScopes.WEBMASTERS_READONLY, scope) || Objects
+            .equals(WebmastersScopes.WEBMASTERS, scope),
+        "The scope for WebMaster must either be WEBMASTERS_READONLY or WEBMASTERS");
+
+    String credentialFile = wuState.getProp(SOURCE_CONN_PRIVATE_KEY);
+    List<String> scopes = Collections.singletonList(scope);
+
+//    return GoogleCredential.fromStream(new FileInputStream(credentialFile))
+//        .createScoped(Collections.singletonList(scope));
+
+    return new GoogleCommon.CredentialBuilder(credentialFile, scopes)
+        .fileSystemUri(wuState.getProp(GoogleCommonKeys.PRIVATE_KEY_FILESYSTEM_URI))
+        .proxyUrl(wuState.getProp(SOURCE_CONN_USE_PROXY_URL)).port(wuState.getProp(SOURCE_CONN_USE_PROXY_PORT))
+        .serviceAccountId(wuState.getProp(SOURCE_CONN_USERNAME)).build();
   }
 
   /**
    * For test only
+   * @param apiRequestPerSecond pass null to use default value
+   * @param getPagesTimeOut pass null to use default value
    */
-  GoogleWebmasterDataFetcherImpl(String siteProperty, GoogleWebmasterClient client, List<ProducerJob> jobs)
+  GoogleWebmasterDataFetcherImpl(String siteProperty, GoogleWebmasterClient client, List<ProducerJob> jobs,
+      String apiRequestPerSecond, String getPagesTimeOut)
       throws IOException {
     Preconditions.checkArgument(siteProperty.endsWith("/"), "The site property must end in \"/\"");
     _siteProperty = siteProperty;
     _client = client;
     _jobs = jobs;
+    API_REQUESTS_PER_SECOND = apiRequestPerSecond == null ? 5.0 : Double.parseDouble(apiRequestPerSecond);
+    GET_PAGE_SIZE_TIME_OUT = getPagesTimeOut == null ? 2 : Integer.parseInt(getPagesTimeOut);
   }
 
   /**
@@ -117,32 +165,36 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private int getPagesSize(final String startDate, final String endDate, final String country,
       final List<Dimension> requestedDimensions, final List<ApiDimensionFilter> apiDimensionFilters)
       throws IOException {
-    int REQUESTS_COUNT_EACH_ROUND = 4;
-    //Each round will give you 20K(4*5000) pages. Doing 100 rounds can give 2 million pages.
-    //Normally 1 week has less than 200K pages. So 2 million pages are more than enough.
-    int MAXIMUM_ROUNDS = 100;
-    final ExecutorService es = Executors.newFixedThreadPool(REQUESTS_COUNT_EACH_ROUND,
+    final ExecutorService es = Executors.newCachedThreadPool(
         ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
 
+    RateBasedLimiter limiter = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
     int startRow = 0;
-    int r = 0;
-    while (r < MAXIMUM_ROUNDS) {
-      r++;
-      List<Future<Integer>> results = new ArrayList<>(REQUESTS_COUNT_EACH_ROUND);
+    long groupSize = Math.max(1, Math.round(API_REQUESTS_PER_SECOND));
+    List<Future<Integer>> results = new ArrayList<>((int) groupSize);
 
-      for (int i = 0; i < REQUESTS_COUNT_EACH_ROUND; ++i) {
+    while (true) {
+      for (int i = 0; i < groupSize; ++i) {
+        try {
+          //Control the rate.
+          limiter.acquirePermits(1);
+        } catch (InterruptedException e) {
+          throw new RuntimeException("RateBasedLimiter got interrupted.", e);
+        }
+
         startRow += GoogleWebmasterClient.API_ROW_LIMIT;
         final int start = startRow;
-        //Submit the job.
         Future<Integer> submit = es.submit(new Callable<Integer>() {
           @Override
           public Integer call() {
             log.info(String.format("Getting page size from %s...", start));
+            String interruptionMsg = String
+                .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.",
+                    country, start);
+
             while (true) {
               if (Thread.interrupted()) {
-                log.error(String
-                    .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.",
-                        country, start));
+                log.error(interruptionMsg);
                 return -1;
               }
               try {
@@ -157,46 +209,36 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
               } catch (IOException e) {
                 log.info(String.format("Getting page size from %s failed. Retrying...", start));
               }
+
               try {
                 Thread.sleep(200);
               } catch (InterruptedException e) {
-                log.error(String
-                    .format("Failed while getting the size of all pages for %s caused by %s. Current start row is %d.",
-                        country, e.getMessage(), start));
+                log.error(interruptionMsg);
                 return -1;
               }
             }
           }
         });
-
         results.add(submit);
-        try {
-          //Send 4 jobs per second.
-          Thread.sleep(250);
-        } catch (InterruptedException e) {
-          log.error(e.getMessage());
-        }
       }
-
+      //Check the results group in order. The first non-negative count indicates the size of total pages.
       for (Future<Integer> result : results) {
         try {
-          Integer integer = result.get(2, TimeUnit.MINUTES);
-          if (integer > 0) {
+          Integer integer = result.get(GET_PAGE_SIZE_TIME_OUT, TimeUnit.MINUTES);
+          if (integer >= 0) {
             es.shutdownNow();
             return integer;
           }
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        } catch (ExecutionException e) {
+        } catch (InterruptedException | ExecutionException e) {
           throw new RuntimeException(e);
         } catch (TimeoutException e) {
-          log.error("Exceeding the timeout of 2 minutes to get the total size of pages.");
-          throw new RuntimeException(e);
+          throw new RuntimeException(String
+              .format("Exceeding the timeout of %d minutes while getting the total size of all pages.",
+                  GET_PAGE_SIZE_TIME_OUT), e);
         }
       }
+      results.clear();
     }
-    throw new RuntimeException(String.format("Exceeding the limit of getting pages count. Having more than %d pages?",
-        GoogleWebmasterClient.API_ROW_LIMIT * REQUESTS_COUNT_EACH_ROUND * MAXIMUM_ROUNDS));
   }
 
   /**

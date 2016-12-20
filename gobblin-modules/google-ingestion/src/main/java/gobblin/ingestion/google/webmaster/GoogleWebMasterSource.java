@@ -5,10 +5,12 @@ import com.google.common.base.Splitter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.QueryBasedSource;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,6 +26,7 @@ import java.util.Map;
  */
 abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
   public static final String SOURCE_GOOGLE_WEBMASTER_PREFIX = "source.google_webmasters.";
+  public static final String PERFORMANCE_TUNING_PREFIX = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.";
   /**
    * Must Provide.
    * Provide the property site URL whose google search analytics data you want to download
@@ -71,49 +74,51 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
   /**
    * Tune the maximum rounds of retries allowed when API calls failed because of exceeding quota.
    */
-  public static final String KEY_REQUEST_TUNING_RETRIES =
-      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.max_retry_rounds";
+  public static final String KEY_REQUEST_TUNING_RETRIES = PERFORMANCE_TUNING_PREFIX + "max_retry_rounds";
   /**
    * Tune the initial cool down time before starting another round of retry.
    */
-  public static final String KEY_REQUEST_TUNING_INITIAL_COOL_DOWN =
-      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.initial_cool_down";
+  public static final String KEY_REQUEST_TUNING_INITIAL_COOL_DOWN = PERFORMANCE_TUNING_PREFIX + "initial_cool_down";
   /**
    * Tune the extra cool down sleep time for each round before starting another round of retry.
    * The total cool down time will be calculated as "initial_cool_down + cool_down_step * round"
    */
-  public static final String KEY_REQUEST_TUNING_COOL_DOWN_STEP =
-      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.cool_down_step";
+  public static final String KEY_REQUEST_TUNING_COOL_DOWN_STEP = PERFORMANCE_TUNING_PREFIX + "cool_down_step";
   /**
    * Tune the speed of API requests.
    */
-  public static final String KEY_REQUEST_TUNING_REQUESTS_PER_SECOND =
-      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.requests_per_second";
-
+  public static final String KEY_REQUEST_TUNING_REQUESTS_PER_SECOND = PERFORMANCE_TUNING_PREFIX + "requests_per_second";
+  /**
+   * Tune the speed of API requests while getting all pages.
+   */
+  public static final String KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_PER_SECOND =
+      PERFORMANCE_TUNING_PREFIX + "get_pages.requests_per_second";
+  /**
+   * Set the time out while getting all pages.
+   */
+  public static final String KEY_REQUEST_TUNING_GET_PAGES_TIME_OUT = PERFORMANCE_TUNING_PREFIX + "get_pages.time_out";
   /**
    * Tune the size of a batch. Batch API calls together to reduce the number of HTTP connections.
    * Note: A set of n requests batched together counts toward your usage limit as n requests, not as one request. The batch request is taken apart into a set of requests before processing.
    * Read more at https://developers.google.com/webmaster-tools/v3/how-tos/batch
    */
-  public static final String KEY_REQUEST_TUNING_BATCH_SIZE =
-      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.batch_size";
+  public static final String KEY_REQUEST_TUNING_BATCH_SIZE = PERFORMANCE_TUNING_PREFIX + "batch_size";
   /**
    * Set the group size for UrlTriePrefixGrouper
    */
-  public static final String KEY_REQUEST_TUNING_GROUP_SIZE =
-      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.group_size";
+  public static final String KEY_REQUEST_TUNING_GROUP_SIZE = PERFORMANCE_TUNING_PREFIX + "group_size";
 
   /**
    * True: Trie based
    * False: Queue based
    */
-  public static final String KEY_REQUEST_TUNING_ALGORITHM =
-      SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.advanced";
+  public static final String KEY_REQUEST_TUNING_ALGORITHM = PERFORMANCE_TUNING_PREFIX + "advanced";
 
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
 
   @Override
-  public Extractor<String, String[]> getExtractor(WorkUnitState state) throws IOException {
+  public Extractor<String, String[]> getExtractor(WorkUnitState state)
+      throws IOException {
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = getRequestedDimensions(state);
     List<GoogleWebmasterDataFetcher.Metric> requestedMetrics = getRequestedMetrics(state);
 
@@ -133,7 +138,8 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
 
   abstract GoogleWebmasterExtractor createExtractor(WorkUnitState state, Map<String, Integer> columnPositionMap,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics) throws IOException;
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
+      throws IOException;
 
   private void validateFilters(String filters) {
     String countryPrefix = "COUNTRY.";

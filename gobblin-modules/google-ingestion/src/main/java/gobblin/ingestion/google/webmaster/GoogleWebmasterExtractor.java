@@ -3,20 +3,15 @@ package gobblin.ingestion.google.webmaster;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
-import com.google.api.services.webmasters.WebmastersScopes;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.common.base.Splitter;
 
@@ -28,13 +23,6 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.LongWatermark;
-import gobblin.source.extractor.extract.google.GoogleCommon;
-import gobblin.source.extractor.extract.google.GoogleCommonKeys;
-
-import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_PRIVATE_KEY;
-import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USERNAME;
-import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT;
-import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
 
 
 @Slf4j
@@ -63,34 +51,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
       throws IOException {
     this(wuState, lowWatermark, highWatermark, columnPositionMap, requestedDimensions, requestedMetrics,
-        new GoogleWebmasterDataFetcherImpl(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY), getCredential(wuState),
-            wuState.getProp(ConfigurationKeys.SOURCE_ENTITY), getHotStartJobs(wuState)));
-  }
-
-  private static List<ProducerJob> getHotStartJobs(WorkUnitState wuState) {
-    String hotStartString = wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_HOT_START, "");
-    if (!hotStartString.isEmpty()) {
-      return SimpleProducerJob.deserialize(hotStartString);
-    }
-    return new ArrayList<>();
-  }
-
-  private static Credential getCredential(WorkUnitState wuState) {
-    String scope = wuState.getProp(GoogleCommonKeys.API_SCOPES, WebmastersScopes.WEBMASTERS_READONLY);
-    Preconditions.checkArgument(Objects.equals(WebmastersScopes.WEBMASTERS_READONLY, scope) || Objects
-            .equals(WebmastersScopes.WEBMASTERS, scope),
-        "The scope for WebMaster must either be WEBMASTERS_READONLY or WEBMASTERS");
-
-    String credentialFile = wuState.getProp(SOURCE_CONN_PRIVATE_KEY);
-    List<String> scopes = Collections.singletonList(scope);
-
-//    return GoogleCredential.fromStream(new FileInputStream(credentialFile))
-//        .createScoped(Collections.singletonList(scope));
-
-    return new GoogleCommon.CredentialBuilder(credentialFile, scopes)
-        .fileSystemUri(wuState.getProp(GoogleCommonKeys.PRIVATE_KEY_FILESYSTEM_URI))
-        .proxyUrl(wuState.getProp(SOURCE_CONN_USE_PROXY_URL)).port(wuState.getProp(SOURCE_CONN_USE_PROXY_PORT))
-        .serviceAccountId(wuState.getProp(SOURCE_CONN_USERNAME)).build();
+        new GoogleWebmasterDataFetcherImpl(wuState));
   }
 
   /**
