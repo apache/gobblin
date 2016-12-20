@@ -10,6 +10,8 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import gobblin.configuration.WorkUnitState;
+
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 
@@ -29,8 +31,10 @@ public class GoogleWebmasterDataFetcherImplTest {
         .getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class), any(List.class),
             any(List.class), eq(0))).thenReturn(retVal);
 
-    GoogleWebmasterDataFetcher dataFetcher =
-        new GoogleWebmasterDataFetcherImpl(_property, client, new ArrayList<ProducerJob>(), null, null);
+    WorkUnitState workUnitState = new WorkUnitState();
+    workUnitState.setProp(GoogleWebMasterSource.KEY_PROPERTY, _property);
+
+    GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(client, workUnitState);
     Collection<ProducerJob> allPages = dataFetcher.getAllPages(null, null, "ALL", 2);
 
     List<String> pageStrings = new ArrayList<>();
@@ -56,8 +60,10 @@ public class GoogleWebmasterDataFetcherImplTest {
         .getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class), any(List.class),
             any(List.class), eq(0))).thenReturn(allPages);
 
-    GoogleWebmasterDataFetcher dataFetcher =
-        new GoogleWebmasterDataFetcherImpl(_property, client, new ArrayList<ProducerJob>(), null, null);
+    WorkUnitState workUnitState = new WorkUnitState();
+    workUnitState.setProp(GoogleWebMasterSource.KEY_PROPERTY, _property);
+
+    GoogleWebmasterDataFetcher dataFetcher = new GoogleWebmasterDataFetcherImpl(client, workUnitState);
     Collection<ProducerJob> response = dataFetcher.getAllPages(null, null, "ALL", 5000);
 
     List<String> pageStrings = new ArrayList<>();

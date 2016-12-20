@@ -89,12 +89,22 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    */
   public static final String KEY_REQUEST_TUNING_REQUESTS_PER_SECOND = PERFORMANCE_TUNING_PREFIX + "requests_per_second";
   /**
+   * Optional. Default to 5.0.
    * Tune the speed of API requests while getting all pages.
    */
   public static final String KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_PER_SECOND =
       PERFORMANCE_TUNING_PREFIX + "get_pages.requests_per_second";
   /**
-   * Set the time out while getting all pages.
+   * Optional. Default to 120.
+   * Tune the number of retries while getting all pages. Consider the following while setting this number:
+   * 1. the length of shared prefix path may be very long
+   * 2. the Quota Exceeded exception
+   */
+  public static final String KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_RETRIES =
+      PERFORMANCE_TUNING_PREFIX + "get_pages.retries";
+  /**
+   * Optional. Default to 2 minutes.
+   * Set the time out in minutes while getting all pages.
    */
   public static final String KEY_REQUEST_TUNING_GET_PAGES_TIME_OUT = PERFORMANCE_TUNING_PREFIX + "get_pages.time_out";
   /**

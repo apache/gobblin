@@ -10,7 +10,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
@@ -54,6 +53,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final double API_REQUESTS_PER_SECOND;
   private final RateBasedLimiter LIMITER;
   private final int GET_PAGE_SIZE_TIME_OUT;
+  private final int RETRY;
 
   private final String _siteProperty;
   private final GoogleWebmasterClient _client;
@@ -61,11 +61,24 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
 
   public GoogleWebmasterDataFetcherImpl(State wuState)
       throws IOException {
-    this(wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY),
-        new GoogleWebmasterClientImpl(getCredential(wuState), wuState.getProp(ConfigurationKeys.SOURCE_ENTITY)),
-        getHotStartJobs(wuState),
-        wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_PER_SECOND),
-        wuState.getProp(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_TIME_OUT));
+    this(new GoogleWebmasterClientImpl(getCredential(wuState), wuState.getProp(ConfigurationKeys.SOURCE_ENTITY)),
+        wuState);
+  }
+
+  /**
+   * For test only
+   */
+  GoogleWebmasterDataFetcherImpl(GoogleWebmasterClient client, State wuState)
+      throws IOException {
+    _siteProperty = wuState.getProp(GoogleWebMasterSource.KEY_PROPERTY);
+    Preconditions.checkArgument(_siteProperty.endsWith("/"), "The site property must end in \"/\"");
+    _client = client;
+    _jobs = getHotStartJobs(wuState);
+    API_REQUESTS_PER_SECOND =
+        wuState.getPropAsDouble(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_PER_SECOND, 5.0);
+    GET_PAGE_SIZE_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_TIME_OUT, 2);
+    LIMITER = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
+    RETRY = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_RETRIES, 120);
   }
 
   private static List<ProducerJob> getHotStartJobs(State wuState) {
@@ -92,23 +105,6 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         .fileSystemUri(wuState.getProp(GoogleCommonKeys.PRIVATE_KEY_FILESYSTEM_URI))
         .proxyUrl(wuState.getProp(SOURCE_CONN_USE_PROXY_URL)).port(wuState.getProp(SOURCE_CONN_USE_PROXY_PORT))
         .serviceAccountId(wuState.getProp(SOURCE_CONN_USERNAME)).build();
-  }
-
-  /**
-   * For test only
-   * @param apiRequestPerSecond pass null to use default value
-   * @param getPagesTimeOut pass null to use default value
-   */
-  GoogleWebmasterDataFetcherImpl(String siteProperty, GoogleWebmasterClient client, List<ProducerJob> jobs,
-      String apiRequestPerSecond, String getPagesTimeOut)
-      throws IOException {
-    Preconditions.checkArgument(siteProperty.endsWith("/"), "The site property must end in \"/\"");
-    _siteProperty = siteProperty;
-    _client = client;
-    _jobs = jobs;
-    API_REQUESTS_PER_SECOND = apiRequestPerSecond == null ? 5.0 : Double.parseDouble(apiRequestPerSecond);
-    GET_PAGE_SIZE_TIME_OUT = getPagesTimeOut == null ? 2 : Integer.parseInt(getPagesTimeOut);
-    LIMITER = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
   }
 
   /**
@@ -245,13 +241,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     String country = GoogleWebmasterFilter.countryFilterToString(countryFilter);
 
     ConcurrentLinkedDeque<String> allPages = new ConcurrentLinkedDeque<>();
-    Random random = new Random();
-    //we need to retry many times because
-    // 1. the shared prefix path may be very long
-    // 2. the number of retries
-    final int retry = 120;
     int r = 0;
-    while (r <= retry) {
+    while (r <= RETRY) {
       ++r;
       log.info(String.format("Get pages at round %d with size %d.", r, toProcess.size()));
       ConcurrentLinkedDeque<Pair<String, FilterOperator>> nextRound = new ConcurrentLinkedDeque<>();
@@ -282,10 +273,10 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       }
       toProcess = nextRound;
     }
-    if (r == retry) {
+    if (r == RETRY) {
       throw new RuntimeException(String
-          .format("Getting all pages reaches the maximum number of retires. Date range: %s ~ %s. Country: %s.",
-              startDate, endDate, country));
+          .format("Getting all pages reaches the maximum number of retires %d. Date range: %s ~ %s. Country: %s.",
+              RETRY, startDate, endDate, country));
     }
     return allPages;
   }
@@ -320,7 +311,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
               .format("%d pages fetched for %s market-%s from %s to %s.", pages.size(), jobString, countryString,
                   startDate, endDate));
         } catch (IOException e) {
-          log.error(String.format("%s failed due to %s. Retrying...", jobString, e.getMessage()));
+          log.debug(String.format("%s failed due to %s. Retrying...", jobString, e.getMessage()));
           nextRound.add(job);
           return;
         }
