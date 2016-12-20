@@ -46,7 +46,7 @@ class GoogleWebmasterExtractorIterator {
   private final int MAX_RETRY_ROUNDS;
   private final int INITIAL_COOL_DOWN;
   private final int COOL_DOWN_STEP;
-  private final double REQUESTS_PER_SECOND;
+  private final double BATCHES_PER_SECOND;
   private final int PAGE_LIMIT;
   private final int QUERY_LIMIT;
 
@@ -96,13 +96,13 @@ class GoogleWebmasterExtractorIterator {
     COOL_DOWN_STEP = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_COOL_DOWN_STEP, 50);
     Preconditions.checkArgument(COOL_DOWN_STEP >= 0, "Cool down step time cannot be negative.");
 
-    REQUESTS_PER_SECOND = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_REQUEST_TUNING_REQUESTS_PER_SECOND, 2.25);
-    Preconditions.checkArgument(REQUESTS_PER_SECOND > 0, "Requests per second must be positive.");
+    BATCHES_PER_SECOND = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_REQUEST_TUNING_REQUESTS_PER_SECOND, 2.25);
+    Preconditions.checkArgument(BATCHES_PER_SECOND > 0, "Requests per second must be positive.");
 
     BATCH_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_BATCH_SIZE, 2);
     Preconditions.checkArgument(BATCH_SIZE >= 1, "Batch size must be at least 1.");
 
-    LIMITER = new RateBasedLimiter(REQUESTS_PER_SECOND * BATCH_SIZE, TimeUnit.SECONDS);
+    LIMITER = new RateBasedLimiter(BATCHES_PER_SECOND, TimeUnit.SECONDS);
 
     GROUP_SIZE = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_GROUP_SIZE, 500);
     Preconditions.checkArgument(GROUP_SIZE >= 1, "Group size must be at least 1.");
@@ -166,7 +166,7 @@ class GoogleWebmasterExtractorIterator {
   /**
    * ResponseProducer gets the query data for allPages in an async way.
    * It utilize Executors.newCachedThreadPool to submit API request in a configurable speed.
-   * API request speed can be tuned by REQUESTS_PER_SECOND, INITIAL_COOL_DOWN, COOL_DOWN_STEP and MAX_RETRY_ROUNDS.
+   * API request speed can be tuned by BATCHES_PER_SECOND, INITIAL_COOL_DOWN, COOL_DOWN_STEP and MAX_RETRY_ROUNDS.
    * The speed must be controlled because it cannot succeed the Google API quota, which can be found in your Google API Manager.
    * If you send the request too fast, you will get "403 Forbidden - Quota Exceeded" exception. Those pages will be handled by next round of retries.
    */
@@ -219,7 +219,7 @@ class GoogleWebmasterExtractorIterator {
           log.info(String.format("Starting #%d round retries of size %d for %s", r, totalPages, _country));
         }
 
-        long requestSleep = (long) Math.ceil(1000 / REQUESTS_PER_SECOND);
+        long requestSleep = (long) Math.ceil(1000 / BATCHES_PER_SECOND);
         int checkPoint = Math.max(1, (int) Math.round(Math.ceil(totalPages / REPORT_PARTITIONS)));
         //retries needs to be concurrent because multiple threads will write to it.
         ConcurrentLinkedDeque<ProducerJob> retries = new ConcurrentLinkedDeque<>();
