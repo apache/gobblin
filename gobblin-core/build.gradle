@@ -45,9 +45,6 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.guavaretrying
   compile externalDependency.findBugsAnnotations
-  compile externalDependency.confluentSchemaRegistryClient
-  compile externalDependency.confluentAvroSerializer
-  compile externalDependency.confluentJsonSerializer
   compile externalDependency.oltu
   compile externalDependency.googleAnalytics
   compile externalDependency.googleDrive
