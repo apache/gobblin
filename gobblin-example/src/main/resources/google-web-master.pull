@@ -52,15 +52,8 @@ source.google_webmasters.request.dimensions=Date,Country,Page,Query
 source.google_webmasters.request.metrics=Clicks,Impressions,CTR,Position
 source.google_webmasters.request.filters=Country.deu,Country.ind,Country.all,Country.usa
 source.google_webmasters.request.page_limit=5000
-#source.google_webmasters.request.hot_start=[]
 source.google_webmasters.request.query_limit=5000
-source.google_webmasters.request.performance_tuning.max_retry_rounds=30
-source.google_webmasters.request.performance_tuning.initial_cool_down=1000
-source.google_webmasters.request.performance_tuning.cool_down_step=300
-source.google_webmasters.request.performance_tuning.requests_per_second=2.25
-source.google_webmasters.request.performance_tuning.batch_size=2
-#source.google_webmasters.request.performance_tuning.group_size=500
-#source.google_webmasters.request.performance_tuning.advanced=true
+source.google_webmasters.request.tuning.get_queries.apply_trie=true
 
 ## Converter properties
 converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter
