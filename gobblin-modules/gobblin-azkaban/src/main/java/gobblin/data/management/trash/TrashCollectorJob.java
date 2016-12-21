@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
@@ -31,7 +32,23 @@ public class TrashCollectorJob extends AbstractJob implements Tool {
   public TrashCollectorJob(String id, Props props) throws IOException {
     super(id, Logger.getLogger(TrashCollectorJob.class));
     this.conf = new Configuration();
-    this.trash = new Trash(FileSystem.get(getConf()), props);
+    this.trash = createTrash(props);
+  }
+
+  Trash createTrash(Props props) throws IOException {
+    return TrashFactory.createTrash(FileSystem.get(getConf()), props.toProperties());
+  }
+
+  /**
+   * Move a path to trash. The absolute path of the input path will be replicated under the trash directory.
+   * @param fs {@link org.apache.hadoop.fs.FileSystem} where path and trash exist.
+   * @param path {@link org.apache.hadoop.fs.FileSystem} path to move to trash.
+   * @param props {@link java.util.Properties} containing trash configuration.
+   * @return true if move to trash was done successfully.
+   * @throws IOException
+   */
+  public static boolean moveToTrash(FileSystem fs, Path path, Props props) throws IOException {
+    return TrashFactory.createTrash(fs, props.toProperties()).moveToTrash(path);
   }
 
   @Override

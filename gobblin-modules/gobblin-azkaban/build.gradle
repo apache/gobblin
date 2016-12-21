@@ -13,6 +13,7 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-compaction")
+  compile project(":gobblin-data-management")
   compile project(":gobblin-runtime")
   compile project(":gobblin-test-harness")
   compile project(":gobblin-metastore")
@@ -31,12 +32,6 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.hadoopYarnApi
   compile externalDependency.findBugsAnnotations
-}
-
-configurations {
-    compile {
-      transitive = false
-    }
 }
 
 test {
