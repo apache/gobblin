@@ -14,7 +14,7 @@ dependencies {
   compile project(":gobblin-modules:gobblin-kafka-common")
   compile project(":gobblin-core-base")
   compile project(":gobblin-utility")
-  compile project(":gobblin-metrics")
+  compile project(":gobblin-metrics-libs:gobblin-metrics")
 
   compile externalDependency.avro
   compile externalDependency.jacksonCore
