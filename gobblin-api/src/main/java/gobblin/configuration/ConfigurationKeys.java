@@ -41,6 +41,11 @@ public class ConfigurationKeys {
   /**
    * State store configuration properties.
    */
+  // State store type.  References an alias or factory class name
+  public static final String STATE_STORE_TYPE_KEY = "state.store.type";
+  public static final String DEFAULT_STATE_STORE_TYPE = "FsDatasetStateStore";
+  public static final String STATE_STORE_TYPE_NOOP = "NoopDatasetStateStore";
+
   // Root directory where task state files are stored
   public static final String STATE_STORE_ROOT_DIR_KEY = "state.store.dir";
   // File system URI for file-system-based task store
@@ -48,12 +53,13 @@ public class ConfigurationKeys {
   // Enable / disable state store
   public static final String STATE_STORE_ENABLED = "state.store.enabled";
   // DB state store configuration
-  public static final String STATE_STORE_DB_ENABLED_KEY = "state.store.db.enabled";
   public static final String STATE_STORE_DB_URL_KEY = "state.store.db.url";
   public static final String STATE_STORE_DB_USER_KEY = "state.store.db.user";
   public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
   public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
+  public static final String STATE_STORE_DB_COMPRESS_KEY = "state.store.db.compress";
+  public static final boolean DEFAULT_STATE_STORE_DB_COMPRESS = true;
 
   /**
    * Job scheduler configuration properties.

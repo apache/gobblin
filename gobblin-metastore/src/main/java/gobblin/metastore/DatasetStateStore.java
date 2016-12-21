@@ -15,8 +15,15 @@ package gobblin.metastore;
 import gobblin.configuration.State;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Properties;
 
 public interface DatasetStateStore<T extends State> extends StateStore<T> {
+  String DATASET_STATE_STORE_TABLE_SUFFIX = ".jst";
+  String CURRENT_DATASET_STATE_FILE_SUFFIX = "current";
+
+  interface Factory {
+    <T extends State> DatasetStateStore<T> createStateStore(Properties props);
+  }
 
   public Map<String, T> getLatestDatasetStatesByUrns(String jobName) throws IOException;
 

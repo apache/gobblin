@@ -12,6 +12,8 @@
 
 package gobblin.runtime.commit;
 
+import gobblin.metastore.DatasetStateStore;
+import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.net.URI;
 
@@ -41,7 +43,7 @@ public class DatasetStateCommitStep extends CommitStepBase {
 
   private final String datasetUrn;
   private final DatasetState datasetState;
-  private transient FsDatasetStateStore stateStore;
+  private transient DatasetStateStore stateStore;
 
   private DatasetStateCommitStep(Builder<? extends Builder<?>> builder) {
     super(builder);
@@ -97,13 +99,24 @@ public class DatasetStateCommitStep extends CommitStepBase {
     getDatasetStateStore().persistDatasetState(this.datasetUrn, this.datasetState);
   }
 
-  private FsDatasetStateStore getDatasetStateStore() throws IOException {
+  private DatasetStateStore getDatasetStateStore() throws IOException {
     if (this.stateStore == null) {
-      FileSystem fs = FileSystem.get(
-          URI.create(this.props.getProp(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI)),
-          HadoopUtils.getConfFromState(this.props));
+      ClassAliasResolver<DatasetStateStore.Factory> resolver =
+          new ClassAliasResolver<>(DatasetStateStore.Factory.class);
 
-      this.stateStore = new FsDatasetStateStore(fs, this.props.getProp(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY));
+      String stateStoreType = this.props.getProp(ConfigurationKeys.STATE_STORE_TYPE_KEY,
+            ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+
+      try {
+        DatasetStateStore.Factory stateStoreFactory =
+            resolver.resolveClass(stateStoreType).newInstance();
+
+        this.stateStore = stateStoreFactory.createStateStore(this.props.getProperties());
+      } catch (RuntimeException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
     }
     return this.stateStore;
   }

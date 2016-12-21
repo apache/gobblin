@@ -20,7 +20,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -28,6 +31,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import javax.sql.DataSource;
 import org.apache.hadoop.io.Text;
 
@@ -50,8 +55,8 @@ public class DbStateStore<T extends State> implements StateStore<T> {
 
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;
-
   private final DataSource dataSource;
+  private final boolean compressed;
 
   private static final String UPSERT_JOB_STATE_TEMPLATE =
       "INSERT INTO $TABLE$ (store_name, table_name, state) VALUES(?,?,?)"
@@ -78,9 +83,12 @@ public class DbStateStore<T extends State> implements StateStore<T> {
           + " store_name = ? AND table_name = ?)"
           + " ON DUPLICATE KEY UPDATE state = s.state";
 
+  // MySQL key length limit is 767 bytes
   private static final String CREATE_JOB_STATE_TABLE_TEMPLATE =
-      "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(1000), table_name varchar(1000), state mediumblob, "
-          + " primary key(store_name, table_name))";
+      "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(100) CHARACTER SET latin1 not null,"
+          + "table_name varchar(667) CHARACTER SET latin1 not null,"
+          + " modified_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+          + " state mediumblob, primary key(store_name, table_name))";
 
   private final String UPSERT_JOB_STATE_SQL;
   private final String SELECT_JOB_STATE_SQL;
@@ -90,9 +98,11 @@ public class DbStateStore<T extends State> implements StateStore<T> {
   private final String DELETE_JOB_STATE_SQL;
   private final String CLONE_JOB_STATE_SQL;
 
-  public DbStateStore(DataSource dataSource, String stateStoreTableName, Class<T> stateClass) throws IOException {
+  public DbStateStore(DataSource dataSource, String stateStoreTableName, boolean compressed, Class<T> stateClass)
+      throws IOException {
     this.dataSource = dataSource;
     this.stateClass = stateClass;
+    this.compressed = compressed;
 
     UPSERT_JOB_STATE_SQL = UPSERT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_SQL = SELECT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -160,26 +170,10 @@ public class DbStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public void put(String storeName, String tableName, T state) throws IOException {
+    List<T> states = Lists.newArrayList();
 
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement insertStatement = connection.prepareStatement(UPSERT_JOB_STATE_SQL)) {
-      connection.setAutoCommit(false);
-      ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
-      DataOutputStream dataOutput = new DataOutputStream(byteArrayOs);
-
-      int index = 0;
-      insertStatement.setString(++index, storeName);
-      insertStatement.setString(++index, tableName);
-
-      addStateToOs(dataOutput, state);
-
-      insertStatement.setBlob(++index, new ByteArrayInputStream(byteArrayOs.toByteArray()));
-
-      insertStatement.executeUpdate();
-      connection.commit();
-    } catch (SQLException e) {
-      throw new IOException(e);
-    }
+    states.add(state);
+    putAll(storeName, tableName, states);
   }
 
   @Override
@@ -188,8 +182,8 @@ public class DbStateStore<T extends State> implements StateStore<T> {
         PreparedStatement insertStatement = connection.prepareStatement(UPSERT_JOB_STATE_SQL)) {
       connection.setAutoCommit(false);
       ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
-      DataOutputStream dataOutput = new DataOutputStream(byteArrayOs);
-
+      OutputStream os = compressed ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
+      DataOutputStream dataOutput = new DataOutputStream(os);
       int index = 0;
       insertStatement.setString(++index, storeName);
       insertStatement.setString(++index, tableName);
@@ -198,6 +192,7 @@ public class DbStateStore<T extends State> implements StateStore<T> {
         addStateToOs(dataOutput, state);
       }
 
+      os.close();
       insertStatement.setBlob(++index, new ByteArrayInputStream(byteArrayOs.toByteArray()));
 
       insertStatement.executeUpdate();
@@ -218,23 +213,30 @@ public class DbStateStore<T extends State> implements StateStore<T> {
       try (ResultSet rs = queryStatement.executeQuery()) {
         if (rs.next()) {
           Blob blob = rs.getBlob(1);
-          DataInputStream dis = new DataInputStream(blob.getBinaryStream());
+          InputStream is = compressed ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+          DataInputStream dis = new DataInputStream(is);
           Text key = new Text();
 
-          // keep deserializing while we have data
-          while (dis.available() > 0) {
-            T state = this.stateClass.newInstance();
+          try {
+            // keep deserializing while we have data
+            while (dis.available() > 0) {
+              T state = this.stateClass.newInstance();
 
-            key.readFields(dis);
-            state.readFields(dis);
+              key.readFields(dis);
+              state.readFields(dis);
 
-            if (key.toString().equals(stateId)) {
-              return state;
+              if (key.toString().equals(stateId)) {
+                return state;
+              }
             }
+          } catch (EOFException e) {
+            // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
           }
         }
       }
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
+      throw e;
+    }catch (Exception e) {
       throw new IOException(e);
     }
 
@@ -253,15 +255,21 @@ public class DbStateStore<T extends State> implements StateStore<T> {
       try (ResultSet rs = queryStatement.executeQuery()) {
         while (rs.next()) {
           Blob blob = rs.getBlob(1);
-          DataInputStream dis = new DataInputStream(blob.getBinaryStream());
+          InputStream is = compressed ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+          DataInputStream dis = new DataInputStream(is);
+
           Text key = new Text();
 
-          // keep deserializing while we have data
-          while (dis.available() > 0) {
-            T state = this.stateClass.newInstance();
-            key.readString(dis);
-            state.readFields(dis);
-            states.add(state);
+          try {
+            // keep deserializing while we have data
+            while (dis.available() > 0) {
+              T state = this.stateClass.newInstance();
+              key.readString(dis);
+              state.readFields(dis);
+              states.add(state);
+            }
+          } catch (EOFException e) {
+            // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
           }
         }
       }

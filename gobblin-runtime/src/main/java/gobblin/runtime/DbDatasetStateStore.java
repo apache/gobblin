@@ -15,12 +15,16 @@ package gobblin.runtime;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
+import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.DbStateStore;
+import gobblin.password.PasswordManager;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +50,32 @@ public class DbDatasetStateStore extends DbStateStore<JobState.DatasetState>
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DbDatasetStateStore.class);
 
-  public static final String DATASET_STATE_STORE_TABLE_SUFFIX = ".jst";
+  @Alias("MySqlDbDatasetStateStore")
+  public static class Factory implements DatasetStateStore.Factory {
+    @Override
+    public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {
+      MysqlDataSource mySqlDs = new MysqlDataSource();
 
-  public static final String CURRENT_DATASET_STATE_FILE_SUFFIX = "current";
+      mySqlDs.setURL(props.getProperty(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
+      mySqlDs.setUser(props.getProperty(ConfigurationKeys.STATE_STORE_DB_USER_KEY));
+      mySqlDs.setPassword(PasswordManager.getInstance(props).readPassword(
+          props.getProperty(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
 
-  public DbDatasetStateStore(DataSource dataSource, String stateStoreTableName) throws IOException {
-    super(dataSource, stateStoreTableName, JobState.DatasetState.class);
+      String stateStoreTableName = props.getProperty(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
+          ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
+      boolean compress = Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_DB_COMPRESS_KEY,
+          Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_COMPRESS)));
+
+      try {
+        return new DbDatasetStateStore(mySqlDs, stateStoreTableName, compress);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  public DbDatasetStateStore(DataSource dataSource, String stateStoreTableName, boolean compress) throws IOException {
+    super(dataSource, stateStoreTableName, compress, JobState.DatasetState.class);
   }
 
   /**
@@ -111,11 +135,8 @@ public class DbDatasetStateStore extends DbStateStore<JobState.DatasetState>
         : datasetUrn + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
     LOGGER.info("Persisting " + tableName + " to the job state store");
 
-    try {
-      put(jobName, tableName, datasetState);
-      createAlias(jobName, tableName, getAliasName(datasetUrn));
-    } catch (Exception e) {
-    }
+    put(jobName, tableName, datasetState);
+    createAlias(jobName, tableName, getAliasName(datasetUrn));
   }
 
   private static String getAliasName(String datasetUrn) {
