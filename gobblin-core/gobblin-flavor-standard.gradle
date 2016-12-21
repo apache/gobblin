@@ -1,4 +1,6 @@
 dependencies {
   compile project(':gobblin-modules:gobblin-kafka-08')
+  // For backwards compatibility
+  compile project(':gobblin-modules:google-ingestion')
 }
 
