@@ -69,8 +69,9 @@ public class RetryWriterTest {
 
     DataWriterWrapperBuilder<Void> builder = new DataWriterWrapperBuilder<>(writer, new State());
     DataWriter<Void> retryWriter = builder.build();
-    ((FinalState)retryWriter).getFinalState();
+    State state = ((FinalState) retryWriter).getFinalState();
 
     verify(writer, times(1)).getFinalState();
+    Assert.assertTrue(state.contains(RetryWriter.FAILED_WRITES_KEY));
   }
 }

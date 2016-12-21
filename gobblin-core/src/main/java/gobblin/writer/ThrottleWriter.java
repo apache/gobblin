@@ -39,7 +39,7 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
   public static final String WRITER_THROTTLE_TYPE_KEY = "gobblin.writer.throttle_type";
   public static final String WRITER_LIMIT_RATE_LIMIT_KEY = "gobblin.writer.throttle_rate";
   public static final String WRITES_THROTTLED_TIMER = "gobblin.writer.throttled_time";
-  public static final String THROTTLED_TIME_KEY = "throttledTime";
+  public static final String THROTTLED_TIME_KEY = "ThrottledTime";
 
   private static final String LOCAL_JOB_LAUNCHER_TYPE = "LOCAL";
 
@@ -190,7 +190,7 @@ public class ThrottleWriter<D> implements DataWriter<D>, FinalState, Retriable {
     State state = new State();
 
     if (this.writer instanceof FinalState) {
-      return ((FinalState)this.writer).getFinalState();
+      state.addAll(((FinalState)this.writer).getFinalState());
     } else {
       LOG.warn("Wrapped writer does not implement FinalState: " + this.writer.getClass());
     }

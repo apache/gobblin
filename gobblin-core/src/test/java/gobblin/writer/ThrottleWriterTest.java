@@ -88,9 +88,10 @@ public class ThrottleWriterTest {
     int qps = 4;
     DataWriter<Void> throttleWriter = setup(writer, parallelism, qps, ThrottleType.QPS);
 
-    ((FinalState)throttleWriter).getFinalState();
+    State state = ((FinalState) throttleWriter).getFinalState();
 
     verify(writer, times(1)).getFinalState();
+    Assert.assertTrue(state.contains(ThrottleWriter.THROTTLED_TIME_KEY));
   }
 
   private DataWriter<Void> setup(DataWriter<Void> writer, int parallelism, int rate, ThrottleType type) throws IOException {
