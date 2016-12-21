@@ -82,7 +82,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   protected final String destLateSubDir;
 
   @VisibleForTesting
-  TimeBasedSubDirDatasetsFinder(State state, FileSystem fs) throws Exception {
+  public TimeBasedSubDirDatasetsFinder(State state, FileSystem fs) throws Exception {
     super(state, fs);
     this.inputSubDir = getInputSubDir();
     this.inputLateSubDir = getInputLateSubDir();
