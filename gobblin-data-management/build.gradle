@@ -26,7 +26,6 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.log4j
   compile externalDependency.jodaTime
-  compile externalDependency.azkaban
   compile externalDependency.metricsCore
   compile externalDependency.mockito
   compile externalDependency.commonsCodec
