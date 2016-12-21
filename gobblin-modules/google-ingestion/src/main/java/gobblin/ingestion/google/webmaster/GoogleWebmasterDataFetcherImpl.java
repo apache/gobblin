@@ -75,10 +75,10 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     _client = client;
     _jobs = getHotStartJobs(wuState);
     API_REQUESTS_PER_SECOND =
-        wuState.getPropAsDouble(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_PER_SECOND, 5.0);
-    GET_PAGE_SIZE_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_TIME_OUT, 2);
+        wuState.getPropAsDouble(GoogleWebMasterSource.KEY_PAGES_TUNING_REQUESTS_PER_SECOND, 5.0);
+    GET_PAGE_SIZE_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_TIME_OUT, 2);
     LIMITER = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
-    RETRY = wuState.getPropAsInt(GoogleWebMasterSource.KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_RETRIES, 120);
+    RETRY = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_MAX_RETRIES, 120);
   }
 
   private static List<ProducerJob> getHotStartJobs(State wuState) {

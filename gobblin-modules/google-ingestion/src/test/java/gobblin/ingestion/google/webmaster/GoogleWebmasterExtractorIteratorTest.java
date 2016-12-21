@@ -86,7 +86,7 @@ public class GoogleWebmasterExtractorIteratorTest {
     Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
     map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryEqFilter(country));
     WorkUnitState defaultState = GoogleWebmasterExtractorTest.getWorkUnitState1();
-    defaultState.setProp(GoogleWebMasterSource.KEY_REQUEST_TUNING_BATCH_SIZE, 1);
+    defaultState.setProp(GoogleWebMasterSource.KEY_QUERIES_TUNING_BATCH_SIZE, 1);
     GoogleWebmasterExtractorIterator iterator =
         new GoogleWebmasterExtractorIterator(client, date, date, requestedDimensions, requestedMetrics, map,
             defaultState);

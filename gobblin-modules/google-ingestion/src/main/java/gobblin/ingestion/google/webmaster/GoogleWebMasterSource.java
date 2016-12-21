@@ -26,7 +26,6 @@ import java.util.Map;
  */
 abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> {
   public static final String SOURCE_GOOGLE_WEBMASTER_PREFIX = "source.google_webmasters.";
-  public static final String PERFORMANCE_TUNING_PREFIX = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.performance_tuning.";
   /**
    * Must Provide.
    * Provide the property site URL whose google search analytics data you want to download
@@ -67,62 +66,80 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    * The response row limit when you ask for queries.
    */
   public static final String KEY_REQUEST_QUERY_LIMIT = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.query_limit";
+  public static final String TUNING = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.tuning.";
+
+  // ===============================================
+  // =========   GET QUERIES TUNING BEGIN ==========
+  // ===============================================
+  public static final String QUERIES_TUNING = TUNING + "get_queries.";
   /**
-   * Set the time out in minutes for each round.
+   * Optional. Default to 120 minutes.
+   * Set the time out in minutes for each round while getting queries.
    */
-  public static final String KEY_REQUEST_TIME_OUT = SOURCE_GOOGLE_WEBMASTER_PREFIX + "request.time_out";
+  public static final String KEY_QUERIES_TUNING_TIME_OUT = QUERIES_TUNING + "time_out";
   /**
-   * Tune the maximum rounds of retries allowed when API calls failed because of exceeding quota.
+   * Optional. Default to 30.
+   * Tune the maximum rounds of retries while getting queries.
    */
-  public static final String KEY_REQUEST_TUNING_RETRIES = PERFORMANCE_TUNING_PREFIX + "max_retry_rounds";
+  public static final String KEY_QUERIES_TUNING_RETRIES = QUERIES_TUNING + "max_reties";
   /**
-   * Tune the initial cool down time before starting another round of retry.
+   * Optional. Default to 250 millisecond.
+   * Tune the cool down time between each round of retry.
    */
-  public static final String KEY_REQUEST_TUNING_INITIAL_COOL_DOWN = PERFORMANCE_TUNING_PREFIX + "initial_cool_down";
+  public static final String KEY_QUERIES_TUNING_COOL_DOWN = QUERIES_TUNING + "cool_down_time";
   /**
-   * Tune the extra cool down sleep time for each round before starting another round of retry.
-   * The total cool down time will be calculated as "initial_cool_down + cool_down_step * round"
-   */
-  public static final String KEY_REQUEST_TUNING_COOL_DOWN_STEP = PERFORMANCE_TUNING_PREFIX + "cool_down_step";
-  /**
+   * Optional. Default to 2.25 batches per second.
    * Tune the speed of API requests.
    */
-  public static final String KEY_REQUEST_TUNING_REQUESTS_PER_SECOND = PERFORMANCE_TUNING_PREFIX + "requests_per_second";
+  public static final String KEY_QUERIES_TUNING_BATCHES_PER_SECOND = QUERIES_TUNING + "batches_per_second";
   /**
-   * Optional. Default to 5.0.
-   * Tune the speed of API requests while getting all pages.
-   */
-  public static final String KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_PER_SECOND =
-      PERFORMANCE_TUNING_PREFIX + "get_pages.requests_per_second";
-  /**
-   * Optional. Default to 120.
-   * Tune the number of retries while getting all pages. Consider the following while setting this number:
-   * 1. the length of shared prefix path may be very long
-   * 2. the Quota Exceeded exception
-   */
-  public static final String KEY_REQUEST_TUNING_GET_PAGES_REQUESTS_RETRIES =
-      PERFORMANCE_TUNING_PREFIX + "get_pages.retries";
-  /**
-   * Optional. Default to 2 minutes.
-   * Set the time out in minutes while getting all pages.
-   */
-  public static final String KEY_REQUEST_TUNING_GET_PAGES_TIME_OUT = PERFORMANCE_TUNING_PREFIX + "get_pages.time_out";
-  /**
+   * Optional. Default to 2.
    * Tune the size of a batch. Batch API calls together to reduce the number of HTTP connections.
    * Note: A set of n requests batched together counts toward your usage limit as n requests, not as one request. The batch request is taken apart into a set of requests before processing.
    * Read more at https://developers.google.com/webmaster-tools/v3/how-tos/batch
    */
-  public static final String KEY_REQUEST_TUNING_BATCH_SIZE = PERFORMANCE_TUNING_PREFIX + "batch_size";
+  public static final String KEY_QUERIES_TUNING_BATCH_SIZE = QUERIES_TUNING + "batch_size";
   /**
+   * Optional. Default to 500.
    * Set the group size for UrlTriePrefixGrouper
    */
-  public static final String KEY_REQUEST_TUNING_GROUP_SIZE = PERFORMANCE_TUNING_PREFIX + "group_size";
+  public static final String KEY_QUERIES_TUNING_GROUP_SIZE = QUERIES_TUNING + "trie_group_size";
 
   /**
-   * True: Trie based
-   * False: Queue based
+   * Optional. Default to false.
+   * Choose whether to apply the trie based algorithm while getting all queries.
+   *
+   * If set to true, you also need to set page_limit to 5000 indicating that you want to get all pages because trie based algorithm won't give you expected results if you just need a subset of all pages.
    */
-  public static final String KEY_REQUEST_TUNING_ALGORITHM = PERFORMANCE_TUNING_PREFIX + "advanced";
+  public static final String KEY_REQUEST_TUNING_ALGORITHM = QUERIES_TUNING + "apply_trie";
+  // =============================================
+  // =========   GET QUERIES TUNING END ==========
+  // =============================================
+
+  // =============================================
+  // =========   GET PAGES TUNING BEGIN ==========
+  // =============================================
+  public static final String PAGES_TUNING = TUNING + "get_pages.";
+  /**
+   * Optional. Default to 5.0.
+   * Tune the speed of API requests while getting all pages.
+   */
+  public static final String KEY_PAGES_TUNING_REQUESTS_PER_SECOND = PAGES_TUNING + "requests_per_second";
+  /**
+   * Optional. Default to 120.
+   * Tune the number of maximum retries while getting all pages. Consider the following affecting factors while setting this number:
+   * 1. the length of shared prefix path may be very long
+   * 2. the Quota Exceeded exception
+   */
+  public static final String KEY_PAGES_TUNING_MAX_RETRIES = PAGES_TUNING + "max_retries";
+  /**
+   * Optional. Default to 2 minutes.
+   * Set the time out in minutes while getting all pages.
+   */
+  public static final String KEY_PAGES_TUNING_TIME_OUT = PAGES_TUNING + "time_out";
+  // =============================================
+  // =========   GET PAGES TUNING END ============
+  // =============================================
 
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
 
