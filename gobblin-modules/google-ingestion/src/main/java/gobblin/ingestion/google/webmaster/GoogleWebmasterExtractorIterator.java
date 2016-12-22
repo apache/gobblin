@@ -434,7 +434,7 @@ class ProgressReporter {
   public ProgressReporter(Logger log, int total, int frequency) {
     _log = log;
     _total = total;
-    _checkPoint = Math.max(1, (int) Math.round(Math.ceil(total / frequency)));
+    _checkPoint = (int) Math.max(1, Math.ceil(1.0 * total / frequency));
   }
 
   public synchronized void report(int progress, String country) {
