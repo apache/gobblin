@@ -15,27 +15,27 @@ package gobblin.runtime;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
-import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
-import gobblin.metastore.DbStateStore;
+import gobblin.metastore.MysqlStateStore;
 import gobblin.password.PasswordManager;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import javax.sql.DataSource;
+import org.apache.commons.dbcp.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 /**
- * A custom extension to {@link DbStateStore} for storing and reading {@link JobState.DatasetState}s.
+ * A custom extension to {@link MysqlStateStore} for storing and reading {@link JobState.DatasetState}s.
  *
  * <p>
  *   The purpose of having this class is to hide some implementation details that are unnecessarily
- *   exposed if using the {@link DbStateStore} to store and serve job/dataset states between job runs.
+ *   exposed if using the {@link MysqlStateStore} to store and serve job/dataset states between job runs.
  * </p>
  *
  * <p>
@@ -45,36 +45,48 @@ import org.slf4j.LoggerFactory;
  * </p>
  *
  */
-public class DbDatasetStateStore extends DbStateStore<JobState.DatasetState>
+public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetState>
     implements DatasetStateStore<JobState.DatasetState> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DbDatasetStateStore.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MysqlDatasetStateStore.class);
 
-  @Alias("MySqlDbDatasetStateStore")
+  @Alias("mysql")
   public static class Factory implements DatasetStateStore.Factory {
     @Override
     public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {
-      MysqlDataSource mySqlDs = new MysqlDataSource();
+      BasicDataSource basicDataSource = new BasicDataSource();
+      PasswordManager passwordManager = PasswordManager.getInstance(props);
 
-      mySqlDs.setURL(props.getProperty(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
-      mySqlDs.setUser(props.getProperty(ConfigurationKeys.STATE_STORE_DB_USER_KEY));
-      mySqlDs.setPassword(PasswordManager.getInstance(props).readPassword(
+      basicDataSource.setDriverClassName(props.getProperty(ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
+          ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
+      // MySQL server can timeout a connection so need to validate connections before use
+      basicDataSource.setValidationQuery("select 1");
+      basicDataSource.setTestOnBorrow(true);
+      basicDataSource.setDefaultAutoCommit(false);
+      basicDataSource.setTimeBetweenEvictionRunsMillis(60000);
+      basicDataSource.setUrl(props.getProperty(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
+      basicDataSource.setUsername(passwordManager.readPassword(
+          props.getProperty(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
+      basicDataSource.setPassword(passwordManager.readPassword(
           props.getProperty(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
+      basicDataSource.setMinEvictableIdleTimeMillis(Long.parseLong(props.getProperty(
+          ConfigurationKeys.STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY,
+          Long.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME))));
 
       String stateStoreTableName = props.getProperty(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
           ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
-      boolean compress = Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_DB_COMPRESS_KEY,
-          Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_COMPRESS)));
+      boolean compress = Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_DB_COMPRESS_VALUE_KEY,
+          Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_COMPRESS_VALUE)));
 
       try {
-        return new DbDatasetStateStore(mySqlDs, stateStoreTableName, compress);
+        return new MysqlDatasetStateStore(basicDataSource, stateStoreTableName, compress);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
   }
 
-  public DbDatasetStateStore(DataSource dataSource, String stateStoreTableName, boolean compress) throws IOException {
+  public MysqlDatasetStateStore(DataSource dataSource, String stateStoreTableName, boolean compress) throws IOException {
     super(dataSource, stateStoreTableName, compress, JobState.DatasetState.class);
   }
 

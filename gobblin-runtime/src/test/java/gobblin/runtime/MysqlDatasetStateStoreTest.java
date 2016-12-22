@@ -12,16 +12,18 @@
 
 package gobblin.runtime;
 
-import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
-import gobblin.metastore.DbStateStore;
+import gobblin.metastore.DatasetStateStore;
+import gobblin.metastore.MysqlStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.metastore.testing.ITestMetastoreDatabase;
 import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.commons.dbcp.BasicDataSource;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -29,10 +31,10 @@ import org.testng.annotations.Test;
 
 
 /**
- * Unit tests for {@link DbDatasetStateStore}.
+ * Unit tests for {@link MysqlDatasetStateStore}.
  **/
 @Test(groups = { "gobblin.runtime" })
-public class DbDatasetStateStoreTest {
+public class MysqlDatasetStateStoreTest {
 
   private static final String TEST_STATE_STORE = "TestStateStore";
   private static final String TEST_DS_STATE_STORE = "TestDsStateStore";
@@ -42,10 +44,9 @@ public class DbDatasetStateStoreTest {
   private static final String TEST_DATASET_URN = "TestDataset";
 
   private StateStore<JobState> dbJobStateStore;
-  private DbDatasetStateStore dbDatasetStateStore;
+  private DatasetStateStore<JobState.DatasetState> dbDatasetStateStore;
   private long startTime = System.currentTimeMillis();
 
-  private Properties props;
   private ITestMetastoreDatabase testMetastoreDatabase;
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
@@ -53,19 +54,28 @@ public class DbDatasetStateStoreTest {
   @BeforeClass
   public void setUp() throws Exception {
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
-    props = new Properties();
     String jdbcUrl = testMetastoreDatabase.getJdbcUrl();
-    props.setProperty(ConfigurationKeys.STATE_STORE_DB_URL_KEY,
-        testMetastoreDatabase.getJdbcUrl());
+    Properties props = new Properties();
+    BasicDataSource mySqlDs = new BasicDataSource();
 
-    MysqlDataSource mySqlDs = new MysqlDataSource();
-
-    mySqlDs.setURL(jdbcUrl);
-    mySqlDs.setUser(TEST_USER);
+    mySqlDs.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
+    mySqlDs.setDefaultAutoCommit(false);
+    mySqlDs.setUrl(jdbcUrl);
+    mySqlDs.setUsername(TEST_USER);
     mySqlDs.setPassword(TEST_PASSWORD);
 
-    dbJobStateStore = new DbStateStore<>(mySqlDs, TEST_STATE_STORE, false, JobState.class);
-    dbDatasetStateStore = new DbDatasetStateStore(mySqlDs, TEST_DS_STATE_STORE, true);
+    dbJobStateStore = new MysqlStateStore<>(mySqlDs, TEST_STATE_STORE, false, JobState.class);
+
+    props.put(ConfigurationKeys.STATE_STORE_DB_URL_KEY, jdbcUrl);
+    props.put(ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER);
+    props.put(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, TEST_PASSWORD);
+
+    ClassAliasResolver<DatasetStateStore.Factory> resolver =
+        new ClassAliasResolver<>(DatasetStateStore.Factory.class);
+
+    DatasetStateStore.Factory stateStoreFactory =
+          resolver.resolveClass("mysql").newInstance();
+    dbDatasetStateStore = stateStoreFactory.createStateStore(props);
 
     // clear data that may have been left behind by a prior test run
     dbJobStateStore.delete(TEST_JOB_NAME);
@@ -92,7 +102,7 @@ public class DbDatasetStateStoreTest {
     }
 
     dbJobStateStore.put(TEST_JOB_NAME,
-        DbDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + DbDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
+        MysqlDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + MysqlDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
         jobState);
   }
 

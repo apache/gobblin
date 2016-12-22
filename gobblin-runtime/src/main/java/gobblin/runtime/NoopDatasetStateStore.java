@@ -34,7 +34,7 @@ import com.google.common.collect.Maps;
  */
 public class NoopDatasetStateStore extends FsDatasetStateStore {
 
-  @Alias("NoopDatasetStateStore")
+  @Alias("noop")
   public static class Factory implements DatasetStateStore.Factory {
     @Override
     public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {

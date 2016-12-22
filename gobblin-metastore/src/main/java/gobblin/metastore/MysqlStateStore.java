@@ -30,6 +30,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -46,17 +47,17 @@ import org.apache.hadoop.io.Text;
  *     State keys are state IDs (see {@link State#getId()}), and values are objects of {@link State} or
  *     any of its extensions. Keys will be empty strings if state IDs are not set
  *     (i.e., {@link State#getId()} returns <em>null</em>). In this case, the
- *     {@link DbStateStore#get(String, String, String)} method may not work.
+ *     {@link MysqlStateStore#get(String, String, String)} method may not work.
  * </p>
  *
  * @param <T> state object type
  **/
-public class DbStateStore<T extends State> implements StateStore<T> {
+public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;
   private final DataSource dataSource;
-  private final boolean compressed;
+  private final boolean compressValue;
 
   private static final String UPSERT_JOB_STATE_TEMPLATE =
       "INSERT INTO $TABLE$ (store_name, table_name, state) VALUES(?,?,?)"
@@ -98,11 +99,19 @@ public class DbStateStore<T extends State> implements StateStore<T> {
   private final String DELETE_JOB_STATE_SQL;
   private final String CLONE_JOB_STATE_SQL;
 
-  public DbStateStore(DataSource dataSource, String stateStoreTableName, boolean compressed, Class<T> stateClass)
+  /**
+   * Manages the persistence and retrieval of {@link State} in a MySQL database
+   * @param dataSource the {@link DataSource} object for connecting to MySQL
+   * @param stateStoreTableName the table for storing the state in rows keyed by two levels (store_name, table_name)
+   * @param compressValue should values be compressed for storage?
+   * @param stateClass class of the {@link State}s stored in this state store
+   * @throws IOException
+   */
+  public MysqlStateStore(DataSource dataSource, String stateStoreTableName, boolean compressValue, Class<T> stateClass)
       throws IOException {
     this.dataSource = dataSource;
     this.stateClass = stateClass;
-    this.compressed = compressed;
+    this.compressValue = compressValue;
 
     UPSERT_JOB_STATE_SQL = UPSERT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_SQL = SELECT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -170,19 +179,15 @@ public class DbStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public void put(String storeName, String tableName, T state) throws IOException {
-    List<T> states = Lists.newArrayList();
-
-    states.add(state);
-    putAll(storeName, tableName, states);
+    putAll(storeName, tableName, Collections.singleton(state));
   }
 
   @Override
   public void putAll(String storeName, String tableName, Collection<T> states) throws IOException {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement insertStatement = connection.prepareStatement(UPSERT_JOB_STATE_SQL)) {
-      connection.setAutoCommit(false);
       ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
-      OutputStream os = compressed ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
+      OutputStream os = compressValue ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
       DataOutputStream dataOutput = new DataOutputStream(os);
       int index = 0;
       insertStatement.setString(++index, storeName);
@@ -213,7 +218,7 @@ public class DbStateStore<T extends State> implements StateStore<T> {
       try (ResultSet rs = queryStatement.executeQuery()) {
         if (rs.next()) {
           Blob blob = rs.getBlob(1);
-          InputStream is = compressed ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+          InputStream is = compressValue ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
           DataInputStream dis = new DataInputStream(is);
           Text key = new Text();
 
@@ -255,7 +260,7 @@ public class DbStateStore<T extends State> implements StateStore<T> {
       try (ResultSet rs = queryStatement.executeQuery()) {
         while (rs.next()) {
           Blob blob = rs.getBlob(1);
-          InputStream is = compressed ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+          InputStream is = compressValue ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
           DataInputStream dis = new DataInputStream(is);
 
           Text key = new Text();
@@ -301,7 +306,6 @@ public class DbStateStore<T extends State> implements StateStore<T> {
 
     try (Connection connection = dataSource.getConnection();
         PreparedStatement cloneStatement = connection.prepareStatement(CLONE_JOB_STATE_SQL)) {
-      connection.setAutoCommit(false);
       int index = 0;
       cloneStatement.setString(++index, alias);
       cloneStatement.setString(++index, storeName);
@@ -317,7 +321,6 @@ public class DbStateStore<T extends State> implements StateStore<T> {
   public void delete(String storeName, String tableName) throws IOException {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement deleteStatement = connection.prepareStatement(DELETE_JOB_STATE_SQL)) {
-      connection.setAutoCommit(false);
       int index = 0;
       deleteStatement.setString(++index, storeName);
       deleteStatement.setString(++index, tableName);
@@ -332,7 +335,6 @@ public class DbStateStore<T extends State> implements StateStore<T> {
   public void delete(String storeName) throws IOException {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement deleteStatement = connection.prepareStatement(DELETE_JOB_STORE_SQL)) {
-      connection.setAutoCommit(false);
       deleteStatement.setString(1, storeName);
       deleteStatement.executeUpdate();
       connection.commit();

@@ -84,7 +84,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
     }
   }
 
-  @Alias("FsDatasetStateStore")
+  @Alias("fs")
   public static class Factory implements DatasetStateStore.Factory {
     @Override
     public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {
