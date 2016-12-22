@@ -21,15 +21,15 @@ import gobblin.converter.SingleRecordIterable;
  *
  * @author adsharma
  */
-public class HivePurgerConverter extends Converter<Class<?>, Class<?>, ComplianceRecord, ComplianceRecord> {
+public class HivePurgerConverter extends Converter<ComplianceRecordSchema, ComplianceRecordSchema, ComplianceRecord, ComplianceRecord> {
 
   @Override
-  public Class<?> convertSchema(Class<?> schema, WorkUnitState state) {
+  public ComplianceRecordSchema convertSchema(ComplianceRecordSchema schema, WorkUnitState state) {
     return schema;
   }
 
   @Override
-  public Iterable<ComplianceRecord> convertRecord(Class<?> schema, ComplianceRecord record,
+  public Iterable<ComplianceRecord> convertRecord(ComplianceRecordSchema schema, ComplianceRecord record,
       WorkUnitState state) {
     record.setPurgeQueries(HivePurgerQueryTemplate.getPurgeQueries(record));
     return new SingleRecordIterable<>(record);
