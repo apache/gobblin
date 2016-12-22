@@ -2,5 +2,10 @@ dependencies {
   // Example jobs
   // compile project(':gobblin-example')
 
+  // Gobblin Azkaban integration
+  // compile project(':gobblin-modules:gobblin-azkaban')
+
+  // Google ingestion integration: Drive, Analytics, Webmaster
+  // compile project(':gobblin-modules:google-ingestion')
 }
 

@@ -15,12 +15,11 @@ Proposed design
 2. User can pass the staging table, for the case user does not have permission to create table. If user chose to use their own staging table, user can also choose to truncate the staging table.
 3. User should be able to skip staging table for performance reason.
 4. User can choose level of parallelism.
-5. For a starter, the design will include necessary pieces for Avro → MySQL use case.
-6. For Avro → JDBC use case, user should be able to cherry pick the fields to be copied.
+5. For Avro → JDBC use case, user should be able to cherry pick the fields to be copied.
 
 ### Design summary
-- New JdbcWriter, JdbcPublisher will be introduced. Also, new converter AvroFieldsPickConverter and AvroToJdbcEntry will be introduced to  support AVRO →  MySQL use case.
-- Figure 1 shows Gobblin general flow and figure 2 shows specific flow of Avro → MySQL.
+- New JdbcWriter, JdbcPublisher will be introduced, along with AvroFieldsPickConverter and AvroToJdbcEntry.
+- Figure 1 shows Gobblin general flow and figure 2 shows the specific flow; Avro → RDBMS through JDBC.
 - JdbcWriter will use staging table mainly for failure handling. Since Gobblin breaks down the job into multiple task and process it in parallel, each writer will hold transaction and there will be more than one transaction against the database. If there’s no staging table and writer writes directly to destination table, partial failure among the writers may result partial data push into destination table. Having partial data is mostly bad for consumption and could also result subsequent failure of next data load due to data inconsistency. Also, having partial data also makes it hard to retry on failure. Thus, Gobblin will use staging table so that writer writes into staging table and publisher can copy data from staging table into destination table in one single transaction. Having one transaction from the publisher level enables Gobblin to revert back to original on failure and make it able to be retried from previous state.
 - For performance reason, and from the requirement, user may skip staging. This comes with the cost of giving up failure handling and for this case Gobblin does not guarantee recovery from failure.
 Will introduce WriterInitializer for the case that writer needs an initialization but needs to be done before going on parallel processing. (more on below)
@@ -33,7 +32,7 @@ Will introduce WriterInitializer for the case that writer needs an initializatio
 <p align="center">
     <img src=../../img/jdbc/HDFS_JDBC_Flow.png>
 </p>
-<p style="text-align: center;"> - figure 2. Gobblin Avro → MySQL specific flow - </p>
+<p style="text-align: center;"> - figure 2. Gobblin Avro → RDBMS through JDBC specific flow - </p>
 
 - AvroFieldsPickConverter will cherry pick the columns that user wants.
 - AvroToJdbcEntryConverter will convert Avro to JDBC entry.
@@ -62,7 +61,8 @@ Reasons of introducing writer initializer:
 
 #### JdbcWriterInitializer
 - JdbcWriterInitializer will be the first class implements WriterInitializer interface. This will be instantiated by AbstractJobLauncher after Source creates WorkUnit and always get closed by AbstractJobLauncher when job is finished regardless fail or success.
-- By default, JdbcWriterInitializer will create staging table. It will create staging table per Workunit where it can create more than one staging table. Having multiple staging table will make parallelism easier for publisher when moving data from staging table to destination. Any table created by JdbcWriterInitializer will be remembered and later will be dropped when it’s being closed.
+- By default, JdbcWriterInitializer will create staging tables based on the structure of the target table. Therefore it's necessary to create the target table first. 
+  Staging tables are created per Workunit, in which there can be more than one staging table. Having multiple staging table will make parallelism easier for publisher when moving data from staging table to destination. Any table created by JdbcWriterInitializer will be remembered and later will be dropped when it’s being closed.
 - Staging will be placed in same destination host, same database, some temporary table name, with same structure. The main purpose of staging table for handling failure. Without staging table, it is hard to recover from failure, because writers writes into table in multiple transactions. Additionally, staging table also brings data integrity check before publishing into destination.
 - Before creating the staging table, JdbcWriterInitializer will validate if user has drop table privilege to make sure it can drop it later on.
 - User can choose to use their own staging table. This is to support the use case when user does not have privilege to create table. When user chooses to use their own staging table, JdbcWriterInitializer will truncate the table later when it’s being closed.
@@ -122,7 +122,7 @@ Reasons of introducing writer initializer:
 - A publisher will open one transaction. Being processed in single transaction, any failure can be reverted by rolling back transaction.
 Operation:
     - PublishData operation opens single transaction and writes into destination table from staging table. If there is any error, transaction will be rolled back. Once completed successfully, transaction will be committed. 
-    - Parallelism: Currently parallelism in publisher level is not supported as test on MySQL fails on delete all from table before inserting new data using global transaction with multiple connections.
+    - Parallelism: Currently parallelism in publisher level is not supported. For example the MySQL Writer fails on deleting all from table before inserting new data using global transaction with multiple connections.
     - PublishMeta won’t do anything.
 - Figure 6 shows overall flow of JDBC publisher.
 
@@ -131,17 +131,58 @@ Operation:
 </p>
 <p style="text-align: center;"> - figure 6. Gobblin_JDBC_Publisher - </p>
 
-### Risk
-- As Gobblin framework comes with parallel processing via Hadoop, it can easily overburden the underlying RDBMS. User needs to choose parallelism level conservativley.
+### Concrete implementations
+
+To configure a concrete writer, please refer the [JDBC Writer Properties](Configuration-Properties-Glossary#JdbcWriter-Properties) section in the [Configuration Glossary](Configuration-Properties-Glossary).
+
+
+#### MySQL Writer
+
+The MySQL writer uses [buffered inserts](http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html) to increase performance.  
+The sink configuration for MySQL in a Gobblin job is as follows:
+```
+writer.destination.type=MYSQL
+writer.builder.class=gobblin.writer.JdbcWriterBuilder
+
+data.publisher.type=gobblin.publisher.JdbcPublisher
+jdbc.publisher.url=jdbc:mysql://host:3306
+jdbc.publisher.driver=com.mysql.jdbc.Driver
+
+converter.classes=gobblin.converter.jdbc.AvroToJdbcEntryConverter
+# If field name mapping is needed between the input Avro and the target table:
+converter.avro.jdbc.entry_fields_pairs={\"src_fn\":\"firstname\",\"src_ln\":\"lastname\"}
+```
+
+#### Teradata Writer
+
+Similarly to the MySQL Writer, this writer also inserts data in batches, configured by  ```writer.jdbc.batch_size```.
+Ideally, for performance reasons the target table is advised to be set to type MULTISET, without a primary index.  
+Please note, that the Teradata JDBC drivers are *not* part of Gobblin, one needs to obtain them from 
+[Teradata](http://downloads.teradata.com/download/connectivity/jdbc-driver) and pass them as job specific jars to the 
+Gobblin submitter scripts. Teradata may use the FASTLOAD option during the insert if conditions are met.  
+The sink configuration for Teradata in a Gobblin job is as follows:
+```
+writer.destination.type=TERADATA
+writer.builder.class=gobblin.writer.JdbcWriterBuilder
+
+data.publisher.type=gobblin.publisher.JdbcPublisher
+jdbc.publisher.url=jdbc:teradata://host/TMODE=ANSI,CHARSET=UTF16,TYPE=FASTLOAD
+jdbc.publisher.driver=com.teradata.jdbc.TeraDriver
+
+converter.classes=gobblin.converter.jdbc.AvroToJdbcEntryConverter
+# If field name mapping is needed between the input Avro and the target table:
+converter.avro.jdbc.entry_fields_pairs={\"src_fn\":\"firstname\",\"src_ln\":\"lastname\"}
+```
 
 ### Performance and Scalability
 As Gobblin can dial up parallelism, the bottleneck of performance will be the underlying RDBMS. Thus, performance and scalability will be mainly up to underlying RDBMS.
 
-Below is from performance testing on 80k records. Each entry consists of 14 fields with sparse density. 
+Benchmark:  
+MySQL Writer performance test on 80k records. Each entry consists of 14 fields with sparse density. 
 
-Few observations:
-- Starting from batch insert size 1,000, the performance gain diminishes.
-- The parallelism does not show much of gain. This is mostly because of the overhead of parallelism. Parallelism is expected to show more performance gain on bigger record sets.
+Few observations:  
+- Starting from batch insert size 1,000, the performance gain diminishes.  
+- The parallelism does not show much of gain. This is mostly because of the overhead of parallelism. Parallelism is expected to show more performance gain on bigger record sets.  
 
 
 Batch insert size | Parallelism | Elapsed
@@ -160,3 +201,5 @@ All tests used:
 - Hadoop 2.3 in Pseudo-distributed mode on CPU: 12 cores @1.2GHz, Memory: 64GBytes
 - MySQL server 5.6.21 with InnoDB storage engine, and compression on. Server runs on Dual CPU Intel Xeon 6 cores @2.5GHz, Memory: 48 GBytes, and HDD: 2.4TB (10K RPM)
 
+### Important note
+- As Gobblin framework comes with parallel processing via Hadoop, it can easily overburden the underlying RDBMS. User needs to choose parallelism level conservativley.

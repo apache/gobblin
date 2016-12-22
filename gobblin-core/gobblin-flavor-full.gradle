@@ -1,5 +1,8 @@
 dependencies {
   compile project(':gobblin-modules:gobblin-kafka-08')
   compile project(':gobblin-modules:gobblin-couchbase')
+  // For backwards compatibility
+  compile project(':gobblin-modules:google-ingestion')
+  compile project(':gobblin-modules:gobblin-compliance')
 }
 

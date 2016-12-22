@@ -15,13 +15,14 @@ dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-hive-registration")
-  compile project(":gobblin-metrics")
+  compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-metastore")
   compile project(":gobblin-utility")
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate')
   compile project(":gobblin-rest-service:gobblin-rest-server")
   compile project(":gobblin-data-management")
+  compile project(":gobblin-modules:google-ingestion")
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2

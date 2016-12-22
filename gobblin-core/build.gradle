@@ -15,7 +15,7 @@ dependencies {
   compile project(":gobblin-core-base")
   compile project(":gobblin-tunnel")
   compile project(":gobblin-utility")
-  compile project(":gobblin-metrics")
+  compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-hive-registration")
   compile project(":gobblin-config-management:gobblin-config-client")
   compile project(":gobblin-config-management:gobblin-config-core")
@@ -45,16 +45,7 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.guavaretrying
   compile externalDependency.findBugsAnnotations
-  compile externalDependency.confluentSchemaRegistryClient
-  compile externalDependency.confluentAvroSerializer
-  compile externalDependency.confluentJsonSerializer
   compile externalDependency.oltu
-  compile externalDependency.googleAnalytics
-  compile externalDependency.googleDrive
-  compile externalDependency.googleHttpClient
-  compile externalDependency.googleHttpClientGson
-  compile externalDependency.googleOauthClient
-  compile externalDependency.googleApiClient
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
 
@@ -73,7 +64,7 @@ dependencies {
 }
 
 apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"
- 
+
 configurations {
   compile { transitive = false }
   // Remove xerces dependencies because of versioning issues. Standard JRE implementation should

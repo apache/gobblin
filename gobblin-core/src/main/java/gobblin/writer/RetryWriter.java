@@ -48,7 +48,7 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
   public static final String RETRY_MULTIPLIER = RETRY_CONF_PREFIX + "multiplier";
   public static final String RETRY_MAX_WAIT_MS_PER_INTERVAL = RETRY_CONF_PREFIX + "max_wait_ms_per_interval";
   public static final String RETRY_MAX_ATTEMPTS = RETRY_CONF_PREFIX + "max_attempts";
-  public static final String FAILED_WRITES_KEY = "failedWrites";
+  public static final String FAILED_WRITES_KEY = "FailedWrites";
 
   private final DataWriter<D> writer;
   private final Retryer<Void> retryer;

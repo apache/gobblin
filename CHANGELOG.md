@@ -1,3 +1,73 @@
+GOBBLIN 0.9.0
+-------------
+
+### Created Date: 12/13/2016
+
+## Highlights
+
+* Refactored project structure in Gobblin. If not importing dependencies transitively, you may need to import "gobblin-core-base".
+* New sources: Google analytics / drive (PR 1301), Google webmaster (PR 1422), Oracle (PR 1304).
+* New writers: Teradata (http://gobblin.readthedocs.io/en/latest/user-guide/Gobblin-JDBC-Writer/), object store (PR 1348).
+* Retention job is more generic, allowing arbitrary actions on dataset versions (https://gobblin.readthedocs.io/en/latest/data-management/Gobblin-Retention).
+* Docker integration (https://gobblin.readthedocs.io/en/latest/user-guide/Docker-Integration).
+* Gobblin jobs can be run embedded into other applications (http://gobblin.readthedocs.io/en/latest/user-guide/Gobblin-as-a-Library/).
+* Gobblin jobs can be run from CLI with full support for templates, plugins, etc. (http://gobblin.readthedocs.io/en/latest/user-guide/Gobblin-CLI/)
+* Topology based data replication: users can specify a topology for their data copy in config store, Gobblin Distcp will handle replication. (PR 1278, PR 1306, PR 1328, PR 1405)
+* Prioritization of work units when there is more work than can be run in a single job (PR 1283).
+* Enabled speculative excecution in MR mode (PR 1347).
+
+## NEW FEATURES
+
+* [Writers] [PR 1181] Teradata Writer implemented.
+* [Converters] [PR 1246] Added some new core converters: schema injector, avro to json string, json to string, string to bytes.
+* [Testing] [PR 1247] Added end-to-end testing framework for Gobblin job execution.
+* [Job Execution] [PR 1248] [PR 1249] Added Quartz scheduler for new Gobblin launch model.
+* [Core] [PR 1278] Added dataset finder using Gobblin config library.
+* [Retention] [PR 1279] Retention job can now apply other arbitrary actions to datasets (for example change ACL).
+* [Core] [PR 1280] Added a converter for parsing GoldenGate messages.
+* [Core] [PR 1283] Added utilities to prioritize work when there are more work units available than can be run in a single job.
+* [Sources] [PR 1301] Added Google analytics and google drive sources.
+* [Sources] [PR 1304] Added Oracle extractor.
+* [Core] [PR 1305] Added a schema based partitioner.
+* [Deploy] [PR 1308] Docker integration.
+* [Core] [PR 1313] [PR 1331] Gobblin in embedded mode.
+* [Core] [PR 1333] Support for plugins in Gobblin instances.
+* [Core] [PR 1337] Kerberos login plugin implemented.
+* [Core] [PR 1340] New Gobblin cli capable of using templates, plugins, etc.
+* [Core] [PR 1347] Support speculative execution in MR mode.
+* [Writers] [PR 1348] Object store writer.
+* [Compaction] [PR 1354] Delta support in Gobblin compaction.
+* [Core] [PR 1440] Added email notification plugin.
+* [Sources] [PR 1422] Google webmaster source
+
+## IMPROVEMENTS
+
+* [Templating] [PR 1228] Templates read *.conf files as `Config` objects, allowing for better interpolation of configurations.
+* [Core] [PR 1246] Wikipedia source changed to actually use state store.
+* [Core] [PR 1246] Robustness improvements on `JobScheduler`, previously it silently failed on certain exceptions.
+* [Core] [PR 1339] Gobblin can gracefully skip work units.
+* [Build] [PR 1417] Refactoring of Kafka dependent classes into separate modules for improved dependency management.
+* [Build] [PR 1424] Refactoring of Gobblin core module for improved dependency management.
+* Improved documentation for various features.
+* Fixed many intermittently failing unit tests (special thanks to htran1).
+* Various bug fixes.
+
+## EXTERNAL CONTRIBUTIONS
+We would like to thank all our external contributors for helping improve Gobblin.
+
+* lbendig
+  - Teradata writer (PR 1181)
+  - Oracle extractor (PR 1304)
+
+* jsavolainen
+  - Bug fixes in job configuration loading (PR 1259)
+
+* klyr
+  - Update lib versions for AWS (PR 1368)
+
+* enjoyear
+  - Google webmaster source
+
 GOBBLIN 0.8.0
 -------------
 
@@ -157,19 +227,19 @@ GOBBLIN 0.8.0
 
 We would like to thank all our external contributors for helping improve Gobblin.
 
-* singhd10: 
+* singhd10:
     -Add metadata after completion of job to a specific metadata directory (PR 980)
 * shelocks:
     -Fixing SOURCE_QUERYBASED_LOW_WATERMARK_BACKUP_SECS no default value (PR 1005)
-* lbendig,Lorand Bendig: 
+* lbendig,Lorand Bendig:
     -Document changes in PR#952 (PR 1012)
     -Make topic suffix configurable for lookup in Confluent Schema Registry (PR 1210)
-* jinhyukchang, Jinhyuk Chang: 
+* jinhyukchang, Jinhyuk Chang:
     -JDBCWriter. Bug fix on SQL statements. Bug fix on data type mapping. (PR 1050)
     -HttpWriter including SalesForceRestWriter, ThrottleWriter, etc (PR 1186)
 * ypopov, Eugene Popov:
     -Teradata JDBC Extractor and Source (PR 1090)
-* pldash 
+* pldash
     -Added JsonConverter to parse Json files to a format such that JsonIntermediateToAvro converter can parse (PR 1092)
 
 GOBBLIN 0.7.0
@@ -434,7 +504,7 @@ NEW FEATURES
 * [Runtime] Added CliLocalJobLauncher for launching single jobs from the command line.
 * [Converters] Added AvroSchemaFieldRemover that can remove specific fields from a (possibly recursive) Avro schema.
 * [DQ] Added new row-level policies RecordTimestampLowerBoundPolicy and AvroRecordTimestampLowerBoundPolicy for checking if a record timestamp is too far in the past.
-* [Kafka] Added schema registry API to KafkaAvroExtractor which enables supports for various Kafka schema registry implementations (e.g. Confluent's schema registry). 
+* [Kafka] Added schema registry API to KafkaAvroExtractor which enables supports for various Kafka schema registry implementations (e.g. Confluent's schema registry).
 * [Build/Release] Added build instrumentation to publish artifacts to Maven Central
 
 BUG FIXES
@@ -467,20 +537,20 @@ EXTERNAL CONTRIBUTIONS
 
 We would like to thank all our external contributors for helping improve Gobblin.
 
-* kadaan, joel.baranick: 
+* kadaan, joel.baranick:
     - Separate publisher filesystem from writer filesystem
     - Support for generating Idea projects with the correct language level (Java 7)
     - Fixed yarn conf path in gobblin-yarn.sh
-* mwol(Maurice Wolter) 
+* mwol(Maurice Wolter)
     - Implemented new class AvroCombineFileSplit which stores the avro schema for each split, determined by the corresponding input file.
 * cheleb(NOUGUIER Olivier)
     - Add support for maven install
-* dvenkateshappa 
+* dvenkateshappa
     - bugifx to RestApiExtractor.java
     - Added an excluding column list , which can be used for salesforce configuration with huge list of columns.
-* klyr (Julien Barbot) 
+* klyr (Julien Barbot)
     - bugfix to gobblin-mapreduce.sh
-* gheo21 
+* gheo21
     - Bumped kafka dependency to 2.11
 * ahollenbach (Andrew Hollenbach)
    -  configuration improvements for standalone mode

@@ -13,7 +13,7 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
-  compile project(":gobblin-metrics")
+  compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-core-base")
 
   compile externalDependency.avro

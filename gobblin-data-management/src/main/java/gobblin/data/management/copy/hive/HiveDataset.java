@@ -13,6 +13,7 @@
 package gobblin.data.management.copy.hive;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -27,6 +28,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -52,6 +55,7 @@ import gobblin.hive.HiveMetastoreClientPool;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.util.AutoReturnableObject;
 import gobblin.util.ConfigUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.request_allocation.PushDownRequestor;
@@ -280,5 +284,29 @@ public class HiveDataset implements PrioritizedCopyableDataset {
     }
 
     return ConfigUtils.propertiesToConfig(resolvedProperties);
+  }
+
+  /**
+   * Sort all partitions inplace on the basis of complete name ie dbName.tableName.partitionName
+   */
+  public static List<Partition> sortPartitions(List<Partition> partitions) {
+    Collections.sort(partitions, new Comparator<Partition>() {
+      @Override
+      public int compare(Partition o1, Partition o2) {
+        return o1.getCompleteName().compareTo(o2.getCompleteName());
+      }
+    });
+    return partitions;
+  }
+
+  /**
+   * This method returns a sorted list of partitions.
+   */
+  public List<Partition> getPartitionsFromDataset() throws IOException{
+    try (AutoReturnableObject<IMetaStoreClient> client = getClientPool().getClient()) {
+      List<Partition> partitions =
+          HiveUtils.getPartitions(client.get(), getTable(), Optional.<String>absent());
+      return sortPartitions(partitions);
+    }
   }
 }
