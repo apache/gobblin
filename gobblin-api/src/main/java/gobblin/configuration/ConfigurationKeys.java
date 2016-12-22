@@ -41,12 +41,31 @@ public class ConfigurationKeys {
   /**
    * State store configuration properties.
    */
+  // State store type.  References an alias or factory class name
+  public static final String STATE_STORE_TYPE_KEY = "state.store.type";
+  public static final String DEFAULT_STATE_STORE_TYPE = "fs";
+  public static final String STATE_STORE_TYPE_NOOP = "noop";
+
   // Root directory where task state files are stored
   public static final String STATE_STORE_ROOT_DIR_KEY = "state.store.dir";
   // File system URI for file-system-based task store
   public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
   // Enable / disable state store
   public static final String STATE_STORE_ENABLED = "state.store.enabled";
+  // DB state store configuration
+  public static final String STATE_STORE_DB_JDBC_DRIVER_KEY = "state.store.db.jdbc.driver";
+  public static final String DEFAULT_STATE_STORE_DB_JDBC_DRIVER = "com.mysql.jdbc.Driver";
+  // min idle time for eviction
+  public static final String STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY =
+      "state.store.db.conn.min.evictable.idle.time";
+  public static final long DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME = 5 * 60 * 1000;
+  public static final String STATE_STORE_DB_URL_KEY = "state.store.db.url";
+  public static final String STATE_STORE_DB_USER_KEY = "state.store.db.user";
+  public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
+  public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
+  public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
+  public static final String STATE_STORE_DB_COMPRESSED_VALUES_KEY = "state.store.db.compressedValues";
+  public static final boolean DEFAULT_STATE_STORE_DB_COMPRESSED_VALUES = true;
 
   /**
    * Job scheduler configuration properties.

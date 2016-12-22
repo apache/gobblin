@@ -12,10 +12,17 @@
 
 package gobblin.runtime;
 
+import gobblin.annotation.Alias;
+import gobblin.configuration.State;
+import gobblin.metastore.DatasetStateStore;
+import gobblin.metastore.StateStore;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import java.util.Properties;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -52,13 +59,42 @@ import gobblin.metastore.FsStateStore;
  *
  * @author Yinan Li
  */
-public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> {
+public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
+    implements DatasetStateStore<JobState.DatasetState> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FsDatasetStateStore.class);
 
-  public static final String DATASET_STATE_STORE_TABLE_SUFFIX = ".jst";
+  protected static DatasetStateStore<JobState.DatasetState> createStateStore(Properties props, String className) {
+    // Add all job configuration properties so they are picked up by Hadoop
+    Configuration conf = new Configuration();
+    for (String key : props.stringPropertyNames()) {
+      conf.set(key, props.getProperty(key));
+    }
 
-  public static final String CURRENT_DATASET_STATE_FILE_SUFFIX = "current";
+    try {
+      String stateStoreFsUri = props.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
+      FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
+      String stateStoreRootDir = props.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
+
+      return (DatasetStateStore<JobState.DatasetState>) Class.forName(className)
+          .getConstructor(FileSystem.class, String.class)
+          .newInstance(stateStoreFs, stateStoreRootDir);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Alias("fs")
+  public static class Factory implements DatasetStateStore.Factory {
+    @Override
+    public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {
+      try {
+        return FsDatasetStateStore.createStateStore(props, FsDatasetStateStore.class.getName());
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
 
   public FsDatasetStateStore(String fsUri, String storeRootDir) throws IOException {
     super(fsUri, storeRootDir, JobState.DatasetState.class);

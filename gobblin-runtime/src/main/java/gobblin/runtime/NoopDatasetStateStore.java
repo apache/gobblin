@@ -12,11 +12,17 @@
 
 package gobblin.runtime;
 
+import gobblin.annotation.Alias;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.DatasetStateStore;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import java.util.Properties;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.collect.Lists;
@@ -27,6 +33,14 @@ import com.google.common.collect.Maps;
  * An extension of {@link FsDatasetStateStore} where all operations are noop. Used to disable the state store.
  */
 public class NoopDatasetStateStore extends FsDatasetStateStore {
+
+  @Alias("noop")
+  public static class Factory implements DatasetStateStore.Factory {
+    @Override
+    public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {
+      return FsDatasetStateStore.createStateStore(props, NoopDatasetStateStore.class.getName());
+    }
+  }
 
   public NoopDatasetStateStore(FileSystem fs, String storeRootDir) {
     super(fs, storeRootDir);

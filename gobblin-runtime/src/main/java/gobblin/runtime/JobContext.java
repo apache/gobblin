@@ -12,6 +12,9 @@
 
 package gobblin.runtime;
 
+import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
+import gobblin.metastore.DatasetStateStore;
+import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -88,7 +91,7 @@ public class JobContext {
 
   // State store for persisting job states
   @Getter(AccessLevel.PACKAGE)
-  private final FsDatasetStateStore datasetStateStore;
+  private final DatasetStateStore datasetStateStore;
 
   // Store for runtime job execution information
   private final Optional<JobHistoryStore> jobHistoryStoreOptional;
@@ -122,13 +125,7 @@ public class JobContext {
     this.jobLockEnabled =
         Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
 
-    // Add all job configuration properties so they are picked up by Hadoop
-    Configuration conf = new Configuration();
-    for (String key : jobProps.stringPropertyNames()) {
-      conf.set(key, jobProps.getProperty(key));
-    }
-
-    this.datasetStateStore = createStateStore(jobProps, conf);
+    this.datasetStateStore = createStateStore(jobProps);
     this.jobHistoryStoreOptional = createJobHistoryStore(jobProps);
 
     State jobPropsState = new State();
@@ -159,16 +156,30 @@ public class JobContext {
         : 1;
   }
 
-  protected FsDatasetStateStore createStateStore(Properties jobProps, Configuration conf) throws IOException {
-    String stateStoreFsUri =
-        jobProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI);
-    FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
-    String stateStoreRootDir = jobProps.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
-    if (jobProps.containsKey(ConfigurationKeys.STATE_STORE_ENABLED) &&
-        !Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.STATE_STORE_ENABLED))) {
-      return new NoopDatasetStateStore(stateStoreFs, stateStoreRootDir);
+  protected DatasetStateStore createStateStore(Properties jobProps) throws IOException {
+    boolean stateStoreEnabled = !jobProps.containsKey(ConfigurationKeys.STATE_STORE_ENABLED)
+        || Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.STATE_STORE_ENABLED));
+
+    String stateStoreType;
+
+    if (!stateStoreEnabled) {
+      stateStoreType = ConfigurationKeys.STATE_STORE_TYPE_NOOP;
     } else {
-      return new FsDatasetStateStore(stateStoreFs, stateStoreRootDir);
+      stateStoreType = jobProps.getProperty(ConfigurationKeys.STATE_STORE_TYPE_KEY,
+          ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+    }
+
+    ClassAliasResolver<DatasetStateStore.Factory> resolver =
+        new ClassAliasResolver<>(DatasetStateStore.Factory.class);
+
+    try {
+      DatasetStateStore.Factory stateStoreFactory =
+          resolver.resolveClass(stateStoreType).newInstance();
+      return stateStoreFactory.createStateStore(jobProps);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException(e);
     }
   }
 
