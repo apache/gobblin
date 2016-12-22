@@ -23,14 +23,13 @@ configurations {
 
 dependencies {
   compile project(':gobblin-admin')
-  compile project(':gobblin-azkaban')
   compile project(':gobblin-api')
   compile project(':gobblin-core')
   compile project(':gobblin-compaction')
   compile project(':gobblin-runtime')
   compile project(':gobblin-utility')
   compile project(':gobblin-metastore')
-  compile project(':gobblin-metrics')
+  compile project(':gobblin-metrics-libs:gobblin-metrics')
   compile project(':gobblin-data-management')
   compile project(":gobblin-rest-service:gobblin-rest-api")
   compile project(":gobblin-rest-service:gobblin-rest-client")

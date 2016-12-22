@@ -12,7 +12,6 @@ apply from: 'gradle/scripts/hadoop-version.gradle'
 
 def modules = ['gobblin-admin',
                'gobblin-api',
-               'gobblin-azkaban',
                'gobblin-compaction',
                'gobblin-config-management',
                'gobblin-core',
@@ -20,8 +19,9 @@ def modules = ['gobblin-admin',
                'gobblin-distribution',
                'gobblin-example',
                'gobblin-hive-registration',
-               'gobblin-metrics',
+               'gobblin-metrics-libs',
                'gobblin-metastore',
+               'gobblin-modules',
                'gobblin-rest-service',
                'gobblin-runtime',
                'gobblin-runtime-hadoop',
@@ -35,7 +35,6 @@ def modules = ['gobblin-admin',
                'gobblin-yarn',
                'gobblin-cluster',
                'gobblin-aws',
-               'gobblin-modules',
                'gobblin-test-utils']
 
 // Disable jacoco for now as Kafka 0.8 is the default version and jacoco does not like the same classes 

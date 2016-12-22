@@ -235,8 +235,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         this.status = Status.COMMITTED;
       } else {
         if (this.fs.exists(this.dataset.outputPath()) && !canOverwriteOutputDir()) {
-          LOG.warn(String.format("Output path %s exists. Will not compact %s.", this.dataset.outputPath(),
-              this.dataset.inputPath()));
+          LOG.warn(String.format("Output paths %s exists. Will not compact %s.", this.dataset.outputPath(),
+              this.dataset.inputPaths()));
           this.status = Status.COMMITTED;
           return;
         }
@@ -249,7 +249,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
             // append new files without deleting output directory
             addFilesInTmpPathToOutputPath();
             // clean up late data from outputLateDirectory, which has been set to inputPath
-            deleteFilesByPaths(Arrays.asList(this.dataset.inputPath()));
+            deleteFilesByPaths(this.dataset.inputPaths());
           } else {
             moveTmpPathToOutputPath();
             if (this.recompactFromDestPaths) {
@@ -257,10 +257,10 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
             }
           }
           submitSlaEvent(job);
-          LOG.info("Successfully published data for input folder " + this.dataset.inputPath());
+          LOG.info("Successfully published data for input folder " + this.dataset.inputPaths());
           this.status = Status.COMMITTED;
         } else {
-          LOG.info("Data not published for input folder " + this.dataset.inputPath() + " due to incompleteness");
+          LOG.info("Data not published for input folder " + this.dataset.inputPaths() + " due to incompleteness");
           this.status = Status.ABORTED;
           return;
         }
@@ -288,7 +288,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     if (!this.recompactFromDestPaths) {
       return new DateTime(timeZone);
     }
-    List<Path> inputPaths = Lists.newArrayList(this.dataset.inputPath());
+    List<Path> inputPaths = this.dataset.inputPaths();
     inputPaths.addAll(this.dataset.additionalInputPaths());
     long maxTimestamp = Long.MIN_VALUE;
     for (FileStatus status : FileListUtils.listFilesRecursively(this.fs, inputPaths)) {
@@ -367,7 +367,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
   private List<Path> getInputPaths() {
-    List<Path> inputPaths = Lists.newArrayList(this.dataset.inputPath());
+    List<Path> inputPaths = this.dataset.inputPaths();
     inputPaths.addAll(this.dataset.additionalInputPaths());
     return inputPaths;
   }

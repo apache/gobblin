@@ -18,8 +18,10 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -31,24 +33,39 @@ import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.StateStore;
+import gobblin.metrics.event.EventSubmitter;
+import gobblin.metrics.event.JobEvent;
+import gobblin.runtime.util.JobMetrics;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.executors.IteratorExecutor;
 
 import javax.annotation.Nullable;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Attempt of running multiple {@link Task}s generated from a list of{@link WorkUnit}s.
  * A {@link GobblinMultiTaskAttempt} is usually a unit of workunits that are assigned to one container.
  */
-@Slf4j
-@RequiredArgsConstructor
 @Alpha
 public class GobblinMultiTaskAttempt {
+
+  /**
+   * An enumeration of policies on when a {@link GobblinMultiTaskAttempt} will be committed.
+   */
+  public enum CommitPolicy {
+    /**
+     * Commit {@link GobblinMultiTaskAttempt} immediately after running is done.
+     */
+    IMMEDIATE,
+    /**
+     * Not committing {@link GobblinMultiTaskAttempt} but leaving it to user customized launcher.
+     */
+    CUSTOMIZED
+  }
+
+  private final Logger log;
   private final List<WorkUnit> workUnits;
   private final String jobId;
   private final JobState jobState;
@@ -64,6 +81,25 @@ public class GobblinMultiTaskAttempt {
    */
   private List<CommitStep> cleanupCommitSteps;
 
+  public GobblinMultiTaskAttempt(List<WorkUnit> workUnits,
+                                 String jobId,
+                                 JobState jobState,
+                                 TaskStateTracker taskStateTracker,
+                                 TaskExecutor taskExecutor,
+                                 Optional<String> containerIdOptional,
+                                 Optional<StateStore<TaskState>> taskStateStoreOptional) {
+    super();
+    this.workUnits = workUnits;
+    this.jobId = jobId;
+    this.jobState = jobState;
+    this.taskStateTracker = taskStateTracker;
+    this.taskExecutor = taskExecutor;
+    this.containerIdOptional = containerIdOptional;
+    this.taskStateStoreOptional = taskStateStoreOptional;
+    this.log = LoggerFactory.getLogger(GobblinMultiTaskAttempt.class.getName() + "-" +
+               containerIdOptional.or("noattempt"));
+  }
+
   /**
    * Run {@link #workUnits} assigned in this attempt.
    * @throws IOException
@@ -77,8 +113,7 @@ public class GobblinMultiTaskAttempt {
     }
 
     CountDownLatch countDownLatch = new CountDownLatch(workUnits.size());
-    this.tasks = AbstractJobLauncher
-        .runWorkUnits(jobId, jobState, workUnits, containerIdOptional, taskStateTracker, taskExecutor, countDownLatch);
+    this.tasks = runWorkUnits(countDownLatch);
     log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId,
         containerIdOptional.or(""));
     while (countDownLatch.getCount() > 0) {
@@ -201,5 +236,100 @@ public class GobblinMultiTaskAttempt {
     } else {
       this.cleanupCommitSteps.add(commitStep);
     }
+  }
+
+  /**
+   * Run a given list of {@link WorkUnit}s of a job.
+   *
+   * <p>
+   *   This method assumes that the given list of {@link WorkUnit}s have already been flattened and
+   *   each {@link WorkUnit} contains the task ID in the property {@link ConfigurationKeys#TASK_ID_KEY}.
+   * </p>
+   *
+   * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
+   * @return a list of {@link Task}s from the {@link WorkUnit}s
+   */
+  private List<Task> runWorkUnits(CountDownLatch countDownLatch) {
+
+    List<Task> tasks = Lists.newArrayList();
+    for (WorkUnit workUnit : this.workUnits) {
+      String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
+      WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState);
+      workUnitState.setId(taskId);
+      workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobId);
+      workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+      if (this.containerIdOptional.isPresent()) {
+        workUnitState.setProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY, this.containerIdOptional.get());
+      }
+      // Create a new task from the work unit and submit the task to run
+      Task task = new Task(new TaskContext(workUnitState), this.taskStateTracker, this.taskExecutor,
+                           Optional.of(countDownLatch));
+      this.taskStateTracker.registerNewTask(task);
+      tasks.add(task);
+      this.taskExecutor.execute(task);
+    }
+
+    new EventSubmitter.Builder(JobMetrics.get(this.jobId).getMetricContext(), "gobblin.runtime").build()
+        .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(workUnits.size()));
+
+    return tasks;
+  }
+
+  public void runAndOptionallyCommitTaskAttempt(CommitPolicy multiTaskAttemptCommitPolicy)
+      throws IOException, InterruptedException {
+    run();
+    if (multiTaskAttemptCommitPolicy.equals(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE)) {
+      this.log.info("Will commit tasks directly.");
+      commit();
+    } else if (!isSpeculativeExecutionSafe()) {
+      throw new RuntimeException(
+          "Specualtive execution is enabled. However, the task context is not safe for speculative execution.");
+    }
+  }
+
+  /**
+   * FIXME this method is provided for backwards compatibility in the LocalJobLauncher since it does
+   * not access the task state store. This should be addressed as all task executions should be
+   * updating the task state.
+   */
+  public static GobblinMultiTaskAttempt runWorkUnits(String jobId, JobState jobState, List<WorkUnit> workUnits,
+      TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
+      CommitPolicy multiTaskAttemptCommitPolicy)
+      throws IOException, InterruptedException {
+    GobblinMultiTaskAttempt multiTaskAttempt =
+        new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
+            Optional.<String>absent(), Optional.<StateStore<TaskState>>absent());
+    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
+    return multiTaskAttempt;
+  }
+
+  /**
+   * Run a given list of {@link WorkUnit}s of a job.
+   *
+   * <p>
+   *   This method creates {@link GobblinMultiTaskAttempt} to actually run the {@link Task}s of the {@link WorkUnit}s, and optionally commit.
+   * </p>
+   *
+   * @param jobId the job ID
+   * @param workUnits the given list of {@link WorkUnit}s to submit to run
+   * @param taskStateTracker a {@link TaskStateTracker} for task state tracking
+   * @param taskExecutor a {@link TaskExecutor} for task execution
+   * @param taskStateStore a {@link StateStore} for storing {@link TaskState}s
+   * @param logger a {@link Logger} for logging
+   * @param multiTaskAttemptCommitPolicy {@link GobblinMultiTaskAttempt.CommitPolicy} for committing {@link GobblinMultiTaskAttempt}
+   * @throws IOException if there's something wrong with any IO operations
+   * @throws InterruptedException if the task execution gets cancelled
+   */
+  public static GobblinMultiTaskAttempt runWorkUnits(String jobId, String containerId, JobState jobState,
+      List<WorkUnit> workUnits, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
+      StateStore<TaskState> taskStateStore,
+      CommitPolicy multiTaskAttemptCommitPolicy)
+      throws IOException, InterruptedException {
+    GobblinMultiTaskAttempt multiTaskAttempt =
+        new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
+            Optional.of(containerId), Optional.of(taskStateStore));
+
+    multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
+    return multiTaskAttempt;
   }
 }

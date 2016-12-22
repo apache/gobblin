@@ -13,6 +13,7 @@
 
 package gobblin.compaction.mapreduce;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -26,7 +27,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import gobblin.compaction.dataset.Dataset;
@@ -109,16 +112,26 @@ public class MRCompactorJobPropCreator {
   }
 
   protected List<Dataset> createJobProps() throws IOException {
-    if (!this.fs.exists(this.dataset.inputPath())) {
-      LOG.warn("Input folder " + this.dataset.inputPath() + " does not exist. Skipping dataset " + this.dataset);
-      return ImmutableList.<Dataset> of();
+
+    if (Iterables.tryFind(this.dataset.inputPaths(), new Predicate<Path>() {
+      public boolean apply(Path input) {
+        try {
+          return MRCompactorJobPropCreator.this.fs.exists(input);
+        } catch (IOException e) {
+          MRCompactorJobPropCreator.LOG.error(String.format("Failed to check if %s exits", new Object[] { input }), e);
+        }
+        return false;
+      }
+    }).isPresent()) {
+      Optional<Dataset> datasetWithJobProps = createJobProps(this.dataset);
+      if (datasetWithJobProps.isPresent()) {
+        setCompactionSLATimestamp((Dataset) datasetWithJobProps.get());
+        return ImmutableList.of(datasetWithJobProps.get());
+      }
+      return ImmutableList.of();
     }
-    Optional<Dataset> datasetWithJobProps = createJobProps(this.dataset);
-    if (datasetWithJobProps.isPresent()) {
-      setCompactionSLATimestamp(datasetWithJobProps.get());
-      return ImmutableList.<Dataset> of(datasetWithJobProps.get());
-    }
-    return ImmutableList.<Dataset> of();
+    LOG.warn("Input folders " + this.dataset.inputPaths() + " do not exist. Skipping dataset " + this.dataset);
+    return ImmutableList.of();
   }
 
   private void setCompactionSLATimestamp(Dataset dataset) {
@@ -132,15 +145,23 @@ public class MRCompactorJobPropCreator {
     }
   }
 
+  private boolean latePathsFound(Dataset dataset) throws IOException, FileNotFoundException {
+    for (Path lateInputPath : dataset.inputLatePaths()) {
+      if ((this.fs.exists(lateInputPath)) && (this.fs.listStatus(lateInputPath).length > 0)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /**
    * Create MR job properties for a {@link Dataset}.
    */
   protected Optional<Dataset> createJobProps(Dataset dataset) throws IOException {
-    if (this.recompactFromOutputPaths
-        && (!this.fs.exists(dataset.inputLatePath()) || this.fs.listStatus(dataset.inputLatePath()).length == 0)) {
-      LOG.info(String.format("Skipping recompaction for %s since there is no late data in %s", dataset.inputPath(),
-          dataset.inputLatePath()));
-      return Optional.<Dataset> absent();
+    if (this.recompactFromOutputPaths && (!latePathsFound(dataset))) {
+      LOG.info(String.format("Skipping recompaction for %s since there is no late data in %s",
+          new Object[] { dataset.inputPaths(), dataset.inputLatePaths() }));
+      return Optional.absent();
     }
 
     State jobProps = new State();
@@ -153,25 +174,24 @@ public class MRCompactorJobPropCreator {
     if (this.recompactFromOutputPaths || !MRCompactor.datasetAlreadyCompacted(this.fs, dataset)) {
       addInputLateFilesForFirstTimeCompaction(jobProps, dataset);
     } else {
-      List<Path> newDataFiles = getNewDataInFolder(dataset.inputPath(), dataset.outputPath());
-      newDataFiles.addAll(getNewDataInFolder(dataset.inputLatePath(), dataset.outputPath()));
+      List<Path> newDataFiles = getNewDataInFolder(dataset.inputPaths(), dataset.outputPath());
+      newDataFiles.addAll(getNewDataInFolder(dataset.inputLatePaths(), dataset.outputPath()));
       if (newDataFiles.isEmpty()) {
         return Optional.<Dataset> absent();
       }
       addJobPropsForCompactedFolder(jobProps, dataset);
     }
 
-    LOG.info(String.format("Created MR job properties for input %s and output %s.", dataset.inputPath(),
+    LOG.info(String.format("Created MR job properties for input %s and output %s.", dataset.inputPaths(),
         dataset.outputPath()));
     dataset.setJobProps(jobProps);
     return Optional.of(dataset);
   }
 
   private void addInputLateFilesForFirstTimeCompaction(State jobProps, Dataset dataset) throws IOException {
-    if (this.fs.exists(dataset.inputLatePath()) && this.fs.listStatus(dataset.inputLatePath()).length > 0) {
-      dataset.addAdditionalInputPath(dataset.inputLatePath());
+    if ((latePathsFound(dataset)) && (this.outputDeduplicated)) {
+      dataset.addAdditionalInputPaths(dataset.inputLatePaths());
       if (this.outputDeduplicated) {
-
         // If input contains late data (i.e., input data is not deduplicated) and output data should be deduplicated,
         // run a deduping compaction instead of non-deduping compaction.
         jobProps.setProp(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, true);
@@ -184,18 +204,26 @@ public class MRCompactorJobPropCreator {
       LOG.info(String.format("Will recompact for %s.", dataset.outputPath()));
       addInputLateFilesForFirstTimeCompaction(jobProps, dataset);
     } else {
-      List<Path> newDataFiles = getNewDataInFolder(dataset.inputPath(), dataset.outputPath());
-      List<Path> newDataFilesInLatePath = getNewDataInFolder(dataset.inputLatePath(), dataset.outputPath());
+      List<Path> newDataFiles = getNewDataInFolder(dataset.inputPaths(), dataset.outputPath());
+      List<Path> newDataFilesInLatePath = getNewDataInFolder(dataset.inputLatePaths(), dataset.outputPath());
       newDataFiles.addAll(newDataFilesInLatePath);
 
       if (!newDataFilesInLatePath.isEmpty()) {
-        dataset.addAdditionalInputPath(dataset.inputLatePath());
+        dataset.addAdditionalInputPaths(dataset.inputLatePaths());
       }
 
       LOG.info(String.format("Will copy %d new data files for %s", newDataFiles.size(), dataset.outputPath()));
       jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_MOVEMENT_TASK, true);
       jobProps.setProp(MRCompactor.COMPACTION_JOB_LATE_DATA_FILES, Joiner.on(",").join(newDataFiles));
     }
+  }
+
+  private List<Path> getNewDataInFolder(List<Path> inputFolders, Path outputFolder) throws IOException {
+    List<Path> paths = Lists.newArrayList();
+    for (Path inputFolder : inputFolders) {
+      paths.addAll(getNewDataInFolder(inputFolder, outputFolder));
+    }
+    return paths;
   }
 
   /**

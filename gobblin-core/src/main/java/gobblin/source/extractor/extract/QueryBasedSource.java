@@ -82,7 +82,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       tableNameToEntityMap.put(Utils.escapeSpecialCharacters(entity, ConfigurationKeys.ESCAPE_CHARS_IN_TABLE_NAME, "_"),
           entity);
     }
-    
+
     Map<String, State> tableSpecificPropsMap = shouldObtainTablePropsFromConfigStore(state)
         ? getTableSpecificPropsFromConfigStore(tableNameToEntityMap.keySet(), state)
         : DatasetUtils.getDatasetSpecificProps(tableNameToEntityMap.keySet(), state);
@@ -112,9 +112,9 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       sortedPartitions.putAll(new Partitioner(combinedState).getPartitions(previousWatermark));
 
       // {@link ConfigurationKeys.EXTRACT_TABLE_NAME_KEY} specify the output path for Extract
-      String outputTableName = state.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY)? 
+      String outputTableName = state.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY)?
           state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY) : tableName;
-          
+
       log.info("Create extract output with table name is " + outputTableName);
       Extract extract = createExtract(tableType, nameSpaceName, outputTableName);
 
@@ -216,7 +216,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   @Override
   public void shutdown(SourceState state) {}
 
-  
+
   /**
    * For each table, if job commit policy is to commit on full success, and the table has failed tasks in the
    * previous run, return the lowest low watermark among all previous {@code WorkUnitState}s of the table.
@@ -227,19 +227,20 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     Map<String, Long> prevLowWatermarksByTable = Maps.newHashMap();
     Map<String, Long> prevActualHighWatermarksByTable = Maps.newHashMap();
     Set<String> tablesWithFailedTasks = Sets.newHashSet();
+    Set<String> tablesWithNoUpdatesOnPreviousRun = Sets.newHashSet();
     boolean commitOnFullSuccess = JobCommitPolicy.getCommitPolicy(state) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
 
     for (WorkUnitState previousWus : state.getPreviousWorkUnitStates()) {
       String table;
-      
+
       // current code will use {@link ConfigurationKeys.SOURCE_ENTITY} to defined the table name
       if(previousWus.getWorkunit().contains(ConfigurationKeys.SOURCE_ENTITY)){
-        table = previousWus.getWorkunit().getProp(ConfigurationKeys.SOURCE_ENTITY); 
+        table = previousWus.getWorkunit().getProp(ConfigurationKeys.SOURCE_ENTITY);
       }
       // previous format
       else {
         table = previousWus.getExtract().getTable();
-        log.warn(String.format("Can not find %s entry in workunit, based on %s to set table name as %s", ConfigurationKeys.SOURCE_ENTITY, 
+        log.warn(String.format("Can not find %s entry in workunit, based on %s to set table name as %s", ConfigurationKeys.SOURCE_ENTITY,
             ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, table));
       }
 
@@ -273,7 +274,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         highWm = Long.parseLong(previousWus.getProperties().getProperty(ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK));
         log.warn("can not find high water mark in json format, getting value from " + ConfigurationKeys.WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK + " high water mark " + highWm);
       }
-      
+
       if (!prevActualHighWatermarksByTable.containsKey(table)) {
         prevActualHighWatermarksByTable.put(table, highWm);
       } else {
@@ -283,11 +284,22 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       if (commitOnFullSuccess && !isSuccessfulOrCommited(previousWus)) {
         tablesWithFailedTasks.add(table);
       }
+
+      if (!isAnyDataProcessed(previousWus)) {
+        tablesWithNoUpdatesOnPreviousRun.add(table);
+      }
     }
 
     for (Map.Entry<String, Long> entry : prevLowWatermarksByTable.entrySet()) {
-      result.put(entry.getKey(), tablesWithFailedTasks.contains(entry.getKey()) ? entry.getValue()
-          : prevActualHighWatermarksByTable.get(entry.getKey()));
+      if (tablesWithFailedTasks.contains(entry.getKey())) {
+        log.info("Resetting low watermark to {} because previous run failed.", entry.getValue());
+        result.put(entry.getKey(), entry.getValue());
+      } else if (tablesWithNoUpdatesOnPreviousRun.contains(entry.getKey())) {
+        log.info("Resetting low watermakr to {} because previous run processed no data.", entry.getValue());
+        result.put(entry.getKey(), entry.getValue());
+      } else {
+        result.put(entry.getKey(), prevActualHighWatermarksByTable.get(entry.getKey()));
+      }
     }
 
     return result;
@@ -295,6 +307,10 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 
   private static boolean isSuccessfulOrCommited(WorkUnitState wus) {
     return wus.getWorkingState() == WorkingState.SUCCESSFUL || wus.getWorkingState() == WorkingState.COMMITTED;
+  }
+
+  private static boolean isAnyDataProcessed(WorkUnitState wus) {
+    return wus.getPropAsLong(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, 0) > 0;
   }
 
   /**

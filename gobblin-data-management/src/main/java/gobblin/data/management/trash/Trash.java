@@ -33,8 +33,6 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import azkaban.utils.Props;
-
 import gobblin.util.PathUtils;
 
 
@@ -129,18 +127,6 @@ public class Trash implements GobblinTrash {
     }
   }
 
-  /**
-   * Move a path to trash. The absolute path of the input path will be replicated under the trash directory.
-   * @param fs {@link org.apache.hadoop.fs.FileSystem} where path and trash exist.
-   * @param path {@link org.apache.hadoop.fs.FileSystem} path to move to trash.
-   * @param props {@link java.util.Properties} containing trash configuration.
-   * @return true if move to trash was done successfully.
-   * @throws IOException
-   */
-  public static boolean moveToTrash(FileSystem fs, Path path, Props props) throws IOException {
-    return TrashFactory.createTrash(fs, props.toProperties()).moveToTrash(path);
-  }
-
   protected final FileSystem fs;
   private final Path trashLocation;
   private final SnapshotCleanupPolicy snapshotCleanupPolicy;
@@ -151,14 +137,6 @@ public class Trash implements GobblinTrash {
   @Deprecated
   public Trash(FileSystem fs) throws IOException {
     this(fs, new Properties());
-  }
-
-  /**
-   * @deprecated Use {@link gobblin.data.management.trash.TrashFactory}.
-   */
-  @Deprecated
-  public Trash(FileSystem fs, Props props) throws IOException {
-    this(fs, props.toProperties());
   }
 
   /**
@@ -190,6 +168,7 @@ public class Trash implements GobblinTrash {
    * @return true if move to trash was done successfully.
    * @throws IOException
    */
+  @Override
   public boolean moveToTrash(Path path) throws IOException {
     Path fullyResolvedPath = path.isAbsolute() ? path : new Path(this.fs.getWorkingDirectory(), path);
     Path targetPathInTrash = PathUtils.mergePaths(this.trashLocation, fullyResolvedPath);

@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.ServiceManager;
 import gobblin.metrics.Tag;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.GobblinMultiTaskAttempt;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskStateTracker;
@@ -116,8 +117,8 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.WORK_UNITS_RUN);
 
-    AbstractJobLauncher.runWorkUnits(this.jobContext.getJobId(), this.jobContext.getJobState(), workUnitsToRun,
-        this.taskStateTracker, this.taskExecutor, MULTI_TASK_ATTEMPT_COMMIT_POLICY.IMMEDIATE);
+    GobblinMultiTaskAttempt.runWorkUnits(this.jobContext.getJobId(), this.jobContext.getJobState(), workUnitsToRun,
+        this.taskStateTracker, this.taskExecutor, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
 
     workUnitsRunTimer.stop();
 
