@@ -84,7 +84,6 @@ shadowJar {
     exclude dependency('org.datanucleus:.*')
     exclude dependency('org.apache.hive:.*')
     exclude dependency('org.scala-lang:scala-library:.*')
-    exclude dependency('com.linkedin.azkaban:.*')
     exclude dependency('org.apache.derby:.*')
   }
   mergeServiceFiles()

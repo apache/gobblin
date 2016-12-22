@@ -38,8 +38,6 @@ public class AvroDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRe
     switch (this.destination.getType()) {
       case HDFS:
         return new AvroHdfsDataWriter(this, this.destination.getProperties());
-      case KAFKA:
-        return new AvroKafkaDataWriter();
       default:
         throw new RuntimeException("Unknown destination type: " + this.destination.getType());
     }

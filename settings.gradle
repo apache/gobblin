@@ -12,7 +12,6 @@ apply from: 'gradle/scripts/hadoop-version.gradle'
 
 def modules = ['gobblin-admin',
                'gobblin-api',
-               'gobblin-azkaban',
                'gobblin-compaction',
                'gobblin-config-management',
                'gobblin-core',
