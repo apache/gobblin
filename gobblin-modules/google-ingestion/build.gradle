@@ -14,6 +14,11 @@ dependencies {
   compile project(":gobblin-core")
 
   compile externalDependency.googleWebmasters
+  compile externalDependency.googleAdWordsAxis
+  compile externalDependency.googleAdWordsLib
+  compile externalDependency.guava
+  //compile "com.google.guava:guava:20.0"
+  compile externalDependency.commonsLang3
   compile externalDependency.gson
   compile externalDependency.guava
   compile externalDependency.slf4j
