@@ -49,12 +49,6 @@ dependencies {
   compile externalDependency.confluentAvroSerializer
   compile externalDependency.confluentJsonSerializer
   compile externalDependency.oltu
-  compile externalDependency.googleAnalytics
-  compile externalDependency.googleDrive
-  compile externalDependency.googleHttpClient
-  compile externalDependency.googleHttpClientGson
-  compile externalDependency.googleOauthClient
-  compile externalDependency.googleApiClient
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
 
