@@ -75,19 +75,21 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
 
       String stateStoreTableName = props.getProperty(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
           ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
-      boolean compress = Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_DB_COMPRESS_VALUE_KEY,
-          Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_COMPRESS_VALUE)));
+      boolean compressedValues =
+          Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_DB_COMPRESSED_VALUES_KEY,
+          Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_COMPRESSED_VALUES)));
 
       try {
-        return new MysqlDatasetStateStore(basicDataSource, stateStoreTableName, compress);
+        return new MysqlDatasetStateStore(basicDataSource, stateStoreTableName, compressedValues);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
   }
 
-  public MysqlDatasetStateStore(DataSource dataSource, String stateStoreTableName, boolean compress) throws IOException {
-    super(dataSource, stateStoreTableName, compress, JobState.DatasetState.class);
+  public MysqlDatasetStateStore(DataSource dataSource, String stateStoreTableName, boolean compressedValues)
+      throws IOException {
+    super(dataSource, stateStoreTableName, compressedValues, JobState.DatasetState.class);
   }
 
   /**

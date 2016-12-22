@@ -64,8 +64,8 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
   public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
-  public static final String STATE_STORE_DB_COMPRESS_VALUE_KEY = "state.store.db.compress.value";
-  public static final boolean DEFAULT_STATE_STORE_DB_COMPRESS_VALUE = true;
+  public static final String STATE_STORE_DB_COMPRESSED_VALUES_KEY = "state.store.db.compressedValues";
+  public static final boolean DEFAULT_STATE_STORE_DB_COMPRESSED_VALUES = true;
 
   /**
    * Job scheduler configuration properties.

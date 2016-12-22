@@ -57,7 +57,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;
   private final DataSource dataSource;
-  private final boolean compressValue;
+  private final boolean compressedValues;
 
   private static final String UPSERT_JOB_STATE_TEMPLATE =
       "INSERT INTO $TABLE$ (store_name, table_name, state) VALUES(?,?,?)"
@@ -103,15 +103,15 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
    * Manages the persistence and retrieval of {@link State} in a MySQL database
    * @param dataSource the {@link DataSource} object for connecting to MySQL
    * @param stateStoreTableName the table for storing the state in rows keyed by two levels (store_name, table_name)
-   * @param compressValue should values be compressed for storage?
+   * @param compressedValues should values be compressed for storage?
    * @param stateClass class of the {@link State}s stored in this state store
    * @throws IOException
    */
-  public MysqlStateStore(DataSource dataSource, String stateStoreTableName, boolean compressValue, Class<T> stateClass)
-      throws IOException {
+  public MysqlStateStore(DataSource dataSource, String stateStoreTableName, boolean compressedValues,
+      Class<T> stateClass) throws IOException {
     this.dataSource = dataSource;
     this.stateClass = stateClass;
-    this.compressValue = compressValue;
+    this.compressedValues = compressedValues;
 
     UPSERT_JOB_STATE_SQL = UPSERT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_SQL = SELECT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -187,7 +187,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement insertStatement = connection.prepareStatement(UPSERT_JOB_STATE_SQL)) {
       ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
-      OutputStream os = compressValue ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
+      OutputStream os = compressedValues ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
       DataOutputStream dataOutput = new DataOutputStream(os);
       int index = 0;
       insertStatement.setString(++index, storeName);
@@ -218,7 +218,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       try (ResultSet rs = queryStatement.executeQuery()) {
         if (rs.next()) {
           Blob blob = rs.getBlob(1);
-          InputStream is = compressValue ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+          InputStream is = compressedValues ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
           DataInputStream dis = new DataInputStream(is);
           Text key = new Text();
 
@@ -260,7 +260,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       try (ResultSet rs = queryStatement.executeQuery()) {
         while (rs.next()) {
           Blob blob = rs.getBlob(1);
-          InputStream is = compressValue ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+          InputStream is = compressedValues ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
           DataInputStream dis = new DataInputStream(is);
 
           Text key = new Text();
