@@ -135,7 +135,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
       return new HiveCopyEntityHelper(this, configuration, targetFs).getCopyEntities(configuration);
     } catch (IOException ioe) {
       log.error("Failed to copy table " + this.table, ioe);
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
   }
 
@@ -154,7 +154,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
       return fileSetList.iterator();
     } catch (IOException ioe) {
       log.error("Failed to copy table " + this.table, ioe);
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
   }
 

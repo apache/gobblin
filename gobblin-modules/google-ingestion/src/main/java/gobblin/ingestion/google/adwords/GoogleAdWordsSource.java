@@ -8,8 +8,12 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.extract.QueryBasedSource;
 
-public class GoogleAdWordsSource {
+
+public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
   /**
    * Must provide.
    * Specify the master customer id. Standard format that has dashes between numbers is acceptable.
@@ -27,18 +31,6 @@ public class GoogleAdWordsSource {
    * The date range configured here must be convertible to ReportDefinitionDateRangeType enums
    */
   public static final String KEY_DATE_RANGE = "source.google_adwords.request.date_range_type";
-  /**
-   * Optional.
-   * Only used when date_range_type is set to "custom_date".
-   * Used as the inclusive starting date of the custom_date range. Format is yyyyMMdd.
-   */
-  public static final String KEY_CUSTOM_DATE_START = "source.google_adwords.request.custom_date.start";
-  /**
-   * Optional.
-   * Only used when date_range_type is set to "custom_date".
-   * Used as the inclusive ending date of the custom_date range. Format is yyyyMMdd.
-   */
-  public static final String KEY_CUSTOM_DATE_END = "source.google_adwords.request.custom_date.end";
   /**
    * Optional, default to false.
    * Only used when date_range_type is set to "custom_date".
@@ -65,11 +57,6 @@ public class GoogleAdWordsSource {
    * Will be overwritten by KEY_ACCOUNTS_EXACT if both are configured.
    */
   public static final String KEY_ACCOUNTS_EXCLUDE = "source.google_adwords.request.accounts.exclude";
-  /**
-   * Optional.
-   * Specify the destination of downloaded reports.
-   */
-  public static final String KEY_DESTINATION_PATH = "source.google_adwords.request.destination_path";
   /**
    * Must provide.
    * Specify the developer token.
@@ -131,18 +118,13 @@ public class GoogleAdWordsSource {
 
   private final static Logger LOG = LoggerFactory.getLogger(GoogleAdWordsSource.class);
 
-  public static Properties getConfigurations() {
-    try (InputStream input = new FileInputStream(
-        "/Users/chguo/Documents/central-control/forked/gobblin/google-adwords/job/google_adwords.properties")) {
-      Properties prop = new Properties();
-      try {
-        prop.load(input);
-      } catch (Exception e) {
-
-      }
-      return prop;
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+  @Override
+  public Extractor<String, String[]> getExtractor(WorkUnitState state)
+      throws IOException {
+    try {
+      return new GoogleAdWordsExtractor(state);
+    } catch (Exception e) {
+      throw new IOException(e);
     }
   }
 }

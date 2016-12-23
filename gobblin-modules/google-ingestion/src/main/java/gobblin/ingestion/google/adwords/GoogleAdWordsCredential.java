@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Properties;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -24,6 +23,8 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 
+import gobblin.configuration.WorkUnitState;
+
 
 public class GoogleAdWordsCredential {
   public static final String REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob";
@@ -35,14 +36,14 @@ public class GoogleAdWordsCredential {
   private final String _developerToken;
   private final String _refreshToken;
 
-  public GoogleAdWordsCredential(Properties prop) {
-    _developerToken = prop.getProperty(GoogleAdWordsSource.KEY_DEVELOPER_TOKEN);
-    _refreshToken = prop.getProperty(GoogleAdWordsSource.KEY_REFRESH_TOKEN);
+  public GoogleAdWordsCredential(WorkUnitState state) {
+    _developerToken = state.getProp(GoogleAdWordsSource.KEY_DEVELOPER_TOKEN);
+    _refreshToken = state.getProp(GoogleAdWordsSource.KEY_REFRESH_TOKEN);
 
     //For getting refresh tokens.
-    _appName = prop.getProperty(GoogleAdWordsSource.KEY_APPLICATION_NAME);
-    _clientId = prop.getProperty(GoogleAdWordsSource.KEY_CLIENT_ID);
-    _clientSecret = prop.getProperty(GoogleAdWordsSource.KEY_CLIENT_SECRET);
+    _appName = state.getProp(GoogleAdWordsSource.KEY_APPLICATION_NAME);
+    _clientId = state.getProp(GoogleAdWordsSource.KEY_CLIENT_ID);
+    _clientSecret = state.getProp(GoogleAdWordsSource.KEY_CLIENT_SECRET);
   }
 
   public AdWordsSession.ImmutableAdWordsSession buildRootSession()
