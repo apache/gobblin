@@ -7,5 +7,8 @@ dependencies {
 
   // Google ingestion integration: Drive, Analytics, Webmaster
   // compile project(':gobblin-modules:google-ingestion')
+
+  // Gobblin Helix modules
+  // compile project(':gobblin-modules:gobblin-helix')
 }
 
