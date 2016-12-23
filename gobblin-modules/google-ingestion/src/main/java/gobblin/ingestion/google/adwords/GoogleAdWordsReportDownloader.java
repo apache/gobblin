@@ -1,15 +1,17 @@
 package gobblin.ingestion.google.adwords;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,7 +42,6 @@ import com.google.api.ads.common.lib.exception.ValidationException;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.common.base.Splitter;
-import com.google.common.collect.Iterables;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 
@@ -51,6 +52,7 @@ import gobblin.source.extractor.extract.LongWatermark;
 public class GoogleAdWordsReportDownloader {
   private static final Logger LOG = LoggerFactory.getLogger(GoogleAdWordsReportDownloader.class);
   private final static Splitter splitter = Splitter.on(",").trimResults();
+  private final static int SIZE = 4096; //Buffer size for unzipping stream.
   private final boolean _skipReportHeader;
   private final boolean _skipColumnHeader;
   private final boolean _skipReportSummary;
@@ -69,6 +71,8 @@ public class GoogleAdWordsReportDownloader {
 
   public final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyyMMdd");
   private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
+  private final String _debugFileOutputPath;
+  private final String _debugStringOutputPath;
 
   public GoogleAdWordsReportDownloader(AdWordsSession rootSession, WorkUnitState state,
       ReportDefinitionReportType reportType, ReportDefinitionDateRangeType dateRangeType, String schema) {
@@ -83,6 +87,8 @@ public class GoogleAdWordsReportDownloader {
 
     _endDate = _startDate;
     _dailyPartition = state.getPropAsBoolean(GoogleAdWordsSource.KEY_CUSTOM_DATE_DAILY, false);
+    _debugFileOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_FILE, "");
+    _debugStringOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_FILE, "");
 
     _skipReportHeader = state.getPropAsBoolean(GoogleAdWordsSource.KEY_REPORTING_SKIP_REPORT_HEADER, true);
     _skipColumnHeader = state.getPropAsBoolean(GoogleAdWordsSource.KEY_REPORTING_SKIP_COLUMN_HEADER, true);
@@ -187,7 +193,7 @@ public class GoogleAdWordsReportDownloader {
    */
   private void downloadReport(String account, Collection<String> fields, ReportDefinitionDateRangeType dateRangeType,
       String startDate, String endDate, LinkedBlockingDeque<String[]> reportRows)
-      throws ReportDownloadResponseException, ReportException, InterruptedException {
+      throws ReportDownloadResponseException, ReportException, InterruptedException, IOException {
     Selector selector = new Selector();
     selector.getFields().addAll(fields);
 
@@ -197,9 +203,9 @@ public class GoogleAdWordsReportDownloader {
       value.setMin(startDate);
       value.setMax(endDate);
       selector.setDateRange(value);
-      reportName = String.format("%s: %s to %s", _reportType.toString(), startDate, endDate);
+      reportName = String.format("%s_%s/%s_%s.csv", startDate, endDate, _reportType.toString(), account);
     } else {
-      reportName = String.format("%s: ALL TIME", _reportType.toString());
+      reportName = String.format("all_time/%s_%s.csv", _reportType.toString(), account);
     }
 
     ReportDefinition reportDef = new ReportDefinition();
@@ -235,21 +241,48 @@ public class GoogleAdWordsReportDownloader {
       throw new RuntimeException(message);
     }
 
-    try {
-      processResponse(zippedStream, reportRows, account);
-    } catch (IOException e) {
-      LOG.error("Failed while unzipping and printing to console for ", reportName);
-      throw new RuntimeException(e);
+    if (!_debugFileOutputPath.trim().isEmpty()) {
+      File debugFile = new File(_debugFileOutputPath, reportName);
+      createPath(debugFile);
+      writeToFile(zippedStream, debugFile);
+    } else {
+      FileWriter debugFileWriter = null;
+      try {
+        if (!_debugStringOutputPath.trim().isEmpty()) {
+          File debugFile = new File(_debugStringOutputPath, reportName);
+          createPath(debugFile);
+          debugFileWriter = new FileWriter(debugFile);
+        }
+        processResponse(zippedStream, reportRows, debugFileWriter);
+      } catch (IOException e) {
+        LOG.error(
+            String.format("Failed unzipping and processing records for %s. Reason is: %s", reportName, e.getMessage()));
+        throw new RuntimeException(e);
+      } finally {
+        if (debugFileWriter != null) {
+          debugFileWriter.close();
+        }
+      }
     }
   }
 
-  private GZIPInputStream processResponse(InputStream zippedStream, LinkedBlockingDeque<String[]> reportRows,
-      String account)
-      throws IOException, InterruptedException {
-    int SIZE = 4096;
-    byte[] buffer = new byte[SIZE];
+  private static void createPath(File file) {
+    if (file.exists()) {
+      boolean delete = file.delete();
+      if (!delete) {
+        throw new RuntimeException(String.format("Cannot delete debug file: %s", file));
+      }
+    }
 
-    FileWriter fw = new FileWriter("/Users/chguo/repos/forked/gobblin/downloaded/tmp" + account + ".csv");
+    if (!file.exists()) {
+      new File(file.getParent()).mkdirs();
+    }
+  }
+
+  private static GZIPInputStream processResponse(InputStream zippedStream, LinkedBlockingDeque<String[]> reportRows,
+      FileWriter debugFw)
+      throws IOException, InterruptedException {
+    byte[] buffer = new byte[SIZE];
 
     try (GZIPInputStream gzipInputStream = new GZIPInputStream(zippedStream)) {
       String partiallyConsumed = "";
@@ -262,16 +295,12 @@ public class GoogleAdWordsReportDownloader {
         if (c == 0) {
           continue;
         }
-        //"c" can very likely be less than SIZE.
-        String str = new String(buffer, 0, c, "UTF-8");
-        fw.write(str);
-
+        String str = new String(buffer, 0, c, "UTF-8"); //"c" can very likely be less than SIZE.
+        if (debugFw != null) {
+          debugFw.write(str);
+        }
         partiallyConsumed = addToQueue(reportRows, partiallyConsumed, str);
       }
-
-      LOG.info("==END OF FILE==");
-      fw.close();
-
       return gzipInputStream;
     }
   }
@@ -310,6 +339,18 @@ public class GoogleAdWordsReportDownloader {
       return previous + current;
     }
     return current.substring(start);
+  }
+
+  private void writeToFile(InputStream zippedStream, File reportFile)
+      throws IOException {
+    byte[] buffer = new byte[SIZE];
+    int c;
+    try (GZIPInputStream gzipInputStream = new GZIPInputStream(zippedStream);
+        OutputStream unzipped = new FileOutputStream(reportFile)) {
+      while ((c = gzipInputStream.read(buffer, 0, SIZE)) >= 0) {
+        unzipped.write(buffer, 0, c);
+      }
+    }
   }
 
   public List<Pair<String, String>> getDates() {

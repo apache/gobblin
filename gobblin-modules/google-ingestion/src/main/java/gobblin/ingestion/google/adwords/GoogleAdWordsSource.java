@@ -127,6 +127,23 @@ public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
   // ========= CREDENTIAL CONFIGURATION END ==========
   // =================================================
 
+  // ================================
+  // ========= DEBUG BEGIN ==========
+  // ================================
+  private static final String DEBUG = ADWORDS + "debug.";
+  /**
+   * For Debugging purpose only.
+   * Specify the output path for unzipped strings.
+   */
+  static final String KEY_DEBUG_PATH_STRING = DEBUG + "string_output_path";
+  /**
+   * For Debugging purpose only.
+   * Specify the output path for unzipped files.
+   */
+  static final String KEY_DEBUG_PATH_FILE = DEBUG + "file_output_path";
+  // ================================
+  // ========= DEBUG BEGIN ==========
+  // ================================
   private final static Logger LOG = LoggerFactory.getLogger(GoogleAdWordsSource.class);
 
   @Override
