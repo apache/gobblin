@@ -1,5 +1,6 @@
 package gobblin.ingestion.google.adwords;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -8,6 +9,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -234,17 +236,20 @@ public class GoogleAdWordsReportDownloader {
     }
 
     try {
-      processResponse(zippedStream, reportRows);
+      processResponse(zippedStream, reportRows, account);
     } catch (IOException e) {
       LOG.error("Failed while unzipping and printing to console for ", reportName);
       throw new RuntimeException(e);
     }
   }
 
-  private GZIPInputStream processResponse(InputStream zippedStream, LinkedBlockingDeque<String[]> reportRows)
+  private GZIPInputStream processResponse(InputStream zippedStream, LinkedBlockingDeque<String[]> reportRows,
+      String account)
       throws IOException, InterruptedException {
     int SIZE = 4096;
     byte[] buffer = new byte[SIZE];
+
+    FileWriter fw = new FileWriter("/Users/chguo/repos/forked/gobblin/downloaded/tmp" + account + ".csv");
 
     try (GZIPInputStream gzipInputStream = new GZIPInputStream(zippedStream)) {
       String partiallyConsumed = "";
@@ -259,9 +264,14 @@ public class GoogleAdWordsReportDownloader {
         }
         //"c" can very likely be less than SIZE.
         String str = new String(buffer, 0, c, "UTF-8");
+        fw.write(str);
+
         partiallyConsumed = addToQueue(reportRows, partiallyConsumed, str);
       }
+
       LOG.info("==END OF FILE==");
+      fw.close();
+
       return gzipInputStream;
     }
   }

@@ -23,6 +23,7 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 
 
@@ -41,7 +42,7 @@ public class GoogleAdWordsCredential {
     _refreshToken = state.getProp(GoogleAdWordsSource.KEY_REFRESH_TOKEN);
 
     //For getting refresh tokens.
-    _appName = state.getProp(GoogleAdWordsSource.KEY_APPLICATION_NAME);
+    _appName = state.getProp(ConfigurationKeys.SOURCE_ENTITY);
     _clientId = state.getProp(GoogleAdWordsSource.KEY_CLIENT_ID);
     _clientSecret = state.getProp(GoogleAdWordsSource.KEY_CLIENT_SECRET);
   }
