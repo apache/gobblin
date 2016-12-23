@@ -88,7 +88,7 @@ public class GoogleAdWordsReportDownloader {
     _endDate = _startDate;
     _dailyPartition = state.getPropAsBoolean(GoogleAdWordsSource.KEY_CUSTOM_DATE_DAILY, false);
     _debugFileOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_FILE, "");
-    _debugStringOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_FILE, "");
+    _debugStringOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_STRING, "");
 
     _skipReportHeader = state.getPropAsBoolean(GoogleAdWordsSource.KEY_REPORTING_SKIP_REPORT_HEADER, true);
     _skipColumnHeader = state.getPropAsBoolean(GoogleAdWordsSource.KEY_REPORTING_SKIP_COLUMN_HEADER, true);

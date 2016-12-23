@@ -133,12 +133,13 @@ public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
   private static final String DEBUG = ADWORDS + "debug.";
   /**
    * For Debugging purpose only.
-   * Specify the output path for unzipped strings.
+   * Specify the output path for unzipped strings. The string here is the whole unzipped string before split to rows.
    */
   static final String KEY_DEBUG_PATH_STRING = DEBUG + "string_output_path";
   /**
    * For Debugging purpose only.
    * Specify the output path for unzipped files.
+   * If configured, Gobblin will not output any data because the downloaded stream is closed and can only be read once.
    */
   static final String KEY_DEBUG_PATH_FILE = DEBUG + "file_output_path";
   // ================================
