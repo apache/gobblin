@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,12 +168,12 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
   static String getDownloadFields(HashMap<String, String> allFields, ReportDefinitionReportType reportType,
       List<String> requestedColumns) {
     JsonArray schema = new JsonArray();
-    HashMap<String, String> selectedColumns;
+    TreeMap<String, String> selectedColumns;
 
     if (requestedColumns == null || requestedColumns.isEmpty()) {
-      selectedColumns = allFields;
+      selectedColumns = new TreeMap<>(allFields);
     } else {
-      selectedColumns = new HashMap<>();
+      selectedColumns = new TreeMap<>();
       for (String columnName : requestedColumns) {
         String type = allFields.get(columnName);
         if (type != null) {

@@ -22,7 +22,7 @@ public class GoogleAdWordsExtractorTest {
         .getDownloadFields(fields, ReportDefinitionReportType.CLICK_PERFORMANCE_REPORT, Arrays.asList("c1", "c2"));
 
     Assert.assertEquals(schemaString,
-        "[{\"columnName\":\"c1\",\"isNullable\":false,\"dataType\":{\"type\":\"STRING\"}},{\"columnName\":\"c2\",\"isNullable\":false,\"dataType\":{\"type\":\"INT\"}}]");
+        "[{\"columnName\":\"c1\",\"isNullable\":true,\"dataType\":{\"type\":\"STRING\"}},{\"columnName\":\"c2\",\"isNullable\":true,\"dataType\":{\"type\":\"INT\"}}]");
   }
 
   @Test
@@ -34,7 +34,7 @@ public class GoogleAdWordsExtractorTest {
         GoogleAdWordsExtractor.getDownloadFields(fields, ReportDefinitionReportType.CLICK_PERFORMANCE_REPORT, null);
 
     Assert.assertEquals(schemaString,
-        "[{\"columnName\":\"c1\",\"isNullable\":false,\"dataType\":{\"type\":\"STRING\"}}]");
+        "[{\"columnName\":\"c1\",\"isNullable\":true,\"dataType\":{\"type\":\"STRING\"}}]");
   }
 
   @Test(expectedExceptions = {RuntimeException.class})
