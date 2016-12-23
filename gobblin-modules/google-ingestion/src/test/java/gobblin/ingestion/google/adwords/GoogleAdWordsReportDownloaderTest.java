@@ -12,7 +12,7 @@ public class GoogleAdWordsReportDownloaderTest {
 
   @Test
   public void testAddToQueueEmptyAndEmpty()
-      throws InterruptedException {
+      throws Exception {
     String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "", "");
     Assert.assertEquals(remaining, "");
     Assert.assertEquals(queue.size(), 0);
@@ -23,7 +23,7 @@ public class GoogleAdWordsReportDownloaderTest {
    */
   @Test
   public void testAddToQueueEmptyAndStringNotComplete()
-      throws InterruptedException {
+      throws Exception {
     String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "", "c");
     Assert.assertEquals(remaining, "c");
     Assert.assertEquals(queue.size(), 0);
@@ -34,7 +34,7 @@ public class GoogleAdWordsReportDownloaderTest {
    */
   @Test
   public void testAddToQueueEmptyAndStringComplete1()
-      throws InterruptedException {
+      throws Exception {
     String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "", "a,b\nc1,c2");
     Assert.assertEquals(remaining, "c1,c2");
     Assert.assertEquals(queue.size(), 1);
@@ -44,7 +44,7 @@ public class GoogleAdWordsReportDownloaderTest {
 
   @Test
   public void testAddToQueueEmptyAndStringComplete2()
-      throws InterruptedException {
+      throws Exception {
     String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "", "a,b\nc1,c2\nc3,c4");
     Assert.assertEquals(remaining, "c3,c4");
     Assert.assertEquals(queue.size(), 2);
@@ -56,7 +56,7 @@ public class GoogleAdWordsReportDownloaderTest {
 
   @Test
   public void testAddToQueueEmptyAndStringComplete3()
-      throws InterruptedException {
+      throws Exception {
     String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "", "a,b\nc1,c2\nc3,c4\n");
     Assert.assertEquals(remaining, "");
     Assert.assertEquals(queue.size(), 3);
@@ -70,7 +70,7 @@ public class GoogleAdWordsReportDownloaderTest {
 
   @Test
   public void testAddToQueueStringAndEmpty()
-      throws InterruptedException {
+      throws Exception {
     String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "a,b", "");
     Assert.assertEquals(remaining, "a,b");
     Assert.assertEquals(queue.size(), 0);
@@ -81,7 +81,7 @@ public class GoogleAdWordsReportDownloaderTest {
    */
   @Test
   public void testAddToQueueStringAndStringNotComplete()
-      throws InterruptedException {
+      throws Exception {
     String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "a,b", "c");
     Assert.assertEquals(remaining, "a,bc");
     Assert.assertEquals(queue.size(), 0);
@@ -92,21 +92,24 @@ public class GoogleAdWordsReportDownloaderTest {
    */
   @Test
   public void testAddToQueueStringAndStringComplete1()
-      throws InterruptedException {
-    String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "a,b", "c\nc1,c2");
+      throws Exception {
+    String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "a,b", "c, \"com,ma\"\nc1,c2");
     Assert.assertEquals(remaining, "c1,c2");
     Assert.assertEquals(queue.size(), 1);
     String[] line = queue.poll();
-    Assert.assertEquals(line, new String[]{"a", "bc"});
+    //Should ignore commas in quotes
+    Assert.assertEquals(line, new String[]{"a", "bc", "com,ma"});
   }
 
   @Test
   public void testAddToQueueStringAndStringComplete2()
-      throws InterruptedException {
-    String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "a,b", "\n");
+      throws Exception {
+    String remaining = GoogleAdWordsReportDownloader.addToQueue(queue, "a, b ,--, --,-- ", "\n");
     Assert.assertEquals(remaining, "");
     Assert.assertEquals(queue.size(), 1);
     String[] line = queue.poll();
-    Assert.assertEquals(line, new String[]{"a", "b"});
+    //Should remove leading and ending space around "b"
+    //Should convert "--" to nulls.
+    Assert.assertEquals(line, new String[]{"a", "b", null, null, null});
   }
 }

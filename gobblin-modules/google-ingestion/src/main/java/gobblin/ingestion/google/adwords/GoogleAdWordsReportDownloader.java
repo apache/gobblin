@@ -41,9 +41,9 @@ import com.google.api.ads.adwords.lib.utils.v201609.ReportDownloader;
 import com.google.api.ads.common.lib.exception.ValidationException;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.ExponentialBackOff;
-import com.google.common.base.Splitter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
+import com.opencsv.CSVParser;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.extract.LongWatermark;
@@ -51,7 +51,7 @@ import gobblin.source.extractor.extract.LongWatermark;
 
 public class GoogleAdWordsReportDownloader {
   private static final Logger LOG = LoggerFactory.getLogger(GoogleAdWordsReportDownloader.class);
-  private final static Splitter splitter = Splitter.on(",").trimResults();
+  private final static CSVParser splitter = new CSVParser(',', '"', '\\');
   private final static int SIZE = 4096; //Buffer size for unzipping stream.
   private final boolean _skipReportHeader;
   private final boolean _skipColumnHeader;
@@ -306,10 +306,9 @@ public class GoogleAdWordsReportDownloader {
   }
 
   static String addToQueue(LinkedBlockingDeque<String[]> reportRows, String previous, String current)
-      throws InterruptedException {
+      throws InterruptedException, IOException {
     int start = -1;
     int i = -1;
-
     int len = current.length();
     while (++i < len) {
       if (current.charAt(i) != '\n') {
@@ -322,16 +321,17 @@ public class GoogleAdWordsReportDownloader {
         row = current.substring(start, i);
       }
 
-      List<String> columns = new ArrayList<>();
-      for (String column : splitter.split(row)) {
-        if (column.equals("--")) {
-          columns.add(null);
+      String[] splits = splitter.parseLine(row);
+      String[] transformed = new String[splits.length];
+      for (int s = 0; s < splits.length; ++s) {
+        String trimed = splits[s].trim();
+        if (trimed.equals("--")) {
+          transformed[s] = null;
         } else {
-          columns.add(column);
+          transformed[s] = trimed;
         }
       }
-      //TODO: create a converter for iterable, so that you don't need to convert to String[]
-      reportRows.put(columns.toArray(new String[columns.size()]));
+      reportRows.put(transformed);
       start = i + 1;
     }
 
