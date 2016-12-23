@@ -56,8 +56,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
   }
 
-  @Override
-  protected Set<String> getSourceEntities(State state) {
+  protected Set<SourceEntity> getSourceEntities(State state) {
     if (!state.getPropAsBoolean(USE_ALL_OBJECTS, DEFAULT_USE_ALL_OBJECTS)) {
       return super.getSourceEntities(state);
     }
@@ -86,12 +85,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   }
 
-  private static Set<String> getSourceEntities(String response) {
-    Set<String> result = Sets.newHashSet();
+  private static Set<SourceEntity> getSourceEntities(String response) {
+    Set<SourceEntity> result = Sets.newHashSet();
     JsonObject jsonObject = new Gson().fromJson(response, JsonObject.class).getAsJsonObject();
     JsonArray array = jsonObject.getAsJsonArray("sobjects");
     for (JsonElement element : array) {
-      result.add(element.getAsJsonObject().get("name").getAsString());
+      String sourceEntityName = element.getAsJsonObject().get("name").getAsString();
+      result.add(SourceEntity.fromSourceEntityName(sourceEntityName));
     }
     return result;
   }

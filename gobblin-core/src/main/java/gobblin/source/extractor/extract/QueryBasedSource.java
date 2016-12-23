@@ -88,7 +88,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
 
   /** A class that encapsulates a source entity (aka dataset) to be processed */
   @Data
-  static final class SourceEntity {
+  public static final class SourceEntity {
     /**
      * The name of the source entity (as specified in the source) to be processed. For example,
      * this can be a table name.
@@ -229,11 +229,16 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     return pack(workUnits, numOfMultiWorkunits);
   }
 
-  public static Set<SourceEntity> getFilteredSourceEntities(SourceState state) {
+  protected Set<SourceEntity> getFilteredSourceEntities(SourceState state) {
+    Set<SourceEntity> unfilteredEntities = getSourceEntities(state);
+    return getFilteredSourceEntitiesHelper(state, unfilteredEntities);
+  }
+
+  static Set<SourceEntity> getFilteredSourceEntitiesHelper(SourceState state, Iterable<SourceEntity> unfilteredEntities) {
     Set<SourceEntity> entities = new HashSet<>();
     List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, ENTITY_BLACKLIST);
     List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, ENTITY_WHITELIST);
-    for (SourceEntity entity : getSourceEntities(state)) {
+    for (SourceEntity entity : unfilteredEntities) {
       if (DatasetFilterUtils.survived(entity.getSourceEntityName(), blacklist, whitelist)) {
         entities.add(entity);
       }
@@ -257,7 +262,11 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
     return res;
   }
 
-  static Set<SourceEntity> getSourceEntities(State state) {
+  protected Set<SourceEntity> getSourceEntities(State state) {
+    return getSourceEntitiesHelper(state);
+  }
+
+  static Set<SourceEntity> getSourceEntitiesHelper(State state) {
     if (state.contains(ConfigurationKeys.SOURCE_ENTITIES)) {
       log.info("Using entity names in " + ConfigurationKeys.SOURCE_ENTITIES);
       HashSet<SourceEntity> res = new HashSet<>();

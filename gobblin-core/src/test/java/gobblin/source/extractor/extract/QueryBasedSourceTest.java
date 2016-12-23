@@ -73,6 +73,11 @@ public class QueryBasedSourceTest {
     Assert.assertEquals(se5.get(), SourceEntity.fromSourceEntityName("Table5"));
   }
 
+  private Set<SourceEntity> getFilteredEntities(SourceState state) {
+    Set<SourceEntity> unfiltered = QueryBasedSource.getSourceEntitiesHelper(state);
+    return QueryBasedSource.getFilteredSourceEntitiesHelper(state, unfiltered);
+  }
+
   @Test
   public void testGetFilteredSourceEntities() {
     {
@@ -81,7 +86,7 @@ public class QueryBasedSourceTest {
       state.setProp(ConfigurationKeys.SOURCE_ENTITIES, "Table1,Table2,BadTable1,Table3");
       state.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "PropShouldBeIgnored");
 
-      Set<SourceEntity> res = QueryBasedSource.getFilteredSourceEntities(state);
+      Set<SourceEntity> res = getFilteredEntities(state);
       Assert.assertEquals(res.size(), 2);
       Assert.assertTrue(res.contains(SourceEntity.fromSourceEntityName("Table2")),
                        "Missing Table2 in " + res);
@@ -96,7 +101,7 @@ public class QueryBasedSourceTest {
       state.setProp(ConfigurationKeys.SOURCE_ENTITIES, "Table1,Table2,BadTable1,Table3");
       state.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "PropShouldBeIgnored");
 
-      Set<SourceEntity> res = QueryBasedSource.getFilteredSourceEntities(state);
+      Set<SourceEntity> res = getFilteredEntities(state);
       Assert.assertEquals(res.size(), 1);
       Assert.assertTrue(res.contains(SourceEntity.fromSourceEntityName("Table3")),
           "Missing Table3 in " + res);
@@ -109,7 +114,7 @@ public class QueryBasedSourceTest {
       state.setProp(ConfigurationKeys.SOURCE_ENTITY, "Table3");
       state.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "PropShouldNotBeIgnored");
 
-      Set<SourceEntity> res = QueryBasedSource.getFilteredSourceEntities(state);
+      Set<SourceEntity> res = getFilteredEntities(state);
       SourceEntity expected = new SourceEntity("Table3", "PropShouldNotBeIgnored");
       Assert.assertEquals(res.size(), 1);
       Assert.assertTrue(res.contains(expected), "Missing Table3 in " + res);
@@ -122,7 +127,7 @@ public class QueryBasedSourceTest {
       state.setProp(ConfigurationKeys.SOURCE_ENTITY, "Table3");
       state.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, "PropShouldNotBeIgnored");
 
-      Set<SourceEntity> res = QueryBasedSource.getFilteredSourceEntities(state);
+      Set<SourceEntity> res = getFilteredEntities(state);
       Assert.assertEquals(res.size(), 0);
     }
   }
