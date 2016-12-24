@@ -1,7 +1,7 @@
 
 // Check for build customizations
 if (project.hasProperty('gobblinFlavor')) {
-    def gobblinFlavorFileName = project.rootDir.toString() + '/gobblin-flavor-' + project.gobblinFlavor + '.gradle'
+    def gobblinFlavorFileName = project.projectDir.toString() + '/gobblin-flavor-' + project.gobblinFlavor + '.gradle'
     if (file(gobblinFlavorFileName).exists()) { 
         println "Using flavor:" + project.gobblinFlavor + " for project " + project.name
         apply from: gobblinFlavorFileName
