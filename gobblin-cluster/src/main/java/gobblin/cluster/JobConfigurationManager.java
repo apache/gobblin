@@ -70,8 +70,15 @@ public class JobConfigurationManager extends AbstractIdleService {
   protected void startUp() throws Exception {
     if (this.jobConfDirPath.isPresent()) {
       File path = new File(this.jobConfDirPath.get());
-      String pwd = System.getProperty("user.dir");
-      File jobConfigDir = new File(pwd, path.getName() + GobblinClusterConfigurationKeys.TAR_GZ_FILE_SUFFIX);
+
+      File jobConfigDir = path;
+      // Backward compatibility: Previous impl was forcing users to look for jobConf within ${user.dir}
+      // .. so if jobConfigDir does not exists, try to resolve config path via legacy route for backward
+      // .. compatibility
+      if (!path.exists()) {
+        String pwd = System.getProperty("user.dir");
+        jobConfigDir = new File(pwd, path.getName() + GobblinClusterConfigurationKeys.TAR_GZ_FILE_SUFFIX);
+      }
 
       if (jobConfigDir.exists()) {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
