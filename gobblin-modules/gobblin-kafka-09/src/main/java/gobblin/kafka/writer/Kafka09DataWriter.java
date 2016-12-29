@@ -18,10 +18,9 @@
 package gobblin.kafka.writer;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
+import java.util.concurrent.Future;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -34,19 +33,45 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.util.ConfigUtils;
 import gobblin.writer.AsyncDataWriter;
 import gobblin.writer.WriteCallback;
+import gobblin.writer.WriteResponse;
+import gobblin.writer.WriteResponseFuture;
+import gobblin.writer.WriteResponseMapper;
 
-import static gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
+
 /**
  * Implementation of KafkaWriter that wraps a {@link KafkaProducer}.
- * This does not provide transactional / exactly-once semantics.
+ * This provides at-least once semantics.
  * Applications should expect data to be possibly written to Kafka even if the overall Gobblin job fails.
  *
  */
 @Slf4j
 public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
+
+  private static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
+      new WriteResponseMapper<RecordMetadata>() {
+
+        @Override
+        public WriteResponse wrap(final RecordMetadata recordMetadata) {
+          return new WriteResponse<RecordMetadata>() {
+            @Override
+            public RecordMetadata getRawResponse() {
+              return recordMetadata;
+            }
+
+            @Override
+            public String getStringResponse() {
+              return recordMetadata.toString();
+            }
+
+            @Override
+            public long bytesWritten() {
+              return -1;
+            }
+          };
+        }
+      };
 
   private final Producer<String, D> producer;
   private final String topic;
@@ -81,36 +106,24 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
     this.producer.close();
   }
 
+
   @Override
-  public void cleanup()
+  public Future<WriteResponse> write(final D record, final WriteCallback callback) {
+    return new WriteResponseFuture<>(this.producer.send(new ProducerRecord<String, D>(topic, record), new Callback() {
+      @Override
+      public void onCompletion(final RecordMetadata metadata, Exception exception) {
+        if (exception != null) {
+          callback.onFailure(exception);
+        } else {
+          callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
+        }
+      }
+    }), WRITE_RESPONSE_WRAPPER);
+  }
+
+  @Override
+  public void flush()
       throws IOException {
-    log.debug("Cleanup called");
-
-  }
-
-  @Override
-  public long bytesWritten() {
-    // Unfortunately since we are not in control of serialization,
-    // we don't really know how many bytes we've written
-    return -1;
-  }
-
-
-  @Override
-  public void asyncWrite(D record, final WriteCallback callback) {
-    this.producer.send(new ProducerRecord<String, D>(topic, record),
-        new Callback() {
-          @Override
-          public void onCompletion(RecordMetadata metadata, Exception exception) {
-            if (exception != null)
-            {
-              callback.onFailure(exception);
-            }
-            else
-            {
-              callback.onSuccess();
-            }
-          }
-        });
+    this.producer.flush();
   }
 }

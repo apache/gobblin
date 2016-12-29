@@ -17,13 +17,10 @@
 
 package gobblin.couchbase.common;
 
-import com.couchbase.client.core.lang.Tuple;
 import com.couchbase.client.core.lang.Tuple2;
-import com.couchbase.client.core.message.ResponseStatus;
 import com.couchbase.client.core.message.kv.MutationToken;
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.java.document.AbstractDocument;
-import com.couchbase.client.java.transcoder.Transcoder;
 
 
 /**

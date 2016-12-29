@@ -27,11 +27,11 @@ import com.typesafe.config.Config;
 
 import gobblin.configuration.State;
 import gobblin.util.ConfigUtils;
-import gobblin.writer.AsyncBestEffortDataWriter;
+import gobblin.writer.AsyncWriterManager;
 import gobblin.writer.AsyncDataWriter;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
-import gobblin.writer.PartitionAwareDataWriterBuilder;
+
 
 /**
  * Base class for creating KafkaDataWriter builders.
@@ -62,11 +62,8 @@ public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schem
     double failureAllowance = ConfigUtils.getDouble(config, KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG,
         KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_DEFAULT) / 100.0;
 
-    return AsyncBestEffortDataWriter.builder()
+    return AsyncWriterManager.builder()
         .config(config)
-        .recordsAttemptedMetricName(KafkaWriterMetricNames.RECORDS_PRODUCED_METER)
-        .recordsSuccessMetricName(KafkaWriterMetricNames.RECORDS_SUCCESS_METER)
-        .recordsFailedMetricName(KafkaWriterMetricNames.RECORDS_FAILED_METER)
         .commitTimeoutInNanos(commitTimeoutInNanos)
         .commitStepWaitTimeInMillis(commitStepWaitTimeMillis)
         .failureAllowance(failureAllowance)

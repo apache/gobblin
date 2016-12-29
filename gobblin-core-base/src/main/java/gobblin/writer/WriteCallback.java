@@ -17,9 +17,16 @@
 
 package gobblin.writer;
 
-public interface WriteCallback {
+public interface WriteCallback<T> {
 
-  public void onSuccess();
+  public void onSuccess(WriteResponse<T> writeResponse);
 
-  public void onFailure(Exception exception);
+  public void onFailure(Throwable throwable);
+
+  public static WriteCallback EMPTY = new WriteCallback() {
+    @Override
+    public void onSuccess(WriteResponse writeResponse) {}
+    @Override
+    public void onFailure(Throwable throwable) {}
+  };
 }

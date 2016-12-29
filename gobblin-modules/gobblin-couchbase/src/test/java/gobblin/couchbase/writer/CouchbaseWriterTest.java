@@ -18,23 +18,40 @@
 package gobblin.couchbase.writer;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.commons.math3.util.Pair;
 import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
+import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.java.Bucket;
-import com.couchbase.client.java.CouchbaseBucket;
-import com.couchbase.client.java.CouchbaseCluster;
+import com.couchbase.client.java.document.AbstractDocument;
+import com.couchbase.client.java.document.RawJsonDocument;
 import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
+import com.google.gson.Gson;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -42,8 +59,14 @@ import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.couchbase.CouchbaseTestServer;
 import gobblin.couchbase.common.TupleDocument;
+import gobblin.couchbase.converter.AnyToCouchbaseJsonConverter;
 import gobblin.couchbase.converter.AvroToCouchbaseTupleConverter;
+import gobblin.metrics.RootMetricContext;
+import gobblin.metrics.reporter.OutputStreamReporter;
 import gobblin.test.TestUtils;
+import gobblin.writer.AsyncWriterManager;
+import gobblin.writer.WriteCallback;
+import gobblin.writer.WriteResponse;
 
 
 public class CouchbaseWriterTest {
@@ -71,9 +94,16 @@ public class CouchbaseWriterTest {
     _couchbaseTestServer.stop();
   }
 
+  /**
+   * Test that a single tuple document can be written successfully.
+   * @throws IOException
+   * @throws DataConversionException
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
   @Test
   public void testTupleDocumentWrite()
-      throws IOException, DataConversionException {
+      throws IOException, DataConversionException, ExecutionException, InterruptedException {
     Properties props = new Properties();
     props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
     Config config = ConfigFactory.parseProperties(props);
@@ -92,13 +122,14 @@ public class CouchbaseWriterTest {
         .name("data").type(dataRecordSchema).noDefault()
         .endRecord();
 
+
     GenericData.Record testRecord = new GenericData.Record(schema);
 
 
     String testContent = "hello world";
 
     GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
-    dataRecord.put("data", testContent.getBytes(Charset.forName("UTF-8")));
+    dataRecord.put("data", ByteBuffer.wrap(testContent.getBytes(Charset.forName("UTF-8"))));
     dataRecord.put("flags", 0);
 
     testRecord.put("key", "hello");
@@ -107,8 +138,7 @@ public class CouchbaseWriterTest {
     Converter<Schema, String, GenericRecord, TupleDocument> recordConverter = new AvroToCouchbaseTupleConverter();
 
     TupleDocument doc = recordConverter.convertRecord("", testRecord, null).iterator().next();
-    writer.write(doc);
-
+    writer.write(doc, null).get();
     TupleDocument returnDoc = writer.getBucket().get("hello", TupleDocument.class);
 
     byte[] returnedBytes = new byte[returnDoc.content().value1().readableBytes()];
@@ -118,6 +148,429 @@ public class CouchbaseWriterTest {
     int returnedFlags = returnDoc.content().value2();
     Assert.assertEquals(returnedFlags, 0);
 
+  }
+
+  /**
+   * Test that a single Json document can be written successfully
+   * @throws IOException
+   * @throws DataConversionException
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
+  @Test
+  public void testJsonDocumentWrite()
+      throws IOException, DataConversionException, ExecutionException, InterruptedException {
+    Properties props = new Properties();
+    props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
+    Config config = ConfigFactory.parseProperties(props);
+
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+    try {
+
+      String key = "hello";
+      String testContent = "hello world";
+      HashMap<String, String> contentMap = new HashMap<>();
+      contentMap.put("value", testContent);
+      Gson gson = new Gson();
+      String jsonString = gson.toJson(contentMap);
+      RawJsonDocument jsonDocument = RawJsonDocument.create(key, jsonString);
+      writer.write(jsonDocument, null).get();
+      RawJsonDocument returnDoc = writer.getBucket().get(key, RawJsonDocument.class);
+
+      Map<String, String> returnedMap = gson.fromJson(returnDoc.content(), Map.class);
+      Assert.assertEquals(testContent, returnedMap.get("value"));
+    }
+    finally {
+      writer.close();
+    }
+  }
+
+
+
+
+
+  private void drainQueue(BlockingQueue<Pair<AbstractDocument, Future>> queue, int threshold,
+      long sleepTime, TimeUnit sleepUnit, List<Pair<AbstractDocument, Future>> failedFutures)
+  {
+    while (queue.remainingCapacity() < threshold)
+    {
+      if (sleepTime > 0)
+      {
+        Pair<AbstractDocument, Future> topElement = queue.peek();
+        if (topElement != null) {
+          try {
+            topElement.getSecond().get(sleepTime, sleepUnit);
+          } catch (Exception te) {
+            failedFutures.add(topElement);
+          }
+          queue.poll();
+        }
+      }
+    }
+  }
+
+  /**
+   * An iterator that applies the {@link AnyToCouchbaseJsonConverter} converter to Objects
+   */
+  class JsonDocumentIterator implements Iterator<AbstractDocument> {
+    private final int _maxRecords;
+    private int _currRecord;
+    private Iterator<Object> _objectIterator;
+    private final Converter<String, String, Object, RawJsonDocument> _recordConverter =
+        new AnyToCouchbaseJsonConverter();
+
+    JsonDocumentIterator(Iterator<Object> genericRecordIterator)
+    {
+      this(genericRecordIterator, -1);
+    }
+
+    JsonDocumentIterator(Iterator<Object> genericRecordIterator, int maxRecords)
+    {
+      _objectIterator = genericRecordIterator;
+      _maxRecords = maxRecords;
+      _currRecord = 0;
+    }
+
+    @Override
+    public boolean hasNext() {
+      if (_maxRecords < 0) {
+        return _objectIterator.hasNext();
+      }
+      else
+      {
+        return _objectIterator.hasNext() && (_currRecord < _maxRecords);
+      }
+    }
+
+    @Override
+    public AbstractDocument next() {
+      _currRecord++;
+      Object record = _objectIterator.next();
+      try {
+        return _recordConverter.convertRecord("", record, null).iterator().next();
+      }
+      catch (Exception e)
+      {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  /**
+   * An iterator that applies the {@link AvroToCouchbaseTupleConverter} converter to GenericRecords
+   */
+  class TupleDocumentIterator implements Iterator<AbstractDocument> {
+    private final int _maxRecords;
+    private int _currRecord;
+    private Iterator<GenericRecord> _genericRecordIterator;
+    private final Converter<Schema, String, GenericRecord, TupleDocument> _recordConverter = new AvroToCouchbaseTupleConverter();
+
+    TupleDocumentIterator(Iterator<GenericRecord> genericRecordIterator)
+    {
+      this(genericRecordIterator, -1);
+    }
+
+    TupleDocumentIterator(Iterator<GenericRecord> genericRecordIterator, int maxRecords)
+    {
+      _genericRecordIterator = genericRecordIterator;
+      _maxRecords = maxRecords;
+      _currRecord = 0;
+    }
+
+    @Override
+    public boolean hasNext() {
+      if (_maxRecords < 0) {
+        return _genericRecordIterator.hasNext();
+      }
+      else
+      {
+        return _genericRecordIterator.hasNext() && (_currRecord < _maxRecords);
+      }
+    }
+
+    @Override
+    public TupleDocument next() {
+      _currRecord++;
+      GenericRecord record = _genericRecordIterator.next();
+      try {
+        return _recordConverter.convertRecord("", record, null).iterator().next();
+      }
+      catch (Exception e)
+      {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  class Verifier {
+    private final Map<String, byte[]> verificationCache = new HashMap<>(1000);
+    private Class recordClass;
+
+    void onWrite(AbstractDocument doc)
+        throws UnsupportedEncodingException {
+      recordClass = doc.getClass();
+      if (doc instanceof TupleDocument)
+      {
+        ByteBuf outgoingBuf = (((TupleDocument) doc).content()).value1();
+        byte[] outgoingBytes = new byte[outgoingBuf.readableBytes()];
+        outgoingBuf.getBytes(0, outgoingBytes);
+        verificationCache.put(doc.id(), outgoingBytes);
+      }
+      else if (doc instanceof RawJsonDocument)
+      {
+        verificationCache.put(doc.id(), ((RawJsonDocument) doc).content().getBytes("UTF-8"));
+      }
+      else {
+        throw new UnsupportedOperationException("Can only support TupleDocument or RawJsonDocument at this time");
+      }
+    }
+
+    void verify(Bucket bucket)
+        throws UnsupportedEncodingException {
+      // verify
+      System.out.println("Starting verification procedure");
+      for (Map.Entry<String, byte[]> cacheEntry : verificationCache.entrySet()) {
+        Object doc = bucket.get(cacheEntry.getKey(), recordClass);
+        if (doc instanceof TupleDocument) {
+          ByteBuf returnedBuf = (((TupleDocument) doc).content()).value1();
+          byte[] returnedBytes = new byte[returnedBuf.readableBytes()];
+          returnedBuf.getBytes(0, returnedBytes);
+          Assert.assertEquals(returnedBytes, cacheEntry.getValue(), "Returned content for TupleDoc should be equal");
+        } else if (doc instanceof RawJsonDocument) {
+          byte[] returnedBytes = ((RawJsonDocument) doc).content().getBytes("UTF-8");
+          Assert.assertEquals(returnedBytes, cacheEntry.getValue(), "Returned content for JsonDoc should be equal");
+        } else {
+          Assert.fail("Returned type was neither TupleDocument nor RawJsonDocument");
+        }
+      }
+      System.out.println("Verification success!");
+    }
+  }
+
+  /**
+   * Uses the {@link AsyncWriterManager} to write records through a couchbase writer
+   * It keeps a copy of the key, value combinations written and checks after all the writes have gone through.
+   * @param recordIterator
+   * @throws IOException
+   */
+  private void writeRecordsWithAsyncWriter(Iterator<AbstractDocument> recordIterator)
+      throws IOException {
+    boolean verbose = false;
+    Properties props = new Properties();
+    props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
+    Config config = ConfigFactory.parseProperties(props);
+
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+
+    AsyncWriterManager asyncWriterManager = AsyncWriterManager.builder()
+        .asyncDataWriter(writer)
+        .retriesEnabled(true)
+        .numRetries(5)
+        .build();
+
+    if (verbose) {
+      // Create a reporter for metrics. This reporter will write metrics to STDOUT.
+      OutputStreamReporter.Factory.newBuilder().build(new Properties());
+      // Start all metric reporters.
+      RootMetricContext.get().startReporting();
+    }
+
+    Verifier verifier = new Verifier();
+    while (recordIterator.hasNext())
+    {
+      AbstractDocument doc = recordIterator.next();
+      verifier.onWrite(doc);
+      asyncWriterManager.write(doc);
+    }
+    asyncWriterManager.commit();
+    verifier.verify(writer.getBucket());
+  }
+
+
+
+
+  private List<Pair<AbstractDocument, Future>> writeRecords(Iterator<AbstractDocument> recordIterator,
+      CouchbaseWriter writer, int outstandingRequests,
+      long kvTimeout, TimeUnit kvTimeoutUnit)
+      throws DataConversionException, UnsupportedEncodingException {
+    final BlockingQueue<Pair<AbstractDocument, Future>> outstandingCallQueue = new LinkedBlockingDeque<>(outstandingRequests);
+    final List<Pair<AbstractDocument, Future>> failedFutures = new ArrayList<>(outstandingRequests);
+
+    int index = 0;
+    long runTime = 0;
+    final AtomicInteger callbackSuccesses = new AtomicInteger(0);
+    final AtomicInteger callbackFailures = new AtomicInteger(0);
+    final ConcurrentLinkedDeque<Throwable> callbackExceptions = new ConcurrentLinkedDeque<>();
+    Verifier verifier = new Verifier();
+    while (recordIterator.hasNext())
+    {
+      AbstractDocument doc = recordIterator.next();
+      index++;
+      verifier.onWrite(doc);
+      final long startTime = System.nanoTime();
+      Future callFuture = writer.write(doc, new WriteCallback<TupleDocument>() {
+        @Override
+        public void onSuccess(WriteResponse<TupleDocument> writeResponse) {
+          callbackSuccesses.incrementAndGet();
+        }
+
+        @Override
+        public void onFailure(Throwable throwable) {
+          callbackFailures.incrementAndGet();
+          callbackExceptions.add(throwable);
+        }
+      });
+      drainQueue(outstandingCallQueue, 1, kvTimeout, kvTimeoutUnit, failedFutures);
+      outstandingCallQueue.add(new Pair<>(doc, callFuture));
+      runTime += System.nanoTime() - startTime;
+    }
+    int failedWrites = 0;
+    long responseStartTime = System.nanoTime();
+    drainQueue(outstandingCallQueue, outstandingRequests, kvTimeout, kvTimeoutUnit, failedFutures);
+    runTime += System.nanoTime() - responseStartTime;
+
+    for (Throwable failure: callbackExceptions)
+    {
+      System.out.println(failure.getClass() + " : " + failure.getMessage());
+    }
+    failedWrites += failedFutures.size();
+
+    System.out.println("Total time to send " + index + " records = " + runTime/1000000.0 + "ms, "
+        + "Failed writes = " + failedWrites
+        + " Callback Successes = " + callbackSuccesses.get()
+        + "Callback Failures = " + callbackFailures.get());
+
+    verifier.verify(writer.getBucket());
+    return failedFutures;
+  }
+
+  @Test
+  public void testMultiTupleDocumentWrite()
+      throws IOException, DataConversionException, ExecutionException, InterruptedException {
+    Properties props = new Properties();
+    props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
+    Config config = ConfigFactory.parseProperties(props);
+
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+
+    final Schema dataRecordSchema = SchemaBuilder.record("Data")
+        .fields()
+        .name("data").type().bytesType().noDefault()
+        .name("flags").type().intType().noDefault()
+        .endRecord();
+
+    final Schema schema = SchemaBuilder.record("TestRecord")
+        .fields()
+        .name("key").type().stringType().noDefault()
+        .name("data").type(dataRecordSchema).noDefault()
+        .endRecord();
+
+    final int numRecords = 10000;
+    int outstandingRequests = 999;
+
+    Iterator<GenericRecord> recordIterator = new Iterator<GenericRecord>() {
+      private int currentIndex;
+
+      @Override
+      public boolean hasNext() {
+        return (currentIndex < numRecords);
+      }
+
+      @Override
+      public GenericRecord next() {
+        GenericData.Record testRecord = new GenericData.Record(schema);
+
+        String testContent = "hello world" + currentIndex;
+        GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
+        dataRecord.put("data", ByteBuffer.wrap(testContent.getBytes(Charset.forName("UTF-8"))));
+        dataRecord.put("flags", 0);
+
+        testRecord.put("key", "hello" + currentIndex);
+        testRecord.put("data", dataRecord);
+        currentIndex++;
+        return testRecord;
+      }
+    };
+
+    long kvTimeout = 10000;
+    TimeUnit kvTimeoutUnit = TimeUnit.MILLISECONDS;
+    writeRecords(new TupleDocumentIterator(recordIterator), writer, outstandingRequests, kvTimeout, kvTimeoutUnit);
+  }
+
+
+
+  @Test
+  public void testMultiJsonDocumentWriteWithAsyncWriter()
+      throws IOException, DataConversionException, ExecutionException, InterruptedException {
+
+    final int numRecords = 10000;
+
+
+    Iterator<Object> recordIterator = new Iterator<Object>() {
+      private int currentIndex;
+
+      @Override
+      public boolean hasNext() {
+        return (currentIndex < numRecords);
+      }
+
+      @Override
+      public Object next() {
+
+        String testContent = "hello world" + currentIndex;
+        String key = "hello" + currentIndex;
+        HashMap<String, String> contentMap = new HashMap<>();
+        contentMap.put("key", key);
+        contentMap.put("value", testContent);
+        currentIndex++;
+        return contentMap;
+      }
+    };
+    writeRecordsWithAsyncWriter(new JsonDocumentIterator(recordIterator));
+  }
+
+
+  @Test
+  public void testMultiTupleDocumentWriteWithAsyncWriter()
+      throws IOException, DataConversionException, ExecutionException, InterruptedException {
+    final Schema dataRecordSchema = SchemaBuilder.record("Data")
+        .fields()
+        .name("data").type().bytesType().noDefault()
+        .name("flags").type().intType().noDefault()
+        .endRecord();
+
+    final Schema schema = SchemaBuilder.record("TestRecord")
+        .fields()
+        .name("key").type().stringType().noDefault()
+        .name("data").type(dataRecordSchema).noDefault()
+        .endRecord();
+
+    final int numRecords = 10000;
+
+    Iterator<GenericRecord> recordIterator = new Iterator<GenericRecord>() {
+      private int currentIndex;
+
+      @Override
+      public boolean hasNext() {
+        return (currentIndex < numRecords);
+      }
+
+      @Override
+      public GenericRecord next() {
+        GenericData.Record testRecord = new GenericData.Record(schema);
+
+        String testContent = "hello world" + currentIndex;
+        GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
+        dataRecord.put("data", ByteBuffer.wrap(testContent.getBytes(Charset.forName("UTF-8"))));
+        dataRecord.put("flags", 0);
+
+        testRecord.put("key", "hello" + currentIndex);
+        testRecord.put("data", dataRecord);
+        currentIndex++;
+        return testRecord;
+      }
+    };
+    writeRecordsWithAsyncWriter(new TupleDocumentIterator(recordIterator));
   }
 
 

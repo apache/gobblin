@@ -18,6 +18,7 @@
 package gobblin.writer;
 
 import java.io.IOException;
+import java.util.concurrent.Future;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -36,7 +37,7 @@ import gobblin.test.TimingType;
 
 
 @Slf4j
-public class AsyncDataWriterTest {
+public class AsyncWriterManagerTest {
 
   class FakeTimedAsyncWriter implements AsyncDataWriter
   {
@@ -48,16 +49,17 @@ public class AsyncDataWriterTest {
     }
 
     @Override
-    public void asyncWrite(Object record, final WriteCallback callback) {
+    public Future<WriteResponse> write(final Object record, final WriteCallback callback) {
       final TimingResult result = this.timingManager.nextTime();
       log.debug("sync: " + result.isSync + " time : " + result.timeValueMillis);
+      final FutureWrappedWriteCallback futureCallback = new FutureWrappedWriteCallback(callback);
       if (result.isSync)
       {
         try {
           Thread.sleep(result.timeValueMillis);
         } catch (InterruptedException e) {
         }
-        callback.onSuccess();
+        futureCallback.onSuccess(new GenericWriteResponse(record));
       }
       else
       {
@@ -69,24 +71,20 @@ public class AsyncDataWriterTest {
               Thread.sleep(result.timeValueMillis);
             } catch (InterruptedException e) {
             }
-            callback.onSuccess();
+            futureCallback.onSuccess(new GenericWriteResponse(record));
           }
         });
         t.start();
       }
+      return futureCallback;
     }
 
-
     @Override
-    public void cleanup()
+    public void flush()
         throws IOException {
 
     }
 
-    @Override
-    public long bytesWritten() {
-      return 0;
-    }
 
     @Override
     public void close()
@@ -108,6 +106,7 @@ public class AsyncDataWriterTest {
 
   }
 
+
   private void testAsyncWrites(TimingType timingType, long commitTimeoutInMillis,
       double failurePercentage, boolean success)
   {
@@ -115,12 +114,13 @@ public class AsyncDataWriterTest {
 
     AsyncDataWriter fakeTimedAsyncWriter = new FakeTimedAsyncWriter(timingManager);
 
-    AsyncBestEffortDataWriter asyncWriter = AsyncBestEffortDataWriter.builder()
+    AsyncWriterManager asyncWriter = AsyncWriterManager.builder()
         .config(ConfigFactory.empty())
         .commitTimeoutInNanos(commitTimeoutInMillis * 1000 * 1000)
         .failureAllowance(failurePercentage/100.0)
         .asyncDataWriter(fakeTimedAsyncWriter)
         .build();
+
 
     try {
       for (int i = 0; i < 10; i++) {
@@ -169,26 +169,24 @@ public class AsyncDataWriterTest {
     }
 
     @Override
-    public void asyncWrite(D record, WriteCallback callback) {
+    public Future<WriteResponse> write(D record, WriteCallback callback) {
       boolean error = errorManager.nextError(record);
-      if (errorManager.nextError(record))
+      FutureWrappedWriteCallback futureWrappedWriteCallback = new FutureWrappedWriteCallback(callback);
+      if (error)
       {
         final Exception e = new Exception();
-        callback.onFailure(e);
+        futureWrappedWriteCallback.onFailure(e);
       }
       else {
-        callback.onSuccess();
+        futureWrappedWriteCallback.onSuccess(new GenericWriteResponse(record));
       }
+      return futureWrappedWriteCallback;
     }
 
     @Override
-    public void cleanup()
+    public void flush()
         throws IOException {
-    }
 
-    @Override
-    public long bytesWritten() {
-      return 0;
     }
 
     @Override
@@ -205,14 +203,16 @@ public class AsyncDataWriterTest {
         .errorType(gobblin.test.ErrorManager.ErrorType.ALL)
         .build());
 
-    AsyncBestEffortDataWriter asyncBestEffortDataWriter = AsyncBestEffortDataWriter.builder()
+    AsyncWriterManager asyncWriterManager = AsyncWriterManager.builder()
         .asyncDataWriter(flakyAsyncWriter)
+        .retriesEnabled(true)
+        .numRetries(5)
         .build();
     byte[] messageBytes = TestUtils.generateRandomBytes();
-    asyncBestEffortDataWriter.write(messageBytes);
+    asyncWriterManager.write(messageBytes);
 
     try {
-      asyncBestEffortDataWriter.commit();
+      asyncWriterManager.commit();
     }
     catch (IOException e)
     {
@@ -220,14 +220,56 @@ public class AsyncDataWriterTest {
     }
     finally
     {
-      asyncBestEffortDataWriter.close();
+      asyncWriterManager.close();
     }
 
-    Assert.assertEquals(asyncBestEffortDataWriter.recordsAttempted.getCount(), 1);
-    Assert.assertEquals(asyncBestEffortDataWriter.recordsSuccess.getCount(), 0);
-    Assert.assertEquals(asyncBestEffortDataWriter.recordsWritten(), 0);
-    Assert.assertEquals(asyncBestEffortDataWriter.recordsFailed.getCount(), 1);
+    Assert.assertEquals(asyncWriterManager.recordsIn.getCount(), 1);
+    Assert.assertEquals(asyncWriterManager.recordsAttempted.getCount(), 6);
+    Assert.assertEquals(asyncWriterManager.recordsSuccess.getCount(), 0);
+    Assert.assertEquals(asyncWriterManager.recordsWritten(), 0);
+    Assert.assertEquals(asyncWriterManager.recordsFailed.getCount(), 1);
 
   }
+
+
+
+  @Test
+  public void testFlakyWritersWithRetries() throws Exception {
+
+    FlakyAsyncWriter flakyAsyncWriter = new FlakyAsyncWriter(gobblin.test.ErrorManager.builder()
+        .errorType(ErrorManager.ErrorType.NTH)
+        .errorEvery(4)
+        .build());
+
+    AsyncWriterManager asyncWriterManager = AsyncWriterManager.builder()
+        .asyncDataWriter(flakyAsyncWriter)
+        .retriesEnabled(true)
+        .numRetries(5)
+        .build();
+    for (int i =0; i < 100; ++i) {
+      byte[] messageBytes = TestUtils.generateRandomBytes();
+      asyncWriterManager.write(messageBytes);
+    }
+
+    try {
+      asyncWriterManager.commit();
+    }
+    catch (IOException e)
+    {
+      // ok for commit to throw exception
+    }
+    finally
+    {
+      asyncWriterManager.close();
+    }
+
+    log.info(asyncWriterManager.recordsAttempted.getCount()+"");
+    Assert.assertEquals(asyncWriterManager.recordsIn.getCount(), 100);
+    Assert.assertTrue(asyncWriterManager.recordsAttempted.getCount() > 100);
+    Assert.assertEquals(asyncWriterManager.recordsSuccess.getCount(), 100);
+    Assert.assertEquals(asyncWriterManager.recordsFailed.getCount(), 0);
+
+  }
+
 
 }

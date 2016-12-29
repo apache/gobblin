@@ -20,6 +20,8 @@ package gobblin.kafka.writer;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.avro.generic.GenericRecord;
@@ -28,6 +30,7 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
+import kafka.security.auth.Write;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.kafka.KafkaTestBase;
@@ -39,6 +42,7 @@ import gobblin.kafka.serialize.LiAvroDeserializer;
 import gobblin.kafka.serialize.LiAvroSerializer;
 import gobblin.test.TestUtils;
 import gobblin.writer.WriteCallback;
+import gobblin.writer.WriteResponse;
 
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
@@ -77,7 +81,7 @@ public class Kafka09DataWriterTest {
 
   @Test
   public void testStringSerialization()
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, ExecutionException {
     String topic = "testStringSerialization08";
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
@@ -87,20 +91,24 @@ public class Kafka09DataWriterTest {
     Kafka09DataWriter<String> kafka09DataWriter = new Kafka09DataWriter<String>(props);
     String messageString = "foobar";
     WriteCallback callback = mock(WriteCallback.class);
+    Future<WriteResponse> future;
 
     try {
-      kafka09DataWriter.asyncWrite(messageString, callback);
+      future = kafka09DataWriter.write(messageString, callback);
+      kafka09DataWriter.flush();
+      verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
+      verify(callback, never()).onFailure(isA(Exception.class));
+      Assert.assertTrue(future.isDone(), "Future should be done");
+      System.out.println(future.get().getStringResponse());
+      byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
+      String messageReceived = new String(message);
+      Assert.assertEquals(messageReceived, messageString);
     }
     finally
     {
       kafka09DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
-    verify(callback, never()).onFailure(isA(Exception.class));
-    byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
-    String messageReceived = new String(message);
-    Assert.assertEquals(messageReceived, messageString);
 
   }
 
@@ -118,14 +126,14 @@ public class Kafka09DataWriterTest {
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
-      kafka09DataWriter.asyncWrite(messageBytes, callback);
+      kafka09DataWriter.write(messageBytes, callback);
     }
     finally
     {
       kafka09DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     Assert.assertEquals(message, messageBytes);
@@ -154,14 +162,14 @@ public class Kafka09DataWriterTest {
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
-      kafka09DataWriter.asyncWrite(record, callback);
+      kafka09DataWriter.write(record, callback);
     }
     finally
     {
       kafka09DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
 
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();

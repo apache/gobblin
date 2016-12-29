@@ -19,17 +19,29 @@ package gobblin.writer;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.concurrent.Future;
+
+import javax.annotation.Nullable;
 
 
 /**
- * Created by sdas on 11/26/16.
+ * An interface for implementing Async Writers for Gobblin.
  */
+// InterfaceStability.Evolving
 public interface AsyncDataWriter<D> extends Closeable {
 
-  void asyncWrite(D record, WriteCallback callback);
+  /**
+   * Asynchronously write a record, execute the callback on success/failure
+   * @param record
+   * @param callback
+   * @return Future that the caller could wait on
+   */
+  Future<WriteResponse> write(D record, @Nullable WriteCallback callback);
 
-  void cleanup() throws IOException;
-
-  long bytesWritten();
+  /**
+   * Flushes uncommitted records
+   * @throws IOException
+   */
+  void flush() throws IOException;
 
 }

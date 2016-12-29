@@ -72,9 +72,16 @@ public class MetricNames {
   public static class DataWriterMetrics {
 
     /**
-     * A {@link com.codahale.metrics.Meter} measuring the number of records given to a {@link gobblin.writer.DataWriter}.
+     * A {@link com.codahale.metrics.Meter} measuring the number of records
+     * given to a {@link gobblin.writer.DataWriter}. This does not count retries.
      */
     public static final String RECORDS_IN_METER = "gobblin.writer.records.in";
+
+    /**
+     * A {@link com.codahale.metrics.Meter} measuring the number of records attempted
+     * to be written by a {@link gobblin.writer.DataWriter}. This includes retries.
+     */
+    public static final String RECORDS_ATTEMPTED_METER = "gobblin.writer.records.attempted";
 
     /**
      * A {@link com.codahale.metrics.Meter} measuring the number of successful write operations performed by a

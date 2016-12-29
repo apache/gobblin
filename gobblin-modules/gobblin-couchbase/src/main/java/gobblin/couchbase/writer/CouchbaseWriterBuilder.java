@@ -26,6 +26,8 @@ import com.typesafe.config.Config;
 
 import gobblin.configuration.State;
 import gobblin.util.ConfigUtils;
+import gobblin.writer.AsyncWriterManager;
+import gobblin.writer.AsyncDataWriter;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 
@@ -40,6 +42,14 @@ public class CouchbaseWriterBuilder extends DataWriterBuilder {
     Properties taskProps = state.getProperties();
     Config config = ConfigUtils.propertiesToConfig(taskProps);
     CouchbaseEnvironment couchbaseEnvironment = DefaultCouchbaseEnvironment.create();
-    return new CouchbaseWriter(couchbaseEnvironment, config);
+    //TODO: Read config to decide whether to build a blocking writer or an async writer
+    // build an async couchbase writer
+    AsyncDataWriter couchbaseWriter = new CouchbaseWriter(couchbaseEnvironment, config);
+    return AsyncWriterManager.builder()
+        .asyncDataWriter(couchbaseWriter)
+        .failureAllowance(0.0)
+        .retriesEnabled(false)
+        .config(config)
+        .build();
   }
 }

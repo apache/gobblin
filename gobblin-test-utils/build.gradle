@@ -20,13 +20,9 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
-  compile project(":gobblin-core-base")
-  //compile project(":gobblin-metrics-libs:gobblin-metrics")
 
-  //compile externalDependency.avroMapredH2
   compile externalDependency.commonsCodec
   compile externalDependency.avro
-  //compile externalDependency.guava
   compile externalDependency.slf4j
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig

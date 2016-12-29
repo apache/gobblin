@@ -38,6 +38,7 @@ import gobblin.kafka.serialize.LiAvroDeserializer;
 import gobblin.kafka.serialize.LiAvroDeserializerBase;
 import gobblin.test.TestUtils;
 import gobblin.writer.WriteCallback;
+import gobblin.writer.WriteResponse;
 
 import static org.mockito.Mockito.*;
 
@@ -84,14 +85,14 @@ public class Kafka08DataWriterTest {
     WriteCallback callback = mock(WriteCallback.class);
 
     try {
-      kafka08DataWriter.asyncWrite(messageString, callback);
+      kafka08DataWriter.write(messageString, callback);
     }
     finally
     {
       kafka08DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     String messageReceived = new String(message);
@@ -114,14 +115,14 @@ public class Kafka08DataWriterTest {
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
-      kafka08DataWriter.asyncWrite(messageBytes, callback);
+      kafka08DataWriter.write(messageBytes, callback);
     }
     finally
     {
       kafka08DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     Assert.assertEquals(message, messageBytes);
@@ -149,14 +150,14 @@ public class Kafka08DataWriterTest {
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
-      kafka08DataWriter.asyncWrite(record, callback);
+      kafka08DataWriter.write(record, callback);
     }
     finally
     {
       kafka08DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
 
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
