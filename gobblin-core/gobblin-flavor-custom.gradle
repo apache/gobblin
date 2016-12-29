@@ -2,8 +2,5 @@ dependencies {
   // Kafka integration (source, writer, metrics) -- choose one
   // compile project(':gobblin-modules:gobblin-kafka-08')
   // compile project(':gobblin-modules:gobblin-kafka-09')
-
-  // Google ingestion integration: Drive, Analytics, Webmaster
-  // compile project(':gobblin-modules:google-ingestion')
 }
 

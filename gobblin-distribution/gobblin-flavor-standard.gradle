@@ -1,6 +1,6 @@
 dependencies {
   compile project(':gobblin-modules:gobblin-azkaban')
+  compile project(':gobblin-modules:gobblin-compliance')
   compile project(':gobblin-example')
   compile project(':gobblin-modules:google-ingestion')
 }
-

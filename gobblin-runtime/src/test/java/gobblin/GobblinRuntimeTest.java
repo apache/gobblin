@@ -13,15 +13,12 @@ package gobblin;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
-
-import lombok.extern.slf4j.Slf4j;
 
 import gobblin.runtime.local.LocalJobLauncher;
 
@@ -52,6 +49,9 @@ public class GobblinRuntimeTest {
   @AfterTest
   public void cleanDir()
       throws IOException {
+    FileUtils.forceMkdir(new File(RESOURCE_DIR + "state_store"));
+    FileUtils.forceMkdir(new File(RESOURCE_DIR + "writer_staging"));
+    FileUtils.forceMkdir(new File(RESOURCE_DIR + "writer_output"));
     FileUtils.cleanDirectory(new File(RESOURCE_DIR + "state_store"));
     FileUtils.cleanDirectory(new File(RESOURCE_DIR + "writer_staging"));
     FileUtils.cleanDirectory(new File(RESOURCE_DIR + "writer_output"));
