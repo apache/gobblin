@@ -482,6 +482,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
   private static Options buildOptions() {
     Options options = new Options();
     options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Gobblin application name");
+    options.addOption("s", GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE, true, "Standalone cluster mode");
     return options;
   }
 
@@ -499,13 +500,29 @@ public class GobblinClusterManager implements ApplicationLauncher {
         System.exit(1);
       }
 
+      boolean isStandaloneClusterManager = false;
+      if (cmd.hasOption(GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE)) {
+        isStandaloneClusterManager = Boolean.parseBoolean(cmd.getOptionValue(GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE, "false"));
+      }
+
       Log4jConfigurationHelper.updateLog4jConfiguration(GobblinClusterManager.class,
           GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE,
           GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE);
 
+      Config config = ConfigFactory.load();
       try (GobblinClusterManager gobblinClusterManager = new GobblinClusterManager(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), getApplicationId(),
-          ConfigFactory.load(), Optional.<Path>absent())) {
+          config, Optional.<Path>absent())) {
+
+        // In AWS / Yarn mode, the cluster Launcher takes care of setting up Helix cluster
+        /// .. but for Standalone mode, we go via this main() method, so setup the cluster here
+        if (isStandaloneClusterManager) {
+          // Create Helix cluster and connect to it
+          String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+          String helixClusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+          HelixUtils.createGobblinHelixCluster(zkConnectionString, helixClusterName);
+          LOGGER.info("Created Helix cluster " + helixClusterName);
+        }
 
         gobblinClusterManager.start();
       }
