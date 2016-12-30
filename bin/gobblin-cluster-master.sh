@@ -10,7 +10,6 @@ function die() {
 function print_usage() {
   echo "gobblin-cluster-master.sh <start | stop>"
   echo "Where OPTION can be:"
-  echo "  --cluster <unique name for the cluster>        Unique name for the cluster"
   echo "  --jvmflags <string of jvm flags>               String containing any additional JVM flags to include"
   echo "  --jars <column-separated list of extra jars>   Column-separated list of extra jars to put on the CLASSPATH"
   echo "  --help                                         Display this help and exit"

@@ -36,7 +36,7 @@ function start() {
 
   echo "Running command:"
   echo "$COMMAND"
-  nohup $COMMAND $COMMAND >worker.$WORKER_ID.out 2>&1 & echo $! > $PID
+  nohup $COMMAND >worker.$WORKER_ID.out 2>&1 & echo $! > $PID
 }
 
 function stop() {
