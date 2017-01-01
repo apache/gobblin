@@ -34,6 +34,7 @@ import com.couchbase.client.core.lang.Tuple;
 import com.couchbase.client.core.lang.Tuple2;
 import com.couchbase.client.core.message.ResponseStatus;
 import com.couchbase.client.core.message.kv.MutationToken;
+import com.couchbase.client.core.time.Delay;
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
@@ -42,6 +43,7 @@ import com.couchbase.client.java.document.AbstractDocument;
 import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.transcoder.Transcoder;
+import com.couchbase.client.java.util.retry.RetryBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
@@ -194,7 +196,9 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
         }
       };
 
-      observable.timeout(_operationTimeout, _operationTimeunit).subscribe(new Subscriber<D>() {
+      observable.timeout(_operationTimeout, _operationTimeunit)
+//          .retryWhen(RetryBuilder.any().max(6).delay(Delay.exponential(TimeUnit.SECONDS, 5)).build())
+          .subscribe(new Subscriber<D>() {
         @Override
         public void onCompleted() {
         }
@@ -208,12 +212,16 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
 
         @Override
         public void onNext(D doc) {
-          callbackFired.set(true);
-          WriteResponse writeResponse = new GenericWriteResponse<D>(doc);
-          writeResponseQueue.add(new Pair<WriteResponse, Throwable>(writeResponse, null));
-          callback.onSuccess(writeResponse);
-          if (doc instanceof TupleDocument) {
-            ((TupleDocument) doc).content().value1().release();
+          try {
+            callbackFired.set(true);
+            WriteResponse writeResponse = new GenericWriteResponse<D>(doc);
+            writeResponseQueue.add(new Pair<WriteResponse, Throwable>(writeResponse, null));
+            callback.onSuccess(writeResponse);
+          }
+          finally {
+            if (doc instanceof TupleDocument) {
+              ((TupleDocument) doc).content().value1().release();
+            }
           }
         }
       });

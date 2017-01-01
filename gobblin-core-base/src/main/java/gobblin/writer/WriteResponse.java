@@ -14,18 +14,18 @@
 
 package gobblin.writer;
 
-
+/**
+ * A class for encapsulating the system-native response and general statistics from a write
+ */
 public interface WriteResponse<T> {
 
   /**
    * Get the raw response returned by the underlying write system
-   * @return
    */
   T getRawResponse();
 
   /**
    * Get a String representation of the response.
-   * @return
    */
   String getStringResponse();
 
@@ -38,14 +38,15 @@ public interface WriteResponse<T> {
 
   public static WriteResponse EMPTY = new WriteResponse() {
     private final String _emptyResponse = "EmptyResponse";
+
     @Override
     public Object getRawResponse() {
-      return _emptyResponse;
+      return this._emptyResponse;
     }
 
     @Override
     public String getStringResponse() {
-      return _emptyResponse;
+      return this._emptyResponse;
     }
 
     @Override
@@ -53,5 +54,4 @@ public interface WriteResponse<T> {
       return -1;
     }
   };
-
 }

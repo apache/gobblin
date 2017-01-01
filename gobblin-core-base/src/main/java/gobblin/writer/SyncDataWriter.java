@@ -17,22 +17,23 @@ package gobblin.writer;
 import java.io.Closeable;
 import java.io.IOException;
 
-
-import javax.annotation.Nullable;
+import gobblin.annotation.Alpha;
 
 
 /**
  * An interface to implement Synchronous (Blocking) Data writers
  */
-//@InterfaceStability.Evolving
-public interface SyncDataWriter <D> extends Closeable {
+@Alpha
+public interface SyncDataWriter<D> extends Closeable {
 
   /**
    * Synchronously write a record
    * @param record
    * @return WriteResponse from the write
    */
-  WriteResponse write(D record) throws IOException;
+  WriteResponse write(D record)
+      throws IOException;
 
-  void cleanup() throws IOException;
+  void cleanup()
+      throws IOException;
 }

@@ -22,19 +22,16 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Wraps a Future<InnerType> and implements a Future<WriteResponse> when provided with a wrapper class
- * @param <InnerType>
  */
 public class WriteResponseFuture<InnerType> implements Future<WriteResponse> {
 
   private final Future<InnerType> _innerFuture;
   private final WriteResponseMapper<InnerType> _writeResponseMapper;
 
-  public WriteResponseFuture(Future<InnerType> innerFuture, WriteResponseMapper<InnerType> writeResponseMapper)
-  {
+  public WriteResponseFuture(Future<InnerType> innerFuture, WriteResponseMapper<InnerType> writeResponseMapper) {
     _innerFuture = innerFuture;
     _writeResponseMapper = writeResponseMapper;
   }
-
 
   @Override
   public boolean cancel(boolean mayInterruptIfRunning) {

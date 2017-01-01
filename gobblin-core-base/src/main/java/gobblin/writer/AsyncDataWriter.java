@@ -23,25 +23,23 @@ import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * An interface for implementing Async Writers for Gobblin.
  */
-// InterfaceStability.Evolving
+@Alpha
 public interface AsyncDataWriter<D> extends Closeable {
 
   /**
    * Asynchronously write a record, execute the callback on success/failure
-   * @param record
-   * @param callback
-   * @return Future that the caller could wait on
    */
   Future<WriteResponse> write(D record, @Nullable WriteCallback callback);
 
   /**
-   * Flushes uncommitted records
-   * @throws IOException
+   * Flushes all pending writes
    */
-  void flush() throws IOException;
-
+  void flush()
+      throws IOException;
 }

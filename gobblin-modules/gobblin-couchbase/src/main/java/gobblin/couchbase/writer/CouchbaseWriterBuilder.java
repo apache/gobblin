@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.Properties;
 
 import com.couchbase.client.java.env.CouchbaseEnvironment;
-import com.couchbase.client.java.env.DefaultCouchbaseEnvironment;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.State;
@@ -41,13 +40,13 @@ public class CouchbaseWriterBuilder extends DataWriterBuilder {
     State state = this.destination.getProperties();
     Properties taskProps = state.getProperties();
     Config config = ConfigUtils.propertiesToConfig(taskProps);
-    CouchbaseEnvironment couchbaseEnvironment = DefaultCouchbaseEnvironment.create();
+    CouchbaseEnvironment couchbaseEnvironment = CouchbaseEnvironmentFactory.getInstance(config);
     //TODO: Read config to decide whether to build a blocking writer or an async writer
     // build an async couchbase writer
     AsyncDataWriter couchbaseWriter = new CouchbaseWriter(couchbaseEnvironment, config);
     return AsyncWriterManager.builder()
         .asyncDataWriter(couchbaseWriter)
-        .failureAllowance(0.0)
+        .failureAllowanceRatio(0.0)
         .retriesEnabled(false)
         .config(config)
         .build();

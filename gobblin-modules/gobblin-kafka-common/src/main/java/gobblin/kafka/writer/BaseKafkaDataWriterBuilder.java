@@ -66,7 +66,7 @@ public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schem
         .config(config)
         .commitTimeoutInNanos(commitTimeoutInNanos)
         .commitStepWaitTimeInMillis(commitStepWaitTimeMillis)
-        .failureAllowance(failureAllowance)
+        .failureAllowanceRatio(failureAllowance)
         .retriesEnabled(false)
         .asyncDataWriter(getAsyncDataWriter(taskProps))
         .build();

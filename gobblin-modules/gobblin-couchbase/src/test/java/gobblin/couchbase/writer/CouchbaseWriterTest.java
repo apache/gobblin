@@ -75,22 +75,18 @@ public class CouchbaseWriterTest {
   private CouchbaseEnvironment _couchbaseEnvironment;
 
   @BeforeSuite
-  public void startServers()
-  {
+  public void startServers() {
     _couchbaseTestServer = new CouchbaseTestServer(TestUtils.findFreePort());
     _couchbaseTestServer.start();
 
     _couchbaseEnvironment = DefaultCouchbaseEnvironment.builder().bootstrapHttpEnabled(true)
         .bootstrapHttpDirectPort(_couchbaseTestServer.getPort())
-        .bootstrapCarrierDirectPort(_couchbaseTestServer.getServerPort())
-        .bootstrapCarrierEnabled(false)
-        .kvTimeout(10000)
-        .build();
+        .bootstrapCarrierDirectPort(_couchbaseTestServer.getServerPort()).bootstrapCarrierEnabled(false)
+        .kvTimeout(10000).build();
   }
 
   @AfterSuite
-  public void stopServers()
-  {
+  public void stopServers() {
     _couchbaseTestServer.stop();
   }
 
@@ -110,21 +106,14 @@ public class CouchbaseWriterTest {
 
     CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
 
-    Schema dataRecordSchema = SchemaBuilder.record("Data")
-        .fields()
-        .name("data").type().bytesType().noDefault()
-        .name("flags").type().intType().noDefault()
-        .endRecord();
+    Schema dataRecordSchema =
+        SchemaBuilder.record("Data").fields().name("data").type().bytesType().noDefault().name("flags").type().intType()
+            .noDefault().endRecord();
 
-    Schema schema = SchemaBuilder.record("TestRecord")
-        .fields()
-        .name("key").type().stringType().noDefault()
-        .name("data").type(dataRecordSchema).noDefault()
-        .endRecord();
-
+    Schema schema = SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
+        .type(dataRecordSchema).noDefault().endRecord();
 
     GenericData.Record testRecord = new GenericData.Record(schema);
-
 
     String testContent = "hello world";
 
@@ -147,7 +136,6 @@ public class CouchbaseWriterTest {
 
     int returnedFlags = returnDoc.content().value2();
     Assert.assertEquals(returnedFlags, 0);
-
   }
 
   /**
@@ -179,23 +167,15 @@ public class CouchbaseWriterTest {
 
       Map<String, String> returnedMap = gson.fromJson(returnDoc.content(), Map.class);
       Assert.assertEquals(testContent, returnedMap.get("value"));
-    }
-    finally {
+    } finally {
       writer.close();
     }
   }
 
-
-
-
-
-  private void drainQueue(BlockingQueue<Pair<AbstractDocument, Future>> queue, int threshold,
-      long sleepTime, TimeUnit sleepUnit, List<Pair<AbstractDocument, Future>> failedFutures)
-  {
-    while (queue.remainingCapacity() < threshold)
-    {
-      if (sleepTime > 0)
-      {
+  private void drainQueue(BlockingQueue<Pair<AbstractDocument, Future>> queue, int threshold, long sleepTime,
+      TimeUnit sleepUnit, List<Pair<AbstractDocument, Future>> failedFutures) {
+    while (queue.remainingCapacity() < threshold) {
+      if (sleepTime > 0) {
         Pair<AbstractDocument, Future> topElement = queue.peek();
         if (topElement != null) {
           try {
@@ -219,13 +199,11 @@ public class CouchbaseWriterTest {
     private final Converter<String, String, Object, RawJsonDocument> _recordConverter =
         new AnyToCouchbaseJsonConverter();
 
-    JsonDocumentIterator(Iterator<Object> genericRecordIterator)
-    {
+    JsonDocumentIterator(Iterator<Object> genericRecordIterator) {
       this(genericRecordIterator, -1);
     }
 
-    JsonDocumentIterator(Iterator<Object> genericRecordIterator, int maxRecords)
-    {
+    JsonDocumentIterator(Iterator<Object> genericRecordIterator, int maxRecords) {
       _objectIterator = genericRecordIterator;
       _maxRecords = maxRecords;
       _currRecord = 0;
@@ -235,9 +213,7 @@ public class CouchbaseWriterTest {
     public boolean hasNext() {
       if (_maxRecords < 0) {
         return _objectIterator.hasNext();
-      }
-      else
-      {
+      } else {
         return _objectIterator.hasNext() && (_currRecord < _maxRecords);
       }
     }
@@ -248,9 +224,7 @@ public class CouchbaseWriterTest {
       Object record = _objectIterator.next();
       try {
         return _recordConverter.convertRecord("", record, null).iterator().next();
-      }
-      catch (Exception e)
-      {
+      } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
@@ -263,15 +237,14 @@ public class CouchbaseWriterTest {
     private final int _maxRecords;
     private int _currRecord;
     private Iterator<GenericRecord> _genericRecordIterator;
-    private final Converter<Schema, String, GenericRecord, TupleDocument> _recordConverter = new AvroToCouchbaseTupleConverter();
+    private final Converter<Schema, String, GenericRecord, TupleDocument> _recordConverter =
+        new AvroToCouchbaseTupleConverter();
 
-    TupleDocumentIterator(Iterator<GenericRecord> genericRecordIterator)
-    {
+    TupleDocumentIterator(Iterator<GenericRecord> genericRecordIterator) {
       this(genericRecordIterator, -1);
     }
 
-    TupleDocumentIterator(Iterator<GenericRecord> genericRecordIterator, int maxRecords)
-    {
+    TupleDocumentIterator(Iterator<GenericRecord> genericRecordIterator, int maxRecords) {
       _genericRecordIterator = genericRecordIterator;
       _maxRecords = maxRecords;
       _currRecord = 0;
@@ -281,9 +254,7 @@ public class CouchbaseWriterTest {
     public boolean hasNext() {
       if (_maxRecords < 0) {
         return _genericRecordIterator.hasNext();
-      }
-      else
-      {
+      } else {
         return _genericRecordIterator.hasNext() && (_currRecord < _maxRecords);
       }
     }
@@ -294,9 +265,7 @@ public class CouchbaseWriterTest {
       GenericRecord record = _genericRecordIterator.next();
       try {
         return _recordConverter.convertRecord("", record, null).iterator().next();
-      }
-      catch (Exception e)
-      {
+      } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
@@ -309,18 +278,14 @@ public class CouchbaseWriterTest {
     void onWrite(AbstractDocument doc)
         throws UnsupportedEncodingException {
       recordClass = doc.getClass();
-      if (doc instanceof TupleDocument)
-      {
+      if (doc instanceof TupleDocument) {
         ByteBuf outgoingBuf = (((TupleDocument) doc).content()).value1();
         byte[] outgoingBytes = new byte[outgoingBuf.readableBytes()];
         outgoingBuf.getBytes(0, outgoingBytes);
         verificationCache.put(doc.id(), outgoingBytes);
-      }
-      else if (doc instanceof RawJsonDocument)
-      {
+      } else if (doc instanceof RawJsonDocument) {
         verificationCache.put(doc.id(), ((RawJsonDocument) doc).content().getBytes("UTF-8"));
-      }
-      else {
+      } else {
         throw new UnsupportedOperationException("Can only support TupleDocument or RawJsonDocument at this time");
       }
     }
@@ -362,11 +327,9 @@ public class CouchbaseWriterTest {
 
     CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
 
-    AsyncWriterManager asyncWriterManager = AsyncWriterManager.builder()
-        .asyncDataWriter(writer)
-        .retriesEnabled(true)
-        .numRetries(5)
-        .build();
+    AsyncWriterManager asyncWriterManager =
+        AsyncWriterManager.builder().asyncDataWriter(writer).maxOutstandingWrites(100000).retriesEnabled(true)
+            .numRetries(5).build();
 
     if (verbose) {
       // Create a reporter for metrics. This reporter will write metrics to STDOUT.
@@ -376,8 +339,7 @@ public class CouchbaseWriterTest {
     }
 
     Verifier verifier = new Verifier();
-    while (recordIterator.hasNext())
-    {
+    while (recordIterator.hasNext()) {
       AbstractDocument doc = recordIterator.next();
       verifier.onWrite(doc);
       asyncWriterManager.write(doc);
@@ -386,14 +348,11 @@ public class CouchbaseWriterTest {
     verifier.verify(writer.getBucket());
   }
 
-
-
-
   private List<Pair<AbstractDocument, Future>> writeRecords(Iterator<AbstractDocument> recordIterator,
-      CouchbaseWriter writer, int outstandingRequests,
-      long kvTimeout, TimeUnit kvTimeoutUnit)
+      CouchbaseWriter writer, int outstandingRequests, long kvTimeout, TimeUnit kvTimeoutUnit)
       throws DataConversionException, UnsupportedEncodingException {
-    final BlockingQueue<Pair<AbstractDocument, Future>> outstandingCallQueue = new LinkedBlockingDeque<>(outstandingRequests);
+    final BlockingQueue<Pair<AbstractDocument, Future>> outstandingCallQueue =
+        new LinkedBlockingDeque<>(outstandingRequests);
     final List<Pair<AbstractDocument, Future>> failedFutures = new ArrayList<>(outstandingRequests);
 
     int index = 0;
@@ -402,8 +361,7 @@ public class CouchbaseWriterTest {
     final AtomicInteger callbackFailures = new AtomicInteger(0);
     final ConcurrentLinkedDeque<Throwable> callbackExceptions = new ConcurrentLinkedDeque<>();
     Verifier verifier = new Verifier();
-    while (recordIterator.hasNext())
-    {
+    while (recordIterator.hasNext()) {
       AbstractDocument doc = recordIterator.next();
       index++;
       verifier.onWrite(doc);
@@ -429,16 +387,14 @@ public class CouchbaseWriterTest {
     drainQueue(outstandingCallQueue, outstandingRequests, kvTimeout, kvTimeoutUnit, failedFutures);
     runTime += System.nanoTime() - responseStartTime;
 
-    for (Throwable failure: callbackExceptions)
-    {
+    for (Throwable failure : callbackExceptions) {
       System.out.println(failure.getClass() + " : " + failure.getMessage());
     }
     failedWrites += failedFutures.size();
 
-    System.out.println("Total time to send " + index + " records = " + runTime/1000000.0 + "ms, "
-        + "Failed writes = " + failedWrites
-        + " Callback Successes = " + callbackSuccesses.get()
-        + "Callback Failures = " + callbackFailures.get());
+    System.out.println(
+        "Total time to send " + index + " records = " + runTime / 1000000.0 + "ms, " + "Failed writes = " + failedWrites
+            + " Callback Successes = " + callbackSuccesses.get() + "Callback Failures = " + callbackFailures.get());
 
     verifier.verify(writer.getBucket());
     return failedFutures;
@@ -453,17 +409,13 @@ public class CouchbaseWriterTest {
 
     CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
 
-    final Schema dataRecordSchema = SchemaBuilder.record("Data")
-        .fields()
-        .name("data").type().bytesType().noDefault()
-        .name("flags").type().intType().noDefault()
-        .endRecord();
+    final Schema dataRecordSchema =
+        SchemaBuilder.record("Data").fields().name("data").type().bytesType().noDefault().name("flags").type().intType()
+            .noDefault().endRecord();
 
-    final Schema schema = SchemaBuilder.record("TestRecord")
-        .fields()
-        .name("key").type().stringType().noDefault()
-        .name("data").type(dataRecordSchema).noDefault()
-        .endRecord();
+    final Schema schema =
+        SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
+            .type(dataRecordSchema).noDefault().endRecord();
 
     final int numRecords = 10000;
     int outstandingRequests = 999;
@@ -497,14 +449,11 @@ public class CouchbaseWriterTest {
     writeRecords(new TupleDocumentIterator(recordIterator), writer, outstandingRequests, kvTimeout, kvTimeoutUnit);
   }
 
-
-
   @Test
   public void testMultiJsonDocumentWriteWithAsyncWriter()
       throws IOException, DataConversionException, ExecutionException, InterruptedException {
 
     final int numRecords = 10000;
-
 
     Iterator<Object> recordIterator = new Iterator<Object>() {
       private int currentIndex;
@@ -529,21 +478,16 @@ public class CouchbaseWriterTest {
     writeRecordsWithAsyncWriter(new JsonDocumentIterator(recordIterator));
   }
 
-
   @Test
   public void testMultiTupleDocumentWriteWithAsyncWriter()
       throws IOException, DataConversionException, ExecutionException, InterruptedException {
-    final Schema dataRecordSchema = SchemaBuilder.record("Data")
-        .fields()
-        .name("data").type().bytesType().noDefault()
-        .name("flags").type().intType().noDefault()
-        .endRecord();
+    final Schema dataRecordSchema =
+        SchemaBuilder.record("Data").fields().name("data").type().bytesType().noDefault().name("flags").type().intType()
+            .noDefault().endRecord();
 
-    final Schema schema = SchemaBuilder.record("TestRecord")
-        .fields()
-        .name("key").type().stringType().noDefault()
-        .name("data").type(dataRecordSchema).noDefault()
-        .endRecord();
+    final Schema schema =
+        SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
+            .type(dataRecordSchema).noDefault().endRecord();
 
     final int numRecords = 10000;
 
@@ -572,6 +516,4 @@ public class CouchbaseWriterTest {
     };
     writeRecordsWithAsyncWriter(new TupleDocumentIterator(recordIterator));
   }
-
-
 }

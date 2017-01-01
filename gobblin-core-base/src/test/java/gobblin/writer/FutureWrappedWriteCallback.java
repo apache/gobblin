@@ -18,7 +18,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.Condition;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -26,19 +27,16 @@ import java.util.concurrent.locks.Condition;
  * TODO: Figure out what this is really useful for... write tests.
  *
  */
+@Slf4j
 public class FutureWrappedWriteCallback implements WriteCallback, Future<WriteResponse> {
   private WriteCallback _innerCallback;
   private WriteResponse _writeResponse;
   private Throwable _throwable;
-  private Condition _callback;
-  private final Object _lock;
   private volatile boolean _callbackFired;
-
 
   public FutureWrappedWriteCallback(WriteCallback innerCallback) {
     _writeResponse = null;
     _throwable = null;
-    _lock = new Object();
     _innerCallback = innerCallback;
   }
 
@@ -61,7 +59,7 @@ public class FutureWrappedWriteCallback implements WriteCallback, Future<WriteRe
   public WriteResponse get()
       throws InterruptedException, ExecutionException {
     try {
-      return get(-1, TimeUnit.MILLISECONDS);
+      return get(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
     } catch (TimeoutException e) {
       throw new ExecutionException(e);
     }
@@ -70,55 +68,47 @@ public class FutureWrappedWriteCallback implements WriteCallback, Future<WriteRe
   @Override
   public WriteResponse get(long timeout, TimeUnit unit)
       throws InterruptedException, ExecutionException, TimeoutException {
-    synchronized (_lock)
-    {
-      while (!_callbackFired)
-      {
-        _lock.wait(timeout);
+    synchronized (this) {
+      while (!_callbackFired) {
+        wait(timeout);
       }
     }
-    if (_callbackFired)
-    {
-      if (_throwable != null)
-      {
+    if (_callbackFired) {
+      if (_throwable != null) {
         throw new ExecutionException(_throwable);
-      }
-      else
-      {
+      } else {
         return _writeResponse;
       }
-    }
-    else
-    {
-      //TODO: umm...
-      return null;
+    } else {
+      throw new AssertionError("Should not be here if _callbackFired is behaving well");
     }
   }
 
-
   @Override
   public void onSuccess(WriteResponse writeResponse) {
-    synchronized (_lock) {
+    synchronized (this) {
       _writeResponse = writeResponse;
       _callbackFired = true;
-      if (_innerCallback != null)
-      {
-        _innerCallback.onSuccess(writeResponse);
+      if (_innerCallback != null) {
+        try {
+          _innerCallback.onSuccess(writeResponse);
+        } catch (Exception e) {
+          log.error("Ignoring error thrown in callback", e);
+        }
       }
-      _lock.notify();
+      notifyAll();
     }
   }
 
   @Override
   public void onFailure(Throwable throwable) {
-    synchronized (_lock) {
+    synchronized (this) {
       _throwable = throwable;
       _callbackFired = true;
-      if (_innerCallback!= null)
-      {
+      if (_innerCallback != null) {
         _innerCallback.onFailure(throwable);
       }
-      _lock.notify();
+      notifyAll();
     }
   }
 }

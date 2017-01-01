@@ -14,6 +14,10 @@
 
 package gobblin.writer;
 
+/**
+ * An interface to implement a transformer from a system-native response type into a {@link WriteResponse}.
+ * @param <InnerType>
+ */
 public interface WriteResponseMapper<InnerType> {
   WriteResponse wrap(InnerType innerType);
 }
