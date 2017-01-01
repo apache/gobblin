@@ -253,10 +253,8 @@ public class AsyncWriterManagerTest {
   public void testFlowControlWithWriteFailures()
       throws Exception {
 
-    int failuresEvery = 100000;
-
-    FlakyAsyncWriter flakyAsyncWriter = new FlakyAsyncWriter(
-        gobblin.test.ErrorManager.builder().errorType(ErrorManager.ErrorType.NTH).errorEvery(failuresEvery).build());
+    FlakyAsyncWriter flakyAsyncWriter =
+        new FlakyAsyncWriter(gobblin.test.ErrorManager.builder().errorType(ErrorManager.ErrorType.ALL).build());
 
     int maxOutstandingWrites = 2000;
 
@@ -265,11 +263,13 @@ public class AsyncWriterManagerTest {
             .maxOutstandingWrites(maxOutstandingWrites).failureAllowanceRatio(1.0)  // ok to fail all the time
             .build();
 
-    // Create a reporter for metrics. This reporter will write metrics to STDOUT.
-    OutputStreamReporter.Factory.newBuilder().build(new Properties());
-    // Start all metric reporters.
-    RootMetricContext.get().startReporting();
-
+    boolean verbose = true;
+    if (verbose) {
+      // Create a reporter for metrics. This reporter will write metrics to STDOUT.
+      OutputStreamReporter.Factory.newBuilder().build(new Properties());
+      // Start all metric reporters.
+      RootMetricContext.get().startReporting();
+    }
     final int load = 10000; // 10k records per sec
     final long tickDiffInNanos = (1000 * 1000 * 1000) / load;
 
@@ -291,19 +291,20 @@ public class AsyncWriterManagerTest {
     LinkedBlockingQueue retryQueue = (LinkedBlockingQueue) asyncWriterManager.retryQueue.get();
 
     int sleepTime = 100;
-    int totalTime = 100000;
+    int totalTime = 10000;
     for (int i = 0; i < (totalTime / sleepTime); ++i) {
       Thread.sleep(sleepTime);
       int retryQueueSize = retryQueue.size();
       long recordsIn = asyncWriterManager.recordsIn.getCount();
-      /*if (recordsIn > failuresEvery) {
+      if (recordsIn > 10) {
         Assert.assertTrue(retryQueueSize > 0, "There should be some writes in the retry queue");
-      }*/
+      }
       Assert.assertTrue(retryQueueSize <= (maxOutstandingWrites + 1),
           "Retry queue should never exceed the " + "maxOutstandingWrites. Found " + retryQueueSize);
       log.debug("Retry queue size = {}", retryQueue.size());
     }
 
     scheduler.shutdown();
+    asyncWriterManager.commit();
   }
 }

@@ -34,7 +34,6 @@ import com.couchbase.client.core.lang.Tuple;
 import com.couchbase.client.core.lang.Tuple2;
 import com.couchbase.client.core.message.ResponseStatus;
 import com.couchbase.client.core.message.kv.MutationToken;
-import com.couchbase.client.core.time.Delay;
 import com.couchbase.client.deps.io.netty.buffer.ByteBuf;
 import com.couchbase.client.java.Bucket;
 import com.couchbase.client.java.Cluster;
@@ -43,7 +42,6 @@ import com.couchbase.client.java.document.AbstractDocument;
 import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.transcoder.Transcoder;
-import com.couchbase.client.java.util.retry.RetryBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
@@ -62,7 +60,7 @@ import gobblin.writer.WriteResponseFuture;
 
 
 /**
- * A single bucket couchbase writer.
+ * A single bucket Couchbase writer.
  * @param <D>
  */
 public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWriter<D>, SyncDataWriter<D> {
@@ -72,49 +70,38 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
   private final long _operationTimeout;
   private final TimeUnit _operationTimeunit;
 
-
-
   // A basic transcoder that just passes through the embedded binary content.
   private final Transcoder<TupleDocument, Tuple2<ByteBuf, Integer>> _tupleDocumentTranscoder =
-      new Transcoder<TupleDocument, Tuple2<ByteBuf, Integer>>()
-      {
+      new Transcoder<TupleDocument, Tuple2<ByteBuf, Integer>>() {
         @Override
         public TupleDocument decode(String id, ByteBuf content, long cas, int expiry, int flags,
-            ResponseStatus status)
-        {
+            ResponseStatus status) {
           return newDocument(id, expiry, Tuple.create(content, flags), cas);
         }
 
         @Override
-        public Tuple2<ByteBuf, Integer> encode(TupleDocument document)
-        {
+        public Tuple2<ByteBuf, Integer> encode(TupleDocument document) {
           return document.content();
         }
 
         @Override
-        public TupleDocument newDocument(String id, int expiry, Tuple2<ByteBuf, Integer> content,
-            long cas)
-        {
+        public TupleDocument newDocument(String id, int expiry, Tuple2<ByteBuf, Integer> content, long cas) {
           return new TupleDocument(id, expiry, content, cas);
         }
 
         @Override
-        public TupleDocument newDocument(String id, int expiry, Tuple2<ByteBuf, Integer> content,
-            long cas, MutationToken mutationToken)
-        {
+        public TupleDocument newDocument(String id, int expiry, Tuple2<ByteBuf, Integer> content, long cas,
+            MutationToken mutationToken) {
           return new TupleDocument(id, expiry, content, cas);
         }
 
         @Override
-        public Class<TupleDocument> documentType()
-        {
+        public Class<TupleDocument> documentType() {
           return TupleDocument.class;
         }
       };
 
   public CouchbaseWriter(CouchbaseEnvironment couchbaseEnvironment, Config config) {
-
-
 
     List<String> hosts = ConfigUtils.getStringList(config, CouchbaseWriterConfigurationKeys.BOOTSTRAP_SERVERS);
 
@@ -122,8 +109,7 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
 
     String bucketName = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.BUCKET, null);
 
-    if (bucketName == null)
-    {
+    if (bucketName == null) {
       // throw instantiation exception since we need a valid bucket name
       throw new RuntimeException("Need a valid bucket name");
     }
@@ -133,19 +119,14 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
     _bucket = _cluster.openBucket(bucketName, password,
         Collections.<Transcoder<? extends Document, ?>>singletonList(_tupleDocumentTranscoder));
 
-
     _operationTimeout = 2000;
     _operationTimeunit = TimeUnit.MILLISECONDS;
-
   }
-
 
   @VisibleForTesting
-  Bucket getBucket()
-  {
+  Bucket getBucket() {
     return _bucket;
   }
-
 
   @Override
   public Future<WriteResponse> write(final D record, final WriteCallback callback) {
@@ -154,8 +135,9 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
     }
     Observable<D> observable = _bucket.async().upsert(record);
     if (callback == null) {
-      return new WriteResponseFuture<>(observable.timeout(_operationTimeout, _operationTimeunit)
-          .toBlocking().toFuture(), new GenericWriteResponseWrapper<D>());
+      return new WriteResponseFuture<>(
+          observable.timeout(_operationTimeout, _operationTimeunit).toBlocking().toFuture(),
+          new GenericWriteResponseWrapper<D>());
     } else {
 
       final AtomicBoolean callbackFired = new AtomicBoolean(false);
@@ -199,32 +181,31 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
       observable.timeout(_operationTimeout, _operationTimeunit)
 //          .retryWhen(RetryBuilder.any().max(6).delay(Delay.exponential(TimeUnit.SECONDS, 5)).build())
           .subscribe(new Subscriber<D>() {
-        @Override
-        public void onCompleted() {
-        }
-
-        @Override
-        public void onError(Throwable e) {
-          callbackFired.set(true);
-          writeResponseQueue.add(new Pair<WriteResponse, Throwable>(null, e));
-          callback.onFailure(e);
-        }
-
-        @Override
-        public void onNext(D doc) {
-          try {
-            callbackFired.set(true);
-            WriteResponse writeResponse = new GenericWriteResponse<D>(doc);
-            writeResponseQueue.add(new Pair<WriteResponse, Throwable>(writeResponse, null));
-            callback.onSuccess(writeResponse);
-          }
-          finally {
-            if (doc instanceof TupleDocument) {
-              ((TupleDocument) doc).content().value1().release();
+            @Override
+            public void onCompleted() {
             }
-          }
-        }
-      });
+
+            @Override
+            public void onError(Throwable e) {
+              callbackFired.set(true);
+              writeResponseQueue.add(new Pair<WriteResponse, Throwable>(null, e));
+              callback.onFailure(e);
+            }
+
+            @Override
+            public void onNext(D doc) {
+              try {
+                callbackFired.set(true);
+                WriteResponse writeResponse = new GenericWriteResponse<D>(doc);
+                writeResponseQueue.add(new Pair<WriteResponse, Throwable>(writeResponse, null));
+                callback.onSuccess(writeResponse);
+              } finally {
+                if (doc instanceof TupleDocument) {
+                  ((TupleDocument) doc).content().value1().release();
+                }
+              }
+            }
+          });
       return writeResponseFuture;
     }
   }
@@ -237,16 +218,11 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
 
   private WriteResponse getWriteResponseorThrow(Pair<WriteResponse, Throwable> writeResponseThrowablePair)
       throws ExecutionException {
-    if (writeResponseThrowablePair.getFirst() != null)
-    {
+    if (writeResponseThrowablePair.getFirst() != null) {
       return writeResponseThrowablePair.getFirst();
-    }
-    else if (writeResponseThrowablePair.getSecond() != null)
-    {
+    } else if (writeResponseThrowablePair.getSecond() != null) {
       throw new ExecutionException(writeResponseThrowablePair.getSecond());
-    }
-    else
-    {
+    } else {
       throw new ExecutionException(new RuntimeException("Could not find non-null WriteResponse pair"));
     }
   }
@@ -256,7 +232,6 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
       throws IOException {
 
   }
-
 
   @Override
   public WriteResponse write(D record)
@@ -270,11 +245,9 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
     }
   }
 
-
   @Override
   public void close() {
     _bucket.close();
     _cluster.disconnect();
   }
-
 }

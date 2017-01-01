@@ -257,6 +257,7 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
   }
 
   private void makeNextWriteThrow(Throwable t) {
+    log.error("Will make next write throw", t);
     this.cachedWriteException = t;
   }
 
@@ -302,7 +303,7 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
         } else {
           try {
             AsyncWriterManager.this.recordsFailed.mark();
-            log.info("Failed to write record : {}", attempt.getRecord().toString(), throwable);
+            log.debug("Failed to write record : {}", attempt.getRecord().toString(), throwable);
             // If this failure is fatal, set the writer to throw an exception at this point
             if (isFailureFatal()) {
               makeNextWriteThrow(throwable);
