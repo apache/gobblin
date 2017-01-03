@@ -163,9 +163,6 @@ public class JobScheduler extends AbstractIdleService {
       throws Exception {
     LOG.info("Starting the job scheduler");
 
-    Preconditions.checkState(this.listener != null,
-        String.format("Property %s was not defined.", ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
-
     try {
       this.scheduler.awaitRunning(1, TimeUnit.SECONDS);
     } catch (TimeoutException | IllegalStateException exc) {

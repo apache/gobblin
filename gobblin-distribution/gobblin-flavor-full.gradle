@@ -4,5 +4,6 @@ dependencies {
   compile project(':gobblin-modules:gobblin-compliance')
   compile project(':gobblin-modules:gobblin-couchbase')
   compile project(':gobblin-modules:google-ingestion')
+  compile project(':gobblin-modules:gobblin-helix')
 }
 
