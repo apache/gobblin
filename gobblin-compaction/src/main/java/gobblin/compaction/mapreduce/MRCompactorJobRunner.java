@@ -367,7 +367,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
   private List<Path> getInputPaths() {
-    List<Path> inputPaths = this.dataset.inputPaths();
+    List<Path> inputPaths = Lists.newArrayList(this.dataset.inputPaths());
     inputPaths.addAll(this.dataset.additionalInputPaths());
     return inputPaths;
   }

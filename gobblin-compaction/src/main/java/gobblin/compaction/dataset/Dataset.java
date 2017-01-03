@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import lombok.extern.slf4j.Slf4j;
@@ -166,14 +167,14 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
     this.lateDataThresholdForRecompact = builder.lateDataThresholdForRecompact;
     this.state = new AtomicReference<>(DatasetState.UNVERIFIED);
     this.datasetName = builder.datasetName;
-    this.jobProps = new State();
+    this.jobProps = builder.jobProps;
   }
 
   /**
    * Input path that contains the data of this {@link Dataset} to be compacted.
    */
   public List<Path> inputPaths() {
-    return this.inputPaths;
+    return ImmutableList.copyOf(this.inputPaths);
   }
 
   /**
@@ -186,7 +187,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
    * will be applied to this {@link Dataset}.
    */
   public List<Path> inputLatePaths() {
-    return this.inputLatePaths;
+    return ImmutableList.copyOf(this.inputLatePaths);
   }
 
   /**
