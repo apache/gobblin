@@ -1,12 +1,13 @@
 package gobblin.ingestion.google.webmaster;
 
-import com.google.api.services.webmasters.model.ApiDimensionFilter;
-import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+
+import com.google.api.services.webmasters.model.ApiDimensionFilter;
+import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
 
 
 public class GoogleWebmasterFilter {

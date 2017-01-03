@@ -1,12 +1,13 @@
 package gobblin.ingestion.google.webmaster;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 
 
 public class SimpleProducerJob extends ProducerJob {

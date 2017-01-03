@@ -1,15 +1,17 @@
 package gobblin.ingestion.google.webmaster;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 
 public abstract class ProducerJob {

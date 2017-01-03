@@ -1,10 +1,11 @@
 package gobblin.ingestion.google.webmaster;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.LongWatermark;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.extract.LongWatermark;
 
 
 public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
