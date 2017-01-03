@@ -16,13 +16,6 @@
  */
 package gobblin.writer;
 
-import gobblin.commit.SpeculativeAttemptAwareConstruct;
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.writer.exception.NonTransientException;
-import gobblin.util.FinalState;
-
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -42,11 +35,18 @@ import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 
+import gobblin.commit.SpeculativeAttemptAwareConstruct;
+import gobblin.configuration.State;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.util.FinalState;
+import gobblin.writer.exception.NonTransientException;
+
 /**
  * Retry writer follows decorator pattern that retries on inner writer's failure.
  * @param <D>
  */
-public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
+public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
   private static final Logger LOG = LoggerFactory.getLogger(RetryWriter.class);
   public static final String RETRY_CONF_PREFIX = "gobblin.writer.retry.";
   public static final String FAILED_RETRY_WRITES_METER = RETRY_CONF_PREFIX + "failed_writes";
@@ -62,6 +62,9 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
   public RetryWriter(DataWriter<D> writer, State state) {
     this.writer = writer;
     this.retryer = buildRetryer(state);
+    if (this.writer instanceof WatermarkAwareWriter) {
+      setWatermarkAwareWriter((WatermarkAwareWriter) this.writer);
+    }
   }
 
   /**
@@ -117,6 +120,7 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
 
     callWithRetry(writeCall);
   }
+
 
   @Override
   public void commit() throws IOException {
@@ -195,4 +199,5 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
     state.setProp(FAILED_WRITES_KEY, this.failedWrites);
     return state;
   }
+
 }
