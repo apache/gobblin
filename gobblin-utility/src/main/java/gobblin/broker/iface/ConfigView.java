@@ -38,5 +38,5 @@ public interface ConfigView<S extends ScopeType<S>, K extends SharedResourceKey>
   /**
    * @return get a view of this {@link ConfigView} at a specific {@link ScopeType}.
    */
-  ScopedConfigView<S, K> getScopedView(ScopeType<S> scopeType);
+  ScopedConfigView<S, K> getScopedView(S scopeType);
 }

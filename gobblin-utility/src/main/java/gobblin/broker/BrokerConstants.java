@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Copyright (C) 2014-2017 LinkedIn Corp. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
  * this file except in compliance with the License. You may obtain a copy of the
@@ -10,14 +10,11 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.broker.iface;
+package gobblin.broker;
 
 /**
- * Exception thrown when trying to access a {@link ScopeInstance} that is not defined in a {@link SharedResourcesBroker}.
+ * Constants used for {@link gobblin.broker.iface.SharedResourcesBroker}.
  */
-public class NoSuchScopeException extends Exception {
-
-  public <S extends ScopeType<S>> NoSuchScopeException(S scope) {
-    super(String.format("Scope %s is not defined in this %s.", scope, SharedResourcesBroker.class.getSimpleName()));
-  }
+public class BrokerConstants {
+  public static final String GOBBLIN_BROKER_CONFIG_PREFIX = "gobblin.broker";
 }

@@ -17,8 +17,7 @@
  *
  * As a model, consider file handles for emitting logs. Multiple tasks in the application might need to access a global log
  * file, or each task might have its own log file. To use a {@link gobblin.broker.iface.SharedResourcesBroker}, a task
- * creates a factory (see {@link gobblin.broker.iface.AutoScopedSharedResourceFactory} and
- * {@link gobblin.broker.iface.ScopedSharedResourceFactory}), in this case a log file handle factory.
+ * creates a factory (see {@link gobblin.broker.iface.SharedResourceFactory}), in this case a log file handle factory.
  * To acquire the file handle, the task sends a request to
  * the broker providing the log file handle factory and a {@link gobblin.broker.iface.SharedResourceKey} (a discriminator between
  * different objects created by the same factory, in the case of the log file handle, the key could specify whether we

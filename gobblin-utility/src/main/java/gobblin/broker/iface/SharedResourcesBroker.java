@@ -25,7 +25,7 @@ import java.io.IOException;
  * using static objects, or doing dependency injection, a {@link SharedResourcesBroker} provides a way to acquire such shared
  * objects as needed, letting the broker manage the lifecycle of the objects.
  *
- * Objects are created using {@link AutoScopedSharedResourceFactory}s or {@link ScopedSharedResourceFactory}s,
+ * Objects are created using {@link SharedResourceFactory}s,
  * and are specific to a particular {@link ScopeInstance} and
  * {@link SharedResourceKey}. {@link ScopeInstance}s represent a DAG of relevant scopes in the application, for example
  * GLOBAL -> JOB -> TASK. {@link SharedResourceKey} identify different objects created by the same factory, for example
@@ -49,28 +49,28 @@ public interface SharedResourcesBroker<S extends ScopeType<S>> extends Closeable
    * Get the {@link ScopeInstance} in this brokers topology at the provided {@link ScopeType}.
    * @throws NoSuchScopeException if the input {@link ScopeType} is lower than that of {@link #leafScope()}.
    */
-  ScopeInstance<S> getScope(ScopeType<S> scopeType) throws NoSuchScopeException;
+  ScopeInstance<S> getScope(S scopeType) throws NoSuchScopeException;
 
   /**
-   * Get a shared resource created by the input {@link AutoScopedSharedResourceFactory}. The resource will be shared
+   * Get a shared resource created by the input {@link SharedResourceFactory}. The resource will be shared
    * at least by all brokers with the same {@link #leafScope()}, but the factory may chose to create the resource
    * at a higher scope.
    *
-   * @param factory The {@link AutoScopedSharedResourceFactory} used to create the shared object.
+   * @param factory The {@link SharedResourceFactory} used to create the shared object.
    * @param key Identifies different objects from the same factory in the same {@link ScopeInstance}.
    * @param <T> type of object created by the factory.
    * @param <K> type of factory accepted by the factory.
    * @return an object of type T.
    * @throws NotConfiguredException
    */
-  <T, K extends SharedResourceKey> T getSharedResource(AutoScopedSharedResourceFactory<T, K, S> factory, K key)
+  <T, K extends SharedResourceKey> T getSharedResource(SharedResourceFactory<T, K, S> factory, K key)
       throws NotConfiguredException;
 
   /**
-   * Get a shared resource created by the input {@link ScopedSharedResourceFactory} at the {@link ScopeInstance}
+   * Get a shared resource created by the input {@link SharedResourceFactory} at the {@link ScopeInstance}
    * returned by {@link #getScope)} on the input {@link ScopeType}.
    *
-   * @param factory The {@link AutoScopedSharedResourceFactory} used to create the shared object.
+   * @param factory The {@link SharedResourceFactory} used to create the shared object.
    * @param key Identifies different objects from the same factory in the same {@link ScopeInstance}.
    * @param scope {@link ScopeType} at which the object will be obtained.
    * @param <T> type of object created by the factory.
@@ -79,8 +79,8 @@ public interface SharedResourcesBroker<S extends ScopeType<S>> extends Closeable
    * @throws NotConfiguredException
    * @throws NoSuchScopeException
    */
-  <T, K extends SharedResourceKey> T getSharedResourceAtScope(ScopedSharedResourceFactory<T, K> factory, K key,
-      ScopeType<S> scope) throws NotConfiguredException, NoSuchScopeException;
+  <T, K extends SharedResourceKey> T getSharedResourceAtScope(SharedResourceFactory<T, K, S> factory, K key,
+      S scope) throws NotConfiguredException, NoSuchScopeException;
 
   /**
    * Close all resources at this and descendant scopes, meaning {@link Closeable}s will be closed and
