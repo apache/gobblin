@@ -13,83 +13,57 @@
 package gobblin.runtime;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
-import gobblin.metastore.MysqlStateStore;
-import gobblin.password.PasswordManager;
+import gobblin.metastore.ZkStateStore;
+import gobblin.metastore.ZkStateStoreConfigurationKeys;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import javax.sql.DataSource;
-import org.apache.commons.dbcp.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 /**
- * A custom extension to {@link MysqlStateStore} for storing and reading {@link JobState.DatasetState}s.
+ * A custom extension to {@link ZkStateStore} for storing and reading {@link JobState.DatasetState}s.
  *
  * <p>
  *   The purpose of having this class is to hide some implementation details that are unnecessarily
- *   exposed if using the {@link MysqlStateStore} to store and serve job/dataset states between job runs.
- * </p>
- *
- * <p>
- *   In addition to persisting and reading {@link JobState.DatasetState}s. This class is also able to
- *   read job state files of existing jobs that store serialized instances of {@link JobState} for
- *   backward compatibility.
+ *   exposed if using the {@link ZkStateStore} to store and serve dataset states between job runs.
  * </p>
  *
  */
-public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetState>
+public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
     implements DatasetStateStore<JobState.DatasetState> {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ZkDatasetStateStore.class);
+  private static final String CURRENT_SUFFIX = CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MysqlDatasetStateStore.class);
-
-  @Alias("mysql")
+  @Alias("zk")
   public static class Factory implements DatasetStateStore.Factory {
     @Override
     public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {
-      BasicDataSource basicDataSource = new BasicDataSource();
-      PasswordManager passwordManager = PasswordManager.getInstance(props);
 
-      basicDataSource.setDriverClassName(props.getProperty(ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
-          ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
-      // MySQL server can timeout a connection so need to validate connections before use
-      basicDataSource.setValidationQuery("select 1");
-      basicDataSource.setTestOnBorrow(true);
-      basicDataSource.setDefaultAutoCommit(false);
-      basicDataSource.setTimeBetweenEvictionRunsMillis(60000);
-      basicDataSource.setUrl(props.getProperty(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
-      basicDataSource.setUsername(passwordManager.readPassword(
-          props.getProperty(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
-      basicDataSource.setPassword(passwordManager.readPassword(
-          props.getProperty(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
-      basicDataSource.setMinEvictableIdleTimeMillis(Long.parseLong(props.getProperty(
-          ConfigurationKeys.STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY,
-          Long.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME))));
-
-      String stateStoreTableName = props.getProperty(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
-          ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
+      String connectString = props.getProperty(ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY);
+      String rootDir = props.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
       boolean compressedValues =
           Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_COMPRESSED_VALUES_KEY,
-          Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES)));
+              Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES)));
 
       try {
-        return new MysqlDatasetStateStore(basicDataSource, stateStoreTableName, compressedValues);
+        return new ZkDatasetStateStore(connectString, rootDir, compressedValues);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
     }
   }
 
-  public MysqlDatasetStateStore(DataSource dataSource, String stateStoreTableName, boolean compressedValues)
-      throws IOException {
-    super(dataSource, stateStoreTableName, compressedValues, JobState.DatasetState.class);
+  public ZkDatasetStateStore(String connectString, String storeRootDir, boolean compressedValues) throws IOException {
+    super(connectString, storeRootDir, compressedValues, JobState.DatasetState.class);
   }
 
   /**
@@ -100,8 +74,11 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
    * @throws IOException if there's something wrong reading the {@link JobState.DatasetState}s
    */
   public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName) throws IOException {
-    List<JobState.DatasetState> previousDatasetStates =
-        getAll(jobName, "%" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX, true);
+    List<JobState.DatasetState> previousDatasetStates = getAll(jobName, new Predicate<String>() {
+      @Override
+      public boolean apply(String input) {
+        return input.endsWith(CURRENT_SUFFIX);
+      }});
 
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
     if (!previousDatasetStates.isEmpty()) {

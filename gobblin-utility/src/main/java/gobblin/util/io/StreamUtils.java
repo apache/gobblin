@@ -21,6 +21,7 @@ import java.nio.channels.WritableByteChannel;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
+import java.util.zip.GZIPInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
@@ -187,5 +188,22 @@ public class StreamUtils {
    */
   private static String formatPathToFile(Path path) {
     return StringUtils.removeEnd(path.toString(), Path.SEPARATOR);
+  }
+
+  /*
+   * Determines if a byte array is compressed. The java.util.zip GZip
+   * implementaiton does not expose the GZip header so it is difficult to determine
+   * if a string is compressed.
+   * Copied from Helix GZipCompressionUtil
+   * @param bytes an array of bytes
+   * @return true if the array is compressed or false otherwise
+   */
+  public static boolean isCompressed(byte[] bytes) {
+    if ((bytes == null) || (bytes.length < 2)) {
+      return false;
+    } else {
+      return ((bytes[0] == (byte) (GZIPInputStream.GZIP_MAGIC)) &&
+          (bytes[1] == (byte) (GZIPInputStream.GZIP_MAGIC >> 8)));
+    }
   }
 }
