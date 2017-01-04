@@ -11,10 +11,18 @@
 
 package gobblin.cli;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 import com.google.common.collect.ImmutableMap;
-import org.apache.commons.cli.*;
 
 /**
  * A command line interface for interacting with Gobblin.
@@ -25,7 +33,7 @@ import org.apache.commons.cli.*;
  * @author ahollenbach@nerdwallet.com
  */
 public class Cli {
-  private static Map<String, Command> commandList =
+  private static final Map<String, Command> commandList =
           ImmutableMap.of(
                   "jobs", (Command)new JobCommand()
           );
