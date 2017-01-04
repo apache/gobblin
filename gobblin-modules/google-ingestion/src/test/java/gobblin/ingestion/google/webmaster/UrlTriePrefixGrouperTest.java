@@ -1,12 +1,14 @@
 package gobblin.ingestion.google.webmaster;
 
-import gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.FilterOperator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 import org.apache.commons.lang3.tuple.Triple;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.FilterOperator;
 
 
 @Test(groups = {"gobblin.source.extractor.extract.google.webmaster"})

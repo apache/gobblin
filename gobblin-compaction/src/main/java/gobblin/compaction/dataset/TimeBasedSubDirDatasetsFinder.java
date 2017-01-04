@@ -63,7 +63,6 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   public static final String COMPACTION_TIMEBASED_SUBDIR_PATTERN = COMPACTION_TIMEBASED_PREFIX + "subdir.pattern";
   public static final String DEFAULT_COMPACTION_TIMEBASED_SUBDIR_PATTERN = "*";
 
-
   // The earliest dataset timestamp to be processed. Format = ?m?d?h.
   public static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "max.time.ago";
   public static final String DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO = "3d";

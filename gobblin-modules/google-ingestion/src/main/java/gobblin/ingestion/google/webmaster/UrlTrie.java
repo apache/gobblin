@@ -1,6 +1,7 @@
 package gobblin.ingestion.google.webmaster;
 
 import java.util.Collection;
+
 import org.apache.commons.lang3.tuple.Pair;
 
 

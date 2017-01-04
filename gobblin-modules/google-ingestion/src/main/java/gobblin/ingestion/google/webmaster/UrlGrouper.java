@@ -1,6 +1,7 @@
 package gobblin.ingestion.google.webmaster;
 
 import java.util.Iterator;
+
 import org.apache.commons.lang3.tuple.Triple;
 
 

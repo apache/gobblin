@@ -1,5 +1,16 @@
 package gobblin.ingestion.google.webmaster;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.DataRecordException;
@@ -7,15 +18,6 @@ import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
 
 @Test(groups = {"gobblin.source.extractor.extract.google.webmaster"})

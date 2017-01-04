@@ -2,6 +2,7 @@ package gobblin.ingestion.google.webmaster;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

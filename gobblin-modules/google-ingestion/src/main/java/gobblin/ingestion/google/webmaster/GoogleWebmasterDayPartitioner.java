@@ -1,12 +1,13 @@
 package gobblin.ingestion.google.webmaster;
 
-import gobblin.configuration.State;
-import gobblin.writer.partitioner.WriterPartitioner;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.joda.time.DateTime;
+
+import gobblin.configuration.State;
+import gobblin.writer.partitioner.WriterPartitioner;
 
 
 /**
