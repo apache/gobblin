@@ -52,6 +52,8 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_FS_URI_KEY = "state.store.fs.uri";
   // Enable / disable state store
   public static final String STATE_STORE_ENABLED = "state.store.enabled";
+  public static final String STATE_STORE_COMPRESSED_VALUES_KEY = "state.store.compressedValues";
+  public static final boolean DEFAULT_STATE_STORE_COMPRESSED_VALUES = true;
   // DB state store configuration
   public static final String STATE_STORE_DB_JDBC_DRIVER_KEY = "state.store.db.jdbc.driver";
   public static final String DEFAULT_STATE_STORE_DB_JDBC_DRIVER = "com.mysql.jdbc.Driver";
