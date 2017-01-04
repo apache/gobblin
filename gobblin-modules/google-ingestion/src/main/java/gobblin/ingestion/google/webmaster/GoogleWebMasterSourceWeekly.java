@@ -1,14 +1,16 @@
 package gobblin.ingestion.google.webmaster;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.LongWatermark;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.extract.LongWatermark;
 
 
 public class GoogleWebMasterSourceWeekly extends GoogleWebMasterSource {

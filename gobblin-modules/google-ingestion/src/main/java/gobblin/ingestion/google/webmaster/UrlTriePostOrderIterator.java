@@ -1,12 +1,14 @@
 package gobblin.ingestion.google.webmaster;
 
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+
 import org.apache.commons.lang3.tuple.Pair;
+
+import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 
 
 /**
