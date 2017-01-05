@@ -10,16 +10,19 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.broker.iface;
+package gobblin.broker;
 
-/**
- * A factory that creates {@link ScopeInstance} specific objects.
- * @param <T> type of objects this factory creates.
- * @param <K> type of {@link SharedResourceKey} this factory uses.
- */
-public interface ScopedSharedResourceFactory<T, K extends SharedResourceKey> {
-  /**
-   * Create an object for the provided {@link SharedResourceKey}, with the provided configuration.
-   */
-  T createResource(SharedResourcesBroker broker, ScopedConfigView<?, K> config);
+import gobblin.broker.iface.SharedResourceKey;
+
+import lombok.Data;
+
+
+@Data
+public class TestResourceKey implements SharedResourceKey {
+  private final String key;
+
+  @Override
+  public String toConfigurationKey() {
+    return this.key;
+  }
 }
