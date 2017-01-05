@@ -17,8 +17,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-
-import lombok.Getter;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
@@ -36,6 +35,8 @@ import com.google.common.io.Closer;
 import gobblin.configuration.State;
 import gobblin.util.AutoReturnableObject;
 
+import lombok.Getter;
+
 
 /**
  * A pool of {@link IMetaStoreClient} for querying the Hive metastore.
@@ -49,8 +50,11 @@ public class HiveMetastoreClientPool {
   @Getter
   private final HiveRegProps hiveRegProps;
 
+  private static final long DEFAULT_POOL_CACHE_TTL_MINUTES = 30;
   private static final Cache<Optional<String>, HiveMetastoreClientPool> poolCache =
-      CacheBuilder.newBuilder().removalListener(new RemovalListener<Optional<String>, HiveMetastoreClientPool>() {
+      CacheBuilder.newBuilder()
+          .expireAfterAccess(DEFAULT_POOL_CACHE_TTL_MINUTES, TimeUnit.MINUTES)
+          .removalListener(new RemovalListener<Optional<String>, HiveMetastoreClientPool>() {
         @Override
         public void onRemoval(RemovalNotification<Optional<String>, HiveMetastoreClientPool> notification) {
           if (notification.getValue() != null) {
