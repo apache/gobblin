@@ -12,14 +12,7 @@
 package gobblin.writer.http;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Properties;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import lombok.Getter;
-import lombok.AccessLevel;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -34,13 +27,15 @@ import gobblin.password.PasswordManager;
 import gobblin.writer.DataWriter;
 import gobblin.writer.http.SalesforceRestWriter.Operation;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+
 /**
  * Builder class that builds SalesForceRestWriter where it takes connection related parameter and type of operation along with the parameters
  * derived from AbstractHttpWriterBuilder
  */
 @Getter
 public class SalesForceRestWriterBuilder extends AbstractHttpWriterBuilder<Void, RestEntry<JsonObject>, SalesForceRestWriterBuilder>{
-  private static final Logger LOG = LoggerFactory.getLogger(SalesForceRestWriterBuilder.class);
 
   static final String SFDC_PREFIX = "salesforce.";
   static final String CLIENT_ID = SFDC_PREFIX + "client_id";
@@ -54,15 +49,13 @@ public class SalesForceRestWriterBuilder extends AbstractHttpWriterBuilder<Void,
   static final String BATCH_SIZE = SFDC_PREFIX + "batch_size";
   static final String BATCH_RESOURCE_PATH = SFDC_PREFIX + "batch_resource_path";
 
-  private static final Config FALLBACK;
-  static {
-    Map<String, String> configMap = ImmutableMap.<String, String>builder()
-                                                .put(AbstractHttpWriterBuilder.STATIC_SVC_ENDPOINT, "https://login.salesforce.com/services/oauth2/token")
-                                                .put(SECURITY_TOKEN, "")
-                                                .put(BATCH_SIZE, "1")
-                                                .build();
-    FALLBACK = ConfigFactory.parseMap(configMap);
-  }
+  private static final Config FALLBACK = ConfigFactory.parseMap(
+        ImmutableMap.<String, String>builder()
+          .put(AbstractHttpWriterBuilder.STATIC_SVC_ENDPOINT, "https://login.salesforce.com/services/oauth2/token")
+          .put(SECURITY_TOKEN, "")
+          .put(BATCH_SIZE, "1")
+          .build()
+  );
 
   private String clientId;
   private String clientSecret;
