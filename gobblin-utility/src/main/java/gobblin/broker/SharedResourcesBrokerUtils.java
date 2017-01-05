@@ -45,10 +45,10 @@ public class SharedResourcesBrokerUtils {
   }
 
   /**
-   * Determine if a {@link ScopeImpl} is an ancestor of another {@link ScopeImpl}.
+   * Determine if a {@link ScopeWrapper} is an ancestor of another {@link ScopeWrapper}.
    */
-  static <S extends ScopeType<S>> boolean isScopeAncestor(ScopeImpl<S> scope, ScopeImpl<S> possibleAncestor) {
-    Queue<ScopeImpl<S>> ancestors = new LinkedList<>();
+  static <S extends ScopeType<S>> boolean isScopeAncestor(ScopeWrapper<S> scope, ScopeWrapper<S> possibleAncestor) {
+    Queue<ScopeWrapper<S>> ancestors = new LinkedList<>();
     ancestors.add(scope);
     while (true) {
       if (ancestors.isEmpty()) {

@@ -12,6 +12,8 @@
 
 package gobblin.broker;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.gobblin_scopes.JobScopeInstance;
 import gobblin.broker.iface.ScopedConfigView;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -34,17 +36,18 @@ public class GobblinBrokerConfTest {
     Config config = ConfigFactory.parseMap(ImmutableMap.of(
         JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, "key1"), "value1",
         JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, "key2"), "value2",
-        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.CONTAINER.name(), "key2"), "value2scope",
+        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.CONTAINER.name(), "key2"), "value2scope",
         JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, key, "key2"), "value2key",
-        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.CONTAINER.name(), key, "key2"), "value2scopekey"
+        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.CONTAINER.name(), key, "key2"), "value2scopekey"
     ));
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
 
-    KeyedScopedConfigViewImpl<GobblinScopes, TestResourceKey> configView =
-        topBroker.getConfigView(GobblinScopes.CONTAINER, new TestResourceKey(key), TestFactory.NAME);
+    KeyedScopedConfigViewImpl<GobblinScopeTypes, TestResourceKey> configView =
+        topBroker.getConfigView(GobblinScopeTypes.CONTAINER, new TestResourceKey(key), TestFactory.NAME);
 
-    Assert.assertEquals(configView.getScope(), GobblinScopes.CONTAINER);
+    Assert.assertEquals(configView.getScope(), GobblinScopeTypes.CONTAINER);
     Assert.assertEquals(configView.getKey().toConfigurationKey(), key);
     Assert.assertEquals(configView.getKeyedConfig().getString("key2"), "value2key");
     Assert.assertEquals(configView.getScopedConfig().getString("key2"), "value2scope");
@@ -55,7 +58,7 @@ public class GobblinBrokerConfTest {
     Assert.assertEquals(configView.getConfig().getString("key1"), "value1");
 
     configView =
-        topBroker.getConfigView(GobblinScopes.TASK, new TestResourceKey(key), TestFactory.NAME);
+        topBroker.getConfigView(GobblinScopeTypes.TASK, new TestResourceKey(key), TestFactory.NAME);
     Assert.assertEquals(configView.getConfig().getString("key2"), "value2key");
 
   }
@@ -68,35 +71,37 @@ public class GobblinBrokerConfTest {
     Config config = ConfigFactory.parseMap(ImmutableMap.<String, String>builder()
         .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, "key1"), "value1")
         .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, "key2"), "value2")
-        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.CONTAINER.name(), "key2"), "value2scope")
+        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.CONTAINER.name(), "key2"), "value2scope")
         .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, key, "key2"), "value2key")
-        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.CONTAINER.name(), key, "key2"), "value2scopekey")
-        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.JOB.name(), "key2"), "value2scope")
-        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.JOB.name(), key, "key2"), "value2scopekey")
+        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.CONTAINER.name(), key, "key2"), "value2scopekey")
+        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.JOB.name(), "key2"), "value2scope")
+        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.JOB.name(), key, "key2"), "value2scopekey")
         .build());
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
 
     Config overrides = ConfigFactory.parseMap(ImmutableMap.<String, String>builder()
         .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, "key1"), "value1_o")
         .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, "key2"), "value2_o")
-        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.CONTAINER.name(), "key2"), "value2scope_o")
+        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.CONTAINER.name(), "key2"), "value2scope_o")
         .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, key, "key2"), "value2key_o")
-        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.CONTAINER.name(), key, "key2"), "value2scopekey_o")
-        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.JOB.name(), "key2"), "value2scope_o")
-        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.JOB.name(), key, "key2"), "value2scopekey_o")
+        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.CONTAINER.name(), key, "key2"), "value2scopekey_o")
+        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.JOB.name(), "key2"), "value2scope_o")
+        .put(JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.JOB.name(), key, "key2"), "value2scopekey_o")
         .build());
 
-    SharedResourcesBrokerImpl<GobblinScopes> jobBroker = topBroker.newSubscopedBuilder(GobblinScopes.JOB, "job1")
-        .withOverridingConfig(overrides).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).
+            withOverridingConfig(overrides).build();
 
-    ScopedConfigView<GobblinScopes, TestResourceKey> configView =
-        jobBroker.getConfigView(GobblinScopes.CONTAINER, new TestResourceKey(key), TestFactory.NAME);
+    ScopedConfigView<GobblinScopeTypes, TestResourceKey> configView =
+        jobBroker.getConfigView(GobblinScopeTypes.CONTAINER, new TestResourceKey(key), TestFactory.NAME);
     Assert.assertEquals(configView.getConfig().getString("key1"), "value1");
     Assert.assertEquals(configView.getConfig().getString("key2"), "value2scopekey");
 
     configView =
-        jobBroker.getConfigView(GobblinScopes.JOB, new TestResourceKey(key), TestFactory.NAME);
+        jobBroker.getConfigView(GobblinScopeTypes.JOB, new TestResourceKey(key), TestFactory.NAME);
     Assert.assertEquals(configView.getConfig().getString("key1"), "value1");
     Assert.assertEquals(configView.getConfig().getString("key2"), "value2scopekey_o");
 

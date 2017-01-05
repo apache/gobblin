@@ -15,6 +15,7 @@ package gobblin.broker;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import gobblin.broker.iface.ScopeInstance;
 import gobblin.broker.iface.ScopeType;
 import gobblin.util.ConfigUtils;
 
@@ -24,9 +25,17 @@ import gobblin.util.ConfigUtils;
  */
 public class SharedResourcesBrokerFactory {
 
-  public static <S extends ScopeType<S>> SharedResourcesBrokerImpl<S> createDefaultTopLevelBroker(Config config) {
-    return new SharedResourcesBrokerImpl<>(new DefaultBrokerCache<S>(), null,
-        Lists.newArrayList(new SharedResourcesBrokerImpl.ScopedConfig<S>(null,
+  public static <S extends ScopeType<S>> SharedResourcesBrokerImpl<S> createDefaultTopLevelBroker(Config config,
+      ScopeInstance<S> globalScope) {
+
+    if (!globalScope.getType().equals(globalScope.getType().rootScope())) {
+      throw new IllegalArgumentException(String.format("The top level broker must be created at the root scope type. "
+          + "%s is not a root scope type.", globalScope.getType()));
+    }
+
+    return new SharedResourcesBrokerImpl<>(new DefaultBrokerCache<S>(),
+        new ScopeWrapper<>(globalScope.getType(), globalScope, Lists.<ScopeWrapper<S>>newArrayList()),
+        Lists.newArrayList(new SharedResourcesBrokerImpl.ScopedConfig<>(globalScope.getType(),
             ConfigUtils.getConfigOrEmpty(config, BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX))));
   }
 

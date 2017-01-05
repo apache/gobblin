@@ -13,7 +13,15 @@
 package gobblin.broker.iface;
 
 /**
- * A specific scope: {@link ScopeType} and id. For example, each task in a process could be a different scope.
+ * A specific scope for a {@link ScopeType}. For example, each task in a process could be a different scope.
+ *
+ * <p>
+ *   Note: {@link ScopeInstance}s will be rendered using {@link #toString()}, and will be compared using
+ *   {@link #equals(Object)}. It is important to implement appropriate {@link #equals(Object)} and {@link #hashCode()}
+ *   for correct functionality of {@link SharedResourcesBroker}. For example, if a scope for the same task is created
+ *   in two different locations, they should still be equal under {@link #equals(Object)}.
+ * </p>
+ *
  * @param <S> the {@link ScopeType} tree that this scope belongs to.
  */
 public interface ScopeInstance<S extends ScopeType<S>> {
@@ -21,9 +29,4 @@ public interface ScopeInstance<S extends ScopeType<S>> {
    * @return type of {@link ScopeType}.
    */
   S getType();
-
-  /**
-   * @return an id specific for this {@link ScopeInstance}.
-   */
-  String getScopeId();
 }
