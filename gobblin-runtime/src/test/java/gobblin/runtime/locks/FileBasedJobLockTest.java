@@ -19,7 +19,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.BasicConfigurator;
-
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -56,6 +55,7 @@ public class FileBasedJobLockTest extends JobLockTest {
     return new FileBasedJobLock(properties);
   }
 
+  @Override
   @AfterClass
   public void tearDown() throws IOException {
     if (this.fs.exists(this.path)) {

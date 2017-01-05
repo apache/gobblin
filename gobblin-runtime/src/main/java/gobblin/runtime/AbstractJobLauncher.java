@@ -57,7 +57,7 @@ import gobblin.runtime.listeners.JobListeners;
 import gobblin.runtime.locks.JobLock;
 import gobblin.runtime.locks.JobLockEventListener;
 import gobblin.runtime.locks.JobLockException;
-import gobblin.runtime.locks.JobLockFactory;
+import gobblin.runtime.locks.LegacyJobLockFactoryManager;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
@@ -504,7 +504,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    */
   protected JobLock getJobLock(Properties properties, JobLockEventListener jobLockEventListener)
       throws JobLockException {
-    return JobLockFactory.getJobLock(properties, jobLockEventListener);
+    return LegacyJobLockFactoryManager.getJobLock(properties, jobLockEventListener);
   }
 
   /**
