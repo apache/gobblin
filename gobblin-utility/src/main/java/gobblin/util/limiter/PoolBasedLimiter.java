@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.util.concurrent.Semaphore;
 
 import com.google.common.primitives.Ints;
+import com.typesafe.config.Config;
+
+import gobblin.annotation.Alias;
 
 
 /**
@@ -39,6 +42,19 @@ import com.google.common.primitives.Ints;
  * @author Yinan Li
  */
 public class PoolBasedLimiter implements Limiter {
+
+  @Alias(value = "PoolBasedLimiter")
+  public static class Factory implements LimiterFactory {
+    public static final String POOL_SIZE_KEY = "poolSize";
+
+    @Override
+    public Limiter buildLimiter(Config config) {
+      if (!config.hasPath(POOL_SIZE_KEY)) {
+        throw new IllegalArgumentException("Missing key " + POOL_SIZE_KEY);
+      }
+      return new PoolBasedLimiter(config.getInt(POOL_SIZE_KEY));
+    }
+  }
 
   private final Semaphore permitPool;
 

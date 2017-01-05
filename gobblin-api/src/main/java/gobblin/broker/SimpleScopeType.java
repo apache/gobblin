@@ -35,7 +35,7 @@ import lombok.AllArgsConstructor;
  * Simple {@link ScopeType} topology with only two levels.
  */
 @AllArgsConstructor
-public enum SimpleScopeType implements ScopeType {
+public enum SimpleScopeType implements ScopeType<SimpleScopeType> {
 
   GLOBAL("global"),
   LOCAL("local", GLOBAL);
@@ -67,7 +67,7 @@ public enum SimpleScopeType implements ScopeType {
   }
 
   @Override
-  public ScopeType rootScope() {
+  public SimpleScopeType rootScope() {
     return GLOBAL;
   }
 

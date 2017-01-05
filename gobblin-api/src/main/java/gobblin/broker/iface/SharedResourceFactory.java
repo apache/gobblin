@@ -31,7 +31,7 @@ public interface SharedResourceFactory<T, K extends SharedResourceKey, S extends
   /**
    * Create an object for the provided {@link SharedResourceKey}, with the provided configuration.
    */
-  T createResource(SharedResourcesBroker broker, ScopedConfigView<?, K> config);
+  T createResource(SharedResourcesBroker broker, ScopedConfigView<?, K> config) throws NotConfiguredException;
 
   /**
    * @return The {@link ScopeType} at which an auto scoped resource should be created. A good default is to return

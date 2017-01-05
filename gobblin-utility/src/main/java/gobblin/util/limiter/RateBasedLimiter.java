@@ -22,6 +22,9 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.RateLimiter;
+import com.typesafe.config.Config;
+
+import gobblin.annotation.Alias;
 
 import lombok.Getter;
 
@@ -40,6 +43,19 @@ import lombok.Getter;
  * @author Yinan Li
  */
 public class RateBasedLimiter extends NonRefillableLimiter {
+
+  @Alias(value = "qps")
+  public static class Factory implements LimiterFactory {
+    public static final String QPS_KEY = "qps";
+
+    @Override
+    public Limiter buildLimiter(Config config) {
+      if (!config.hasPath(QPS_KEY)) {
+        throw new RuntimeException("Missing key " + QPS_KEY);
+      }
+      return new RateBasedLimiter(config.getLong(QPS_KEY));
+    }
+  }
 
   private final RateLimiter rateLimiter;
   @Getter

@@ -25,7 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 
+import gobblin.annotation.Alias;
 import gobblin.util.ExecutorsUtils;
 
 
@@ -47,6 +49,19 @@ import gobblin.util.ExecutorsUtils;
  * @author Yinan Li
  */
 public class TimeBasedLimiter extends NonRefillableLimiter {
+
+  @Alias(value = "time")
+  public static class Factory implements LimiterFactory {
+    public static final String MAX_SECONDS_KEY = "maxSeconds";
+
+    @Override
+    public Limiter buildLimiter(Config config) {
+      if (!config.hasPath(MAX_SECONDS_KEY)) {
+        throw new RuntimeException("Missing key " + MAX_SECONDS_KEY);
+      }
+      return new TimeBasedLimiter(config.getLong(MAX_SECONDS_KEY));
+    }
+  }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TimeBasedLimiter.class);
 
