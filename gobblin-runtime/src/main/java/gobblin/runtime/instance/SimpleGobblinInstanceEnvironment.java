@@ -21,6 +21,8 @@ import java.util.List;
 
 import org.slf4j.Logger;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.configuration.State;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
@@ -65,6 +67,11 @@ public class SimpleGobblinInstanceEnvironment implements GobblinInstanceEnvironm
 
   @Override
   public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker() {
     throw new UnsupportedOperationException();
   }
 }

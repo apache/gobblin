@@ -60,11 +60,11 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
   private final ImmutableMap<S, ScopeWrapper<S>> ancestorScopesByType;
 
   SharedResourcesBrokerImpl(DefaultBrokerCache<S> brokerCache, ScopeWrapper<S> selfScope,
-      List<ScopedConfig<S>> scopedConfigs) {
+      List<ScopedConfig<S>> scopedConfigs, Map<S, ScopeWrapper<S>> ancestorScopesByType) {
     this.brokerCache = brokerCache;
     this.selfScopeWrapper = selfScope;
     this.scopedConfigs = scopedConfigs;
-    this.ancestorScopesByType = computeScopeMap(selfScope);
+    this.ancestorScopesByType = ImmutableMap.copyOf(ancestorScopesByType);
   }
 
   @Override
@@ -192,7 +192,12 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
      */
     public SharedResourcesBrokerImpl<S> build() {
 
-      ScopeWrapper<S> newScope = createWrappedScope(this.scope, this.ancestorScopes, this.scope.getType());
+      Map<S, ScopeWrapper<S>> scopeMap = Maps.newHashMap();
+      for (ScopeWrapper<S> scopeWrapper : this.ancestorScopes.values()) {
+        addScopeAndAncestorsToScopeMap(scopeMap, scopeWrapper);
+      }
+
+      ScopeWrapper<S> newScope = createWrappedScope(this.scope, scopeMap, this.scope.getType());
 
       if (SharedResourcesBrokerImpl.this.selfScopeWrapper != null && !SharedResourcesBrokerUtils.isScopeAncestor(newScope, SharedResourcesBrokerImpl.this.selfScopeWrapper)) {
         throw new IllegalArgumentException(String.format("Child scope %s must be a child of leaf scope %s.", newScope.getType(),
@@ -204,10 +209,10 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
         scopedConfigs.add(new ScopedConfig<>(newScope.getType(), this.config));
       }
 
-      return new SharedResourcesBrokerImpl<>(SharedResourcesBrokerImpl.this.brokerCache, newScope, scopedConfigs);
+      return new SharedResourcesBrokerImpl<>(SharedResourcesBrokerImpl.this.brokerCache, newScope, scopedConfigs, scopeMap);
     }
 
-    private ScopeWrapper<S> createWrappedScope(ScopeInstance<S> scope, Map<S, ScopeWrapper<S>> ancestorScopes, S mainScopeType)
+    private ScopeWrapper<S> createWrappedScope(ScopeInstance<S> scope, Map<S, ScopeWrapper<S>> scopeMap, S mainScopeType)
         throws IllegalArgumentException {
 
       List<ScopeWrapper<S>> parentScopes = Lists.newArrayList();
@@ -216,15 +221,15 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
 
       if (scopeType.parentScopes() != null) {
         for (S tpe : scopeType.parentScopes()) {
-          if (ancestorScopes.containsKey(tpe)) {
-            parentScopes.add(ancestorScopes.get(tpe));
+          if (scopeMap.containsKey(tpe)) {
+            parentScopes.add(scopeMap.get(tpe));
           } else if (tpe.defaultScopeInstance() != null) {
             ScopeInstance<S> defaultInstance = tpe.defaultScopeInstance();
             if (!defaultInstance.getType().equals(tpe)) {
               throw new RuntimeException(String.format("Default scope instance %s for scope type %s is not of type %s.",
                   defaultInstance, tpe, tpe));
             }
-            parentScopes.add(createWrappedScope(tpe.defaultScopeInstance(), ancestorScopes, mainScopeType));
+            parentScopes.add(createWrappedScope(tpe.defaultScopeInstance(), scopeMap, mainScopeType));
           } else {
             throw new IllegalArgumentException(String.format(
                 "Scope %s is an ancestor of %s, however it does not have a default id and is not provided as an acestor scope.",
@@ -233,34 +238,32 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
         }
       }
 
-      return new ScopeWrapper<>(scope.getType(), scope, parentScopes);
+      ScopeWrapper<S> wrapper = new ScopeWrapper<>(scope.getType(), scope, parentScopes);
+      scopeMap.put(wrapper.getType(), wrapper);
+      return wrapper;
     }
 
-  }
+    private void addScopeAndAncestorsToScopeMap(Map<S, ScopeWrapper<S>> scopeMap, ScopeWrapper<S> scope) {
 
-  private ImmutableMap<S, ScopeWrapper<S>> computeScopeMap(ScopeWrapper<S> leafScope) {
-    Map<S, ScopeWrapper<S>> scopeMap = Maps.newHashMap();
-
-    if (leafScope == null) {
-      return ImmutableMap.copyOf(scopeMap);
-    }
-
-    Queue<ScopeWrapper<S>> ancestors = new LinkedList<>();
-    ancestors.add(leafScope);
-
-    while (!ancestors.isEmpty()) {
-      ScopeWrapper<S> scope = ancestors.poll();
-      if (!scopeMap.containsKey(scope.getType())) {
-        scopeMap.put(scope.getType(), scope);
-      } else if (!scopeMap.get(scope.getType()).equals(scope)) {
-        throw new IllegalStateException(String.format("Scope %s:%s has two ancestors with scope %s but different identity: %s and %s.",
-            leafScope.getType(), leafScope.getScope(), scope.getType(), scope.getScope(),
-            scopeMap.get(scope.getType()).getScope()));
+      if (scope == null) {
+        return;
       }
-      ancestors.addAll(scope.getParentScopes());
+
+      Queue<ScopeWrapper<S>> ancestors = new LinkedList<>();
+      ancestors.add(scope);
+
+      while (!ancestors.isEmpty()) {
+        ScopeWrapper<S> thisScope = ancestors.poll();
+        if (!scopeMap.containsKey(thisScope.getType())) {
+          scopeMap.put(thisScope.getType(), thisScope);
+        } else if (!scopeMap.get(thisScope.getType()).equals(thisScope)) {
+          throw new IllegalStateException(String.format("Multiple scopes found with type %s but different identity: %s and %s.",
+              thisScope.getType(), thisScope.getScope(), scopeMap.get(thisScope.getType()).getScope()));
+        }
+        ancestors.addAll(thisScope.getParentScopes());
+      }
     }
 
-    return ImmutableMap.copyOf(scopeMap);
   }
 
   @Override

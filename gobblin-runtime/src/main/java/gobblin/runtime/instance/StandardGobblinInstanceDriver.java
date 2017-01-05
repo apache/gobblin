@@ -34,6 +34,11 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.SimpleScope;
+import gobblin.broker.SharedResourcesBrokerFactory;
+import gobblin.broker.SharedResourcesBrokerImpl;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
@@ -76,8 +81,9 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       JobSpecScheduler jobScheduler, JobExecutionLauncher jobLauncher,
       Optional<MetricContext> instanceMetricContext,
       Optional<Logger> log,
-      List<GobblinInstancePluginFactory> plugins) {
-    super(instanceName, sysConfig, jobCatalog, jobScheduler, jobLauncher, instanceMetricContext, log);
+      List<GobblinInstancePluginFactory> plugins,
+      SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
+    super(instanceName, sysConfig, jobCatalog, jobScheduler, jobLauncher, instanceMetricContext, log, instanceBroker);
     List<Service> componentServices = new ArrayList<>();
 
     checkComponentService(getJobCatalog(), componentServices);
@@ -180,6 +186,7 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
     private Optional<JobExecutionLauncher> _jobLauncher = Optional.absent();
     private Optional<MetricContext> _metricContext = Optional.absent();
     private Optional<Boolean> _instrumentationEnabled = Optional.absent();
+    private Optional<SharedResourcesBroker<GobblinScopeTypes>> _instanceBroker = Optional.absent();
     private List<GobblinInstancePluginFactory> _plugins = new ArrayList<>();
     private final ClassAliasResolver<GobblinInstancePluginFactory> _aliasResolver =
         new ClassAliasResolver<>(GobblinInstancePluginFactory.class);
@@ -350,7 +357,26 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
       return res;
     }
 
-    public StandardGobblinInstanceDriver build() {
+    public Builder withInstanceBroker(SharedResourcesBroker<GobblinScopeTypes> broker) {
+      _instanceBroker = Optional.of(broker);
+      return this;
+    }
+
+    public SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker() {
+      if (!_instanceBroker.isPresent()) {
+        _instanceBroker = Optional.of(getDefaultInstanceBroker());
+      }
+      return _instanceBroker.get();
+    }
+
+    public SharedResourcesBroker<GobblinScopeTypes> getDefaultInstanceBroker() {
+      SharedResourcesBrokerImpl<GobblinScopeTypes> globalBroker =
+          SharedResourcesBrokerFactory.createDefaultTopLevelBroker(getSysConfig().getConfig(),
+              GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+      return globalBroker.newSubscopedBuilder(new SimpleScope<>(GobblinScopeTypes.INSTANCE, getInstanceName())).build();
+    }
+
+      public StandardGobblinInstanceDriver build() {
       Configurable sysConfig = getSysConfig();
       return new StandardGobblinInstanceDriver(getInstanceName(), sysConfig, getJobCatalog(),
              getJobScheduler(),
@@ -358,7 +384,8 @@ public class StandardGobblinInstanceDriver extends DefaultGobblinInstanceDriverI
              isInstrumentationEnabled() ? Optional.of(getMetricContext()) :
                    Optional.<MetricContext>absent(),
              Optional.of(getLog()),
-             getPlugins()
+             getPlugins(),
+             getInstanceBroker()
              );
     }
 

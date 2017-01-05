@@ -25,6 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.local.LocalJobLauncher;
 import gobblin.runtime.mapreduce.MRJobLauncher;
@@ -60,10 +62,27 @@ public class JobLauncherFactory {
    * @return newly created {@link JobLauncher}
    */
   public static @Nonnull JobLauncher newJobLauncher(Properties sysProps, Properties jobProps) throws Exception {
+    return newJobLauncher(sysProps, jobProps, null);
+  }
+
+  /**
+   * Create a new {@link JobLauncher}.
+   *
+   * <p>
+   *   This method will never return a {@code null}.
+   * </p>
+   *
+   * @param sysProps system configuration properties
+   * @param jobProps job configuration properties
+   * @param instanceBroker
+   * @return newly created {@link JobLauncher}
+   */
+  public static @Nonnull JobLauncher newJobLauncher(Properties sysProps, Properties jobProps,
+      SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
 
     String launcherTypeValue =
         sysProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name());
-    return newJobLauncher(sysProps, jobProps, launcherTypeValue);
+    return newJobLauncher(sysProps, jobProps, launcherTypeValue, instanceBroker);
   }
 
   /**
@@ -77,16 +96,16 @@ public class JobLauncherFactory {
    * @throws RuntimeException if the instantiation fails
    */
   public static JobLauncher newJobLauncher(Properties sysProps, Properties jobProps,
-      String launcherTypeValue) {
+      String launcherTypeValue, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
     Optional<JobLauncherType> launcherType = Enums.getIfPresent(JobLauncherType.class, launcherTypeValue);
 
     try {
       if (launcherType.isPresent()) {
         switch (launcherType.get()) {
           case LOCAL:
-              return new LocalJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
+              return new LocalJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps), instanceBroker);
           case MAPREDUCE:
-            return new MRJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
+            return new MRJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps), instanceBroker);
           default:
             throw new RuntimeException("Unsupported job launcher type: " + launcherType.get().name());
         }

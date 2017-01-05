@@ -38,7 +38,7 @@ public class GobblinBrokerCreationTest {
     Config config = ConfigFactory.empty();
 
     SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
-        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+        new SimpleScope<GobblinScopeTypes>(GobblinScopeTypes.GLOBAL, "myGlobalScope"));
     SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
         topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
     SharedResourcesBrokerImpl<GobblinScopeTypes>

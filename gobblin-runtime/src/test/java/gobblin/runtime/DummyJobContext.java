@@ -27,7 +27,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.SharedResourcesBrokerFactory;
 import gobblin.commit.CommitSequenceStore;
 import gobblin.commit.DeliverySemantics;
 import gobblin.metastore.JobHistoryStore;
@@ -40,7 +43,8 @@ public class DummyJobContext extends JobContext {
 
   public DummyJobContext(Properties jobProps, Logger logger, Map<String, JobState.DatasetState> datasetStateMap)
       throws Exception {
-    super(jobProps, logger);
+    super(jobProps, logger, SharedResourcesBrokerFactory.createDefaultTopLevelBroker(ConfigFactory.empty(),
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance()));
     this.datasetStateMap = datasetStateMap;
   }
 

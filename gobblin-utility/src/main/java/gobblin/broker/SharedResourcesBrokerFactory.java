@@ -17,6 +17,7 @@
 
 package gobblin.broker;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
@@ -38,10 +39,13 @@ public class SharedResourcesBrokerFactory {
           + "%s is not a root scope type.", globalScope.getType()));
     }
 
+    ScopeWrapper<S> scopeWrapper = new ScopeWrapper<>(globalScope.getType(), globalScope, Lists.<ScopeWrapper<S>>newArrayList());
+
     return new SharedResourcesBrokerImpl<>(new DefaultBrokerCache<S>(),
-        new ScopeWrapper<>(globalScope.getType(), globalScope, Lists.<ScopeWrapper<S>>newArrayList()),
+        scopeWrapper,
         Lists.newArrayList(new SharedResourcesBrokerImpl.ScopedConfig<>(globalScope.getType(),
-            ConfigUtils.getConfigOrEmpty(config, BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX))));
+            ConfigUtils.getConfigOrEmpty(config, BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX))),
+        ImmutableMap.of(globalScope.getType(), scopeWrapper));
   }
 
 }
