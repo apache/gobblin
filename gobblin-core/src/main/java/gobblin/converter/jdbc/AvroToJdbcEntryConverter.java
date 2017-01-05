@@ -60,24 +60,30 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
   public static final String CONVERTER_AVRO_JDBC_DATE_FIELDS = "converter.avro.jdbc.date_fields";
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroToJdbcEntryConverter.class);
-  private static final Set<Type> AVRO_SUPPORTED_TYPES;
-  private static final Map<Type, JdbcType> AVRO_TYPE_JDBC_TYPE_MAPPING;
-  private static final Set<JdbcType> JDBC_SUPPORTED_TYPES;
+  private static final Map<Type, JdbcType> AVRO_TYPE_JDBC_TYPE_MAPPING =
+      ImmutableMap.<Type, JdbcType> builder()
+        .put(Type.BOOLEAN, JdbcType.BOOLEAN)
+        .put(Type.INT, JdbcType.INTEGER)
+        .put(Type.LONG, JdbcType.BIGINT)
+        .put(Type.FLOAT, JdbcType.FLOAT)
+        .put(Type.DOUBLE, JdbcType.DOUBLE)
+        .put(Type.STRING, JdbcType.VARCHAR)
+        .put(Type.ENUM, JdbcType.VARCHAR).build();
+  private static final Set<Type> AVRO_SUPPORTED_TYPES =
+      ImmutableSet.<Type> builder()
+        .addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.keySet())
+        .add(Type.UNION)
+        .build();
+  private static final Set<JdbcType> JDBC_SUPPORTED_TYPES =
+      ImmutableSet.<JdbcType> builder()
+        .addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.values())
+        .add(JdbcType.DATE)
+        .add(JdbcType.TIME)
+        .add(JdbcType.TIMESTAMP)
+        .build();
 
   private Optional<Map<String, String>> avroToJdbcColPairs = Optional.absent();
   private Optional<Map<String, String>> jdbcToAvroColPairs = Optional.absent();
-
-  static {
-    AVRO_TYPE_JDBC_TYPE_MAPPING = ImmutableMap.<Type, JdbcType> builder().put(Type.BOOLEAN, JdbcType.BOOLEAN)
-        .put(Type.INT, JdbcType.INTEGER).put(Type.LONG, JdbcType.BIGINT).put(Type.FLOAT, JdbcType.FLOAT)
-        .put(Type.DOUBLE, JdbcType.DOUBLE).put(Type.STRING, JdbcType.VARCHAR).put(Type.ENUM, JdbcType.VARCHAR).build();
-
-    AVRO_SUPPORTED_TYPES =
-        ImmutableSet.<Type> builder().addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.keySet()).add(Type.UNION).build();
-
-    JDBC_SUPPORTED_TYPES = ImmutableSet.<JdbcType> builder().addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.values())
-        .add(JdbcType.DATE).add(JdbcType.TIME).add(JdbcType.TIMESTAMP).build();
-  }
 
   public AvroToJdbcEntryConverter() {
     super();
