@@ -52,7 +52,7 @@ import lombok.extern.slf4j.Slf4j;
 class DefaultBrokerCache<S extends ScopeType<S>> {
 
   private final Cache<RawJobBrokerKey, Object> sharedResourceCache;
-  private final Cache<RawJobBrokerKey, ScopeImpl<S>> autoScopeCache;
+  private final Cache<RawJobBrokerKey, ScopeWrapper<S>> autoScopeCache;
 
   public DefaultBrokerCache() {
     this.sharedResourceCache = CacheBuilder.newBuilder().build();
@@ -65,7 +65,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
   @Data
   class RawJobBrokerKey {
     // Left if the key represents
-    private final ScopeImpl<S> scope;
+    private final ScopeWrapper<S> scope;
     private final String factoryName;
     private final String key;
   }
@@ -80,11 +80,11 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       throws ExecutionException {
 
     // figure out auto scope
-    RawJobBrokerKey autoscopeCacheKey = new RawJobBrokerKey((ScopeImpl) broker.selfScope(), factory.getName(), key.toConfigurationKey());
-    ScopeImpl<S> selectedScope = this.autoScopeCache.get(autoscopeCacheKey, new Callable<ScopeImpl<S>>() {
+    RawJobBrokerKey autoscopeCacheKey = new RawJobBrokerKey(broker.getWrappedSelfScope(), factory.getName(), key.toConfigurationKey());
+    ScopeWrapper<S> selectedScope = this.autoScopeCache.get(autoscopeCacheKey, new Callable<ScopeWrapper<S>>() {
       @Override
-      public ScopeImpl<S> call() throws Exception {
-        return broker.getScope(factory.getAutoScope(broker, broker.getConfigView(null, key, factory.getName())));
+      public ScopeWrapper<S> call() throws Exception {
+        return broker.getWrappedScope(factory.getAutoScope(broker, broker.getConfigView(null, key, factory.getName())));
       }
     });
 
@@ -98,7 +98,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
    */
   @SuppressWarnings(value = "unchecked")
   <T, K extends SharedResourceKey> T getScoped(final SharedResourceFactory<T, K, S> factory, @Nonnull final K key,
-      @Nonnull final ScopeImpl<S> scope, final SharedResourcesBrokerImpl<S> broker)
+      @Nonnull final ScopeWrapper<S> scope, final SharedResourcesBrokerImpl<S> broker)
       throws ExecutionException {
 
     RawJobBrokerKey fullKey = new RawJobBrokerKey(scope, factory.getName(), key.toConfigurationKey());
@@ -116,7 +116,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
    * {@link Closeable} will be closed, and any such object which is a {@link Service} will be shutdown.
    * @throws IOException
    */
-  public void close(ScopeImpl<S> scope)
+  public void close(ScopeWrapper<S> scope)
       throws IOException {
     List<Service> awaitShutdown = Lists.newArrayList();
 
@@ -149,11 +149,11 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
   }
 
   /**
-   * Filter {@link RawJobBrokerKey} that are not descendants of the input {@link ScopeImpl}.
+   * Filter {@link RawJobBrokerKey} that are not descendants of the input {@link ScopeWrapper}.
    */
   @AllArgsConstructor
   private class ScopeIsAncestorFilter implements Predicate<RawJobBrokerKey> {
-    private final ScopeImpl<S> scope;
+    private final ScopeWrapper<S> scope;
 
     @Override
     public boolean apply(RawJobBrokerKey input) {

@@ -38,7 +38,7 @@ import java.io.IOException;
  *
  * {@link SharedResourcesBroker} guarantees that multiple requests for objects with the same factory,
  * {@link ScopeInstance} and {@link SharedResourceKey} return the same object, even if called for different {@link SharedResourcesBroker}
- * instances (as long as the instances were created in the way specified by the {@link SharedResourcesBroker} implementation).
+ * instances. This guarantee requires that new brokers are created using {@link #newSubscopedBuilder(ScopeInstance)} only.
  *
  * @param <S> the {@link ScopeType} tree used by this {@link SharedResourcesBroker}.
  */
@@ -77,7 +77,7 @@ public interface SharedResourcesBroker<S extends ScopeType<S>> extends Closeable
    *
    * @param factory The {@link SharedResourceFactory} used to create the shared object.
    * @param key Identifies different objects from the same factory in the same {@link ScopeInstance}.
-   * @param scope {@link ScopeType} at which the object will be obtained.
+   * @param scopeType {@link ScopeType} at which the object will be obtained.
    * @param <T> type of object created by the factory.
    * @param <K> type of factory accepted by the factory.
    * @return an object of type T.
@@ -85,7 +85,7 @@ public interface SharedResourcesBroker<S extends ScopeType<S>> extends Closeable
    * @throws NoSuchScopeException
    */
   <T, K extends SharedResourceKey> T getSharedResourceAtScope(SharedResourceFactory<T, K, S> factory, K key,
-      S scope) throws NotConfiguredException, NoSuchScopeException;
+      S scopeType) throws NotConfiguredException, NoSuchScopeException;
 
   /**
    * Close all resources at this and descendant scopes, meaning {@link Closeable}s will be closed and
@@ -99,4 +99,12 @@ public interface SharedResourcesBroker<S extends ScopeType<S>> extends Closeable
   @Override
   void close()
       throws IOException;
+
+  /**
+   * Get a builder to create a descendant {@link SharedResourcesBroker}.
+   *
+   * @param subscope the {@link ScopeInstance} of the new {@link SharedResourcesBroker}.
+   * @return a {@link SubscopedBrokerBuilder}.
+   */
+  SubscopedBrokerBuilder<S, ?> newSubscopedBuilder(ScopeInstance<S> subscope);
 }
