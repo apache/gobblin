@@ -120,6 +120,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   private volatile boolean hadoopJobSubmitted = false;
 
+  private final StateStore<TaskState> taskStateStore;
+
   public MRJobLauncher(Properties jobProps)
       throws Exception {
     this(jobProps, new Configuration());
@@ -163,8 +165,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.parallelRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
+    // StateStore interface uses the following key (rootDir, storeName, tableName)
+    // The state store base is the root directory and the last two elements of the path are used as the storeName and
+    // tableName. Create the state store with the root at jobOutputPath. The task state will be stored at
+    // jobOutputPath/output/taskState.tst, so output will be the storeName.
+    taskStateStore = new FsStateStore<>(this.fs, jobOutputPath.toString(), TaskState.class);
+
     this.taskStateCollectorService =
-        new TaskStateCollectorService(jobProps, this.jobContext.getJobState(), this.eventBus, this.fs,
+        new TaskStateCollectorService(jobProps, this.jobContext.getJobState(), this.eventBus, taskStateStore,
             outputTaskStateDir);
 
     startCancellationExecutor();

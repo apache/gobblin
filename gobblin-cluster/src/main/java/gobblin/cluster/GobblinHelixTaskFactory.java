@@ -14,6 +14,7 @@ package gobblin.cluster;
 
 import java.io.IOException;
 
+import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -56,9 +57,10 @@ public class GobblinHelixTaskFactory implements TaskFactory {
   private final TaskStateTracker taskStateTracker;
   private final FileSystem fs;
   private final Path appWorkDir;
+  private final GobblinClusterUtils.StateStores stateStores;
 
   public GobblinHelixTaskFactory(Optional<ContainerMetrics> containerMetrics, TaskExecutor taskExecutor,
-      TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir) {
+      TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir, Properties props) throws Exception {
     this.containerMetrics = containerMetrics;
     if (this.containerMetrics.isPresent()) {
       this.newTasksCounter = Optional.of(this.containerMetrics.get().getCounter(GOBBLIN_CLUSTER_NEW_HELIX_TASK_COUNTER));
@@ -69,6 +71,7 @@ public class GobblinHelixTaskFactory implements TaskFactory {
     this.taskStateTracker = taskStateTracker;
     this.fs = fs;
     this.appWorkDir = appWorkDir;
+    this.stateStores = new GobblinClusterUtils.StateStores(props, appWorkDir);
   }
 
   @Override
@@ -77,8 +80,8 @@ public class GobblinHelixTaskFactory implements TaskFactory {
       if (this.newTasksCounter.isPresent()) {
         this.newTasksCounter.get().inc();
       }
-      return new GobblinHelixTask(context, this.containerMetrics, this.taskExecutor, this.taskStateTracker, this.fs,
-          this.appWorkDir);
+      return new GobblinHelixTask(context, this.containerMetrics, this.taskExecutor, this.taskStateTracker,
+          this.fs, this.appWorkDir, stateStores);
     } catch (IOException ioe) {
       LOGGER.error("Failed to create a new GobblinHelixTask", ioe);
       throw Throwables.propagate(ioe);

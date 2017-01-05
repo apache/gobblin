@@ -67,7 +67,7 @@ public class TaskStateCollectorServiceTest {
     this.taskStateStore = new FsStateStore<>(this.localFs, this.outputTaskStateDir.toUri().getPath(), TaskState.class);
 
     this.taskStateCollectorService = new TaskStateCollectorService(new Properties(), this.jobState, this.eventBus,
-        this.localFs, new Path(this.outputTaskStateDir, JOB_ID));
+        this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID));
 
     this.eventBus.register(this);
   }

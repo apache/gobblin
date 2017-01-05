@@ -14,11 +14,16 @@ package gobblin.metastore;
 
 import static gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
 
+import com.google.common.base.Predicate;
+import gobblin.annotation.Alias;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.HadoopUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
+import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -33,8 +38,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
-
 
 /**
  * An implementation of {@link StateStore} backed by a {@link FileSystem}.
@@ -90,6 +93,29 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
     this.storeRootDir = storePath.toUri().getPath();
     this.stateClass = stateClass;
+  }
+
+  @Alias("fs")
+  public static class Factory implements StateStore.Factory {
+    @Override
+    public <T extends State> StateStore<T> createStateStore(Properties props, Class<T> stateClass) {
+      // Add all job configuration properties so they are picked up by Hadoop
+      Configuration conf = new Configuration();
+      for (String key : props.stringPropertyNames()) {
+        conf.set(key, props.getProperty(key));
+      }
+
+      try {
+        String stateStoreFsUri = props.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
+            ConfigurationKeys.LOCAL_FS_URI);
+        FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
+        String stateStoreRootDir = props.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
+
+        return new FsStateStore(stateStoreFs, stateStoreRootDir, stateClass);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   @Override
@@ -267,6 +293,24 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     }
 
     return states;
+  }
+
+  @Override
+  public List<String> getStateNames(String storeName, Predicate<String> predicate) throws IOException {
+    List<String> names = Lists.newArrayList();
+
+    Path storePath = new Path(this.storeRootDir, storeName);
+    if (!this.fs.exists(storePath)) {
+      return names;
+    }
+
+    for (FileStatus status : this.fs.listStatus(storePath)) {
+      if (predicate.apply(status.getPath().getName())) {
+        names.add(status.getPath().getName());
+      }
+    }
+
+    return names;
   }
 
   @Override

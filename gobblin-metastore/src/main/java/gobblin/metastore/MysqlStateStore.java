@@ -12,9 +12,13 @@
 
 package gobblin.metastore;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import gobblin.annotation.Alias;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.password.PasswordManager;
 import gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,9 +37,11 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import javax.sql.DataSource;
+import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.hadoop.io.Text;
 
 /**
@@ -73,6 +79,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private static final String SELECT_JOB_STATE_EXISTS_TEMPLATE =
       "SELECT 1 FROM $TABLE$ WHERE store_name = ? and table_name = ?";
 
+  private static final String SELECT_JOB_STATE_NAMES_TEMPLATE =
+      "SELECT table_name FROM $TABLE$ WHERE store_name = ?";
+
   private static final String DELETE_JOB_STORE_TEMPLATE =
       "DELETE FROM $TABLE$ WHERE store_name = ?";
 
@@ -96,6 +105,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private final String SELECT_JOB_STATE_SQL;
   private final String SELECT_JOB_STATE_WITH_LIKE_SQL;
   private final String SELECT_JOB_STATE_EXISTS_SQL;
+  private final String SELECT_JOB_STATE_NAMES_SQL;
   private final String DELETE_JOB_STORE_SQL;
   private final String DELETE_JOB_STATE_SQL;
   private final String CLONE_JOB_STATE_SQL;
@@ -118,6 +128,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     SELECT_JOB_STATE_SQL = SELECT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_WITH_LIKE_SQL = SELECT_JOB_STATE_WITH_LIKE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_EXISTS_SQL = SELECT_JOB_STATE_EXISTS_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_JOB_STATE_NAMES_SQL = SELECT_JOB_STATE_NAMES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     DELETE_JOB_STORE_SQL = DELETE_JOB_STORE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     DELETE_JOB_STATE_SQL = DELETE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     CLONE_JOB_STATE_SQL = CLONE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -129,6 +140,53 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       createStatement.executeUpdate();
     } catch (SQLException e) {
       throw new IOException(e);
+    }
+  }
+
+  /**
+   * creates a new {@link BasicDataSource}
+   * @param props the properties used for datasource instantiation
+   * @return
+   */
+  protected static BasicDataSource newDataSource(Properties props) {
+    BasicDataSource basicDataSource = new BasicDataSource();
+    PasswordManager passwordManager = PasswordManager.getInstance(props);
+
+    basicDataSource.setDriverClassName(props.getProperty(ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
+        ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
+    // MySQL server can timeout a connection so need to validate connections before use
+    basicDataSource.setValidationQuery("select 1");
+    basicDataSource.setTestOnBorrow(true);
+    basicDataSource.setDefaultAutoCommit(false);
+    basicDataSource.setTimeBetweenEvictionRunsMillis(60000);
+    basicDataSource.setUrl(props.getProperty(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
+    basicDataSource.setUsername(passwordManager.readPassword(
+        props.getProperty(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
+    basicDataSource.setPassword(passwordManager.readPassword(
+        props.getProperty(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
+    basicDataSource.setMinEvictableIdleTimeMillis(Long.parseLong(
+        props.getProperty(ConfigurationKeys.STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY,
+            Long.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME))));
+
+    return basicDataSource;
+  }
+
+  @Alias("mysql")
+  public static class Factory implements StateStore.Factory {
+    @Override
+    public <T extends State> StateStore<T> createStateStore(Properties props, Class<T> stateClass) {
+      BasicDataSource basicDataSource = newDataSource(props);
+      String stateStoreTableName = props.getProperty(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
+          ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
+      boolean compressedValues =
+          Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_COMPRESSED_VALUES_KEY,
+              Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES)));
+
+      try {
+        return new MysqlStateStore(basicDataSource, stateStoreTableName, compressedValues, stateClass);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
@@ -296,6 +354,29 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   @Override
   public List<T> getAll(String storeName) throws IOException {
     return getAll(storeName, "%", true);
+  }
+
+  @Override
+  public List<String> getStateNames(String storeName, Predicate<String> predicate) throws IOException {
+    List<String> names = Lists.newArrayList();
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_JOB_STATE_NAMES_SQL)) {
+      queryStatement.setString(1, storeName);
+
+      try (ResultSet rs = queryStatement.executeQuery()) {
+        while (rs.next()) {
+          String name = rs.getString(1);
+          if (predicate.apply(name)) {
+            names.add(name);
+          }
+        }
+      }
+    } catch (SQLException e) {
+      throw new IOException(e.getMessage());
+    }
+
+    return names;
   }
 
   @Override

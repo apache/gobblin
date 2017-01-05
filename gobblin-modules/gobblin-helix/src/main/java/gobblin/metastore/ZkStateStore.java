@@ -16,6 +16,8 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import gobblin.annotation.Alias;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
@@ -30,6 +32,7 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import org.I0Itec.zkclient.serialize.ZkSerializer;
@@ -81,6 +84,24 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
     propStore = new ZkHelixPropertyStore<byte[]>(connectString, serializer, storeRootDir);
   }
 
+  @Alias("zk")
+  public static class Factory implements StateStore.Factory {
+    @Override
+    public <T extends State> StateStore<T> createStateStore(Properties props, Class<T> stateClass) {
+      String connectString = props.getProperty(ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY);
+      String rootDir = props.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
+      boolean compressedValues =
+          Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_COMPRESSED_VALUES_KEY,
+              Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES)));
+
+      try {
+        return new ZkStateStore(connectString, rootDir, compressedValues, stateClass);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
   private String formPath(String storeName) {
     return "/" + storeName;
   }
@@ -127,6 +148,27 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
     state.write(dataOutput);
   }
 
+  /**
+   * Create a new znode with data if it does not exist otherwise update with data
+   * @param storeName storeName portion of znode path
+   * @param tableName tableName portion of znode path
+   * @param data znode data
+   * @throws IOException
+   */
+  private void putData(String storeName, String tableName, byte[] data) throws IOException {
+    String path = formPath(storeName, tableName);
+
+    if (!propStore.exists(path, 0)) {
+      // create with data
+      if (!propStore.create(path, data, AccessOption.PERSISTENT)) {
+        throw new IOException("Failed to create a state file for table " + tableName);
+      }
+    } else {
+      // Update
+      propStore.set(path, data, AccessOption.PERSISTENT);
+    }
+  }
+
   @Override
   public void put(String storeName, String tableName, T state) throws IOException {
     putAll(storeName, tableName, Collections.singletonList(state));
@@ -134,7 +176,6 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public void putAll(String storeName, String tableName, Collection<T> states) throws IOException {
-    String path = formPath(storeName, tableName);
     try (ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
         OutputStream os = compressedValues ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
         DataOutputStream dataOutput = new DataOutputStream(os)) {
@@ -143,12 +184,8 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
         addStateToDataOutputStream(dataOutput, state);
       }
 
-      if (!exists(storeName, tableName) && !create(storeName, tableName)) {
-        throw new IOException("Failed to create a state file for table " + tableName);
-      }
-
       dataOutput.close();
-      propStore.set(path, byteArrayOs.toByteArray(), AccessOption.PERSISTENT);
+      putData(storeName, tableName, byteArrayOs.toByteArray());
     }
   }
 
@@ -212,9 +249,25 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
+  public List<String> getStateNames(String storeName, Predicate<String> predicate) throws IOException {
+    List<String> names = Lists.newArrayList();
+    String path = formPath(storeName);
+
+    List<String> children = propStore.getChildNames(path, 0);
+
+    if (children != null) {
+      for (String c : children) {
+        if (predicate.apply(c)) {
+          names.add(c);
+        }
+      }
+    }
+
+    return names;
+  }
+  @Override
   public void createAlias(String storeName, String original, String alias) throws IOException {
     String pathOriginal = formPath(storeName, original);
-    String pathAlias = formPath(storeName, alias);
     byte[] data;
 
     if (!propStore.exists(pathOriginal, 0)) {
@@ -223,11 +276,7 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
     data = propStore.get(pathOriginal, null, 0);
 
-    if (!exists(storeName, alias) && !create(storeName, alias)) {
-      throw new IOException("Failed to create a state file for table " + alias);
-    }
-
-    propStore.set(pathAlias, data, AccessOption.PERSISTENT);
+    putData(storeName, alias, data);
   }
 
   @Override

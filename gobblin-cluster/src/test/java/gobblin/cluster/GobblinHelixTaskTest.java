@@ -12,6 +12,7 @@
 
 package gobblin.cluster;
 
+import gobblin.metastore.FsStateStore;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -96,7 +97,7 @@ public class GobblinHelixTaskTest {
   }
 
   @Test
-  public void testPrepareTask() throws IOException {
+  public void testPrepareTask() throws Exception {
     // Serialize the JobState that will be read later in GobblinHelixTask
     Path jobStateFilePath =
         new Path(appWorkDir, TestHelper.TEST_JOB_ID + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
@@ -115,8 +116,13 @@ public class GobblinHelixTaskTest {
     workUnit.setProp(SimpleJsonSource.SOURCE_FILE_KEY, sourceJsonFile.getAbsolutePath());
 
     // Serialize the WorkUnit into a file
-    Path workUnitFilePath = new Path(this.appWorkDir, TestHelper.TEST_JOB_NAME + ".wu");
-    SerializationUtils.serializeState(this.localFs, workUnitFilePath, workUnit);
+    // expected path is appWorkDir/_workunits/job_id/job_id.wu
+    Path workUnitDirPath = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
+    FsStateStore<WorkUnit> wuStateStore = new FsStateStore<>(this.localFs, workUnitDirPath.toString(), WorkUnit.class);
+    Path workUnitFilePath = new Path(new Path(workUnitDirPath, TestHelper.TEST_JOB_ID),
+        TestHelper.TEST_JOB_NAME + ".wu");
+    wuStateStore.put(TestHelper.TEST_JOB_ID, TestHelper.TEST_JOB_NAME + ".wu", workUnit);
+
     Assert.assertTrue(this.localFs.exists(workUnitFilePath));
 
     // Prepare the GobblinHelixTask
@@ -131,7 +137,7 @@ public class GobblinHelixTaskTest {
 
     GobblinHelixTaskFactory gobblinHelixTaskFactory =
         new GobblinHelixTaskFactory(Optional.<ContainerMetrics>absent(), this.taskExecutor, this.taskStateTracker,
-            this.localFs, this.appWorkDir);
+            this.localFs, this.appWorkDir, new Properties());
     this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
   }
 
