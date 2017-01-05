@@ -34,8 +34,8 @@ public class GobblinBrokerCreationTest {
     SharedResourcesBrokerImpl<GobblinScopes> taskBroker = jobBroker.newSubscopedBuilder(GobblinScopes.TASK, "taskabc")
         .withAdditionalParentBroker(containerBroker).build();
 
-    Assert.assertEquals(taskBroker.leafScope().getType(), GobblinScopes.TASK);
-    Assert.assertEquals(taskBroker.leafScope().getScopeId(), "taskabc");
+    Assert.assertEquals(taskBroker.selfScope().getType(), GobblinScopes.TASK);
+    Assert.assertEquals(taskBroker.selfScope().getScopeId(), "taskabc");
 
     Assert.assertEquals(taskBroker.getScope(GobblinScopes.CONTAINER).getType(), GobblinScopes.CONTAINER);
     Assert.assertEquals(taskBroker.getScope(GobblinScopes.CONTAINER).getScopeId(), "thisContainer");

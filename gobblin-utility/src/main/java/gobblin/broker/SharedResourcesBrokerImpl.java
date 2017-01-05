@@ -51,29 +51,29 @@ import lombok.Data;
 public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements SharedResourcesBroker<S> {
 
   private final DefaultBrokerCache<S> brokerCache;
-  private final ScopeImpl<S> leafScope;
+  private final ScopeImpl<S> selfScope;
   private final List<ScopedConfig<S>> scopedConfigs;
-  private final ImmutableMap<S, ScopeImpl<S>> scopeMap;
+  private final ImmutableMap<S, ScopeImpl<S>> ancestorScopesByType;
 
-  SharedResourcesBrokerImpl(DefaultBrokerCache<S> brokerCache, ScopeImpl<S> leafScope,
+  SharedResourcesBrokerImpl(DefaultBrokerCache<S> brokerCache, ScopeImpl<S> selfScope,
       List<ScopedConfig<S>> scopedConfigs) {
     this.brokerCache = brokerCache;
-    this.leafScope = leafScope;
+    this.selfScope = selfScope;
     this.scopedConfigs = scopedConfigs;
-    this.scopeMap = computeScopeMap(leafScope);
+    this.ancestorScopesByType = computeScopeMap(selfScope);
   }
 
   @Override
-  public ScopeInstance<S> leafScope() {
-    return this.leafScope;
+  public ScopeInstance<S> selfScope() {
+    return this.selfScope;
   }
 
   @Override
   public ScopeImpl<S> getScope(S scopeType) throws NoSuchScopeException {
-    if (!this.scopeMap.containsKey(scopeType)) {
+    if (!this.ancestorScopesByType.containsKey(scopeType)) {
       throw new NoSuchScopeException(scopeType);
     }
-    return this.scopeMap.get(scopeType);
+    return this.ancestorScopesByType.get(scopeType);
   }
 
   @Override
@@ -150,8 +150,8 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
       this.scopeType = scopeType;
       this.scopeId = scopeId;
 
-      if (SharedResourcesBrokerImpl.this.leafScope != null) {
-        ancestorScopes.put(SharedResourcesBrokerImpl.this.leafScope.getType(), SharedResourcesBrokerImpl.this.leafScope);
+      if (SharedResourcesBrokerImpl.this.selfScope != null) {
+        ancestorScopes.put(SharedResourcesBrokerImpl.this.selfScope.getType(), SharedResourcesBrokerImpl.this.selfScope);
       }
     }
 
@@ -163,7 +163,7 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
         throw new IllegalArgumentException("Additional parent broker is not compatible.");
       }
 
-      this.ancestorScopes.put(broker.leafScope().getType(), (ScopeImpl<S>) broker.leafScope());
+      this.ancestorScopes.put(broker.selfScope().getType(), (ScopeImpl<S>) broker.selfScope());
       return this;
     }
 
@@ -184,9 +184,9 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
 
       ScopeImpl<S> newScope = createScope(this.scopeType, this.scopeId, this.ancestorScopes, this.scopeType);
 
-      if (SharedResourcesBrokerImpl.this.leafScope != null && !SharedResourcesBrokerUtils.isScopeAncestor(newScope, SharedResourcesBrokerImpl.this.leafScope)) {
+      if (SharedResourcesBrokerImpl.this.selfScope != null && !SharedResourcesBrokerUtils.isScopeAncestor(newScope, SharedResourcesBrokerImpl.this.selfScope)) {
         throw new IllegalArgumentException(String.format("Child scope %s must be a child of leaf scope %s.", scopeType,
-            SharedResourcesBrokerImpl.this.leafScope.getType()));
+            SharedResourcesBrokerImpl.this.selfScope.getType()));
       }
 
       List<ScopedConfig<S>> scopedConfigs = Lists.newArrayList(SharedResourcesBrokerImpl.this.scopedConfigs);
@@ -260,23 +260,23 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
     if (!brokerCache.equals(that.brokerCache)) {
       return false;
     }
-    if (!scopeMap.equals(that.scopeMap)) {
+    if (!ancestorScopesByType.equals(that.ancestorScopesByType)) {
       return false;
     }
-    return leafScope != null ? leafScope.equals(that.leafScope) : that.leafScope == null;
+    return selfScope != null ? selfScope.equals(that.selfScope) : that.selfScope == null;
   }
 
   @Override
   public int hashCode() {
     int result = brokerCache.hashCode();
-    result = 31 * result + scopeMap.hashCode();
-    result = 31 * result + (leafScope != null ? leafScope.hashCode() : 0);
+    result = 31 * result + ancestorScopesByType.hashCode();
+    result = 31 * result + (selfScope != null ? selfScope.hashCode() : 0);
     return result;
   }
 
   @Override
   public void close()
       throws IOException {
-    this.brokerCache.close(this.leafScope);
+    this.brokerCache.close(this.selfScope);
   }
 }

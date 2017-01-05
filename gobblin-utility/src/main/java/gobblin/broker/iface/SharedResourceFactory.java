@@ -30,7 +30,7 @@ public interface SharedResourceFactory<T, K extends SharedResourceKey, S extends
 
   /**
    * @return The {@link ScopeType} at which an auto scoped resource should be created. A good default is to return
-   *         broker.leafScope()
+   *         broker.selfScope()
    */
   S getAutoScope(SharedResourcesBroker<S> broker, ConfigView<S, K> config);
 }

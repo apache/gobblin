@@ -25,6 +25,10 @@ import javax.annotation.Nullable;
 import lombok.Data;
 
 
+/**
+ * An implementation of {@link ScopedConfigView} that knows how to extract relevant subconfiguration from an input
+ * {@link Config}.
+ */
 @Data
 public class KeyedScopedConfigViewImpl<S extends ScopeType<S>, K extends SharedResourceKey>
     implements ScopedConfigView<S, K> {
@@ -59,6 +63,7 @@ public class KeyedScopedConfigViewImpl<S extends ScopeType<S>, K extends SharedR
         chainConfigKeys(this.scope.name(), this.key.toConfigurationKey()));
   }
 
+  @Override
   public Config getConfig() {
     return getKeyedScopedConfig().withFallback(getKeyedConfig()).withFallback(getScopedConfig()).withFallback(getFactorySpecificConfig());
   }

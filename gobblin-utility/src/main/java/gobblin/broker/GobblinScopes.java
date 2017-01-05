@@ -32,11 +32,11 @@ public enum GobblinScopes implements ScopeType<GobblinScopes> {
   GLOBAL("global"),
   INSTANCE("instance", GLOBAL),
   JOB(null, INSTANCE),
-  MULTI_TASK("multiTask", JOB),
   CONTAINER("container", INSTANCE),
-  TASK(null, CONTAINER, MULTI_TASK);
+  MULTI_TASK_ATTEMPT("multiTask", JOB, CONTAINER),
+  TASK(null, MULTI_TASK_ATTEMPT);
 
-  private static final Set<GobblinScopes> LOCAL_SCOPES = Sets.newHashSet(CONTAINER, TASK);
+  private static final Set<GobblinScopes> LOCAL_SCOPES = Sets.newHashSet(CONTAINER, TASK, MULTI_TASK_ATTEMPT);
 
   private final List<GobblinScopes> parentScopes;
   private final String defaultId;

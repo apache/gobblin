@@ -43,17 +43,17 @@ public interface SharedResourcesBroker<S extends ScopeType<S>> extends Closeable
    * @return The lowest defined {@link ScopeInstance} in this {@link SharedResourcesBroker}.
    * This is provides the lowest {@link ScopeType} at which the {@link SharedResourcesBroker} can return shared objects.
    */
-  ScopeInstance<S> leafScope();
+  ScopeInstance<S> selfScope();
 
   /**
    * Get the {@link ScopeInstance} in this brokers topology at the provided {@link ScopeType}.
-   * @throws NoSuchScopeException if the input {@link ScopeType} is lower than that of {@link #leafScope()}.
+   * @throws NoSuchScopeException if the input {@link ScopeType} is lower than that of {@link #selfScope()}.
    */
   ScopeInstance<S> getScope(S scopeType) throws NoSuchScopeException;
 
   /**
    * Get a shared resource created by the input {@link SharedResourceFactory}. The resource will be shared
-   * at least by all brokers with the same {@link #leafScope()}, but the factory may chose to create the resource
+   * at least by all brokers with the same {@link #selfScope()}, but the factory may chose to create the resource
    * at a higher scope.
    *
    * @param factory The {@link SharedResourceFactory} used to create the shared object.

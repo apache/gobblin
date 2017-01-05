@@ -58,7 +58,7 @@ public class TestFactory<S extends ScopeType<S>> implements SharedResourceFactor
     if (config.getConfig().hasPath(AUTOSCOPE_AT)) {
       return (S) GobblinScopes.valueOf(config.getConfig().getString(AUTOSCOPE_AT));
     } else {
-      return broker.leafScope().getType();
+      return broker.selfScope().getType();
     }
   }
 

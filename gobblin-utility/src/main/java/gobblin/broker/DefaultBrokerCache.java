@@ -75,7 +75,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       throws ExecutionException {
 
     // figure out auto scope
-    RawJobBrokerKey autoscopeCacheKey = new RawJobBrokerKey((ScopeImpl) broker.leafScope(), factory.getName(), key.toConfigurationKey());
+    RawJobBrokerKey autoscopeCacheKey = new RawJobBrokerKey((ScopeImpl) broker.selfScope(), factory.getName(), key.toConfigurationKey());
     ScopeImpl<S> selectedScope = this.autoScopeCache.get(autoscopeCacheKey, new Callable<ScopeImpl<S>>() {
       @Override
       public ScopeImpl<S> call() throws Exception {

@@ -17,22 +17,15 @@ import java.util.Collection;
 
 import gobblin.broker.iface.ScopeType;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
+import lombok.Data;
 
 
 /**
  * Simple implementation of {@link ScopeInstance}.
  */
-@AllArgsConstructor
-@EqualsAndHashCode
+@Data
 class ScopeImpl<S extends ScopeType<S>> implements ScopeInstance<S> {
-  @Getter
   private final S type;
-  @Getter
   private final String scopeId;
-  @Getter(value = AccessLevel.PACKAGE)
   private final Collection<ScopeImpl<S>> parentScopes;
 }
