@@ -10,14 +10,23 @@
 */
 package gobblin.cli;
 
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionGroup;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.r2.RemoteInvocationException;
-import gobblin.rest.*;
-import org.apache.commons.cli.*;
 
-import java.util.List;
-import java.util.Map;
+import gobblin.rest.JobExecutionInfo;
+import gobblin.rest.QueryListType;
 
 /**
  * Logic to print out job state
@@ -26,6 +35,8 @@ public class JobCommand implements Command {
     private Options options;
 
     private static class CommandException extends Exception {
+      private static final long serialVersionUID = 1L;
+
         public CommandException(String msg) {
             super(msg);
         }
@@ -47,7 +58,7 @@ public class JobCommand implements Command {
 
     private static final int DEFAULT_RESULTS_LIMIT = 10;
 
-    private static Map<String, SubCommand> subCommandMap =
+    private static final Map<String, SubCommand> subCommandMap =
             ImmutableMap.of(
                     LIST_OPT, new ListAllItemsCommand(),
                     DETAILS_OPT, new ListOneItemWithDetails(),
