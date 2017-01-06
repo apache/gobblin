@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.replication;
@@ -66,15 +71,15 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDatasetBase> {
- 
+
   // specify the whitelist tag in the config store used by data replication
   // the datasets which import this tag will be processed by data replication
   public static final String GOBBLIN_REPLICATION_CONFIG_STORE_WHITELIST_TAG =
       CopyConfiguration.COPY_PREFIX + ".whitelist.tag";
 
   // specify the blacklist tags in the config store used by data replication
-  // the datasets which import these tags will NOT be processed by data replication 
-  // and blacklist override the whitelist 
+  // the datasets which import these tags will NOT be processed by data replication
+  // and blacklist override the whitelist
   public static final String GOBBLIN_REPLICATION_CONFIG_STORE_BLACKLIST_TAGS =
       CopyConfiguration.COPY_PREFIX + ".blacklist.tags";
 
@@ -92,7 +97,7 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDataset
 
   public ConfigBasedDatasetsFinder(FileSystem fs, Properties props) throws IOException {
     // ignore the input FileSystem , the source file system could be different for different datasets
-    
+
     Preconditions.checkArgument(props.containsKey(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI),
         "missing required config entery " + ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI);
     Preconditions.checkArgument(props.containsKey(GOBBLIN_REPLICATION_CONFIG_STORE_DATASET_COMMON_ROOT),
@@ -176,10 +181,10 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDataset
 
   /**
    * Based on the {@link #whitelistTag}, find all URI which imports the tag. Then filter out
-   * 
+   *
    * 1. disabled dataset URI
    * 2. None leaf dataset URI
-   * 
+   *
    * Then created {@link ConfigBasedDataset} based on the {@link Config} of the URIs
    */
   @Override
@@ -243,7 +248,7 @@ public class ConfigBasedDatasetsFinder implements DatasetsFinder<CopyableDataset
     return new Callable<Void>() {
       @Override
       public Void call() throws Exception {
-        // Process each {@link Config}, find dataset and add those into the datasets 
+        // Process each {@link Config}, find dataset and add those into the datasets
         Config c = confClient.getConfig(u);
         List<ConfigBasedDataset> datasetForConfig = new ConfigBasedMultiDatasets(c, p).getConfigBasedDatasetList();
         datasets.addAll(datasetForConfig);

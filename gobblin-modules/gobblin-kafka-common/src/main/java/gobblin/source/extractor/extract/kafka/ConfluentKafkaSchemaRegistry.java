@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.extract.kafka;
@@ -51,15 +56,15 @@ public class ConfluentKafkaSchemaRegistry extends KafkaSchemaRegistry<Integer, S
       "kafka.schema_registry.confluent.max_schemas_per_subject";
 
   public static final String CONFLUENT_SCHEMA_NAME_SUFFIX = "kafka.schema_registry.confluent.schema_name_suffix";
-  
+
   // Default suffix of the topic name to register / retrieve from the registry
   private static final String DEFAULT_CONFLUENT_SCHEMA_NAME_SUFFIX = "-value";
-  
+
   @Getter
   private final SchemaRegistryClient schemaRegistryClient;
 
   private final String schemaNameSuffix;
-  
+
   public ConfluentKafkaSchemaRegistry(Properties props) {
     this(props, new CachedSchemaRegistryClient(props.getProperty(KAFKA_SCHEMA_REGISTRY_URL),
         Integer.parseInt(props.getProperty(CONFLUENT_MAX_SCHEMAS_PER_SUBJECT, String.valueOf(Integer.MAX_VALUE)))));
