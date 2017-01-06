@@ -15,9 +15,12 @@ package gobblin.runtime.locks;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
-import com.google.common.base.Preconditions;
-import gobblin.configuration.ConfigurationKeys;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+
+import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
+
+import gobblin.configuration.ConfigurationKeys;
 
 
 /**
@@ -25,8 +28,10 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
  *
  * @author joelbaranick
  */
-public class JobLockFactory {
-  private JobLockFactory() {
+public class LegacyJobLockFactoryManager {
+
+
+  public LegacyJobLockFactoryManager(Config sysConfig) {
   }
 
   /**

@@ -27,7 +27,7 @@ import gobblin.configuration.ConfigurationKeys;
 
 
 @Test(groups = {"gobblin.runtime"})
-public class JobLockFactoryTest {
+public class LegacyJobLockFactoryManagerTest {
   @AfterClass
   public void tearDown() throws IOException {
     ZookeeperBasedJobLock.shutdownCuratorFramework();
@@ -37,7 +37,7 @@ public class JobLockFactoryTest {
   public void testNullProperties_ThrowsException() throws JobLockException, IOException {
     Closer closer = Closer.create();
     try {
-      closer.register(JobLockFactory.getJobLock(null, new JobLockEventListener()));
+      closer.register(LegacyJobLockFactoryManager.getJobLock(null, new JobLockEventListener()));
     } finally {
       closer.close();
     }
@@ -47,7 +47,7 @@ public class JobLockFactoryTest {
   public void testNullListener_ThrowsException() throws JobLockException, IOException {
     Closer closer = Closer.create();
     try {
-      closer.register(JobLockFactory.getJobLock(new Properties(), null));
+      closer.register(LegacyJobLockFactoryManager.getJobLock(new Properties(), null));
     } finally {
       closer.close();
     }
@@ -62,7 +62,7 @@ public class JobLockFactoryTest {
       properties.setProperty(FileBasedJobLock.JOB_LOCK_DIR, "JobLockFactoryTest");
       properties.setProperty(ConfigurationKeys.JOB_NAME_KEY, "JobLockFactoryTest-" + System.currentTimeMillis());
       properties.setProperty(ConfigurationKeys.JOB_LOCK_TYPE, FileBasedJobLock.class.getName());
-      JobLock jobLock = closer.register(JobLockFactory.getJobLock(properties, new JobLockEventListener()));
+      JobLock jobLock = closer.register(LegacyJobLockFactoryManager.getJobLock(properties, new JobLockEventListener()));
       MatcherAssert.assertThat(jobLock, Matchers.instanceOf(FileBasedJobLock.class));
     } finally {
       closer.close();
@@ -75,7 +75,7 @@ public class JobLockFactoryTest {
     try {
       Properties properties = new Properties();
       properties.setProperty(ConfigurationKeys.JOB_LOCK_TYPE, "ThisIsATest");
-      JobLock jobLock = closer.register(JobLockFactory.getJobLock(properties, new JobLockEventListener()));
+      JobLock jobLock = closer.register(LegacyJobLockFactoryManager.getJobLock(properties, new JobLockEventListener()));
       MatcherAssert.assertThat(jobLock, Matchers.instanceOf(FileBasedJobLock.class));
     } finally {
       closer.close();
@@ -91,7 +91,7 @@ public class JobLockFactoryTest {
       properties.setProperty(FileBasedJobLock.JOB_LOCK_DIR, "JobLockFactoryTest");
       properties.setProperty(ConfigurationKeys.JOB_NAME_KEY, "JobLockFactoryTest-" + System.currentTimeMillis());
       properties.setProperty(ConfigurationKeys.JOB_LOCK_TYPE, FileBasedJobLock.class.getName());
-      JobLock jobLock = closer.register(JobLockFactory.getJobLock(properties, new JobLockEventListener()));
+      JobLock jobLock = closer.register(LegacyJobLockFactoryManager.getJobLock(properties, new JobLockEventListener()));
       MatcherAssert.assertThat(jobLock, Matchers.instanceOf(FileBasedJobLock.class));
     } finally {
       closer.close();
@@ -112,7 +112,7 @@ public class JobLockFactoryTest {
       properties.setProperty(ZookeeperBasedJobLock.RETRY_BACKOFF_SECONDS, "1");
       properties.setProperty(ZookeeperBasedJobLock.SESSION_TIMEOUT_SECONDS, "180");
       properties.setProperty(ZookeeperBasedJobLock.CONNECTION_TIMEOUT_SECONDS, "30");
-      JobLock jobLock = closer.register(JobLockFactory.getJobLock(properties, new JobLockEventListener()));
+      JobLock jobLock = closer.register(LegacyJobLockFactoryManager.getJobLock(properties, new JobLockEventListener()));
       MatcherAssert.assertThat(jobLock, Matchers.instanceOf(ZookeeperBasedJobLock.class));
     } finally {
       closer.close();
