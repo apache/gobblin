@@ -18,6 +18,11 @@ import org.testng.annotations.Test;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeInstance;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.gobblin_scopes.JobScopeInstance;
+import gobblin.broker.gobblin_scopes.TaskScopeInstance;
+
 
 public class GobblinBrokerCreationTest {
 
@@ -27,28 +32,32 @@ public class GobblinBrokerCreationTest {
     // Correct creation behavior
     Config config = ConfigFactory.empty();
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes> jobBroker = topBroker.newSubscopedBuilder(GobblinScopes.JOB, "job123").build();
-    SharedResourcesBrokerImpl<GobblinScopes>
-        containerBroker = topBroker.newSubscopedBuilder(GobblinScopes.CONTAINER, "thisContainer").build();
-    SharedResourcesBrokerImpl<GobblinScopes> taskBroker = jobBroker.newSubscopedBuilder(GobblinScopes.TASK, "taskabc")
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes>
+        containerBroker = topBroker.newSubscopedBuilder(GobblinScopeTypes.CONTAINER.defaultScopeInstance()).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> taskBroker = jobBroker.newSubscopedBuilder(new TaskScopeInstance("taskabc"))
         .withAdditionalParentBroker(containerBroker).build();
 
-    Assert.assertEquals(taskBroker.selfScope().getType(), GobblinScopes.TASK);
-    Assert.assertEquals(taskBroker.selfScope().getScopeId(), "taskabc");
+    Assert.assertEquals(taskBroker.selfScope().getType(), GobblinScopeTypes.TASK);
+    Assert.assertEquals(((TaskScopeInstance) taskBroker.selfScope()).getTaskId(), "taskabc");
 
-    Assert.assertEquals(taskBroker.getScope(GobblinScopes.CONTAINER).getType(), GobblinScopes.CONTAINER);
-    Assert.assertEquals(taskBroker.getScope(GobblinScopes.CONTAINER).getScopeId(), "thisContainer");
+    Assert.assertEquals(taskBroker.getScope(GobblinScopeTypes.CONTAINER).getType(), GobblinScopeTypes.CONTAINER);
+    Assert.assertEquals(((GobblinScopeInstance) taskBroker.getScope(GobblinScopeTypes.CONTAINER)).getScopeId(), "container");
   }
 
   @Test
   public void testFailIfSubBrokerAtHigherScope() throws Exception {
     Config config = ConfigFactory.empty();
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes> jobBroker = topBroker.newSubscopedBuilder(GobblinScopes.JOB, "job123").build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
 
     try {
-      jobBroker.newSubscopedBuilder(GobblinScopes.GLOBAL, "multitask").build();
+      jobBroker.newSubscopedBuilder(new GobblinScopeInstance(GobblinScopeTypes.INSTANCE, "instance")).build();
       Assert.fail();
     } catch (IllegalArgumentException iae) {
       // expected
@@ -58,11 +67,12 @@ public class GobblinBrokerCreationTest {
   @Test
   public void testFailIfIntermediateScopeHasNoDefault() throws Exception {
     Config config = ConfigFactory.empty();
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
 
     // should trow error if an intermediate scope does not have a default
     try {
-      topBroker.newSubscopedBuilder(GobblinScopes.TASK, "taskxyz").build();
+      topBroker.newSubscopedBuilder(new TaskScopeInstance("taskxyz")).build();
       Assert.fail();
     } catch (IllegalArgumentException iae) {
       // expected
@@ -74,15 +84,18 @@ public class GobblinBrokerCreationTest {
     // Correct creation behavior
     Config config = ConfigFactory.empty();
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes> jobBroker = topBroker.newSubscopedBuilder(GobblinScopes.JOB, "job123").build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker2 = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes>
-        containerBroker = topBroker2.newSubscopedBuilder(GobblinScopes.CONTAINER, "thisContainer").build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker2 = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes>
+        containerBroker = topBroker2.newSubscopedBuilder(GobblinScopeTypes.CONTAINER.defaultScopeInstance()).build();
 
     try {
-      jobBroker.newSubscopedBuilder(GobblinScopes.TASK, "taskxyz").withAdditionalParentBroker(containerBroker).build();
+      jobBroker.newSubscopedBuilder(new TaskScopeInstance("taskxyz")).withAdditionalParentBroker(containerBroker).build();
       Assert.fail();
     } catch (IllegalArgumentException iae) {
       // expected

@@ -20,6 +20,10 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeInstance;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.gobblin_scopes.JobScopeInstance;
+import gobblin.broker.gobblin_scopes.TaskScopeInstance;
 import gobblin.broker.iface.NoSuchScopeException;
 
 
@@ -32,38 +36,40 @@ public class DefaultGobblinBrokerTest {
     // Correct creation behavior
     Config config = ConfigFactory.empty();
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes> jobBroker = topBroker.newSubscopedBuilder(GobblinScopes.JOB, "job123").build();
-    SharedResourcesBrokerImpl<GobblinScopes>
-        containerBroker = topBroker.newSubscopedBuilder(GobblinScopes.CONTAINER, "thisContainer").build();
-    SharedResourcesBrokerImpl<GobblinScopes> taskBroker = jobBroker.newSubscopedBuilder(GobblinScopes.TASK, "taskabc")
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes>
+        containerBroker = topBroker.newSubscopedBuilder(GobblinScopeTypes.CONTAINER.defaultScopeInstance()).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> taskBroker = jobBroker.newSubscopedBuilder(new TaskScopeInstance("taskabc"))
         .withAdditionalParentBroker(containerBroker).build();
-    SharedResourcesBrokerImpl<GobblinScopes> taskBroker2 = jobBroker.newSubscopedBuilder(GobblinScopes.TASK, "taskxyz")
+    SharedResourcesBrokerImpl<GobblinScopeTypes> taskBroker2 = jobBroker.newSubscopedBuilder(new TaskScopeInstance("taskxyz"))
         .withAdditionalParentBroker(containerBroker).build();
 
     // create a shared resource
     TestFactory.SharedResource resource =
-        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.JOB);
+        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.JOB);
 
     Assert.assertEquals(resource.getKey(), "myKey");
 
     // using same broker with same scope and key returns same object
-    Assert.assertEquals(taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.JOB),
+    Assert.assertEquals(taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.JOB),
         resource);
     // using different broker with same scope and key returns same object
-    Assert.assertEquals(taskBroker2.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.JOB),
+    Assert.assertEquals(taskBroker2.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.JOB),
         resource);
-    Assert.assertEquals(jobBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.JOB),
+    Assert.assertEquals(jobBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.JOB),
         resource);
 
     // Using different key returns a different object
-    Assert.assertNotEquals(taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("otherKey"), GobblinScopes.JOB),
+    Assert.assertNotEquals(taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("otherKey"), GobblinScopeTypes.JOB),
         resource);
     // Using different scope returns different object
-    Assert.assertNotEquals(taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.TASK),
+    Assert.assertNotEquals(taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.TASK),
         resource);
     // Requesting unscoped resource returns different object
-    Assert.assertNotEquals(taskBroker.getSharedResource(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey")),
+    Assert.assertNotEquals(taskBroker.getSharedResource(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey")),
         resource);
   }
 
@@ -75,18 +81,19 @@ public class DefaultGobblinBrokerTest {
     Config config = ConfigFactory.parseMap(ImmutableMap.of(
         JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, "key1"), "value1",
         JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, "key2"), "value2",
-        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.CONTAINER.name(), "key2"), "value2scope",
+        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.CONTAINER.name(), "key2"), "value2scope",
         JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, key, "key2"), "value2key",
-        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopes.CONTAINER.name(), key, "key2"), "value2scopekey"
+        JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, TestFactory.NAME, GobblinScopeTypes.CONTAINER.name(), key, "key2"), "value2scopekey"
     ));
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes>
-        containerBroker = topBroker.newSubscopedBuilder(GobblinScopes.CONTAINER, "thisContainer").build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes>
+        containerBroker = topBroker.newSubscopedBuilder(GobblinScopeTypes.CONTAINER.defaultScopeInstance()).build();
 
     // create a shared resource
     TestFactory.SharedResource resource =
-        containerBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.CONTAINER);
+        containerBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.CONTAINER);
 
     Assert.assertEquals(resource.getConfig().getString("key1"), "value1");
     Assert.assertEquals(resource.getConfig().getString("key2"), "value2scopekey");
@@ -97,16 +104,20 @@ public class DefaultGobblinBrokerTest {
     // Correct creation behavior
     Config config = ConfigFactory.empty();
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes> jobBroker = topBroker.newSubscopedBuilder(GobblinScopes.JOB, "job123").build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
 
-    Assert.assertEquals(jobBroker.getScope(GobblinScopes.INSTANCE).getType(), GobblinScopes.INSTANCE);
-    Assert.assertEquals(jobBroker.getScope(GobblinScopes.INSTANCE).getScopeId(), GobblinScopes.INSTANCE.defaultId());
-    Assert.assertEquals(jobBroker.getScope(GobblinScopes.JOB).getType(), GobblinScopes.JOB);
-    Assert.assertEquals(jobBroker.getScope(GobblinScopes.JOB).getScopeId(), "job123");
+    Assert.assertEquals(jobBroker.getScope(GobblinScopeTypes.INSTANCE).getType(), GobblinScopeTypes.INSTANCE);
+    Assert.assertEquals(jobBroker.getScope(GobblinScopeTypes.INSTANCE).getClass(), GobblinScopeInstance.class);
+    Assert.assertEquals(jobBroker.getScope(GobblinScopeTypes.INSTANCE), GobblinScopeTypes.INSTANCE.defaultScopeInstance());
+    Assert.assertEquals(jobBroker.getScope(GobblinScopeTypes.JOB).getType(), GobblinScopeTypes.JOB);
+    Assert.assertEquals(jobBroker.getScope(GobblinScopeTypes.JOB).getClass(), JobScopeInstance.class);
+    Assert.assertEquals(((JobScopeInstance) jobBroker.getScope(GobblinScopeTypes.JOB)).getJobId(), "job123");
 
     try {
-      jobBroker.getScope(GobblinScopes.TASK);
+      jobBroker.getScope(GobblinScopeTypes.TASK);
       Assert.fail();
     } catch (NoSuchScopeException nsse) {
       // should throw no scope exception
@@ -117,18 +128,20 @@ public class DefaultGobblinBrokerTest {
   public void testLifecycle() throws Exception {
     Config config = ConfigFactory.empty();
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes> jobBroker = topBroker.newSubscopedBuilder(GobblinScopes.JOB, "job123").build();
-    SharedResourcesBrokerImpl<GobblinScopes>
-        containerBroker = topBroker.newSubscopedBuilder(GobblinScopes.CONTAINER, "thisContainer").build();
-    SharedResourcesBrokerImpl<GobblinScopes> taskBroker = jobBroker.newSubscopedBuilder(GobblinScopes.TASK, "taskabc")
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes>
+        containerBroker = topBroker.newSubscopedBuilder(GobblinScopeTypes.CONTAINER.defaultScopeInstance()).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> taskBroker = jobBroker.newSubscopedBuilder(new TaskScopeInstance("taskabc"))
         .withAdditionalParentBroker(containerBroker).build();
 
     // create a shared resource
     TestFactory.SharedResource jobResource =
-        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.JOB);
+        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.JOB);
     TestFactory.SharedResource taskResource =
-        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.TASK);
+        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.TASK);
 
     Assert.assertFalse(jobResource.isClosed());
     Assert.assertFalse(taskResource.isClosed());
@@ -141,7 +154,7 @@ public class DefaultGobblinBrokerTest {
 
     // since taskResource has been closed, broker should return a new instance of the object
     TestFactory.SharedResource taskResource2 =
-        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.TASK);
+        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.TASK);
     Assert.assertNotEquals(taskResource, taskResource2);
 
     topBroker.close();
