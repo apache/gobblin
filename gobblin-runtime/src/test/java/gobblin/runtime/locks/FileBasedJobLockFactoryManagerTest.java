@@ -4,7 +4,6 @@
 package gobblin.runtime.locks;
 
 import java.io.File;
-import java.io.IOException;
 
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.slf4j.Logger;
@@ -17,6 +16,8 @@ import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
+
+import gobblin.runtime.api.JobSpec;
 
 /**
  *  Unit tests for {@link FileBasedJobLockFactoryManager}
@@ -40,7 +41,7 @@ public class FileBasedJobLockFactoryManagerTest {
   }
 
   @Test
-  public void testGetJobLockFactory() throws IllegalArgumentException, IOException {
+  public void testGetJobLockFactory() throws Exception {
     final Logger log = LoggerFactory.getLogger("FileBasedJobLockFactoryManagerTest.testGetJobLockFactory");
     FileBasedJobLockFactoryManager mgr = new FileBasedJobLockFactoryManager();
 
@@ -50,6 +51,12 @@ public class FileBasedJobLockFactoryManagerTest {
     Assert.assertTrue(factory1.getLockFileDir().toString().startsWith(FileBasedJobLockFactory.DEFAULT_LOCK_DIR_PREFIX));
     Assert.assertTrue(factory1.getFs() instanceof LocalFileSystem);
     Assert.assertTrue(factory1.getFs().exists(factory1.getLockFileDir()));
+
+    JobSpec js1 = JobSpec.builder("gobblin-test:job1").build();
+    FileBasedJobLock lock11 = factory1.getJobLock(js1);
+    Assert.assertTrue(lock11.getLockFile().getName().startsWith(FileBasedJobLockFactory.getJobName(js1)));
+    Assert.assertTrue(lock11.tryLock());
+    lock11.unlock();
 
     // Lock dir should be deleted after close()
     factory1.close();

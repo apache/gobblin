@@ -22,6 +22,8 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import gobblin.configuration.ConfigurationKeys;
 
 
@@ -105,5 +107,10 @@ public class FileBasedJobLock implements JobLock {
    */
   @Override
   public void close() throws IOException {
+  }
+
+  @VisibleForTesting
+  Path getLockFile() {
+    return lockFile;
   }
 }

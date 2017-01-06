@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -57,6 +56,12 @@ public class FileBasedJobLockFactory implements JobLockFactory<FileBasedJobLock>
   public static final String LOCK_DIR_CONFIG = "lockDir";
 
   static final String DEFAULT_LOCK_DIR_PREFIX = "/tmp/gobblin-job-locks-";
+
+  /**
+   * Default waiting period (5 minutes).
+   * TODO add configuration support
+   */
+  static final long DEFAULT_WAIT_MS = 300000;
 
   private final FileSystem fs;
   private final Path lockFileDir;
@@ -216,15 +221,13 @@ public class FileBasedJobLockFactory implements JobLockFactory<FileBasedJobLock>
 
   @Override
   public FileBasedJobLock getJobLock(JobSpec jobSpec) throws TimeoutException {
-    // TODO Auto-generated method stub
-    return null;
+    String jobName = getJobName(jobSpec);
+    return new FileBasedJobLock(jobName, this);
   }
 
-  @Override
-  public FileBasedJobLock getJobLock(JobSpec jobSpec, long timeoutDuration, TimeUnit timeoutUnit)
-      throws TimeoutException {
-    // TODO Auto-generated method stub
-    return null;
+  @VisibleForTesting
+  static String getJobName(JobSpec jobSpec) {
+    return jobSpec.getUri().toString().replaceAll("[/.:]", "_");
   }
 
   @VisibleForTesting
