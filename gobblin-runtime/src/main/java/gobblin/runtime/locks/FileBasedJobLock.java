@@ -40,11 +40,6 @@ public class FileBasedJobLock implements JobLock {
   public static final String JOB_LOCK_DIR = "job.lock.dir";
   public static final String LOCK_FILE_EXTENSION = ".lock";
 
-  /** The URI of the file system with the directory for lock files*/
-  public static final String FS_URI_CONFIG = "fsURI";
-  /** The path to the directory for lock files*/
-  public static final String LOCK_DIR_CONFIG = "lockDir";
-
   private final FileBasedJobLockFactory parent;
   private final Path lockFile;
 
