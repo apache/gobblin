@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2016 Swisscom All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metrics.graphite;
@@ -40,16 +45,16 @@ import static gobblin.metrics.Measurements.*;
 
 /**
  * Graphite reporter for metrics
- * 
+ *
  * @author Lorand Bendig
  *
  */
 public class GraphiteReporter extends ConfiguredScheduledReporter {
 
   private final GraphitePusher graphitePusher;
-  
+
   private static final Logger LOGGER = LoggerFactory.getLogger(GraphiteReporter.class);
-  
+
   public GraphiteReporter(Builder<?> builder, Config config) throws IOException {
     super(builder, config);
     if (builder.graphitePusher.isPresent()) {
@@ -58,7 +63,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
       this.graphitePusher = this.closer.register(new GraphitePusher(builder.hostname, builder.port, builder.connectionType));
     }
   }
-  
+
   /**
    * A static factory class for obtaining new {@link gobblin.metrics.graphite.GraphiteReporter.Builder}s
    *
@@ -78,20 +83,20 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
       return this;
     }
   }
-  
+
   /**
    * Builder for {@link GraphiteReporter}. Defaults to no filter, reporting rates in seconds and times in
    * milliseconds using TCP sending type
    */
   public static abstract class Builder<T extends ConfiguredScheduledReporter.Builder<T>> extends
-      ConfiguredScheduledReporter.Builder<T> {  
-    
+      ConfiguredScheduledReporter.Builder<T> {
+
     protected MetricFilter filter;
     protected String hostname;
     protected int port;
     protected GraphiteConnectionType connectionType;
     protected Optional<GraphitePusher> graphitePusher;
-    
+
     protected Builder() {
       super();
       this.name = "GraphiteReporter";
@@ -99,7 +104,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
       this.filter = MetricFilter.ALL;
       this.connectionType = GraphiteConnectionType.TCP;
     }
-    
+
     /**
      * Set {@link gobblin.metrics.graphite.GraphitePusher} to use.
      */
@@ -107,7 +112,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
       this.graphitePusher = Optional.of(pusher);
       return self();
     }
-    
+
     /**
      * Set connection parameters for the {@link gobblin.metrics.graphite.GraphitePusher} creation
      */
@@ -116,7 +121,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
       this.port = port;
       return self();
     }
-    
+
     /**
      * Set {@link gobblin.metrics.graphite.GraphiteConnectionType} to use.
      */
@@ -124,7 +129,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
       this.connectionType = connectionType;
       return self();
     }
-    
+
     /**
      * Only report metrics which match the given filter.
      *
@@ -135,7 +140,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
       this.filter = filter;
       return self();
     }
-    
+
     /**
      * Builds and returns {@link GraphiteReporter}.
      *
@@ -147,12 +152,12 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
           Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX)));
     }
   }
-  
+
   @Override
   protected void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
       Map<String, Object> tags) {
-    
+
     String prefix = getMetricNamePrefix(tags);
     long timestamp = System.currentTimeMillis() / 1000l;
 
@@ -188,12 +193,12 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
       }
     }
   }
-  
+
   private void reportGauge(String prefix, String name, Gauge gauge, long timestamp) throws IOException {
     String metricName = getKey(prefix, name);
     pushMetric(metricName, gauge.getValue().toString(), timestamp);
   }
-  
+
   private void reportCounter(String prefix, String name, Counting counter, long timestamp) throws IOException {
     String metricName = getKey(prefix, name, COUNT.getName());
     pushMetric(metricName, counter.getCount(), false, timestamp);
@@ -203,7 +208,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
     reportCounter(prefix, name, histogram, timestamp);
     reportSnapshot(prefix, name, histogram.getSnapshot(), timestamp, false);
   }
-  
+
   private void reportTimer(String prefix, String name, Timer timer, long timestamp) throws IOException {
     reportSnapshot(prefix, name, timer.getSnapshot(), timestamp, true);
     reportMetered(prefix, name, timer, timestamp);
@@ -223,7 +228,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
     pushMetric(getKey(baseMetricName, PERCENTILE_99TH), snapshot.get99thPercentile(), convertDuration, timestamp);
     pushMetric(getKey(baseMetricName, PERCENTILE_999TH), snapshot.get999thPercentile(), convertDuration, timestamp);
   }
-  
+
   private void reportMetered(String prefix, String name, Metered metered, long timestamp) throws IOException {
     reportCounter(prefix, name, metered, timestamp);
     String baseMetricName = getKey(prefix, name);
@@ -232,7 +237,7 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
     pushMetricRate(getKey(baseMetricName, RATE_15MIN), metered.getFifteenMinuteRate(), timestamp);
     pushMetricRate(getKey(baseMetricName, MEAN_RATE), metered.getMeanRate(), timestamp);
   }
-  
+
   private void pushMetric(String metricName, Number value, boolean toDuration, long timestamp) throws IOException {
     String metricValue = toDuration ? getValue(convertDuration(value.doubleValue())) : getValue(value);
     pushMetric(metricName, metricValue, timestamp);
@@ -242,17 +247,17 @@ public class GraphiteReporter extends ConfiguredScheduledReporter {
       throws IOException {
     pushMetric(metricName, getValue(convertRate(value)), timestamp);
   }
-  
+
   private void pushMetric(String name, String value, long timestamp) throws IOException {
     this.graphitePusher.push(name, value, timestamp);
   }
-  
+
   private String getValue(Number value) {
     return value.toString();
   }
-  
+
   private String getKey(String baseName, Measurements measurements) {
-    return getKey(baseName, measurements.getName()); 
+    return getKey(baseName, measurements.getName());
   }
 
   private String getKey(String... keys) {

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2016 Swisscom All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metrics.influxdb;
@@ -45,16 +50,16 @@ import static gobblin.metrics.Measurements.*;
 
 /**
  * InfluxDB reporter for metrics
- * 
+ *
  * @author Lorand Bendig
  *
  */
 public class InfluxDBReporter extends ConfiguredScheduledReporter {
 
   private final InfluxDBPusher influxDBPusher;
-  
+
   private static final Logger LOGGER = LoggerFactory.getLogger(InfluxDBReporter.class);
-  
+
   public InfluxDBReporter(Builder<?> builder, Config config) {
     super(builder, config);
     if (builder.influxDBPusher.isPresent()) {
@@ -85,14 +90,14 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
       return this;
     }
   }
-  
+
   /**
    * Builder for {@link InfluxDBReporter}. Defaults to no filter, reporting rates in seconds and times in
    * milliseconds using TCP sending type
    */
   public static abstract class Builder<T extends ConfiguredScheduledReporter.Builder<T>> extends
-      ConfiguredScheduledReporter.Builder<T> {  
-    
+      ConfiguredScheduledReporter.Builder<T> {
+
     protected MetricFilter filter;
     protected String url;
     protected String username;
@@ -100,7 +105,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
     protected String database;
     protected InfluxDBConnectionType connectionType;
     protected Optional<InfluxDBPusher> influxDBPusher;
-    
+
     protected Builder() {
       super();
       this.name = "InfluxDBReporter";
@@ -108,7 +113,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
       this.filter = MetricFilter.ALL;
       this.connectionType = InfluxDBConnectionType.TCP;
     }
-    
+
     /**
      * Set {@link gobblin.metrics.influxdb.InfluxDBPusher} to use.
      */
@@ -116,7 +121,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
       this.influxDBPusher = Optional.of(pusher);
       return self();
     }
-    
+
     /**
      * Set connection parameters for the {@link gobblin.metrics.influxdb.InfluxDBPusher} creation
      */
@@ -127,7 +132,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
       this.database = database;
       return self();
     }
-    
+
     /**
      * Set {@link gobblin.metrics.influxdb.InfluxDBConnectionType} to use.
      */
@@ -135,7 +140,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
       this.connectionType = connectionType;
       return self();
     }
-    
+
     /**
      * Only report metrics which match the given filter.
      *
@@ -146,7 +151,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
       this.filter = filter;
       return self();
     }
-    
+
     /**
      * Builds and returns {@link InfluxDBReporter}.
      *
@@ -157,16 +162,16 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
           Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX)));
     }
   }
-  
+
   @Override
   protected void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters,
       SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers,
       Map<String, Object> tags) {
-    
+
     String prefix = getMetricNamePrefix(tags);
     long timestamp = System.currentTimeMillis();
     List<Point> points = Lists.newArrayList();
-    
+
     try {
       for (Map.Entry<String, Gauge> gauge : gauges.entrySet()) {
         reportGauge(points, prefix, gauge.getKey(), gauge.getValue(), timestamp);
@@ -187,14 +192,14 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
       for (Map.Entry<String, Timer> timer : timers.entrySet()) {
         reportTimer(points, prefix, timer.getKey(), timer.getValue(), timestamp);
       }
-      
+
       influxDBPusher.push(points);
 
     } catch (IOException ioe) {
       LOGGER.error("Error sending metrics to InfluxDB", ioe);
     }
   }
-  
+
   private void reportGauge(List<Point> points, String prefix, String name, Gauge gauge, long timestamp)
       throws IOException {
     String metricName = getKey(prefix, name);
@@ -233,7 +238,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
     points.add(buildMetricAsPoint(getKey(baseMetricName, PERCENTILE_99TH), snapshot.get99thPercentile(), convertDuration, timestamp));
     points.add(buildMetricAsPoint(getKey(baseMetricName, PERCENTILE_999TH), snapshot.get999thPercentile(), convertDuration, timestamp));
   }
-  
+
   private void reportMetered(List<Point> points, String prefix, String name, Metered metered, long timestamp)
       throws IOException {
     reportCounter(points,prefix, name, metered, timestamp);
@@ -243,7 +248,7 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
     points.add(buildRateAsPoint(getKey(baseMetricName, RATE_15MIN), metered.getFifteenMinuteRate(), timestamp));
     points.add(buildRateAsPoint(getKey(baseMetricName, MEAN_RATE), metered.getMeanRate(), timestamp));
   }
-  
+
   private Point buildMetricAsPoint(String metricName, Number value, boolean toDuration, long timestamp)
       throws IOException {
     Number metricValue = toDuration ? convertDuration(value.doubleValue()) : value;
@@ -254,17 +259,17 @@ public class InfluxDBReporter extends ConfiguredScheduledReporter {
       throws IOException {
     return buildMetricAsPoint(metricName, convertRate(value), timestamp);
   }
-  
+
   private Point buildMetricAsPoint(String name, Object value, long timestamp) throws IOException {
     return Point.measurement(name).field("value", value).time(timestamp, TimeUnit.MILLISECONDS).build();
   }
-  
+
   private String getKey(String baseName, Measurements measurements) {
-    return getKey(baseName, measurements.getName()); 
+    return getKey(baseName, measurements.getName());
   }
 
   private String getKey(String... keys) {
     return JOINER.join(keys);
   }
-  
+
 }

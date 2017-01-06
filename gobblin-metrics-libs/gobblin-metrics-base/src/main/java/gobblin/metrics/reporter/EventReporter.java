@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metrics.reporter;
@@ -154,8 +159,8 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
 
   /**
    * Constructs the metric key to be emitted.
-   * The actual event name is enriched with the current job and task id to be able to keep track of its origin 
-   * 
+   * The actual event name is enriched with the current job and task id to be able to keep track of its origin
+   *
    * @param metadata metadata of the actual {@link GobblinTrackingEvent}
    * @param eventName name of the actual {@link GobblinTrackingEvent}
    * @return prefix of the metric key
@@ -164,7 +169,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     return JOINER.join(METRIC_KEY_PREFIX, metadata.get(METADATA_JOB_ID), metadata.get(METADATA_TASK_ID),
         EVENTS_QUALIFIER, eventName);
   }
-  
+
   private void immediatelyScheduleReport() {
     this.immediateReportExecutor.submit(new Runnable() {
       @Override

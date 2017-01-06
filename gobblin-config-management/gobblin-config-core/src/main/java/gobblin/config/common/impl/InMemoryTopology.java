@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2015 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.config.common.impl;
@@ -29,7 +34,7 @@ import gobblin.config.store.api.ConfigKeyPath;
 
 /**
  * InMemoryTopology will return stale data if the internal config store is Not {@link ConfigStoreWithStableVersioning}
- * 
+ *
  * @author mitu
  *
  */
@@ -82,7 +87,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
     // traversal the ownImports map to get the recursive imports map and set recursive imported by map
     for (ConfigKeyPath configKey : this.ownImportMap.keySet()) {
       List<ConfigKeyPath> recursiveImports = null;
-      // result may in the cache already 
+      // result may in the cache already
       if (this.recursiveImportMap.containsKey(configKey)) {
         recursiveImports = this.recursiveImportMap.get(configKey);
       } else {
@@ -263,7 +268,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    * <p>
    *   If the result is already in cache, return the result.
    *   Otherwise, delegate the functionality to the fallback object.
-   *   
+   *
    *   If the fallback did not support this operation, will build the entire topology of the {@link ConfigStore}
    *   using default breath first search.
    * </p>
@@ -290,7 +295,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    * <p>
    *   If the result is already in cache, return the result.
    *   Otherwise, delegate the functionality to the fallback object.
-   *   
+   *
    *   If the fallback did not support this operation, will build the entire topology of the {@link ConfigStore}
    *   using default breath first search.
    * </p>
@@ -330,7 +335,7 @@ public class InMemoryTopology implements ConfigStoreTopologyInspector {
    * <p>
    *   If the result is already in cache, return the result.
    *   Otherwise, delegate the functionality to the fallback object.
-   *   
+   *
    *   If the fallback did not support this operation, will build the entire topology of the {@link ConfigStore}
    *   using default breath first search.
    * </p>

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2015 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.config.common.impl;
@@ -19,33 +24,33 @@ import gobblin.config.store.api.ConfigKeyPath;
 
 /**
  * The ConfigStoreTopology interface used to describe the topology of a configuration store.
- * 
- * Each node in the configuration store is represented as one {@link ConfigKeyPath}, so the topology of 
+ *
+ * Each node in the configuration store is represented as one {@link ConfigKeyPath}, so the topology of
  * any node includes:
- * 
+ *
  * 1. The link to it's parent ( already defined in {@link ConfigKeyPath} )
  * 2. All the direct children of the node.
  * 3. The node's directly outgoing imports links. ( defined as getOwnImports() )
  * 4. Other nodes which directly imports the node. ( defined as getImportedBy() )
  * 5. The node's directly and indirectly imports links. ( defined as getImportsRecursively )
  * 6. Other nodes which directly and indirectly imports the node. ( defined as getImportedByRecursively() )
- * 
+ *
  * @author mitu
  *
  */
 public interface ConfigStoreTopologyInspector {
 
   /**
-   * Obtains the direct children config keys for a given config key. 
+   * Obtains the direct children config keys for a given config key.
    *
    * @param  configKey      the config key path whose children are necessary.
    * @return the direct children config key paths
    */
   public Collection<ConfigKeyPath> getChildren(ConfigKeyPath configKey);
-  
+
   /**
    * @param configKey   the config key path which to get own imports.
-   * @return the paths of the directly imported config keys for the specified config key 
+   * @return the paths of the directly imported config keys for the specified config key
    * Note that order is significant the earlier ConfigKeyPath in the List will have higher priority
    * when resolving configuration conflicts.
    */

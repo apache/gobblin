@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.extract.jdbc;
@@ -49,7 +54,7 @@ import gobblin.source.workunit.WorkUnit;
  */
 @Slf4j
 public class OracleExtractor extends JdbcExtractor {
-  
+
   private static final String TIMESTAMP_FORMAT = "yyyy-MM-dd HH:mm:ss";
   private static final String HOUR_FORMAT = "HH";
 
@@ -58,7 +63,7 @@ public class OracleExtractor extends JdbcExtractor {
       Pattern.compile(".*(rownum\\s*<\\s*=\\s*(\\d+)).*", Pattern.CASE_INSENSITIVE);
 
   private static final String EMPTY_CONDITION = "1=1";
-  
+
   private static final String METADATA_SCHEMA_PSTMT_FORMAT =
       "SELECT " +
         "column_name, " +
@@ -77,7 +82,7 @@ public class OracleExtractor extends JdbcExtractor {
         "AND UPPER(table_name) = (?) " +
         "ORDER BY " +
         "column_id, column_name";
-  
+
   private static Map<String, String> dataTypeMap = ImmutableMap.<String, String> builder()
       .put("char", "string")
       .put("varchar2", "string")
@@ -123,11 +128,11 @@ public class OracleExtractor extends JdbcExtractor {
       .put("timestamp with time zone", "timestamp")
       .put("timezone with local timezone", "timestamp")
       .build();
-  
+
   public OracleExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
   }
-  
+
   @Override
   public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
     log.debug("Build query to get schema");
@@ -193,7 +198,7 @@ public class OracleExtractor extends JdbcExtractor {
     commands.add(JdbcExtractor.getCommand(fetchSize, JdbcCommand.JdbcCommandType.FETCHSIZE));
     return commands;
   }
-  
+
   @Override
   public Map<String, String> getDataTypeMap() {
     return dataTypeMap;
@@ -216,7 +221,7 @@ public class OracleExtractor extends JdbcExtractor {
     }
     return recordcount;
   }
-  
+
   @Override
   public String removeSampleClauseFromQuery(String query) {
     if (StringUtils.isBlank(query)) {
@@ -228,7 +233,7 @@ public class OracleExtractor extends JdbcExtractor {
     }
     return query;
   }
-  
+
   @Override
   public String constructSampleClause() {
     long sampleRowCount = this.getSampleRecordCount();
@@ -283,7 +288,7 @@ public class OracleExtractor extends JdbcExtractor {
     log.debug("Getting date predicate for Oracle");
     return getTimestampPredicateCondition(column, value, valueFormat, operator);
   }
-  
+
   /**
    * Oracle timestamp can go up to 9 digit precision. Existing behavior of Gobblin on extractor is to support
    * up to second and Oracle extractor will keep the same behavior.
@@ -308,7 +313,7 @@ public class OracleExtractor extends JdbcExtractor {
     query = query.replaceFirst(where, String.format("where %s and ", sampleClause));
     return query;
   }
-  
+
   private String castCountQuery(String query) {
     if (this.getSampleRecordCount() >= 0) {
       return "select cast(count(1) as number) from (" + query.replace(" count(1) ", " * ") + ")temp";
@@ -316,5 +321,5 @@ public class OracleExtractor extends JdbcExtractor {
       return query.replace("count(1)", "cast(count(1) as number)");
     }
   }
-  
+
 }
