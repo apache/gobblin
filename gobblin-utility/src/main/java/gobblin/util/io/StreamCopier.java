@@ -17,6 +17,7 @@
 
 package gobblin.util.io;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,6 +27,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
 import com.codahale.metrics.Meter;
+
+import gobblin.util.limiter.Limiter;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -43,6 +46,7 @@ public class StreamCopier {
   private final WritableByteChannel outputChannel;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private Meter copySpeedMeter;
+  private Limiter bytesTransferredLimiter;
   private boolean closeChannelsOnComplete = false;
   private volatile boolean copied = false;
 
@@ -72,6 +76,15 @@ public class StreamCopier {
   }
 
   /**
+   * Set a {@link Limiter} to throttle the bytes transferred. Before filling the buffer, the copier will request
+   * as many permits as bytes fit in the buffer.
+   */
+  public StreamCopier withBytesTransferedLimiter(Limiter limiter) {
+    this.bytesTransferredLimiter = limiter;
+    return this;
+  }
+
+  /**
    * Close the input and output {@link java.nio.channels.Channel}s after copy, whether the copy was successful or not.
    */
   public StreamCopier closeChannelsOnComplete() {
@@ -96,7 +109,7 @@ public class StreamCopier {
       long totalBytesRead = 0;
 
       final ByteBuffer buffer = ByteBuffer.allocateDirect(this.bufferSize);
-      while ((bytesRead = this.inputChannel.read(buffer)) != -1) {
+      while ((bytesRead = fillBufferFromInputChannel(buffer)) != -1) {
         totalBytesRead += bytesRead;
         // flip the buffer to be written
         buffer.flip();
@@ -122,4 +135,32 @@ public class StreamCopier {
       }
     }
   }
+
+  private long fillBufferFromInputChannel(ByteBuffer buffer) throws IOException {
+    try (Closeable permit = this.bytesTransferredLimiter == null ? NOOP_CLOSEABLE :
+        this.bytesTransferredLimiter.acquirePermits(this.bufferSize)) {
+      if (permit == null) {
+        throw new NotEnoughPermitsException();
+      }
+      return this.inputChannel.read(buffer);
+    } catch (InterruptedException ie) {
+      throw new IOException("Stream copier was interrupted!", ie);
+    }
+  }
+
+  /**
+   * Indicates there were not enough permits in the {@link Limiter} to finish the copy.
+   */
+  public static class NotEnoughPermitsException extends IOException {
+    private NotEnoughPermitsException() {
+      super("Not enough permits to perform stream copy.");
+    }
+  }
+
+  private static Closeable NOOP_CLOSEABLE = new Closeable() {
+    @Override
+    public void close() throws IOException {
+      // nothing to do
+    }
+  };
 }
