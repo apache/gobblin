@@ -77,6 +77,9 @@ artifacts {
 
 test {
     workingDir rootProject.rootDir
+    if (project.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(project.usePreinstalledMysql)) {
+      jvmArgs '-Dgobblin.metastore.testing.embeddedMysqlEnabled=false'
+    }
 }
 
 ext.classification="library"
