@@ -17,6 +17,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import org.reflections.Reflections;
+import org.reflections.util.ConfigurationBuilder;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -38,16 +39,17 @@ import gobblin.annotation.Alias;
  *
  * <br>
  * <b>
- *   Note: For the moment this class will only look for classes with gobblin prefix, as scanning the entire classpath is
- *   very expensive.
+ *   Note: For the moment this class will only look for classes with gobblin/com.linkedin.gobblin prefix, as scanning
+ *   the entire classpath is very expensive.
  * </b>
  */
 @Slf4j
 public class ClassAliasResolver<T> {
 
-  // Scan all packages in the classpath with prefix gobblin when class is loaded.
+  // Scan all packages in the classpath with prefix gobblin, com.linkedin.gobblin when class is loaded.
   // Since scan is expensive we do it only once when class is loaded.
-  private static final Reflections REFLECTIONS = new Reflections("gobblin");
+  private static final Reflections REFLECTIONS = new Reflections(new ConfigurationBuilder().forPackages("gobblin",
+      "com.linkedin.gobblin"));
 
   Map<String, Class<? extends T>> aliasToClassCache;
   private final List<Alias> aliasObjects;

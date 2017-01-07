@@ -14,6 +14,9 @@ package gobblin.util;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.linkedin.gobblin.TestAlias.DummyAliasCom;
+import com.linkedin.gobblin.TestAlias.IDummyAliasCom;
+
 import gobblin.annotation.Alias;
 
 @Test(groups = { "gobblin.api.util"})
@@ -23,6 +26,14 @@ public class ClassAliasResolverTest {
   public void testResolve() {
     ClassAliasResolver<IDummyAliasTest> resolver = new ClassAliasResolver<>(IDummyAliasTest.class);
     Assert.assertEquals(resolver.resolve("abc"), DummyAliasTest.class.getName());
+    // Resolve returns the passed string if alias mapping does not exist
+    Assert.assertEquals(resolver.resolve("abcd"), "abcd");
+  }
+
+  @Test
+  public void testResolveComGobblinPackage() {
+    ClassAliasResolver<IDummyAliasCom> resolver = new ClassAliasResolver<>(IDummyAliasCom.class);
+    Assert.assertEquals(resolver.resolve("com.alias"), DummyAliasCom.class.getName());
     // Resolve returns the passed string if alias mapping does not exist
     Assert.assertEquals(resolver.resolve("abcd"), "abcd");
   }
