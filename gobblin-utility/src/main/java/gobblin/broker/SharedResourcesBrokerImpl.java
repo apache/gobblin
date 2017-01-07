@@ -39,7 +39,6 @@ import gobblin.broker.iface.SharedResourceKey;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.util.ConfigUtils;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.Data;
 
@@ -56,29 +55,26 @@ import lombok.Data;
 public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements SharedResourcesBroker<S> {
 
   private final DefaultBrokerCache<S> brokerCache;
-  private final ScopeImpl<S> selfScope;
+  private final ScopeWrapper<S> selfScopeWrapper;
   private final List<ScopedConfig<S>> scopedConfigs;
-  private final ImmutableMap<S, ScopeImpl<S>> ancestorScopesByType;
+  private final ImmutableMap<S, ScopeWrapper<S>> ancestorScopesByType;
 
-  SharedResourcesBrokerImpl(DefaultBrokerCache<S> brokerCache, ScopeImpl<S> selfScope,
+  SharedResourcesBrokerImpl(DefaultBrokerCache<S> brokerCache, ScopeWrapper<S> selfScope,
       List<ScopedConfig<S>> scopedConfigs) {
     this.brokerCache = brokerCache;
-    this.selfScope = selfScope;
+    this.selfScopeWrapper = selfScope;
     this.scopedConfigs = scopedConfigs;
     this.ancestorScopesByType = computeScopeMap(selfScope);
   }
 
   @Override
   public ScopeInstance<S> selfScope() {
-    return this.selfScope;
+    return this.selfScopeWrapper.getScope();
   }
 
   @Override
-  public ScopeImpl<S> getScope(S scopeType) throws NoSuchScopeException {
-    if (!this.ancestorScopesByType.containsKey(scopeType)) {
-      throw new NoSuchScopeException(scopeType);
-    }
-    return this.ancestorScopesByType.get(scopeType);
+  public ScopeInstance<S> getScope(S scopeType) throws NoSuchScopeException {
+    return getWrappedScope(scopeType).getScope();
   }
 
   @Override
@@ -95,7 +91,7 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
   public <T, K extends SharedResourceKey> T getSharedResourceAtScope(SharedResourceFactory<T, K, S> factory, K key,
       S scope) throws NotConfiguredException, NoSuchScopeException {
     try {
-      return this.brokerCache.getScoped(factory, key, getScope(scope), this);
+      return this.brokerCache.getScoped(factory, key, getWrappedScope(scope), this);
     } catch (ExecutionException ee) {
       throw new RuntimeException(ee);
     }
@@ -108,7 +104,7 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
 
     Config config = ConfigFactory.empty();
     for (ScopedConfig<S> scopedConfig : this.scopedConfigs) {
-      if (scopedConfig.getScopeType() == null) {
+      if (scopedConfig.getScopeType().equals(scopedConfig.getScopeType().rootScope())) {
         config = ConfigUtils.getConfigOrEmpty(scopedConfig.getConfig(), factoryName).withFallback(config);
       } else if (scope != null && SharedResourcesBrokerUtils.isScopeTypeAncestor(scope, scopedConfig.getScopeType())) {
         config = ConfigUtils.getConfigOrEmpty(scopedConfig.getConfig(), factoryName).getConfig(scope.name())
@@ -119,12 +115,22 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
     return new KeyedScopedConfigViewImpl<>(scope, key, factoryName, config);
   }
 
+  ScopeWrapper<S> getWrappedScope(S scopeType) throws NoSuchScopeException {
+    if (!this.ancestorScopesByType.containsKey(scopeType)) {
+      throw new NoSuchScopeException(scopeType);
+    }
+    return this.ancestorScopesByType.get(scopeType);
+  }
+
+  ScopeWrapper<S> getWrappedSelfScope() {
+    return this.selfScopeWrapper;
+  }
+
   /**
    * Stores overrides of {@link Config} applicable to a specific {@link ScopeType} and its descendants.
    */
   @Data
   static class ScopedConfig<T extends ScopeType<T>> {
-    @Nullable
     private final T scopeType;
     private final Config config;
   }
@@ -133,42 +139,41 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
    * Get a builder to create a descendant {@link SharedResourcesBrokerImpl} (i.e. its leaf scope is a descendant of this
    * broker's leaf scope) and the same backing {@link DefaultBrokerCache}.
    *
-   * @param scopeType {@link ScopeType} of the leaf scope of the new {@link SharedResourcesBrokerImpl}.
-   * @param scopeId id of the leaf scope of the new {@link SharedResourcesBrokerImpl}.
+   * @param subscope the {@link ScopeInstance} of the new {@link SharedResourcesBroker}.
    * @return a {@link SubscopedBrokerBuilder}.
    */
-  public SubscopedBrokerBuilder newSubscopedBuilder(S scopeType, String scopeId) {
-    return new SubscopedBrokerBuilder(scopeType, scopeId);
+  @Override
+  public SubscopedBrokerBuilder newSubscopedBuilder(ScopeInstance<S> subscope) {
+    return new SubscopedBrokerBuilder(subscope);
   }
 
   /**
    * A builder used to create a descendant {@link SharedResourcesBrokerImpl} with the same backing {@link DefaultBrokerCache}.
    */
   @NotThreadSafe
-  public class SubscopedBrokerBuilder {
-    private final S scopeType;
-    private final String scopeId;
-    private final Map<S, ScopeImpl<S>> ancestorScopes = Maps.newHashMap();
+  public class SubscopedBrokerBuilder implements gobblin.broker.iface.SubscopedBrokerBuilder<S, SharedResourcesBrokerImpl<S>> {
+    private final ScopeInstance<S> scope;
+    private final Map<S, ScopeWrapper<S>> ancestorScopes = Maps.newHashMap();
     private Config config = ConfigFactory.empty();
 
-    private SubscopedBrokerBuilder(S scopeType, String scopeId) {
-      this.scopeType = scopeType;
-      this.scopeId = scopeId;
+    private SubscopedBrokerBuilder(ScopeInstance<S> scope) {
+      this.scope = scope;
 
-      if (SharedResourcesBrokerImpl.this.selfScope != null) {
-        ancestorScopes.put(SharedResourcesBrokerImpl.this.selfScope.getType(), SharedResourcesBrokerImpl.this.selfScope);
+      if (SharedResourcesBrokerImpl.this.selfScopeWrapper != null) {
+        ancestorScopes.put(SharedResourcesBrokerImpl.this.selfScopeWrapper.getType(), SharedResourcesBrokerImpl.this.selfScopeWrapper);
       }
     }
 
     /**
      * Specify additional ancestor {@link SharedResourcesBrokerImpl}. Useful when a {@link ScopeType} has multiple parents.
      */
-    public SubscopedBrokerBuilder withAdditionalParentBroker(SharedResourcesBrokerImpl<S> broker) {
-      if (!broker.brokerCache.equals(SharedResourcesBrokerImpl.this.brokerCache)) {
+    public SubscopedBrokerBuilder withAdditionalParentBroker(SharedResourcesBroker<S> broker) {
+      if (!(broker instanceof SharedResourcesBrokerImpl) ||
+          !((SharedResourcesBrokerImpl) broker).brokerCache.equals(SharedResourcesBrokerImpl.this.brokerCache)) {
         throw new IllegalArgumentException("Additional parent broker is not compatible.");
       }
 
-      this.ancestorScopes.put(broker.selfScope().getType(), (ScopeImpl<S>) broker.selfScope());
+      this.ancestorScopes.put(broker.selfScope().getType(), ((SharedResourcesBrokerImpl<S>) broker).selfScopeWrapper);
       return this;
     }
 
@@ -187,32 +192,39 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
      */
     public SharedResourcesBrokerImpl<S> build() {
 
-      ScopeImpl<S> newScope = createScope(this.scopeType, this.scopeId, this.ancestorScopes, this.scopeType);
+      ScopeWrapper<S> newScope = createWrappedScope(this.scope, this.ancestorScopes, this.scope.getType());
 
-      if (SharedResourcesBrokerImpl.this.selfScope != null && !SharedResourcesBrokerUtils.isScopeAncestor(newScope, SharedResourcesBrokerImpl.this.selfScope)) {
-        throw new IllegalArgumentException(String.format("Child scope %s must be a child of leaf scope %s.", scopeType,
-            SharedResourcesBrokerImpl.this.selfScope.getType()));
+      if (SharedResourcesBrokerImpl.this.selfScopeWrapper != null && !SharedResourcesBrokerUtils.isScopeAncestor(newScope, SharedResourcesBrokerImpl.this.selfScopeWrapper)) {
+        throw new IllegalArgumentException(String.format("Child scope %s must be a child of leaf scope %s.", newScope.getType(),
+            SharedResourcesBrokerImpl.this.selfScopeWrapper.getType()));
       }
 
       List<ScopedConfig<S>> scopedConfigs = Lists.newArrayList(SharedResourcesBrokerImpl.this.scopedConfigs);
       if (!this.config.isEmpty()) {
-        scopedConfigs.add(new ScopedConfig<>(this.scopeType, this.config));
+        scopedConfigs.add(new ScopedConfig<>(newScope.getType(), this.config));
       }
 
       return new SharedResourcesBrokerImpl<>(SharedResourcesBrokerImpl.this.brokerCache, newScope, scopedConfigs);
     }
 
-    private ScopeImpl<S> createScope(S scopeType, String scopeId, Map<S, ScopeImpl<S>> ancestorScopes, S mainScopeType)
+    private ScopeWrapper<S> createWrappedScope(ScopeInstance<S> scope, Map<S, ScopeWrapper<S>> ancestorScopes, S mainScopeType)
         throws IllegalArgumentException {
 
-      List<ScopeImpl<S>> parentScopes = Lists.newArrayList();
+      List<ScopeWrapper<S>> parentScopes = Lists.newArrayList();
+
+      ScopeType<S> scopeType = scope.getType();
 
       if (scopeType.parentScopes() != null) {
         for (S tpe : scopeType.parentScopes()) {
           if (ancestorScopes.containsKey(tpe)) {
             parentScopes.add(ancestorScopes.get(tpe));
-          } else if (tpe.defaultId() != null) {
-            parentScopes.add(createScope(tpe, tpe.defaultId(), ancestorScopes, mainScopeType));
+          } else if (tpe.defaultScopeInstance() != null) {
+            ScopeInstance<S> defaultInstance = tpe.defaultScopeInstance();
+            if (!defaultInstance.getType().equals(tpe)) {
+              throw new RuntimeException(String.format("Default scope instance %s for scope type %s is not of type %s.",
+                  defaultInstance, tpe, tpe));
+            }
+            parentScopes.add(createWrappedScope(tpe.defaultScopeInstance(), ancestorScopes, mainScopeType));
           } else {
             throw new IllegalArgumentException(String.format(
                 "Scope %s is an ancestor of %s, however it does not have a default id and is not provided as an acestor scope.",
@@ -221,29 +233,29 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
         }
       }
 
-      return new ScopeImpl<>(scopeType, scopeId, parentScopes);
+      return new ScopeWrapper<>(scope.getType(), scope, parentScopes);
     }
 
   }
 
-  private ImmutableMap<S, ScopeImpl<S>> computeScopeMap(ScopeImpl<S> leafScope) {
-    Map<S, ScopeImpl<S>> scopeMap = Maps.newHashMap();
+  private ImmutableMap<S, ScopeWrapper<S>> computeScopeMap(ScopeWrapper<S> leafScope) {
+    Map<S, ScopeWrapper<S>> scopeMap = Maps.newHashMap();
 
     if (leafScope == null) {
       return ImmutableMap.copyOf(scopeMap);
     }
 
-    Queue<ScopeImpl<S>> ancestors = new LinkedList<>();
+    Queue<ScopeWrapper<S>> ancestors = new LinkedList<>();
     ancestors.add(leafScope);
 
     while (!ancestors.isEmpty()) {
-      ScopeImpl<S> scope = ancestors.poll();
+      ScopeWrapper<S> scope = ancestors.poll();
       if (!scopeMap.containsKey(scope.getType())) {
         scopeMap.put(scope.getType(), scope);
       } else if (!scopeMap.get(scope.getType()).equals(scope)) {
         throw new IllegalStateException(String.format("Scope %s:%s has two ancestors with scope %s but different identity: %s and %s.",
-            leafScope.getType(), leafScope.getScopeId(), scope.getType(), scope.getScopeId(),
-            scopeMap.get(scope.getType()).getScopeId()));
+            leafScope.getType(), leafScope.getScope(), scope.getType(), scope.getScope(),
+            scopeMap.get(scope.getType()).getScope()));
       }
       ancestors.addAll(scope.getParentScopes());
     }
@@ -268,20 +280,20 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
     if (!ancestorScopesByType.equals(that.ancestorScopesByType)) {
       return false;
     }
-    return selfScope != null ? selfScope.equals(that.selfScope) : that.selfScope == null;
+    return selfScopeWrapper != null ? selfScopeWrapper.equals(that.selfScopeWrapper) : that.selfScopeWrapper == null;
   }
 
   @Override
   public int hashCode() {
     int result = brokerCache.hashCode();
     result = 31 * result + ancestorScopesByType.hashCode();
-    result = 31 * result + (selfScope != null ? selfScope.hashCode() : 0);
+    result = 31 * result + (selfScopeWrapper != null ? selfScopeWrapper.hashCode() : 0);
     return result;
   }
 
   @Override
   public void close()
       throws IOException {
-    this.brokerCache.close(this.selfScope);
+    this.brokerCache.close(this.selfScopeWrapper);
   }
 }

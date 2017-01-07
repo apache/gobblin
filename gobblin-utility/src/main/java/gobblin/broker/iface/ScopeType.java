@@ -56,7 +56,12 @@ public interface ScopeType<S extends ScopeType<S>> {
   Collection<S> parentScopes();
 
   /**
-   * @return a default id for this {@link ScopeType} if applicable.
+   * @return a default {@link ScopeInstance} for this {@link ScopeType}, or null if no such default exists.
    */
-  @Nullable String defaultId();
+  @Nullable ScopeInstance<S> defaultScopeInstance();
+
+  /**
+   * @return the root {@link ScopeType} in the DAG.
+   */
+  S rootScope();
 }

@@ -6,7 +6,7 @@
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,19 +15,23 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package gobblin.broker.gobblin_scopes;
 
-import gobblin.broker.iface.ScopeInstance;
-import gobblin.broker.iface.ScopeType;
-
-import lombok.Data;
+import gobblin.broker.SimpleScope;
 
 
 /**
- * A simple {@link ScopeInstance} implementation containing just a {@link ScopeType} and an string id.
+ * {@link gobblin.broker.iface.ScopeInstance} superclass for scopes used in Gobblin ingestion jobs.
  */
-@Data
-public class SimpleScope<S extends ScopeType<S>> implements ScopeInstance<S> {
-  private final S type;
-  private final String scopeId;
+public class GobblinScopeInstance extends SimpleScope<GobblinScopeTypes> {
+
+  public GobblinScopeInstance(GobblinScopeTypes type, String scopeId) {
+    super(type, scopeId);
+
+    if (!type.getBaseInstanceClass().isAssignableFrom(this.getClass())) {
+      throw new IllegalArgumentException(String.format("A scope with type %s must be a subclass of %s.", type,
+          type.getBaseInstanceClass()));
+    }
+  }
+
 }

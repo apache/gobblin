@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.ConfigView;
 import gobblin.broker.iface.ScopeType;
 import gobblin.broker.iface.ScopedConfigView;
@@ -42,7 +43,7 @@ public class TestFactory<S extends ScopeType<S>> implements SharedResourceFactor
 
   public static final String NAME = TestFactory.class.getSimpleName();
 
-  public static Config setAutoScopeLevel(Config config, GobblinScopes level) {
+  public static Config setAutoScopeLevel(Config config, GobblinScopeTypes level) {
     return ConfigFactory.parseMap(ImmutableMap.of(
         JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, NAME, AUTOSCOPE_AT), level.name()))
         .withFallback(config);
@@ -61,7 +62,7 @@ public class TestFactory<S extends ScopeType<S>> implements SharedResourceFactor
   @Override
   public S getAutoScope(SharedResourcesBroker<S> broker, ConfigView<S, TestResourceKey> config) {
     if (config.getConfig().hasPath(AUTOSCOPE_AT)) {
-      return (S) GobblinScopes.valueOf(config.getConfig().getString(AUTOSCOPE_AT));
+      return (S) GobblinScopeTypes.valueOf(config.getConfig().getString(AUTOSCOPE_AT));
     } else {
       return broker.selfScope().getType();
     }

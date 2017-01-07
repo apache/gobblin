@@ -24,29 +24,28 @@ import java.util.Set;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import gobblin.broker.iface.ScopeInstance;
 import gobblin.broker.iface.ScopeType;
 
 import javax.annotation.Nullable;
+import lombok.AllArgsConstructor;
 
 
 /**
- * Scope topology for Gobblin ingestion applications.
+ * Simple {@link ScopeType} topology with only two levels.
  */
-public enum GobblinScopes implements ScopeType<GobblinScopes> {
+@AllArgsConstructor
+public enum SimpleScopeType implements ScopeType {
 
   GLOBAL("global"),
-  INSTANCE("instance", GLOBAL),
-  JOB(null, INSTANCE),
-  CONTAINER("container", INSTANCE),
-  MULTI_TASK_ATTEMPT("multiTask", JOB, CONTAINER),
-  TASK(null, MULTI_TASK_ATTEMPT);
+  LOCAL("local", GLOBAL);
 
-  private static final Set<GobblinScopes> LOCAL_SCOPES = Sets.newHashSet(CONTAINER, TASK, MULTI_TASK_ATTEMPT);
+  private static final Set<SimpleScopeType> LOCAL_SCOPES = Sets.newHashSet(LOCAL);
 
-  private final List<GobblinScopes> parentScopes;
+  private final List<SimpleScopeType> parentScopes;
   private final String defaultId;
 
-  GobblinScopes(String defaultId, GobblinScopes... parentScopes) {
+  SimpleScopeType(String defaultId, SimpleScopeType... parentScopes) {
     this.defaultId = defaultId;
     this.parentScopes = Lists.newArrayList(parentScopes);
   }
@@ -57,14 +56,19 @@ public enum GobblinScopes implements ScopeType<GobblinScopes> {
   }
 
   @Override
-  public Collection<GobblinScopes> parentScopes() {
+  public Collection<SimpleScopeType> parentScopes() {
     return this.parentScopes;
   }
 
   @Nullable
   @Override
-  public String defaultId() {
-    return this.defaultId;
+  public ScopeInstance defaultScopeInstance() {
+    return this.defaultId == null ? null : new SimpleScope(this, this.defaultId);
+  }
+
+  @Override
+  public ScopeType rootScope() {
+    return GLOBAL;
   }
 
 }
