@@ -17,15 +17,27 @@
 
 package gobblin.writer;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
+
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.DefaultCheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
+import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.writer.test.TestPartitionAwareWriterBuilder;
 import gobblin.writer.test.TestPartitioner;
 
-import java.io.IOException;
-
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -107,4 +119,48 @@ public class PartitionedWriterTest {
     action = builder.actions.poll();
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.COMMIT);
   }
+
+  @Test
+  public void testWatermarkComputation() throws IOException {
+    testWatermarkComputation(0L, 1L, 0L);
+    testWatermarkComputation(1L, 0L, null);
+    testWatermarkComputation(0L, 0L, null);
+    testWatermarkComputation(20L, 1L, null);
+  }
+
+  public void testWatermarkComputation(Long committed, Long unacknowledged, Long expected) throws IOException {
+    State state = new State();
+    state.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TestPartitioner.class.getCanonicalName());
+
+    String defaultSource = "default";
+
+    WatermarkAwareWriter mockDataWriter = mock(WatermarkAwareWriter.class);
+    when(mockDataWriter.isWatermarkCapable()).thenReturn(true);
+    when(mockDataWriter.getCommittableWatermark()).thenReturn(Collections.singletonMap(defaultSource,
+        new DefaultCheckpointableWatermark(defaultSource, new LongWatermark(committed))));
+    when(mockDataWriter.getUnacknowledgedWatermark()).thenReturn(Collections.singletonMap(defaultSource,
+        new DefaultCheckpointableWatermark(defaultSource, new LongWatermark(unacknowledged))));
+
+    PartitionAwareDataWriterBuilder builder = mock(PartitionAwareDataWriterBuilder.class);
+    when(builder.validatePartitionSchema(any(Schema.class))).thenReturn(true);
+    when(builder.forPartition(any(GenericRecord.class))).thenReturn(builder);
+    when(builder.withWriterId(any(String.class))).thenReturn(builder);
+    when(builder.build()).thenReturn(mockDataWriter);
+
+    PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
+
+    RecordEnvelope<String> recordEnvelope = new RecordEnvelope<>("0",
+        new DefaultCheckpointableWatermark(defaultSource, new LongWatermark(0)));
+    writer.writeEnvelope(recordEnvelope);
+
+    Map<String, CheckpointableWatermark> watermark = writer.getCommittableWatermark();
+    System.out.println(watermark.toString());
+    if (expected == null) {
+      Assert.assertTrue(watermark.isEmpty(), "Expected watermark to be absent");
+    } else {
+      Assert.assertTrue(watermark.size() == 1);
+      Assert.assertEquals((long) expected, ((LongWatermark) watermark.values().iterator().next().getWatermark()).getValue());
+    }
+  }
+
 }

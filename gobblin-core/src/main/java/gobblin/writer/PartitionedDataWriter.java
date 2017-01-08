@@ -17,8 +17,6 @@
 
 package gobblin.writer;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -35,11 +33,15 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.io.Closer;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
+import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.AvroUtils;
 import gobblin.util.FinalState;
 import gobblin.writer.partitioner.WriterPartitioner;
@@ -52,7 +54,7 @@ import gobblin.writer.partitioner.WriterPartitioner;
  * @param <D> record type.
  */
 @Slf4j
-public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
+public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct, WatermarkAwareWriter<D> {
 
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
@@ -65,10 +67,12 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
   private final boolean shouldPartition;
   private final Closer closer;
   private boolean isSpeculativeAttemptSafe;
+  private boolean isWatermarkCapable;
 
   public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state)
       throws IOException {
     this.isSpeculativeAttemptSafe = true;
+    this.isWatermarkCapable = true;
     this.baseWriterId = builder.getWriterId();
     this.closer = Closer.create();
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
@@ -104,23 +108,33 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
       InstrumentedDataWriterDecorator<D> writer =
           this.closer.register(new InstrumentedDataWriterDecorator<>(dataWriter, state));
       this.isSpeculativeAttemptSafe = this.isDataWriterForPartitionSafe(dataWriter);
+      this.isWatermarkCapable = this.isDataWriterWatermarkCapable(dataWriter);
       this.partitionWriters.put(NON_PARTITIONED_WRITER_KEY, writer);
       this.partitioner = Optional.absent();
       this.builder = Optional.absent();
     }
   }
 
+  private boolean isDataWriterWatermarkCapable(DataWriter<D> dataWriter) {
+    return (dataWriter instanceof WatermarkAwareWriter) && (((WatermarkAwareWriter) dataWriter).isWatermarkCapable());
+  }
+
   @Override
   public void write(D record)
       throws IOException {
     try {
-      GenericRecord partition =
-          this.shouldPartition ? this.partitioner.get().partitionForRecord(record) : NON_PARTITIONED_WRITER_KEY;
-      DataWriter<D> writer = this.partitionWriters.get(partition);
+      DataWriter<D> writer = getDataWriterForRecord(record);
       writer.write(record);
     } catch (ExecutionException ee) {
       throw new IOException(ee);
     }
+  }
+
+  private DataWriter<D> getDataWriterForRecord(D record)
+      throws ExecutionException {
+    GenericRecord partition =
+        this.shouldPartition ? this.partitioner.get().partitionForRecord(record) : NON_PARTITIONED_WRITER_KEY;
+    return this.partitionWriters.get(partition);
   }
 
   @Override
@@ -190,6 +204,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
     DataWriter dataWriter =  this.builder.get().forPartition(partition).withWriterId(this.baseWriterId + "_" + this.writerIdSuffix++)
         .build();
     this.isSpeculativeAttemptSafe = this.isSpeculativeAttemptSafe && this.isDataWriterForPartitionSafe(dataWriter);
+    this.isWatermarkCapable = this.isWatermarkCapable && this.isDataWriterWatermarkCapable(dataWriter);
     return dataWriter;
   }
 
@@ -232,5 +247,60 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
   private boolean isDataWriterForPartitionSafe(DataWriter dataWriter) {
     return dataWriter instanceof  SpeculativeAttemptAwareConstruct
         && ((SpeculativeAttemptAwareConstruct) dataWriter).isSpeculativeAttemptSafe();
+  }
+
+  @Override
+  public boolean isWatermarkCapable() {
+    return this.isWatermarkCapable;
+  }
+
+  @Override
+  public void writeEnvelope(RecordEnvelope<D> recordEnvelope)
+      throws IOException {
+    try {
+      DataWriter<D> writer = getDataWriterForRecord(recordEnvelope.getRecord());
+      // Unsafe cast, presumably we've checked earlier through isWatermarkCapable()
+      // that we are wrapping watermark aware wrappers
+      ((WatermarkAwareWriter) writer).writeEnvelope(recordEnvelope);
+    } catch (ExecutionException ee) {
+      throw new IOException(ee);
+    }
+  }
+
+  @Override
+  public Map<String, CheckpointableWatermark> getCommittableWatermark() {
+    // The committable watermark from a collection of commitable and unacknowledged watermarks is the highest
+    // committable watermark that is less than the lowest unacknowledged watermark
+
+    WatermarkTracker watermarkTracker = new WatermarkTracker();
+    for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
+      if (entry.getValue() instanceof WatermarkAwareWriter) {
+        Map<String, CheckpointableWatermark> commitableWatermarks =
+            ((WatermarkAwareWriter) entry.getValue()).getCommittableWatermark();
+        if (!commitableWatermarks.isEmpty()) {
+          watermarkTracker.committedWatermarks(commitableWatermarks);
+        }
+
+        Map<String, CheckpointableWatermark> unacknowledgedWatermark =
+            ((WatermarkAwareWriter) entry.getValue()).getUnacknowledgedWatermark();
+        if (!unacknowledgedWatermark.isEmpty()) {
+          watermarkTracker.unacknowledgedWatermarks(unacknowledgedWatermark);
+        }
+      }
+    }
+    return watermarkTracker.getAllCommitableWatermarks(); //TODO: Change this to use List of committables instead
+  }
+
+  @Override
+  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
+    WatermarkTracker watermarkTracker = new WatermarkTracker();
+    for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
+      Map<String, CheckpointableWatermark> unacknowledgedWatermark =
+          ((WatermarkAwareWriter) entry.getValue()).getUnacknowledgedWatermark();
+      if (!unacknowledgedWatermark.isEmpty()) {
+        watermarkTracker.unacknowledgedWatermarks(unacknowledgedWatermark);
+      }
+    }
+    return watermarkTracker.getAllUnacknowledgedWatermarks();
   }
 }

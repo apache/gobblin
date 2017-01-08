@@ -18,31 +18,42 @@
 package gobblin.instrumented.writer;
 
 import java.io.IOException;
+import java.util.Map;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
+import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.util.FinalState;
 import gobblin.writer.DataWriter;
+import gobblin.writer.WatermarkAwareWriter;
 
 
 /**
  * Decorator that automatically instruments {@link gobblin.writer.DataWriter}. Handles already instrumented
  * {@link gobblin.instrumented.writer.InstrumentedDataWriter} appropriately to avoid double metric reporting.
  */
-public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBase<D> implements Decorator {
+public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBase<D> implements Decorator, WatermarkAwareWriter<D> {
 
   private DataWriter<D> embeddedWriter;
   private boolean isEmbeddedInstrumented;
+  private Optional<WatermarkAwareWriter> watermarkAwareWriter;
 
   public InstrumentedDataWriterDecorator(DataWriter<D> writer, State state) {
     super(state, Optional.<Class<?>> of(DecoratorUtils.resolveUnderlyingObject(writer).getClass()));
     this.embeddedWriter = this.closer.register(writer);
     this.isEmbeddedInstrumented = Instrumented.isLineageInstrumented(writer);
+    if (this.embeddedWriter instanceof WatermarkAwareWriter) {
+      this.watermarkAwareWriter = Optional.of((WatermarkAwareWriter) this.embeddedWriter);
+    } else {
+      this.watermarkAwareWriter = Optional.absent();
+    }
   }
 
   @Override
@@ -97,5 +108,29 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   @Override
   public Object getDecoratedObject() {
     return this.embeddedWriter;
+  }
+
+  @Override
+  public boolean isWatermarkCapable() {
+    return watermarkAwareWriter.isPresent() && watermarkAwareWriter.get().isWatermarkCapable();
+  }
+
+  @Override
+  public void writeEnvelope(RecordEnvelope<D> recordEnvelope)
+      throws IOException {
+    Preconditions.checkState(isWatermarkCapable());
+    watermarkAwareWriter.get().writeEnvelope(recordEnvelope);
+  }
+
+  @Override
+  public Map<String, CheckpointableWatermark> getCommittableWatermark() {
+    Preconditions.checkState(isWatermarkCapable());
+    return watermarkAwareWriter.get().getCommittableWatermark();
+  }
+
+  @Override
+  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
+    Preconditions.checkState(isWatermarkCapable());
+    return watermarkAwareWriter.get().getUnacknowledgedWatermark();
   }
 }

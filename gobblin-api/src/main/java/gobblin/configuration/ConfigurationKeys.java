@@ -674,4 +674,10 @@ public class ConfigurationKeys {
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
   public static final int PERMISSION_PARSING_RADIX = 8;
+
+  /**
+   * Configuration properties related to continuous / streaming mode
+   */
+  public static final String TASK_EXECUTION_MODE = "gobblin.task.executionMode";
+  public static final String DEFAULT_TASK_EXECUTION_MODE = "BATCH";
 }

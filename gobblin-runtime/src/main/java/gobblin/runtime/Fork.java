@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
@@ -45,6 +46,7 @@ import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import gobblin.runtime.util.TaskMetrics;
+import gobblin.source.extractor.RecordEnvelope;
 import gobblin.state.ConstructState;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
@@ -53,6 +55,7 @@ import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.DataWriterWrapperBuilder;
 import gobblin.writer.Destination;
 import gobblin.writer.PartitionedDataWriter;
+import gobblin.writer.WatermarkAwareWriter;
 
 
 /**
@@ -95,6 +98,7 @@ public class Fork implements Closeable, Runnable, FinalState {
 
   private final int branches;
   private final int index;
+  private final ExecutionModel executionModel;
 
   private final Converter converter;
   private final Optional<Object> convertedSchema;
@@ -120,8 +124,9 @@ public class Fork implements Closeable, Runnable, FinalState {
   private final AtomicReference<ForkState> forkState;
 
   private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
+  private static final Object SHUTDOWN_RECORD = new Object();
 
-  public Fork(TaskContext taskContext, Object schema, int branches, int index)
+  public Fork(TaskContext taskContext, Object schema, int branches, int index, ExecutionModel executionModel)
       throws Exception {
     this.logger = LoggerFactory.getLogger(Fork.class.getName() + "-" + index);
 
@@ -134,6 +139,7 @@ public class Fork implements Closeable, Runnable, FinalState {
 
     this.branches = branches;
     this.index = index;
+    this.executionModel = executionModel;
 
     this.converter =
         this.closer.register(new MultiConverter(this.taskContext.getConverters(this.index, this.forkTaskState)));
@@ -141,9 +147,10 @@ public class Fork implements Closeable, Runnable, FinalState {
     this.rowLevelPolicyChecker = this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.index));
     this.rowLevelPolicyCheckingResult = new RowLevelPolicyCheckResults();
 
+    // Build writer eagerly if configured, or if streaming is enabled
     boolean useEagerWriterInitialization = this.taskState
         .getPropAsBoolean(ConfigurationKeys.WRITER_EAGER_INITIALIZATION_KEY,
-            ConfigurationKeys.DEFAULT_WRITER_EAGER_INITIALIZATION);
+            ConfigurationKeys.DEFAULT_WRITER_EAGER_INITIALIZATION) || isStreamingMode();
     if (useEagerWriterInitialization) {
       buildWriterIfNotPresent();
     }
@@ -169,6 +176,10 @@ public class Fork implements Closeable, Runnable, FinalState {
       this.closer.register(forkMetrics.getMetricContext());
       Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
     }
+  }
+
+  private boolean isStreamingMode() {
+    return this.executionModel.equals(ExecutionModel.STREAMING);
   }
 
   @Override
@@ -238,6 +249,11 @@ public class Fork implements Closeable, Runnable, FinalState {
    */
   public void markParentTaskDone() {
     this.parentTaskDone = true;
+    try {
+      this.putRecord(SHUTDOWN_RECORD);
+    } catch (InterruptedException e) {
+      this.logger.info("Interrupted while writing a shutdown record into the fork queue. Ignoring");
+    }
   }
 
   /**
@@ -408,18 +424,33 @@ public class Fork implements Closeable, Runnable, FinalState {
     while (true) {
       try {
         Object record = this.recordQueue.get();
-        if (record == null) {
+        if (record == null || record == SHUTDOWN_RECORD) {
           // The parent task has already done pulling records so no new record means this fork is done
           if (this.parentTaskDone) {
             return;
+          } else {
+            this.logger.error("Found a {} record but parent task is not done. Aborting this fork.", record);
+            throw new AssertionError("Found a " + record + " record but parent task is not done. Aborting this fork.");
           }
         } else {
-          buildWriterIfNotPresent();
+          if (isStreamingMode()) {
+            // Unpack the record from its container
+            RecordEnvelope recordEnvelope = (RecordEnvelope) record;
+            // Convert the record, check its data quality, and finally write it out if quality checking passes.
+            for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, recordEnvelope.getRecord(), this.taskState)) {
+              if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
+                // Preserve watermark, swap record
+                ((WatermarkAwareWriter) this.writer.get()).writeEnvelope(recordEnvelope.setRecord(convertedRecord));
+              }
+            }
+          } else {
+            buildWriterIfNotPresent();
 
-          // Convert the record, check its data quality, and finally write it out if quality checking passes.
-          for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, record, this.taskState)) {
-            if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
-              this.writer.get().write(convertedRecord);
+            // Convert the record, check its data quality, and finally write it out if quality checking passes.
+            for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, record, this.taskState)) {
+              if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
+                this.writer.get().write(convertedRecord);
+              }
             }
           }
         }
@@ -554,4 +585,9 @@ public class Fork implements Closeable, Runnable, FinalState {
     }
     return ((SpeculativeAttemptAwareConstruct) this.writer.get()).isSpeculativeAttemptSafe();
   }
+
+  public DataWriter getWriter() throws IOException {
+    Preconditions.checkState(this.writer.isPresent(), "Asked to get a writer, but writer is null");
+    return this.writer.get();
+    }
 }
