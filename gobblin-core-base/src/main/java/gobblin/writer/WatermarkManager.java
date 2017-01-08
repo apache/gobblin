@@ -120,7 +120,7 @@ public class WatermarkManager implements Closeable {
           Map<String, CheckpointableWatermark> watermarksToCommit = null;
           try {
             _retrievalStatus.onAttempt();
-            WatermarkTracker watermarkTracker = new WatermarkTracker();
+            WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
             for (WatermarkAwareWriter writer : _watermarkAwareWriters) {
               Map<String, CheckpointableWatermark> writerWatermarks = writer.getCommittableWatermark();
               _logger.debug("Retrieved from writer {} : watermark {} ", writer.getClass().getName(), writerWatermarks);
