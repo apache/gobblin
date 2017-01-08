@@ -40,7 +40,7 @@ public class WatermarkTrackerTest {
   @Test
   public void testSingleSource() {
 
-    WatermarkTracker watermarkTracker = new WatermarkTracker();
+    MultiWriterWatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
     commits(watermarkTracker, "default", 0, 4, 5, 6);
 
     Assert.assertEquals(watermarkTracker.getCommittableWatermark("default").get().getSource(), "default");
@@ -51,7 +51,7 @@ public class WatermarkTrackerTest {
 
   @Test
   public void testMultiSource() {
-    WatermarkTracker watermarkTracker = new WatermarkTracker();
+    MultiWriterWatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
     commits(watermarkTracker, "default", 0, 4, 5, 6);
     commits(watermarkTracker, "other", 1, 3, 5, 7);
 

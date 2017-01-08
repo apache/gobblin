@@ -272,7 +272,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
     // The committable watermark from a collection of commitable and unacknowledged watermarks is the highest
     // committable watermark that is less than the lowest unacknowledged watermark
 
-    WatermarkTracker watermarkTracker = new WatermarkTracker();
+    WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
       if (entry.getValue() instanceof WatermarkAwareWriter) {
         Map<String, CheckpointableWatermark> commitableWatermarks =
@@ -293,7 +293,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
 
   @Override
   public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    WatermarkTracker watermarkTracker = new WatermarkTracker();
+    WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
       Map<String, CheckpointableWatermark> unacknowledgedWatermark =
           ((WatermarkAwareWriter) entry.getValue()).getUnacknowledgedWatermark();

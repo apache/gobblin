@@ -126,8 +126,6 @@ public class Task implements Runnable {
 
   private final AtomicBoolean shutdownRequested;
   private final CountDownLatch shutdownLatch;
-  private AtomicBoolean isShutdown;
-
 
   /**
    * Instantiate a new {@link Task}.
@@ -166,13 +164,12 @@ public class Task implements Runnable {
     this.recordsPulled = new AtomicLong(0);
     this.lastRecordPulledTimestampMillis = 0;
     this.shutdownRequested = new AtomicBoolean(false);
-    this.isShutdown = new AtomicBoolean(false);
     this.shutdownLatch = new CountDownLatch(1);
   }
 
   private ExecutionModel getTaskMode(TaskContext taskContext) {
-    String mode = taskContext.getTaskState().getProp(ConfigurationKeys.TASK_EXECUTION_MODE,
-        ConfigurationKeys.DEFAULT_TASK_EXECUTION_MODE);
+    String mode = taskContext.getTaskState()
+        .getProp(ConfigurationKeys.TASK_EXECUTION_MODE, ConfigurationKeys.DEFAULT_TASK_EXECUTION_MODE);
     try {
       return ExecutionModel.valueOf(mode.toUpperCase());
     } catch (Exception e) {
@@ -185,19 +182,12 @@ public class Task implements Runnable {
     return this.taskMode.equals(ExecutionModel.STREAMING);
   }
 
-
-  private boolean isShutdown() {
-    return this.isShutdown.get();
-  }
-
   public boolean awaitShutdown(long timeoutInMillis)
       throws InterruptedException {
-    this.shutdownLatch.await(timeoutInMillis, TimeUnit.MILLISECONDS);
-    return this.isShutdown.get();
+    return this.shutdownLatch.await(timeoutInMillis, TimeUnit.MILLISECONDS);
   }
 
   private void completeShutdown() {
-    this.isShutdown.set(true);
     this.shutdownLatch.countDown();
   }
 
@@ -220,13 +210,12 @@ public class Task implements Runnable {
       long lastWatermarkCommitTimeElapsed = currentTime - commitStatus.getLastWatermarkCommitSuccessTimestampMillis();
 
       String progressString = String.format("recordsPulled:%d, lastRecordExtracted: %d ms ago, "
-          + "lastWatermarkCommitted: %d ms ago, lastWatermarkCommitted: %s",
-          this.recordsPulled.get(), lastRecordTimeElapsed, lastWatermarkCommitTimeElapsed,
-          commitStatus.getLastCommittedWatermarks());
+              + "lastWatermarkCommitted: %d ms ago, lastWatermarkCommitted: %s", this.recordsPulled.get(),
+          lastRecordTimeElapsed, lastWatermarkCommitTimeElapsed, commitStatus.getLastCommittedWatermarks());
       return progressString;
     } else {
-      String progressString = String.format("recordsPulled:%d, lastRecordExtracted: %d ms ago",
-          this.recordsPulled.get(), lastRecordTimeElapsed);
+      String progressString = String
+          .format("recordsPulled:%d, lastRecordExtracted: %d ms ago", this.recordsPulled.get(), lastRecordTimeElapsed);
       return progressString;
     }
   }
@@ -262,24 +251,26 @@ public class Task implements Runnable {
         throw new CopyNotSupportedException(schema + " is not copyable");
       }
 
-      if (isStreamingTask())
-      {
+      if (isStreamingTask()) {
         Extractor underlyingExtractor = this.taskContext.getExtractor();
         if (!(underlyingExtractor instanceof StreamingExtractor)) {
-          LOG.error("Extractor {}  is not an instance of StreamingExtractor but the task is configured to run in continuous mode", underlyingExtractor.getClass().getName());
+          LOG.error(
+              "Extractor {}  is not an instance of StreamingExtractor but the task is configured to run in continuous mode",
+              underlyingExtractor.getClass().getName());
           throw new TaskInstantiationException("Extraction " + underlyingExtractor.getClass().getName()
               + " is not an instance of StreamingExtractor but the task is configured to run in continuous mode");
         }
         if (!(underlyingExtractor instanceof WatermarkStorage)) {
-          LOG.error("Extractor {}  is not an instance of WatermarkStorage but the task is configured to run in continuous mode", underlyingExtractor.getClass().getName());
+          LOG.error(
+              "Extractor {}  is not an instance of WatermarkStorage but the task is configured to run in continuous mode",
+              underlyingExtractor.getClass().getName());
           throw new TaskInstantiationException("Extractor " + underlyingExtractor.getClass().getName()
               + " is not an instance of WatermarkStorage but the task is configured to run in continuous mode");
         }
         long commitIntervalMillis = 1000; // TODO: Configure
-        this.watermarkManager = Optional.of(this.closer.register
-            (new WatermarkManager((WatermarkStorage) underlyingExtractor, commitIntervalMillis, Optional.of(this.LOG))));
-      }
-      else {
+        this.watermarkManager = Optional.of(this.closer.register(
+            new WatermarkManager((WatermarkStorage) underlyingExtractor, commitIntervalMillis, Optional.of(this.LOG))));
+      } else {
         this.watermarkManager = Optional.absent();
       }
 
@@ -287,8 +278,8 @@ public class Task implements Runnable {
       for (int i = 0; i < branches; i++) {
         if (forkedSchemas.get(i)) {
           Fork fork = closer.register(
-              new Fork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches,
-                  i, this.taskMode));
+              new Fork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i,
+                  this.taskMode));
           if (isStreamingTask()) {
             DataWriter forkWriter = fork.getWriter();
             if (forkWriter instanceof WatermarkAwareWriter) {
@@ -311,8 +302,7 @@ public class Task implements Runnable {
       rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
-      if (isStreamingTask())
-      {
+      if (isStreamingTask()) {
         this.watermarkManager.get().start();
       }
 
@@ -322,9 +312,10 @@ public class Task implements Runnable {
         while (!shutdownRequested() && (recordEnvelope = (RecordEnvelope) extractor.readRecord(null)) != null) {
           onRecordExtract();
           for (Object convertedRecord : converter.convertRecord(schema, recordEnvelope.getRecord(), this.taskState)) {
-              processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches, recordEnvelope.getWatermark());
-            }
+            processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches,
+                recordEnvelope.getWatermark());
           }
+        }
       } else {
         Object record;
         // Extract, convert, and fork one source record at a time.
@@ -355,7 +346,7 @@ public class Task implements Runnable {
             long forkFutureStartTime = System.nanoTime();
             forkFuture.get().get();
             long forkDuration = System.nanoTime() - forkFutureStartTime;
-            LOG.info("Task shutdown: Fork future reaped in {} millis", forkDuration/1000000);
+            LOG.info("Task shutdown: Fork future reaped in {} millis", forkDuration / 1000000);
           } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
           }
@@ -368,11 +359,10 @@ public class Task implements Runnable {
     } catch (Throwable t) {
       failTask(t);
     } finally {
-        this.taskStateTracker.onTaskRunCompletion(this);
+      this.taskStateTracker.onTaskRunCompletion(this);
       completeShutdown();
     }
   }
-
 
   private void onRecordExtract() {
     this.recordsPulled.incrementAndGet();
@@ -604,9 +594,9 @@ public class Task implements Runnable {
           continue;
         }
         if (fork.isPresent() && forkedRecords.get(branch)) {
-          Object recordForFork = convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord;
-          if (isStreamingTask())
-          {
+          Object recordForFork =
+              convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord;
+          if (isStreamingTask()) {
             // Send the record, watermark pair down the fork
             recordForFork = new RecordEnvelope<>(recordForFork, watermark);
           }
