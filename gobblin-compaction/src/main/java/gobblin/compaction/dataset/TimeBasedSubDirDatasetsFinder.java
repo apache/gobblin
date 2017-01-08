@@ -140,7 +140,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
             try {
               folderTime = getFolderTime(jobInputPath, inputPath);
             } catch (RuntimeException e) {
-              log.warn(jobInputPath + " is not a valid folder. Will be skipped. Error: "+e);
+              log.warn("{} is not a valid folder. Will be skipped due to exception.", jobInputPath, e);
               continue;
             }
 
