@@ -19,9 +19,13 @@
 
 package gobblin.runtime;
 
+import gobblin.annotation.Alpha;
+
+
 /**
  * An Enum to capture the execution model of a specific Gobblin task.
  */
+@Alpha
 public enum ExecutionModel {
   BATCH, // Tasks start and stop
   STREAMING // Tasks run continuously until failure / termination

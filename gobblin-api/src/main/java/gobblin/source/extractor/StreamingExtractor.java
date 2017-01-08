@@ -19,8 +19,12 @@
 
 package gobblin.source.extractor;
 
+import gobblin.annotation.Alpha;
+
+
 /**
  * An interface for implementing streaming / continuous extractors
  */
+@Alpha
 public interface StreamingExtractor<S, D> extends Extractor<S, RecordEnvelope<D>> {
 }

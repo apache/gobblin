@@ -22,6 +22,7 @@ package gobblin.writer;
 import java.io.IOException;
 import java.util.Map;
 
+import gobblin.annotation.Alpha;
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.RecordEnvelope;
 
@@ -30,6 +31,7 @@ import gobblin.source.extractor.RecordEnvelope;
  * A DataWriter that is WatermarkAware. Required for implementing writers that
  * can operate in streaming mode.
  */
+@Alpha
 public interface WatermarkAwareWriter<D> extends DataWriter<D> {
 
   /**

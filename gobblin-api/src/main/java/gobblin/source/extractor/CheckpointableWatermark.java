@@ -19,9 +19,13 @@
 
 package gobblin.source.extractor;
 
+import gobblin.annotation.Alpha;
+
+
 /**
  * {@link Watermark} that is {@link Comparable} and Checkpointable
  */
+@Alpha
 public interface CheckpointableWatermark extends Watermark, Comparable<CheckpointableWatermark> {
 
   /**

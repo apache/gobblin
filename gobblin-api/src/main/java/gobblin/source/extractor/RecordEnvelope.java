@@ -19,6 +19,10 @@
 
 package gobblin.source.extractor;
 
+import gobblin.annotation.Alpha;
+
+
+@Alpha
 public class RecordEnvelope<D> {
 
   private D _record;

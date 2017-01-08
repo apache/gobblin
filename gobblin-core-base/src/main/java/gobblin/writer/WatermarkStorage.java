@@ -21,9 +21,10 @@ package gobblin.writer;
 
 import java.io.IOException;
 
+import gobblin.annotation.Alpha;
 import gobblin.source.extractor.CheckpointableWatermark;
 
-
+@Alpha
 public interface WatermarkStorage {
 
   void commitWatermarks(Iterable<CheckpointableWatermark> watermarks) throws IOException;
