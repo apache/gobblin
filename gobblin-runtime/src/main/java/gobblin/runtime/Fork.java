@@ -425,12 +425,12 @@ public class Fork implements Closeable, Runnable, FinalState {
       try {
         Object record = this.recordQueue.get();
         if (record == null || record == SHUTDOWN_RECORD) {
-          // The parent task has already done pulling records so no new record means this fork is done
+          /**
+           * null record indicates a timeout on record acquisition, SHUTDOWN_RECORD is sent during shutdown.
+           * Will loop unless the parent task has indicated that it is already done pulling records.
+           */
           if (this.parentTaskDone) {
             return;
-          } else {
-            this.logger.error("Found a {} record but parent task is not done. Aborting this fork.", record);
-            throw new AssertionError("Found a " + record + " record but parent task is not done. Aborting this fork.");
           }
         } else {
           if (isStreamingMode()) {
