@@ -30,7 +30,7 @@ RUN_TEST_GROUP=${RUN_TEST_GROUP:-default}
 script_dir=$(dirname $0)
 echo "Old GRADLE_OPTS=$GRADLE_OPTS"
 
-export GRADLE_OPTS="-Xmx 512m -Dorg.gradle.daemon=false -PusePreinstalledMysql=true"
+export GRADLE_OPTS="-Xmx 1024m -Dorg.gradle.daemon=false -PusePreinstalledMysql=true"
 
 TEST_SCRIPT=${script_dir}/test-${RUN_TEST_GROUP}.sh
 if [ -x $TEST_SCRIPT ] ; then
