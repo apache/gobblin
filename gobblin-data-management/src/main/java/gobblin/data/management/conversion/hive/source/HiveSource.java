@@ -56,6 +56,7 @@ import gobblin.data.management.conversion.hive.watermarker.PartitionLevelWaterma
 import gobblin.data.management.copy.hive.HiveDataset;
 import gobblin.data.management.copy.hive.HiveDatasetFinder;
 import gobblin.data.management.copy.hive.HiveUtils;
+import gobblin.data.management.copy.hive.filter.LookbackPartitionFilterGenerator;
 import gobblin.dataset.IterableDatasetFinder;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
@@ -262,8 +263,20 @@ public class HiveSource implements Source {
     long tableProcessTime = new DateTime().getMillis();
     this.watermarker.onTableProcessBegin(hiveDataset.getTable(), tableProcessTime);
 
+    Optional<String> partitionFilter = Optional.absent();
+
+    // If the table is date partitioned, use the partition name to filter partitions older than lookback
+    if (hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.PARTITION_COLUMN)
+        && hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.DATETIME_FORMAT)
+        && hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.LOOKBACK)) {
+      partitionFilter =
+          Optional.of(new LookbackPartitionFilterGenerator(hiveDataset.getProperties()).getFilter(hiveDataset));
+      log.info(String.format("Getting partitions for %s using partition filter %s", hiveDataset.getTable()
+          .getCompleteName(), partitionFilter.get()));
+    }
+
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(),
-        Optional.<String>absent());
+        partitionFilter);
 
     for (Partition sourcePartition : sourcePartitions) {
 

@@ -39,6 +39,6 @@ public class ConvertibleHiveDatasetFinder extends HiveDatasetFinder {
 
   protected ConvertibleHiveDataset createHiveDataset(Table table, Config config) {
     return new ConvertibleHiveDataset(super.fs, super.clientPool, new org.apache.hadoop.hive.ql.metadata.Table(table),
-        config);
+        this.properties, config);
   }
 }

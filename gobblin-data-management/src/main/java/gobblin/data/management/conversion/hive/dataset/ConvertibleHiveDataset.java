@@ -87,8 +87,8 @@ public class ConvertibleHiveDataset extends HiveDataset {
    * @param table
    * @param config
    */
-  public ConvertibleHiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Config config) {
-    super(fs, clientPool, table, config);
+  public ConvertibleHiveDataset(FileSystem fs, HiveMetastoreClientPool clientPool, Table table, Properties jobProps, Config config) {
+    super(fs, clientPool, table, jobProps, config);
 
     Preconditions.checkArgument(config.hasPath(DESTINATION_CONVERSION_FORMATS_KEY), String.format(
         "Atleast one destination format should be specified at %s.%s. If you do not intend to convert this dataset set %s.%s to true",
