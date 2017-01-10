@@ -77,7 +77,8 @@ artifacts {
 
 test {
     workingDir rootProject.rootDir
-    if (project.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(project.usePreinstalledMysql)) {
+    if (rootProject.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(rootProject.usePreinstalledMysql)) {
+      println "Using pre-installed MySQL"
       jvmArgs '-Dgobblin.metastore.testing.embeddedMysqlEnabled=false'
     }
 }
