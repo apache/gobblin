@@ -485,6 +485,11 @@ subprojects {
       testLogging {
         events "started","skipped","passed","failed"
       }
+      # Some tests require MySQL we can either download an embedded Wix image or use a pre-installed version
+      if (rootProject.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(rootProject.usePreinstalledMysql)) {
+        println "Using pre-installed MySQL"
+        systemProperty 'gobblin.metastore.testing.embeddedMysqlEnabled', 'false'
+      }
     }
 
     configurations {
