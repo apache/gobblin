@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2015 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.config.client;
@@ -28,17 +33,17 @@ import gobblin.config.store.api.ConfigStore;
 
 
 /**
- * Utility class to transfer {@link URI} to {@link ConfigKeyPath} and vice versa 
- * 
+ * Utility class to transfer {@link URI} to {@link ConfigKeyPath} and vice versa
+ *
  * @author mitu
  *
  */
 public class ConfigClientUtils {
 
   /**
-   * 
+   *
    * @param configKeyURI - URI provided by client , which could missing authority/store root directory
-   * @param cs           - ConfigStore corresponding to the input URI. Require input URI's scheme/authority name 
+   * @param cs           - ConfigStore corresponding to the input URI. Require input URI's scheme/authority name
    *                       match ConfigStore's scheme/authority
    * @return             - {@link ConfigKeyPath} for the relative path
    */
@@ -56,13 +61,13 @@ public class ConfigClientUtils {
 
   /**
    * Build the URI based on the {@link ConfigStore} or input cnofigKeyURI
-   * 
+   *
    * @param configKeyPath : relative path to the input config store cs
    * @param returnURIWithAuthority  : return the URI with input config store's authority and absolute path
    * @param cs            : the config store of the input configKeyURI
    * @return              : return the URI of the same format with the input configKeyURI
-   * 
-   * for example, configKeyPath is /tags/retention, 
+   *
+   * for example, configKeyPath is /tags/retention,
    * with returnURIWithAuthority as true, return "etl-hdfs:///tags/retention
    * with returnURIWithAuthority as false , then return
    * etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/tags/retention
@@ -75,7 +80,7 @@ public class ConfigClientUtils {
         return new URI(cs.getStoreURI().getScheme(), null, configKeyPath.getAbsolutePathString(), null, null);
       }
       URI storeRoot = cs.getStoreURI();
-      // if configKeyPath is root, the configKeyPath.getAbsolutePathString().substring(1) will return "" and 
+      // if configKeyPath is root, the configKeyPath.getAbsolutePathString().substring(1) will return "" and
       // will cause the Path creation failure if not handled here
       if (configKeyPath.isRootPath()) {
         return storeRoot;
@@ -141,7 +146,7 @@ public class ConfigClientUtils {
 
   /**
    * Utility method to check whether one URI is the ancestor of the other
-   * 
+   *
    * return true iff both URI's scheme/authority name match and ancestor's path is the prefix of the descendant's path
    * @param descendant: the descendant URI to check
    * @param ancestor  : the ancestor URI to check

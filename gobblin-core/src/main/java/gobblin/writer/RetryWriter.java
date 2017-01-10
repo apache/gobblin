@@ -1,22 +1,20 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.writer;
-
-import gobblin.commit.SpeculativeAttemptAwareConstruct;
-import gobblin.configuration.State;
-import gobblin.instrumented.Instrumented;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.writer.exception.NonTransientException;
-import gobblin.util.FinalState;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
@@ -37,11 +35,18 @@ import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 
+import gobblin.commit.SpeculativeAttemptAwareConstruct;
+import gobblin.configuration.State;
+import gobblin.instrumented.Instrumented;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.util.FinalState;
+import gobblin.writer.exception.NonTransientException;
+
 /**
  * Retry writer follows decorator pattern that retries on inner writer's failure.
  * @param <D>
  */
-public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
+public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements DataWriter<D>, FinalState, SpeculativeAttemptAwareConstruct {
   private static final Logger LOG = LoggerFactory.getLogger(RetryWriter.class);
   public static final String RETRY_CONF_PREFIX = "gobblin.writer.retry.";
   public static final String FAILED_RETRY_WRITES_METER = RETRY_CONF_PREFIX + "failed_writes";
@@ -57,6 +62,9 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
   public RetryWriter(DataWriter<D> writer, State state) {
     this.writer = writer;
     this.retryer = buildRetryer(state);
+    if (this.writer instanceof WatermarkAwareWriter) {
+      setWatermarkAwareWriter((WatermarkAwareWriter) this.writer);
+    }
   }
 
   /**
@@ -112,6 +120,7 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
 
     callWithRetry(writeCall);
   }
+
 
   @Override
   public void commit() throws IOException {
@@ -190,4 +199,5 @@ public class RetryWriter<D> implements DataWriter<D>, FinalState, SpeculativeAtt
     state.setProp(FAILED_WRITES_KEY, this.failedWrites);
     return state;
   }
+
 }

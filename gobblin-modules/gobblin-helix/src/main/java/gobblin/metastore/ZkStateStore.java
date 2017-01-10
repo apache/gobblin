@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metastore;
@@ -17,6 +22,7 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import gobblin.configuration.State;
+import gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -56,6 +62,7 @@ import org.apache.helix.store.zk.ZkHelixPropertyStore;
  * @param <T> state object type
  **/
 public class ZkStateStore<T extends State> implements StateStore<T> {
+
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;
   private final HelixPropertyStore<byte[]> propStore;
@@ -63,6 +70,7 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
   /**
    * State store that stores instances of {@link State}s in a ZooKeeper-backed {@link HelixPropertyStore}
+   * storeRootDir will be created when the first entry is written if it does not exist
    * @param connectString ZooKeeper connect string
    * @param storeRootDir The root directory for the state store
    * @param compressedValues should values be compressed for storage?
@@ -113,7 +121,13 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
     return propStore.exists(path, 0);
   }
 
-  private void addStateToOs(DataOutput dataOutput, T state) throws IOException {
+  /**
+   * Serializes the state to the {@link DataOutput}
+   * @param dataOutput output target receiving the serialized data
+   * @param state the state to serialize
+   * @throws IOException
+   */
+  private void addStateToDataOutputStream(DataOutput dataOutput, T state) throws IOException {
     new Text(Strings.nullToEmpty(state.getId())).write(dataOutput);
     state.write(dataOutput);
   }
@@ -126,20 +140,21 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
   @Override
   public void putAll(String storeName, String tableName, Collection<T> states) throws IOException {
     String path = formPath(storeName, tableName);
-    ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
-    OutputStream os = compressedValues ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
-    DataOutputStream dataOutput = new DataOutputStream(os);
+    try (ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
+        OutputStream os = compressedValues ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
+        DataOutputStream dataOutput = new DataOutputStream(os)) {
 
-    for (T state : states) {
-      addStateToOs(dataOutput, state);
+      for (T state : states) {
+        addStateToDataOutputStream(dataOutput, state);
+      }
+
+      if (!exists(storeName, tableName) && !create(storeName, tableName)) {
+        throw new IOException("Failed to create a state file for table " + tableName);
+      }
+
+      dataOutput.close();
+      propStore.set(path, byteArrayOs.toByteArray(), AccessOption.PERSISTENT);
     }
-
-    if (!exists(storeName, tableName) && !create(storeName, tableName)) {
-      throw new IOException("Failed to create a state file for table " + tableName);
-    }
-
-    dataOutput.close();
-    propStore.set(path, byteArrayOs.toByteArray(), AccessOption.PERSISTENT);
   }
 
   @Override
@@ -239,12 +254,11 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
    */
   private void deserialize(byte[] data, List<T> states, String stateId) throws IOException {
     if (data != null) {
-      ByteArrayInputStream bais = new ByteArrayInputStream(data);
-      InputStream is = compressedValues ? new GZIPInputStream(bais) : bais;
-      DataInputStream dis = new DataInputStream(is);
       Text key = new Text();
 
-      try {
+      try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+          InputStream is = StreamUtils.isCompressed(data) ? new GZIPInputStream(bais) : bais;
+          DataInputStream dis = new DataInputStream(is)){
         // keep deserializing while we have data
         while (dis.available() > 0) {
           T state = this.stateClass.newInstance();

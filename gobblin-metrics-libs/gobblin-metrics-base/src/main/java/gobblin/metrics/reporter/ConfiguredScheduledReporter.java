@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2016 Swisscom All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metrics.reporter;
@@ -40,12 +45,12 @@ import gobblin.metrics.Tag;
 
 /**
  * Scheduled reporter with metrics reporting configuration.
- * 
+ *
  * <p>
  * Concrete reporters need to subclass this class and implement {@link ScheduledReporter#report(SortedMap , SortedMap, SortedMap, SortedMap, SortedMap, Map)}
  * that emits the metrics in the desired (textual/serialized) form.
  * </p>
- * 
+ *
  * @author Lorand Bendig
  *
  */
@@ -63,13 +68,13 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
 
   private final double rateFactor;
   private final double durationFactor;
-  
+
   protected final ImmutableMap<String, String> tags;
   protected final Closer closer;
   protected final String metricContextName;
-  
+
   protected static final Joiner JOINER = Joiner.on('.').skipNulls();
-  
+
   public ConfiguredScheduledReporter(Builder<?> builder, Config config) {
     super(builder.name, config);
     this.rateUnit = builder.rateUnit;
@@ -92,10 +97,10 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
     protected TimeUnit durationUnit;
     protected Map<String, String> tags;
     protected String metricContextName;
-    
+
     protected Builder() {
       this.name = "ConfiguredScheduledReporter";
-      this.rateUnit = TimeUnit.SECONDS; 
+      this.rateUnit = TimeUnit.SECONDS;
       this.durationUnit = TimeUnit.MILLISECONDS;
       this.tags = Maps.newHashMap();
     }
@@ -104,7 +109,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
 
     /**
      * Set the name of the reporter
-     * 
+     *
      * @param name name of the metric reporter
      * @return {@code this}
      */
@@ -112,7 +117,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
       this.name = name;
       return self();
     }
-    
+
     /**
      * Convert rates to the given time unit.
      *
@@ -167,7 +172,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
       this.tags.put(key, value);
       return self();
     }
-    
+
     /**
      * Add the name of the base metrics context as prefix to the metric keys
      *
@@ -178,7 +183,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
       this.metricContextName = metricContextName;
       return self();
     }
-    
+
   }
 
   @Override
@@ -192,7 +197,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
       report(gauges, counters, histograms, meters, timers, tags);
     }
   }
-  
+
   protected double convertDuration(double duration) {
     return duration * this.durationFactor;
   }
@@ -205,7 +210,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
    * Constructs the prefix of metric key to be emitted.
    * Enriches {@link ConfiguredScheduledReporter#metricContextName} with the current task id and fork id to
    * be able to identify the emitted metric by its origin
-   * 
+   *
    * @param tags
    * @return Prefix of the metric key
    */
@@ -216,7 +221,7 @@ public abstract class ConfiguredScheduledReporter extends ScheduledReporter {
     }
     return JOINER.join(metricContextName, tags.get("taskId"), tags.get("forkBranchName"), tags.get("class"));
   }
-  
+
   @Override
   public void close() throws IOException {
     try {

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metastore;
@@ -15,6 +20,7 @@ package gobblin.metastore;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import gobblin.configuration.State;
+import gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -172,7 +178,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
    * @param state the state to serialize
    * @throws IOException
    */
-  private void addStateToOs(DataOutput dataOutput, T state) throws IOException {
+  private void addStateToDataOutputStream(DataOutput dataOutput, T state) throws IOException {
     new Text(Strings.nullToEmpty(state.getId())).write(dataOutput);
     state.write(dataOutput);
   }
@@ -185,19 +191,20 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   @Override
   public void putAll(String storeName, String tableName, Collection<T> states) throws IOException {
     try (Connection connection = dataSource.getConnection();
-        PreparedStatement insertStatement = connection.prepareStatement(UPSERT_JOB_STATE_SQL)) {
-      ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
-      OutputStream os = compressedValues ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
-      DataOutputStream dataOutput = new DataOutputStream(os);
+        PreparedStatement insertStatement = connection.prepareStatement(UPSERT_JOB_STATE_SQL);
+        ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
+        OutputStream os = compressedValues ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
+        DataOutputStream dataOutput = new DataOutputStream(os)) {
+
       int index = 0;
       insertStatement.setString(++index, storeName);
       insertStatement.setString(++index, tableName);
 
       for (T state : states) {
-        addStateToOs(dataOutput, state);
+        addStateToDataOutputStream(dataOutput, state);
       }
 
-      os.close();
+      dataOutput.close();
       insertStatement.setBlob(++index, new ByteArrayInputStream(byteArrayOs.toByteArray()));
 
       insertStatement.executeUpdate();
@@ -218,11 +225,11 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       try (ResultSet rs = queryStatement.executeQuery()) {
         if (rs.next()) {
           Blob blob = rs.getBlob(1);
-          InputStream is = compressedValues ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
-          DataInputStream dis = new DataInputStream(is);
           Text key = new Text();
 
-          try {
+          try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
+              new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+              DataInputStream dis = new DataInputStream(is)){
             // keep deserializing while we have data
             while (dis.available() > 0) {
               T state = this.stateClass.newInstance();
@@ -260,12 +267,11 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       try (ResultSet rs = queryStatement.executeQuery()) {
         while (rs.next()) {
           Blob blob = rs.getBlob(1);
-          InputStream is = compressedValues ? new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
-          DataInputStream dis = new DataInputStream(is);
-
           Text key = new Text();
 
-          try {
+          try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
+              new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+              DataInputStream dis = new DataInputStream(is)) {
             // keep deserializing while we have data
             while (dis.available() > 0) {
               T state = this.stateClass.newInstance();

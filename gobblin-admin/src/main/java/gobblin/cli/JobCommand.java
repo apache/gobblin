@@ -1,23 +1,38 @@
-/* (c) 2015 NerdWallet All rights reserved.
-*
-* Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-* this file except in compliance with the License. You may obtain a copy of the
-* License at  http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software distributed
-* under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-* CONDITIONS OF ANY KIND, either express or implied.
-*/
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package gobblin.cli;
+
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionGroup;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.r2.RemoteInvocationException;
-import gobblin.rest.*;
-import org.apache.commons.cli.*;
 
-import java.util.List;
-import java.util.Map;
+import gobblin.rest.JobExecutionInfo;
+import gobblin.rest.QueryListType;
 
 /**
  * Logic to print out job state
@@ -26,6 +41,8 @@ public class JobCommand implements Command {
     private Options options;
 
     private static class CommandException extends Exception {
+      private static final long serialVersionUID = 1L;
+
         public CommandException(String msg) {
             super(msg);
         }
@@ -47,7 +64,7 @@ public class JobCommand implements Command {
 
     private static final int DEFAULT_RESULTS_LIMIT = 10;
 
-    private static Map<String, SubCommand> subCommandMap =
+    private static final Map<String, SubCommand> subCommandMap =
             ImmutableMap.of(
                     LIST_OPT, new ListAllItemsCommand(),
                     DETAILS_OPT, new ListOneItemWithDetails(),
