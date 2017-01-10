@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigRenderOptions;
 
 
 public class TestMetastoreDatabaseFactory {
@@ -40,7 +41,7 @@ public class TestMetastoreDatabaseFactory {
     private TestMetastoreDatabaseFactory() {
     }
 
-    private static Config getDefaultConfig() {
+    public static Config getDefaultConfig() {
       return ConfigFactory.defaultOverrides().withFallback(ConfigFactory.load());
     }
 
@@ -49,16 +50,24 @@ public class TestMetastoreDatabaseFactory {
     }
 
     public static ITestMetastoreDatabase get(String version) throws Exception {
-      return get(version, getDefaultConfig());
+        return get(version, getDefaultConfig());
     }
 
     public static ITestMetastoreDatabase get(String version, Config dbConfig) throws Exception {
-        synchronized (syncObject) {
-            ensureDatabaseExists(dbConfig);
-            TestMetadataDatabase instance = new TestMetadataDatabase(testMetastoreDatabaseServer, version);
-            instances.add(instance);
-            return instance;
+        try {
+            synchronized (syncObject) {
+                ensureDatabaseExists(dbConfig);
+                TestMetadataDatabase instance = new TestMetadataDatabase(testMetastoreDatabaseServer, version);
+                instances.add(instance);
+                return instance;
+            }
         }
+        catch (Exception e) {
+            throw new RuntimeException("Failed to create TestMetastoreDatabase with version " + version +
+               " and config " + dbConfig.root().render(ConfigRenderOptions.defaults().setFormatted(true).setJson(true))
+               + " cause: " + e, e);
+        }
+
     }
 
     static void release(ITestMetastoreDatabase instance) throws IOException {

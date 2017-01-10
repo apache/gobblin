@@ -64,7 +64,6 @@ buildscript {
 
 test {
     workingDir rootProject.rootDir
-    jvmArgs '-Dlog4j.configuration=gobblin-rest-server-test-log4j.properties'
 }
 
 task compileTest(dependsOn: ['compileTestGeneratedDataTemplateJava', 'compileTestJava']) << {
