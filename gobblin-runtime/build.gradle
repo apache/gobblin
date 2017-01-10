@@ -119,7 +119,7 @@ test {
     maxParallelForks = 1
     if (rootProject.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(rootProject.usePreinstalledMysql)) {
       println "Using pre-installed MySQL"
-      jvmArgs '-Dgobblin.metastore.testing.embeddedMysqlEnabled=false'
+      systemProperty 'gobblin.metastore.testing.embeddedMysqlEnabled', 'false'
     }
 }
 
