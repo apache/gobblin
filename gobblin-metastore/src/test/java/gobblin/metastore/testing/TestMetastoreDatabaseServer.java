@@ -85,12 +85,13 @@ class TestMetastoreDatabaseServer implements Closeable {
     this.dbHost = this.embeddedMysqlEnabled ? "localhost" : realConfig.getString(DBHOST_KEY);
     this.dbPort = this.embeddedMysqlEnabled ? chooseRandomPort() : realConfig.getInt(DBPORT_KEY);
 
-    System.err.println(String.format("Starting with config: embeddedMysqlEnabled=%s dbUserName=%s dbHost=%s dbPort=%s",
+    if ( 2 == 2) {
+    throw new Exception(String.format("Starting with config: embeddedMysqlEnabled=%s dbUserName=%s dbHost=%s dbPort=%s",
                   this.embeddedMysqlEnabled,
                   this.dbUserName,
                   this.dbHost,
                   this.dbPort));
-    System.err.println("dbConfig=" + dbConfig);
+    }
 
     this.log.error("Starting with config: embeddedMysqlEnabled={} dbUserName={} dbHost={} dbPort={}",
                   this.embeddedMysqlEnabled,
