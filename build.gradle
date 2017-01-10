@@ -482,6 +482,9 @@ subprojects {
           includeGroups project.runTestGroups
         }
       }
+      testLogging {
+        events "started","skipped","passed","failed"
+      }
     }
 
     configurations {

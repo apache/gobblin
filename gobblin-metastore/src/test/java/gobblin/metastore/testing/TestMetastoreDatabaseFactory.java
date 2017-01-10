@@ -40,7 +40,7 @@ public class TestMetastoreDatabaseFactory {
     private TestMetastoreDatabaseFactory() {
     }
 
-    private static Config getDefaultConfig() {
+    public static Config getDefaultConfig() {
       return ConfigFactory.defaultOverrides().withFallback(ConfigFactory.load());
     }
 

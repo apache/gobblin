@@ -31,7 +31,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-
 import com.linkedin.data.template.StringMap;
 
 import gobblin.configuration.ConfigurationKeys;
