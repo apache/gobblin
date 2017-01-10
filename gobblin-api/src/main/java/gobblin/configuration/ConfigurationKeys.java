@@ -71,8 +71,8 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
   public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
-  public static final String STATE_STORE_DB_COMPRESSED_VALUES_KEY = "state.store.db.compressedValues";
-  public static final boolean DEFAULT_STATE_STORE_DB_COMPRESSED_VALUES = true;
+  // ZooKeeper state store configuration
+  public static final String STATE_STORE_ZK_CONNECT_STRING_KEY = "state.store.zk.connectString";
 
   /**
    * Job scheduler configuration properties.

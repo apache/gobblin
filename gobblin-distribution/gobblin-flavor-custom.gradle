@@ -38,4 +38,3 @@ dependencies {
   // Gobblin Helix modules
   // compile project(':gobblin-modules:gobblin-helix')
 }
-
