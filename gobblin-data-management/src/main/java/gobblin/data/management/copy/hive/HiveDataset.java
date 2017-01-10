@@ -18,7 +18,6 @@
 package gobblin.data.management.copy.hive;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -96,7 +95,6 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   private transient final MetricContext metricContext;
   protected transient final Table table;
   protected transient final Config datasetConfig;
-
 
   // Only set if table has exactly one location
   protected final Optional<Path> tableRootPath;
