@@ -77,8 +77,10 @@ artifacts {
 
 test {
     workingDir rootProject.rootDir
+    testLogging {
     error {
        showStandardStreams true
+    }
     }
     if (rootProject.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(rootProject.usePreinstalledMysql)) {
       println "Using pre-installed MySQL"
