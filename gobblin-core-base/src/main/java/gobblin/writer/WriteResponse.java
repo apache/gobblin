@@ -36,7 +36,7 @@ public interface WriteResponse<T> {
    */
   long bytesWritten();
 
-  public static WriteResponse EMPTY = new WriteResponse() {
+  WriteResponse EMPTY = new WriteResponse() {
     private final String _emptyResponse = "EmptyResponse";
 
     @Override

@@ -15,15 +15,20 @@
 package gobblin.couchbase.converter;
 
 import com.couchbase.client.java.document.RawJsonDocument;
+import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import lombok.extern.slf4j.Slf4j;
+
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.converter.SchemaConversionException;
 import gobblin.converter.SingleRecordIterable;
+import gobblin.util.ForkOperatorUtils;
 
 
 /**
@@ -31,15 +36,34 @@ import gobblin.converter.SingleRecordIterable;
  * {@link com.couchbase.client.java.document.RawJsonDocument}
  * It expects to be configured to pick out the String key field from the incoming Object
  */
+@Slf4j
 public class AnyToCouchbaseJsonConverter extends Converter<String, String, Object, RawJsonDocument> {
 
   private static final Gson GSON = new Gson();
   private String keyField = "key";
 
+  public static final String KEY_FIELD_CONFIG = "converter.any2couchbase.key.field";
+
+
+  @Override
+  public Converter<String, String, Object, RawJsonDocument> init(WorkUnitState workUnit) {
+
+    String keyFieldPath =
+        ForkOperatorUtils.getPropertyNameForBranch(workUnit, KEY_FIELD_CONFIG);
+
+    if (!workUnit.contains(keyFieldPath)) {
+      log.warn("No configuration for which field to use as the key. Using the default {}", this.keyField);
+    } else {
+      this.keyField = workUnit.getProp(keyFieldPath);
+      log.info("Using the field {} from config for writing converter", this.keyField);
+    }
+
+    return this;
+  }
+
   @Override
   public String convertSchema(String inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
-    //TODO: Use the schema and config to determine which fields to pull out
     return "";
   }
 

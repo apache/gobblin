@@ -25,8 +25,13 @@ import com.google.gson.Gson;
 
 import lombok.AllArgsConstructor;
 
+import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
+
+import static org.mockito.Matchers.notNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 public class AnyToCouchbaseJsonConverterTest {
@@ -34,16 +39,39 @@ public class AnyToCouchbaseJsonConverterTest {
   private static final Gson GSON = new Gson();
 
   @Test
-  public void testBasicConvert()
+  public void testBasicConvertDefaultConfig()
+      throws Exception {
+    // default config
+    testBasicConvert("key", false);
+  }
+
+  @Test
+  public void testBasicConvertWithConfig()
+      throws Exception {
+    // with config
+    testBasicConvert("foobar", true);
+
+
+  }
+  private void testBasicConvert(String keyField, boolean setConfig)
       throws Exception {
 
     String key = "hello";
     String testContent = "hello world";
     Map<String, String> content = new HashMap<>();
-    content.put("key", key);
+    content.put(keyField, key);
     content.put("value", testContent);
 
-    Converter<String, String, Object, RawJsonDocument> recordConverter = new AnyToCouchbaseJsonConverter();
+    AnyToCouchbaseJsonConverter recordConverter = new AnyToCouchbaseJsonConverter();
+
+    WorkUnitState workUnitState = mock(WorkUnitState.class);
+    if (setConfig) {
+      when(workUnitState.getProp(AnyToCouchbaseJsonConverter.KEY_FIELD_CONFIG)).thenReturn(keyField);
+      when(workUnitState.contains(AnyToCouchbaseJsonConverter.KEY_FIELD_CONFIG)).thenReturn(true);
+      recordConverter.init(workUnitState);
+    } else {
+      recordConverter.init(workUnitState);
+    }
 
     RawJsonDocument returnDoc = recordConverter.convertRecord("", content, null).iterator().next();
     System.out.println(returnDoc.toString());
@@ -51,7 +79,7 @@ public class AnyToCouchbaseJsonConverterTest {
 
 
     Map<String, String> convertedMap = GSON.fromJson(returnDoc.content(), Map.class);
-    Assert.assertEquals(key, convertedMap.get("key"), "key in content should be equal");
+    Assert.assertEquals(key, convertedMap.get(keyField), "key in content should be equal");
     Assert.assertEquals(testContent, convertedMap.get("value"), "value in content should be equal");
     Assert.assertEquals(2, convertedMap.keySet().size(), "should have 2 fields");
   }

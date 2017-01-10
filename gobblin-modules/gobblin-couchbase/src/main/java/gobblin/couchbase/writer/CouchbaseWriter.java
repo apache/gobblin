@@ -40,9 +40,11 @@ import com.couchbase.client.java.Cluster;
 import com.couchbase.client.java.CouchbaseCluster;
 import com.couchbase.client.java.document.AbstractDocument;
 import com.couchbase.client.java.document.Document;
+import com.couchbase.client.java.document.RawJsonDocument;
 import com.couchbase.client.java.env.CouchbaseEnvironment;
 import com.couchbase.client.java.transcoder.Transcoder;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
 import rx.Observable;
@@ -128,8 +130,16 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
     return _bucket;
   }
 
+  private void assertRecordWritable(D record) {
+    boolean recordIsTupleDocument = (record instanceof TupleDocument);
+    boolean recordIsJsonDocument = (record instanceof RawJsonDocument);
+    Preconditions.checkArgument(recordIsTupleDocument || recordIsJsonDocument,
+        "This writer only supports TupleDocument or RawJsonDocument. Found " + record.getClass().getName());
+  }
+
   @Override
   public Future<WriteResponse> write(final D record, final WriteCallback callback) {
+    assertRecordWritable(record);
     if (record instanceof TupleDocument) {
       ((TupleDocument) record).content().value1().retain();
     }
@@ -179,7 +189,6 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
       };
 
       observable.timeout(_operationTimeout, _operationTimeunit)
-//          .retryWhen(RetryBuilder.any().max(6).delay(Delay.exponential(TimeUnit.SECONDS, 5)).build())
           .subscribe(new Subscriber<D>() {
             @Override
             public void onCompleted() {
