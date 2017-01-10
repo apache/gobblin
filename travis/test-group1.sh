@@ -32,4 +32,4 @@ echo "Precompiling tests"
 rm -rf $HOME/.gradle/caches/
 ./gradlew compileTest -Porg.gradle.parallel=false
 echo "Running tests for $TEST_GROUP1"
-time ./gradlew test -PskipTestGroup=disabledOnTravis -PrunTestGroups=$TEST_GROUP1 -Dorg.gradle.parallel=false
+time ./gradlew test -PskipTestGroup=disabledOnTravis -PrunTestGroups=$TEST_GROUP1 -Dorg.gradle.parallel=false $GOBBLIN_GRADLE_OPTS

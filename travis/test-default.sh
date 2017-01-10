@@ -28,4 +28,4 @@ script_dir=$(dirname $0)
 source ${script_dir}/test-groups.inc
 
 echo "Starting $0 at " $(date)
-time ./gradlew test -PskipTestGroup=disabledOnTravis,$TEST_GROUP1 -Dorg.gradle.parallel=false
+time ./gradlew test -PskipTestGroup=disabledOnTravis,$TEST_GROUP1 -Dorg.gradle.parallel=false $GOBBLIN_GRADLE_OPTS
