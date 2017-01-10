@@ -26,6 +26,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Properties;
 
+import javax.sql.DataSource;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,8 +45,6 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metastore.util.DatabaseJobHistoryStoreSchemaManager;
 import gobblin.metastore.util.MySqlJdbcUrl;
-
-import javax.sql.DataSource;
 
 
 class TestMetastoreDatabaseServer implements Closeable {
@@ -84,6 +84,12 @@ class TestMetastoreDatabaseServer implements Closeable {
     this.dbUserPassword = realConfig.getString(DBUSER_PASSWORD_KEY);
     this.dbHost = this.embeddedMysqlEnabled ? "localhost" : realConfig.getString(DBHOST_KEY);
     this.dbPort = this.embeddedMysqlEnabled ? chooseRandomPort() : realConfig.getInt(DBPORT_KEY);
+
+    System.err.println(String.format("Starting with config: embeddedMysqlEnabled=%s dbUserName=%s dbHost=%s dbPort=%s",
+                  this.embeddedMysqlEnabled,
+                  this.dbUserName,
+                  this.dbHost,
+                  this.dbPort));
 
     this.log.error("Starting with config: embeddedMysqlEnabled={} dbUserName={} dbHost={} dbPort={}",
                   this.embeddedMysqlEnabled,
