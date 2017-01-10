@@ -117,10 +117,6 @@ artifacts {
 test {
     workingDir rootProject.rootDir
     maxParallelForks = 1
-    if (rootProject.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(rootProject.usePreinstalledMysql)) {
-      println "Using pre-installed MySQL"
-      systemProperty 'gobblin.metastore.testing.embeddedMysqlEnabled', 'false'
-    }
 }
 
 clean {
