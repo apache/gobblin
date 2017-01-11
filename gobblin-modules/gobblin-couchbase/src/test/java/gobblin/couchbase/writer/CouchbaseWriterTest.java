@@ -228,6 +228,11 @@ public class CouchbaseWriterTest {
         throw new RuntimeException(e);
       }
     }
+
+    @Override
+    public void remove() {
+    }
+
   }
 
   /**
@@ -269,6 +274,11 @@ public class CouchbaseWriterTest {
         throw new RuntimeException(e);
       }
     }
+
+    @Override
+    public void remove() {
+    }
+
   }
 
   class Verifier {
@@ -422,6 +432,10 @@ public class CouchbaseWriterTest {
 
     Iterator<GenericRecord> recordIterator = new Iterator<GenericRecord>() {
       private int currentIndex;
+      
+      @Override
+      public void remove() {
+      }
 
       @Override
       public boolean hasNext() {
@@ -474,6 +488,11 @@ public class CouchbaseWriterTest {
         currentIndex++;
         return contentMap;
       }
+
+      @Override
+      public void remove() {
+      }
+
     };
     writeRecordsWithAsyncWriter(new JsonDocumentIterator(recordIterator));
   }
@@ -493,6 +512,10 @@ public class CouchbaseWriterTest {
 
     Iterator<GenericRecord> recordIterator = new Iterator<GenericRecord>() {
       private int currentIndex;
+
+      @Override
+      public void remove() {
+      }
 
       @Override
       public boolean hasNext() {
