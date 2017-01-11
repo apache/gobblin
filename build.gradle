@@ -16,6 +16,8 @@
  */
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
+import gobblin.gradle.BuildProperties
+import gobblin.gradle.BuildProperty
 
 // Setup environment
 ext.build_script_dir = "${projectDir.path}/build_script"
@@ -49,19 +51,75 @@ apply plugin: 'io.spring.dependency-management'
 
 apply from: rootProject.projectDir.path + '/gradle/scripts/jacoco-coveralls-support.gradle'
 
-idea.project {
-  ext.languageLevel = JavaVersion.VERSION_1_7
-  languageLevel = JavaVersion.VERSION_1_7
+def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
+    .register(new BuildProperty("artifactRepository", "https://oss.sonatype.org/service/local/staging/deploy/maven2/", "Maven repository to publish artifacts"))
+    .register(new BuildProperty("artifactSnapshotRepository", "https://oss.sonatype.org/content/repositories/snapshots/", "Maven repository to publish artifacts"))
+    .register(new BuildProperty("bytemanVersion", "2.2.1", "Byteman dependencies version"))
+    .register(new BuildProperty("doNotSignArtifacts", false, "Do not sight Maven artifacts"))
+    .register(new BuildProperty("gobblinFlavor", "standard", "Build flavor (see http://gobblin.readthedocs.io/en/latest/developer-guide/GobblinModules/)"))
+    .register(new BuildProperty("hadoopVersion", "2.3.0", "Hadoop dependencies version"))
+    .register(new BuildProperty("hiveVersion", "1.0.1", "Hive dependencies version"))
+    .register(new BuildProperty("jdkVersion", "7", "Java compatibility: one of '7' or '8'"))
+    .register(new BuildProperty("pegasusVersion", "2.6.0", "Pegasus dependencies version"))
+    .register(new BuildProperty("publishToMaven", false, "Enable publishing of artifacts to a central Maven repository"))
+  ;
+
+task buildProperties(description: 'Lists main properties that can be used to customize the build') << {
+  BUILD_PROPERTIES.printHelp();
 }
+
 
 // Gobblin build customization
-if (!project.hasProperty('gobblinFlavor')) {
-   project.ext.gobblinFlavor = 'standard'
+// if (!project.hasProperty('gobblinFlavor')) {
+//   project.ext.gobblinFlavor = 'standard'
+//}
+BUILD_PROPERTIES.ensureDefined('gobblinFlavor')
+
+// Compiler compatibility
+BUILD_PROPERTIES.ensureDefined('jdkVersion')
+
+if (project.hasProperty('jdkVersion')) {
+  if (project.jdkVersion.equals('7')) {
+     ext.javaVersion = JavaVersion.VERSION_1_7
+  } else if (project.jdkVersion.equals('8')) {
+     ext.javaVersion = JavaVersion.VERSION_1_8
+  } else {
+    throw new RuntimeException("Unrecognized JDK version: " + project.jdkVersion +
+          ". Should be one of 7 (default) or 8")
+  }
 }
 
-println '-----------------------'
-println 'Using ' + project.gobblinFlavor + ' build.'
-println '-----------------------'
+// Set group for Maven
+if (!project.hasProperty('group') || project.group.length() == 0) {
+    project.ext.group = 'com.linkedin.gobblin'
+}
+
+// Maven publishing
+BUILD_PROPERTIES.ensureDefined('publishToMaven')
+if (ext.publishToMaven) {
+    plugins.apply('maven')
+    // Workaround for a bug in gradle's "maven" plugin. See https://discuss.gradle.org/t/error-in-parallel-build/7215/3
+    project.setProperty("org.gradle.parallel", "false")
+}
+
+BUILD_PROPERTIES.ensureDefined('artifactRepository')
+BUILD_PROPERTIES.ensureDefined('artifactSnapshotRepository')
+BUILD_PROPERTIES.ensureDefined('doNotSignArtifacts')
+
+ext.signArtifacts = !project.doNotSignArtifacts
+
+// Library dependencies versions
+BUILD_PROPERTIES.ensureDefined('bytemanVersion')
+BUILD_PROPERTIES.ensureDefined('hadoopVersion')
+BUILD_PROPERTIES.ensureDefined('hiveVersion')
+BUILD_PROPERTIES.ensureDefined('pegasusVersion')
+
+
+// Hadoop validation
+if (! hadoopVersion.startsWith('2.')) {
+  throw new GradleScriptException("Only Hadoop 2.x is supported: " + hadoopVersion);
+}
+
 
 // Maven POM generation is not thread safe, so serialize all the Upload tasks we can use `--parallel`.
 // https://issues.gradle.org/browse/GRADLE-2492
@@ -71,7 +129,7 @@ def available = lock.newCondition()
 def busy = new AtomicBoolean()
 def serializedTasks = []
 allprojects {
-  apply from: rootProject.projectDir.path + '/gradle/scripts/hadoop-version.gradle'
+  //apply from: rootProject.projectDir.path + '/gradle/scripts/hadoop-version.gradle'
   tasks.matching { it.name == "generatePom" || it instanceof Upload }.all {
     serializedTasks << it
     doFirst {
@@ -84,8 +142,6 @@ allprojects {
   }
 }
 
-println "Building against Hadoop version " + ext.hadoopVersion
-
 gradle.taskGraph.afterTask {
   if (it in serializedTasks && lock.heldByCurrentThread) {
     busy.set(false)
@@ -94,26 +150,12 @@ gradle.taskGraph.afterTask {
   }
 }
 
-ext.publishToMaven = project.hasProperty('publishToMaven')
-if (ext.publishToMaven) {
-    plugins.apply('maven')
-    // Workaround for a bug in gradle's "maven" plugin. See https://discuss.gradle.org/t/error-in-parallel-build/7215/3
-    project.setProperty("org.gradle.parallel", "false")
+
+idea.project {
+  ext.languageLevel = javaVersion
+  languageLevel = javaVersion
 }
 
-ext.signArtifacts = !project.hasProperty('doNotSignArtifacts')
-
-if (!project.hasProperty('group') || project.group.length() == 0) {
-    project.group = 'com.linkedin.gobblin'
-}
-
-if (!project.hasProperty('artifactRepository') || project.artifactRepository.length() == 0) {
-    ext.artifactRepository = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-}
-
-if (!project.hasProperty('artifactSnapshotRepository') || project.artifactSnapshotRepository.length() == 0) {
-    ext.artifactSnapshotRepository = "https://oss.sonatype.org/content/repositories/snapshots/"
-}
 
 if (!project.hasProperty('version') || project.version == 'unspecified') {
     exec {
@@ -142,18 +184,6 @@ ext.gradleVersionMajor = Integer.parseInt(project.gradle.gradleVersion.substring
 ext.gradleVersionMinor = Integer.parseInt(project.gradle.gradleVersion.substring(gradleVersionDotIdx + 1))
 println "Detected Gradle version major=" + gradleVersionMajor + " minor=" + gradleVersionMinor
 
-if (!project.hasProperty('hiveVersion')) {
-  ext.hiveVersion = '1.0.1'
-}
-
-if (!project.hasProperty('pegasusVersion')) {
-  ext.pegasusVersion = '2.6.0'
-}
-
-if (!project.hasProperty('bytemanVersion')) {
-  ext.bytemanVersion = '2.2.1'
-}
-
 ext.avroVersion = '1.8.1'
 ext.dropwizardMetricsVersion = '3.1.0'
 ext.findBugsVersion = '3.0.0'
@@ -161,6 +191,7 @@ ext.confluentVersion = '2.0.1'
 ext.googleVersion = '1.22.0'
 ext.kafka08Version = '0.8.2.2'
 ext.kafka09Version = '0.9.0.1'
+
 
 dependencyManagement {
   imports {
@@ -458,7 +489,7 @@ subprojects {
     plugins.apply('maven')
     plugins.apply('findbugs')
 
-    sourceCompatibility = JavaVersion.VERSION_1_7
+    sourceCompatibility = javaVersion
 
     findbugs {
       toolVersion = findBugsVersion
@@ -589,8 +620,8 @@ subprojects {
     // Configure the IDEA plugin to (1) add the codegen as source dirs and (2) work around
     // an apparent bug in the plugin which doesn't set the outputDir/testOutputDir as documented
     idea.project {
-      ext.languageLevel = JavaVersion.VERSION_1_7
-      languageLevel = JavaVersion.VERSION_1_7
+      ext.languageLevel = javaVersion
+      languageLevel = javaVersion
     }
     idea.module {
       // Gradle docs claim the two settings below are the default, but
