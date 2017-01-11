@@ -16,8 +16,6 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import gobblin.annotation.Alias;
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
@@ -32,7 +30,6 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import org.I0Itec.zkclient.serialize.ZkSerializer;
@@ -82,24 +79,6 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
     ZkSerializer serializer = new ByteArraySerializer();
     propStore = new ZkHelixPropertyStore<byte[]>(connectString, serializer, storeRootDir);
-  }
-
-  @Alias("zk")
-  public static class Factory implements StateStore.Factory {
-    @Override
-    public <T extends State> StateStore<T> createStateStore(Properties props, Class<T> stateClass) {
-      String connectString = props.getProperty(ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY);
-      String rootDir = props.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
-      boolean compressedValues =
-          Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_COMPRESSED_VALUES_KEY,
-              Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES)));
-
-      try {
-        return new ZkStateStore(connectString, rootDir, compressedValues, stateClass);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
   }
 
   private String formPath(String storeName) {
@@ -249,7 +228,7 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public List<String> getStateNames(String storeName, Predicate<String> predicate) throws IOException {
+  public List<String> getTableNames(String storeName, Predicate<String> predicate) throws IOException {
     List<String> names = Lists.newArrayList();
     String path = formPath(storeName);
 

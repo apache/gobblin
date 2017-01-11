@@ -13,12 +13,12 @@
 package gobblin.metastore;
 
 import com.google.common.base.Predicate;
+import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
 import gobblin.configuration.State;
-import java.util.Properties;
 
 
 /**
@@ -27,7 +27,7 @@ import java.util.Properties;
  * <p>
  *     Each such store consists of zero or more tables, and each table
  *     stores zero or more {@link State}s keyed on the state IDs (see
- *     {@link State#getId()).
+ *     {@link State#getId()}).
  * </p>
  *
  * @param <T> state object type
@@ -37,7 +37,7 @@ import java.util.Properties;
 public interface StateStore<T extends State> {
 
   interface Factory {
-    <T extends State> StateStore<T> createStateStore(Properties props, Class<T> stateClass);
+    <T extends State> StateStore<T> createStateStore(Config config, Class<T> stateClass);
   }
 
   /**
@@ -149,14 +149,14 @@ public interface StateStore<T extends State> {
       throws IOException;
 
   /**
-   * Get state names under the storeName
+   * Get table names under the storeName
    *
    * @param storeName store name
    * @param predicate only returns names matching predicate
    * @return (possibly empty) list of state names from the given store
    * @throws IOException
    */
-  public List<String> getStateNames(String storeName, Predicate<String> predicate)
+  public List<String> getTableNames(String storeName, Predicate<String> predicate)
       throws IOException;
 
   /**

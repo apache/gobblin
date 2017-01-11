@@ -15,10 +15,11 @@ package gobblin.metastore;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import gobblin.annotation.Alias;
+import com.typesafe.config.Config;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.password.PasswordManager;
+import gobblin.util.ConfigUtils;
 import gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -37,7 +38,6 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import javax.sql.DataSource;
@@ -145,49 +145,30 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   /**
    * creates a new {@link BasicDataSource}
-   * @param props the properties used for datasource instantiation
+   * @param config the properties used for datasource instantiation
    * @return
    */
-  protected static BasicDataSource newDataSource(Properties props) {
+  public static BasicDataSource newDataSource(Config config) {
     BasicDataSource basicDataSource = new BasicDataSource();
-    PasswordManager passwordManager = PasswordManager.getInstance(props);
+    PasswordManager passwordManager = PasswordManager.getInstance(ConfigUtils.configToProperties(config));
 
-    basicDataSource.setDriverClassName(props.getProperty(ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
+    basicDataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
     // MySQL server can timeout a connection so need to validate connections before use
     basicDataSource.setValidationQuery("select 1");
     basicDataSource.setTestOnBorrow(true);
     basicDataSource.setDefaultAutoCommit(false);
     basicDataSource.setTimeBetweenEvictionRunsMillis(60000);
-    basicDataSource.setUrl(props.getProperty(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
+    basicDataSource.setUrl(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
     basicDataSource.setUsername(passwordManager.readPassword(
-        props.getProperty(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
+        config.getString(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
     basicDataSource.setPassword(passwordManager.readPassword(
-        props.getProperty(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
-    basicDataSource.setMinEvictableIdleTimeMillis(Long.parseLong(
-        props.getProperty(ConfigurationKeys.STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY,
-            Long.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME))));
+        config.getString(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
+    basicDataSource.setMinEvictableIdleTimeMillis(
+        ConfigUtils.getLong(config, ConfigurationKeys.STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY,
+            ConfigurationKeys.DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME));
 
     return basicDataSource;
-  }
-
-  @Alias("mysql")
-  public static class Factory implements StateStore.Factory {
-    @Override
-    public <T extends State> StateStore<T> createStateStore(Properties props, Class<T> stateClass) {
-      BasicDataSource basicDataSource = newDataSource(props);
-      String stateStoreTableName = props.getProperty(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
-          ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
-      boolean compressedValues =
-          Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_COMPRESSED_VALUES_KEY,
-              Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES)));
-
-      try {
-        return new MysqlStateStore(basicDataSource, stateStoreTableName, compressedValues, stateClass);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
   }
 
   @Override
@@ -357,7 +338,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public List<String> getStateNames(String storeName, Predicate<String> predicate) throws IOException {
+  public List<String> getTableNames(String storeName, Predicate<String> predicate) throws IOException {
     List<String> names = Lists.newArrayList();
 
     try (Connection connection = dataSource.getConnection();

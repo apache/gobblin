@@ -12,9 +12,10 @@
 
 package gobblin.runtime;
 
-import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
+import com.typesafe.config.Config;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -25,7 +26,6 @@ import java.util.concurrent.ExecutionException;
 
 import javax.annotation.Nullable;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -125,7 +125,7 @@ public class JobContext {
     this.jobLockEnabled =
         Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
 
-    this.datasetStateStore = createStateStore(jobProps);
+    this.datasetStateStore = createStateStore(ConfigUtils.propertiesToConfig(jobProps));
     this.jobHistoryStoreOptional = createJobHistoryStore(jobProps);
 
     State jobPropsState = new State();
@@ -156,16 +156,16 @@ public class JobContext {
         : 1;
   }
 
-  protected DatasetStateStore createStateStore(Properties jobProps) throws IOException {
-    boolean stateStoreEnabled = !jobProps.containsKey(ConfigurationKeys.STATE_STORE_ENABLED)
-        || Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.STATE_STORE_ENABLED));
+  protected DatasetStateStore createStateStore(Config jobConfig) throws IOException {
+    boolean stateStoreEnabled = !jobConfig.hasPath(ConfigurationKeys.STATE_STORE_ENABLED)
+        || jobConfig.getBoolean(ConfigurationKeys.STATE_STORE_ENABLED);
 
     String stateStoreType;
 
     if (!stateStoreEnabled) {
       stateStoreType = ConfigurationKeys.STATE_STORE_TYPE_NOOP;
     } else {
-      stateStoreType = jobProps.getProperty(ConfigurationKeys.STATE_STORE_TYPE_KEY,
+      stateStoreType = ConfigUtils.getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY,
           ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
     }
 
@@ -175,7 +175,7 @@ public class JobContext {
     try {
       DatasetStateStore.Factory stateStoreFactory =
           resolver.resolveClass(stateStoreType).newInstance();
-      return stateStoreFactory.createStateStore(jobProps);
+      return stateStoreFactory.createStateStore(jobConfig);
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {

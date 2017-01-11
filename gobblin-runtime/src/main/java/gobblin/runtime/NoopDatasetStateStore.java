@@ -12,17 +12,16 @@
 
 package gobblin.runtime;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import java.io.IOException;
-import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import java.util.Properties;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.collect.Lists;
@@ -37,8 +36,10 @@ public class NoopDatasetStateStore extends FsDatasetStateStore {
   @Alias("noop")
   public static class Factory implements DatasetStateStore.Factory {
     @Override
-    public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {
-      return FsDatasetStateStore.createStateStore(props, NoopDatasetStateStore.class.getName());
+    public DatasetStateStore<JobState.DatasetState> createStateStore(Config config) {
+      // dummy root dir for noop state store
+      Config config2 = config.withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(""));
+      return FsDatasetStateStore.createStateStore(config2, NoopDatasetStateStore.class.getName());
     }
   }
 

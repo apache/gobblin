@@ -115,7 +115,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
    * @throws IOException if it fails to collect the output {@link TaskState}s
    */
   private void collectOutputTaskStates() throws IOException {
-    List<String> taskStateNames = taskStateStore.getStateNames(outputTaskStateDir.getName(), new Predicate<String>() {
+    List<String> taskStateNames = taskStateStore.getTableNames(outputTaskStateDir.getName(), new Predicate<String>() {
       @Override
       public boolean apply(String input) {
         return input.endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)

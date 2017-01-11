@@ -12,6 +12,7 @@
 
 package gobblin.runtime;
 
+import gobblin.config.ConfigBuilder;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.DatasetStateStore;
@@ -22,7 +23,6 @@ import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -37,7 +37,6 @@ import org.testng.annotations.Test;
 public class MysqlDatasetStateStoreTest {
 
   private static final String TEST_STATE_STORE = "TestStateStore";
-  private static final String TEST_DS_STATE_STORE = "TestDsStateStore";
   private static final String TEST_JOB_NAME = "TestJob";
   private static final String TEST_JOB_ID = "TestJob1";
   private static final String TEST_TASK_ID_PREFIX = "TestTask-";
@@ -55,7 +54,7 @@ public class MysqlDatasetStateStoreTest {
   public void setUp() throws Exception {
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
     String jdbcUrl = testMetastoreDatabase.getJdbcUrl();
-    Properties props = new Properties();
+    ConfigBuilder configBuilder = ConfigBuilder.create();
     BasicDataSource mySqlDs = new BasicDataSource();
 
     mySqlDs.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
@@ -66,16 +65,16 @@ public class MysqlDatasetStateStoreTest {
 
     dbJobStateStore = new MysqlStateStore<>(mySqlDs, TEST_STATE_STORE, false, JobState.class);
 
-    props.put(ConfigurationKeys.STATE_STORE_DB_URL_KEY, jdbcUrl);
-    props.put(ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER);
-    props.put(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, TEST_PASSWORD);
+    configBuilder.addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, jdbcUrl);
+    configBuilder.addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER);
+    configBuilder.addPrimitive(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, TEST_PASSWORD);
 
     ClassAliasResolver<DatasetStateStore.Factory> resolver =
         new ClassAliasResolver<>(DatasetStateStore.Factory.class);
 
     DatasetStateStore.Factory stateStoreFactory =
           resolver.resolveClass("mysql").newInstance();
-    dbDatasetStateStore = stateStoreFactory.createStateStore(props);
+    dbDatasetStateStore = stateStoreFactory.createStateStore(configBuilder.build());
 
     // clear data that may have been left behind by a prior test run
     dbJobStateStore.delete(TEST_JOB_NAME);

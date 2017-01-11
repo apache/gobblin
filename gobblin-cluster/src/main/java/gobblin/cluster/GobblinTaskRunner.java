@@ -163,7 +163,7 @@ public class GobblinTaskRunner {
     Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
     taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME,
         new GobblinHelixTaskFactory(this.containerMetrics, taskExecutor, taskStateTracker, this.fs, appWorkDir,
-            properties));
+            config));
     this.taskStateModelFactory = new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine().registerStateModelFactory("Task", this.taskStateModelFactory);
   }

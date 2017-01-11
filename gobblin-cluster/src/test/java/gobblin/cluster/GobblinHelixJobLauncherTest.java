@@ -161,7 +161,7 @@ public class GobblinHelixJobLauncherTest {
     DatasetStateStore.Factory stateStoreFactory =
         resolver.resolveClass(stateStoreType).newInstance();
 
-    this.datasetStateStore = stateStoreFactory.createStateStore(properties);
+    this.datasetStateStore = stateStoreFactory.createStateStore(config);
 
     this.thread = new Thread(new Runnable() {
       @Override

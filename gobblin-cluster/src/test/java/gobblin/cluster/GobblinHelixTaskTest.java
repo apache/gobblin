@@ -12,6 +12,7 @@
 
 package gobblin.cluster;
 
+import com.typesafe.config.ConfigFactory;
 import gobblin.metastore.FsStateStore;
 import java.io.File;
 import java.io.IOException;
@@ -137,7 +138,7 @@ public class GobblinHelixTaskTest {
 
     GobblinHelixTaskFactory gobblinHelixTaskFactory =
         new GobblinHelixTaskFactory(Optional.<ContainerMetrics>absent(), this.taskExecutor, this.taskStateTracker,
-            this.localFs, this.appWorkDir, new Properties());
+            this.localFs, this.appWorkDir, ConfigFactory.empty());
     this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
   }
 

@@ -13,6 +13,8 @@
 package gobblin.cluster;
 
 import gobblin.metastore.StateStore;
+import gobblin.runtime.util.StateStores;
+import gobblin.util.ConfigUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -99,7 +101,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private volatile boolean jobSubmitted = false;
   private volatile boolean jobComplete = false;
-  private final GobblinClusterUtils.StateStores stateStores;
+  private final StateStores stateStores;
 
   public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, Path appWorkDir,
       List<? extends Tag<?>> metadataTags)
@@ -122,7 +124,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
-    this.stateStores = new GobblinClusterUtils.StateStores(jobProps, appWorkDir);
+    this.stateStores = new StateStores(ConfigUtils.propertiesToConfig(jobProps), appWorkDir,
+        GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
+        GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
 
     URI fsUri = URI.create(jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, new Configuration());

@@ -12,12 +12,14 @@
 
 package gobblin.metastore;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.util.List;
 
-import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -41,18 +43,17 @@ public class FsStateStoreTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    Properties props = new Properties();
-
     ClassAliasResolver<StateStore.Factory> resolver =
         new ClassAliasResolver<>(StateStore.Factory.class);
 
     StateStore.Factory stateStoreFactory =
         resolver.resolveClass("fs").newInstance();
 
-    props.put(ConfigurationKeys.STATE_STORE_FS_URI_KEY, "file:///");
-    props.put(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, "metastore-test");
+    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
+        ConfigValueFactory.fromAnyRef("file:///")).withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
+        ConfigValueFactory.fromAnyRef("metastore-test"));
 
-    this.stateStore = stateStoreFactory.createStateStore(props, State.class);
+    this.stateStore = stateStoreFactory.createStateStore(config, State.class);
 
     // cleanup in case files left behind by a prior run
     this.stateStore.delete("testStore");

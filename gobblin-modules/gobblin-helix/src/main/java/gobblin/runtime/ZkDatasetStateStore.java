@@ -16,15 +16,12 @@ import com.google.common.base.CharMatcher;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
-import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.ZkStateStore;
-import gobblin.metastore.ZkStateStoreConfigurationKeys;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,25 +39,6 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
     implements DatasetStateStore<JobState.DatasetState> {
   private static final Logger LOGGER = LoggerFactory.getLogger(ZkDatasetStateStore.class);
   private static final String CURRENT_SUFFIX = CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
-
-  @Alias("zk")
-  public static class Factory implements DatasetStateStore.Factory {
-    @Override
-    public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {
-
-      String connectString = props.getProperty(ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY);
-      String rootDir = props.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
-      boolean compressedValues =
-          Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_COMPRESSED_VALUES_KEY,
-              Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES)));
-
-      try {
-        return new ZkDatasetStateStore(connectString, rootDir, compressedValues);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
 
   public ZkDatasetStateStore(String connectString, String storeRootDir, boolean compressedValues) throws IOException {
     super(connectString, storeRootDir, compressedValues, JobState.DatasetState.class);

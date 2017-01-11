@@ -12,6 +12,7 @@
 
 package gobblin.cluster;
 
+import gobblin.runtime.util.StateStores;
 import java.io.IOException;
 import java.util.List;
 
@@ -77,11 +78,11 @@ public class GobblinHelixTask implements Task {
   private final String participantId;
 
   private final FileSystem fs;
-  private final GobblinClusterUtils.StateStores stateStores;
+  private final StateStores stateStores;
 
   public GobblinHelixTask(TaskCallbackContext taskCallbackContext, Optional<ContainerMetrics> containerMetrics,
       TaskExecutor taskExecutor, TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir,
-      GobblinClusterUtils.StateStores stateStores)
+      StateStores stateStores)
       throws IOException {
     this.taskExecutor = taskExecutor;
     this.taskStateTracker = taskStateTracker;

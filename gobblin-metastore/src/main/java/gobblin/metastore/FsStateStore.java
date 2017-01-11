@@ -15,15 +15,12 @@ package gobblin.metastore;
 import static gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
 
 import com.google.common.base.Predicate;
-import gobblin.annotation.Alias;
-import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.HadoopUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
-import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -93,29 +90,6 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     this.useTmpFileForPut = !FS_SCHEMES_NON_ATOMIC.contains(this.fs.getUri().getScheme());
     this.storeRootDir = storePath.toUri().getPath();
     this.stateClass = stateClass;
-  }
-
-  @Alias("fs")
-  public static class Factory implements StateStore.Factory {
-    @Override
-    public <T extends State> StateStore<T> createStateStore(Properties props, Class<T> stateClass) {
-      // Add all job configuration properties so they are picked up by Hadoop
-      Configuration conf = new Configuration();
-      for (String key : props.stringPropertyNames()) {
-        conf.set(key, props.getProperty(key));
-      }
-
-      try {
-        String stateStoreFsUri = props.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
-            ConfigurationKeys.LOCAL_FS_URI);
-        FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
-        String stateStoreRootDir = props.getProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
-
-        return new FsStateStore(stateStoreFs, stateStoreRootDir, stateClass);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
   }
 
   @Override
@@ -296,7 +270,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public List<String> getStateNames(String storeName, Predicate<String> predicate) throws IOException {
+  public List<String> getTableNames(String storeName, Predicate<String> predicate) throws IOException {
     List<String> names = Lists.newArrayList();
 
     Path storePath = new Path(this.storeRootDir, storeName);
