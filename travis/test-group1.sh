@@ -28,8 +28,8 @@ script_dir=$(dirname $0)
 source ${script_dir}/test-groups.inc
 
 echo "Starting $0 at " $(date)
-echo "Precompiling tests"
+echo "Precompiling tests:"
 rm -rf $HOME/.gradle/caches/
-./gradlew compileTest -Porg.gradle.parallel=false
+./gradlew compileTest -Porg.gradle.parallel=false $GOBBLIN_GRADLE_OPTS
 echo "Running tests for $TEST_GROUP1"
-time ./gradlew test -PskipTestGroup=disabledOnTravis -PrunTestGroups=$TEST_GROUP1 -Dorg.gradle.parallel=false
+time ./gradlew -PskipTestGroup=disabledOnTravis -PrunTestGroups=$TEST_GROUP1 -Dorg.gradle.parallel=false $GOBBLIN_GRADLE_OPTS test

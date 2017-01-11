@@ -26,11 +26,12 @@ import lombok.Data;
 
 
 /**
- * Simple implementation of {@link ScopeInstance}.
+ * A wrapper around a {@link ScopeInstance} used by {@link SharedResourcesBrokerImpl} to store a
+ * {@link ScopeInstance} and its descendants.
  */
 @Data
-class ScopeImpl<S extends ScopeType<S>> implements ScopeInstance<S> {
+class ScopeWrapper<S extends ScopeType<S>> {
   private final S type;
-  private final String scopeId;
-  private final Collection<ScopeImpl<S>> parentScopes;
+  private final ScopeInstance<S> scope;
+  private final Collection<ScopeWrapper<S>> parentScopes;
 }

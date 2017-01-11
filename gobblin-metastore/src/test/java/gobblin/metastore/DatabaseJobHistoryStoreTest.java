@@ -31,8 +31,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-
 import com.linkedin.data.template.StringMap;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.testing.ITestMetastoreDatabase;
@@ -70,6 +70,7 @@ public abstract class DatabaseJobHistoryStoreTest {
   @BeforeClass
   public void setUp()
       throws Exception {
+    ConfigFactory.invalidateCaches();
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get(getVersion());
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, testMetastoreDatabase.getJdbcUrl());

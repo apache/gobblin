@@ -17,52 +17,17 @@
 
 package gobblin.broker;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
+import gobblin.broker.iface.ScopeInstance;
 import gobblin.broker.iface.ScopeType;
 
-import javax.annotation.Nullable;
-import lombok.AllArgsConstructor;
+import lombok.Data;
 
 
 /**
- * Simple {@link ScopeType} topology with only two levels.
+ * A simple {@link ScopeInstance} implementation containing just a {@link ScopeType} and an string id.
  */
-@AllArgsConstructor
-public enum  SimpleScope implements ScopeType {
-
-  GLOBAL("global"),
-  LOCAL("local", GLOBAL);
-
-  private static final Set<SimpleScope> LOCAL_SCOPES = Sets.newHashSet(LOCAL);
-
-  private final List<SimpleScope> parentScopes;
-  private final String defaultId;
-
-  SimpleScope(String defaultId, SimpleScope... parentScopes) {
-    this.defaultId = defaultId;
-    this.parentScopes = Lists.newArrayList(parentScopes);
-  }
-
-  @Override
-  public boolean isLocal() {
-    return LOCAL_SCOPES.contains(this);
-  }
-
-  @Override
-  public Collection<SimpleScope> parentScopes() {
-    return this.parentScopes;
-  }
-
-  @Nullable
-  @Override
-  public String defaultId() {
-    return this.defaultId;
-  }
-
+@Data
+public class SimpleScope<S extends ScopeType<S>> implements ScopeInstance<S> {
+  private final S type;
+  private final String scopeId;
 }

@@ -24,17 +24,30 @@ import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.HiveMetaHook;
+import org.apache.hadoop.hive.metastore.HiveMetaHookLoader;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 
 import com.google.common.base.Optional;
+import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
+import org.apache.hadoop.hive.ql.metadata.HiveUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
 
 /**
  * An implementation of {@link BasePooledObjectFactory} for {@link IMetaStoreClient}.
  */
 public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaStoreClient> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(HiveMetaStoreClientFactory.class);
 
   public static final String HIVE_METASTORE_TOKEN_SIGNATURE = "hive.metastore.token.signature";
   @Getter
@@ -61,10 +74,32 @@ public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaSto
     this(Optional.<String> absent());
   }
 
+  private IMetaStoreClient createMetaStoreClient() throws MetaException {
+    HiveMetaHookLoader hookLoader = new HiveMetaHookLoader() {
+      @Override
+      public HiveMetaHook getHook(Table tbl) throws MetaException {
+        if (tbl == null) {
+          return null;
+        }
+
+        try {
+          HiveStorageHandler storageHandler =
+              HiveUtils.getStorageHandler(hiveConf, tbl.getParameters().get(META_TABLE_STORAGE));
+          return storageHandler == null ? null : storageHandler.getMetaHook();
+        } catch (HiveException e) {
+          LOG.error(e.toString());
+          throw new MetaException("Failed to get storage handler: " + e);
+        }
+      }
+    };
+
+    return RetryingMetaStoreClient.getProxy(hiveConf, hookLoader, HiveMetaStoreClient.class.getName());
+  }
+
   @Override
   public IMetaStoreClient create() {
     try {
-      return new HiveMetaStoreClient(this.hiveConf);
+      return createMetaStoreClient();
     } catch (MetaException e) {
       throw new RuntimeException("Unable to create " + IMetaStoreClient.class.getSimpleName(), e);
     }

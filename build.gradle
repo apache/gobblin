@@ -140,7 +140,7 @@ println "project.version=" + project.version
 def gradleVersionDotIdx = project.gradle.gradleVersion.indexOf(".")
 ext.gradleVersionMajor = Integer.parseInt(project.gradle.gradleVersion.substring(0, gradleVersionDotIdx))
 ext.gradleVersionMinor = Integer.parseInt(project.gradle.gradleVersion.substring(gradleVersionDotIdx + 1))
-println "Detected Gradle version major=" + gradleVersionMajor + "minor=" + gradleVersionMinor
+println "Detected Gradle version major=" + gradleVersionMajor + " minor=" + gradleVersionMinor
 
 if (!project.hasProperty('hiveVersion')) {
   ext.hiveVersion = '1.0.1'
@@ -481,6 +481,13 @@ subprojects {
         if (project.hasProperty('runTestGroups')) {
           includeGroups project.runTestGroups
         }
+      }
+      testLogging {
+        events "started","skipped","passed","failed"
+      }
+      // Some tests require MySQL we can either download an embedded Wix image or use a pre-installed version
+      if (rootProject.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(rootProject.usePreinstalledMysql)) {
+        systemProperty 'gobblin.metastore.testing.embeddedMysqlEnabled', 'false'
       }
     }
 

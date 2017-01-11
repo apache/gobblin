@@ -17,11 +17,12 @@
 
 package gobblin.compaction.dataset;
 
-import java.io.IOException;
-import java.util.Set;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
+import gobblin.compaction.mapreduce.MRCompactor;
+import gobblin.configuration.State;
+import gobblin.util.DatasetFilterUtils;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,12 +35,8 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
-
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
-import gobblin.util.DatasetFilterUtils;
+import java.io.IOException;
+import java.util.Set;
 
 
 /**
@@ -123,7 +120,6 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   @Override
   public Set<Dataset> findDistinctDatasets() throws IOException {
     Set<Dataset> datasets = Sets.newHashSet();
-
     for (FileStatus datasetsFileStatus : this.fs.globStatus(new Path(inputDir, subDirPattern))) {
       log.info("Scanning directory : " + datasetsFileStatus.getPath().toString());
       if (datasetsFileStatus.isDirectory()) {
@@ -144,7 +140,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
             try {
               folderTime = getFolderTime(jobInputPath, inputPath);
             } catch (RuntimeException e) {
-              log.warn(jobInputPath + " is not a valid folder. Will be skipped.");
+              log.warn("{} is not a valid folder. Will be skipped due to exception.", jobInputPath, e);
               continue;
             }
 
@@ -192,7 +188,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   }
 
   protected String getFolderStructure() {
-    return this.folderTimePattern.replaceAll("[a-zA-Z0-9]+", "*");
+    return this.folderTimePattern.replaceAll("[a-zA-Z0-9='-]+", "*");
   }
 
   private String getFolderPattern() {

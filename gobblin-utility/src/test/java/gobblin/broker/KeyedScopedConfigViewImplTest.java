@@ -25,6 +25,8 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+
 
 public class KeyedScopedConfigViewImplTest {
 
@@ -40,14 +42,14 @@ public class KeyedScopedConfigViewImplTest {
         .put("key1", "value1")
         .put("key2", "value2")
         .put(JOINER.join(key, "key2"), "value2key")
-        .put(JOINER.join(GobblinScopes.JOB.name(), "key2"), "value2scope")
-        .put(JOINER.join(GobblinScopes.JOB.name(), key, "key2"), "value2scopekey")
+        .put(JOINER.join(GobblinScopeTypes.JOB.name(), "key2"), "value2scope")
+        .put(JOINER.join(GobblinScopeTypes.JOB.name(), key, "key2"), "value2scopekey")
         .build());
 
-    KeyedScopedConfigViewImpl<GobblinScopes, TestResourceKey> configView =
-        new KeyedScopedConfigViewImpl<>(GobblinScopes.JOB, new TestResourceKey(key), TestFactory.NAME, config);
+    KeyedScopedConfigViewImpl<GobblinScopeTypes, TestResourceKey> configView =
+        new KeyedScopedConfigViewImpl<>(GobblinScopeTypes.JOB, new TestResourceKey(key), TestFactory.NAME, config);
 
-    Assert.assertEquals(configView.getScope(), GobblinScopes.JOB);
+    Assert.assertEquals(configView.getScope(), GobblinScopeTypes.JOB);
     Assert.assertEquals(configView.getKey().toConfigurationKey(), key);
     Assert.assertEquals(configView.getKeyedConfig().getString("key2"), "value2key");
     Assert.assertEquals(configView.getScopedConfig().getString("key2"), "value2scope");

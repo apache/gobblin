@@ -17,8 +17,19 @@
 
 package gobblin.writer;
 
+import java.io.IOException;
+import java.util.Map;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.DefaultCheckpointableWatermark;
+import gobblin.source.extractor.RecordEnvelope;
+import gobblin.source.extractor.extract.LongWatermark;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 public class ConsoleWriterTest {
@@ -80,4 +91,47 @@ public class ConsoleWriterTest {
 
   }
 
+  private void writeEnvelope(ConsoleWriter consoleWriter, String content, String source, long value)
+      throws IOException {
+    RecordEnvelope mockEnvelope = mock(RecordEnvelope.class);
+    CheckpointableWatermark watermark =
+        new DefaultCheckpointableWatermark(source, new LongWatermark(value));
+    when(mockEnvelope.getRecord()).thenReturn(content);
+    when(mockEnvelope.getWatermark()).thenReturn(watermark);
+    consoleWriter.writeEnvelope(mockEnvelope);
+
+  }
+
+  @Test
+  public void testWatermarkWrite()
+      throws IOException {
+    ConsoleWriter<TestObject> consoleWriter = new ConsoleWriter<>();
+    writeEnvelope(consoleWriter, "hello 1", "dataset1", 1);
+
+    Map<String, CheckpointableWatermark> committed = consoleWriter.getCommittableWatermark();
+    verifyCommittedContents(committed, "dataset1", 1);
+
+    Map<String, CheckpointableWatermark> uncommitted = consoleWriter.getUnacknowledgedWatermark();
+    Assert.assertTrue(uncommitted.isEmpty());
+
+    writeEnvelope(consoleWriter, "hello 2", "dataset1", 2);
+    committed = consoleWriter.getCommittableWatermark();
+    verifyCommittedContents(committed, "dataset1", 2);
+    uncommitted = consoleWriter.getUnacknowledgedWatermark();
+    Assert.assertTrue(uncommitted.isEmpty());
+
+    writeEnvelope(consoleWriter, "hello 2", "dataset2", 1);
+    committed = consoleWriter.getCommittableWatermark();
+    verifyCommittedContents(committed, "dataset2", 1);
+    verifyCommittedContents(committed, "dataset1", 2);
+    uncommitted = consoleWriter.getUnacknowledgedWatermark();
+    Assert.assertTrue(uncommitted.isEmpty());
+
+  }
+
+  private void verifyCommittedContents(Map<String, CheckpointableWatermark> committed, String source, long value) {
+    Assert.assertTrue(committed.containsKey(source));
+    Assert.assertEquals(committed.get(source).getSource(), source);
+    Assert.assertEquals(((LongWatermark) committed.get(source).getWatermark()).getValue(), value);
+  }
 }

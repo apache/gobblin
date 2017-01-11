@@ -22,6 +22,10 @@ import com.typesafe.config.ConfigFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.gobblin_scopes.JobScopeInstance;
+import gobblin.broker.gobblin_scopes.TaskScopeInstance;
+
 
 public class AutoscopedFactoryTest {
 
@@ -29,21 +33,23 @@ public class AutoscopedFactoryTest {
   public void testAutoscoping() throws Exception {
     Config config = ConfigFactory.empty();
 
-    config = TestFactory.setAutoScopeLevel(config, GobblinScopes.JOB);
+    config = TestFactory.setAutoScopeLevel(config, GobblinScopeTypes.JOB);
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes> jobBroker = topBroker.newSubscopedBuilder(GobblinScopes.JOB, "job123").build();
-    SharedResourcesBrokerImpl<GobblinScopes>
-        containerBroker = topBroker.newSubscopedBuilder(GobblinScopes.CONTAINER, "thisContainer").build();
-    SharedResourcesBrokerImpl<GobblinScopes> taskBroker = jobBroker.newSubscopedBuilder(GobblinScopes.TASK, "taskabc")
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes>
+        containerBroker = topBroker.newSubscopedBuilder(GobblinScopeTypes.CONTAINER.defaultScopeInstance()).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> taskBroker = jobBroker.newSubscopedBuilder(new TaskScopeInstance("taskabc"))
         .withAdditionalParentBroker(containerBroker).build();
 
     TestFactory.SharedResource jobScopedResource =
-        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.JOB);
+        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.JOB);
     TestFactory.SharedResource taskScopedResource =
-        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"), GobblinScopes.TASK);
+        taskBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.TASK);
     TestFactory.SharedResource autoscopedResource =
-        taskBroker.getSharedResource(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"));
+        taskBroker.getSharedResource(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"));
 
     Assert.assertEquals(jobScopedResource, autoscopedResource);
     Assert.assertNotEquals(taskScopedResource, autoscopedResource);
@@ -53,17 +59,19 @@ public class AutoscopedFactoryTest {
   public void testAutoscopedResourcesOnlyClosedInCorrectScope() throws Exception {
     Config config = ConfigFactory.empty();
 
-    config = TestFactory.setAutoScopeLevel(config, GobblinScopes.JOB);
+    config = TestFactory.setAutoScopeLevel(config, GobblinScopeTypes.JOB);
 
-    SharedResourcesBrokerImpl<GobblinScopes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config);
-    SharedResourcesBrokerImpl<GobblinScopes> jobBroker = topBroker.newSubscopedBuilder(GobblinScopes.JOB, "job123").build();
-    SharedResourcesBrokerImpl<GobblinScopes>
-        containerBroker = topBroker.newSubscopedBuilder(GobblinScopes.CONTAINER, "thisContainer").build();
-    SharedResourcesBrokerImpl<GobblinScopes> taskBroker = jobBroker.newSubscopedBuilder(GobblinScopes.TASK, "taskabc")
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes>
+        containerBroker = topBroker.newSubscopedBuilder(GobblinScopeTypes.CONTAINER.defaultScopeInstance()).build();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> taskBroker = jobBroker.newSubscopedBuilder(new TaskScopeInstance("taskabc"))
         .withAdditionalParentBroker(containerBroker).build();
 
     TestFactory.SharedResource autoscopedResource =
-        taskBroker.getSharedResource(new TestFactory<GobblinScopes>(), new TestResourceKey("myKey"));
+        taskBroker.getSharedResource(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"));
 
     // since object autoscopes at job level, it should not be closed if we close the task broker
     taskBroker.close();

@@ -71,8 +71,8 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
   public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
-  public static final String STATE_STORE_DB_COMPRESSED_VALUES_KEY = "state.store.db.compressedValues";
-  public static final boolean DEFAULT_STATE_STORE_DB_COMPRESSED_VALUES = true;
+  // ZooKeeper state store configuration
+  public static final String STATE_STORE_ZK_CONNECT_STRING_KEY = "state.store.zk.connectString";
 
   /**
    * Job scheduler configuration properties.
@@ -674,4 +674,10 @@ public class ConfigurationKeys {
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
   public static final int PERMISSION_PARSING_RADIX = 8;
+
+  /**
+   * Configuration properties related to continuous / streaming mode
+   */
+  public static final String TASK_EXECUTION_MODE = "gobblin.task.executionMode";
+  public static final String DEFAULT_TASK_EXECUTION_MODE = "BATCH";
 }

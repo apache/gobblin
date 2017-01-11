@@ -158,7 +158,7 @@ public class ConvertibleHiveDatasetTest {
     Table table = getTestTable("db1", "tb1");
     ConvertibleHiveDataset cd =
         new ConvertibleHiveDataset(Mockito.mock(FileSystem.class), Mockito.mock(HiveMetastoreClientPool.class), new org.apache.hadoop.hive.ql.metadata.Table(
-            table), config);
+            table), new Properties(), config);
     return cd;
   }
 
