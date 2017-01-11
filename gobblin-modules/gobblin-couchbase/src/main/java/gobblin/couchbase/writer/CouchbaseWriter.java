@@ -63,7 +63,6 @@ import gobblin.writer.WriteResponseFuture;
 
 /**
  * A single bucket Couchbase writer.
- * @param <D>
  */
 public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWriter<D>, SyncDataWriter<D> {
 

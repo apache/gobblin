@@ -296,7 +296,7 @@ public class AsyncWriterManagerTest {
       Thread.sleep(sleepTime);
       int retryQueueSize = retryQueue.size();
       long recordsIn = asyncWriterManager.recordsIn.getCount();
-      if (recordsIn > 10) {
+      if (recordsIn > 100) {
         Assert.assertTrue(retryQueueSize > 0, "There should be some writes in the retry queue");
       }
       Assert.assertTrue(retryQueueSize <= (maxOutstandingWrites + 1),
