@@ -27,6 +27,9 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
@@ -41,7 +44,6 @@ import com.typesafe.config.ConfigFactory;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumentable;
@@ -68,10 +70,9 @@ import gobblin.util.FinalState;
  *
  *
  */
-@Slf4j
 public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Closeable, FinalState {
   private static final long MILLIS_TO_NANOS = 1000 * 1000;
-  public static final long COMMIT_TIMEOUT_IN_NANOS_DEFAULT = 60000L * MILLIS_TO_NANOS; // 1 minute
+  public static final long COMMIT_TIMEOUT_MILLIS_DEFAULT = 60000L; // 1 minute
   public static final long COMMIT_STEP_WAITTIME_MILLIS_DEFAULT = 500; // 500 ms sleep while waiting for commit
   public static final double FAILURE_ALLOWANCE_RATIO_DEFAULT = 0.0;
   public static final boolean RETRIES_ENABLED_DEFAULT = true;
@@ -96,13 +97,14 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
   Meter bytesWritten;
   @VisibleForTesting
   Optional<Timer> dataWriterTimer;
-  private final long commitTimeoutInNanos;
+  private final long commitTimeoutMillis;
   private final long commitStepWaitTimeMillis;
   private final double failureAllowanceRatio;
   private final AsyncDataWriter asyncDataWriter;
   private final int numRetries;
   private final int minRetryIntervalMillis;
   private final Optional<ScheduledThreadPoolExecutor> retryThreadPool;
+  private final Logger log;
   @VisibleForTesting
   final Optional<LinkedBlockingQueue<Attempt>> retryQueue;
   private final int maxOutstandingWrites;
@@ -192,16 +194,19 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
     }
   }
 
-  protected AsyncWriterManager(Config config, long commitTimeoutInNanos, long commitStepWaitTimeMillis,
+  protected AsyncWriterManager(Config config, long commitTimeoutMillis, long commitStepWaitTimeMillis,
       double failureAllowanceRatio, boolean retriesEnabled, int numRetries, int minRetryIntervalMillis,
-      int maxOutstandingWrites, AsyncDataWriter asyncDataWriter) {
-    Preconditions.checkArgument(commitTimeoutInNanos > 0, "Commit timeout must be greater than 0");
+      int maxOutstandingWrites, AsyncDataWriter asyncDataWriter, Optional<Logger> loggerOptional) {
+    Preconditions.checkArgument(commitTimeoutMillis > 0, "Commit timeout must be greater than 0");
     Preconditions.checkArgument(commitStepWaitTimeMillis > 0, "Commit step wait time must be greater than 0");
+    Preconditions.checkArgument(commitStepWaitTimeMillis < commitTimeoutMillis, "Commit step wait time must be less "
+        + "than commit timeout");
     Preconditions.checkArgument((failureAllowanceRatio <= 1.0 && failureAllowanceRatio >= 0),
         "Failure Allowance must be a ratio between 0 and 1");
     Preconditions.checkArgument(maxOutstandingWrites > 0, "Max outstanding writes must be greater than 0");
     Preconditions.checkNotNull(asyncDataWriter, "Async Data Writer cannot be null");
 
+    this.log = loggerOptional.isPresent()? loggerOptional.get() : LoggerFactory.getLogger(AsyncWriterManager.class);
     this.closer = Closer.create();
     State state = ConfigUtils.configToState(config);
     this.instrumentationEnabled = GobblinMetrics.isEnabled(state);
@@ -209,7 +214,7 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
 
     regenerateMetrics();
 
-    this.commitTimeoutInNanos = commitTimeoutInNanos;
+    this.commitTimeoutMillis = commitTimeoutMillis;
     this.commitStepWaitTimeMillis = commitStepWaitTimeMillis;
     this.failureAllowanceRatio = failureAllowanceRatio;
     this.minRetryIntervalMillis = minRetryIntervalMillis;
@@ -399,10 +404,11 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
      * So not taking extra precautions to prevent concurrent calls to write from happening.
      *
      */
-    log.info("Commit called, will wait for commitTimeout : {} ms", this.commitTimeoutInNanos / MILLIS_TO_NANOS);
+    log.info("Commit called, will wait for commitTimeout : {} ms", this.commitTimeoutMillis);
+    long commitTimeoutNanos = commitTimeoutMillis * MILLIS_TO_NANOS;
     long commitStartTime = System.nanoTime();
     this.asyncDataWriter.flush();
-    while (((System.nanoTime() - commitStartTime) < this.commitTimeoutInNanos) && (this.recordsIn.getCount() != (
+    while (((System.nanoTime() - commitStartTime) < commitTimeoutNanos) && (this.recordsIn.getCount() != (
         this.recordsSuccess.getCount() + this.recordsFailed.getCount()))) {
       log.debug("Commit waiting... records produced: {}, written: {}, failed: {}", this.recordsIn.getCount(),
           this.recordsSuccess.getCount(), this.recordsFailed.getCount());
@@ -448,21 +454,22 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
 
   public static class AsyncWriterManagerBuilder {
     private Config config = ConfigFactory.empty();
-    private long commitTimeoutInNanos = COMMIT_TIMEOUT_IN_NANOS_DEFAULT;
+    private long commitTimeoutMillis = COMMIT_TIMEOUT_MILLIS_DEFAULT;
     private long commitStepWaitTimeMillis = COMMIT_STEP_WAITTIME_MILLIS_DEFAULT;
     private double failureAllowanceRatio = FAILURE_ALLOWANCE_RATIO_DEFAULT;
     private boolean retriesEnabled = RETRIES_ENABLED_DEFAULT;
     private int numRetries = NUM_RETRIES_DEFAULT;
     private int maxOutstandingWrites = MAX_OUTSTANDING_WRITES_DEFAULT;
     private AsyncDataWriter asyncDataWriter;
+    private Optional<Logger> logger = Optional.absent();
 
     public AsyncWriterManagerBuilder config(Config config) {
       this.config = config;
       return this;
     }
 
-    public AsyncWriterManagerBuilder commitTimeoutInNanos(long commitTimeoutInNanos) {
-      this.commitTimeoutInNanos = commitTimeoutInNanos;
+    public AsyncWriterManagerBuilder commitTimeoutMillis(long commitTimeoutMillis) {
+      this.commitTimeoutMillis = commitTimeoutMillis;
       return this;
     }
 
@@ -498,11 +505,16 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
       return this;
     }
 
+    public AsyncWriterManagerBuilder logger(Optional<Logger> logger) {
+      this.logger = logger;
+      return this;
+    }
+
     public AsyncWriterManager build() {
-      return new AsyncWriterManager(this.config, this.commitTimeoutInNanos, this.commitStepWaitTimeMillis,
+      return new AsyncWriterManager(this.config, this.commitTimeoutMillis, this.commitStepWaitTimeMillis,
           this.failureAllowanceRatio, this.retriesEnabled, this.numRetries, MIN_RETRY_INTERVAL_MILLIS_DEFAULT,
           // TODO: Make this configurable
-          this.maxOutstandingWrites, this.asyncDataWriter);
+          this.maxOutstandingWrites, this.asyncDataWriter, this.logger);
     }
   }
 }

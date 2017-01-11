@@ -118,7 +118,7 @@ public class AsyncWriterManagerTest {
     AsyncDataWriter fakeTimedAsyncWriter = new FakeTimedAsyncWriter(timingManager);
 
     AsyncWriterManager asyncWriter = AsyncWriterManager.builder().config(ConfigFactory.empty())
-        .commitTimeoutInNanos(commitTimeoutInMillis * 1000 * 1000).failureAllowanceRatio(failurePercentage / 100.0)
+        .commitTimeoutMillis(commitTimeoutInMillis).failureAllowanceRatio(failurePercentage / 100.0)
         .asyncDataWriter(fakeTimedAsyncWriter).build();
 
     try {

@@ -39,8 +39,6 @@ import gobblin.writer.DataWriterBuilder;
 
 public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
 
-  private static final Long MILLIS_TO_NANOS = 1000L * 1000L;
-
   protected abstract AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props);
 
   /**
@@ -55,8 +53,8 @@ public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schem
     State state = this.destination.getProperties();
     Properties taskProps = state.getProperties();
     Config config = ConfigUtils.propertiesToConfig(taskProps);
-    long commitTimeoutInNanos = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
-        KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT) * MILLIS_TO_NANOS;
+    long commitTimeoutMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
+        KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT);
     long commitStepWaitTimeMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_CONFIG,
         KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_DEFAULT);
     double failureAllowance = ConfigUtils.getDouble(config, KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG,
@@ -64,7 +62,7 @@ public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schem
 
     return AsyncWriterManager.builder()
         .config(config)
-        .commitTimeoutInNanos(commitTimeoutInNanos)
+        .commitTimeoutMillis(commitTimeoutMillis)
         .commitStepWaitTimeInMillis(commitStepWaitTimeMillis)
         .failureAllowanceRatio(failureAllowance)
         .retriesEnabled(false)
