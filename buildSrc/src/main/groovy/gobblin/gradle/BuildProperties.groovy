@@ -3,6 +3,10 @@ package gobblin.gradle;
 import java.util.TreeMap
 import org.gradle.api.Project
 
+/**
+ * The manages the collection of all known build properties for the project. It is
+ * essentially a map from the property name to the BuildProperty object.
+ */
 public class BuildProperties extends TreeMap<String, BuildProperty> {
     final Project project;
 
@@ -22,7 +26,8 @@ public class BuildProperties extends TreeMap<String, BuildProperty> {
         }
         def defaultValue = get(propName).defaultValue
 
-        // Special treatment for Boolean flags
+        // Special treatment for Boolean flags -- just specifying the property
+        // is treated as setting to true.
         if (null != defaultValue && defaultValue instanceof Boolean && 
                 !((Boolean)defaultValue).booleanValue()) {
             this.project.ext.set(propName, this.project.hasProperty(propName))
