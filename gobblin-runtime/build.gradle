@@ -121,3 +121,39 @@ clean {
 }
 
 ext.classification="library"
+
+/**
+ * Converts old style pull files into *.conf with templates
+ *
+ * Usage:
+ * ./gradlew :gobblin-runtime:pullFileConverter -PpullFilesRootPath=... -PpullFilesToConvertGlob=... -PtemplatePath=...
+ *           -PsysConfigPath=... -PoutputDir=...
+ */
+task pullFileConverter(type: JavaExec) {
+  doFirst {
+    main = "gobblin.runtime.template.PullFileToConfigConverter"
+
+    def pullFilesRootPath = "pullFilesRootPath"
+    def pullFilesToConvertGlob = "pullFilesToConvertGlob"
+    def templatePath = "templatePath"
+    def sysConfigPath = "sysConfigPath"
+    def outputDir = "outputDir"
+
+    def props = [pullFilesRootPath, pullFilesToConvertGlob, templatePath, sysConfigPath, outputDir]
+
+    for (prop in props) {
+      if (!project.hasProperty(prop)) {
+        throw new RuntimeException("Missing property " + prop)
+      }
+    }
+
+    def templateFile = file(project.property(templatePath))
+    def templateClasspath = templateFile.getParent()
+
+    classpath = files(sourceSets.main.runtimeClasspath, templateClasspath)
+    args = [project.property(pullFilesRootPath), project.property(pullFilesToConvertGlob),
+            "resource:///" + templateFile.getName(),
+            project.property(sysConfigPath), project.property(outputDir)]
+  }
+
+}
