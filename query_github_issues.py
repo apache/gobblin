@@ -44,8 +44,7 @@ def get_created_issues_last_days(n = 10):
 def simple_issue_list(issues):
   HEADER_TEMPLATE = Template("$total_count issues found")
   ISSUE_TEMPLATE = Template("""------------------
-ISSUE $number : $html_url
-$url
+ISSUE $number : HTML: $html_url  JSON: $url
 \tCREATED ON: $created_at
 \tCREATED BY: $user_login ( $user_name ) $user_html_url
 \tASSIGNED TO: $assignee_login ($assignee_name) $assignee_html_url
