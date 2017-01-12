@@ -62,7 +62,6 @@ subprojects {
 
     afterEvaluate {
       classDirectories = files(classDirectories.files.collect {
-        println it
         fileTree(dir: it, exclude: 'helix-*.jar')
       })
     }
