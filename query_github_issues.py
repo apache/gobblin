@@ -45,9 +45,10 @@ def simple_issue_list(issues):
   HEADER_TEMPLATE = Template("$total_count issues found")
   ISSUE_TEMPLATE = Template("""------------------
 ISSUE $number : $html_url
+$url
 \tCREATED ON: $created_at
 \tCREATED BY: $user_login ( $user_name ) $user_html_url
-\tASSIGNED TO: $assignee
+\tASSIGNED TO: $assignee_login ($assignee_name) $assignee_html_url
 \tCOMMENTS: $comments
 \tUPDATED ON: $updated_at
 \tCLOSED ON: $closed_at
@@ -59,6 +60,9 @@ $body
     user_data = issue["user"]
     for user_attr in user_data:
       issue["user_" + user_attr] = user_data[user_attr]
+    assignee_data = issue["assignee"]
+    for assignee_attr in assignee_data:
+      issue["assignee_" + assignee_attr] = assignee_data[assignee_attr]
     print ISSUE_TEMPLATE.safe_substitute(issue)
 
 def main(argv):
