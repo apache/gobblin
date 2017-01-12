@@ -69,4 +69,8 @@ test {
   workingDir rootProject.rootDir
 }
 
+tasks.withType(Test)  {
+  maxParallelForks = 1
+}
+
 ext.classification="library"

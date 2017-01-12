@@ -17,6 +17,7 @@
 
 package gobblin.couchbase.converter;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
 import org.apache.avro.Schema;
@@ -53,7 +54,7 @@ public class AvroToCouchbaseTupleConverterTest {
 
     String testContent = "hello world";
     GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
-    dataRecord.put("data", testContent.getBytes(Charset.forName("UTF-8")));
+    dataRecord.put("data", ByteBuffer.wrap(testContent.getBytes(Charset.forName("UTF-8"))));
     dataRecord.put("flags", 0);
 
     testRecord.put("key", "hello");

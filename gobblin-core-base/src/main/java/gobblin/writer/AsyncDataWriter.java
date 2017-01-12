@@ -15,14 +15,31 @@
  * limitations under the License.
  */
 
-package gobblin.kafka.writer;
+package gobblin.writer;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.concurrent.Future;
+
+import javax.annotation.Nullable;
+
+import gobblin.annotation.Alpha;
+
 
 /**
- * Created by sdas on 11/26/16.
+ * An interface for implementing Async Writers for Gobblin.
  */
-public interface WriteCallback {
+@Alpha
+public interface AsyncDataWriter<D> extends Closeable {
 
-  public void onSuccess();
+  /**
+   * Asynchronously write a record, execute the callback on success/failure
+   */
+  Future<WriteResponse> write(D record, @Nullable WriteCallback callback);
 
-  public void onFailure(Exception exception);
+  /**
+   * Flushes all pending writes
+   */
+  void flush()
+      throws IOException;
 }
