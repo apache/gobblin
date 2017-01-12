@@ -427,8 +427,8 @@ public class CouchbaseWriterTest {
         SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
             .type(dataRecordSchema).noDefault().endRecord();
 
-    final int numRecords = 10000;
-    int outstandingRequests = 999;
+    final int numRecords = 1000;
+    int outstandingRequests = 99;
 
     Iterator<GenericRecord> recordIterator = new Iterator<GenericRecord>() {
       private int currentIndex;
@@ -467,7 +467,7 @@ public class CouchbaseWriterTest {
   public void testMultiJsonDocumentWriteWithAsyncWriter()
       throws IOException, DataConversionException, ExecutionException, InterruptedException {
 
-    final int numRecords = 10000;
+    final int numRecords = 1000;
 
     Iterator<Object> recordIterator = new Iterator<Object>() {
       private int currentIndex;
@@ -508,7 +508,7 @@ public class CouchbaseWriterTest {
         SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
             .type(dataRecordSchema).noDefault().endRecord();
 
-    final int numRecords = 10000;
+    final int numRecords = 1000;
 
     Iterator<GenericRecord> recordIterator = new Iterator<GenericRecord>() {
       private int currentIndex;
