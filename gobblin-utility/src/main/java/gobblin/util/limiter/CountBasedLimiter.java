@@ -19,6 +19,14 @@ package gobblin.util.limiter;
 
 import java.io.Closeable;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.typesafe.config.Config;
+
+import gobblin.annotation.Alias;
+
+import lombok.AccessLevel;
+import lombok.Getter;
+
 
 /**
  * An implementation of {@link Limiter} that limits the number of permits allowed to be issued.
@@ -33,6 +41,20 @@ import java.io.Closeable;
  */
 public class CountBasedLimiter extends NonRefillableLimiter {
 
+  @Alias(value = "CountBasedLimiter")
+  public static class Factory implements LimiterFactory {
+    public static final String COUNT_KEY = "maxPermits";
+
+    @Override
+    public Limiter buildLimiter(Config config) {
+      if (!config.hasPath(COUNT_KEY)) {
+        throw new IllegalArgumentException("Missing key " + COUNT_KEY);
+      }
+      return new CountBasedLimiter(config.getLong(COUNT_KEY));
+    }
+  }
+
+  @Getter
   private final long countLimit;
   private long count;
 
