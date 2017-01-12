@@ -27,6 +27,7 @@ import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.TestCopyableDataset;
+import gobblin.util.TestUtils;
 import gobblin.util.io.StreamUtils;
 
 import java.io.File;
@@ -76,7 +77,7 @@ public class FileAwareInputStreamDataWriterTest {
 
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
 
-    WorkUnitState state = new WorkUnitState();
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
@@ -143,7 +144,7 @@ public class FileAwareInputStreamDataWriterTest {
         .build();
 
     // create work unit state
-    WorkUnitState state = new WorkUnitState();
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir.toUri().getPath());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir.toUri().getPath());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
