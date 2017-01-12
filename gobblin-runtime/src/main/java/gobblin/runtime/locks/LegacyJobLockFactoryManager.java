@@ -23,7 +23,6 @@ import java.util.Properties;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
 
@@ -34,10 +33,6 @@ import gobblin.configuration.ConfigurationKeys;
  * @author joelbaranick
  */
 public class LegacyJobLockFactoryManager {
-
-
-  public LegacyJobLockFactoryManager(Config sysConfig) {
-  }
 
   /**
    * Gets an instance of {@link JobLock}.
