@@ -10,3 +10,4 @@ Gobblin is a universal data ingestion framework for extracting, transforming, an
   * Getting Started with Gobblin: Refer to the [Getting Started Guide](http://gobblin.readthedocs.org/en/latest/Getting-Started/) on how to get started with Gobblin
   * Building Gobblin: Refer to the page [Building Gobblin](http://gobblin.readthedocs.io/en/latest/user-guide/Building-Gobblin/) for directions on how to build Gobblin
   * Javadocs: The full JavaDocs for each released version of Gobblin can be found [here](http://linkedin.github.io/gobblin/javadoc/latest/)
+  * Gobblin chat room: Gitter chat room for Gobblin developers and users [here](https://gitter.im/gobblin/Lobby/)
