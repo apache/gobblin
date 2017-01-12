@@ -66,7 +66,7 @@ public class SharedLimiterFactoryTest {
 
     SharedResourcesBrokerImpl<SimpleScopeType> broker =
         getBrokerForConfigMap(ImmutableMap.of(
-            JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, SharedLimiterFactory.LIMITER_CLASS_KEY), "count",
+            JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, SharedLimiterFactory.LIMITER_CLASS_KEY), "CountBasedLimiter",
             JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, CountBasedLimiter.Factory.COUNT_KEY), "10"
         ));
 
@@ -89,9 +89,9 @@ public class SharedLimiterFactoryTest {
 
     SharedResourcesBrokerImpl<SimpleScopeType> broker =
         getBrokerForConfigMap(ImmutableMap.of(
-            JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, SimpleScopeType.GLOBAL, SharedLimiterFactory.LIMITER_CLASS_KEY), "count",
+            JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, SimpleScopeType.GLOBAL, SharedLimiterFactory.LIMITER_CLASS_KEY), "CountBasedLimiter",
             JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, SimpleScopeType.GLOBAL, CountBasedLimiter.Factory.COUNT_KEY), "10",
-            JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, SimpleScopeType.LOCAL, SharedLimiterFactory.LIMITER_CLASS_KEY), "count",
+            JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, SimpleScopeType.LOCAL, SharedLimiterFactory.LIMITER_CLASS_KEY), "CountBasedLimiter",
             JOINER.join(BrokerConstants.GOBBLIN_BROKER_CONFIG_PREFIX, SharedLimiterFactory.NAME, SimpleScopeType.LOCAL, CountBasedLimiter.Factory.COUNT_KEY), "5"
         ));
     SharedResourcesBroker<SimpleScopeType> localBroker1 =
