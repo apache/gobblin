@@ -145,6 +145,7 @@ public class Task implements Runnable {
     this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
     this.closer = Closer.create();
+    this.closer.register(this.taskState.getTaskBrokerNullable());
     this.extractor =
         closer.register(new InstrumentedExtractorDecorator<>(this.taskState, this.taskContext.getExtractor()));
 

@@ -41,7 +41,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
+import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.SharedResourcesBrokerFactory;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.commit.CommitSequence;
 import gobblin.commit.CommitSequenceStore;
 import gobblin.commit.DeliverySemantics;
@@ -128,7 +132,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // A list of JobListeners that will be injected into the user provided JobListener
   private final List<JobListener> mandatoryJobListeners = Lists.newArrayList();
 
-  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
+  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags) throws Exception {
+    this(jobProps, metadataTags, null);
+  }
+
+  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags,
+      @Nullable SharedResourcesBroker<GobblinScopeTypes> instanceBroker)
       throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
@@ -142,7 +151,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     this.jobProps = new Properties();
     this.jobProps.putAll(jobProps);
 
-    this.jobContext = new JobContext(this.jobProps, LOG);
+    if (instanceBroker == null) {
+      instanceBroker = createDefaultInstanceBroker(jobProps);
+    }
+
+    this.jobContext = new JobContext(this.jobProps, LOG, instanceBroker);
     this.eventBus.register(this.jobContext);
 
     this.cancellationExecutor = Executors.newSingleThreadExecutor(
@@ -169,6 +182,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throw new JobException(String.format("Previous instance of job %s is still running, skipping this scheduled run",
           this.jobContext.getJobName()));
     }
+  }
+
+  private static SharedResourcesBroker<GobblinScopeTypes> createDefaultInstanceBroker(Properties jobProps) {
+    LOG.warn("Creating a job specific {}. Objects will only be shared at the job level.", SharedResourcesBroker.class.getSimpleName());
+    return SharedResourcesBrokerFactory.createDefaultTopLevelBroker(ConfigFactory.parseProperties(jobProps),
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
   }
 
   /**
@@ -218,6 +237,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         while (!this.cancellationExecuted) {
           // Wait for the cancellation to be executed
           this.cancellationExecution.wait();
+        }
+        try {
+          this.jobContext.close();
+        } catch (IOException ioe) {
+          LOG.error("Could not close job context.", ioe);
         }
         notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_CANCEL, new JobListenerAction() {
           @Override

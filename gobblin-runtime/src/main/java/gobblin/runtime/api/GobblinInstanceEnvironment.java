@@ -18,6 +18,8 @@ package gobblin.runtime.api;
 
 import org.slf4j.Logger;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.instrumented.Instrumentable;
 
 /**
@@ -35,5 +37,8 @@ public interface GobblinInstanceEnvironment extends Instrumentable {
 
   /** The global system-wide configuration, typically provided by the {@link GobblinInstanceLauncher} */
   Configurable getSysConfig();
+
+  /** The {@link SharedResourcesBroker} for this instance. */
+  SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker();
 
 }

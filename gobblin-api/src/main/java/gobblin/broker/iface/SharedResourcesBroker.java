@@ -20,7 +20,6 @@ package gobblin.broker.iface;
 import java.io.Closeable;
 import java.io.IOException;
 
-
 /**
  * A class that provides access to objects shared by multiple components within a process, as well as objects virtually
  * shared among different processes (i.e. objects that synchronize with equivalent objects in other processes).

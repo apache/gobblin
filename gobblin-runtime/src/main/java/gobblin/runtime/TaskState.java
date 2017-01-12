@@ -97,7 +97,7 @@ public class TaskState extends WorkUnitState {
   public TaskState(WorkUnitState workUnitState) {
     // Since getWorkunit() returns an immutable WorkUnit object,
     // the WorkUnit object in this object is also immutable.
-    super(workUnitState.getWorkunit(), workUnitState.getJobState());
+    super(workUnitState.getWorkunit(), workUnitState.getJobState(), workUnitState.getTaskBrokerNullable());
     addAll(workUnitState);
     this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
@@ -106,7 +106,7 @@ public class TaskState extends WorkUnitState {
   }
 
   public TaskState(TaskState taskState) {
-    super(taskState.getWorkunit(), taskState.getJobState());
+    super(taskState.getWorkunit(), taskState.getJobState(), taskState.getTaskBrokerNullable());
     addAll(taskState);
     this.jobId = taskState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = taskState.getProp(ConfigurationKeys.TASK_ID_KEY);

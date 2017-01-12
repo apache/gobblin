@@ -54,7 +54,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ServiceManager;
+import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.gobblin_scopes.JobScopeInstance;
+import gobblin.broker.SharedResourcesBrokerFactory;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.commit.CommitStep;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
@@ -127,10 +132,15 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   public MRJobLauncher(Properties jobProps)
       throws Exception {
-    this(jobProps, new Configuration());
+    this(jobProps, null);
   }
 
-  public MRJobLauncher(Properties jobProps, Configuration conf)
+  public MRJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker)
+      throws Exception {
+    this(jobProps, new Configuration(), instanceBroker);
+  }
+
+  public MRJobLauncher(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker)
       throws Exception {
     super(jobProps, ImmutableList.<Tag<?>>of());
 
@@ -600,10 +610,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
         GobblinMultiTaskAttempt.CommitPolicy multiTaskAttemptCommitPolicy =
             isSpeculativeEnabled ? GobblinMultiTaskAttempt.CommitPolicy.CUSTOMIZED
                 : GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE;
+
+        SharedResourcesBroker<GobblinScopeTypes> globalBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
+            ConfigFactory.parseProperties(this.jobState.getProperties()), GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+        SharedResourcesBroker<GobblinScopeTypes> jobBroker =
+            globalBroker.newSubscopedBuilder(new JobScopeInstance(this.jobState.getJobName(), this.jobState.getJobId())).build();
+
         // Actually run the list of WorkUnits
         gobblinMultiTaskAttempt =
             GobblinMultiTaskAttempt.runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(), this.jobState, this.workUnits,
-                this.taskStateTracker, this.taskExecutor, this.taskStateStore, multiTaskAttemptCommitPolicy);
+                this.taskStateTracker, this.taskExecutor, this.taskStateStore, multiTaskAttemptCommitPolicy, jobBroker);
 
         if (this.isSpeculativeEnabled) {
           LOG.info("will not commit in task attempt");

@@ -31,6 +31,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.metrics.Tag;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.runtime.AbstractJobLauncher;
@@ -65,7 +67,11 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private volatile CountDownLatch countDownLatch;
 
   public LocalJobLauncher(Properties jobProps) throws Exception {
-    super(jobProps, ImmutableList.<Tag<?>> of());
+    this(jobProps, null);
+  }
+
+  public LocalJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
+    super(jobProps, ImmutableList.<Tag<?>> of(), instanceBroker);
 
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.JOB_LOCAL_SETUP);
 
@@ -122,7 +128,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.WORK_UNITS_RUN);
 
-    GobblinMultiTaskAttempt.runWorkUnits(this.jobContext.getJobId(), this.jobContext.getJobState(), workUnitsToRun,
+    GobblinMultiTaskAttempt.runWorkUnits(this.jobContext, workUnitsToRun,
         this.taskStateTracker, this.taskExecutor, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
 
     workUnitsRunTimer.stop();

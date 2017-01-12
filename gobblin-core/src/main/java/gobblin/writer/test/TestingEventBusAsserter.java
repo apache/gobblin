@@ -76,6 +76,10 @@ public class TestingEventBusAsserter implements Closeable {
     return _events;
   }
 
+  public void clear() {
+    _events.clear();
+  }
+
   /** Sets timeout for all subsequent blocking asserts. */
   public TestingEventBusAsserter withTimeout(long timeout, TimeUnit unit) {
     _defaultTimeoutValue = timeout;

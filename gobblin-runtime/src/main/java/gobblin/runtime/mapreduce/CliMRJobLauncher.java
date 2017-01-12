@@ -56,7 +56,7 @@ public class CliMRJobLauncher extends Configured implements ApplicationLauncher,
     setConf(conf);
     this.applicationLauncher = this.closer.register(new ServiceBasedAppLauncher(jobProperties,
         jobProperties.getProperty(ServiceBasedAppLauncher.APP_NAME, "CliMRJob-" + UUID.randomUUID())));
-    this.mrJobLauncher = this.closer.register(new MRJobLauncher(jobProperties, getConf()));
+    this.mrJobLauncher = this.closer.register(new MRJobLauncher(jobProperties, getConf(), null));
   }
 
   @Override

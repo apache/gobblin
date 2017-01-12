@@ -29,10 +29,14 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.ImmutableWorkUnit;
 import gobblin.source.workunit.WorkUnit;
+
+import javax.annotation.Nullable;
 import lombok.Getter;
 
 
@@ -81,12 +85,16 @@ public class WorkUnitState extends State {
   @Getter
   private State jobState;
 
+  transient private final SharedResourcesBroker<GobblinScopeTypes> taskBroker;
+
   /**
    * Default constructor used for deserialization.
    */
   public WorkUnitState() {
     this.workUnit = WorkUnit.createEmpty();
     this.jobState = new State();
+    // Not available on deserialization
+    this.taskBroker = null;
   }
 
   /**
@@ -100,11 +108,39 @@ public class WorkUnitState extends State {
   public WorkUnitState(WorkUnit workUnit) {
     this.workUnit = workUnit;
     this.jobState = new State();
+    this.taskBroker = null;
   }
 
+  /**
+   * If creating a {@link WorkUnitState} for use by a task, use {@link #WorkUnitState(WorkUnit, State, SharedResourcesBroker)}
+   * instead.
+   */
   public WorkUnitState(WorkUnit workUnit, State jobState) {
+    this(workUnit, jobState, null);
+  }
+
+  public WorkUnitState(WorkUnit workUnit, State jobState, SharedResourcesBroker<GobblinScopeTypes> taskBroker) {
     this.workUnit = workUnit;
     this.jobState = jobState;
+    this.taskBroker = taskBroker;
+  }
+
+  /**
+   * Get a {@link SharedResourcesBroker} scoped for this task.
+   */
+  public SharedResourcesBroker<GobblinScopeTypes> getTaskBroker() {
+    if (this.taskBroker == null) {
+      throw new UnsupportedOperationException("Task broker is only available within a task. If this exception was thrown "
+          + "from within a task, the JobLauncher did not specify a task broker.");
+    }
+    return this.taskBroker;
+  }
+
+  /**
+   * Get a {@link SharedResourcesBroker} scoped for this task or null if it doesn't exist. This is used for internal calls.
+   */
+  @Nullable public SharedResourcesBroker<GobblinScopeTypes> getTaskBrokerNullable() {
+    return this.taskBroker;
   }
 
   /**

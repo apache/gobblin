@@ -28,6 +28,7 @@ dependencies {
     compile externalDependency.lombok
     compile externalDependency.commonsIo
     compile externalDependency.reflections
+    compile externalDependency.typesafeConfig
 
     testCompile externalDependency.testng
     testCompile externalDependency.log4j

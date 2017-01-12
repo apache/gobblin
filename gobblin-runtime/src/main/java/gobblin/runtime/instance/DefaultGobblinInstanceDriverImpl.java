@@ -28,6 +28,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
@@ -73,13 +75,15 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   protected final MetricContext _metricCtx;
   protected JobSpecListener _jobSpecListener;
   private final StandardMetrics _metrics;
+  private final SharedResourcesBroker<GobblinScopeTypes> _instanceBroker;
 
   public DefaultGobblinInstanceDriverImpl(String instanceName,
       Configurable sysConfig, JobCatalog jobCatalog,
       JobSpecScheduler jobScheduler,
       JobExecutionLauncher jobLauncher,
       Optional<MetricContext> baseMetricContext,
-      Optional<Logger> log) {
+      Optional<Logger> log,
+      SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
     Preconditions.checkNotNull(jobCatalog);
     Preconditions.checkNotNull(jobScheduler);
     Preconditions.checkNotNull(jobLauncher);
@@ -95,6 +99,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     _sysConfig = sysConfig;
     _instanceCfg = ConfigAccessor.createFromGlobalConfig(_sysConfig.getConfig());
     _callbacksDispatcher = new JobLifecycleListenersList(_jobCatalog, _jobScheduler, _log);
+    _instanceBroker = instanceBroker;
 
     _metrics = new StandardMetrics(this);
   }
@@ -129,6 +134,11 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   /** {@inheritDoc} */
   @Override public Configurable getSysConfig() {
     return _sysConfig;
+  }
+
+  /** {@inheritDoc} */
+  @Override public SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker() {
+    return _instanceBroker;
   }
 
   /** {@inheritDoc} */
