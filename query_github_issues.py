@@ -37,14 +37,14 @@ def get_created_issues_since(day):
                       orderDir="desc"
                      )
 
-def get_created_issues_last_days(n):
-  since_day = (date.today() - timedelta(days=10)).strftime("%Y-%m-%d") 
+def get_created_issues_last_days(n = 10):
+  since_day = (date.today() - timedelta(days = n)).strftime("%Y-%m-%d") 
   return get_created_issues_since(since_day)
 
 def simple_issue_list(issues):
   HEADER_TEMPLATE = Template("$total_count issues found")
   ISSUE_TEMPLATE = Template("""------------------
-ISSUE $number : $url
+ISSUE $number : $html_url
 \tCREATED ON: $created_at
 \tCREATED BY: $user_login ( $user_name ) $user_html_url
 \tASSIGNED TO: $assignee
