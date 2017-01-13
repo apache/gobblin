@@ -39,6 +39,25 @@ pages:
         - Docker Integration: user-guide/Docker-Integration.md
         - Troubleshooting: user-guide/Troubleshooting.md
         - FAQs: user-guide/FAQs.md
+    - Sources:
+        - Avro files: sources/AvroFileSource.md
+        - File copy: sources/CopySource.md
+        - Google Analytics: sources/GooogleAnalyticsSource.md
+        - Google Drive: sources/GoogleDriveSource.md
+        - Google Wemaster: sources/GoogleWebmaster.md
+        - Hadoop Text Input: sources/HadoopTextInputSource.md
+        - Hello World: sources/HelloWorldSource.md
+        - Hive Avro-to-ORC: sources/HiveavroToOrcSource.md
+        - Hive compliance purging: sources/HivePurgerSource.md
+        - JSON: sources/SimpleJsonSource.md
+        - Kafka: sources/KafkaSource.md
+        - MySQL: sources/MySQLSource.md
+        - Oracle: sources/OracleSource.md
+        - Salesforce: sources/SalesforceSource.md
+        - SFTP: sources/SftpSource.md
+        - SQL Server: sources/SqlServerSource.md
+        - Teradata: sources/TeradataSource.md
+        - Wikipedia: sources/WikipediaSource.md
     - Record Sinks:
         - Avro HDFS: sinks/AvroHdfsDataWriter.md
         - HDFS (Byte arrays) : sinks/SimpleBytesWriter.md
