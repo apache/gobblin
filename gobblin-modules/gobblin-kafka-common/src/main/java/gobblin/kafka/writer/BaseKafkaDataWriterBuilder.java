@@ -27,17 +27,17 @@ import com.typesafe.config.Config;
 
 import gobblin.configuration.State;
 import gobblin.util.ConfigUtils;
+import gobblin.writer.AsyncWriterManager;
+import gobblin.writer.AsyncDataWriter;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
-import gobblin.writer.PartitionAwareDataWriterBuilder;
+
 
 /**
  * Base class for creating KafkaDataWriter builders.
  */
 
 public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
-
-  private static final Long MILLIS_TO_NANOS = 1000L * 1000L;
 
   protected abstract AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props);
 
@@ -53,21 +53,19 @@ public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schem
     State state = this.destination.getProperties();
     Properties taskProps = state.getProperties();
     Config config = ConfigUtils.propertiesToConfig(taskProps);
-    long commitTimeoutInNanos = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
-        KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT) * MILLIS_TO_NANOS;
+    long commitTimeoutMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
+        KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT);
     long commitStepWaitTimeMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_CONFIG,
         KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_DEFAULT);
     double failureAllowance = ConfigUtils.getDouble(config, KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG,
         KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_DEFAULT) / 100.0;
 
-    return AsyncBestEffortDataWriter.builder()
+    return AsyncWriterManager.builder()
         .config(config)
-        .recordsAttemptedMetricName(KafkaWriterMetricNames.RECORDS_PRODUCED_METER)
-        .recordsSuccessMetricName(KafkaWriterMetricNames.RECORDS_SUCCESS_METER)
-        .recordsFailedMetricName(KafkaWriterMetricNames.RECORDS_FAILED_METER)
-        .commitTimeoutInNanos(commitTimeoutInNanos)
+        .commitTimeoutMillis(commitTimeoutMillis)
         .commitStepWaitTimeInMillis(commitStepWaitTimeMillis)
-        .failureAllowance(failureAllowance)
+        .failureAllowanceRatio(failureAllowance)
+        .retriesEnabled(false)
         .asyncDataWriter(getAsyncDataWriter(taskProps))
         .build();
   }

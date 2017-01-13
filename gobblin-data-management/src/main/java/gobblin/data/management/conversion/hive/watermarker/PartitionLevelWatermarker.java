@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+
 import javax.annotation.Nonnull;
 
 import lombok.AccessLevel;
@@ -30,6 +31,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.thrift.TException;
@@ -65,6 +67,12 @@ import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.AutoReturnableObject;
+
+import javax.annotation.Nonnull;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -106,7 +114,7 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
   @VisibleForTesting
   private long leastWatermarkToPersistInState;
   // Keep an additional 2 days of updates
-  private static int BUFFER_WATERMARK_DAYS_TO_PERSIST = 2;
+  private static final int BUFFER_WATERMARK_DAYS_TO_PERSIST = 2;
 
   /**
    * Watermarks from previous state

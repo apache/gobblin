@@ -27,6 +27,7 @@ import com.typesafe.config.Config;
 
 import gobblin.configuration.State;
 import gobblin.util.ConfigUtils;
+import gobblin.writer.AsyncDataWriter;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.PartitionAwareDataWriterBuilder;
@@ -38,7 +39,7 @@ public class KafkaDataWriterBuilder extends BaseKafkaDataWriterBuilder {
 
   @Override
   protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props) {
-    return new Kafka08DataWriter<GenericRecord>(props);
+    return new Kafka08DataWriter<>(props);
   }
 
 }

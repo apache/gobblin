@@ -21,6 +21,9 @@ import java.util.Properties;
 
 import org.apache.avro.generic.GenericRecord;
 
+import gobblin.writer.AsyncDataWriter;
+
+
 /**
  * Builder that hands back a {@link Kafka09DataWriter}
  */

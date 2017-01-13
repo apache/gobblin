@@ -19,6 +19,7 @@ package gobblin.kafka.writer;
 
 import java.io.IOException;
 import java.util.Properties;
+import java.util.concurrent.Future;
 
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -31,6 +32,14 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
+
+import gobblin.writer.AsyncDataWriter;
+import gobblin.writer.WriteCallback;
+import gobblin.writer.WriteResponse;
+import gobblin.writer.WriteResponseFuture;
+import gobblin.writer.WriteResponseMapper;
+
+
 /**
  * Implementation of a Kafka writer that wraps a 0.8 {@link KafkaProducer}.
  * This does not provide transactional / exactly-once semantics.
@@ -40,8 +49,32 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
 
+  private static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
+      new WriteResponseMapper<RecordMetadata>() {
+
+        @Override
+        public WriteResponse wrap(final RecordMetadata recordMetadata) {
+          return new WriteResponse<RecordMetadata>() {
+            @Override
+            public RecordMetadata getRawResponse() {
+              return recordMetadata;
+            }
+
+            @Override
+            public String getStringResponse() {
+              return recordMetadata.toString();
+            }
+
+            @Override
+            public long bytesWritten() {
+              // Don't know how many bytes were written
+              return -1;
+            }
+          };
+        }
+      };
+
   private final Producer<String, D> producer;
-  private Callback producerCallback;
   private final String topic;
 
   public static Producer getKafkaProducer(Properties props)
@@ -65,7 +98,6 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
   {
     this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
     this.producer = producer;
-    this.producerCallback = null;
   }
 
   @Override
@@ -74,41 +106,26 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
     log.debug("Close called");
     this.producer.close();
   }
+  
+  
 
   @Override
-  public void cleanup()
-      throws IOException {
-    log.debug("Cleanup called");
-
-  }
-
-  @Override
-  public long bytesWritten() {
-    // Unfortunately since we are not in control of serialization,
-    // we don't really know how many bytes we've written
-    return -1;
-  }
-
-  @Override
-  public void setDefaultCallback(final WriteCallback callback) {
-    this.producerCallback = new Callback() {
+  public Future<WriteResponse> write(final D record, final WriteCallback callback) {
+    return new WriteResponseFuture<>(this.producer.send(new ProducerRecord<String, D>(topic, record), new Callback() {
       @Override
-      public void onCompletion(RecordMetadata metadata, Exception exception) {
-        if (exception != null)
-        {
+      public void onCompletion(final RecordMetadata metadata, Exception exception) {
+        if (exception != null) {
           callback.onFailure(exception);
-        }
-        else
-        {
-          callback.onSuccess();
+        } else {
+          callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
         }
       }
-    };
+    }), WRITE_RESPONSE_WRAPPER);
   }
 
-
   @Override
-  public void asyncWrite(D record) {
-    this.producer.send(new ProducerRecord<String, D>(topic, record), this.producerCallback);
+  public void flush()
+      throws IOException {
+    // Do nothing, 0.8 kafka producer doesn't support flush.
   }
 }
