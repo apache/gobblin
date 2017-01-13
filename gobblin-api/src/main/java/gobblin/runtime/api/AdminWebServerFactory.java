@@ -14,15 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.runtime.api;
 
-dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-admin')
-  compile project(':gobblin-modules:gobblin-azkaban')
-  compile project(':gobblin-modules:gobblin-compliance')
-  compile project(':gobblin-modules:gobblin-couchbase')
-  compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:google-ingestion')
-  compile project(':gobblin-modules:gobblin-helix')
+import java.net.URI;
+import java.util.Properties;
+
+import com.google.common.util.concurrent.Service;
+
+import gobblin.annotation.Alpha;
+
+/**
+ * A factory interface for AdminWebServer.
+ *
+ * NOTE: This interface is provided for backwards compatibility and may change in the future.
+ * @author cbotev
+ *
+ */
+@Alpha
+public interface AdminWebServerFactory {
+
+  /**
+   * Creates a new AdminWebServer instance
+   * @param config                      the server config
+   * @param executionInfoServerURI      the URI to the job execution server
+   * @return the instance
+   */
+  Service createInstance(Properties config, URI executionInfoServerURI);
+
 }
-

@@ -14,15 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.admin;
 
-dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-admin')
-  compile project(':gobblin-modules:gobblin-azkaban')
-  compile project(':gobblin-modules:gobblin-compliance')
-  compile project(':gobblin-modules:gobblin-couchbase')
-  compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:google-ingestion')
-  compile project(':gobblin-modules:gobblin-helix')
+import java.net.URI;
+import java.util.Properties;
+
+import com.google.common.util.concurrent.Service;
+
+import gobblin.annotation.Alias;
+import gobblin.runtime.api.AdminWebServerFactory;
+
+/**
+ * A factory for the default implementation of the admin web server
+ */
+@Alias(value="default")
+public class DefaultAdminWebServerFactory implements AdminWebServerFactory {
+
+  /** {@inheritDoc} */
+  @Override
+  public Service createInstance(Properties config, URI executionInfoServerURI) {
+    return new AdminWebServer(config, executionInfoServerURI);
+  }
+
 }
-
