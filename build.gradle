@@ -307,6 +307,8 @@ ext.externalDependency = [
   "opencsv": "com.opencsv:opencsv:3.8"
 ];
 
+apply from: 'gradle/scripts/restli.gradle'
+
 if (!isDefaultEnvironment)
 {
   ext.externalDependency.each { overrideDepKey, overrideDepValue ->
