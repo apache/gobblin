@@ -150,7 +150,7 @@ public class TestQuartzJobSpecScheduler {
 
       // All subsequent calls should be for js2
       for (int i = 0; i < 2; ++i){
-        JobSpec nextJs = expectedCalls.poll(2100, TimeUnit.MILLISECONDS);
+        JobSpec nextJs = expectedCalls.poll(4000, TimeUnit.MILLISECONDS);
         Assert.assertEquals(nextJs, js2);
       }
     }
