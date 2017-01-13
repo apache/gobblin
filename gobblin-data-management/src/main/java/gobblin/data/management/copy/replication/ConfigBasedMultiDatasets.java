@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.data.management.copy.replication;
 
 import java.io.IOException;
@@ -19,13 +36,13 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * Based on single dataset configuration in {@link Config} format, in Pull mode replication, there could be multiple 
- * {@link ConfigBasedDataset} generated. For example, if two replicas exists on the same copy to cluster, 
- * say replica1 and replica2, then there will be 2 {@link ConfigBasedDataset} generated, one for replication data from 
+ * Based on single dataset configuration in {@link Config} format, in Pull mode replication, there could be multiple
+ * {@link ConfigBasedDataset} generated. For example, if two replicas exists on the same copy to cluster,
+ * say replica1 and replica2, then there will be 2 {@link ConfigBasedDataset} generated, one for replication data from
  * copy from {@link EndPoint} to replica1, the other from copy from {@link EndPoint} to replica2
- * 
+ *
  * This class will be responsible to generate those {@link ConfigBasedDataset}s
- * 
+ *
  * @author mitu
  */
 
@@ -50,7 +67,7 @@ public class ConfigBasedMultiDatasets {
       URI executionClusterURI = executionCluster.getUri();
 
       ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
-      
+
       // push mode
       if(this.props.containsKey(REPLICATION_PUSH_MODE) && Boolean.parseBoolean(this.props.getProperty(REPLICATION_PUSH_MODE))){
         generateDatasetInPushMode(rc, executionClusterURI);
@@ -78,13 +95,13 @@ public class ConfigBasedMultiDatasets {
       return;
     }
     String pushModeTargetCluster = this.props.getProperty(ConfigurationKeys.WRITER_FILE_SYSTEM_URI);
-    
+
     // PUSH mode
     CopyRouteGenerator cpGen = rc.getCopyRouteGenerator();
     List<EndPoint> replicas = rc.getReplicas();
     List<EndPoint> pushCandidates = new ArrayList<EndPoint>(replicas);
     pushCandidates.add(rc.getSource());
-    
+
     for(EndPoint pushFrom: pushCandidates){
       if(needGenerateCopyEntity(pushFrom, executionClusterURI)){
         Optional<List<CopyRoute>> copyRoutes = cpGen.getPushRoutes(rc, pushFrom);

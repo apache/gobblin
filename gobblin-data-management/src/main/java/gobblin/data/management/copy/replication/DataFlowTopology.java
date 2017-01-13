@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.replication;
@@ -32,13 +37,13 @@ import lombok.AllArgsConstructor;;
 
 @Data
 public class DataFlowTopology {
-  
+
   private List<DataFlowPath> dataFlowPaths = new ArrayList<>();
 
   public void addDataFlowPath(DataFlowPath p){
     this.dataFlowPaths.add(p);
   }
-  
+
   @Override
   public String toString(){
     Function<DataFlowPath, String> func =
@@ -48,16 +53,16 @@ public class DataFlowTopology {
             return t.toString();
           }
         };
-        
+
     return Objects.toStringHelper(this.getClass())
         .add("dataFlows:", Joiner.on(",").join(Lists.transform(this.dataFlowPaths, func))).toString();
   }
-  
+
   @Data
   @AllArgsConstructor
   public static class DataFlowPath{
     private List<CopyRoute> copyRoutes;
-    
+
     @Override
     public String toString(){
       Function<CopyRoute, String> func =
@@ -67,7 +72,7 @@ public class DataFlowTopology {
               return t.toString();
             }
           };
-          
+
       return Objects.toStringHelper(this.getClass())
           .add("copyPairs:", Joiner.on(",").join(Lists.transform(this.copyRoutes, func))).toString();
     }

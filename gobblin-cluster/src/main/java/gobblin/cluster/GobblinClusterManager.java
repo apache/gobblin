@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.cluster;
@@ -482,6 +487,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
   private static Options buildOptions() {
     Options options = new Options();
     options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Gobblin application name");
+    options.addOption("s", GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE, true, "Standalone cluster mode");
     return options;
   }
 
@@ -499,13 +505,29 @@ public class GobblinClusterManager implements ApplicationLauncher {
         System.exit(1);
       }
 
+      boolean isStandaloneClusterManager = false;
+      if (cmd.hasOption(GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE)) {
+        isStandaloneClusterManager = Boolean.parseBoolean(cmd.getOptionValue(GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE, "false"));
+      }
+
       Log4jConfigurationHelper.updateLog4jConfiguration(GobblinClusterManager.class,
           GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE,
           GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE);
 
+      Config config = ConfigFactory.load();
       try (GobblinClusterManager gobblinClusterManager = new GobblinClusterManager(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), getApplicationId(),
-          ConfigFactory.load(), Optional.<Path>absent())) {
+          config, Optional.<Path>absent())) {
+
+        // In AWS / Yarn mode, the cluster Launcher takes care of setting up Helix cluster
+        /// .. but for Standalone mode, we go via this main() method, so setup the cluster here
+        if (isStandaloneClusterManager) {
+          // Create Helix cluster and connect to it
+          String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+          String helixClusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+          HelixUtils.createGobblinHelixCluster(zkConnectionString, helixClusterName);
+          LOGGER.info("Created Helix cluster " + helixClusterName);
+        }
 
         gobblinClusterManager.start();
       }

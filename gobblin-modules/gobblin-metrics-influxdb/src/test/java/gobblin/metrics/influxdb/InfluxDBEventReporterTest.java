@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2016 Swisscom All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.metrics.influxdb;
@@ -33,21 +38,21 @@ import com.google.common.collect.Maps;
 
 /**
  * Test for InfluxDBReporter using a mock backend ({@link TestInfluxDB})
- * 
+ *
  * @author Lorand Bendig
  *
  */
 @Test(groups = { "gobblin.metrics" })
 public class InfluxDBEventReporterTest {
-  
+
   private TestInfluxDB influxDB = new TestInfluxDB();
   private InfluxDBPusher influxDBPusher;
-  
+
   private static String DEFAULT_URL = "http://localhost:8086";
   private static String DEFAULT_USERNAME = "user";
   private static String DEFAULT_PASSWORD = "password";
   private static String DEFAULT_DATABASE = "default";
-  
+
   private static String NAMESPACE = "gobblin.metrics.test";
 
   @BeforeClass

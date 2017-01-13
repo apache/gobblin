@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2016 Swisscom All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.writer.commands;
@@ -37,7 +42,7 @@ import com.google.common.collect.ImmutableMap;
  * If primary index need to be defined, it is advised to adapt the staging table creation
  * ({@link #CREATE_TABLE_SQL_FORMAT}) to avoid unnecessary redistribution of data among the AMPs during
  * the insertion to the final table.
- * 
+ *
  * @author Lorand Bendig
  *
  */
@@ -65,12 +70,12 @@ public class TeradataWriterCommands implements JdbcWriterCommands {
   @Override
   public void setConnectionParameters(Properties properties, Connection conn) throws SQLException {
     // If staging tables are skipped i.e task level and partial commits are allowed to the target table,
-    // then transaction handling will be managed by the JDBC driver to avoid deadlocks in the database. 
+    // then transaction handling will be managed by the JDBC driver to avoid deadlocks in the database.
     boolean jobCommitPolicyIsFull =
         JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.equals(JobCommitPolicy.getCommitPolicy(properties));
     boolean publishDataAtJobLevel =
         Boolean.parseBoolean(properties.getProperty(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
-            String.valueOf(ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL)));   
+            String.valueOf(ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL)));
     if (jobCommitPolicyIsFull || publishDataAtJobLevel) {
       this.conn.setAutoCommit(false);
     }
@@ -78,7 +83,7 @@ public class TeradataWriterCommands implements JdbcWriterCommands {
       LOG.info("Writing without staging tables, transactions are handled by the driver");
     }
   }
-  
+
   @Override
   public void insert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
     this.jdbcBufferedWriter.insert(databaseName, table, jdbcEntryData);
@@ -125,7 +130,7 @@ public class TeradataWriterCommands implements JdbcWriterCommands {
     String sql = String.format(DROP_TABLE_SQL_FORMAT, database, table);
     execute(sql);
   }
-  
+
   /**
    * {@inheritDoc}
    * @see gobblin.writer.commands.JdbcWriterCommands#retrieveDateColumns(java.sql.Connection, java.lang.String)
