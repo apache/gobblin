@@ -70,17 +70,11 @@ public class HiveSourceTest {
 
     List<WorkUnit> workUnits = hiveSource.getWorkunits(testState);
 
-    // One workunit for the table + 1 dummy watermark workunit
-    Assert.assertEquals(workUnits.size(), 2);
+    // One workunit for the table, no dummy workunits
+    Assert.assertEquals(workUnits.size(), 1);
     WorkUnit wu = workUnits.get(0);
-    WorkUnit wu2 = workUnits.get(1);
 
-    HiveWorkUnit hwu = null;
-    if (!wu.contains(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY)) {
-      hwu = new HiveWorkUnit(wu);
-    } else {
-      hwu = new HiveWorkUnit(wu2);
-    }
+    HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), tableName);

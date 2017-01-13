@@ -231,9 +231,12 @@ public class HiveSource implements Source {
         return;
       }
 
-      if (shouldCreateWorkunit(hiveDataset.getTable().getTTable().getCreateTime(), updateTime, lowWatermark)) {
+      if (shouldCreateWorkunit(getCreateTime(hiveDataset.getTable()), updateTime, lowWatermark)) {
 
-        log.debug(String.format("Processing table: %s", hiveDataset.getTable()));
+        log.info(String.format(
+            "Creating workunit for table %s as updateTime %s or createTime %s is greater than low watermark %s",
+            hiveDataset.getTable().getCompleteName(), updateTime, hiveDataset.getTable().getTTable().getCreateTime(),
+            lowWatermark.getValue()));
         LongWatermark expectedDatasetHighWatermark =
             this.watermarker.getExpectedHighWatermark(hiveDataset.getTable(), tableProcessTime);
         HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
@@ -246,8 +249,11 @@ public class HiveSource implements Source {
         log.debug(String.format("Workunit added for table: %s", hiveWorkUnit));
 
       } else {
-        log.info(String.format("Not creating workunit for table %s as updateTime %s is not greater than low watermark %s",
-            hiveDataset.getTable().getCompleteName(), updateTime, lowWatermark.getValue()));
+        log.info(String
+            .format(
+                "Not creating workunit for table %s as updateTime %s and createTime %s is not greater than low watermark %s",
+                hiveDataset.getTable().getCompleteName(), updateTime, hiveDataset.getTable().getTTable()
+                    .getCreateTime(), lowWatermark.getValue()));
       }
     } catch (UpdateNotFoundException e) {
       log.error(String.format("Not Creating workunit for %s as update time was not found. %s", hiveDataset.getTable()
@@ -355,26 +361,12 @@ public class HiveSource implements Source {
   }
 
   /**
-   * Check if workunit needs to be created. Returns <code>true</code> If either the <code>createTime</code> or the
-   * <code>updateTime</code> is greater than the <code>lowWatermark</code>
+   * Check if workunit needs to be created. Returns <code>true</code> If the
+   * <code>updateTime</code> is greater than the <code>lowWatermark</code>.
+   * <code>createTime</code> is not used. It exists for backward compatibility
    */
   protected boolean shouldCreateWorkunit(long createTime, long updateTime, LongWatermark lowWatermark) {
-    /*
-     * [2016-08-08]
-     * Need to check both updateTime and createTime.
-     *
-     * Distcp ng published data with an older modified time. In Distcp-ng, the modified time of data on HDFS is the time
-     * when data was created in staging and not final publish path, hence this time difference between HDFS mod time and
-     * hive registration time can be in the order of minutes. This may lead to missing updates by the Avro to ORC job.
-     * E.g. Let's say table level watermark for a dataset is 1:30 from the previous run.
-     * Now distcp-np published data for a partition at 1:33 with an HDFS modTime of 1:27.
-     * The watermark is 1:30 and the update is at 1:27 hence a workunit is not created for this partition.
-     *
-     * Summary -
-     * - Check for update time is required when new files are added to existing partitions
-     * - Check for create time is required when a new partition is created both in hive and HDFS
-     */
-    return new DateTime(updateTime).isAfter(lowWatermark.getValue()) || new DateTime(createTime).isAfter(createTime);
+    return new DateTime(updateTime).isAfter(lowWatermark.getValue());
   }
 
   /**
@@ -403,6 +395,11 @@ public class HiveSource implements Source {
           partition.getCompleteName()));
       return 0;
     }
+  }
+
+  // Convert createTime from seconds to milliseconds
+  private static long getCreateTime(Table table) {
+    return TimeUnit.MILLISECONDS.convert(table.getTTable().getCreateTime(), TimeUnit.SECONDS);
   }
 
   @Override
