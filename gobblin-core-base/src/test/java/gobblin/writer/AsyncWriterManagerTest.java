@@ -263,7 +263,7 @@ public class AsyncWriterManagerTest {
             .maxOutstandingWrites(maxOutstandingWrites).failureAllowanceRatio(1.0)  // ok to fail all the time
             .build();
 
-    boolean verbose = true;
+    boolean verbose = false;
     if (verbose) {
       // Create a reporter for metrics. This reporter will write metrics to STDOUT.
       OutputStreamReporter.Factory.newBuilder().build(new Properties());
@@ -295,10 +295,6 @@ public class AsyncWriterManagerTest {
     for (int i = 0; i < (totalTime / sleepTime); ++i) {
       Thread.sleep(sleepTime);
       int retryQueueSize = retryQueue.size();
-      long recordsIn = asyncWriterManager.recordsIn.getCount();
-      if (recordsIn > 100) {
-        Assert.assertTrue(retryQueueSize > 0, "There should be some writes in the retry queue");
-      }
       Assert.assertTrue(retryQueueSize <= (maxOutstandingWrites + 1),
           "Retry queue should never exceed the " + "maxOutstandingWrites. Found " + retryQueueSize);
       log.debug("Retry queue size = {}", retryQueue.size());
@@ -306,5 +302,11 @@ public class AsyncWriterManagerTest {
 
     scheduler.shutdown();
     asyncWriterManager.commit();
+    long recordsIn = asyncWriterManager.recordsIn.getCount();
+    long recordsAttempted = asyncWriterManager.recordsAttempted.getCount();
+    String msg = String.format("recordsIn = %d, recordsAttempted = %d.", recordsIn, recordsAttempted);
+    log.info(msg);
+    Assert.assertTrue(recordsAttempted > recordsIn, "There must have been a bunch of failures");
+    Assert.assertTrue(retryQueue.size() == 0, "Retry queue should be empty");
   }
 }

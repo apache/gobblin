@@ -40,6 +40,13 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.math3.util.Pair;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.message.BasicNameValuePair;
 import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
@@ -55,6 +62,8 @@ import com.google.gson.Gson;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.converter.Converter;
 import gobblin.converter.DataConversionException;
 import gobblin.couchbase.CouchbaseTestServer;
@@ -68,7 +77,7 @@ import gobblin.writer.AsyncWriterManager;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 
-
+@Slf4j
 public class CouchbaseWriterTest {
 
   private CouchbaseTestServer _couchbaseTestServer;
@@ -78,11 +87,37 @@ public class CouchbaseWriterTest {
   public void startServers() {
     _couchbaseTestServer = new CouchbaseTestServer(TestUtils.findFreePort());
     _couchbaseTestServer.start();
-
     _couchbaseEnvironment = DefaultCouchbaseEnvironment.builder().bootstrapHttpEnabled(true)
         .bootstrapHttpDirectPort(_couchbaseTestServer.getPort())
         .bootstrapCarrierDirectPort(_couchbaseTestServer.getServerPort()).bootstrapCarrierEnabled(false)
         .kvTimeout(10000).build();
+  }
+
+
+  /**
+   * Implement the equivalent of:
+   * curl -XPOST -u Administrator:password localhost:httpPort/pools/default/buckets \ -d bucketType=couchbase \
+   * -d name={@param bucketName} -d authType=sasl -d ramQuotaMB=200
+   **/
+  private boolean createBucket(String bucketName) {
+    CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+    try {
+      HttpPost httpPost = new HttpPost("http://localhost:" + _couchbaseTestServer.getPort() + "/pools/default/buckets");
+      List<NameValuePair> params = new ArrayList<>(2);
+      params.add(new BasicNameValuePair("bucketType", "couchbase"));
+      params.add(new BasicNameValuePair("name", bucketName));
+      params.add(new BasicNameValuePair("authType", "sasl"));
+      params.add(new BasicNameValuePair("ramQuotaMB", "200"));
+      httpPost.setEntity(new UrlEncodedFormEntity(params, "UTF-8"));
+      //Execute and get the response.
+      HttpResponse response = httpClient.execute(httpPost);
+      log.info(String.valueOf(response.getStatusLine().getStatusCode()));
+      return true;
+    }
+    catch (Exception e) {
+      log.error("Failed to create bucket {}", bucketName, e);
+      return false;
+    }
   }
 
   @AfterSuite
@@ -105,37 +140,42 @@ public class CouchbaseWriterTest {
     Config config = ConfigFactory.parseProperties(props);
 
     CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+    try {
+      Schema dataRecordSchema =
+          SchemaBuilder.record("Data").fields().name("data").type().bytesType().noDefault().name("flags").type().intType()
+              .noDefault().endRecord();
 
-    Schema dataRecordSchema =
-        SchemaBuilder.record("Data").fields().name("data").type().bytesType().noDefault().name("flags").type().intType()
-            .noDefault().endRecord();
+      Schema schema = SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
+          .type(dataRecordSchema).noDefault().endRecord();
 
-    Schema schema = SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
-        .type(dataRecordSchema).noDefault().endRecord();
+      GenericData.Record testRecord = new GenericData.Record(schema);
 
-    GenericData.Record testRecord = new GenericData.Record(schema);
+      String testContent = "hello world";
 
-    String testContent = "hello world";
+      GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
+      dataRecord.put("data", ByteBuffer.wrap(testContent.getBytes(Charset.forName("UTF-8"))));
+      dataRecord.put("flags", 0);
 
-    GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
-    dataRecord.put("data", ByteBuffer.wrap(testContent.getBytes(Charset.forName("UTF-8"))));
-    dataRecord.put("flags", 0);
+      testRecord.put("key", "hello");
+      testRecord.put("data", dataRecord);
 
-    testRecord.put("key", "hello");
-    testRecord.put("data", dataRecord);
+      Converter<Schema, String, GenericRecord, TupleDocument> recordConverter = new AvroToCouchbaseTupleConverter();
 
-    Converter<Schema, String, GenericRecord, TupleDocument> recordConverter = new AvroToCouchbaseTupleConverter();
+      TupleDocument doc = recordConverter.convertRecord("", testRecord, null).iterator().next();
+      writer.write(doc, null).get();
+      TupleDocument returnDoc = writer.getBucket().get("hello", TupleDocument.class);
 
-    TupleDocument doc = recordConverter.convertRecord("", testRecord, null).iterator().next();
-    writer.write(doc, null).get();
-    TupleDocument returnDoc = writer.getBucket().get("hello", TupleDocument.class);
+      byte[] returnedBytes = new byte[returnDoc.content().value1().readableBytes()];
+      returnDoc.content().value1().readBytes(returnedBytes);
+      Assert.assertEquals(returnedBytes, testContent.getBytes(Charset.forName("UTF-8")));
 
-    byte[] returnedBytes = new byte[returnDoc.content().value1().readableBytes()];
-    returnDoc.content().value1().readBytes(returnedBytes);
-    Assert.assertEquals(returnedBytes, testContent.getBytes(Charset.forName("UTF-8")));
+      int returnedFlags = returnDoc.content().value2();
+      Assert.assertEquals(returnedFlags, 0);
 
-    int returnedFlags = returnDoc.content().value2();
-    Assert.assertEquals(returnedFlags, 0);
+    } finally {
+      writer.close();
+    }
+
   }
 
   /**
@@ -145,14 +185,10 @@ public class CouchbaseWriterTest {
    * @throws ExecutionException
    * @throws InterruptedException
    */
-  @Test
+  @Test(groups={"timeout"})
   public void testJsonDocumentWrite()
       throws IOException, DataConversionException, ExecutionException, InterruptedException {
-    Properties props = new Properties();
-    props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
-    Config config = ConfigFactory.parseProperties(props);
-
-    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, ConfigFactory.empty());
     try {
 
       String key = "hello";
@@ -337,25 +373,29 @@ public class CouchbaseWriterTest {
 
     CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
 
-    AsyncWriterManager asyncWriterManager =
-        AsyncWriterManager.builder().asyncDataWriter(writer).maxOutstandingWrites(100000).retriesEnabled(true)
-            .numRetries(5).build();
+    try {
+      AsyncWriterManager asyncWriterManager =
+          AsyncWriterManager.builder().asyncDataWriter(writer).maxOutstandingWrites(100000).retriesEnabled(true)
+              .numRetries(5).build();
 
-    if (verbose) {
-      // Create a reporter for metrics. This reporter will write metrics to STDOUT.
-      OutputStreamReporter.Factory.newBuilder().build(new Properties());
-      // Start all metric reporters.
-      RootMetricContext.get().startReporting();
-    }
+      if (verbose) {
+        // Create a reporter for metrics. This reporter will write metrics to STDOUT.
+        OutputStreamReporter.Factory.newBuilder().build(new Properties());
+        // Start all metric reporters.
+        RootMetricContext.get().startReporting();
+      }
 
-    Verifier verifier = new Verifier();
-    while (recordIterator.hasNext()) {
-      AbstractDocument doc = recordIterator.next();
-      verifier.onWrite(doc);
-      asyncWriterManager.write(doc);
+      Verifier verifier = new Verifier();
+      while (recordIterator.hasNext()) {
+        AbstractDocument doc = recordIterator.next();
+        verifier.onWrite(doc);
+        asyncWriterManager.write(doc);
+      }
+      asyncWriterManager.commit();
+      verifier.verify(writer.getBucket());
+    } finally {
+      writer.close();
     }
-    asyncWriterManager.commit();
-    verifier.verify(writer.getBucket());
   }
 
   private List<Pair<AbstractDocument, Future>> writeRecords(Iterator<AbstractDocument> recordIterator,
@@ -413,54 +453,54 @@ public class CouchbaseWriterTest {
   @Test
   public void testMultiTupleDocumentWrite()
       throws IOException, DataConversionException, ExecutionException, InterruptedException {
-    Properties props = new Properties();
-    props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
-    Config config = ConfigFactory.parseProperties(props);
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, ConfigFactory.empty());
+    try {
 
-    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+      final Schema dataRecordSchema =
+          SchemaBuilder.record("Data").fields().name("data").type().bytesType().noDefault().name("flags").type().intType()
+              .noDefault().endRecord();
 
-    final Schema dataRecordSchema =
-        SchemaBuilder.record("Data").fields().name("data").type().bytesType().noDefault().name("flags").type().intType()
-            .noDefault().endRecord();
+      final Schema schema =
+          SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
+              .type(dataRecordSchema).noDefault().endRecord();
 
-    final Schema schema =
-        SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
-            .type(dataRecordSchema).noDefault().endRecord();
+      final int numRecords = 1000;
+      int outstandingRequests = 99;
 
-    final int numRecords = 1000;
-    int outstandingRequests = 99;
+      Iterator<GenericRecord> recordIterator = new Iterator<GenericRecord>() {
+        private int currentIndex;
 
-    Iterator<GenericRecord> recordIterator = new Iterator<GenericRecord>() {
-      private int currentIndex;
-      
-      @Override
-      public void remove() {
-      }
+        @Override
+        public void remove() {
+        }
 
-      @Override
-      public boolean hasNext() {
-        return (currentIndex < numRecords);
-      }
+        @Override
+        public boolean hasNext() {
+          return (currentIndex < numRecords);
+        }
 
-      @Override
-      public GenericRecord next() {
-        GenericData.Record testRecord = new GenericData.Record(schema);
+        @Override
+        public GenericRecord next() {
+          GenericData.Record testRecord = new GenericData.Record(schema);
 
-        String testContent = "hello world" + currentIndex;
-        GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
-        dataRecord.put("data", ByteBuffer.wrap(testContent.getBytes(Charset.forName("UTF-8"))));
-        dataRecord.put("flags", 0);
+          String testContent = "hello world" + currentIndex;
+          GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
+          dataRecord.put("data", ByteBuffer.wrap(testContent.getBytes(Charset.forName("UTF-8"))));
+          dataRecord.put("flags", 0);
 
-        testRecord.put("key", "hello" + currentIndex);
-        testRecord.put("data", dataRecord);
-        currentIndex++;
-        return testRecord;
-      }
-    };
+          testRecord.put("key", "hello" + currentIndex);
+          testRecord.put("data", dataRecord);
+          currentIndex++;
+          return testRecord;
+        }
+      };
 
-    long kvTimeout = 10000;
-    TimeUnit kvTimeoutUnit = TimeUnit.MILLISECONDS;
-    writeRecords(new TupleDocumentIterator(recordIterator), writer, outstandingRequests, kvTimeout, kvTimeoutUnit);
+      long kvTimeout = 10000;
+      TimeUnit kvTimeoutUnit = TimeUnit.MILLISECONDS;
+      writeRecords(new TupleDocumentIterator(recordIterator), writer, outstandingRequests, kvTimeout, kvTimeoutUnit);
+    } finally {
+      writer.close();
+    }
   }
 
   @Test
