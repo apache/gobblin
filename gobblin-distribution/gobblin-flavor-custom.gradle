@@ -23,7 +23,7 @@ dependencies {
   // compile project(':gobblin-modules:gobblin-azkaban')
 
   // Classes to support running gobblin as a cluster on AWS
-  // compile project(':gobblin-modules:gobblin-aws')
+  // compile project(':gobblin-aws')
 
   // Source/converters for compliance-related processing
   // compile project(':gobblin-modules:gobblin-compliance')
@@ -42,5 +42,5 @@ dependencies {
   // compile project(':gobblin-modules:gobblin-helix')
 
   // Classes to run Gobblin as a native YARN application
-  // compile project(':gobblin-modules:gobblin-yarn')
+  // compile project(':gobblin-yarn')
 }

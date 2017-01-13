@@ -16,9 +16,9 @@
  */
 
 dependencies {
-  compile project(':gobblin-modules:gobblin-aws')
+  compile project(':gobblin-aws')
   compile project(':gobblin-modules:gobblin-azkaban')
   compile project(':gobblin-modules:gobblin-helix')
   compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:gobblin-yarn')
+  compile project(':gobblin-yarn')
 }
