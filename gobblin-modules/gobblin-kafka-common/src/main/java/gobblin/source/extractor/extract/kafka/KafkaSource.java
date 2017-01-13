@@ -38,20 +38,24 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
-import com.google.common.collect.Iterables;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.kafka.client.GobblinKafkaConsumerClient;
+import gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
 import gobblin.source.extractor.extract.EventBasedSource;
 import gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
 import gobblin.util.DatasetFilterUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.dataset.DatasetUtils;
@@ -85,6 +89,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String ALL_TOPICS = "all";
   public static final String AVG_RECORD_SIZE = "avg.record.size";
   public static final String AVG_RECORD_MILLIS = "avg.record.millis";
+  public static final String GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS = "gobblin.kafka.consumerClient.class";
+  public static final String DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS =
+      "gobblin.kafka.client.Kafka08ConsumerClient$Factory";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -97,7 +104,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private final AtomicInteger offsetTooEarlyCount = new AtomicInteger(0);
   private final AtomicInteger offsetTooLateCount = new AtomicInteger(0);
 
-  private KafkaWrapper kafkaWrapper;
+  private GobblinKafkaConsumerClient kafkaConsumerClient;
+  private final ClassAliasResolver<GobblinKafkaConsumerClientFactory> kafkaConsumerClientResolver =
+      new ClassAliasResolver<>(GobblinKafkaConsumerClientFactory.class);
 
   private volatile boolean doneGettingAllPreviousOffsets = false;
 
@@ -105,7 +114,16 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public List<WorkUnit> getWorkunits(SourceState state) {
     Map<String, List<WorkUnit>> workUnits = Maps.newConcurrentMap();
 
-    this.kafkaWrapper = this.closer.register(KafkaWrapper.create(state));
+    try {
+      this.kafkaConsumerClient =
+          kafkaConsumerClientResolver
+              .resolveClass(
+                  state.getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
+                      DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance()
+              .create(ConfigUtils.propertiesToConfig(state.getProperties()));
+    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
 
     List<KafkaTopic> topics = getFilteredTopics(state);
 
@@ -217,8 +235,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     boolean failedToGetKafkaOffsets = false;
 
     try {
-      offsets.setEarliestOffset(this.kafkaWrapper.getEarliestOffset(partition));
-      offsets.setLatestOffset(this.kafkaWrapper.getLatestOffset(partition));
+      offsets.setEarliestOffset(this.kafkaConsumerClient.getEarliestOffset(partition));
+      offsets.setLatestOffset(this.kafkaConsumerClient.getLatestOffset(partition));
     } catch (KafkaOffsetRetrievalFailureException e) {
       failedToGetKafkaOffsets = true;
     }
@@ -383,7 +401,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private List<KafkaTopic> getFilteredTopics(SourceState state) {
     List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, TOPIC_BLACKLIST);
     List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, TOPIC_WHITELIST);
-    return this.kafkaWrapper.getFilteredTopics(blacklist, whitelist);
+    return this.kafkaConsumerClient.getFilteredTopics(blacklist, whitelist);
   }
 
   @Override

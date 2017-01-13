@@ -19,9 +19,8 @@ package gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 
-import kafka.message.MessageAndOffset;
-
 import gobblin.configuration.WorkUnitState;
+import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
 import gobblin.metrics.kafka.KafkaSchemaRegistry;
 import gobblin.metrics.kafka.SchemaRegistryException;
 
@@ -42,8 +41,8 @@ public class KafkaSimpleExtractor extends KafkaExtractor<String, byte[]> {
   }
 
   @Override
-  protected byte[] decodeRecord(MessageAndOffset messageAndOffset) throws IOException {
-    return getBytes(messageAndOffset.message().payload());
+  protected byte[] decodeRecord(ByteArrayBasedKafkaRecord kafkaConsumerRecord) throws IOException {
+    return kafkaConsumerRecord.getMessageBytes();
   }
 
   /**

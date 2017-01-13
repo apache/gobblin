@@ -41,8 +41,10 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.kafka.client.GobblinKafkaConsumerClient;
 import gobblin.util.ConfigUtils;
 import gobblin.util.DatasetFilterUtils;
+
 import kafka.api.PartitionFetchInfo;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.common.TopicAndPartition;
@@ -62,8 +64,11 @@ import kafka.message.MessageAndOffset;
  * Wrapper class that contains two alternative Kakfa APIs: an old low-level Scala-based API, and a new API.
  * The new API has not been implemented since it's not ready to be open sourced.
  *
+ * @deprecated - Use {@link GobblinKafkaConsumerClient}
+ *
  * @author Ziyang Liu
  */
+@Deprecated
 public class KafkaWrapper implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaWrapper.class);
@@ -164,6 +169,10 @@ public class KafkaWrapper implements Closeable {
     this.kafkaAPI.close();
   }
 
+  /**
+   *  @deprecated - Use {@link GobblinKafkaConsumerClient}
+   */
+  @Deprecated
   private abstract class KafkaAPI implements Closeable {
 
     protected KafkaAPI(Config config) {
@@ -181,7 +190,10 @@ public class KafkaWrapper implements Closeable {
 
   /**
    * Wrapper for the old low-level Scala-based Kafka API.
+   *
+   * @deprecated - Use {@link GobblinKafkaConsumerClient}
    */
+  @Deprecated
   private class KafkaOldAPI extends KafkaAPI {
     public static final String CONFIG_PREFIX = "source.kafka.";
     public static final String CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE = CONFIG_PREFIX + "socketTimeoutMillis";
@@ -495,7 +507,9 @@ public class KafkaWrapper implements Closeable {
 
   /**
    * Wrapper for the new Kafka API.
+   * @deprecated - Use {@link GobblinKafkaConsumerClient}
    */
+  @Deprecated
   private class KafkaNewAPI extends KafkaAPI {
 
     protected KafkaNewAPI(Config config) {

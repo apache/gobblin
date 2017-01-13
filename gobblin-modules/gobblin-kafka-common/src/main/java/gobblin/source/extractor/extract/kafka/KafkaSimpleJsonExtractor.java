@@ -24,8 +24,8 @@ import java.nio.charset.StandardCharsets;
 import com.google.gson.Gson;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
 import gobblin.source.extractor.Extractor;
-import kafka.message.MessageAndOffset;
 
 public class KafkaSimpleJsonExtractor extends KafkaSimpleExtractor implements Extractor<String, byte[]> {
 
@@ -37,13 +37,13 @@ public class KafkaSimpleJsonExtractor extends KafkaSimpleExtractor implements Ex
     }
 
     @Override
-    protected byte[] decodeRecord(MessageAndOffset messageAndOffset) throws IOException {
-        long offset = messageAndOffset.offset();
+    protected byte[] decodeRecord(ByteArrayBasedKafkaRecord messageAndOffset) throws IOException {
+        long offset = messageAndOffset.getOffset();
 
-        byte[] keyBytes = getBytes(messageAndOffset.message().key());
+        byte[] keyBytes = messageAndOffset.getKeyBytes();
         String key = (keyBytes == null) ? "" : new String(keyBytes, CHARSET);
 
-        byte[] payloadBytes = getBytes(messageAndOffset.message().payload());
+        byte[] payloadBytes = messageAndOffset.getMessageBytes();
         String payload = (payloadBytes == null) ? "" : new String(payloadBytes, CHARSET);
 
         KafkaRecord record = new KafkaRecord(offset, key, payload);

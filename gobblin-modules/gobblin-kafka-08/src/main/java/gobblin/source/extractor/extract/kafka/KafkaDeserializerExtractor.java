@@ -17,11 +17,17 @@
 
 package gobblin.source.extractor.extract.kafka;
 
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaJsonDeserializer;
+
 import java.io.IOException;
 import java.util.Properties;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -31,17 +37,9 @@ import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import io.confluent.kafka.serializers.KafkaJsonDeserializer;
-
-import kafka.message.MessageAndOffset;
-
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
 import gobblin.annotation.Alias;
 import gobblin.configuration.WorkUnitState;
+import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
 import gobblin.metrics.kafka.KafkaSchemaRegistry;
 import gobblin.metrics.kafka.SchemaRegistryException;
 import gobblin.util.PropertiesUtils;
@@ -93,8 +91,8 @@ public class KafkaDeserializerExtractor extends KafkaExtractor<Object, Object> {
   }
 
   @Override
-  protected Object decodeRecord(MessageAndOffset messageAndOffset) throws IOException {
-    return this.kafkaDeserializer.deserialize(this.topicName, getBytes(messageAndOffset.message().payload()));
+  protected Object decodeRecord(ByteArrayBasedKafkaRecord messageAndOffset) throws IOException {
+    return this.kafkaDeserializer.deserialize(this.topicName, messageAndOffset.getMessageBytes());
   }
 
   @Override
