@@ -18,7 +18,6 @@
 package gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +26,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import kafka.message.MessageAndOffset;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -39,10 +36,17 @@ import com.google.common.collect.Sets;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
+import gobblin.kafka.client.DecodeableKafkaRecord;
+import gobblin.kafka.client.GobblinKafkaConsumerClient;
+import gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
+import gobblin.kafka.client.KafkaConsumerRecord;
 import gobblin.metrics.Tag;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.EventBasedExtractor;
+import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
 
 
 /**
@@ -64,7 +68,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   protected final MultiLongWatermark lowWatermark;
   protected final MultiLongWatermark highWatermark;
   protected final MultiLongWatermark nextWatermark;
-  protected final KafkaWrapper kafkaWrapper;
+  protected final GobblinKafkaConsumerClient kafkaConsumerClient;
+  private final ClassAliasResolver<GobblinKafkaConsumerClientFactory> kafkaConsumerClientResolver;
+
   protected final Stopwatch stopwatch;
 
   protected final Map<KafkaPartition, Integer> decodingErrorCount;
@@ -74,7 +80,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private final Set<Integer> errorPartitions;
   private int undecodableMessageCount = 0;
 
-  private Iterator<MessageAndOffset> messageIterator = null;
+  private Iterator<KafkaConsumerRecord> messageIterator = null;
   private int currentPartitionIdx = INITIAL_PARTITION_IDX;
   private long currentPartitionRecordCount = 0;
   private long currentPartitionTotalSize = 0;
@@ -87,7 +93,18 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.lowWatermark = state.getWorkunit().getLowWatermark(MultiLongWatermark.class);
     this.highWatermark = state.getWorkunit().getExpectedHighWatermark(MultiLongWatermark.class);
     this.nextWatermark = new MultiLongWatermark(this.lowWatermark);
-    this.kafkaWrapper = this.closer.register(KafkaWrapper.create(state));
+    this.kafkaConsumerClientResolver = new ClassAliasResolver<>(GobblinKafkaConsumerClientFactory.class);
+    try {
+      this.kafkaConsumerClient =
+          this.kafkaConsumerClientResolver
+              .resolveClass(
+                  state.getProp(KafkaSource.GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
+                      KafkaSource.DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance()
+              .create(ConfigUtils.propertiesToConfig(state.getProperties()));
+    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
+
     this.stopwatch = Stopwatch.createUnstarted();
 
     this.decodingErrorCount = Maps.newHashMap();
@@ -111,6 +128,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
    * Return the next decodable record from the current partition. If the current partition has no more
    * decodable record, move on to the next partition. If all partitions have been processed, return null.
    */
+  @SuppressWarnings("unchecked")
   @Override
   public D readRecordImpl(D reuse) throws DataRecordException, IOException {
     while (!allPartitionsFinished()) {
@@ -137,20 +155,30 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           break;
         }
 
-        MessageAndOffset nextValidMessage = this.messageIterator.next();
+        KafkaConsumerRecord nextValidMessage = this.messageIterator.next();
 
         // Even though we ask Kafka to give us a message buffer starting from offset x, it may
         // return a buffer that starts from offset smaller than x, so we need to skip messages
         // until we get to x.
-        if (nextValidMessage.offset() < this.nextWatermark.get(this.currentPartitionIdx)) {
+        if (nextValidMessage.getOffset() < this.nextWatermark.get(this.currentPartitionIdx)) {
           continue;
         }
 
-        this.nextWatermark.set(this.currentPartitionIdx, nextValidMessage.nextOffset());
+        this.nextWatermark.set(this.currentPartitionIdx, nextValidMessage.getNextOffset());
         try {
-          D record = decodeRecord(nextValidMessage);
+          D record = null;
+          if (nextValidMessage instanceof ByteArrayBasedKafkaRecord) {
+            record = decodeRecord((ByteArrayBasedKafkaRecord)nextValidMessage);
+          } else if (nextValidMessage instanceof DecodeableKafkaRecord){
+            record = ((DecodeableKafkaRecord<?, D>) nextValidMessage).getValue();
+          } else {
+            throw new IllegalStateException(
+                "Unsupported KafkaConsumerRecord type. The returned record can either be ByteArrayBasedKafkaRecord"
+                    + " or DecodeableKafkaRecord");
+          }
+
           this.currentPartitionRecordCount++;
-          this.currentPartitionTotalSize += nextValidMessage.message().payloadSize();
+          this.currentPartitionTotalSize += nextValidMessage.getValueSizeInBytes();
           return record;
         } catch (Throwable t) {
           this.errorPartitions.add(this.currentPartitionIdx);
@@ -223,8 +251,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     switchMetricContext(Lists.<Tag<?>> newArrayList(new Tag<>("kafka_partition", currentPartitionId)));
   }
 
-  private Iterator<MessageAndOffset> fetchNextMessageBuffer() {
-    return this.kafkaWrapper.fetchNextMessageBuffer(this.partitions.get(this.currentPartitionIdx),
+  private Iterator<KafkaConsumerRecord> fetchNextMessageBuffer() {
+    return this.kafkaConsumerClient.consume(this.partitions.get(this.currentPartitionIdx),
         this.nextWatermark.get(this.currentPartitionIdx), this.highWatermark.get(this.currentPartitionIdx));
   }
 
@@ -247,7 +275,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     return this.partitions.get(this.currentPartitionIdx);
   }
 
-  protected abstract D decodeRecord(MessageAndOffset messageAndOffset) throws IOException;
+  protected abstract D decodeRecord(ByteArrayBasedKafkaRecord kafkaConsumerRecord) throws IOException;
 
   @Override
   public long getExpectedRecordCount() {
@@ -279,16 +307,6 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       }
     }
     this.closer.close();
-  }
-
-  protected static byte[] getBytes(ByteBuffer buf) {
-    byte[] bytes = null;
-    if (buf != null) {
-      int size = buf.remaining();
-      bytes = new byte[size];
-      buf.get(bytes, buf.position(), size);
-    }
-    return bytes;
   }
 
   @Deprecated

@@ -19,7 +19,6 @@ package gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 
-import kafka.message.MessageAndOffset;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
@@ -33,6 +32,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
 import gobblin.metrics.kafka.KafkaSchemaRegistry;
 import gobblin.metrics.kafka.SchemaRegistryException;
 import gobblin.source.extractor.DataRecordException;
@@ -106,8 +106,8 @@ public abstract class KafkaAvroExtractor<K> extends KafkaExtractor<Schema, Gener
   }
 
   @Override
-  protected GenericRecord decodeRecord(MessageAndOffset messageAndOffset) throws IOException {
-    byte[] payload = getBytes(messageAndOffset.message().payload());
+  protected GenericRecord decodeRecord(ByteArrayBasedKafkaRecord messageAndOffset) throws IOException {
+    byte[] payload = messageAndOffset.getMessageBytes();
     Schema recordSchema = getRecordSchema(payload);
     Decoder decoder = getDecoder(payload);
     this.reader.get().setSchema(recordSchema);
