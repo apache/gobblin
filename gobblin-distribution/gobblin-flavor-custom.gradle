@@ -24,6 +24,9 @@ dependencies {
 
   // Classes to support running gobblin as a cluster on AWS
   // compile project(':gobblin-aws')
+  
+  // Common gobblin cluster instrumentation
+  // compile project(':gobblin-cluster')
 
   // Source/converters for compliance-related processing
   // compile project(':gobblin-modules:gobblin-compliance')

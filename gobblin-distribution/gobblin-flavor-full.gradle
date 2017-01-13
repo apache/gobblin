@@ -19,6 +19,7 @@ dependencies {
   compile project(':gobblin-example')
   compile project(':gobblin-modules:gobblin-azkaban')
   compile project(':gobblin-aws')
+  compile project(':gobblin-cluster')
   compile project(':gobblin-modules:gobblin-compliance')
   compile project(':gobblin-modules:gobblin-couchbase')
   compile project(':gobblin-modules:gobblin-kafka-08')
