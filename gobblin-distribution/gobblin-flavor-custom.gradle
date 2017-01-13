@@ -20,7 +20,7 @@ dependencies {
   // compile project(':gobblin-example')
 
   // Admin Web Server
-  // compile project(':gobblin-modules:gobblin-admin')
+  // compile project(':gobblin-admin')
 
   // Gobblin Azkaban integration
   // compile project(':gobblin-modules:gobblin-azkaban')
