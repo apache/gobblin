@@ -27,11 +27,13 @@ import com.google.gson.JsonElement;
 
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.Watermark;
+
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
-
+@ToString
 @EqualsAndHashCode
 public class LongWatermark implements ComparableWatermark {
 
