@@ -48,6 +48,7 @@ Currently, Gobblin defines 4 flavors out of the box:
 
 - minimal - no modules
 - standard - standard modules for frequently used components. This is the flavor used if none is explicitly specified
+- cluster - modules for running Gobblin clusters (YARN, AWS, stand-alone)
 - full - all non-conflicting modules
 - custom - by default, like minimal but lets users/developers modify and customize the dependencies to be included.
 
@@ -57,12 +58,20 @@ Users/developers can define their own flavor files.
 
 | Module           | Flavors         | Description |
 |------------------|----------------|-------------|
+| gobblin-azkaban | standard, full | Classes to run gobblin jobs in Azkaban |
+| gobblin-aws | cluster, full | Classes to run gobblin clusters on AWS |
+| gobblin-cluster | cluster, full | Generic classes for running Gobblin clusters |
+| gobblin-compliance | full | Source,converters, writer for cleaning existing datasets for compliance purposes |
+| gobblin-helix | full | State store implementation using Helix/ZK |
 | gobblin-kafka-08 | standard, full | Source, writer and metrics reporter using Kafka 0.8 APIs |
 | gobblin-kafka-09 |  | Source, writer and metrics reporter using Kafka 0.9 APIs |
 | gobblin-metrics-graphite | standard, full | metrics reporter to Graphite |
 | gobblin-metrics-influxdb | standard, full | metrics reporter to InfluxDB |
 | gobblin-metrics-hadoop | standard, full | metrics reporter to Hadoop counters |
+| gobblin-yarn | cluster, full | Classes to run gobblin clusters on YARN as a native app |
+| google-ingestion | standard, full | Source/extractors for GoogleWebMaster, GoogleAnalytics, GoogleDrive |
 
+Note: Some grandfathered modules may not be in the gobblin-modules/ directory yet. Typically, those are in the root directory.
 
 # What's next
 
