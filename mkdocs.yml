@@ -42,7 +42,7 @@ pages:
     - Sources:
         - Avro files: sources/AvroFileSource.md
         - File copy: sources/CopySource.md
-        - Google Analytics: sources/GooogleAnalyticsSource.md
+        - Google Analytics: sources/GoogleAnalyticsSource.md
         - Google Drive: sources/GoogleDriveSource.md
         - Google Wemaster: sources/GoogleWebmaster.md
         - Hadoop Text Input: sources/HadoopTextInputSource.md
