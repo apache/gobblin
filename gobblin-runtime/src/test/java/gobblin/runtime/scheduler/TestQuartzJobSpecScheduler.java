@@ -54,10 +54,10 @@ public class TestQuartzJobSpecScheduler {
     final ArrayBlockingQueue<JobSpec> expectedCalls = new ArrayBlockingQueue<>(100);
     try {
       Config jobCfg1 = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
-          .put(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?")
+          .put(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/5 * * * * ?")
           .build());
       Config jobCfg2 = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
-          .put(ConfigurationKeys.JOB_SCHEDULE_KEY, "1/2 * * * * ?")
+          .put(ConfigurationKeys.JOB_SCHEDULE_KEY, "3/5 * * * * ?")
           .build());
 
       final JobSpec js1 = JobSpec.builder("test.job1").withConfig(jobCfg1).build();
@@ -79,11 +79,11 @@ public class TestQuartzJobSpecScheduler {
       Assert.assertTrue(qjss1.getQuartzTrigger().mayFireAgain());
 
       // Wait for the next run
-      JobSpec expJs1 = expectedCalls.poll(2100, TimeUnit.MILLISECONDS);
+      JobSpec expJs1 = expectedCalls.poll(6000, TimeUnit.MILLISECONDS);
       Assert.assertEquals(expJs1, js1);
 
       // Wait for the next run
-      expJs1 = expectedCalls.poll(2100, TimeUnit.MILLISECONDS);
+      expJs1 = expectedCalls.poll(6000, TimeUnit.MILLISECONDS);
       Assert.assertEquals(expJs1, js1);
 
       // Schedule another job
@@ -96,19 +96,15 @@ public class TestQuartzJobSpecScheduler {
       Assert.assertEquals(jss2.getJobSpec(), js2);
 
       // Wait for the next run -- we should get js2
-      JobSpec expJs2 = expectedCalls.poll(2100, TimeUnit.MILLISECONDS);
-//      if (!expJs2.equals(js2)) {
-//        Assert.assertEquals(expJs2, js1);
-//        expJs2 = expectedCalls.poll(2100, TimeUnit.MILLISECONDS);
-//      }
+      JobSpec expJs2 = expectedCalls.poll(6000, TimeUnit.MILLISECONDS);
       Assert.assertEquals(expJs2, js2);
 
       // Wait for the next run -- we should get js1
-      expJs1 = expectedCalls.poll(2100, TimeUnit.MILLISECONDS);
+      expJs1 = expectedCalls.poll(6000, TimeUnit.MILLISECONDS);
       Assert.assertEquals(expJs1, js1);
 
       // Wait for the next run -- we should get js2
-      expJs2 = expectedCalls.poll(2100, TimeUnit.MILLISECONDS);
+      expJs2 = expectedCalls.poll(6000, TimeUnit.MILLISECONDS);
       log.info("Found call: " + expJs2);
       Assert.assertEquals(expJs2, js2);
 
@@ -122,7 +118,7 @@ public class TestQuartzJobSpecScheduler {
 
 
       // Wait for 5 seconds -- we should see at least 2 runs of js1_2 and js2
-      Thread.sleep(5000);
+      Thread.sleep(15000);
       int js1_2_cnt = 0;
       int js2_cnt = 0;
       for (JobSpec nextJs: expectedCalls){
@@ -145,12 +141,12 @@ public class TestQuartzJobSpecScheduler {
       Assert.assertFalse(scheduler._scheduler.getScheduler().checkExists(qjss1_2.getQuartzTrigger().getJobKey()));
 
       // Flush calls
-      Thread.sleep(3);
+      Thread.sleep(1000);
       expectedCalls.clear();
 
       // All subsequent calls should be for js2
       for (int i = 0; i < 2; ++i){
-        JobSpec nextJs = expectedCalls.poll(4000, TimeUnit.MILLISECONDS);
+        JobSpec nextJs = expectedCalls.poll(12000, TimeUnit.MILLISECONDS);
         Assert.assertEquals(nextJs, js2);
       }
     }

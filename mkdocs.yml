@@ -60,10 +60,10 @@ pages:
         - Wikipedia: sources/WikipediaSource.md
     - Record Sinks:
         - Avro HDFS: sinks/AvroHdfsDataWriter.md
-        - HDFS (Byte arrays) : sinks/SimpleBytesWriter.md
+        - HDFS Byte array: sinks/SimpleBytesWriter.md
         - Console: sinks/ConsoleWriter.md
         - Couchbase: sinks/Couchbase-Writer.md
-        - HTTP/REST: sinks/REST-Writer.md
+        - HTTP and REST: sinks/REST-Writer.md
         - JDBC: sinks/Gobblin-JDBC-Writer.md
         - Kafka: sinks/Kafka.md
     - Gobblin Adaptors:
