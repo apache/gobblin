@@ -24,12 +24,17 @@ import java.util.List;
 public class CouchbaseWriterConfigurationKeys {
 
   public static final String COUCHBASE_WRITER_PREFIX="writer.couchbase.";
+
   private static String prefix(String value) { return COUCHBASE_WRITER_PREFIX + value;};
 
   public static final String BOOTSTRAP_SERVERS= prefix("bootstrapServers");
   public static final List<String> BOOTSTRAP_SERVERS_DEFAULT= Collections.singletonList("localhost");
 
   public static final String BUCKET=prefix("bucket");
+  public static final String BUCKET_DEFAULT = "default";
   public static final String PASSWORD = prefix("password");
+
+  public static final String OPERATION_TIMEOUT_MILLIS = "operationTimeoutMillis";
+  public static final long OPERATION_TIMEOUT_DEFAULT = 10000; // 10 second default timeout
 
 }

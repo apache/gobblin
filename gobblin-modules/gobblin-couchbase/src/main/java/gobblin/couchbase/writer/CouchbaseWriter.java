@@ -47,6 +47,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -59,17 +60,20 @@ import gobblin.writer.SyncDataWriter;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 import gobblin.writer.WriteResponseFuture;
+import gobblin.writer.WriteResponseMapper;
 
 
 /**
  * A single bucket Couchbase writer.
  */
+@Slf4j
 public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWriter<D>, SyncDataWriter<D> {
 
   private final Cluster _cluster;
   private final Bucket _bucket;
   private final long _operationTimeout;
   private final TimeUnit _operationTimeunit;
+  private final WriteResponseMapper<D> _defaultWriteResponseMapper;
 
   // A basic transcoder that just passes through the embedded binary content.
   private final Transcoder<TupleDocument, Tuple2<ByteBuf, Integer>> _tupleDocumentTranscoder =
@@ -108,20 +112,22 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
 
     _cluster = CouchbaseCluster.create(couchbaseEnvironment, hosts);
 
-    String bucketName = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.BUCKET, null);
-
-    if (bucketName == null) {
-      // throw instantiation exception since we need a valid bucket name
-      throw new RuntimeException("Need a valid bucket name");
-    }
+    String bucketName = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.BUCKET,
+        CouchbaseWriterConfigurationKeys.BUCKET_DEFAULT);
 
     String password = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.PASSWORD, "");
 
     _bucket = _cluster.openBucket(bucketName, password,
         Collections.<Transcoder<? extends Document, ?>>singletonList(_tupleDocumentTranscoder));
 
-    _operationTimeout = 2000;
+    _operationTimeout = ConfigUtils.getLong(config, CouchbaseWriterConfigurationKeys.OPERATION_TIMEOUT_MILLIS,
+        CouchbaseWriterConfigurationKeys.OPERATION_TIMEOUT_DEFAULT);
     _operationTimeunit = TimeUnit.MILLISECONDS;
+
+    _defaultWriteResponseMapper = new GenericWriteResponseWrapper<>();
+
+    log.info("Couchbase writer configured with: hosts: {}, bucketName: {}, operationTimeoutInMillis: {}",
+        hosts, bucketName, _operationTimeout);
   }
 
   @VisibleForTesting
@@ -146,7 +152,7 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
     if (callback == null) {
       return new WriteResponseFuture<>(
           observable.timeout(_operationTimeout, _operationTimeunit).toBlocking().toFuture(),
-          new GenericWriteResponseWrapper<D>());
+          _defaultWriteResponseMapper);
     } else {
 
       final AtomicBoolean callbackFired = new AtomicBoolean(false);
@@ -255,7 +261,17 @@ public class CouchbaseWriter<D extends AbstractDocument> implements AsyncDataWri
 
   @Override
   public void close() {
-    _bucket.close();
-    _cluster.disconnect();
+    if (!_bucket.isClosed()) {
+      try {
+        _bucket.close();
+      } catch (Exception e) {
+        log.warn("Failed to close bucket", e);
+      }
+    }
+    try {
+      _cluster.disconnect();
+    } catch (Exception e) {
+      log.warn("Failed to disconnect from cluster", e);
+    }
   }
 }
