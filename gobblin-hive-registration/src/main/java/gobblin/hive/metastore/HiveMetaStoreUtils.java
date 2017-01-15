@@ -17,16 +17,28 @@
 
 package gobblin.hive.metastore;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.serde2.Deserializer;
+import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.SerDeUtils;
+import org.apache.hadoop.util.ReflectionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
@@ -48,6 +60,8 @@ import gobblin.hive.HiveTable;
  */
 @Alpha
 public class HiveMetaStoreUtils {
+
+  private static final Logger LOG = LoggerFactory.getLogger(HiveMetaStoreUtils.class);
 
   private static final TableType DEFAULT_TABLE_TYPE = TableType.EXTERNAL_TABLE;
   private static final String EXTERNAL = "EXTERNAL";
@@ -166,7 +180,7 @@ public class HiveMetaStoreUtils {
     State props = unit.getStorageProps();
     StorageDescriptor sd = new StorageDescriptor();
     sd.setParameters(getParameters(props));
-    sd.setCols(getFieldSchemas(unit.getColumns()));
+    sd.setCols(getFieldSchemas(unit));
     if (unit.getLocation().isPresent()) {
       sd.setLocation(unit.getLocation().get());
     }
@@ -297,4 +311,59 @@ public class HiveMetaStoreUtils {
     return fieldSchemas;
   }
 
+  /**
+   * First tries getting the {@code FieldSchema}s from the {@code HiveRegistrationUnit}'s columns, if set.
+   * Else, gets the {@code FieldSchema}s from the deserializer.
+   */
+  private static List<FieldSchema> getFieldSchemas(HiveRegistrationUnit unit) {
+    List<Column> columns = unit.getColumns();
+    List<FieldSchema> fieldSchemas = new ArrayList<>();
+    if (columns != null && columns.size() > 0) {
+      fieldSchemas = getFieldSchemas(columns);
+    } else {
+      Deserializer deserializer = getDeserializer(unit);
+      if (deserializer != null) {
+        try {
+          fieldSchemas = MetaStoreUtils.getFieldsFromDeserializer(unit.getTableName(), deserializer);
+        } catch (SerDeException | MetaException e) {
+          LOG.warn("Encountered exception while getting fields from deserializer.", e);
+        }
+      }
+    }
+    return fieldSchemas;
+  }
+
+  private static Deserializer getDeserializer(HiveRegistrationUnit unit) {
+    Deserializer deserializer = null;
+
+    Optional<String> serdeClass = unit.getSerDeType();
+    if (serdeClass.isPresent()) {
+      String serde = serdeClass.get();
+      HiveConf hiveConf = new HiveConf();
+
+      try {
+        deserializer = ReflectionUtils.newInstance(hiveConf.getClassByName(serde).asSubclass(Deserializer.class),
+            hiveConf);
+      } catch (ClassNotFoundException e) {
+        LOG.warn("Serde class " + serde + " not found!", e);
+      }
+
+      if (deserializer == null) {
+        return deserializer;
+      }
+
+      Properties props = new Properties();
+      props.putAll(unit.getProps().getProperties());
+      props.putAll(unit.getStorageProps().getProperties());
+      props.putAll(unit.getSerDeProps().getProperties());
+
+      try {
+        SerDeUtils.initializeSerDe(deserializer, hiveConf, props, null);
+      } catch (SerDeException e) {
+        LOG.warn("Failed to initialize serde " + serde + " with properties " + props);
+      }
+    }
+
+    return deserializer;
+  }
 }
