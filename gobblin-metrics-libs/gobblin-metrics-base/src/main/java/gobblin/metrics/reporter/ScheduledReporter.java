@@ -45,6 +45,7 @@ import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.InnerMetricContext;
 import gobblin.metrics.context.ReportableContext;
 import gobblin.metrics.metric.filter.MetricFilters;
@@ -62,7 +63,8 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
   /**
    * Interval at which metrics are reported. Format: hours, minutes, seconds. Examples: 1h, 1m, 10s, 1h30m, 2m30s, ...
    */
-  public static final String REPORTING_INTERVAL = "reporting.interval";
+  public static final String REPORTING_INTERVAL =
+      ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX + "reporting.interval";
   public static final String DEFAULT_REPORTING_INTERVAL_PERIOD = "1M";
 
   public static final PeriodFormatter PERIOD_FORMATTER = new PeriodFormatterBuilder().
