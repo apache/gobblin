@@ -44,10 +44,10 @@ pages:
         - File copy: sources/CopySource.md
         - Google Analytics: sources/GoogleAnalyticsSource.md
         - Google Drive: sources/GoogleDriveSource.md
-        - Google Wemaster: sources/GoogleWebmaster.md
+        - Google Webmaster: sources/GoogleWebmaster.md
         - Hadoop Text Input: sources/HadoopTextInputSource.md
         - Hello World: sources/HelloWorldSource.md
-        - Hive Avro-to-ORC: sources/HiveavroToOrcSource.md
+        - Hive Avro-to-ORC: sources/HiveAvroToOrcSource.md
         - Hive compliance purging: sources/HivePurgerSource.md
         - JSON: sources/SimpleJsonSource.md
         - Kafka: sources/KafkaSource.md
