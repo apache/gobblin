@@ -55,6 +55,7 @@ public class CopyConfiguration {
   public static final String MAX_COPY_PREFIX = PRIORITIZATION_PREFIX + ".maxCopy";
 
   public static final String BINPACKING_MAX_PER_BUCKET_PREFIX = COPY_PREFIX + ".binPacking.maxPerBucket";
+  public static final String BUFFER_SIZE = COPY_PREFIX + ".bufferSize";
 
   /**
    * User supplied directory where files should be published. This value is identical for all datasets in the distcp job.

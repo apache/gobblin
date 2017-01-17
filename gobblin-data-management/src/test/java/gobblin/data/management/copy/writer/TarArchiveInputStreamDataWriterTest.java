@@ -27,6 +27,7 @@ import gobblin.data.management.copy.OwnerAndPermission;
 import gobblin.data.management.copy.TestCopyableDataset;
 import gobblin.data.management.copy.converter.UnGzipConverter;
 import gobblin.util.PathUtils;
+import gobblin.util.TestUtils;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -75,7 +76,7 @@ public class TarArchiveInputStreamDataWriterTest {
     String expectedFileContents = "text";
     String fileNameInArchive = "text.txt";
 
-    WorkUnitState state = new WorkUnitState();
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, "writer_file_path_" + RandomStringUtils.randomAlphabetic(5));
