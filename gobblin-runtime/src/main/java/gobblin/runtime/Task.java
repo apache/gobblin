@@ -28,6 +28,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import gobblin.runtime.fork.AsynchronousFork;
+import gobblin.runtime.fork.Fork;
+import gobblin.runtime.fork.SynchronousFork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -275,33 +278,30 @@ public class Task implements Runnable {
         this.watermarkManager = Optional.absent();
       }
 
-      // Create one fork for each forked branch
-      for (int i = 0; i < branches; i++) {
-        if (forkedSchemas.get(i)) {
-          Fork fork = closer.register(
-              new Fork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema, branches, i,
-                  this.taskMode));
-          if (isStreamingTask()) {
-            DataWriter forkWriter = fork.getWriter();
-            if (forkWriter instanceof WatermarkAwareWriter) {
-              this.watermarkManager.get().registerWriter((WatermarkAwareWriter) forkWriter);
-            } else {
-              String errorMessage = String.format("The Task is configured to run in continuous mode, "
-                  + "but the writer %s is not a WatermarkAwareWriter", forkWriter.getClass().getName());
-              LOG.error(errorMessage);
-              throw new RuntimeException(errorMessage);
-            }
-          }
-          // Run the Fork
-          this.forks.put(Optional.of(fork), Optional.<Future<?>>of(this.taskExecutor.submit(fork)));
-        } else {
-          this.forks.put(Optional.<Fork>absent(), Optional.<Future<?>>absent());
-        }
-      }
-
-      // Build the row-level quality checker
       rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
+
+      if (branches > 1) {
+        // Create one fork for each forked branch
+        for (int i = 0; i < branches; i++) {
+          if (forkedSchemas.get(i)) {
+            AsynchronousFork fork = closer.register(
+              new AsynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
+                  branches, i, this.taskMode));
+            configureStreamingFork(fork);
+            // Run the Fork
+            this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>>of(this.taskExecutor.submit(fork)));
+          } else {
+            this.forks.put(Optional.<Fork>absent(), Optional.<Future<?>> absent());
+          }
+        }
+      } else {
+        SynchronousFork fork = closer.register(
+            new SynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
+                branches, 0, this.taskMode));
+        configureStreamingFork(fork);
+        this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>> of(this.taskExecutor.submit(fork)));
+      }
 
       if (isStreamingTask()) {
         this.watermarkManager.get().start();
@@ -362,6 +362,20 @@ public class Task implements Runnable {
     } finally {
       this.taskStateTracker.onTaskRunCompletion(this);
       completeShutdown();
+    }
+  }
+
+  private void configureStreamingFork(Fork fork) throws IOException {
+    if (isStreamingTask()) {
+      DataWriter forkWriter = fork.getWriter();
+      if (forkWriter instanceof WatermarkAwareWriter) {
+        this.watermarkManager.get().registerWriter((WatermarkAwareWriter) forkWriter);
+      } else {
+        String errorMessage = String.format("The Task is configured to run in continuous mode, "
+            + "but the writer %s is not a WatermarkAwareWriter", forkWriter.getClass().getName());
+        LOG.error(errorMessage);
+        throw new RuntimeException(errorMessage);
+      }
     }
   }
 
