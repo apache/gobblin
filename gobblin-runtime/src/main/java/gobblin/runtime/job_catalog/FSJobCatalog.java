@@ -56,6 +56,7 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FSJobCatalog.class);
   public static final String CONF_EXTENSION = ".conf";
+  private static final String FS_SCHEME = "FS";
 
   /**
    * Initialize the JobCatalog, fetch all jobs in jobConfDirPath.
@@ -199,6 +200,10 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
   @Override
   public JobTemplate getTemplate(URI uri)
       throws SpecNotFoundException, JobTemplate.TemplateException {
+    if (!uri.getScheme().equals(FS_SCHEME)) {
+      throw new RuntimeException("Expected scheme " + FS_SCHEME + " got unsupported scheme " + uri.getScheme());
+    }
+
     // path of uri is location of template file relative to the job configuration root directory
     Path templateFullPath = PathUtils.mergePaths(jobConfDirPath, new Path(uri.getPath()));
 
