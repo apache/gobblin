@@ -24,4 +24,4 @@
 set -e
 
 echo "Starting $0 at " $(date)
-time ./gradlew clean build -x test -Dorg.gradle.parallel=false
+time ./gradlew clean build -x test -Dorg.gradle.parallel=false $GOBBLIN_GRADLE_OPTS
