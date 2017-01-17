@@ -3,6 +3,7 @@ package gobblin.runtime.job_catalog;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Set;
 
@@ -269,11 +270,19 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
       }
 
       // The builder has null-checker. Leave the checking there.
-      return JobSpec.builder(jobConfigURI)
-          .withConfig(rawConfig)
+      JobSpec.Builder builder = JobSpec.builder(jobConfigURI).withConfig(rawConfig)
           .withDescription(description)
-          .withVersion(version)
-          .build();
+          .withVersion(version);
+
+      if (rawConfig.hasPath(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+        try {
+          builder.withTemplate(new URI(rawConfig.getString(ConfigurationKeys.JOB_TEMPLATE_PATH)));
+        } catch (URISyntaxException e) {
+          throw new RuntimeException("Bad job template URI " + e, e);
+        }
+      }
+
+      return builder.build();
     }
   }
 }

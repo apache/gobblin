@@ -11,11 +11,19 @@
  */
 package gobblin.runtime.job_catalog;
 
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.runtime.api.JobCatalogWithTemplates;
+import gobblin.runtime.api.JobTemplate;
+import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.template.HOCONInputStreamJobTemplate;
+import gobblin.util.PathUtils;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.URI;
+import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,12 +48,11 @@ import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.util.filesystem.PathAlterationObserver;
 
-
 /**
  * The job Catalog for file system to persist the job configuration information.
  * This implementation has no support for caching.
  */
-public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCatalog {
+public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCatalog, JobCatalogWithTemplates {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FSJobCatalog.class);
   public static final String CONF_EXTENSION = ".conf";
@@ -162,8 +169,15 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
       fs.delete(shadowFilePath, false);
     }
 
-    Map<String, String> injectedKeys = ImmutableMap.of(ImmutableFSJobCatalog.DESCRIPTION_KEY_IN_JOBSPEC, jobSpec.getDescription(),
-        ImmutableFSJobCatalog.VERSION_KEY_IN_JOBSPEC, jobSpec.getVersion());
+    ImmutableMap.Builder mapBuilder = ImmutableMap.builder();
+    mapBuilder.put(ImmutableFSJobCatalog.DESCRIPTION_KEY_IN_JOBSPEC, jobSpec.getDescription())
+        .put(ImmutableFSJobCatalog.VERSION_KEY_IN_JOBSPEC, jobSpec.getVersion());
+
+    if (jobSpec.getTemplateURI().isPresent()) {
+      mapBuilder.put(ConfigurationKeys.JOB_TEMPLATE_PATH, jobSpec.getTemplateURI().get().toString());
+    }
+
+    Map<String, String> injectedKeys = mapBuilder.build();
     String renderedConfig = ConfigFactory.parseMap(injectedKeys).withFallback(jobSpec.getConfig())
         .root().render(ConfigRenderOptions.defaults());
     try (DataOutputStream os = fs.create(shadowFilePath);
@@ -181,4 +195,23 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
       throw new IOException("Unable to rename job file: " + shadowFilePath + " to " + jobSpecPath);
     }
   }
+
+  @Override
+  public JobTemplate getTemplate(URI uri)
+      throws SpecNotFoundException, JobTemplate.TemplateException {
+    // path of uri is location of template file relative to the job configuration root directory
+    Path templateFullPath = PathUtils.mergePaths(jobConfDirPath, new Path(uri.getPath()));
+
+    try (InputStream is = fs.open(templateFullPath)) {
+      return new HOCONInputStreamJobTemplate(is, uri, this);
+    } catch (IOException ioe) {
+      throw new SpecNotFoundException(uri, ioe);
+    }
+  }
+
+  @Override
+  public Collection<JobTemplate> getAllTemplates() {
+    throw new UnsupportedOperationException();
+  }
 }
+
