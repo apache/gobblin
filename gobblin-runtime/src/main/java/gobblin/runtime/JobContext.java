@@ -91,7 +91,6 @@ public class JobContext implements Closeable {
   private final JobState jobState;
   @Getter(AccessLevel.PACKAGE)
   private final JobCommitPolicy jobCommitPolicy;
-  private final boolean jobLockEnabled;
   private final Optional<JobMetrics> jobMetricsOptional;
   private final Source<?, ?> source;
 
@@ -131,9 +130,6 @@ public class JobContext implements Closeable {
 
     this.jobBroker = instanceBroker.newSubscopedBuilder(new JobScopeInstance(this.jobName, this.jobId)).build();
     this.jobCommitPolicy = JobCommitPolicy.getCommitPolicy(jobProps);
-
-    this.jobLockEnabled =
-        Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
 
     this.datasetStateStore = createStateStore(jobProps);
     this.jobHistoryStoreOptional = createJobHistoryStore(jobProps);
@@ -271,15 +267,6 @@ public class JobContext implements Closeable {
    */
   Source<?, ?> getSource() {
     return this.source;
-  }
-
-  /**
-   * Check whether the use of job lock is enabled or not.
-   *
-   * @return {@code true} if the use of job lock is enabled or {@code false} otherwise
-   */
-  boolean isJobLockEnabled() {
-    return this.jobLockEnabled;
   }
 
   protected void setTaskStagingAndOutputDirs() {
