@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.kafka.writer;
@@ -15,6 +20,8 @@ package gobblin.kafka.writer;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.avro.generic.GenericRecord;
@@ -23,6 +30,7 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
+import kafka.security.auth.Write;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.kafka.KafkaTestBase;
@@ -33,6 +41,8 @@ import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.LiAvroDeserializer;
 import gobblin.kafka.serialize.LiAvroSerializer;
 import gobblin.test.TestUtils;
+import gobblin.writer.WriteCallback;
+import gobblin.writer.WriteResponse;
 
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
@@ -71,7 +81,7 @@ public class Kafka09DataWriterTest {
 
   @Test
   public void testStringSerialization()
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, ExecutionException {
     String topic = "testStringSerialization08";
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
@@ -81,21 +91,24 @@ public class Kafka09DataWriterTest {
     Kafka09DataWriter<String> kafka09DataWriter = new Kafka09DataWriter<String>(props);
     String messageString = "foobar";
     WriteCallback callback = mock(WriteCallback.class);
-    kafka09DataWriter.setDefaultCallback(callback);
+    Future<WriteResponse> future;
 
     try {
-      kafka09DataWriter.asyncWrite(messageString);
+      future = kafka09DataWriter.write(messageString, callback);
+      kafka09DataWriter.flush();
+      verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
+      verify(callback, never()).onFailure(isA(Exception.class));
+      Assert.assertTrue(future.isDone(), "Future should be done");
+      System.out.println(future.get().getStringResponse());
+      byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
+      String messageReceived = new String(message);
+      Assert.assertEquals(messageReceived, messageString);
     }
     finally
     {
       kafka09DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
-    verify(callback, never()).onFailure(isA(Exception.class));
-    byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
-    String messageReceived = new String(message);
-    Assert.assertEquals(messageReceived, messageString);
 
   }
 
@@ -110,18 +123,17 @@ public class Kafka09DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     Kafka09DataWriter<byte[]> kafka09DataWriter = new Kafka09DataWriter<byte[]>(props);
     WriteCallback callback = mock(WriteCallback.class);
-    kafka09DataWriter.setDefaultCallback(callback);
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
-      kafka09DataWriter.asyncWrite(messageBytes);
+      kafka09DataWriter.write(messageBytes, callback);
     }
     finally
     {
       kafka09DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     Assert.assertEquals(message, messageBytes);
@@ -147,18 +159,17 @@ public class Kafka09DataWriterTest {
 
     Kafka09DataWriter<GenericRecord> kafka09DataWriter = new Kafka09DataWriter<>(props);
     WriteCallback callback = mock(WriteCallback.class);
-    kafka09DataWriter.setDefaultCallback(callback);
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
-      kafka09DataWriter.asyncWrite(record);
+      kafka09DataWriter.write(record, callback);
     }
     finally
     {
       kafka09DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
 
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();

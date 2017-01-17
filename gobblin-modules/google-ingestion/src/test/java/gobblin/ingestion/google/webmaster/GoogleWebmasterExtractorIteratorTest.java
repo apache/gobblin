@@ -1,7 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.ingestion.google.webmaster;
 
-import com.google.api.services.webmasters.model.ApiDimensionFilter;
-import gobblin.configuration.WorkUnitState;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -9,15 +24,19 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.collections.CollectionUtils;
-import org.testng.Assert;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.Matchers.*;
+import com.google.api.services.webmasters.model.ApiDimensionFilter;
+
+import gobblin.configuration.WorkUnitState;
+
+import static org.mockito.Matchers.argThat;
+import static org.mockito.Matchers.eq;
 
 
 class CollectionEquals extends ArgumentMatcher<Collection> {
@@ -36,7 +55,6 @@ class CollectionEquals extends ArgumentMatcher<Collection> {
 
 @Test(groups = {"gobblin.source.extractor.extract.google.webmaster"})
 public class GoogleWebmasterExtractorIteratorTest {
-  Logger logger = LoggerFactory.getLogger(GoogleWebmasterExtractorIteratorTest.class);
   String siteProperty = "https://www.abc.com/";
 
   /**
@@ -45,7 +63,8 @@ public class GoogleWebmasterExtractorIteratorTest {
    * @throws IOException
    */
   @Test
-  public void testIterator() throws IOException {
+  public void testIterator()
+      throws IOException {
     GoogleWebmasterDataFetcher client = Mockito.mock(GoogleWebmasterDataFetcher.class);
     String country = "USA";
     String date = "2016-11-01";
@@ -77,14 +96,14 @@ public class GoogleWebmasterExtractorIteratorTest {
     List<ApiDimensionFilter> filters2 = new ArrayList<>();
     filters2.add(GoogleWebmasterFilter.countryEqFilter(country));
     filters2.add(GoogleWebmasterFilter.pageFilter(GoogleWebmasterFilter.FilterOperator.EQUALS, page2));
-    Mockito.when(
-        client.performSearchAnalyticsQuery(eq(date), eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
+    Mockito.when(client
+        .performSearchAnalyticsQuery(eq(date), eq(date), eq(5000), eq(requestedDimensions), eq(requestedMetrics),
             argThat(new CollectionEquals(filters2)))).thenReturn(results2);
 
     Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> map = new HashMap<>();
     map.put(GoogleWebmasterFilter.Dimension.COUNTRY, GoogleWebmasterFilter.countryEqFilter(country));
     WorkUnitState defaultState = GoogleWebmasterExtractorTest.getWorkUnitState1();
-    defaultState.setProp(GoogleWebMasterSource.KEY_REQUEST_TUNING_BATCH_SIZE, 1);
+    defaultState.setProp(GoogleWebMasterSource.KEY_QUERIES_TUNING_BATCH_SIZE, 1);
     GoogleWebmasterExtractorIterator iterator =
         new GoogleWebmasterExtractorIterator(client, date, date, requestedDimensions, requestedMetrics, map,
             defaultState);

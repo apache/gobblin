@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.source.extractor.extract.jdbc;
 
@@ -57,17 +62,17 @@ public class SqlQueryUtils {
     return query;
   }
 
-  /** 
+  /**
    * Cast a string representation of a boolean value to a boolean primitive.
    * Used especially for Oracle representation of booleans as varchar2(1)
    * Returns true for values such as [t|true|yes|1] and false for [f|false|no].
-   * If a boolean value cannot be trivially parsed, false is returned. 
-   * 
-   * @param fieldValue    the value of the boolean string field    
+   * If a boolean value cannot be trivially parsed, false is returned.
+   *
+   * @param fieldValue    the value of the boolean string field
    */
   public static boolean castToBoolean(String fieldValue) {
     String lowerField = fieldValue.toLowerCase();
-    
+
     switch(lowerField) {
       case "y": return true;
       case "n": return false;
@@ -81,6 +86,6 @@ public class SqlQueryUtils {
       case "1": return true;
     }
     return false;
-  } 
+  }
 
 }

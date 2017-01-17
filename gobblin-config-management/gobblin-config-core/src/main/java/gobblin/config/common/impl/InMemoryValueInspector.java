@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.config.common.impl;
 
 import java.util.ArrayList;
@@ -16,7 +33,7 @@ import gobblin.config.store.api.ConfigStore;
 
 /**
  * InMemoryValueInspector provide the caching layer for getting the {@link com.typesafe.config.Config} from {@link ConfigStore}
- * 
+ *
  * @author mitu
  *
  */
@@ -27,8 +44,8 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
   private final Cache<ConfigKeyPath, Config> recursiveConfigCache ;
 
   /**
-   * 
-   * @param valueFallback - the fall back {@link ConfigStoreValueInspector} which used to get the raw {@link com.typesafe.config.Config} 
+   *
+   * @param valueFallback - the fall back {@link ConfigStoreValueInspector} which used to get the raw {@link com.typesafe.config.Config}
    * @param useStrongRef  - if true, use Strong reference in cache, else, use Weak reference in cache
    */
   public InMemoryValueInspector (ConfigStoreValueInspector valueFallback, boolean useStrongRef){
@@ -89,7 +106,7 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
       throw new RuntimeException("Can not getOwnConfig for " + configKey);
     }
   }
-  
+
   /**
    * {@inheritDoc}.
    *
@@ -111,17 +128,17 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
         result.put(configKey, cachedValue);
       }
     }
-    
+
     // for ConfigKeyPath which are not in cache
     if(configKeysNotInCache.size()>0){
       Map<ConfigKeyPath, Config> configsFromFallBack = this.valueFallback.getOwnConfigs(configKeysNotInCache);
       this.ownConfigCache.putAll(configsFromFallBack);
       result.putAll(configsFromFallBack);
     }
-    
+
     return result;
   }
-  
+
   /**
    * {@inheritDoc}.
    *
@@ -143,14 +160,14 @@ public class InMemoryValueInspector implements ConfigStoreValueInspector{
         result.put(configKey, cachedValue);
       }
     }
-    
+
     // for ConfigKeyPath which are not in cache
     if(configKeysNotInCache.size()>0){
       Map<ConfigKeyPath, Config> configsFromFallBack = this.valueFallback.getResolvedConfigs(configKeysNotInCache);
       this.recursiveConfigCache.putAll(configsFromFallBack);
       result.putAll(configsFromFallBack);
     }
-    
+
     return result;
   }
 }

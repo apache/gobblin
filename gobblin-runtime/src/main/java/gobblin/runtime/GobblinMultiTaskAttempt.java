@@ -1,17 +1,25 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.gobblin_scopes.TaskScopeInstance;
+import gobblin.broker.iface.SharedResourcesBroker;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -73,6 +81,7 @@ public class GobblinMultiTaskAttempt {
   private final TaskExecutor taskExecutor;
   private final Optional<String> containerIdOptional;
   private final Optional<StateStore<TaskState>> taskStateStoreOptional;
+  private final SharedResourcesBroker<GobblinScopeTypes> jobBroker;
   private List<Task> tasks;
 
   /**
@@ -87,7 +96,8 @@ public class GobblinMultiTaskAttempt {
                                  TaskStateTracker taskStateTracker,
                                  TaskExecutor taskExecutor,
                                  Optional<String> containerIdOptional,
-                                 Optional<StateStore<TaskState>> taskStateStoreOptional) {
+                                 Optional<StateStore<TaskState>> taskStateStoreOptional,
+                                 SharedResourcesBroker<GobblinScopeTypes> jobBroker) {
     super();
     this.workUnits = workUnits;
     this.jobId = jobId;
@@ -98,6 +108,7 @@ public class GobblinMultiTaskAttempt {
     this.taskStateStoreOptional = taskStateStoreOptional;
     this.log = LoggerFactory.getLogger(GobblinMultiTaskAttempt.class.getName() + "-" +
                containerIdOptional.or("noattempt"));
+    this.jobBroker = jobBroker;
   }
 
   /**
@@ -254,7 +265,8 @@ public class GobblinMultiTaskAttempt {
     List<Task> tasks = Lists.newArrayList();
     for (WorkUnit workUnit : this.workUnits) {
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
-      WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState);
+      SharedResourcesBroker<GobblinScopeTypes> taskBroker = this.jobBroker.newSubscopedBuilder(new TaskScopeInstance(taskId)).build();
+      WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState, taskBroker);
       workUnitState.setId(taskId);
       workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobId);
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
@@ -292,13 +304,13 @@ public class GobblinMultiTaskAttempt {
    * not access the task state store. This should be addressed as all task executions should be
    * updating the task state.
    */
-  public static GobblinMultiTaskAttempt runWorkUnits(String jobId, JobState jobState, List<WorkUnit> workUnits,
+  public static GobblinMultiTaskAttempt runWorkUnits(JobContext jobContext, List<WorkUnit> workUnits,
       TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       CommitPolicy multiTaskAttemptCommitPolicy)
       throws IOException, InterruptedException {
     GobblinMultiTaskAttempt multiTaskAttempt =
-        new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
-            Optional.<String>absent(), Optional.<StateStore<TaskState>>absent());
+        new GobblinMultiTaskAttempt(workUnits, jobContext.getJobId(), jobContext.getJobState(), taskStateTracker, taskExecutor,
+            Optional.<String>absent(), Optional.<StateStore<TaskState>>absent(), jobContext.getJobBroker());
     multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
   }
@@ -323,11 +335,11 @@ public class GobblinMultiTaskAttempt {
   public static GobblinMultiTaskAttempt runWorkUnits(String jobId, String containerId, JobState jobState,
       List<WorkUnit> workUnits, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       StateStore<TaskState> taskStateStore,
-      CommitPolicy multiTaskAttemptCommitPolicy)
+      CommitPolicy multiTaskAttemptCommitPolicy, SharedResourcesBroker<GobblinScopeTypes> jobBroker)
       throws IOException, InterruptedException {
     GobblinMultiTaskAttempt multiTaskAttempt =
         new GobblinMultiTaskAttempt(workUnits, jobId, jobState, taskStateTracker, taskExecutor,
-            Optional.of(containerId), Optional.of(taskStateStore));
+            Optional.of(containerId), Optional.of(taskStateStore), jobBroker);
 
     multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;

@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.salesforce;
@@ -56,8 +61,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     }
   }
 
-  @Override
-  protected Set<String> getSourceEntities(State state) {
+  protected Set<SourceEntity> getSourceEntities(State state) {
     if (!state.getPropAsBoolean(USE_ALL_OBJECTS, DEFAULT_USE_ALL_OBJECTS)) {
       return super.getSourceEntities(state);
     }
@@ -86,12 +90,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   }
 
-  private static Set<String> getSourceEntities(String response) {
-    Set<String> result = Sets.newHashSet();
+  private static Set<SourceEntity> getSourceEntities(String response) {
+    Set<SourceEntity> result = Sets.newHashSet();
     JsonObject jsonObject = new Gson().fromJson(response, JsonObject.class).getAsJsonObject();
     JsonArray array = jsonObject.getAsJsonArray("sobjects");
     for (JsonElement element : array) {
-      result.add(element.getAsJsonObject().get("name").getAsString());
+      String sourceEntityName = element.getAsJsonObject().get("name").getAsString();
+      result.add(SourceEntity.fromSourceEntityName(sourceEntityName));
     }
     return result;
   }

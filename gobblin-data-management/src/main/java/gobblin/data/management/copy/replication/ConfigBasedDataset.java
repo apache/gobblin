@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.data.management.copy.replication;
 
@@ -46,7 +51,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Extends {@link CopableDataset} to represent data replication dataset based on {@link Config}
- * 
+ *
  * Detail logics
  * <ul>
  *  <li>Picked the preferred topology
@@ -72,7 +77,7 @@ public class ConfigBasedDataset implements CopyableDataset {
     this.rc = rc;
     calculateDatasetURN();
   }
-  
+
   private void calculateDatasetURN(){
     EndPoint e = this.copyRoute.getCopyTo();
     if (e instanceof HadoopFsEndPoint) {
@@ -120,7 +125,7 @@ public class ConfigBasedDataset implements CopyableDataset {
     Configuration conf = HadoopUtils.newConfiguration();
     FileSystem copyFromFs = FileSystem.get(copyFrom.getFsURI(), conf);
     FileSystem copyToFs = FileSystem.get(copyTo.getFsURI(), conf);
-    
+
     Collection<FileStatus> allFilesInSource = copyFrom.getFiles();
     Collection<FileStatus> allFilesInTarget = copyTo.getFiles();
 
@@ -139,7 +144,7 @@ public class ConfigBasedDataset implements CopyableDataset {
         copyToFileMap.put(PathUtils.getPathWithoutSchemeAndAuthority(f.getPath()), f);
       }
     }
-    
+
     Collection<Path> deletedPaths = Lists.newArrayList();
 
     boolean watermarkMetadataCopied = false;
@@ -170,7 +175,7 @@ public class ConfigBasedDataset implements CopyableDataset {
         copyableFiles
             .add(CopyableFile.fromOriginAndDestination(copyFromFs, originFileStatus, copyToFs.makeQualified(newPath), copyConfiguration)
                 .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(copyTo.getDatasetPath()).toString()).build());
-        
+
       }
 
       // clean up already checked paths

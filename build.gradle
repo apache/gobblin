@@ -1,14 +1,23 @@
-// Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-// this file except in compliance with the License. You may obtain a copy of the
-// License at  http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied.
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
+import gobblin.gradle.BuildProperties
+import gobblin.gradle.BuildProperty
 
 // Setup environment
 ext.build_script_dir = "${projectDir.path}/build_script"
@@ -42,19 +51,85 @@ apply plugin: 'io.spring.dependency-management'
 
 apply from: rootProject.projectDir.path + '/gradle/scripts/jacoco-coveralls-support.gradle'
 
-idea.project {
-  ext.languageLevel = JavaVersion.VERSION_1_7
-  languageLevel = JavaVersion.VERSION_1_7
+def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
+    .register(new BuildProperty("artifactRepository", "https://oss.sonatype.org/service/local/staging/deploy/maven2/", "Maven repository to publish artifacts"))
+    .register(new BuildProperty("artifactSnapshotRepository", "https://oss.sonatype.org/content/repositories/snapshots/", "Maven repository to publish artifacts"))
+    .register(new BuildProperty("avroVersion", "1.8.1", "Avro dependencies version"))
+    .register(new BuildProperty("awsVersion", "1.11.8", "AWS dependencies version"))
+    .register(new BuildProperty("bytemanVersion", "2.2.1", "Byteman dependencies version"))
+    .register(new BuildProperty("confluentVersion", "2.0.1", "confluent dependencies version"))
+    .register(new BuildProperty("doNotSignArtifacts", false, "Do not sight Maven artifacts"))
+    .register(new BuildProperty("gobblinFlavor", "standard", "Build flavor (see http://gobblin.readthedocs.io/en/latest/developer-guide/GobblinModules/)"))
+    .register(new BuildProperty("hadoopVersion", "2.3.0", "Hadoop dependencies version"))
+    .register(new BuildProperty("hiveVersion", "1.0.1", "Hive dependencies version"))
+    .register(new BuildProperty("jdkVersion", JavaVersion.VERSION_1_7.toString(), 
+                                "Java languange compatibility; one of " + JavaVersion.VERSION_1_7 + ", " + 
+                                JavaVersion.VERSION_1_8))
+    .register(new BuildProperty("kafka08Version", "0.8.2.2", "Kafka 0.8 dependencies version"))
+    .register(new BuildProperty("kafka09Version", "0.9.0.1", "Kafka 0.9 dependencies version"))
+    .register(new BuildProperty("pegasusVersion", "2.6.0", "Pegasus dependencies version"))
+    .register(new BuildProperty("publishToMaven", false, "Enable publishing of artifacts to a central Maven repository"))
+    .register(new BuildProperty("salesforceVersion", "37.0.3", "Salesforce dependencies version"))
+  ;
+
+task buildProperties(description: 'Lists main properties that can be used to customize the build') << {
+  BUILD_PROPERTIES.printHelp();
 }
+
 
 // Gobblin build customization
-if (!project.hasProperty('gobblinFlavor')) {
-   project.ext.gobblinFlavor = 'standard'
+BUILD_PROPERTIES.ensureDefined('gobblinFlavor')
+
+// Compiler compatibility
+BUILD_PROPERTIES.ensureDefined('jdkVersion')
+
+if (project.hasProperty('jdkVersion')) {
+  if (project.jdkVersion.equals(JavaVersion.VERSION_1_7.toString())) {
+     ext.javaVersion = JavaVersion.VERSION_1_7
+  } else if (project.jdkVersion.equals(JavaVersion.VERSION_1_8.toString())) {
+     ext.javaVersion = JavaVersion.VERSION_1_8
+  } else {
+    throw new RuntimeException("Unrecognized JDK version: " + project.jdkVersion)
+  }
 }
 
-println '-----------------------'
-println 'Using ' + project.gobblinFlavor + ' build.'
-println '-----------------------'
+// Set group for Maven
+if (!project.hasProperty('group') || project.group.length() == 0) {
+    project.ext.group = 'com.linkedin.gobblin'
+}
+
+// Maven publishing
+BUILD_PROPERTIES.ensureDefined('publishToMaven')
+if (ext.publishToMaven) {
+    plugins.apply('maven')
+    // Workaround for a bug in gradle's "maven" plugin. See https://discuss.gradle.org/t/error-in-parallel-build/7215/3
+    project.setProperty("org.gradle.parallel", "false")
+}
+
+BUILD_PROPERTIES.ensureDefined('artifactRepository')
+BUILD_PROPERTIES.ensureDefined('artifactSnapshotRepository')
+BUILD_PROPERTIES.ensureDefined('doNotSignArtifacts')
+
+ext.signArtifacts = !project.doNotSignArtifacts
+
+// Library dependencies versions
+BUILD_PROPERTIES.ensureDefined('avroVersion')
+BUILD_PROPERTIES.ensureDefined('awsVersion')
+BUILD_PROPERTIES.ensureDefined('bytemanVersion')
+BUILD_PROPERTIES.ensureDefined('confluentVersion')
+BUILD_PROPERTIES.ensureDefined('hadoopVersion')
+BUILD_PROPERTIES.ensureDefined('hiveVersion')
+BUILD_PROPERTIES.ensureDefined('kafka08Version')
+BUILD_PROPERTIES.ensureDefined('kafka09Version')
+BUILD_PROPERTIES.ensureDefined('pegasusVersion')
+BUILD_PROPERTIES.ensureDefined('salesforceVersion')
+
+
+// Hadoop validation
+if (! hadoopVersion.startsWith('2.')) {
+  throw new GradleScriptException("Only Hadoop 2.x is supported: " + hadoopVersion);
+}
+
 
 // Maven POM generation is not thread safe, so serialize all the Upload tasks we can use `--parallel`.
 // https://issues.gradle.org/browse/GRADLE-2492
@@ -64,7 +139,6 @@ def available = lock.newCondition()
 def busy = new AtomicBoolean()
 def serializedTasks = []
 allprojects {
-  apply from: rootProject.projectDir.path + '/gradle/scripts/hadoop-version.gradle'
   tasks.matching { it.name == "generatePom" || it instanceof Upload }.all {
     serializedTasks << it
     doFirst {
@@ -77,8 +151,6 @@ allprojects {
   }
 }
 
-println "Building against Hadoop version " + ext.hadoopVersion
-
 gradle.taskGraph.afterTask {
   if (it in serializedTasks && lock.heldByCurrentThread) {
     busy.set(false)
@@ -87,43 +159,35 @@ gradle.taskGraph.afterTask {
   }
 }
 
-ext.publishToMaven = project.hasProperty('publishToMaven')
-if (ext.publishToMaven) {
-    plugins.apply('maven')
-    // Workaround for a bug in gradle's "maven" plugin. See https://discuss.gradle.org/t/error-in-parallel-build/7215/3
-    project.setProperty("org.gradle.parallel", "false")
+
+idea.project {
+  ext.languageLevel = javaVersion
+  languageLevel = javaVersion
 }
 
-ext.signArtifacts = !project.hasProperty('doNotSignArtifacts')
-
-if (!project.hasProperty('group') || project.group.length() == 0) {
-    project.group = 'com.linkedin.gobblin'
-}
-
-if (!project.hasProperty('artifactRepository') || project.artifactRepository.length() == 0) {
-    ext.artifactRepository = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-}
-
-if (!project.hasProperty('artifactSnapshotRepository') || project.artifactSnapshotRepository.length() == 0) {
-    ext.artifactSnapshotRepository = "https://oss.sonatype.org/content/repositories/snapshots/"
-}
 
 if (!project.hasProperty('version') || project.version == 'unspecified') {
-    exec {
-        commandLine 'git', 'fetch', '-t', 'https://github.com/linkedin/gobblin.git', 'master'
+    try {
+      exec {
+          commandLine 'git', 'fetch', '-t', 'https://github.com/linkedin/gobblin.git', 'master'
+      }
+      def versionOut = new ByteArrayOutputStream()
+      exec {
+          commandLine 'git', 'describe', '--tags', '--always'
+          standardOutput versionOut
+      }
+      def tagStr = versionOut.toString().trim()
+      println 'Using latest tag for version: ' + tagStr
+      if (tagStr.startsWith("gobblin_")) {
+          project.version = tagStr.substring(8)
+      }
+      else {
+          project.version = tagStr
+      }
     }
-    def versionOut = new ByteArrayOutputStream()
-    exec {
-        commandLine 'git', 'describe', '--tags', '--always'
-        standardOutput versionOut
-    }
-    def tagStr = versionOut.toString().trim()
-    println 'Using latest tag for version: ' + tagStr
-    if (tagStr.startsWith("gobblin_")) {
-        project.version = tagStr.substring(8)
-    }
-    else {
-        project.version = tagStr
+    catch (Exception e) {
+      logger.warn("Unable to determine version. Is this a git copy? Using 'unknown'.");
+      project.version = 'unknown'
     }
 }
 
@@ -133,27 +197,12 @@ println "project.version=" + project.version
 def gradleVersionDotIdx = project.gradle.gradleVersion.indexOf(".")
 ext.gradleVersionMajor = Integer.parseInt(project.gradle.gradleVersion.substring(0, gradleVersionDotIdx))
 ext.gradleVersionMinor = Integer.parseInt(project.gradle.gradleVersion.substring(gradleVersionDotIdx + 1))
-println "Detected Gradle version major=" + gradleVersionMajor + "minor=" + gradleVersionMinor
+println "Detected Gradle version major=" + gradleVersionMajor + " minor=" + gradleVersionMinor
 
-if (!project.hasProperty('hiveVersion')) {
-  ext.hiveVersion = '1.0.1'
-}
-
-if (!project.hasProperty('pegasusVersion')) {
-  ext.pegasusVersion = '2.6.0'
-}
-
-if (!project.hasProperty('bytemanVersion')) {
-  ext.bytemanVersion = '2.2.1'
-}
-
-ext.avroVersion = '1.8.1'
 ext.dropwizardMetricsVersion = '3.1.0'
 ext.findBugsVersion = '3.0.0'
-ext.confluentVersion = '2.0.1'
 ext.googleVersion = '1.22.0'
-ext.kafka08Version = '0.8.2.2'
-ext.kafka09Version = '0.9.0.1'
+
 
 dependencyManagement {
   imports {
@@ -165,13 +214,13 @@ ext.externalDependency = [
   "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
   "avro": "org.apache.avro:avro:" + avroVersion,
   "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion,
-  "awsCore": "com.amazonaws:aws-java-sdk-core:1.11.8",
-  "awsAsg": "com.amazonaws:aws-java-sdk-autoscaling:1.11.8",
-  "awsAppAsg": "com.amazonaws:aws-java-sdk-applicationautoscaling:1.11.8",
-  "awsEc2": "com.amazonaws:aws-java-sdk-ec2:1.11.8",
-  "awsIam": "com.amazonaws:aws-java-sdk-iam:1.11.8",
-  "awsS3": "com.amazonaws:aws-java-sdk-s3:1.11.8",
-  "awsSts": "com.amazonaws:aws-java-sdk-sts:1.11.8",
+  "awsCore": "com.amazonaws:aws-java-sdk-core:" + awsVersion,
+  "awsAsg": "com.amazonaws:aws-java-sdk-autoscaling:" + awsVersion,
+  "awsAppAsg": "com.amazonaws:aws-java-sdk-applicationautoscaling:" + awsVersion,
+  "awsEc2": "com.amazonaws:aws-java-sdk-ec2:" + awsVersion,
+  "awsIam": "com.amazonaws:aws-java-sdk-iam:" + awsVersion,
+  "awsS3": "com.amazonaws:aws-java-sdk-s3:" + awsVersion,
+  "awsSts": "com.amazonaws:aws-java-sdk-sts:" + awsVersion,
   "commonsCli": "commons-cli:commons-cli:1.3.1",
   "commonsCodec": "commons-codec:commons-codec:1.10",
   "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
@@ -200,6 +249,7 @@ ext.externalDependency = [
   "hadoopYarnMiniCluster": "org.apache.hadoop:hadoop-minicluster:" + hadoopVersion,
   "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:" + hadoopVersion,
   "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
+  "helix": "org.apache.helix:helix-core:0.6.6",
   "hiveCommon": "org.apache.hive:hive-common:" + hiveVersion,
   "hiveService": "org.apache.hive:hive-service:" + hiveVersion,
   "hiveJdbc": "org.apache.hive:hive-jdbc:" + hiveVersion,
@@ -242,8 +292,8 @@ ext.externalDependency = [
   "derby": "org.apache.derby:derby:10.12.1.1",
   "mockito": "org.mockito:mockito-core:1.10.19",
   "powermock": "org.powermock:powermock-mockito-release-full:1.6.2",
-  "salesforceWsc": "com.force.api:force-wsc:37.0.3",
-  "salesforcePartner": "com.force.api:force-partner-api:37.0.3",
+  "salesforceWsc": "com.force.api:force-wsc:" + salesforceVersion,
+  "salesforcePartner": "com.force.api:force-partner-api:" + salesforceVersion,
   "scala": "org.scala-lang:scala-library:2.11.8",
   "influxdbJava": "org.influxdb:influxdb-java:2.1",
   "libthrift":"org.apache.thrift:libthrift:0.9.3",
@@ -452,7 +502,7 @@ subprojects {
     plugins.apply('maven')
     plugins.apply('findbugs')
 
-    sourceCompatibility = JavaVersion.VERSION_1_7
+    sourceCompatibility = javaVersion
 
     findbugs {
       toolVersion = findBugsVersion
@@ -475,6 +525,13 @@ subprojects {
         if (project.hasProperty('runTestGroups')) {
           includeGroups project.runTestGroups
         }
+      }
+      testLogging {
+        events "started","skipped","passed","failed"
+      }
+      // Some tests require MySQL we can either download an embedded Wix image or use a pre-installed version
+      if (rootProject.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(rootProject.usePreinstalledMysql)) {
+        systemProperty 'gobblin.metastore.testing.embeddedMysqlEnabled', 'false'
       }
     }
 
@@ -576,8 +633,8 @@ subprojects {
     // Configure the IDEA plugin to (1) add the codegen as source dirs and (2) work around
     // an apparent bug in the plugin which doesn't set the outputDir/testOutputDir as documented
     idea.project {
-      ext.languageLevel = JavaVersion.VERSION_1_7
-      languageLevel = JavaVersion.VERSION_1_7
+      ext.languageLevel = javaVersion
+      languageLevel = javaVersion
     }
     idea.module {
       // Gradle docs claim the two settings below are the default, but
@@ -605,6 +662,11 @@ subprojects {
           dataTemplateCompile externalDependency.pegasus.data
           restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
         }
+      }
+
+      if (project.hasProperty('requiresJavaVersion') && !project.requiresJavaVersion.equals(javaVersion)) {
+        throw new RuntimeException("Project ${name} requres Java version ${requiresJavaVersion}"
+          + " which conflicts with build version ${javaVersion}. Please use -PjdkVersion=${requiresJavaVersion} .")
       }
     }
   }

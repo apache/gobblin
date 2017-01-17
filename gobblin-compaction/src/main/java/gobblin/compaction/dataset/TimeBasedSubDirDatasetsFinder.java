@@ -1,22 +1,28 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.compaction.dataset;
 
-import java.io.IOException;
-import java.util.Set;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
+import gobblin.compaction.mapreduce.MRCompactor;
+import gobblin.configuration.State;
+import gobblin.util.DatasetFilterUtils;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -29,12 +35,8 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
-
-import gobblin.compaction.mapreduce.MRCompactor;
-import gobblin.configuration.State;
-import gobblin.util.DatasetFilterUtils;
+import java.io.IOException;
+import java.util.Set;
 
 
 /**
@@ -62,7 +64,6 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
 
   public static final String COMPACTION_TIMEBASED_SUBDIR_PATTERN = COMPACTION_TIMEBASED_PREFIX + "subdir.pattern";
   public static final String DEFAULT_COMPACTION_TIMEBASED_SUBDIR_PATTERN = "*";
-
 
   // The earliest dataset timestamp to be processed. Format = ?m?d?h.
   public static final String COMPACTION_TIMEBASED_MAX_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "max.time.ago";
@@ -119,7 +120,6 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   @Override
   public Set<Dataset> findDistinctDatasets() throws IOException {
     Set<Dataset> datasets = Sets.newHashSet();
-
     for (FileStatus datasetsFileStatus : this.fs.globStatus(new Path(inputDir, subDirPattern))) {
       log.info("Scanning directory : " + datasetsFileStatus.getPath().toString());
       if (datasetsFileStatus.isDirectory()) {
@@ -140,7 +140,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
             try {
               folderTime = getFolderTime(jobInputPath, inputPath);
             } catch (RuntimeException e) {
-              log.warn(jobInputPath + " is not a valid folder. Will be skipped.");
+              log.warn("{} is not a valid folder. Will be skipped due to exception.", jobInputPath, e);
               continue;
             }
 
@@ -188,7 +188,7 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   }
 
   protected String getFolderStructure() {
-    return this.folderTimePattern.replaceAll("[a-zA-Z0-9]+", "*");
+    return this.folderTimePattern.replaceAll("[a-zA-Z0-9='-]+", "*");
   }
 
   private String getFolderPattern() {

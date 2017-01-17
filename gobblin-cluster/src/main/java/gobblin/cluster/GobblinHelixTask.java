@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.cluster;
@@ -27,8 +32,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.annotation.Alpha;
+import gobblin.broker.SharedResourcesBrokerFactory;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.FsStateStore;
 import gobblin.metastore.StateStore;
@@ -43,6 +51,8 @@ import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.SerializationUtils;
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.gobblin_scopes.JobScopeInstance;
 
 
 /**
@@ -109,6 +119,7 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public TaskResult run() {
+    SharedResourcesBroker<GobblinScopeTypes> globalBroker = null;
     try {
       Path workUnitFilePath =
           new Path(this.taskConfig.getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH));
@@ -130,8 +141,14 @@ public class GobblinHelixTask implements Task {
         workUnits.add(workUnit);
       }
 
+      globalBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
+          ConfigFactory.parseProperties(this.jobState.getProperties()), GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+      SharedResourcesBroker<GobblinScopeTypes> jobBroker =
+          globalBroker.newSubscopedBuilder(new JobScopeInstance(this.jobState.getJobName(), this.jobState.getJobId())).build();
+
       GobblinMultiTaskAttempt.runWorkUnits(this.jobId, this.participantId, this.jobState, workUnits, this.taskStateTracker,
-          this.taskExecutor, this.taskStateStore, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
+          this.taskExecutor, this.taskStateStore, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE, jobBroker);
+
       return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnits.size()));
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
@@ -139,6 +156,14 @@ public class GobblinHelixTask implements Task {
     } catch (Throwable t) {
       LOGGER.error("GobblinHelixTask failed due to " + t.getMessage(), t);
       return new TaskResult(TaskResult.Status.ERROR, Throwables.getStackTraceAsString(t));
+    } finally {
+      if (globalBroker != null) {
+        try {
+          globalBroker.close();
+        } catch (IOException ioe) {
+          LOGGER.error("Could not close shared resources broker.", ioe);
+        }
+      }
     }
   }
 

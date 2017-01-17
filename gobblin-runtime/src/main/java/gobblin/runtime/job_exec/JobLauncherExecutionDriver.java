@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.runtime.job_exec;
 
 import java.io.IOException;
@@ -21,6 +38,11 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ExecutionList;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.SimpleScope;
+import gobblin.broker.SharedResourcesBrokerFactory;
+import gobblin.broker.SharedResourcesBrokerImpl;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
@@ -44,6 +66,7 @@ import gobblin.runtime.api.JobExecutionStatus;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobTemplate;
 import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.instance.StandardGobblinInstanceLauncher;
 import gobblin.runtime.job_spec.ResolvedJobSpec;
 import gobblin.runtime.listeners.AbstractJobListener;
 import gobblin.runtime.std.DefaultConfigurableImpl;
@@ -86,7 +109,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
   public static JobLauncherExecutionDriver create(Configurable sysConfig, JobSpec jobSpec,
       Optional<JobLauncherFactory.JobLauncherType> jobLauncherType,
       Optional<Logger> log, boolean instrumentationEnabled,
-      JobExecutionLauncher.StandardMetrics launcherMetrics) {
+      JobExecutionLauncher.StandardMetrics launcherMetrics, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
 
     Logger actualLog = log.isPresent() ? log.get() : LoggerFactory.getLogger(JobLauncherExecutionDriver.class);
 
@@ -97,7 +120,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
 
     JobLauncher jobLauncher = createLauncher(sysConfig, jobSpec, actualLog, jobLauncherType.isPresent() ?
         Optional.of(jobLauncherType.get().toString()) :
-        Optional.<String>absent());
+        Optional.<String>absent(), instanceBroker);
     JobListenerToJobStateBridge bridge = new JobListenerToJobStateBridge(actualLog, jobState, instrumentationEnabled, launcherMetrics);
 
     DriverRunnable runnable = new DriverRunnable(jobLauncher, bridge, jobState, callbackDispatcher, jobExec);
@@ -140,16 +163,16 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
   }
 
   private static JobLauncher createLauncher(Configurable _sysConfig, JobSpec _jobSpec, Logger _log,
-      Optional<String> jobLauncherType) {
+      Optional<String> jobLauncherType, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
     if (jobLauncherType.isPresent()) {
       return JobLauncherFactory.newJobLauncher(_sysConfig.getConfigAsProperties(),
-             _jobSpec.getConfigAsProperties(), jobLauncherType.get());
+             _jobSpec.getConfigAsProperties(), jobLauncherType.get(), instanceBroker);
     }
     else {
       _log.info("Creating auto jobLauncher for " + _jobSpec);
       try {
         return JobLauncherFactory.newJobLauncher(_sysConfig.getConfigAsProperties(),
-             _jobSpec.getConfigAsProperties());
+             _jobSpec.getConfigAsProperties(), instanceBroker);
       } catch (Exception e) {
         throw new RuntimeException("JobLauncher creation failed: " + e, e);
       }
@@ -321,6 +344,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
     private Optional<MetricContext> _metricContext = Optional.absent();
     private Optional<Boolean> _instrumentationEnabled = Optional.absent();
     private JobExecutionLauncher.StandardMetrics _metrics;
+    private Optional<SharedResourcesBroker<GobblinScopeTypes>> _instanceBroker = Optional.absent();
 
     public Launcher() {
     }
@@ -427,7 +451,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
         }
       }
       return JobLauncherExecutionDriver.create(getSysConfig(), jobSpec, _jobLauncherType,
-          Optional.of(getLog(jobSpec)), isInstrumentationEnabled(), getMetrics());
+          Optional.of(getLog(jobSpec)), isInstrumentationEnabled(), getMetrics(), getInstanceBroker());
     }
 
     @Override public List<Tag<?>> generateTags(gobblin.configuration.State state) {
@@ -467,6 +491,30 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
         _metrics = new JobExecutionLauncher.StandardMetrics(this);
       }
       return _metrics;
+    }
+
+    public Launcher withInstanceBroker(SharedResourcesBroker<GobblinScopeTypes> broker) {
+      _instanceBroker = Optional.of(broker);
+      return this;
+    }
+
+    public SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker() {
+      if (!_instanceBroker.isPresent()) {
+        if (_gobblinEnv.isPresent()) {
+          _instanceBroker = Optional.of(_gobblinEnv.get().getInstanceBroker());
+        } else {
+          _instanceBroker = Optional.of(getDefaultInstanceBroker());
+        }
+      }
+      return _instanceBroker.get();
+    }
+
+    public SharedResourcesBroker<GobblinScopeTypes> getDefaultInstanceBroker() {
+      getLog().warn("Creating a default instance broker for job launcher. Objects may not be shared across all jobs in this instance.");
+      SharedResourcesBrokerImpl<GobblinScopeTypes> globalBroker =
+          SharedResourcesBrokerFactory.createDefaultTopLevelBroker(getSysConfig().getConfig(),
+              GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+      return globalBroker.newSubscopedBuilder(new SimpleScope<>(GobblinScopeTypes.INSTANCE, getInstanceName())).build();
     }
 
   }

@@ -1,43 +1,51 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.ingestion.google.webmaster;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.batch.BatchRequest;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.services.webmasters.Webmasters;
-import com.google.api.services.webmasters.WebmastersScopes;
 import com.google.api.services.webmasters.model.ApiDataRow;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.ApiDimensionFilterGroup;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryRequest;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
-import gobblin.source.extractor.extract.google.GoogleCommon;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import static gobblin.source.extractor.extract.google.GoogleCommonKeys.*;
+import gobblin.source.extractor.extract.google.GoogleCommon;
 
 
 public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
 
-  private final static Logger LOG = LoggerFactory.getLogger(GoogleWebmasterClientImpl.class);
-
   private final Webmasters.Searchanalytics _analytics;
   private final Webmasters _service;
 
-  public GoogleWebmasterClientImpl(Credential credential, String appName) throws IOException {
+  public GoogleWebmasterClientImpl(Credential credential, String appName)
+      throws IOException {
     //transport: new NetHttpTransport() or GoogleNetHttpTransport.newTrustedTransport()
     //jsonFactory: new JacksonFactory() or JacksonFactory.getDefaultInstance()
-    _service =
-        new Webmasters.Builder(credential.getTransport(), GoogleCommon.getJsonFactory(), credential).setApplicationName(
-            appName).build();
+    _service = new Webmasters.Builder(credential.getTransport(), GoogleCommon.getJsonFactory(), credential)
+        .setApplicationName(appName).build();
     _analytics = _service.searchanalytics();
   }
 
@@ -71,17 +79,16 @@ public class GoogleWebmasterClientImpl extends GoogleWebmasterClient {
   @Override
   public Webmasters.Searchanalytics.Query createSearchAnalyticsQuery(String siteProperty, String startDate,
       String endDate, List<GoogleWebmasterFilter.Dimension> dimensions, ApiDimensionFilterGroup filterGroup,
-      int rowLimit, int startRow) throws IOException {
+      int rowLimit, int startRow)
+      throws IOException {
     List<String> dimensionStrings = new ArrayList<>();
     for (GoogleWebmasterFilter.Dimension dimension : dimensions) {
       dimensionStrings.add(dimension.toString().toLowerCase());
     }
 
-    SearchAnalyticsQueryRequest request = new SearchAnalyticsQueryRequest().setStartDate(startDate)
-        .setEndDate(endDate)
-        .setRowLimit(rowLimit)
-        .setDimensions(dimensionStrings)
-        .setStartRow(startRow);
+    SearchAnalyticsQueryRequest request =
+        new SearchAnalyticsQueryRequest().setStartDate(startDate).setEndDate(endDate).setRowLimit(rowLimit)
+            .setDimensions(dimensionStrings).setStartRow(startRow);
 
     if (filterGroup != null) {
       request.setDimensionFilterGroups(Arrays.asList(filterGroup));

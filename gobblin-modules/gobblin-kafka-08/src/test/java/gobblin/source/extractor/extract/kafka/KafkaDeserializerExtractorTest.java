@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.extract.kafka;
@@ -15,11 +20,25 @@ package gobblin.source.extractor.extract.kafka;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import io.confluent.kafka.serializers.KafkaJsonDeserializer;
+import io.confluent.kafka.serializers.KafkaJsonSerializer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+
+import kafka.message.Message;
+import kafka.message.MessageAndOffset;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -33,24 +52,12 @@ import org.testng.annotations.Test;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
+import gobblin.kafka.client.Kafka08ConsumerClient.Kafka08ConsumerRecord;
 import gobblin.metrics.kafka.KafkaSchemaRegistry;
 import gobblin.source.extractor.WatermarkInterval;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.PropertiesUtils;
-
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import io.confluent.kafka.serializers.KafkaAvroSerializer;
-import io.confluent.kafka.serializers.KafkaJsonDeserializer;
-import io.confluent.kafka.serializers.KafkaJsonSerializer;
-import kafka.message.Message;
-import kafka.message.MessageAndOffset;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 
 @Test(groups = { "gobblin.source.extractor.extract.kafka" })
@@ -76,7 +83,7 @@ public class KafkaDeserializerExtractorTest {
     KafkaDeserializerExtractor kafkaDecoderExtractor =
         new KafkaDeserializerExtractor(mockWorkUnitState, mockKafkaDecoder, mockKafkaSchemaRegistry);
 
-    MessageAndOffset mockMessageAndOffset = getMockMessageAndOffset(testStringByteBuffer);
+    ByteArrayBasedKafkaRecord mockMessageAndOffset = getMockMessageAndOffset(testStringByteBuffer);
 
     Assert.assertEquals(kafkaDecoderExtractor.decodeRecord(mockMessageAndOffset), testString);
   }
@@ -131,7 +138,7 @@ public class KafkaDeserializerExtractorTest {
     KafkaDeserializerExtractor kafkaDecoderExtractor =
         new KafkaDeserializerExtractor(mockWorkUnitState, kafkaDecoder, mockKafkaSchemaRegistry);
 
-    MessageAndOffset mockMessageAndOffset = getMockMessageAndOffset(testGenericRecordByteBuffer);
+    ByteArrayBasedKafkaRecord mockMessageAndOffset = getMockMessageAndOffset(testGenericRecordByteBuffer);
 
     Assert.assertEquals(kafkaDecoderExtractor.decodeRecord(mockMessageAndOffset), testGenericRecord);
   }
@@ -155,7 +162,7 @@ public class KafkaDeserializerExtractorTest {
     KafkaDeserializerExtractor kafkaDecoderExtractor =
         new KafkaDeserializerExtractor(mockWorkUnitState, kafkaDecoder, mockKafkaSchemaRegistry);
 
-    MessageAndOffset mockMessageAndOffset = getMockMessageAndOffset(testKafkaRecordByteBuffer);
+    ByteArrayBasedKafkaRecord mockMessageAndOffset = getMockMessageAndOffset(testKafkaRecordByteBuffer);
     Assert.assertEquals(kafkaDecoderExtractor.decodeRecord(mockMessageAndOffset), testKafkaRecord);
   }
 
@@ -173,12 +180,12 @@ public class KafkaDeserializerExtractorTest {
     return mockWorkUnitState;
   }
 
-  private MessageAndOffset getMockMessageAndOffset(ByteBuffer payload) {
+  private ByteArrayBasedKafkaRecord getMockMessageAndOffset(ByteBuffer payload) {
     MessageAndOffset mockMessageAndOffset = mock(MessageAndOffset.class);
     Message mockMessage = mock(Message.class);
     when(mockMessage.payload()).thenReturn(payload);
     when(mockMessageAndOffset.message()).thenReturn(mockMessage);
-    return mockMessageAndOffset;
+    return new Kafka08ConsumerRecord(mockMessageAndOffset);
   }
 
   @AllArgsConstructor

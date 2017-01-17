@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.util;
@@ -42,7 +47,7 @@ public class CLIPasswordEncryptor {
   private static final char STRONG_ENCRYPTOR_OPTION = 's';
   private static final char MASTER_PWD_FILE_OPTION = 'f';
 
-  private static Options commandLineOptions;
+  private static final Options CLI_OPTIONS = new Options();
 
   public static void main(String[] args) throws ParseException {
     CommandLine cl = parseArgs(args);
@@ -82,12 +87,11 @@ public class CLIPasswordEncryptor {
   }
 
   private static CommandLine parseArgs(String[] args) throws ParseException {
-    commandLineOptions = getOptions();
-    return new DefaultParser().parse(commandLineOptions, args);
+    initOptions(CLI_OPTIONS);
+    return new DefaultParser().parse(CLI_OPTIONS, args);
   }
 
-  private static Options getOptions() {
-    Options options = new Options();
+  private static Options initOptions(Options options) {
     options.addOption(new Option(StringUtils.EMPTY + HELP_OPTION, "print this message"));
     options.addOption(Option.builder(StringUtils.EMPTY + PLAIN_PWD_OPTION).argName("plain password").hasArg()
         .desc("plain password to be encrypted").build());
@@ -115,7 +119,7 @@ public class CLIPasswordEncryptor {
   }
 
   private static void printUsage() {
-    new HelpFormatter().printHelp(" ", commandLineOptions);
+    new HelpFormatter().printHelp(" ", CLI_OPTIONS);
   }
 
 }

@@ -34,13 +34,37 @@ pages:
         - Job Execution History Store: user-guide/Job-Execution-History-Store.md
         - Building Gobblin: user-guide/Building-Gobblin.md
         - Generic Configuration Loading: user-guide/Gobblin-genericLoad.md
-        - JDBC Writer: user-guide/Gobblin-JDBC-Writer.md
         - Hive Registration: user-guide/Hive-Registration.md
         - Config Management : user-guide/Config-Management.md
         - Docker Integration: user-guide/Docker-Integration.md
         - Troubleshooting: user-guide/Troubleshooting.md
         - FAQs: user-guide/FAQs.md
-    - Sinks:
+    - Sources:
+        - Avro files: sources/AvroFileSource.md
+        - File copy: sources/CopySource.md
+        - Google Analytics: sources/GoogleAnalyticsSource.md
+        - Google Drive: sources/GoogleDriveSource.md
+        - Google Webmaster: sources/GoogleWebmaster.md
+        - Hadoop Text Input: sources/HadoopTextInputSource.md
+        - Hello World: sources/HelloWorldSource.md
+        - Hive Avro-to-ORC: sources/HiveAvroToOrcSource.md
+        - Hive compliance purging: sources/HivePurgerSource.md
+        - JSON: sources/SimpleJsonSource.md
+        - Kafka: sources/KafkaSource.md
+        - MySQL: sources/MySQLSource.md
+        - Oracle: sources/OracleSource.md
+        - Salesforce: sources/SalesforceSource.md
+        - SFTP: sources/SftpSource.md
+        - SQL Server: sources/SqlServerSource.md
+        - Teradata: sources/TeradataSource.md
+        - Wikipedia: sources/WikipediaSource.md
+    - Record Sinks:
+        - Avro HDFS: sinks/AvroHdfsDataWriter.md
+        - HDFS Byte array: sinks/SimpleBytesWriter.md
+        - Console: sinks/ConsoleWriter.md
+        - Couchbase: sinks/Couchbase-Writer.md
+        - HTTP and REST: sinks/REST-Writer.md
+        - JDBC: sinks/Gobblin-JDBC-Writer.md
         - Kafka: sinks/Kafka.md
     - Gobblin Adaptors:
         - Gobblin Distcp: adaptors/Gobblin-Distcp.md

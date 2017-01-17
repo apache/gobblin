@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.converter.jdbc;
@@ -60,24 +65,30 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
   public static final String CONVERTER_AVRO_JDBC_DATE_FIELDS = "converter.avro.jdbc.date_fields";
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroToJdbcEntryConverter.class);
-  private static final Set<Type> AVRO_SUPPORTED_TYPES;
-  private static final Map<Type, JdbcType> AVRO_TYPE_JDBC_TYPE_MAPPING;
-  private static final Set<JdbcType> JDBC_SUPPORTED_TYPES;
+  private static final Map<Type, JdbcType> AVRO_TYPE_JDBC_TYPE_MAPPING =
+      ImmutableMap.<Type, JdbcType> builder()
+        .put(Type.BOOLEAN, JdbcType.BOOLEAN)
+        .put(Type.INT, JdbcType.INTEGER)
+        .put(Type.LONG, JdbcType.BIGINT)
+        .put(Type.FLOAT, JdbcType.FLOAT)
+        .put(Type.DOUBLE, JdbcType.DOUBLE)
+        .put(Type.STRING, JdbcType.VARCHAR)
+        .put(Type.ENUM, JdbcType.VARCHAR).build();
+  private static final Set<Type> AVRO_SUPPORTED_TYPES =
+      ImmutableSet.<Type> builder()
+        .addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.keySet())
+        .add(Type.UNION)
+        .build();
+  private static final Set<JdbcType> JDBC_SUPPORTED_TYPES =
+      ImmutableSet.<JdbcType> builder()
+        .addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.values())
+        .add(JdbcType.DATE)
+        .add(JdbcType.TIME)
+        .add(JdbcType.TIMESTAMP)
+        .build();
 
   private Optional<Map<String, String>> avroToJdbcColPairs = Optional.absent();
   private Optional<Map<String, String>> jdbcToAvroColPairs = Optional.absent();
-
-  static {
-    AVRO_TYPE_JDBC_TYPE_MAPPING = ImmutableMap.<Type, JdbcType> builder().put(Type.BOOLEAN, JdbcType.BOOLEAN)
-        .put(Type.INT, JdbcType.INTEGER).put(Type.LONG, JdbcType.BIGINT).put(Type.FLOAT, JdbcType.FLOAT)
-        .put(Type.DOUBLE, JdbcType.DOUBLE).put(Type.STRING, JdbcType.VARCHAR).put(Type.ENUM, JdbcType.VARCHAR).build();
-
-    AVRO_SUPPORTED_TYPES =
-        ImmutableSet.<Type> builder().addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.keySet()).add(Type.UNION).build();
-
-    JDBC_SUPPORTED_TYPES = ImmutableSet.<JdbcType> builder().addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.values())
-        .add(JdbcType.DATE).add(JdbcType.TIME).add(JdbcType.TIMESTAMP).build();
-  }
 
   public AvroToJdbcEntryConverter() {
     super();

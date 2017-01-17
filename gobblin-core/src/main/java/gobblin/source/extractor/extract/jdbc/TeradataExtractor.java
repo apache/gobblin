@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.source.extractor.extract.jdbc;
@@ -46,7 +51,7 @@ import gobblin.source.workunit.WorkUnit;
 
 /**
  * Teradata extractor using JDBC protocol
- * 
+ *
  * @author ypopov
  */
 @Slf4j
@@ -56,11 +61,11 @@ public class TeradataExtractor extends JdbcExtractor {
   private static final String TERADATA_HOUR_FORMAT = "HH";
   private static final long SAMPLE_RECORD_COUNT = -1;
   private static final String ELEMENT_DATA_TYPE = "string";
-  
-  private static final String TERADATA_SAMPLE_CLAUSE = " sample "; 
-  
+
+  private static final String TERADATA_SAMPLE_CLAUSE = " sample ";
+
   private static final Gson gson = new Gson();
-  
+
   public TeradataExtractor(WorkUnitState workUnitState) {
     super(workUnitState);
   }
@@ -68,11 +73,11 @@ public class TeradataExtractor extends JdbcExtractor {
   @Override
   public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
     log.debug("Build query to get schema");
-    
+
     List<Command> commands = new ArrayList<Command>();
-    
+
     String inputQuery = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
-    String metadataSql, predicate = "1=0"; 
+    String metadataSql, predicate = "1=0";
     if(isNullOrEmpty(inputQuery)) {
       metadataSql = "select * from " + schema + "." + entity;
     } else {
@@ -146,10 +151,10 @@ public class TeradataExtractor extends JdbcExtractor {
     query = query.replace(ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL, watermarkFilter);
     String sampleFilter = this.constructSampleClause();
     query = query + sampleFilter;
-    
+
     commands.add(JdbcExtractor.getCommand(query, JdbcCommand.JdbcCommandType.QUERY));
     commands.add(JdbcExtractor.getCommand(fetchSize, JdbcCommand.JdbcCommandType.FETCHSIZE));
-    return commands;    
+    return commands;
   }
 
   @Override
@@ -179,7 +184,7 @@ public class TeradataExtractor extends JdbcExtractor {
             .put("char varying", "string")
             .put("character varying", "string")
             .put("long varchar", "string")
-            .put("interval", "string")            
+            .put("interval", "string")
             .build();
     return dataTypeMap;
   }
@@ -192,10 +197,10 @@ public class TeradataExtractor extends JdbcExtractor {
 
   @Override
   public String getConnectionUrl() {
-    String urlPrefix = "jdbc:teradata://"; 
+    String urlPrefix = "jdbc:teradata://";
     String host = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     checkArgument(!isNullOrEmpty(host), "Connectionn host cannot be null or empty at %s", ConfigurationKeys.SOURCE_CONN_HOST_NAME);
-    
+
     String port = this.workUnit.getProp(ConfigurationKeys.SOURCE_CONN_PORT,"1025");
     String database = this.workUnit.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
     String defaultUrl = urlPrefix + host.trim() + "/TYPE=FASTEXPORT,DATABASE=" + database.trim() + ",DBS_PORT=" + port.trim() ;
@@ -225,7 +230,7 @@ public class TeradataExtractor extends JdbcExtractor {
         log.error("Ignoring incorrect limit value in input query: {}", limit);
       }
     }
-    return recordcount;    
+    return recordcount;
   }
 
   @Override
@@ -313,9 +318,9 @@ public class TeradataExtractor extends JdbcExtractor {
         for (int i = 1; i <= rsmd.getColumnCount(); i++) {
           columnName = rsmd.getColumnName(i);
           columnTypeName = rsmd.getColumnTypeName(i);
-          
+
           schema.setColumnName(columnName);
-          
+
           List<String> mapSymbols = null;
           JsonObject newDataType = this.convertDataType(columnName, columnTypeName, ELEMENT_DATA_TYPE, mapSymbols);
 
@@ -324,13 +329,13 @@ public class TeradataExtractor extends JdbcExtractor {
           schema.setPrecision(rsmd.getPrecision(i));
           schema.setScale(rsmd.getScale(i));
           schema.setNullable(rsmd.isNullable(i) == ResultSetMetaData.columnNullable);
-          schema.setComment(rsmd.getColumnLabel(i)); 
+          schema.setComment(rsmd.getColumnLabel(i));
 
           String jsonStr = gson.toJson(schema);
           JsonObject obj = gson.fromJson(jsonStr, JsonObject.class).getAsJsonObject();
           fieldJsonArray.add(obj);
         }
-        
+
     } catch (Exception e) {
       throw new SchemaException("Failed to get schema from Teradaa; error - " + e.getMessage(), e);
     }
