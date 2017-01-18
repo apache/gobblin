@@ -19,7 +19,6 @@ import gobblin.runtime.BoundedBlockingRecordQueue;
 import gobblin.runtime.ExecutionModel;
 import gobblin.runtime.TaskContext;
 import gobblin.util.concurrent.AutoResetEvent;
-import lombok.Lombok;
 
 import java.io.IOException;
 

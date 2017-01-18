@@ -78,26 +78,29 @@ public class AsynchronousFork extends Fork {
 
   @Override
   protected void processRecords() throws IOException, DataConversionException {
-    while (true) {
-      try {
-        Object record = this.recordQueue.get();
-        if (record == null) {
-          // The parent task has already done pulling records so no new record means this fork is done
-          if (this.isParentTaskDone()) {
-            return;
-          }
-        } else {
-          this.processRecord(record);
-        }
-      } catch (InterruptedException ie) {
-        log.warn("Interrupted while trying to get a record off the queue", ie);
-        Throwables.propagate(ie);
-      }
-    }
+    while (processRecord()) { }
   }
 
   @Override
   protected boolean putRecordImpl(Object record) throws InterruptedException {
     return this.recordQueue.put(record);
+  }
+
+  boolean processRecord() throws IOException, DataConversionException {
+    try {
+      Object record = this.recordQueue.get();
+      if (record == null) {
+        // The parent task has already done pulling records so no new record means this fork is done
+        if (this.isParentTaskDone()) {
+          return false;
+        }
+      } else {
+        this.processRecord(record);
+      }
+    } catch (InterruptedException ie) {
+      log.warn("Interrupted while trying to get a record off the queue", ie);
+      Throwables.propagate(ie);
+    }
+    return true;
   }
 }
