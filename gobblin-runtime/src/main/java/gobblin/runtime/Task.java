@@ -27,10 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
-import gobblin.runtime.fork.AsynchronousFork;
-import gobblin.runtime.fork.Fork;
-import gobblin.runtime.fork.SynchronousFork;
+import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +55,9 @@ import gobblin.publisher.DataPublisher;
 import gobblin.publisher.SingleTaskDataPublisher;
 import gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import gobblin.qualitychecker.row.RowLevelPolicyChecker;
+import gobblin.runtime.fork.AsynchronousFork;
+import gobblin.runtime.fork.Fork;
+import gobblin.runtime.fork.SynchronousFork;
 import gobblin.runtime.util.TaskMetrics;
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.Extractor;
@@ -182,6 +182,11 @@ public class Task implements Runnable {
     }
   }
 
+  private boolean areSingleBranchTasksSynchronous(TaskContext taskContext) {
+    return BooleanUtils.toBoolean(taskContext.getTaskState()
+            .getProp(ConfigurationKeys.TASK_IS_SINGLE_BRANCH_SYNCHRONOUS, ConfigurationKeys.DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS));
+  }
+
   private boolean isStreamingTask() {
     return this.taskMode.equals(ExecutionModel.STREAMING);
   }
@@ -281,7 +286,7 @@ public class Task implements Runnable {
       rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
 
-      if (branches > 1) {
+      if (!areSingleBranchTasksSynchronous(this.taskContext) || branches > 1) {
         // Create one fork for each forked branch
         for (int i = 0; i < branches; i++) {
           if (forkedSchemas.get(i)) {
