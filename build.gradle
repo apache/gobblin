@@ -661,14 +661,26 @@ subprojects {
           restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
         }
       }
-
-      if (project.hasProperty('requiresJavaVersion') && !project.requiresJavaVersion.equals(javaVersion)) {
-        throw new RuntimeException("Project ${name} requres Java version ${requiresJavaVersion}"
-          + " which conflicts with build version ${javaVersion}. Please use -PjdkVersion=${requiresJavaVersion} .")
-      }
     }
   }
 }
+
+// Disable tasks for projects which hava conflicting Java requirement
+gradle.taskGraph.whenReady {
+   gradle.taskGraph.allTasks.each { task ->
+      def taskProject = task.project
+      if (taskProject.hasProperty('requiresJavaVersion') && !taskProject.requiresJavaVersion.equals(javaVersion)) {
+        logger.warn("WARNING: Project {} requres Java version {} which conflicts with build version {}. COMPILATION DISABLED. Please use -PjdkVersion={} .",
+          taskProject.name,
+          taskProject.requiresJavaVersion,
+          javaVersion,
+          taskProject.requiresJavaVersion)
+        task.onlyIf { false }
+      }
+      
+   }
+}
+
 
 allprojects {
   tasks.withType(FindBugs) {

@@ -30,7 +30,11 @@ RUN_TEST_GROUP=${RUN_TEST_GROUP:-default}
 script_dir=$(dirname $0)
 echo "Old GRADLE_OPTS=$GRADLE_OPTS"
 
-export GOBBLIN_GRADLE_OPTS="-Dorg.gradle.daemon=false -Dgobblin.metastore.testing.embeddedMysqlEnabled=false -PusePreinstalledMysql=true"
+export java_version=$(java -version 2>&1 | grep 'java version' | sed -e 's/java version "\(1\..\).*/\1/')
+
+echo "Using Java version:${java_version}"
+
+export GOBBLIN_GRADLE_OPTS="-Dorg.gradle.daemon=false -Dgobblin.metastore.testing.embeddedMysqlEnabled=false -PusePreinstalledMysql=true -PjdkVersion=${java_version}"
 
 TEST_SCRIPT=${script_dir}/test-${RUN_TEST_GROUP}.sh
 if [ -x $TEST_SCRIPT ] ; then
