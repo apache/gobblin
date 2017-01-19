@@ -35,19 +35,11 @@ jacoco {
   toolVersion = jacocoVersion
 }
 
-repositories {
-  jcenter()
-}
-
 // Add the jacoco plugin to each project
 subprojects {
   // Can't figure out to to get the coveralls plugin to work if only some subprojects have the Java plugin, so for now the Java plugin is applied to all sub-projects
   plugins.apply('java')
   plugins.apply('jacoco')
-
-  repositories {
-    jcenter()
-  }
 
   jacoco {
     toolVersion = jacocoVersion

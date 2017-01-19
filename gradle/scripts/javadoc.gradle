@@ -1,0 +1,110 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+task javadocTarball(type: Tar) {
+  baseName = "gobblin-javadoc-all"
+  destinationDir = new File(project.buildDir, baseName)
+  compression = Compression.GZIP
+  extension = 'tgz'
+  description = "Generates a tar-ball with all javadocs to ${destinationDir}/${archiveName}"
+}
+
+javadocTarball << {
+  def indexFile = new File(destinationDir, "index.md")
+  def version = rootProject.ext.javadocVersion
+  indexFile << """----
+layout: page
+title: Gobblin Javadoc packages ${version}
+permalink: /javadoc/${version}/
+----
+
+"""
+  rootProject.ext.javadocPackages.each {
+    indexFile << "* [${it}](${it})\n"
+  }
+}
+
+// Javadoc initialization for subprojects
+ext.javadocVersion = null != project.version ? project.version.toString() : "latest"
+if (ext.javadocVersion.indexOf('-') > 0) {
+  // Remove any "-" addons from the version
+  ext.javadocVersion = javadocVersion.substring(0, javadocVersion.indexOf('-'))
+}
+
+ext.javadocPackages = new HashSet<String>()
+subprojects.each{Project pr ->
+  if (file(pr.projectDir.absolutePath + "/src/main/java").exists()) {
+    rootProject.ext.javadocPackages += pr.name
+  }
+}
+
+subprojects {
+  plugins.withType(JavaPlugin) {
+
+    // Sometimes generating javadocs can lead to OOM. This may needs to be increased.
+    // Also force javadocs to pick up system proxy settings if available
+    javadoc {
+      options.jFlags('-Xmx256m', '-Djava.net.useSystemProxies=true');
+    }
+
+    rootProject.tasks.javadocTarball.dependsOn project.tasks.javadoc
+    if ( rootProject.ext.javadocPackages.contains(project.name)) {
+      rootProject.tasks.javadocTarball.into(project.name){from(fileTree(dir: "${project.buildDir}/docs/javadoc/"))}
+    }
+  }
+}
+
+subprojects {
+  plugins.withType(JavaPlugin) {
+    if (isDefaultEnvironment) {
+      task javadocJar(type: Jar) {
+        from javadoc
+        classifier = 'javadoc'
+      }
+      artifacts { archives javadocJar }
+    }
+
+    // Add standard javadoc repositories so we can reference classes in them using @link
+    tasks.javadoc.options.links "http://typesafehub.github.io/config/latest/api/",
+        "https://docs.oracle.com/javase/7/docs/api/",
+        "http://docs.guava-libraries.googlecode.com/git-history/v15.0/javadoc/",
+        "http://hadoop.apache.org/docs/r${rootProject.ext.hadoopVersion}/api/",
+        "https://hive.apache.org/javadocs/r${rootProject.ext.hiveVersion}/api/",
+        "http://avro.apache.org/docs/${avroVersion}/api/java/",
+        "https://dropwizard.github.io/metrics/${dropwizardMetricsVersion}/apidocs/"
+  }
+}
+
+gradle.projectsEvaluated {
+  subprojects {
+    plugins.withType(JavaPlugin) {
+      getAllDependentProjects(project).each {
+        tasks.javadoc.options.linksOffline "http://linkedin.github.io/gobblin/javadoc/${javadocVersion}/${it.name}/",
+            "${rootProject.buildDir}/${it.name}/docs/javadoc/"
+      }
+    }
+  }
+}
+
+//Turn off javadoc lint for Java 8+
+if (JavaVersion.current().isJava8Compatible()) {
+  allprojects {
+    tasks.withType(Javadoc) {
+      options.addStringOption('Xdoclint:none', '-quiet')
+    }
+  }
+}

@@ -63,3 +63,20 @@ modules.each { module ->
     }
   }
 }
+
+if (file('gobblin-restli').exists()) {
+  def restliSubModules = ['api', 'server', 'client']
+  include 'gobblin-restli'
+
+  file('gobblin-restli').eachDir { submodule ->
+    if (!submodule.name.startsWith('.') && !submodule.name.equals('src')) {
+      def submoduleId = "gobblin-restli:${submodule.name}"
+      include submoduleId
+      restliSubModules.each { restliSubModule ->
+        if (new File(submodule, restliSubModule).exists()) {
+          include "gobblin-restli:${submodule.name}:${restliSubModule}"
+        }
+      }
+    }
+  }
+}
