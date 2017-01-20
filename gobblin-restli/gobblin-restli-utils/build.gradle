@@ -15,29 +15,13 @@
  * limitations under the License.
  */
 
-buildscript {
-
-  apply from: "${rootProject.projectDir}/gradle/scripts/repositories.gradle", to: buildscript
-
-  dependencies {
-    classpath (group: 'com.linkedin.pegasus', name: 'gradle-plugins', version: rootProject.pegasusVersion) {
-      exclude group: 'org.apache.ant'
-    }
-  }
-
-}
-
-apply plugin: 'pegasus'
-apply plugin: 'java'
-
-archivesBaseName = project.getParent().getName() + "-client"
-buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
-
 dependencies {
-  compile project(path: project.getParent().getPath() + ":api", configuration: 'dataTemplate')
-  compile project(path: project.getParent().getPath() + ':api', configuration: 'restClient')
+  compile project(':gobblin-utility')
 
-  testCompile project(":gobblin-restli:gobblin-restli-utils")
-  testCompile project(project.getParent().getPath() + ':server')
+  compile externalDependency.pegasus.restliServer
+  compile externalDependency.pegasus.restliCommon
+  compile externalDependency.pegasus.restliNettyStandalone
+  compile externalDependency.pegasus.restliGuiceBridge
+
   testCompile externalDependency.testng
 }
