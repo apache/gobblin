@@ -70,19 +70,19 @@ do
       shift
       ;;
     --jvmflags)
-      JVM_FLAGS="$1"
+      JVM_FLAGS="$2"
       shift
       ;;
     --jars)
-      EXTRA_JARS="$1"
+      EXTRA_JARS="$2"
       shift
       ;;
     --cluster)
-      CLUSTER_NAME="$1"
+      CLUSTER_NAME="$2"
       shift
       ;;
     --workerid)
-      WORKER_ID="$1"
+      WORKER_ID="$2"
       shift
       ;;
     --help)

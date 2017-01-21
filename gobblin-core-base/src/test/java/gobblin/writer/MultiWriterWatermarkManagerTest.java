@@ -33,7 +33,6 @@ import com.google.common.base.Optional;
 
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.DefaultCheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
 import gobblin.source.extractor.extract.LongWatermark;
 
 import static org.mockito.Matchers.any;
@@ -41,7 +40,7 @@ import static org.mockito.Mockito.*;
 
 
 @Test
-public class WatermarkManagerTest {
+public class MultiWriterWatermarkManagerTest {
 
 
   @Test
@@ -49,7 +48,7 @@ public class WatermarkManagerTest {
 
     WatermarkStorage watermarkStorage = null;
     try {
-      WatermarkManager watermarkManager = new WatermarkManager(watermarkStorage, 0, Optional.<Logger>absent());
+      MultiWriterWatermarkManager watermarkManager = new MultiWriterWatermarkManager(watermarkStorage, 0, Optional.<Logger>absent());
       Assert.fail("Should have thrown an exception");
     } catch (Exception e) {
 
@@ -64,7 +63,7 @@ public class WatermarkManagerTest {
       throws IOException, InterruptedException {
 
     WatermarkStorage mockWatermarkStorage = mock(WatermarkStorage.class);
-    WatermarkManager watermarkManager = new WatermarkManager(mockWatermarkStorage, 1000, Optional.<Logger>absent());
+    MultiWriterWatermarkManager watermarkManager = new MultiWriterWatermarkManager(mockWatermarkStorage, 1000, Optional.<Logger>absent());
     try {
       watermarkManager.start();
     } catch (Exception e) {
@@ -76,7 +75,7 @@ public class WatermarkManagerTest {
     watermarkManager.close();
     verify(mockWatermarkStorage, times(0)).commitWatermarks(any(Iterable.class));
 
-    WatermarkManager.CommitStatus watermarkMgrStatus = watermarkManager.getCommitStatus();
+    MultiWriterWatermarkManager.CommitStatus watermarkMgrStatus = watermarkManager.getCommitStatus();
     Assert.assertTrue(watermarkMgrStatus.getLastCommittedWatermarks().isEmpty(),
         "Last committed watermarks should be empty");
     Assert.assertEquals(watermarkMgrStatus.getLastWatermarkCommitSuccessTimestampMillis(), 0 ,
@@ -100,7 +99,8 @@ public class WatermarkManagerTest {
 
     long commitInterval = 1000;
 
-    WatermarkManager watermarkManager = new WatermarkManager(reallyBadWatermarkStorage, commitInterval, Optional.<Logger>absent());
+    MultiWriterWatermarkManager
+        watermarkManager = new MultiWriterWatermarkManager(reallyBadWatermarkStorage, commitInterval, Optional.<Logger>absent());
 
     WatermarkAwareWriter mockWriter = mock(WatermarkAwareWriter.class);
     CheckpointableWatermark watermark = new DefaultCheckpointableWatermark("default", new LongWatermark(0));
@@ -133,7 +133,7 @@ public class WatermarkManagerTest {
       }
 
       @Override
-      public void writeEnvelope(RecordEnvelope recordEnvelope)
+      public void writeEnvelope(AcknowledgableRecordEnvelope recordEnvelope)
           throws IOException {
         throw new UnsupportedOperationException();
       }
@@ -202,7 +202,7 @@ public class WatermarkManagerTest {
 
     WatermarkStorage mockWatermarkStorage = mock(WatermarkStorage.class);
 
-    WatermarkManager watermarkManager = new WatermarkManager(mockWatermarkStorage, 1000, Optional.<Logger>absent());
+    MultiWriterWatermarkManager watermarkManager = new MultiWriterWatermarkManager(mockWatermarkStorage, 1000, Optional.<Logger>absent());
 
     watermarkManager.registerWriter(getFlakyWatermarkWriter(2));
 
@@ -217,7 +217,7 @@ public class WatermarkManagerTest {
 
     watermarkManager.close();
 
-    WatermarkManager.RetrievalStatus retrievalStatus = watermarkManager.getRetrievalStatus();
+    MultiWriterWatermarkManager.RetrievalStatus retrievalStatus = watermarkManager.getRetrievalStatus();
     Assert.assertTrue(retrievalStatus.getLastWatermarkRetrievalAttemptTimestampMillis() > 0);
     Assert.assertTrue(retrievalStatus.getLastWatermarkRetrievalSuccessTimestampMillis() > 0);
     Assert.assertTrue(retrievalStatus.getLastWatermarkRetrievalFailureTimestampMillis() > 0);
@@ -250,6 +250,13 @@ public class WatermarkManagerTest {
           }
         }
       }
+
+      @Override
+      public Map<String, CheckpointableWatermark> getCommittedWatermarks(
+          Class<? extends CheckpointableWatermark> watermarkClass, Iterable<String> sourcePartitions)
+          throws IOException {
+        return null;
+      }
     };
 
 
@@ -263,7 +270,7 @@ public class WatermarkManagerTest {
       }
 
       @Override
-      public void writeEnvelope(RecordEnvelope recordEnvelope)
+      public void writeEnvelope(AcknowledgableRecordEnvelope recordEnvelope)
           throws IOException {
         throw new UnsupportedOperationException();
       }
@@ -316,7 +323,7 @@ public class WatermarkManagerTest {
       }
     };
 
-    WatermarkManager watermarkManager = new WatermarkManager(mockWatermarkStorage, 1000, Optional.<Logger>absent());
+    MultiWriterWatermarkManager watermarkManager = new MultiWriterWatermarkManager(mockWatermarkStorage, 1000, Optional.<Logger>absent());
 
     watermarkManager.registerWriter(mockWatermarkWriter);
 
@@ -331,9 +338,9 @@ public class WatermarkManagerTest {
 
     watermarkManager.close();
 
-    WatermarkManager.CommitStatus commitStatus = watermarkManager.getCommitStatus();
+    MultiWriterWatermarkManager.CommitStatus commitStatus = watermarkManager.getCommitStatus();
     System.out.println(commitStatus);
-    WatermarkManager.RetrievalStatus retrievalStatus = watermarkManager.getRetrievalStatus();
+    MultiWriterWatermarkManager.RetrievalStatus retrievalStatus = watermarkManager.getRetrievalStatus();
     Assert.assertTrue(retrievalStatus.getLastWatermarkRetrievalAttemptTimestampMillis() > 0);
     Assert.assertTrue(retrievalStatus.getLastWatermarkRetrievalSuccessTimestampMillis() > 0);
     Assert.assertTrue(retrievalStatus.getLastWatermarkRetrievalFailureTimestampMillis() == 0);

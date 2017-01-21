@@ -186,6 +186,22 @@ public class GobblinMultiTaskAttempt {
     }
   }
 
+  /**
+   * A method that shuts down all running tasks managed by this instance.
+   * TODO: Call this from the right place.
+   */
+  public void shutdownTasks()
+      throws InterruptedException {
+    log.info("Shutting down tasks");
+    for (Task task: this.tasks) {
+      task.shutdown();
+    }
+
+    for (Task task: this.tasks) {
+      task.awaitShutdown(1000);
+    }
+  }
+
   private void persistTaskStateStore()
       throws IOException {
     if (!this.taskStateStoreOptional.isPresent()) {

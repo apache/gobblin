@@ -93,13 +93,12 @@ public class ConsoleWriterTest {
 
   private void writeEnvelope(ConsoleWriter consoleWriter, String content, String source, long value)
       throws IOException {
-    RecordEnvelope mockEnvelope = mock(RecordEnvelope.class);
     CheckpointableWatermark watermark =
         new DefaultCheckpointableWatermark(source, new LongWatermark(value));
-    when(mockEnvelope.getRecord()).thenReturn(content);
-    when(mockEnvelope.getWatermark()).thenReturn(watermark);
+    AcknowledgableWatermark ackable = new AcknowledgableWatermark(watermark);
+    AcknowledgableRecordEnvelope mockEnvelope = new AcknowledgableRecordEnvelope<>(content, ackable);
     consoleWriter.writeEnvelope(mockEnvelope);
-
+    Assert.assertTrue(ackable.isAcked());
   }
 
   @Test

@@ -19,14 +19,18 @@
 
 package gobblin.writer;
 
-import java.io.IOException;
+/**
+ * An interface for entities that can be acked
+ */
+public interface Ackable {
 
-import gobblin.annotation.Alpha;
-import gobblin.source.extractor.CheckpointableWatermark;
+  /**
+   * Acknowledge this entity
+   */
+  void ack();
 
-@Alpha
-public interface WatermarkStorage {
-
-  void commitWatermarks(Iterable<CheckpointableWatermark> watermarks) throws IOException;
-
+  Ackable NoopAckable = new Ackable() {
+    @Override
+    public void ack() {}
+  };
 }

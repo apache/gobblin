@@ -27,10 +27,10 @@ import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.MetricContext;
 import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.Decorator;
 import gobblin.util.DecoratorUtils;
 import gobblin.util.FinalState;
+import gobblin.writer.AcknowledgableRecordEnvelope;
 import gobblin.writer.DataWriter;
 import gobblin.writer.WatermarkAwareWriter;
 
@@ -116,7 +116,7 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   }
 
   @Override
-  public void writeEnvelope(RecordEnvelope<D> recordEnvelope)
+  public void writeEnvelope(AcknowledgableRecordEnvelope<D> recordEnvelope)
       throws IOException {
     Preconditions.checkState(isWatermarkCapable());
     watermarkAwareWriter.get().writeEnvelope(recordEnvelope);

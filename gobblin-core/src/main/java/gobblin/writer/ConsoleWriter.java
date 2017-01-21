@@ -23,7 +23,6 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
 
 
 /**
@@ -32,12 +31,9 @@ import gobblin.source.extractor.RecordEnvelope;
 @Slf4j
 public class ConsoleWriter<D> implements WatermarkAwareWriter<D> {
   private long _recordsWritten;
-  private final WatermarkTracker _watermarkTracker;
 
   public ConsoleWriter() {
     _recordsWritten = 0;
-    _watermarkTracker = WatermarkTrackerFactory
-        .getInstance(WatermarkTrackerFactory.TrackerBehavior.defaultBehavior().trackLast().ignoreUnacked().build());
   }
 
   @Override
@@ -86,21 +82,23 @@ public class ConsoleWriter<D> implements WatermarkAwareWriter<D> {
     return true;
   }
 
+
   @Override
-  public void writeEnvelope(RecordEnvelope<D> recordEnvelope)
+  public void writeEnvelope(AcknowledgableRecordEnvelope<D> recordEnvelope)
       throws IOException {
     write(recordEnvelope.getRecord());
-    _watermarkTracker.committedWatermark(recordEnvelope.getWatermark());
+    recordEnvelope.ack();
   }
 
   @Override
   public Map<String, CheckpointableWatermark> getCommittableWatermark() {
-    return _watermarkTracker.getAllCommitableWatermarks();
+    throw new UnsupportedOperationException("This writer does not keep track of committed watermarks");
   }
 
   @Override
   public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    return _watermarkTracker.getAllUnacknowledgedWatermarks();
+    throw new UnsupportedOperationException("This writer does not keep track of uncommitted watermarks");
   }
+
 }
 

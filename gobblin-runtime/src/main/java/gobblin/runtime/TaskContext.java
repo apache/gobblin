@@ -49,6 +49,7 @@ import gobblin.util.limiter.NonRefillableLimiter;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.Destination;
+import gobblin.writer.WatermarkStorage;
 import gobblin.writer.WriterOutputFormat;
 
 
@@ -61,6 +62,7 @@ public class TaskContext {
 
   private final TaskState taskState;
   private final TaskMetrics taskMetrics;
+  private Extractor rawSourceExtractor;
 
   public TaskContext(WorkUnitState workUnitState) {
     this.taskState = new TaskState(workUnitState);
@@ -111,6 +113,7 @@ public class TaskContext {
    */
   public Extractor getExtractor() {
     try {
+      this.rawSourceExtractor = getSource().getExtractor(this.taskState);
       boolean throttlingEnabled = this.taskState.getPropAsBoolean(ConfigurationKeys.EXTRACT_LIMIT_ENABLED_KEY,
           ConfigurationKeys.DEFAULT_EXTRACT_LIMIT_ENABLED);
       if (throttlingEnabled) {
@@ -119,13 +122,20 @@ public class TaskContext {
           throw new IllegalArgumentException("The Limiter used with an Extractor should be an instance of "
               + NonRefillableLimiter.class.getSimpleName());
         }
-        return new LimitingExtractorDecorator<>(getSource().getExtractor(this.taskState), limiter);
+        return new LimitingExtractorDecorator<>(this.rawSourceExtractor, limiter);
       }
-      return getSource().getExtractor(this.taskState);
+      return this.rawSourceExtractor;
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
     }
   }
+
+
+  public Extractor getRawSourceExtractor() {
+    return this.rawSourceExtractor;
+  }
+
+
 
   /**
    * Get the interval for status reporting.
@@ -275,7 +285,6 @@ public class TaskContext {
    *
    * @param taskState {@link TaskState} of a {@link Task}
    * @param results Task-level policy checking results
-   * @param index branch index
    * @return a {@link TaskPublisher}
    */
   public TaskPublisher getTaskPublisher(TaskState taskState, TaskLevelPolicyCheckResults results) throws Exception {
@@ -302,5 +311,9 @@ public class TaskContext {
     } catch (IllegalAccessException iae) {
       throw new RuntimeException(iae);
     }
+  }
+
+  public WatermarkStorage getWatermarkStorage() {
+    return new StateStoreBasedWatermarkStorage(taskState);
   }
 }
