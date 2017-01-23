@@ -18,6 +18,7 @@
 package gobblin.runtime.job_catalog;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -165,6 +166,8 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
     try {
       Path targetJobSpecFullPath = getPathForURI(this.jobConfDirPath, uri);
       return this.converter.apply(loader.loadPullFile(targetJobSpecFullPath, this.sysConfig, shouldLoadGlobalConf()));
+    } catch (FileNotFoundException e) {
+      throw new JobSpecNotFoundException(uri);
     } catch (IOException e) {
       throw new RuntimeException("IO exception thrown on loading single job configuration file:" + e.getMessage());
     }

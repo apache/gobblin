@@ -36,4 +36,8 @@ buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
 dependencies {
   compile project(path: project.getParent().getPath() + ":api", configuration: 'dataTemplate')
   compile project(path: project.getParent().getPath() + ':api', configuration: 'restClient')
+
+  compile externalDependency.pegasus.restliCommon
+  compile externalDependency.pegasus.restliClient
+  compile externalDependency.pegasus.r2Netty
 }
