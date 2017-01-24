@@ -33,11 +33,15 @@ apply plugin: 'java'
 archivesBaseName = project.getParent().getName() + "-client"
 buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
 
+if (file('extraDependencies.gradle').exists()) {
+  apply from: 'extraDependencies.gradle'
+}
+
 dependencies {
   compile project(path: project.getParent().getPath() + ":api", configuration: 'dataTemplate')
   compile project(path: project.getParent().getPath() + ':api', configuration: 'restClient')
 
-  compile externalDependency.pegasus.restliCommon
-  compile externalDependency.pegasus.restliClient
-  compile externalDependency.pegasus.r2Netty
+  testCompile project(":gobblin-restli:gobblin-restli-utils")
+  testCompile project(project.getParent().getPath() + ':server')
+  testCompile externalDependency.testng
 }

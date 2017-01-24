@@ -72,6 +72,7 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
   // A monitor for changes to job conf files for general FS
   // This embedded monitor is monitoring job configuration files instead of JobSpec Object.
   protected final PathAlterationDetector pathAlterationDetector;
+  public static final String FS_CATALOG_KEY_PREFIX = "gobblin.fsJobCatalog";
   public static final String VERSION_KEY_IN_JOBSPEC = "gobblin.fsJobCatalog.version";
   // Key used in the metadata of JobSpec.
   public static final String DESCRIPTION_KEY_IN_JOBSPEC = "gobblin.fsJobCatalog.description";
@@ -289,8 +290,9 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
         description = "Gobblin job " + jobConfigURI;
       }
 
+      Config filteredConfig = rawConfig.withoutPath(FS_CATALOG_KEY_PREFIX);
       // The builder has null-checker. Leave the checking there.
-      JobSpec.Builder builder = JobSpec.builder(jobConfigURI).withConfig(rawConfig)
+      JobSpec.Builder builder = JobSpec.builder(jobConfigURI).withConfig(filteredConfig)
           .withDescription(description)
           .withVersion(version);
 
