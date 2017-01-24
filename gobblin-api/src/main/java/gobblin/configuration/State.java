@@ -75,9 +75,12 @@ public class State implements Writable {
    * @return A copy of the underlying {@link Properties} object.
    */
   public Properties getProperties() {
-    Properties props = new Properties();
-    props.putAll(this.properties);
-    return props;
+    // a.putAll(b) iterates over the entries of b. Synchronizing on b prevents concurrent modification on b.
+    synchronized (this.properties) {
+      Properties props = new Properties();
+      props.putAll(this.properties);
+      return props;
+    }
   }
 
   /**
