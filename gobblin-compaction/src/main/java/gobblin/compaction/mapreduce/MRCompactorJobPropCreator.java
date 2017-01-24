@@ -20,6 +20,7 @@ package gobblin.compaction.mapreduce;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileStatus;
@@ -34,7 +35,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import gobblin.compaction.dataset.Dataset;
 import gobblin.compaction.event.CompactionSlaEventHelper;
@@ -178,7 +179,7 @@ public class MRCompactorJobPropCreator {
     if (this.recompactFromOutputPaths || !MRCompactor.datasetAlreadyCompacted(this.fs, dataset)) {
       addInputLateFilesForFirstTimeCompaction(jobProps, dataset);
     } else {
-      List<Path> newDataFiles = getNewDataInFolder(dataset.inputPaths(), dataset.outputPath());
+      Set<Path> newDataFiles = getNewDataInFolder(dataset.inputPaths(), dataset.outputPath());
       newDataFiles.addAll(getNewDataInFolder(dataset.inputLatePaths(), dataset.outputPath()));
       if (newDataFiles.isEmpty()) {
         return Optional.<Dataset> absent();
@@ -208,8 +209,8 @@ public class MRCompactorJobPropCreator {
       LOG.info(String.format("Will recompact for %s.", dataset.outputPath()));
       addInputLateFilesForFirstTimeCompaction(jobProps, dataset);
     } else {
-      List<Path> newDataFiles = getNewDataInFolder(dataset.inputPaths(), dataset.outputPath());
-      List<Path> newDataFilesInLatePath = getNewDataInFolder(dataset.inputLatePaths(), dataset.outputPath());
+      Set<Path> newDataFiles = getNewDataInFolder(dataset.inputPaths(), dataset.outputPath());
+      Set<Path> newDataFilesInLatePath = getNewDataInFolder(dataset.inputLatePaths(), dataset.outputPath());
       newDataFiles.addAll(newDataFilesInLatePath);
 
       if (!newDataFilesInLatePath.isEmpty()) {
@@ -222,8 +223,8 @@ public class MRCompactorJobPropCreator {
     }
   }
 
-  private List<Path> getNewDataInFolder(List<Path> inputFolders, Path outputFolder) throws IOException {
-    List<Path> paths = Lists.newArrayList();
+  private Set<Path> getNewDataInFolder(Set<Path> inputFolders, Path outputFolder) throws IOException {
+    Set<Path> paths = Sets.newHashSet();
     for (Path inputFolder : inputFolders) {
       paths.addAll(getNewDataInFolder(inputFolder, outputFolder));
     }
@@ -235,8 +236,8 @@ public class MRCompactorJobPropCreator {
    * recent than the last compaction time as stored within outputFolder; return any files
    * which do. An empty list will be returned if all files are older than the last compaction time.
    */
-  private List<Path> getNewDataInFolder(Path inputFolder, Path outputFolder) throws IOException {
-    List<Path> newFiles = Lists.newArrayList();
+  private Set<Path> getNewDataInFolder(Path inputFolder, Path outputFolder) throws IOException {
+    Set<Path> newFiles = Sets.newHashSet();
 
     if (!this.fs.exists(inputFolder) || !this.fs.exists(outputFolder)) {
       return newFiles;

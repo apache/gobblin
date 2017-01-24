@@ -19,16 +19,17 @@ package gobblin.compaction.dataset;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.collect.Sets;
 
 import gobblin.compaction.mapreduce.MRCompactor;
 import gobblin.configuration.State;
@@ -64,8 +65,8 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
 
   public static class Builder {
 
-    private List<Path> inputPaths;
-    private List<Path> inputLatePaths;
+    private Set<Path> inputPaths;
+    private Set<Path> inputLatePaths;
     private Path outputPath;
     private Path outputLatePath;
     private Path outputTmpPath;
@@ -74,8 +75,8 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
     private State jobProps;
 
     public Builder() {
-      this.inputPaths = Lists.newArrayList();
-      this.inputLatePaths = Lists.newArrayList();
+      this.inputPaths = Sets.newHashSet();
+      this.inputLatePaths = Sets.newHashSet();
       this.jobProps = new State();
     }
 
@@ -146,11 +147,11 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   private final Path outputPath;
   private final Path outputLatePath;
   private final Path outputTmpPath;
-  private final List<Path> additionalInputPaths;
+  private final Set<Path> additionalInputPaths;
   private final Collection<Throwable> throwables;
 
-  private List<Path> inputPaths;
-  private List<Path> inputLatePaths;
+  private Set<Path> inputPaths;
+  private Set<Path> inputLatePaths;
   private State jobProps;
   private double priority;
   private boolean needToRecompact;
@@ -166,7 +167,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
     this.outputPath = builder.outputPath;
     this.outputLatePath = builder.outputLatePath;
     this.outputTmpPath = builder.outputTmpPath;
-    this.additionalInputPaths = Lists.newArrayList();
+    this.additionalInputPaths = Sets.newHashSet();
     this.throwables = Collections.synchronizedCollection(Lists.<Throwable> newArrayList());
     this.priority = builder.priority;
     this.lateDataThresholdForRecompact = builder.lateDataThresholdForRecompact;
@@ -176,14 +177,14 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   }
 
   /**
-   * Input path that contains the data of this {@link Dataset} to be compacted.
+   * An immutable copy of input paths that contains the data of this {@link Dataset} to be compacted.
    */
-  public List<Path> inputPaths() {
-    return ImmutableList.copyOf(this.inputPaths);
+  public Set<Path> inputPaths() {
+    return ImmutableSet.copyOf(this.inputPaths);
   }
 
   /**
-   * Path that contains the late data of this {@link Dataset} to be compacted.
+   * An immutable copy of paths that contains the late data of this {@link Dataset} to be compacted.
    * Late input data may be generated if the input data is obtained from another compaction,
    * e.g., if we run hourly compaction and daily compaction on a topic where the compacted hourly
    * data is the input to the daily compaction.
@@ -191,8 +192,8 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
    * If this path contains any data and this {@link Dataset} is not already compacted, deduplication
    * will be applied to this {@link Dataset}.
    */
-  public List<Path> inputLatePaths() {
-    return ImmutableList.copyOf(this.inputLatePaths);
+  public Set<Path> inputLatePaths() {
+    return ImmutableSet.copyOf(this.inputLatePaths);
   }
 
   /**
@@ -229,7 +230,7 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
   /**
    * Additional paths of this {@link Dataset} besides {@link #inputPath()} that contain data to be compacted.
    */
-  public List<Path> additionalInputPaths() {
+  public Set<Path> additionalInputPaths() {
     return this.additionalInputPaths;
   }
 
@@ -316,16 +317,14 @@ public class Dataset implements Comparable<Dataset>, FileSystemDataset {
    * Overwrite current inputPaths with newInputPath
    */
   public void overwriteInputPath(Path newInputPath) {
-    this.inputPaths.clear();
-    this.inputPaths.add(newInputPath);
+    this.inputPaths = Sets.newHashSet(newInputPath);
   }
 
   /**
    * Overwrite current inputLatePaths with newInputLatePath
    */
   public void overwriteInputLatePath(Path newInputLatePath) {
-    this.inputLatePaths.clear();
-    this.inputLatePaths.add(newInputLatePath);
+    this.inputLatePaths = Sets.newHashSet(newInputLatePath);
   }
 
   public void resetNeedToRecompact() {
