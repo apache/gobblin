@@ -96,11 +96,11 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.kafkaConsumerClientResolver = new ClassAliasResolver<>(GobblinKafkaConsumerClientFactory.class);
     try {
       this.kafkaConsumerClient =
-          this.kafkaConsumerClientResolver
+          this.closer.register(this.kafkaConsumerClientResolver
               .resolveClass(
                   state.getProp(KafkaSource.GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
                       KafkaSource.DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance()
-              .create(ConfigUtils.propertiesToConfig(state.getProperties()));
+              .create(ConfigUtils.propertiesToConfig(state.getProperties())));
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
