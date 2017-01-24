@@ -12,7 +12,8 @@
     },
     "supports" : [ "get" ],
     "methods" : [ {
-      "method" : "get"
+      "method" : "get",
+      "doc" : "Request permits from the limiter server. The returned {@link PermitAllocation} specifies the number of permits\n that the client can use."
     } ],
     "entity" : {
       "path" : "/permits/{permitsId}"
