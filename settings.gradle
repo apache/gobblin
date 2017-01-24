@@ -66,6 +66,7 @@ modules.each { module ->
 
 if (file('gobblin-restli').exists()) {
   def restliSubModules = ['api', 'server', 'client']
+  include 'gobblin-restli:gobblin-restli-utils'
   include 'gobblin-restli'
 
   file('gobblin-restli').eachDir { submodule ->

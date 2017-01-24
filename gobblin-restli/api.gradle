@@ -32,7 +32,6 @@ apply plugin: 'java'
 archivesBaseName = project.getParent().getName() + "-api"
 buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
 
-println project.path
 apply plugin: 'pegasus'
 
 dependencies {
@@ -45,6 +44,11 @@ dependencies {
 }
 
 artifacts {
-  //archives mainRestClientJar
   archives mainDataTemplateJar
+}
+
+if (file("${project.projectDir}/src/main/idl").exists()) {
+  artifacts {
+    archives mainRestClientJar
+  }
 }
