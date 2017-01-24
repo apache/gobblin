@@ -198,6 +198,7 @@ public class HiveConvertPublisher extends DataPublisher {
 
           // Emit an SLA event for conversion successful
           if (!wus.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY)) {
+            EventWorkunitUtils.setIsFirstPublishMetadata(wus);
             try {
               new SlaEventSubmitter(eventSubmitter, EventConstants.CONVERSION_SUCCESSFUL_SLA_EVENT, wus.getProperties())
                   .submit();
