@@ -139,7 +139,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
         PreparedStatement createStatement = connection.prepareStatement(createJobTable)) {
       createStatement.executeUpdate();
     } catch (SQLException e) {
-      throw new IOException(e);
+      throw new IOException("Failure creation table " + stateStoreTableName, e);
     }
   }
 
@@ -202,7 +202,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
         }
       }
     } catch (SQLException e) {
-      throw new IOException(e);
+      throw new IOException("Failure checking existence of storeName " + storeName + " tableName " + tableName, e);
     }
   }
 
@@ -244,7 +244,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       insertStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(e);
+      throw new IOException("Failure storing state to store " + storeName + " table " + tableName, e);
     }
   }
 
@@ -283,7 +283,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     } catch (RuntimeException e) {
       throw e;
     }catch (Exception e) {
-      throw new IOException(e);
+      throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
     }
 
     return null;
@@ -321,7 +321,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     } catch (RuntimeException re) {
       throw re;
     } catch (Exception e) {
-      throw new IOException(e);
+      throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
     }
 
     return states;
@@ -354,7 +354,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
         }
       }
     } catch (SQLException e) {
-      throw new IOException(e.getMessage());
+      throw new IOException(String.format("Could not query table names for store %s", storeName), e);
     }
 
     return names;
@@ -376,7 +376,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       cloneStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(e.getMessage());
+      throw new IOException(String.format("Failure creating alias for store %s original %s", storeName, original), e);
     }
   }
 
@@ -390,7 +390,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       deleteStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(e.getMessage());
+      throw new IOException("failure deleting storeName " + storeName + " tableName " + tableName, e);
     }
   }
 
@@ -402,7 +402,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       deleteStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(e.getMessage());
+      throw new IOException("failure deleting storeName " + storeName, e);
     }
   }
 }

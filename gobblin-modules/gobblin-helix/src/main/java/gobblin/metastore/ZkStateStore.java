@@ -299,7 +299,7 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
       } catch (RuntimeException e) {
         throw e;
       } catch (Exception e) {
-        throw new IOException(e);
+        throw new IOException("failure deserializing state from ZkStateStore", e);
       }
     }
   }

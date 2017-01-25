@@ -209,7 +209,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
           }
         }
       } catch (Exception e) {
-        throw new IOException(e);
+        throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);
@@ -242,7 +242,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
           state = this.stateClass.newInstance();
         }
       } catch (Exception e) {
-        throw new IOException(e);
+        throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);

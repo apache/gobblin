@@ -28,7 +28,7 @@ public class FsDatasetStateStoreFactory implements DatasetStateStore.Factory {
     try {
       return FsDatasetStateStore.createStateStore(config, FsDatasetStateStore.class.getName());
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to create FsDatasetStateStore with factory", e);
     }
   }
 }

@@ -36,7 +36,7 @@ public class ZkDatasetStateStoreFactory implements DatasetStateStore.Factory {
     try {
       return new ZkDatasetStateStore(connectString, rootDir, compressedValues);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to create ZkDatasetStateStore with factory", e);
     }
   }
 }

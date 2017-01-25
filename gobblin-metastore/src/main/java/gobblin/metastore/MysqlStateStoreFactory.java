@@ -37,7 +37,7 @@ public class MysqlStateStoreFactory implements StateStore.Factory {
     try {
       return new MysqlStateStore(basicDataSource, stateStoreTableName, compressedValues, stateClass);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to create MysqlStateStore with factory", e);
     }
   }
 }

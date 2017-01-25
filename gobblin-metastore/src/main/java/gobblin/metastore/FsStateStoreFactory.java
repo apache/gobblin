@@ -47,7 +47,7 @@ public class FsStateStoreFactory implements StateStore.Factory {
 
       return new FsStateStore(stateStoreFs, stateStoreRootDir, stateClass);
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to create FsStateStore with factory", e);
     }
   }
 }

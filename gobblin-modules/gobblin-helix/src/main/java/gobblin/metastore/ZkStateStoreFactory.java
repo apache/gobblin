@@ -36,7 +36,7 @@ public class ZkStateStoreFactory implements StateStore.Factory {
     try {
       return new ZkStateStore(connectString, rootDir, compressedValues, stateClass);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to create ZkStateStore with factory", e);
     }
   }
 }

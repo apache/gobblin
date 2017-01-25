@@ -61,7 +61,7 @@ public class GobblinHelixTaskFactory implements TaskFactory {
   private final StateStores stateStores;
 
   public GobblinHelixTaskFactory(Optional<ContainerMetrics> containerMetrics, TaskExecutor taskExecutor,
-      TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir, Config config) throws Exception {
+      TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir, Config config) {
     this.containerMetrics = containerMetrics;
     if (this.containerMetrics.isPresent()) {
       this.newTasksCounter = Optional.of(this.containerMetrics.get().getCounter(GOBBLIN_CLUSTER_NEW_HELIX_TASK_COUNTER));

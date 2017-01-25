@@ -39,7 +39,7 @@ public class MysqlDatasetStateStoreFactory implements DatasetStateStore.Factory 
     try {
       return new MysqlDatasetStateStore(basicDataSource, stateStoreTableName, compressedValues);
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to create MysqlDatasetStateStore with factory", e);
     }
   }
 }

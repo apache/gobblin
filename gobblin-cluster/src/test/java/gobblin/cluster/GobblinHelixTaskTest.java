@@ -98,7 +98,7 @@ public class GobblinHelixTaskTest {
   }
 
   @Test
-  public void testPrepareTask() throws Exception {
+  public void testPrepareTask() throws IOException {
     // Serialize the JobState that will be read later in GobblinHelixTask
     Path jobStateFilePath =
         new Path(appWorkDir, TestHelper.TEST_JOB_ID + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
