@@ -48,7 +48,7 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
   private BatchAccumulator<D> accumulator;
   private ExecutorService service;
   private volatile boolean running;
-
+  private final long startTime;
   private static final Logger LOG = LoggerFactory.getLogger(BufferedAsyncDataWriter.class);
   private static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
       new WriteResponseMapper<RecordMetadata>() {
@@ -80,7 +80,7 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
     this.accumulator = accumulator;
     this.service = Executors.newFixedThreadPool(1);
     this.running = true;
-
+    this.startTime = System.currentTimeMillis();
     try {
       this.service.execute(this.processor);
       this.service.shutdown();
@@ -103,6 +103,7 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
      * The hasNext may still return null if batch's TTL doesn't expire. However this really depends on the implementation
      */
     public void run() {
+      LOG.info ("Start iterating accumulator");
       Iterator<Batch<D>> iterator = this.accumulator.iterator();
       while (running) {
         while (running && iterator.hasNext()) {
@@ -189,7 +190,7 @@ public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
       if (!this.service.awaitTermination(60, TimeUnit.SECONDS)) {
         forceClose();
       } else {
-        LOG.info ("Closed properly");
+        LOG.info ("Closed properly: elapsed " + (System.currentTimeMillis() - startTime) + " milliseconds");
       }
     } catch (InterruptedException e) {
       LOG.error ("Interruption happened during close " + e.toString());
