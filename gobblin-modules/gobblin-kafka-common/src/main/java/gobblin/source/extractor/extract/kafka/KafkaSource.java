@@ -161,7 +161,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       throw new RuntimeException(e);
     } finally {
       try {
-        this.kafkaConsumerClient.close();
+        if (this.kafkaConsumerClient != null) {
+          this.kafkaConsumerClient.close();
+        }
       } catch (IOException e) {
         throw new RuntimeException("Exception closing kafkaConsumerClient");
       }
