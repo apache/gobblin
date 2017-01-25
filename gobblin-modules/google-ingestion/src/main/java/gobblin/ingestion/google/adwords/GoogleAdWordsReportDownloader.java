@@ -69,9 +69,15 @@ public class GoogleAdWordsReportDownloader {
   private final String _endDate;
   private final boolean _dailyPartition;
 
-  public final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyyMMdd");
+  private final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyyMMdd");
   private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
+  /**
+   * debug in FILE mode is to download reports in file format directly
+   */
   private final String _debugFileOutputPath;
+  /**
+   * debug in STRING mode is to download reports in strings, then concate and convert all strings to files.
+   */
   private final String _debugStringOutputPath;
 
   public GoogleAdWordsReportDownloader(AdWordsSession rootSession, WorkUnitState state,
@@ -84,7 +90,6 @@ public class GoogleAdWordsReportDownloader {
 
     long lowWatermark = state.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
     _startDate = dateFormatter.print(watermarkFormatter.parseDateTime(Long.toString(lowWatermark)));
-
     _endDate = _startDate;
     _dailyPartition = state.getPropAsBoolean(GoogleAdWordsSource.KEY_CUSTOM_DATE_DAILY, false);
     _debugFileOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_FILE, "");
@@ -109,10 +114,9 @@ public class GoogleAdWordsReportDownloader {
   public void downloadAllReports(Collection<String> accounts, final LinkedBlockingDeque<String[]> reportRows)
       throws InterruptedException {
     ExecutorService threadPool = Executors.newFixedThreadPool(Math.min(8, accounts.size()));
-
     List<Pair<String, String>> dates = getDates();
-
     Map<String, Future<Void>> jobs = new HashMap<>();
+
     for (String acc : accounts) {
       final String account = acc;
       for (Pair<String, String> dateRange : dates) {
@@ -128,7 +132,6 @@ public class GoogleAdWordsReportDownloader {
           @Override
           public Void call()
               throws ReportDownloadResponseException, InterruptedException, IOException, ReportException {
-
             log.info("Start downloading " + jobName);
 
             ExponentialBackOff backOff = backOffBuilder.build();
@@ -136,7 +139,7 @@ public class GoogleAdWordsReportDownloader {
             while (true) {
               ++numberOfAttempts;
               try {
-                downloadReport(account, _columnNames, _dateRangeType, range.getLeft(), range.getRight(), reportRows);
+                downloadReport(account, range.getLeft(), range.getRight(), reportRows);
                 log.info("Successfully downloaded " + jobName);
                 return null;
               } catch (ReportException e) {
@@ -147,9 +150,8 @@ public class GoogleAdWordsReportDownloader {
                   throw new ReportException(String
                       .format("Downloading %s failed after maximum elapsed millis: %d", jobName,
                           backOff.getMaxElapsedTimeMillis()), e);
-                } else {
-                  Thread.sleep(sleepMillis);
                 }
+                Thread.sleep(sleepMillis);
               }
             }
           }
@@ -159,46 +161,43 @@ public class GoogleAdWordsReportDownloader {
       }
     }
 
+    threadPool.shutdown();
+    //Collect all failed jobs.
     Map<String, Exception> failedJobs = new HashMap<>();
     for (Map.Entry<String, Future<Void>> job : jobs.entrySet()) {
-      String account = job.getKey();
       try {
         job.getValue().get();
       } catch (Exception e) {
-        failedJobs.put(account, e);
+        failedJobs.put(job.getKey(), e);
       }
     }
 
     if (!failedJobs.isEmpty()) {
-      System.out.println(String.format("%d downloading jobs failed:", failedJobs.size()));
+      log.error(String.format("%d downloading jobs failed: ", failedJobs.size()));
       for (Map.Entry<String, Exception> fail : failedJobs.entrySet()) {
         log.error(String.format("%s => %s", fail.getKey(), fail.getValue().getMessage()));
       }
     }
 
     log.info("End of downloading all reports.");
-    threadPool.shutdown();
   }
 
   /**
-   *
-   * @param account the account of the report you want to download.
-   * @param fields the fields of the report you want to download.
-   * @param dateRangeType specify the type of the date range. Provide startDate and endDate if you are using CUSTOM_DATE
+   * @param account the account of the report you want to download
    * @param startDate start date for custom_date range type
    * @param endDate end date for custom_date range type
-   * @param reportRows
+   * @param reportRows the sink that accumulates all downloaded rows
    * @throws ReportDownloadResponseException This is not retryable
    * @throws ReportException ReportException represents a potentially retryable error
    */
-  private void downloadReport(String account, Collection<String> fields, ReportDefinitionDateRangeType dateRangeType,
-      String startDate, String endDate, LinkedBlockingDeque<String[]> reportRows)
+  private void downloadReport(String account, String startDate, String endDate,
+      LinkedBlockingDeque<String[]> reportRows)
       throws ReportDownloadResponseException, ReportException, InterruptedException, IOException {
     Selector selector = new Selector();
-    selector.getFields().addAll(fields);
+    selector.getFields().addAll(_columnNames);
 
     String reportName;
-    if (dateRangeType.equals(ReportDefinitionDateRangeType.CUSTOM_DATE)) {
+    if (_dateRangeType.equals(ReportDefinitionDateRangeType.CUSTOM_DATE)) {
       DateRange value = new DateRange();
       value.setMin(startDate);
       value.setMax(endDate);
@@ -210,7 +209,7 @@ public class GoogleAdWordsReportDownloader {
 
     ReportDefinition reportDef = new ReportDefinition();
     reportDef.setReportName(reportName);
-    reportDef.setDateRangeType(dateRangeType);
+    reportDef.setDateRangeType(_dateRangeType);
     reportDef.setReportType(_reportType);
     reportDef.setDownloadFormat(DownloadFormat.GZIPPED_CSV);
     reportDef.setSelector(selector);
@@ -227,7 +226,6 @@ public class GoogleAdWordsReportDownloader {
       session = _rootSession.newBuilder().withClientCustomerId(account).withReportingConfiguration(reportConfig)
           .buildImmutable();
     } catch (ValidationException e) {
-      log.error(e.getMessage());
       throw new RuntimeException(e);
     }
 
@@ -236,46 +234,49 @@ public class GoogleAdWordsReportDownloader {
 
     InputStream zippedStream = response.getInputStream();
     if (zippedStream == null) {
-      String message = "Got empty stream for " + reportName;
-      log.error(message);
-      throw new RuntimeException(message);
+      log.warn("Got empty stream for " + reportName);
+      return;
     }
 
     if (!_debugFileOutputPath.trim().isEmpty()) {
+      //FILE mode debug will not save output to GOBBLIN_WORK_DIR
       File debugFile = new File(_debugFileOutputPath, reportName);
       createPath(debugFile);
-      writeToFile(zippedStream, debugFile);
-    } else {
-      FileWriter debugFileWriter = null;
-      try {
-        if (!_debugStringOutputPath.trim().isEmpty()) {
-          File debugFile = new File(_debugStringOutputPath, reportName);
-          createPath(debugFile);
-          debugFileWriter = new FileWriter(debugFile);
-        }
-        processResponse(zippedStream, reportRows, debugFileWriter);
-      } catch (IOException e) {
-        log.error(
-            String.format("Failed unzipping and processing records for %s. Reason is: %s", reportName, e.getMessage()));
-        throw new RuntimeException(e);
-      } finally {
-        if (debugFileWriter != null) {
-          debugFileWriter.close();
-        }
+      writeZippedStreamToFile(zippedStream, debugFile);
+      return;
+    }
+
+    FileWriter debugFileWriter = null;
+    try {
+      if (!_debugStringOutputPath.trim().isEmpty()) {
+        //if STRING mode debug is enabled. A copy of downloaded strings/reports will be saved.
+        File debugFile = new File(_debugStringOutputPath, reportName);
+        createPath(debugFile);
+        debugFileWriter = new FileWriter(debugFile);
+      }
+      processResponse(zippedStream, reportRows, debugFileWriter);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Failed unzipping and processing records for %s. Reason is: %s", reportName, e.getMessage()),
+          e);
+    } finally {
+      if (debugFileWriter != null) {
+        debugFileWriter.close();
       }
     }
   }
 
   private static void createPath(File file) {
+    //Clean up file if exists
     if (file.exists()) {
       boolean delete = file.delete();
       if (!delete) {
         throw new RuntimeException(String.format("Cannot delete debug file: %s", file));
       }
     }
-
-    if (!file.exists()) {
-      new File(file.getParent()).mkdirs();
+    boolean created = new File(file.getParent()).mkdirs();
+    if (!created) {
+      throw new RuntimeException(String.format("Cannot create debug file: %s", file));
     }
   }
 
@@ -290,14 +291,14 @@ public class GoogleAdWordsReportDownloader {
       while (true) {
         int c = gzipInputStream.read(buffer, 0, SIZE);
         if (c == -1) {
-          break;
+          break; //end of stream
         }
         if (c == 0) {
-          continue;
+          continue; //read empty, continue reading
         }
         String str = new String(buffer, 0, c, "UTF-8"); //"c" can very likely be less than SIZE.
         if (debugFw != null) {
-          debugFw.write(str);
+          debugFw.write(str); //save a copy if STRING mode debug is enabled
         }
         partiallyConsumed = addToQueue(reportRows, partiallyConsumed, str);
       }
@@ -305,6 +306,11 @@ public class GoogleAdWordsReportDownloader {
     }
   }
 
+  /**
+   * Concatenate previously partially consumed string with current read, then try to split the whole string.
+   * A whole record will be added to reportRows(data sink).
+   * The last partially consumed string, if exists, will be returned to be processed in next round.
+   */
   static String addToQueue(LinkedBlockingDeque<String[]> reportRows, String previous, String current)
       throws InterruptedException, IOException {
     int start = -1;
@@ -324,11 +330,11 @@ public class GoogleAdWordsReportDownloader {
       String[] splits = splitter.parseLine(row);
       String[] transformed = new String[splits.length];
       for (int s = 0; s < splits.length; ++s) {
-        String trimed = splits[s].trim();
-        if (trimed.equals("--")) {
+        String trimmed = splits[s].trim();
+        if (trimmed.equals("--")) {
           transformed[s] = null;
         } else {
-          transformed[s] = trimed;
+          transformed[s] = trimmed;
         }
       }
       reportRows.put(transformed);
@@ -341,7 +347,7 @@ public class GoogleAdWordsReportDownloader {
     return current.substring(start);
   }
 
-  private void writeToFile(InputStream zippedStream, File reportFile)
+  private void writeZippedStreamToFile(InputStream zippedStream, File reportFile)
       throws IOException {
     byte[] buffer = new byte[SIZE];
     int c;
