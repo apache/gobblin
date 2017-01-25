@@ -47,11 +47,15 @@ public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
    */
   static final String KEY_CUSTOM_DATE_DAILY = REQUEST + "custom_date.daily";
   /**
-   * Optional.
+   * Optional, default to whole report, all columns
    * Specify the column names for the report you want to download. Separate column names by commas
-   * If omitted, the whole report will be downloaded.
    */
   static final String KEY_COLUMN_NAMES = REQUEST + "column_names";
+  /**
+   * Optional, default to 8.
+   * Configure the number of threads that will be used for downloading reports.
+   */
+  static final String KEY_THREADS = REQUEST + "threads";
   /**
    * Optional.
    * Specify the exact list of accounts you want to download the reports. Separate accounts by commas

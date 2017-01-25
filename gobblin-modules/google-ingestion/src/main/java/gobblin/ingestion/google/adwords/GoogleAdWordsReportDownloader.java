@@ -17,6 +17,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -24,6 +25,10 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import com.github.rholder.retry.Retryer;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
+import com.github.rholder.retry.WaitStrategies;
 import com.google.api.ads.adwords.lib.client.AdWordsSession;
 import com.google.api.ads.adwords.lib.client.reporting.ReportingConfiguration;
 import com.google.api.ads.adwords.lib.jaxb.v201609.DateRange;
@@ -37,8 +42,6 @@ import com.google.api.ads.adwords.lib.utils.ReportDownloadResponseException;
 import com.google.api.ads.adwords.lib.utils.ReportException;
 import com.google.api.ads.adwords.lib.utils.v201609.ReportDownloader;
 import com.google.api.ads.common.lib.exception.ValidationException;
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.ExponentialBackOff;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import com.opencsv.CSVParser;
@@ -60,8 +63,6 @@ public class GoogleAdWordsReportDownloader {
   private final boolean _useRawEnumValues;
 
   private final AdWordsSession _rootSession;
-  private final ExponentialBackOff.Builder backOffBuilder =
-      new ExponentialBackOff.Builder().setMaxElapsedTimeMillis(1000 * 60 * 5);
   private final List<String> _columnNames;
   private final ReportDefinitionReportType _reportType;
   private final ReportDefinitionDateRangeType _dateRangeType;
@@ -79,6 +80,10 @@ public class GoogleAdWordsReportDownloader {
    * debug in STRING mode is to download reports in strings, then concate and convert all strings to files.
    */
   private final String _debugStringOutputPath;
+  private final int _maxThreadsAllowed;
+  private final Retryer<Void> _retryer = RetryerBuilder.<Void>newBuilder().retryIfExceptionOfType(ReportException.class)
+      .withStopStrategy(StopStrategies.stopAfterAttempt(5))
+      .withWaitStrategy(WaitStrategies.fixedWait(1, TimeUnit.SECONDS)).build();
 
   public GoogleAdWordsReportDownloader(AdWordsSession rootSession, WorkUnitState state,
       ReportDefinitionReportType reportType, ReportDefinitionDateRangeType dateRangeType, String schema) {
@@ -94,6 +99,7 @@ public class GoogleAdWordsReportDownloader {
     _dailyPartition = state.getPropAsBoolean(GoogleAdWordsSource.KEY_CUSTOM_DATE_DAILY, false);
     _debugFileOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_FILE, "");
     _debugStringOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_STRING, "");
+    _maxThreadsAllowed = state.getPropAsInt(GoogleAdWordsSource.KEY_THREADS, 8);
 
     _skipReportHeader = state.getPropAsBoolean(GoogleAdWordsSource.KEY_REPORTING_SKIP_REPORT_HEADER, true);
     _skipColumnHeader = state.getPropAsBoolean(GoogleAdWordsSource.KEY_REPORTING_SKIP_COLUMN_HEADER, true);
@@ -113,7 +119,7 @@ public class GoogleAdWordsReportDownloader {
 
   public void downloadAllReports(Collection<String> accounts, final LinkedBlockingDeque<String[]> reportRows)
       throws InterruptedException {
-    ExecutorService threadPool = Executors.newFixedThreadPool(Math.min(8, accounts.size()));
+    ExecutorService threadPool = Executors.newFixedThreadPool(Math.min(_maxThreadsAllowed, accounts.size()));
     List<Pair<String, String>> dates = getDates();
     Map<String, Future<Void>> jobs = new HashMap<>();
 
@@ -131,31 +137,22 @@ public class GoogleAdWordsReportDownloader {
         Future<Void> job = threadPool.submit(new Callable<Void>() {
           @Override
           public Void call()
-              throws ReportDownloadResponseException, InterruptedException, IOException, ReportException {
-            log.info("Start downloading " + jobName);
-
-            ExponentialBackOff backOff = backOffBuilder.build();
-            int numberOfAttempts = 0;
-            while (true) {
-              ++numberOfAttempts;
-              try {
+              throws Exception {
+            Callable<Void> downloadJob = new Callable<Void>() {
+              @Override
+              public Void call()
+                  throws ReportDownloadResponseException, InterruptedException, IOException, ReportException {
+                log.info("Start downloading " + jobName);
                 downloadReport(account, range.getLeft(), range.getRight(), reportRows);
                 log.info("Successfully downloaded " + jobName);
                 return null;
-              } catch (ReportException e) {
-                long sleepMillis = backOff.nextBackOffMillis();
-                log.info("Downloading %s failed #%d try: %s. Will sleep for %d milliseconds.", jobName,
-                    numberOfAttempts, e.getMessage(), sleepMillis);
-                if (sleepMillis == BackOff.STOP) {
-                  throw new ReportException(String
-                      .format("Downloading %s failed after maximum elapsed millis: %d", jobName,
-                          backOff.getMaxElapsedTimeMillis()), e);
-                }
-                Thread.sleep(sleepMillis);
               }
-            }
+            };
+            _retryer.call(downloadJob);
+            return null;
           }
         });
+
         jobs.put(jobName, job);
         Thread.sleep(100);
       }
@@ -274,10 +271,7 @@ public class GoogleAdWordsReportDownloader {
         throw new RuntimeException(String.format("Cannot delete debug file: %s", file));
       }
     }
-    boolean created = new File(file.getParent()).mkdirs();
-    if (!created) {
-      throw new RuntimeException(String.format("Cannot create debug file: %s", file));
-    }
+    new File(file.getParent()).mkdirs(); //mkdir directories for debug files
   }
 
   private static GZIPInputStream processResponse(InputStream zippedStream, LinkedBlockingDeque<String[]> reportRows,
