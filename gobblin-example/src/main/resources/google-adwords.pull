@@ -1,0 +1,82 @@
+## Job properties
+job.name=GoogleAdWords_DataFetchJob
+job.description=Download AdWords Report
+job.group=GoogleAPI
+#job.schedule=30 33 15 ? * *
+#job.runonce=true
+workunit.retry.policy=never
+workunit.retry.enabled=false
+task.maxretries=0
+job.commit.policy=full
+
+
+## Network Connection
+source.google.privatekey_fs_uri=file://localhost/
+source.google.api_scopes=??
+source.conn.private.key=??
+#source.conn.use.proxy.url
+#source.conn.use.proxy.port
+
+## Source properties
+source.entity=LinkedinAdWords
+
+## Extract properties
+extract.namespace=${source.entity}
+extract.table.type=snapshot_only
+extract.delta.fields=dummy
+source.querybased.start.value=20170110000000
+source.querybased.end.value=20170112235959
+source.querybased.is.watermark.override=true
+source.timezone=America/Los_Angeles
+source.max.number.of.partitions=3650
+source.querybased.extract.type=append_batch
+source.querybased.append.max.watermark.limit=CURRENTDATE-0
+
+#Daily Setup
+extract.table.name=DailyPull
+source.querybased.watermark.type=hour
+source.querybased.partition.interval=23
+source.class=gobblin.ingestion.google.adwords.GoogleAdWordsSource
+
+## AdWords Specific
+source.google_adwords.get_refresh_token=false
+# Credentials
+source.google_adwords.credential.developer_token=??
+source.google_adwords.credential.refresh_token=??
+source.google_adwords.credential.client_id=??
+source.google_adwords.credential.client_secret=??
+# Requests
+source.google_adwords.master_customer_id=??
+source.google_adwords.request.report_name=Click_PERFORMANCE
+#source.google_adwords.request.column_names=AccountCurrencyCode,C2
+source.google_adwords.request.date_range_type=custom_date
+#source.google_adwords.request.date_range_type=all_time
+source.google_adwords.request.custom_date.daily=true
+#source.google_adwords.request.accounts.exact=??
+#source.google_adwords.request.accounts.exclude=
+# Reporting Requests
+source.google_adwords.request.reporting.include_zero_impressions=false
+# Debug Configurations
+#source.google_adwords.debug.string_output_path=??
+#source.google_adwords.debug.file_output_path=??
+
+## Converter properties
+converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter
+
+
+## Writer properties
+writer.output.format=AVRO
+writer.partitioner.class=gobblin.ingestion.google.adwords.GoogleAdWordsDayPartitioner
+writer.partitioner.google_ingestion.prefix=daily
+writer.include.record.count.in.file.names=true
+
+## Publisher properties
+data.publisher.type=gobblin.publisher.BaseDataPublisher
+
+
+## Configurations for saving to HDFS
+#fs.uri=hdfs://localhost:9000
+#writer.destination.type=HDFS
+#writer.fs.uri=${fs.uri}
+#state.store.fs.uri=${fs.uri}
+#data.publisher.fs.uri=${fs.uri}

@@ -78,8 +78,7 @@ converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.a
 
 ## Writer properties
 writer.output.format=AVRO
-writer.partitioner.google_webmasters.prefix=daily
-writer.partitioner.google_webmasters.column_names.include=false
+writer.partitioner.google_ingestion.prefix=daily
 writer.partitioner.class=gobblin.ingestion.google.webmaster.GoogleWebmasterDayPartitioner
 writer.include.record.count.in.file.names=true
 
