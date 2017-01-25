@@ -34,6 +34,10 @@ buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
 
 apply plugin: 'pegasus'
 
+if (file('extraDependencies.gradle').exists()) {
+  apply from: 'extraDependencies.gradle'
+}
+
 dependencies {
   dataModel externalDependency.pegasus.restliCommon
 

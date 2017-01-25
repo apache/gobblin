@@ -680,4 +680,9 @@ public class ConfigurationKeys {
    */
   public static final String TASK_EXECUTION_MODE = "gobblin.task.executionMode";
   public static final String DEFAULT_TASK_EXECUTION_MODE = "BATCH";
+
+  /**
+   * Configuration properties related to Flows
+   */
+  public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
 }

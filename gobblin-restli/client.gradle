@@ -33,6 +33,10 @@ apply plugin: 'java'
 archivesBaseName = project.getParent().getName() + "-client"
 buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
 
+if (file('extraDependencies.gradle').exists()) {
+  apply from: 'extraDependencies.gradle'
+}
+
 dependencies {
   compile project(path: project.getParent().getPath() + ":api", configuration: 'dataTemplate')
   compile project(path: project.getParent().getPath() + ':api', configuration: 'restClient')

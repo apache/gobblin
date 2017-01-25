@@ -35,6 +35,10 @@ buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
 
 ext.apiProject = project(project.getParent().getPath() + ':api')
 
+if (file('extraDependencies.gradle').exists()) {
+  apply from: 'extraDependencies.gradle'
+}
+
 dependencies {
   compile project(path: project.getParent().getPath() + ":api", configuration: 'dataTemplate')
   compile project(':gobblin-utility')
