@@ -28,6 +28,7 @@ import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.MigrationInfoService;
 import org.flywaydb.core.api.MigrationVersion;
 import org.reflections.Reflections;
+import org.reflections.util.ClasspathHelper;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
