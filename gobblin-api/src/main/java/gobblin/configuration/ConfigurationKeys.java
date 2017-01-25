@@ -609,7 +609,7 @@ public class ConfigurationKeys {
   public static final String ADMIN_SERVER_ENABLED_KEY = "admin.server.enabled";
   /** The name of the class with the admin interface. The class must implement the
    * AdminWebServerFactory interface .*/
-  public static final String ADMIN_SERVER_FACTORY_CLASS_KEY = "admin.server.type";
+  public static final String ADMIN_SERVER_FACTORY_CLASS_KEY = "admin.server.factory.type";
   public static final String ADMIN_SERVER_HOST_KEY = "admin.server.host";
   public static final String DEFAULT_ADMIN_SERVER_HOST = "localhost";
   public static final String ADMIN_SERVER_PORT_KEY = "admin.server.port";
