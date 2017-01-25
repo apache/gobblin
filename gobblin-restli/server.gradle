@@ -30,13 +30,11 @@ buildscript {
 apply plugin: 'pegasus'
 apply plugin: 'war'
 
-archivesBaseName = project.getParent().getName() + "-server"
-buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
-
-ext.apiProject = project(project.getParent().getPath() + ':api')
+def apiProject = project(project.getParent().getPath() + ":" + project.getParent().getName() + "-api")
+ext.apiProject = apiProject
 
 dependencies {
-  compile project(path: project.getParent().getPath() + ":api", configuration: 'dataTemplate')
+  compile project(path: apiProject.path, configuration: 'dataTemplate')
   compile project(':gobblin-utility')
 
   compile externalDependency.pegasus.restliServer

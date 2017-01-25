@@ -74,8 +74,9 @@ if (file('gobblin-restli').exists()) {
       def submoduleId = "gobblin-restli:${submodule.name}"
       include submoduleId
       restliSubModules.each { restliSubModule ->
-        if (new File(submodule, restliSubModule).exists()) {
-          include "gobblin-restli:${submodule.name}:${restliSubModule}"
+        def subSubModuleName = submodule.name + '-' + restliSubModule
+        if (new File(submodule, subSubModuleName).exists()) {
+          include "gobblin-restli:${submodule.name}:${subSubModuleName}"
         }
       }
     }

@@ -20,9 +20,6 @@ apply plugin: 'java'
 dependencies {
   compile project(":gobblin-api")
 
-  compile project(path: ":gobblin-restli:gobblin-throttling-service:api", configuration: 'dataTemplate')
-  compile project(path: ":gobblin-restli:gobblin-throttling-service:api", configuration: 'restClient')
-
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsCompress
