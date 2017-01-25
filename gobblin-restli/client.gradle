@@ -30,14 +30,14 @@ buildscript {
 apply plugin: 'pegasus'
 apply plugin: 'java'
 
-archivesBaseName = project.getParent().getName() + "-client"
-buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
+def apiProject = project(project.getParent().getPath() + ":" + project.getParent().getName() + "-api")
+def serverProject = project(project.getParent().getPath() + ":" + project.getParent().getName() + "-server")
 
 dependencies {
-  compile project(path: project.getParent().getPath() + ":api", configuration: 'dataTemplate')
-  compile project(path: project.getParent().getPath() + ':api', configuration: 'restClient')
+  compile project(path: apiProject.path, configuration: 'dataTemplate')
+  compile project(path: apiProject.path, configuration: 'restClient')
 
   testCompile project(":gobblin-restli:gobblin-restli-utils")
-  testCompile project(project.getParent().getPath() + ':server')
+  testCompile serverProject
   testCompile externalDependency.testng
 }

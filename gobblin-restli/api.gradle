@@ -28,10 +28,6 @@ buildscript {
 }
 
 apply plugin: 'java'
-
-archivesBaseName = project.getParent().getName() + "-api"
-buildDir = rootProject.buildDir.toString() + "/" + archivesBaseName
-
 apply plugin: 'pegasus'
 
 dependencies {
