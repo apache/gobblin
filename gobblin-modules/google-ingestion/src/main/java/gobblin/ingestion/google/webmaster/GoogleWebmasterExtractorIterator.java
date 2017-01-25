@@ -256,9 +256,6 @@ class GoogleWebmasterExtractorIterator {
         log.info(String.format("Submitted all jobs at round %d.", r));
         try {
           es.shutdown(); //stop accepting new requests
-          log.info(String
-              .format("Wait for download-query-data jobs to finish at round %d... Next round now has size %d.", r,
-                  retries.size()));
           boolean terminated = es.awaitTermination(ROUND_TIME_OUT, TimeUnit.MINUTES);
           if (!terminated) {
             es.shutdownNow();
