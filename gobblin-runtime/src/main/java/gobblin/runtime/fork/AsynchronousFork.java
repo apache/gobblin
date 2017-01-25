@@ -89,7 +89,7 @@ public class AsynchronousFork extends Fork {
   boolean processRecord() throws IOException, DataConversionException {
     try {
       Object record = this.recordQueue.get();
-      if (record == null) {
+      if (record == null || record == Fork.SHUTDOWN_RECORD) {
         // The parent task has already done pulling records so no new record means this fork is done
         if (this.isParentTaskDone()) {
           return false;
