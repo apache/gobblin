@@ -73,9 +73,13 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     List<String> columnNames =
         columnNamesString.trim().isEmpty() ? null : Lists.newArrayList(splitter.split(columnNamesString));
 
-    HashMap<String, String> allFields = getReportFields(rootSession, reportType);
-    _schema = getDownloadFields(allFields, reportType, columnNames);
-    LOG.info(String.format("The schema for report %s is: %s", reportType, _schema));
+    HashMap<String, String> allFields = downloadReportFields(rootSession, reportType);
+    try {
+      _schema = createSchema(allFields, columnNames);
+      LOG.info(String.format("Schema for report %s: %s", reportType, _schema));
+    } catch (IOException e) {
+      throw new RuntimeException(String.format("Failed downloading report %s", reportType), e);
+    }
 
     _iterator = new GoogleAdWordsExtractorIterator(
         new GoogleAdWordsReportDownloader(rootSession, _state, reportType, dateRangeType, _schema),
@@ -165,8 +169,8 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
 //    }
   }
 
-  static String getDownloadFields(HashMap<String, String> allFields, ReportDefinitionReportType reportType,
-      List<String> requestedColumns) {
+  static String createSchema(HashMap<String, String> allFields, List<String> requestedColumns)
+      throws IOException {
     JsonArray schema = new JsonArray();
     TreeMap<String, String> selectedColumns;
 
@@ -176,11 +180,10 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
       selectedColumns = new TreeMap<>();
       for (String columnName : requestedColumns) {
         String type = allFields.get(columnName);
-        if (type != null) {
-          selectedColumns.put(columnName, type);
-        } else {
-          throw new RuntimeException(String.format("Column %s doesn't exist in report %s", columnName, reportType));
+        if (type == null) {
+          throw new IOException(String.format("Column %s doesn't exist", columnName));
         }
+        selectedColumns.put(columnName, type);
       }
     }
 
@@ -204,7 +207,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     return schema.toString();
   }
 
-  private static HashMap<String, String> getReportFields(AdWordsSession rootSession,
+  private static HashMap<String, String> downloadReportFields(AdWordsSession rootSession,
       ReportDefinitionReportType reportType)
       throws RemoteException {
     try {

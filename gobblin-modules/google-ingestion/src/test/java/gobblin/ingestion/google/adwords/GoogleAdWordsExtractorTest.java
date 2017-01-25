@@ -1,47 +1,46 @@
 package gobblin.ingestion.google.adwords;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.api.ads.adwords.lib.jaxb.v201609.ReportDefinitionReportType;
-
 
 @Test(groups = {"gobblin.ingestion.google.adwords"})
 public class GoogleAdWordsExtractorTest {
   @Test
-  public void testGetDownloadFields1() {
+  public void testGetDownloadFields1()
+      throws IOException {
     HashMap<String, String> fields = new HashMap<>();
     fields.put("c1", "String");
     fields.put("c2", "Integer");
     fields.put("c3", "Double");
 
-    String schemaString = GoogleAdWordsExtractor
-        .getDownloadFields(fields, ReportDefinitionReportType.CLICK_PERFORMANCE_REPORT, Arrays.asList("c1", "c2"));
+    String schemaString = GoogleAdWordsExtractor.createSchema(fields, Arrays.asList("c1", "c2"));
 
     Assert.assertEquals(schemaString,
         "[{\"columnName\":\"c1\",\"isNullable\":true,\"dataType\":{\"type\":\"STRING\"}},{\"columnName\":\"c2\",\"isNullable\":true,\"dataType\":{\"type\":\"INT\"}}]");
   }
 
   @Test
-  public void testGetDownloadFields2() {
+  public void testGetDownloadFields2()
+      throws IOException {
     HashMap<String, String> fields = new HashMap<>();
     fields.put("c1", "String");
 
-    String schemaString =
-        GoogleAdWordsExtractor.getDownloadFields(fields, ReportDefinitionReportType.CLICK_PERFORMANCE_REPORT, null);
+    String schemaString = GoogleAdWordsExtractor.createSchema(fields, null);
 
-    Assert.assertEquals(schemaString,
-        "[{\"columnName\":\"c1\",\"isNullable\":true,\"dataType\":{\"type\":\"STRING\"}}]");
+    Assert
+        .assertEquals(schemaString, "[{\"columnName\":\"c1\",\"isNullable\":true,\"dataType\":{\"type\":\"STRING\"}}]");
   }
 
-  @Test(expectedExceptions = {RuntimeException.class})
-  public void testGetDownloadFieldsWhenColumnNotExist() {
+  @Test(expectedExceptions = {IOException.class})
+  public void testGetDownloadFieldsWhenColumnNotExist()
+      throws IOException {
     HashMap<String, String> fields = new HashMap<>();
     fields.put("c1", "String");
-    GoogleAdWordsExtractor
-        .getDownloadFields(fields, ReportDefinitionReportType.CLICK_PERFORMANCE_REPORT, Arrays.asList("c2"));
+    GoogleAdWordsExtractor.createSchema(fields, Arrays.asList("c2"));
   }
 }
