@@ -10,9 +10,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.api.ads.adwords.axis.factory.AdWordsServices;
 import com.google.api.ads.adwords.axis.v201609.cm.ReportDefinitionField;
 import com.google.api.ads.adwords.axis.v201609.cm.ReportDefinitionServiceInterface;
@@ -28,6 +25,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import avro.shaded.com.google.common.collect.Lists;
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.avro.JsonElementConversionFactory;
@@ -35,12 +33,11 @@ import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 
 
+@Slf4j
 public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
-
-  private final static Logger LOG = LoggerFactory.getLogger(GoogleAdWordsExtractor.class);
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-  private WorkUnitState _state;
-  GoogleAdWordsExtractorIterator _iterator;
+  private final WorkUnitState _state;
+  private final GoogleAdWordsExtractorIterator _iterator;
   private String _schema;
 
   private final static HashMap<String, JsonElementConversionFactory.Type> typeConversionMap = new HashMap<>();
@@ -76,7 +73,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     HashMap<String, String> allFields = downloadReportFields(rootSession, reportType);
     try {
       _schema = createSchema(allFields, columnNames);
-      LOG.info(String.format("Schema for report %s: %s", reportType, _schema));
+      log.info(String.format("Schema for report %s: %s", reportType, _schema));
     } catch (IOException e) {
       throw new RuntimeException(String.format("Failed downloading report %s", reportType), e);
     }
@@ -108,7 +105,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     for (Map.Entry<Long, ManagedCustomer> account : availableAccounts.entrySet()) {
       available.add(Long.toString(account.getKey()));
     }
-    LOG.info(
+    log.info(
         String.format("Found %d available accounts for your master account %s", available.size(), masterCustomerId));
 
     if (exactAccounts != null) {
@@ -119,7 +116,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
         String msg = String
             .format("The following accounts configured in the exact list don't exist under master account %s: %s",
                 masterCustomerId, Joiner.on(",").join(difference));
-        LOG.error(msg);
+        log.error(msg);
         throw new RuntimeException(msg);
       }
     }
@@ -224,7 +221,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
       }
       return fields;
     } catch (RemoteException e) {
-      LOG.error(e.getMessage());
+      log.error(e.getMessage());
       throw new RuntimeException(e);
     }
   }

@@ -23,8 +23,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.api.ads.adwords.lib.client.AdWordsSession;
 import com.google.api.ads.adwords.lib.client.reporting.ReportingConfiguration;
@@ -45,12 +43,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import com.opencsv.CSVParser;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.extract.LongWatermark;
 
 
+@Slf4j
 public class GoogleAdWordsReportDownloader {
-  private static final Logger LOG = LoggerFactory.getLogger(GoogleAdWordsReportDownloader.class);
   private final static CSVParser splitter = new CSVParser(',', '"', '\\');
   private final static int SIZE = 4096; //Buffer size for unzipping stream.
   private final boolean _skipReportHeader;
@@ -79,8 +79,8 @@ public class GoogleAdWordsReportDownloader {
     _rootSession = rootSession;
     _reportType = reportType;
     _dateRangeType = dateRangeType;
-    _columnNames = getColumnNames(schema);
-    LOG.info("Downloaded fields are: " + Arrays.toString(_columnNames.toArray()));
+    _columnNames = schemaToColumnNames(schema);
+    log.info("Downloaded fields are: " + Arrays.toString(_columnNames.toArray()));
 
     long lowWatermark = state.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
     _startDate = dateFormatter.print(watermarkFormatter.parseDateTime(Long.toString(lowWatermark)));
@@ -97,7 +97,7 @@ public class GoogleAdWordsReportDownloader {
     _includeZeroImpressions = state.getPropAsBoolean(GoogleAdWordsSource.KEY_REPORTING_INCLUDE_ZERO_IMPRESSION, false);
   }
 
-  private List<String> getColumnNames(String schemaString) {
+  static List<String> schemaToColumnNames(String schemaString) {
     JsonArray schemaArray = new JsonParser().parse(schemaString).getAsJsonArray();
     List<String> fields = new ArrayList<>();
     for (int i = 0; i < schemaArray.size(); i++) {
@@ -129,7 +129,7 @@ public class GoogleAdWordsReportDownloader {
           public Void call()
               throws ReportDownloadResponseException, InterruptedException, IOException, ReportException {
 
-            LOG.info("Start downloading " + jobName);
+            log.info("Start downloading " + jobName);
 
             ExponentialBackOff backOff = backOffBuilder.build();
             int numberOfAttempts = 0;
@@ -137,11 +137,11 @@ public class GoogleAdWordsReportDownloader {
               ++numberOfAttempts;
               try {
                 downloadReport(account, _columnNames, _dateRangeType, range.getLeft(), range.getRight(), reportRows);
-                LOG.info("Successfully downloaded " + jobName);
+                log.info("Successfully downloaded " + jobName);
                 return null;
               } catch (ReportException e) {
                 long sleepMillis = backOff.nextBackOffMillis();
-                LOG.info("Downloading %s failed #%d try: %s. Will sleep for %d milliseconds.", jobName,
+                log.info("Downloading %s failed #%d try: %s. Will sleep for %d milliseconds.", jobName,
                     numberOfAttempts, e.getMessage(), sleepMillis);
                 if (sleepMillis == BackOff.STOP) {
                   throw new ReportException(String
@@ -172,11 +172,11 @@ public class GoogleAdWordsReportDownloader {
     if (!failedJobs.isEmpty()) {
       System.out.println(String.format("%d downloading jobs failed:", failedJobs.size()));
       for (Map.Entry<String, Exception> fail : failedJobs.entrySet()) {
-        LOG.error(String.format("%s => %s", fail.getKey(), fail.getValue().getMessage()));
+        log.error(String.format("%s => %s", fail.getKey(), fail.getValue().getMessage()));
       }
     }
 
-    LOG.info("End of downloading all reports.");
+    log.info("End of downloading all reports.");
     threadPool.shutdown();
   }
 
@@ -227,7 +227,7 @@ public class GoogleAdWordsReportDownloader {
       session = _rootSession.newBuilder().withClientCustomerId(account).withReportingConfiguration(reportConfig)
           .buildImmutable();
     } catch (ValidationException e) {
-      LOG.error(e.getMessage());
+      log.error(e.getMessage());
       throw new RuntimeException(e);
     }
 
@@ -237,7 +237,7 @@ public class GoogleAdWordsReportDownloader {
     InputStream zippedStream = response.getInputStream();
     if (zippedStream == null) {
       String message = "Got empty stream for " + reportName;
-      LOG.error(message);
+      log.error(message);
       throw new RuntimeException(message);
     }
 
@@ -255,7 +255,7 @@ public class GoogleAdWordsReportDownloader {
         }
         processResponse(zippedStream, reportRows, debugFileWriter);
       } catch (IOException e) {
-        LOG.error(
+        log.error(
             String.format("Failed unzipping and processing records for %s. Reason is: %s", reportName, e.getMessage()));
         throw new RuntimeException(e);
       } finally {

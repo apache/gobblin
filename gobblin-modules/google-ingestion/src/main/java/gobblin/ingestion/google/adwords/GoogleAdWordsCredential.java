@@ -7,8 +7,6 @@ import java.util.ArrayList;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.api.ads.adwords.lib.client.AdWordsSession;
 import com.google.api.ads.common.lib.auth.GoogleClientSecretsBuilder;
@@ -23,14 +21,16 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 
 
+@Slf4j
 public class GoogleAdWordsCredential {
   public static final String REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob";
   public static final ArrayList<String> SCOPES = Lists.newArrayList("https://www.googleapis.com/auth/adwords");
-  private final static Logger LOG = LoggerFactory.getLogger(GoogleAdWordsCredential.class);
   public final String _clientId;
   public final String _clientSecret;
   public final String _appName;
@@ -70,8 +70,8 @@ public class GoogleAdWordsCredential {
 //    AdWordsSession build = new AdWordsSession.Builder().fromFile().build();
 
     String authorizeUrl = authorizationFlow.newAuthorizationUrl().setRedirectUri(REDIRECT_URI).build();
-    LOG.info(String.format("Paste this url in your browser:%n%s%n", authorizeUrl));
-    LOG.info("Type the code you received here: ");
+    log.info(String.format("Paste this url in your browser:%n%s%n", authorizeUrl));
+    log.info("Type the code you received here: ");
     String authorizationCode = new BufferedReader(new InputStreamReader(System.in, Charsets.UTF_8)).readLine();
 
     // Authorize the OAuth2 token.

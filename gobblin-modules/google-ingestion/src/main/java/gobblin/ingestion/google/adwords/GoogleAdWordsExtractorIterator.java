@@ -6,12 +6,11 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 
+@Slf4j
 public class GoogleAdWordsExtractorIterator implements Iterator<String[]> {
-  private final static Logger LOG = LoggerFactory.getLogger(GoogleAdWordsExtractorIterator.class);
   private GoogleAdWordsReportDownloader _googleAdWordsReportDownloader;
   private Collection<String> _accounts;
   private Thread _producerThread;
@@ -36,7 +35,7 @@ public class GoogleAdWordsExtractorIterator implements Iterator<String[]> {
           //Job not done yet. Keep waiting.
           next = _reportRows.poll(1, TimeUnit.SECONDS);
         } else {
-          LOG.info("Producer job has finished. No more query data in the queue.");
+          log.info("Producer job has finished. No more query data in the queue.");
           return false;
         }
       }

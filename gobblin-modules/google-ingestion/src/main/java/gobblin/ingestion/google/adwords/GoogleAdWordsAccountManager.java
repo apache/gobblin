@@ -4,9 +4,6 @@ import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.api.ads.adwords.axis.factory.AdWordsServices;
 import com.google.api.ads.adwords.axis.utils.v201609.SelectorBuilder;
 import com.google.api.ads.adwords.axis.v201609.mcm.ManagedCustomer;
@@ -16,10 +13,12 @@ import com.google.api.ads.adwords.lib.client.AdWordsSession;
 import com.google.api.ads.adwords.lib.selectorfields.v201609.cm.ManagedCustomerField;
 import com.google.api.ads.common.lib.exception.ValidationException;
 
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class GoogleAdWordsAccountManager {
   private static final int PAGE_SIZE = 500;
-  private static final Logger LOG = LoggerFactory.getLogger(GoogleAdWordsAccountManager.class);
   private AdWordsSession _rootSession;
 
   public GoogleAdWordsAccountManager(AdWordsSession rootSession) {

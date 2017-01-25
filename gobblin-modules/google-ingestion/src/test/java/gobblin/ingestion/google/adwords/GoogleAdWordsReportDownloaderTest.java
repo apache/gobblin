@@ -1,5 +1,6 @@
 package gobblin.ingestion.google.adwords;
 
+import java.util.List;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import org.testng.Assert;
@@ -9,6 +10,17 @@ import org.testng.annotations.Test;
 @Test(groups = {"gobblin.ingestion.google.adwords"})
 public class GoogleAdWordsReportDownloaderTest {
   private LinkedBlockingDeque<String[]> queue = new LinkedBlockingDeque<>();
+
+  @Test
+  public void testSchemaToColumnNames()
+      throws Exception {
+    String schema =
+        "[{\"columnName\":\"c1\",\"isNullable\":true,\"dataType\":{\"type\":\"STRING\"}},{\"columnName\":\"c2\",\"isNullable\":true,\"dataType\":{\"type\":\"INT\"}}]";
+    List<String> columns = GoogleAdWordsReportDownloader.schemaToColumnNames(schema);
+    Assert.assertEquals(columns.size(), 2);
+    Assert.assertEquals(columns.get(0), "c1");
+    Assert.assertEquals(columns.get(1), "c2");
+  }
 
   @Test
   public void testAddToQueueEmptyAndEmpty()
