@@ -1,0 +1,36 @@
+job.name=AVRO_TO_MySQL
+job.description=AVRO_TO_MySQL
+
+source.class=gobblin.source.extractor.hadoop.AvroFileSource
+source.filebased.data.directory=/path/to/avro/file/directory
+source.max.number.of.partitions=4
+
+extract.table.type=SNAPSHOT_ONLY
+extract.is.full=true
+extract.namespace=dummy_name_space
+extract.table.name=dummy_name
+
+filebased.report.status.on.count=100
+
+converter.classes=gobblin.converter.jdbc.AvroToJdbcEntryConverter
+#name pairs if name does not match between source and JDBC destination
+converter.avro.jdbc.entry_fields_pairs={"businessUnit":"business_unit", "geoRegion":"geo_region", "superRegion":"super_region", "subRegion":"sub_region"}
+
+writer.builder.class=gobblin.writer.JdbcWriterBuilder
+writer.destination.type=MYSQL
+writer.jdbc.batch_size=1000
+
+data.publisher.type=gobblin.publisher.JdbcPublisher
+jdbc.publisher.driver=com.mysql.jdbc.Driver
+jdbc.publisher.database_name=database_name
+jdbc.publisher.encrypt_key_loc=/cryptokey/file/path
+jdbc.publisher.username=jdbc_user_id
+jdbc.publisher.password=jdbc_user_password
+jdbc.publisher.replace_table=true
+jdbc.publisher.table_name=test_user
+jdbc.publisher.url=jdbc_url
+
+fs.uri=file://localhost/
+source.filebased.fs.uri=${fs.uri}
+state.store.fs.uri=${fs.uri}
+
