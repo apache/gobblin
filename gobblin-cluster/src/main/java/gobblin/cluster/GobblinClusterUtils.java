@@ -25,7 +25,6 @@ import org.apache.hadoop.fs.Path;
 
 import gobblin.annotation.Alpha;
 
-
 @Alpha
 public class GobblinClusterUtils {
 

@@ -20,17 +20,13 @@ package gobblin.runtime;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
-import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.MysqlStateStore;
-import gobblin.password.PasswordManager;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import javax.sql.DataSource;
-import org.apache.commons.dbcp.BasicDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,43 +50,6 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
     implements DatasetStateStore<JobState.DatasetState> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MysqlDatasetStateStore.class);
-
-  @Alias("mysql")
-  public static class Factory implements DatasetStateStore.Factory {
-    @Override
-    public DatasetStateStore<JobState.DatasetState> createStateStore(Properties props) {
-      BasicDataSource basicDataSource = new BasicDataSource();
-      PasswordManager passwordManager = PasswordManager.getInstance(props);
-
-      basicDataSource.setDriverClassName(props.getProperty(ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
-          ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
-      // MySQL server can timeout a connection so need to validate connections before use
-      basicDataSource.setValidationQuery("select 1");
-      basicDataSource.setTestOnBorrow(true);
-      basicDataSource.setDefaultAutoCommit(false);
-      basicDataSource.setTimeBetweenEvictionRunsMillis(60000);
-      basicDataSource.setUrl(props.getProperty(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
-      basicDataSource.setUsername(passwordManager.readPassword(
-          props.getProperty(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
-      basicDataSource.setPassword(passwordManager.readPassword(
-          props.getProperty(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
-      basicDataSource.setMinEvictableIdleTimeMillis(Long.parseLong(props.getProperty(
-          ConfigurationKeys.STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY,
-          Long.toString(ConfigurationKeys.DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME))));
-
-      String stateStoreTableName = props.getProperty(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
-          ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
-      boolean compressedValues =
-          Boolean.parseBoolean(props.getProperty(ConfigurationKeys.STATE_STORE_COMPRESSED_VALUES_KEY,
-          Boolean.toString(ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES)));
-
-      try {
-        return new MysqlDatasetStateStore(basicDataSource, stateStoreTableName, compressedValues);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
 
   public MysqlDatasetStateStore(DataSource dataSource, String stateStoreTableName, boolean compressedValues)
       throws IOException {

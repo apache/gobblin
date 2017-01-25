@@ -275,9 +275,12 @@ public class GobblinYarnAppLauncher {
       LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
       services.add(buildYarnAppSecurityManager());
     }
-    services.add(buildLogCopier(this.config,
+    if (!this.config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY) ||
+        !this.config.getBoolean(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY)) {
+      services.add(buildLogCopier(this.config,
         new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
         GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
+    }
     if (config.getBoolean(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY)) {
       LOGGER.info("Starting the job execution info server since it is enabled");
       Properties properties = ConfigUtils.configToProperties(config);

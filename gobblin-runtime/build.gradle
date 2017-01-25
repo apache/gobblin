@@ -16,6 +16,7 @@
  */
 
 apply plugin: 'java'
+apply plugin: 'me.champeau.gradle.jmh'
 
 dependencies {
   compile project(":gobblin-admin")
@@ -78,6 +79,7 @@ dependencies {
   testCompile externalDependency.mockito
   testRuntime externalDependency.derby
 
+  jmh 'org.openjdk.jmh:jmh-core:1.17.3'
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
@@ -112,6 +114,12 @@ configurations {
 
 artifacts {
     tests testJar
+}
+
+jmh {
+    include = ""
+    zip64 = true
+    duplicateClassesStrategy = "EXCLUDE"
 }
 
 test {

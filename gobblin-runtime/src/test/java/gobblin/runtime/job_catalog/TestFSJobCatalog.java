@@ -17,7 +17,10 @@
 
 package gobblin.runtime.job_catalog;
 
+import gobblin.config.ConfigBuilder;
+import gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.io.File;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.util.Hashtable;
 import java.util.Map;
@@ -54,6 +57,11 @@ public class TestFSJobCatalog {
     this.jobConfigDir = java.nio.file.Files.createTempDirectory(
         String.format("gobblin-test_%s_job-conf", this.getClass().getSimpleName())).toFile();
     this.jobConfigDirPath = new Path(this.jobConfigDir.getPath());
+
+    try (PrintWriter printWriter = new PrintWriter(new Path(jobConfigDirPath, "job3.template").toString(), "UTF-8")) {
+      printWriter.println("param1 = value1");
+      printWriter.println("param2 = value2");
+    }
 
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getPath());
@@ -99,6 +107,8 @@ public class TestFSJobCatalog {
     JobSpec js1_1 = JobSpec.builder("test_job1").withVersion("1").build();
     JobSpec js1_2 = JobSpec.builder("test_job1").withVersion("2").build();
     JobSpec js2 = JobSpec.builder("test_job2").withVersion("1").build();
+    JobSpec js3 = JobSpec.builder("test_job3").withVersion("1").withTemplate(new URI("FS:///job3.template"))
+    .withConfig(ConfigBuilder.create().addPrimitive("job.template", "FS:///job3.template").build()).build();
 
     cat.addListener(l);
     observer.initialize();
@@ -136,6 +146,17 @@ public class TestFSJobCatalog {
     // enough time for file deletion.
     observer.checkAndNotify();
     Assert.assertFalse(specs.containsKey(js2.getUri()));
+
+    Thread.sleep(1000);
+    cat.put(js3);
+    observer.checkAndNotify();
+    Assert.assertTrue(specs.containsKey(js3.getUri()));
+    JobSpec js3_notified = specs.get(js3.getUri());
+    Assert.assertTrue(ConfigUtils.verifySubset(js3_notified.getConfig(), js3.getConfig()));
+    Assert.assertEquals(js3.getVersion(), js3_notified.getVersion());
+    ResolvedJobSpec js3_resolved = new ResolvedJobSpec(js3_notified, cat);
+    Assert.assertEquals(js3_resolved.getConfig().getString("param1"), "value1");
+    Assert.assertEquals(js3_resolved.getConfig().getString("param2"), "value2");
 
     cat.stopAsync();
     cat.awaitTerminated(10, TimeUnit.SECONDS);

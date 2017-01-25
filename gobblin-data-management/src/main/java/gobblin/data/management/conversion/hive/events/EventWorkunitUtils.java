@@ -23,13 +23,17 @@ import org.apache.hadoop.hive.ql.metadata.Table;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
 import gobblin.metrics.event.sla.SlaEventKeys;
+import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.workunit.WorkUnit;
 
 /**
  * Utilities to set event metadata into {@link WorkUnit}s
  */
 public class EventWorkunitUtils {
+
+  public static final String IS_WATERMARK_WORKUNIT_KEY = "hive.source.watermark.isWatermarkWorkUnit";
 
   /**
    * Set SLA event metadata in the workunit. The publisher will use this metadta to publish sla events
@@ -94,5 +98,16 @@ public class EventWorkunitUtils {
 
   public static void setEndPublishDDLExecuteTimeMetadata(State state, long time) {
     state.setProp(EventConstants.END_PUBLISH_DDL_EXECUTE_TIME, Long.toString(time));
+  }
+
+  /**
+   * Sets metadata to indicate whether this is the first time this table or partition is being published.
+   * @param wus to set if this is first publish for this table or partition
+   */
+  public static void setIsFirstPublishMetadata(WorkUnitState wus) {
+    if (!Boolean.valueOf(wus.getPropAsBoolean(IS_WATERMARK_WORKUNIT_KEY))) {
+      LongWatermark previousWatermark = wus.getWorkunit().getLowWatermark(LongWatermark.class);
+      wus.setProp(SlaEventKeys.IS_FIRST_PUBLISH, (null == previousWatermark || previousWatermark.getValue() == 0));
+    }
   }
 }

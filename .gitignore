@@ -50,3 +50,5 @@ gobblin-dist/
 gobblin-distribution-*.tar.gz
 gobblin.tar.gz
 *~
+metastore_db/
+GobblinKey_*.pem

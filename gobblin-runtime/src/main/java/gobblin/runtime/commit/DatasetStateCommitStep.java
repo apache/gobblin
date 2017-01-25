@@ -17,12 +17,10 @@
 
 package gobblin.runtime.commit;
 
+import com.typesafe.config.ConfigFactory;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
-import java.net.URI;
-
-import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Preconditions;
 
@@ -31,9 +29,7 @@ import gobblin.commit.CommitSequence;
 import gobblin.commit.CommitStep;
 import gobblin.commit.CommitStepBase;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobState.DatasetState;
-import gobblin.util.HadoopUtils;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -116,7 +112,7 @@ public class DatasetStateCommitStep extends CommitStepBase {
         DatasetStateStore.Factory stateStoreFactory =
             resolver.resolveClass(stateStoreType).newInstance();
 
-        this.stateStore = stateStoreFactory.createStateStore(this.props.getProperties());
+        this.stateStore = stateStoreFactory.createStateStore(ConfigFactory.parseProperties(props.getProperties()));
       } catch (RuntimeException e) {
         throw e;
       } catch (Exception e) {

@@ -17,6 +17,7 @@
 
 package gobblin.cluster;
 
+import gobblin.runtime.util.StateStores;
 import java.io.IOException;
 import java.util.List;
 
@@ -38,8 +39,6 @@ import gobblin.annotation.Alpha;
 import gobblin.broker.SharedResourcesBrokerFactory;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.FsStateStore;
-import gobblin.metastore.StateStore;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.GobblinMultiTaskAttempt;
 import gobblin.runtime.JobState;
@@ -89,10 +88,11 @@ public class GobblinHelixTask implements Task {
   private final String participantId;
 
   private final FileSystem fs;
-  private final StateStore<TaskState> taskStateStore;
+  private final StateStores stateStores;
 
   public GobblinHelixTask(TaskCallbackContext taskCallbackContext, Optional<ContainerMetrics> containerMetrics,
-      TaskExecutor taskExecutor, TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir)
+      TaskExecutor taskExecutor, TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir,
+      StateStores stateStores)
       throws IOException {
     this.taskExecutor = taskExecutor;
     this.taskStateTracker = taskStateTracker;
@@ -102,8 +102,7 @@ public class GobblinHelixTask implements Task {
     this.participantId = taskCallbackContext.getManager().getInstanceName();
 
     this.fs = fs;
-    Path taskStateOutputDir = new Path(appWorkDir, GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME);
-    this.taskStateStore = new FsStateStore<>(this.fs, taskStateOutputDir.toString(), TaskState.class);
+    this.stateStores = stateStores;
 
     Path jobStateFilePath = new Path(appWorkDir, this.jobId + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
     SerializationUtils.deserializeState(this.fs, jobStateFilePath, this.jobState);
@@ -124,10 +123,15 @@ public class GobblinHelixTask implements Task {
       Path workUnitFilePath =
           new Path(this.taskConfig.getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH));
 
-      WorkUnit workUnit =
-          workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION) ? MultiWorkUnit
-              .createEmpty() : WorkUnit.createEmpty();
-      SerializationUtils.deserializeState(this.fs, workUnitFilePath, workUnit);
+      String fileName = workUnitFilePath.getName();
+      String storeName = workUnitFilePath.getParent().getName();
+      WorkUnit workUnit;
+
+      if (workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
+        workUnit = stateStores.mwuStateStore.getAll(storeName, fileName).get(0);
+      } else {
+        workUnit = stateStores.wuStateStore.getAll(storeName, fileName).get(0);
+      }
 
       // The list of individual WorkUnits (flattened) to run
       List<WorkUnit> workUnits = Lists.newArrayList();
@@ -147,8 +151,7 @@ public class GobblinHelixTask implements Task {
           globalBroker.newSubscopedBuilder(new JobScopeInstance(this.jobState.getJobName(), this.jobState.getJobId())).build();
 
       GobblinMultiTaskAttempt.runWorkUnits(this.jobId, this.participantId, this.jobState, workUnits, this.taskStateTracker,
-          this.taskExecutor, this.taskStateStore, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE, jobBroker);
-
+          this.taskExecutor, this.stateStores.taskStateStore, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE, jobBroker);
       return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnits.size()));
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();

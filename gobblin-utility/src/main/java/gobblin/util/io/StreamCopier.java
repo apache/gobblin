@@ -40,7 +40,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 public class StreamCopier {
 
   private static final int KB = 1024;
-  private static final int DEFAULT_BUFFER_SIZE = 32 * KB;
+  public static final int DEFAULT_BUFFER_SIZE = 32 * KB;
 
   private final ReadableByteChannel inputChannel;
   private final WritableByteChannel outputChannel;
