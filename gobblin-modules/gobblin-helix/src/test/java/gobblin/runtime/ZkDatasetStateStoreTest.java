@@ -17,6 +17,7 @@
 
 package gobblin.runtime;
 
+import gobblin.config.ConfigBuilder;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.metastore.DatasetStateStore;
@@ -53,19 +54,20 @@ public class ZkDatasetStateStoreTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    Properties props = new Properties();
+    ConfigBuilder configBuilder = ConfigBuilder.create();
     testingServer = new TestingServer(-1);
     zkJobStateStore = new ZkStateStore<>(testingServer.getConnectString(), "/STATE_STORE/TEST", false, JobState.class);
 
-    props.put(ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY, testingServer.getConnectString());
-    props.put(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, "/STATE_STORE/TEST2");
+    configBuilder.addPrimitive(ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY,
+        testingServer.getConnectString());
+    configBuilder.addPrimitive(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, "/STATE_STORE/TEST2");
 
     ClassAliasResolver<DatasetStateStore.Factory> resolver =
         new ClassAliasResolver<>(DatasetStateStore.Factory.class);
     DatasetStateStore.Factory stateStoreFactory =
         resolver.resolveClass("zk").newInstance();
 
-    zkDatasetStateStore = stateStoreFactory.createStateStore(props);
+    zkDatasetStateStore = stateStoreFactory.createStateStore(configBuilder.build());
 
     // clear data that may have been left behind by a prior test run
     zkJobStateStore.delete(TEST_JOB_NAME);

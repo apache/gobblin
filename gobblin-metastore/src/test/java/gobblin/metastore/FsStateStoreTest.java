@@ -17,6 +17,11 @@
 
 package gobblin.metastore;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.util.List;
 
@@ -42,8 +47,19 @@ public class FsStateStoreTest {
   private StateStore<State> stateStore;
 
   @BeforeClass
-  public void setUp() throws IOException {
-    this.stateStore = new FsStateStore<>("file:///", "metastore-test", State.class);
+  public void setUp() throws Exception {
+    ClassAliasResolver<StateStore.Factory> resolver =
+        new ClassAliasResolver<>(StateStore.Factory.class);
+
+    StateStore.Factory stateStoreFactory =
+        resolver.resolveClass("fs").newInstance();
+
+    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
+        ConfigValueFactory.fromAnyRef("file:///")).withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
+        ConfigValueFactory.fromAnyRef("metastore-test"));
+
+    this.stateStore = stateStoreFactory.createStateStore(config, State.class);
+
     // cleanup in case files left behind by a prior run
     this.stateStore.delete("testStore");
   }

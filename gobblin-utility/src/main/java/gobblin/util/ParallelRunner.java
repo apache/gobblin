@@ -324,6 +324,20 @@ public class ParallelRunner implements Closeable {
     }), "Move " + src + " to " + dst));
   }
 
+  /**
+   * Submit a callable to the thread pool
+   *
+   * <p>
+   *   This method submits a task and returns immediately
+   * </p>
+   *
+   * @param callable the callable to submit
+   * @param name for the future
+   */
+  public void submitCallable(Callable<Void> callable, String name) {
+    this.futures.add(new NamedFuture(this.executor.submit(callable), name));
+  }
+
   @Override
   public void close() throws IOException {
     // Wait for all submitted tasks to complete

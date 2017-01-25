@@ -14,8 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.metastore;
+package gobblin.runtime;
 
-public class ZkStateStoreConfigurationKeys {
-  public static final String STATE_STORE_ZK_CONNECT_STRING_KEY = "state.store.zk.connectString";
+import com.typesafe.config.Config;
+import gobblin.annotation.Alias;
+import gobblin.metastore.DatasetStateStore;
+import java.util.Properties;
+
+@Alias("fs")
+public class FsDatasetStateStoreFactory implements DatasetStateStore.Factory {
+  @Override
+  public DatasetStateStore<JobState.DatasetState> createStateStore(Config config) {
+    try {
+      return FsDatasetStateStore.createStateStore(config, FsDatasetStateStore.class.getName());
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to create FsDatasetStateStore with factory", e);
+    }
+  }
 }

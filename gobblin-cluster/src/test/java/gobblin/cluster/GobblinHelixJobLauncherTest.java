@@ -17,6 +17,8 @@
 
 package gobblin.cluster;
 
+import gobblin.metastore.DatasetStateStore;
+import gobblin.util.ClassAliasResolver;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -87,7 +89,7 @@ public class GobblinHelixJobLauncherTest {
 
   private GobblinTaskRunner gobblinTaskRunner;
 
-  private FsDatasetStateStore fsDatasetStateStore;
+  private DatasetStateStore datasetStateStore;
 
   private Thread thread;
 
@@ -155,8 +157,16 @@ public class GobblinHelixJobLauncherTest {
         new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,
             TestHelper.TEST_APPLICATION_ID, TestHelper.TEST_TASK_RUNNER_ID, config, Optional.of(appWorkDir));
 
-    this.fsDatasetStateStore =
-        new FsDatasetStateStore(this.localFs, config.getString(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY));
+    String stateStoreType = properties.getProperty(ConfigurationKeys.STATE_STORE_TYPE_KEY,
+        ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+
+    ClassAliasResolver<DatasetStateStore.Factory> resolver =
+        new ClassAliasResolver<>(DatasetStateStore.Factory.class);
+
+    DatasetStateStore.Factory stateStoreFactory =
+        resolver.resolveClass(stateStoreType).newInstance();
+
+    this.datasetStateStore = stateStoreFactory.createStateStore(config);
 
     this.thread = new Thread(new Runnable() {
       @Override
@@ -175,7 +185,7 @@ public class GobblinHelixJobLauncherTest {
     Schema schema = new Schema.Parser().parse(TestHelper.SOURCE_SCHEMA);
     TestHelper.assertGenericRecords(this.jobOutputFile, schema);
 
-    List<JobState.DatasetState> datasetStates = this.fsDatasetStateStore.getAll(this.jobName,
+    List<JobState.DatasetState> datasetStates = this.datasetStateStore.getAll(this.jobName,
         FsDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + FsDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
     Assert.assertEquals(datasetStates.size(), 1);
     JobState.DatasetState datasetState = datasetStates.get(0);
