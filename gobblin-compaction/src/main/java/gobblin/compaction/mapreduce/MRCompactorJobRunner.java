@@ -1,21 +1,26 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.compaction.mapreduce;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -44,7 +49,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 
 import gobblin.compaction.dataset.Dataset;
@@ -60,6 +68,7 @@ import gobblin.util.RecordCountProvider;
 import gobblin.util.WriterUtils;
 import gobblin.util.executors.ScalingThreadPoolExecutor;
 import gobblin.util.recordcount.LateFileRecordCountProvider;
+
 
 
 /**
@@ -288,8 +297,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     if (!this.recompactFromDestPaths) {
       return new DateTime(timeZone);
     }
-    List<Path> inputPaths = this.dataset.inputPaths();
-    inputPaths.addAll(this.dataset.additionalInputPaths());
+
+    Set<Path> inputPaths = getInputPaths();
     long maxTimestamp = Long.MIN_VALUE;
     for (FileStatus status : FileListUtils.listFilesRecursively(this.fs, inputPaths)) {
       maxTimestamp = Math.max(maxTimestamp, status.getModificationTime());
@@ -366,10 +375,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     FileOutputFormat.setOutputPath(job, this.dataset.outputTmpPath());
   }
 
-  private List<Path> getInputPaths() {
-    List<Path> inputPaths = Lists.newArrayList(this.dataset.inputPaths());
-    inputPaths.addAll(this.dataset.additionalInputPaths());
-    return inputPaths;
+  private Set<Path> getInputPaths() {
+    return ImmutableSet.<Path> builder().addAll(this.dataset.inputPaths()).addAll(this.dataset.additionalInputPaths())
+        .build();
   }
 
   public Dataset getDataset() {
@@ -525,7 +533,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
 
-  private void deleteFilesByPaths(List<Path> paths) throws IOException {
+  private void deleteFilesByPaths(Set<Path> paths) throws IOException {
     for (Path path : paths) {
       HadoopUtils.deletePathAndEmptyAncestors(this.fs, path, true);
     }

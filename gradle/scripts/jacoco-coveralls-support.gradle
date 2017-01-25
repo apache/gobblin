@@ -1,12 +1,19 @@
-// Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-// this file except in compliance with the License. You may obtain a copy of the
-// License at  http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied.
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 /**
  * Adds integration with the <a href="https://docs.gradle.org/current/userguide/jacoco_plugin.html">Gradle JaCoCo Plugin</a>
@@ -28,19 +35,11 @@ jacoco {
   toolVersion = jacocoVersion
 }
 
-repositories {
-  jcenter()
-}
-
 // Add the jacoco plugin to each project
 subprojects {
   // Can't figure out to to get the coveralls plugin to work if only some subprojects have the Java plugin, so for now the Java plugin is applied to all sub-projects
   plugins.apply('java')
   plugins.apply('jacoco')
-
-  repositories {
-    jcenter()
-  }
 
   jacoco {
     toolVersion = jacocoVersion
@@ -55,7 +54,6 @@ subprojects {
 
     afterEvaluate {
       classDirectories = files(classDirectories.files.collect {
-        println it
         fileTree(dir: it, exclude: 'helix-*.jar')
       })
     }

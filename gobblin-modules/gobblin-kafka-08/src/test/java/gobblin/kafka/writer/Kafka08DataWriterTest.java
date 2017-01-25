@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.kafka.writer;
@@ -32,6 +37,8 @@ import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.LiAvroDeserializer;
 import gobblin.kafka.serialize.LiAvroDeserializerBase;
 import gobblin.test.TestUtils;
+import gobblin.writer.WriteCallback;
+import gobblin.writer.WriteResponse;
 
 import static org.mockito.Mockito.*;
 
@@ -76,17 +83,16 @@ public class Kafka08DataWriterTest {
     Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<String>(props);
     String messageString = "foobar";
     WriteCallback callback = mock(WriteCallback.class);
-    kafka08DataWriter.setDefaultCallback(callback);
 
     try {
-      kafka08DataWriter.asyncWrite(messageString);
+      kafka08DataWriter.write(messageString, callback);
     }
     finally
     {
       kafka08DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     String messageReceived = new String(message);
@@ -105,19 +111,18 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     Kafka08DataWriter<byte[]> kafka08DataWriter = new Kafka08DataWriter<byte[]>(props);
     WriteCallback callback = mock(WriteCallback.class);
-    kafka08DataWriter.setDefaultCallback(callback);
 
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
     try {
-      kafka08DataWriter.asyncWrite(messageBytes);
+      kafka08DataWriter.write(messageBytes, callback);
     }
     finally
     {
       kafka08DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
     Assert.assertEquals(message, messageBytes);
@@ -142,18 +147,17 @@ public class Kafka08DataWriterTest {
 
     Kafka08DataWriter<GenericRecord> kafka08DataWriter = new Kafka08DataWriter<>(props);
     WriteCallback callback = mock(WriteCallback.class);
-    kafka08DataWriter.setDefaultCallback(callback);
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
-      kafka08DataWriter.asyncWrite(record);
+      kafka08DataWriter.write(record, callback);
     }
     finally
     {
       kafka08DataWriter.close();
     }
 
-    verify(callback, times(1)).onSuccess();
+    verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
 
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();

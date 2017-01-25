@@ -1,8 +1,26 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package gobblin.runtime.job_catalog;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Set;
 
@@ -269,11 +287,19 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
       }
 
       // The builder has null-checker. Leave the checking there.
-      return JobSpec.builder(jobConfigURI)
-          .withConfig(rawConfig)
+      JobSpec.Builder builder = JobSpec.builder(jobConfigURI).withConfig(rawConfig)
           .withDescription(description)
-          .withVersion(version)
-          .build();
+          .withVersion(version);
+
+      if (rawConfig.hasPath(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+        try {
+          builder.withTemplate(new URI(rawConfig.getString(ConfigurationKeys.JOB_TEMPLATE_PATH)));
+        } catch (URISyntaxException e) {
+          throw new RuntimeException("Bad job template URI " + e, e);
+        }
+      }
+
+      return builder.build();
     }
   }
 }

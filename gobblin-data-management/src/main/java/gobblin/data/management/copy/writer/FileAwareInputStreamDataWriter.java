@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.data.management.copy.writer;
@@ -35,9 +40,14 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.google.common.io.Closer;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.NotConfiguredException;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
@@ -54,6 +64,9 @@ import gobblin.util.ForkOperatorUtils;
 import gobblin.util.PathUtils;
 import gobblin.util.WriterUtils;
 import gobblin.util.io.StreamCopier;
+import gobblin.util.io.StreamCopierSharedLimiterKey;
+import gobblin.util.limiter.Limiter;
+import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.writer.DataWriter;
 
 import lombok.extern.slf4j.Slf4j;
@@ -69,13 +82,15 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
-  protected final State state;
+  protected final WorkUnitState state;
   protected final FileSystem fs;
   protected final Path stagingDir;
   protected final Path outputDir;
   protected final Closer closer = Closer.create();
   protected CopyableDatasetMetadata copyableDatasetMetadata;
   protected final RecoveryHelper recoveryHelper;
+  protected final SharedResourcesBroker<GobblinScopeTypes> taskBroker;
+  protected final int bufferSize;
 
   protected final Meter copySpeedMeter;
 
@@ -95,7 +110,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       throw new IOException("Distcp can only operate with one branch.");
     }
 
-    this.state = state;
+    if (!(state instanceof WorkUnitState)) {
+      throw new RuntimeException(String.format("Distcp requires a %s on construction.", WorkUnitState.class.getSimpleName()));
+    }
+    this.state = (WorkUnitState) state;
+
+    this.taskBroker = this.state.getTaskBroker();
+
     this.writerAttemptIdOptional = Optional.fromNullable(writerAttemptId);
 
     String uri = this.state.getProp(
@@ -113,6 +134,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.actualProcessedCopyableFile = Optional.absent();
 
     this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
+
+    this.bufferSize = state.getPropAsInt(CopyConfiguration.BUFFER_SIZE, StreamCopier.DEFAULT_BUFFER_SIZE);
   }
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
@@ -176,7 +199,19 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       FSDataOutputStream os =
           this.fs.create(writeAt, true, this.fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
       try {
-        StreamCopier copier = new StreamCopier(inputStream, os);
+
+        StreamCopier copier = new StreamCopier(inputStream, os).withBufferSize(this.bufferSize);
+
+        StreamCopierSharedLimiterKey key =
+            new StreamCopierSharedLimiterKey(copyableFile.getOrigin().getPath().toUri(), this.fs.makeQualified(writeAt).toUri());
+        log.info("Acquiring a limiter for stream copier with key " + key.toConfigurationKey());
+        try {
+          Limiter limiter = this.taskBroker.getSharedResource(new SharedLimiterFactory<GobblinScopeTypes>(), key);
+          copier.withBytesTransferedLimiter(limiter);
+        } catch (NotConfiguredException nce) {
+          log.warn("A limiter for %s is not configured. Will not use limiter for %s.", key, StreamCopier.class);
+        }
+
         if (isInstrumentationEnabled()) {
           copier.withCopySpeedMeter(this.copySpeedMeter);
         }

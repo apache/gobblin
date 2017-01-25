@@ -1,21 +1,24 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.runtime;
 
 import com.typesafe.config.Config;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -23,8 +26,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-
-import javax.annotation.Nullable;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -44,11 +45,15 @@ import com.google.common.eventbus.Subscribe;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.gobblin_scopes.JobScopeInstance;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.commit.CommitSequenceStore;
 import gobblin.commit.DeliverySemantics;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.instrumented.Instrumented;
+import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.JobHistoryStore;
 import gobblin.metastore.MetaStoreModule;
 import gobblin.metrics.GobblinMetrics;
@@ -58,12 +63,15 @@ import gobblin.runtime.commit.FsCommitSequenceStore;
 import gobblin.runtime.util.JobMetrics;
 import gobblin.source.Source;
 import gobblin.source.extractor.JobCommitPolicy;
+import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.executors.IteratorExecutor;
 
+import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.Getter;
 
@@ -73,7 +81,7 @@ import lombok.Getter;
  *
  * @author Yinan Li
  */
-public class JobContext {
+public class JobContext implements Closeable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobContext.class);
 
@@ -108,10 +116,13 @@ public class JobContext {
 
   private final Logger logger;
 
+  @Getter
+  private final SharedResourcesBroker<GobblinScopeTypes> jobBroker;
+
   // A map from dataset URNs to DatasetStates (optional and maybe absent if not populated)
   private Optional<Map<String, JobState.DatasetState>> datasetStatesByUrns = Optional.absent();
 
-  public JobContext(Properties jobProps, Logger logger) throws Exception {
+  public JobContext(Properties jobProps, Logger logger, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
@@ -120,6 +131,7 @@ public class JobContext {
         : JobLauncherUtils.newJobId(this.jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);
 
+    this.jobBroker = instanceBroker.newSubscopedBuilder(new JobScopeInstance(this.jobName, this.jobId)).build();
     this.jobCommitPolicy = JobCommitPolicy.getCommitPolicy(jobProps);
 
     this.jobLockEnabled =
@@ -414,6 +426,12 @@ public class JobContext {
     }
 
     this.jobState.setState(JobState.RunningState.COMMITTED);
+    close();
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.jobBroker.close();
   }
 
   private int numCommitThreads() {

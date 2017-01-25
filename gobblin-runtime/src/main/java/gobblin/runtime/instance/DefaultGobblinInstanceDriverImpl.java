@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2015 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.runtime.instance;
 
@@ -23,6 +28,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
@@ -68,13 +75,15 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   protected final MetricContext _metricCtx;
   protected JobSpecListener _jobSpecListener;
   private final StandardMetrics _metrics;
+  private final SharedResourcesBroker<GobblinScopeTypes> _instanceBroker;
 
   public DefaultGobblinInstanceDriverImpl(String instanceName,
       Configurable sysConfig, JobCatalog jobCatalog,
       JobSpecScheduler jobScheduler,
       JobExecutionLauncher jobLauncher,
       Optional<MetricContext> baseMetricContext,
-      Optional<Logger> log) {
+      Optional<Logger> log,
+      SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
     Preconditions.checkNotNull(jobCatalog);
     Preconditions.checkNotNull(jobScheduler);
     Preconditions.checkNotNull(jobLauncher);
@@ -90,6 +99,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     _sysConfig = sysConfig;
     _instanceCfg = ConfigAccessor.createFromGlobalConfig(_sysConfig.getConfig());
     _callbacksDispatcher = new JobLifecycleListenersList(_jobCatalog, _jobScheduler, _log);
+    _instanceBroker = instanceBroker;
 
     _metrics = new StandardMetrics(this);
   }
@@ -124,6 +134,11 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
   /** {@inheritDoc} */
   @Override public Configurable getSysConfig() {
     return _sysConfig;
+  }
+
+  /** {@inheritDoc} */
+  @Override public SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker() {
+    return _instanceBroker;
   }
 
   /** {@inheritDoc} */

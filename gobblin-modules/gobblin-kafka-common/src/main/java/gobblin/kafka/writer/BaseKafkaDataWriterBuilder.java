@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package gobblin.kafka.writer;
@@ -22,17 +27,17 @@ import com.typesafe.config.Config;
 
 import gobblin.configuration.State;
 import gobblin.util.ConfigUtils;
+import gobblin.writer.AsyncWriterManager;
+import gobblin.writer.AsyncDataWriter;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
-import gobblin.writer.PartitionAwareDataWriterBuilder;
+
 
 /**
  * Base class for creating KafkaDataWriter builders.
  */
 
 public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> {
-
-  private static final Long MILLIS_TO_NANOS = 1000L * 1000L;
 
   protected abstract AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props);
 
@@ -48,21 +53,19 @@ public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schem
     State state = this.destination.getProperties();
     Properties taskProps = state.getProperties();
     Config config = ConfigUtils.propertiesToConfig(taskProps);
-    long commitTimeoutInNanos = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
-        KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT) * MILLIS_TO_NANOS;
+    long commitTimeoutMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_CONFIG,
+        KafkaWriterConfigurationKeys.COMMIT_TIMEOUT_MILLIS_DEFAULT);
     long commitStepWaitTimeMillis = ConfigUtils.getLong(config, KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_CONFIG,
         KafkaWriterConfigurationKeys.COMMIT_STEP_WAIT_TIME_DEFAULT);
     double failureAllowance = ConfigUtils.getDouble(config, KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG,
         KafkaWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_DEFAULT) / 100.0;
 
-    return AsyncBestEffortDataWriter.builder()
+    return AsyncWriterManager.builder()
         .config(config)
-        .recordsAttemptedMetricName(KafkaWriterMetricNames.RECORDS_PRODUCED_METER)
-        .recordsSuccessMetricName(KafkaWriterMetricNames.RECORDS_SUCCESS_METER)
-        .recordsFailedMetricName(KafkaWriterMetricNames.RECORDS_FAILED_METER)
-        .commitTimeoutInNanos(commitTimeoutInNanos)
+        .commitTimeoutMillis(commitTimeoutMillis)
         .commitStepWaitTimeInMillis(commitStepWaitTimeMillis)
-        .failureAllowance(failureAllowance)
+        .failureAllowanceRatio(failureAllowance)
+        .retriesEnabled(false)
         .asyncDataWriter(getAsyncDataWriter(taskProps))
         .build();
   }

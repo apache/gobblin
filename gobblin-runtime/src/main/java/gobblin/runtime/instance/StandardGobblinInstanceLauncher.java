@@ -1,13 +1,18 @@
 /*
- * Copyright (C) 2014-2016 LinkedIn Corp. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
- * this file except in compliance with the License. You may obtain a copy of the
- * License at  http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package gobblin.runtime.instance;
 
@@ -24,6 +29,11 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.SimpleScope;
+import gobblin.broker.SharedResourcesBrokerFactory;
+import gobblin.broker.SharedResourcesBrokerImpl;
+import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.instrumented.Instrumented;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
@@ -46,18 +56,21 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
   private final StandardGobblinInstanceDriver _driver;
   private final MetricContext _metricContext;
   private final boolean _instrumentationEnabled;
+  private final SharedResourcesBroker<GobblinScopeTypes> _instanceBroker;
 
   protected StandardGobblinInstanceLauncher(String name,
       Configurable instanceConf,
       StandardGobblinInstanceDriver.Builder driverBuilder,
       Optional<MetricContext> metricContext,
-      Optional<Logger> log) {
+      Optional<Logger> log,
+      SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
     _log = log.or(LoggerFactory.getLogger(getClass()));
     _name = name;
     _instanceConf = instanceConf;
     _driver = driverBuilder.withInstanceEnvironment(this).build();
     _instrumentationEnabled = metricContext.isPresent();
     _metricContext = metricContext.orNull();
+    _instanceBroker = instanceBroker;
   }
 
   /** {@inheritDoc} */
@@ -86,6 +99,12 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
 
   /** {@inheritDoc} */
   @Override
+  public SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker() {
+    return _instanceBroker;
+  }
+
+  /** {@inheritDoc} */
+  @Override
   protected void startUp() throws Exception {
     _driver.startUp();
   }
@@ -109,6 +128,7 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
     Optional<? extends Configurable> _instanceConfig = Optional.absent();
     Optional<Boolean> _instrumentationEnabled = Optional.absent();
     Optional<MetricContext> _metricContext = Optional.absent();
+    Optional<SharedResourcesBroker<GobblinScopeTypes>> _instanceBroker = Optional.absent();
 
     public Builder() {
       _driver.withInstanceEnvironment(this);
@@ -212,10 +232,29 @@ public class StandardGobblinInstanceLauncher extends AbstractIdleService
       return GobblinMetrics.isEnabled(getSysConfig().getConfig());
     }
 
+    public StandardGobblinInstanceLauncher.Builder withInstanceBroker(SharedResourcesBroker<GobblinScopeTypes> broker) {
+      _instanceBroker = Optional.of(broker);
+      return this;
+    }
+
+    public SharedResourcesBroker<GobblinScopeTypes> getInstanceBroker() {
+      if (!_instanceBroker.isPresent()) {
+        _instanceBroker = Optional.of(getDefaultInstanceBroker());
+      }
+      return _instanceBroker.get();
+    }
+
+    public SharedResourcesBroker<GobblinScopeTypes> getDefaultInstanceBroker() {
+      SharedResourcesBrokerImpl<GobblinScopeTypes> globalBroker =
+          SharedResourcesBrokerFactory.createDefaultTopLevelBroker(getSysConfig().getConfig(),
+              GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+      return globalBroker.newSubscopedBuilder(new SimpleScope<>(GobblinScopeTypes.INSTANCE, getInstanceName())).build();
+    }
+
     public StandardGobblinInstanceLauncher build() {
       return new StandardGobblinInstanceLauncher(getInstanceName(), getSysConfig(), driver(),
           isInstrumentationEnabled() ? Optional.of(getMetricContext()) : Optional.<MetricContext>absent(),
-          Optional.of(getLog()));
+          Optional.of(getLog()), getInstanceBroker());
     }
 
     @Override
