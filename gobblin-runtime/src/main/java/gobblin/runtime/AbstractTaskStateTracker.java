@@ -22,6 +22,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import gobblin.runtime.fork.Fork;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 
