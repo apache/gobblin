@@ -122,7 +122,7 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
   private final AtomicReference<ForkState> forkState;
 
   private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
-  private static final Object SHUTDOWN_RECORD = new Object();
+  protected static final Object SHUTDOWN_RECORD = new Object();
 
   public Fork(TaskContext taskContext, Object schema, int branches, int index, ExecutionModel executionModel)
       throws Exception {
