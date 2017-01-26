@@ -2,8 +2,10 @@ package gobblin.ingestion.google.adwords;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Properties;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -21,30 +23,57 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 
-import lombok.extern.slf4j.Slf4j;
-
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 
 
-@Slf4j
 public class GoogleAdWordsCredential {
-  public static final String REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob";
-  public static final ArrayList<String> SCOPES = Lists.newArrayList("https://www.googleapis.com/auth/adwords");
-  public final String _clientId;
-  public final String _clientSecret;
-  public final String _appName;
+  private static final String REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob";
+  private static final ArrayList<String> SCOPES = Lists.newArrayList("https://www.googleapis.com/auth/adwords");
+  private final String _clientId;
+  private final String _clientSecret;
+  private final String _appName;
   private final String _developerToken;
   private final String _refreshToken;
+
+  /**
+   * This main method is for getting an updated refresh token.
+   * Configure the google_adwords_credential.properties file to do all necessary setup.
+   */
+  public static void main(String[] args)
+      throws IOException, ValidationException {
+    InputStream input = GoogleAdWordsCredential.class.getResourceAsStream("/google_adwords_credential.properties");
+    Properties prop = new Properties();
+    prop.load(input);
+
+    GoogleAdWordsCredential credential =
+        new GoogleAdWordsCredential(prop.getProperty(GoogleAdWordsSource.KEY_DEVELOPER_TOKEN),
+            prop.getProperty(prop.getProperty(ConfigurationKeys.SOURCE_ENTITY)),
+            prop.getProperty(GoogleAdWordsSource.KEY_CLIENT_ID),
+            prop.getProperty(GoogleAdWordsSource.KEY_CLIENT_SECRET));
+    String refreshToken = credential.getRefreshToken();
+    System.out.println(String.format("The updated refresh token is: %s", refreshToken));
+  }
 
   public GoogleAdWordsCredential(WorkUnitState state) {
     _developerToken = state.getProp(GoogleAdWordsSource.KEY_DEVELOPER_TOKEN);
     _refreshToken = state.getProp(GoogleAdWordsSource.KEY_REFRESH_TOKEN);
 
-    //For getting refresh tokens.
     _appName = state.getProp(ConfigurationKeys.SOURCE_ENTITY);
     _clientId = state.getProp(GoogleAdWordsSource.KEY_CLIENT_ID);
     _clientSecret = state.getProp(GoogleAdWordsSource.KEY_CLIENT_SECRET);
+  }
+
+  /**
+   * This constructor is for updating the refresh token only
+   */
+  private GoogleAdWordsCredential(String developerToken, String appName, String clientId, String clientSecret) {
+    _developerToken = developerToken;
+    _refreshToken = null;
+
+    _appName = appName;
+    _clientId = clientId;
+    _clientSecret = clientSecret;
   }
 
   public AdWordsSession.ImmutableAdWordsSession buildRootSession()
@@ -55,7 +84,7 @@ public class GoogleAdWordsCredential {
         .buildImmutable();
   }
 
-  public String getRefreshToken()
+  private String getRefreshToken()
       throws ValidationException, IOException {
     GoogleClientSecrets clientSecrets = getGoogleClientSecrets();
     GoogleAuthorizationCodeFlow authorizationFlow =
@@ -70,8 +99,8 @@ public class GoogleAdWordsCredential {
 //    AdWordsSession build = new AdWordsSession.Builder().fromFile().build();
 
     String authorizeUrl = authorizationFlow.newAuthorizationUrl().setRedirectUri(REDIRECT_URI).build();
-    log.info(String.format("Paste this url in your browser:%n%s%n", authorizeUrl));
-    log.info("Type the code you received here: ");
+    System.out.println(String.format("Paste this url in your browser:%n%s%n", authorizeUrl));
+    System.out.println("Type the code you received here: ");
     String authorizationCode = new BufferedReader(new InputStreamReader(System.in, Charsets.UTF_8)).readLine();
 
     // Authorize the OAuth2 token.
@@ -86,22 +115,22 @@ public class GoogleAdWordsCredential {
     return credential.getRefreshToken();
   }
 
-  public GoogleCredential buildGoogleCredential()
+  private GoogleCredential buildGoogleCredential()
       throws ValidationException {
     return buildGoogleCredential(getGoogleClientSecrets());
   }
 
-  public static GoogleCredential buildGoogleCredential(GoogleClientSecrets clientSecrets) {
+  private static GoogleCredential buildGoogleCredential(GoogleClientSecrets clientSecrets) {
     return new GoogleCredential.Builder().setTransport(new NetHttpTransport()).setJsonFactory(new JacksonFactory())
         .setClientSecrets(clientSecrets).build();
   }
 
-  public GoogleClientSecrets getGoogleClientSecrets()
+  private GoogleClientSecrets getGoogleClientSecrets()
       throws ValidationException {
     return getGoogleClientSecrets(_clientId, _clientSecret, _appName);
   }
 
-  public static GoogleClientSecrets getGoogleClientSecrets(String clientId, String clientSecrete, String appName)
+  private static GoogleClientSecrets getGoogleClientSecrets(String clientId, String clientSecrete, String appName)
       throws ValidationException {
     Configuration config = new PropertiesConfiguration();
     config.setProperty("api.adwords.clientId", clientId);

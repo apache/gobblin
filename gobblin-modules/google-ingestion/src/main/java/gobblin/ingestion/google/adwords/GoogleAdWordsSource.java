@@ -2,9 +2,6 @@ package gobblin.ingestion.google.adwords;
 
 import java.io.IOException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.QueryBasedSource;
@@ -17,12 +14,6 @@ public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
    * Specify the master customer id. Standard format that has dashes between numbers is acceptable.
    */
   static final String KEY_MASTER_CUSTOMER = ADWORDS + "master_customer_id";
-  /**
-   * Optional.
-   * Specify the type of job you want to run. Set this to true if you want to get an updated refresh token.
-   * If omitted, the service will download the reports.
-   */
-  public static final String KEY_GET_REFRESH_TOKEN = ADWORDS + "get_refresh_token";
   // ================================================
   // ========= REQUEST CONFIGURATION BEGIN ==========
   // ================================================
@@ -147,9 +138,8 @@ public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
    */
   static final String KEY_DEBUG_PATH_FILE = DEBUG + "file_output_path";
   // ================================
-  // ========= DEBUG BEGIN ==========
+  // ========= DEBUG END ==========
   // ================================
-  private final static Logger LOG = LoggerFactory.getLogger(GoogleAdWordsSource.class);
 
   @Override
   public Extractor<String, String[]> getExtractor(WorkUnitState state)

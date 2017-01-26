@@ -11,9 +11,6 @@ job.commit.policy=full
 
 
 ## Network Connection
-source.google.privatekey_fs_uri=file://localhost/
-source.google.api_scopes=??
-source.conn.private.key=??
 #source.conn.use.proxy.url
 #source.conn.use.proxy.port
 
@@ -38,8 +35,6 @@ source.querybased.watermark.type=hour
 source.querybased.partition.interval=23
 source.class=gobblin.ingestion.google.adwords.GoogleAdWordsSource
 
-## AdWords Specific
-source.google_adwords.get_refresh_token=false
 # Credentials
 source.google_adwords.credential.developer_token=??
 source.google_adwords.credential.refresh_token=??
