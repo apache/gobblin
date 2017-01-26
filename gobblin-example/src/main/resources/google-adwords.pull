@@ -56,7 +56,7 @@ source.google_adwords.request.reporting.include_zero_impressions=false
 #source.google_adwords.debug.file_output_path=??
 
 ## Converter properties
-converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.avro.JsonIntermediateToAvroConverter
+converter.classes=gobblin.converter.csv.CsvToJsonConverterV2,gobblin.converter.csv.PercentageDoubleStringConverter,gobblin.converter.avro.JsonIntermediateToAvroConverter
 
 
 ## Writer properties

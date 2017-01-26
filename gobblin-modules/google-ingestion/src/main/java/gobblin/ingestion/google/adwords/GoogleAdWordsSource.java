@@ -98,23 +98,21 @@ public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
   private static final String CREDENTIAL = ADWORDS + "credential.";
   /**
    * Must provide.
-   * Specify the developer token.
-   * This can be found in your Account Setting => AdWords API Center
+   * Specify the developer token. This can be found in your Account Setting => AdWords API Center
    */
   static final String KEY_DEVELOPER_TOKEN = CREDENTIAL + "developer_token";
   /**
    * Must provide.
-   * Specify the refresh token.
-   * This can be got by running the main method of GoogleAdWordsCredential.
+   * Specify the refresh token. This can be got by running the main method of GoogleAdWordsCredential.
    */
   static final String KEY_REFRESH_TOKEN = CREDENTIAL + "refresh_token";
   /**
-   * Must provide when getting the refresh token.
+   * Must provide.
    * Specify the client id of your OAuth 2.0 credential. This can be found in the Google API Manger.
    */
   static final String KEY_CLIENT_ID = CREDENTIAL + "client_id";
   /**
-   * Must provide when getting the refresh token.
+   * Must provide.
    * Specify the client secret of your OAuth 2.0 credential. This can be found in the Google API Manger.
    */
   static final String KEY_CLIENT_SECRET = CREDENTIAL + "client_secret";
