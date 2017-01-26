@@ -10,7 +10,7 @@
  * CONDITIONS OF ANY KIND, either express or implied.
  */
 
-package gobblin.writer.partitioner;
+package gobblin.util;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,8 +20,8 @@ import org.joda.time.DateTimeFieldType;
 
 
 /**
- * Temporal granularity types for writing (see {@link TimeBasedWriterPartitioner}) and reading
- * (see {@link DatePartitionedAvroFileSource}) date partitioned data.
+ * Temporal granularity types for writing ({@link gobblin.writer.partitioner.TimeBasedWriterPartitioner}) and reading
+ * ({@link gobblin.source.DatePartitionedAvroFileSource}) date partitioned data.
  * 
  * @author Lorand Bendig
  *

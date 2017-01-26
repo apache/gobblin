@@ -154,12 +154,12 @@ public class DatePartitionedAvroFileExtractorTest {
     state.setProp(ConfigurationKeys.SOURCE_ENTITY, SOURCE_ENTITY);
     state.setProp(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS, 2);
 
-    state.setProp(DatePartitionedAvroFileSource.DATE_PARTITIONED_SOURCE_PARTITION_PATTERN, DATE_PATTERN);
-    state.setProp(DatePartitionedAvroFileSource.DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE,
-        DateTimeFormat.forPattern(DATE_PATTERN).print(this.startDateTime.minusMinutes(1)));
+    state.setProp("date.partitioned.source.partition.pattern", DATE_PATTERN);
+    state.setProp("date.partitioned.source.min.watermark.value", DateTimeFormat.forPattern(DATE_PATTERN).print(
+        this.startDateTime.minusMinutes(1)));
     state.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, TableType.SNAPSHOT_ONLY);
-    state.setProp(DatePartitionedAvroFileSource.DATE_PARTITIONED_SOURCE_PARTITION_PREFIX, PREFIX);
-    state.setProp(DatePartitionedAvroFileSource.DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX, SUFFIX);
+    state.setProp("date.partitioned.source.partition.prefix", PREFIX);
+    state.setProp("date.partitioned.source.partition.suffix", SUFFIX);
 
     //Read data partitioned by minutes, i.e each workunit is assigned records under the same YYYY/MM/dd/HH_mm directory
     List<WorkUnit> workunits = source.getWorkunits(state);

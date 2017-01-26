@@ -53,7 +53,7 @@ import gobblin.source.extractor.filebased.FileBasedSource;
 import gobblin.source.extractor.hadoop.AvroFsHelper;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.Extract.TableType;
-import gobblin.writer.partitioner.DatePartitionType;
+import gobblin.util.DatePartitionType;
 import gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
 import gobblin.source.workunit.MultiWorkUnitWeightedQueue;
 import gobblin.source.workunit.WorkUnit;
@@ -75,6 +75,9 @@ import gobblin.source.workunit.WorkUnit;
  * {@link #DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB} files have been processed, or until there is no more data 
  * to process. For example, if {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} is set to 2015/01/01, then the job
  * will read from the folder /my/data/daily/2015/01/02/, /my/data/daily/2015/01/03/, /my/data/2015/01/04/ etc.
+ * When partitions contain pre/suffixes in the form of /my/data/prefix/[year]/[month]/[day]/suffix, one can refer to
+ * them via the {@link #DATE_PARTITIONED_SOURCE_PARTITION_PREFIX} and {@link #DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX}
+ * properties.
  * </p>
  * 
  * </p>
@@ -86,18 +89,18 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
   // Configuration parameters
   private static final String DATE_PARTITIONED_SOURCE_PREFIX = "date.partitioned.source";
   
-  public static final String DATE_PARTITIONED_SOURCE_PARTITION_PREFIX =
+  private static final String DATE_PARTITIONED_SOURCE_PARTITION_PREFIX =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.prefix";
-  public static final String DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX =
+  
+  private static final String DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.suffix";
-  public static final String DATE_PARTITIONED_SOURCE_PARTITION_PATTERN =
+  
+  static final String DATE_PARTITIONED_SOURCE_PARTITION_PATTERN =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.pattern";
-  public static final String DATE_PARTITIONED_SOURCE_PARTITION_TIMEZONE =
-      DATE_PARTITIONED_SOURCE_PREFIX + ".partition.timezone";
-  public static final String DEFAULT_DATE_PARTITIONED_SOURCE_PARTITION_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
-  public static final String DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY =
+  
+  private static final String DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY =
       DATE_PARTITIONED_SOURCE_PREFIX + ".partition.granularity";
-  public static final DatePartitionType DEFAULT_DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY =
+  private static final DatePartitionType DEFAULT_DATE_PARTITIONED_SOURCE_PARTITION_GRANULARITY =
       DatePartitionType.HOUR;
   
   /**
@@ -107,20 +110,20 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
   * If this parameter is not specified the job will start reading data from
   * the beginning of Unix time.
   */
-  public static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE =
+  private static final String DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE =
       DATE_PARTITIONED_SOURCE_PREFIX + ".min.watermark.value";
-
+  
   /**
   * The maximum number of files that this job should process.
   */
-  public static final String DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB =
+  private static final String DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB =
       DATE_PARTITIONED_SOURCE_PREFIX + ".max.files.per.job";
 
   /**
   * The maximum number of {@link MultiWorkUnits} to create for this job. This number also corresponds to the number of
   * tasks (or if running on Hadoop, the number of map tasks) that will be launched in this job.
   */
-  public static final String DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB =
+  private static final String DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB =
       DATE_PARTITIONED_SOURCE_PREFIX + ".max.workunits.per.job";
 
   // Default configuration parameter values
@@ -164,15 +167,11 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
    * Gobblin calls the {@link Source#getWorkunits(SourceState)} method after creating a {@link Source} object with a
    * blank constructor, so any custom initialization of the object needs to be done here.
    */
-  private void init(SourceState state) {
+  protected void init(SourceState state) {
     DateTimeZone.setDefault(DateTimeZone
         .forID(state.getProp(ConfigurationKeys.SOURCE_TIMEZONE, ConfigurationKeys.DEFAULT_SOURCE_TIMEZONE)));
     
-    initDatePartitionFromPattern(state);
-    
-    if (this.partitionPatternFormatter == null) {
-      initDatePartitionFromGranularity(state);
-    }
+    initDatePartition(state);
     
     try {
       initFileSystemHelper(state);
@@ -205,6 +204,13 @@ public class DatePartitionedAvroFileSource extends FileBasedSource<Schema, Gener
     
     this.sourcePartitionSuffix = state.getProp(DATE_PARTITIONED_SOURCE_PARTITION_SUFFIX, StringUtils.EMPTY);
     
+  }
+  
+  private void initDatePartition(State state) {
+    initDatePartitionFromPattern(state);
+    if (this.partitionPatternFormatter == null) {
+      initDatePartitionFromGranularity(state);
+    }
   }
   
   private void initDatePartitionFromPattern(State state) {

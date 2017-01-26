@@ -37,6 +37,7 @@ import com.google.common.base.Strings;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.util.DatePartitionType;
 import gobblin.util.ForkOperatorUtils;
 
 
