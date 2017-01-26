@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,6 +44,7 @@ import avro.shaded.com.google.common.base.Joiner;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.ingestion.google.IteratorWithDataSink;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.limiter.RateBasedLimiter;
 
@@ -53,7 +53,7 @@ import gobblin.util.limiter.RateBasedLimiter;
  * This iterator holds a GoogleWebmasterDataFetcher, through which it get all pages. And then for each page, it will get all query data(Clicks, Impressions, CTR, Position). Basically, it will cache all pages got, and for each page, cache the detailed query data, and then iterate through them one by one.
  */
 @Slf4j
-class GoogleWebmasterExtractorIterator {
+class GoogleWebmasterExtractorIterator extends IteratorWithDataSink<String[]> {
 
   private final RateBasedLimiter LIMITER;
   private final int ROUND_TIME_OUT;
@@ -70,8 +70,6 @@ class GoogleWebmasterExtractorIterator {
   private final String _startDate;
   private final String _endDate;
   private final String _country;
-  private Thread _producerThread;
-  private LinkedBlockingDeque<String[]> _cachedQueries = new LinkedBlockingDeque<>(2000);
   private final Map<GoogleWebmasterFilter.Dimension, ApiDimensionFilter> _filterMap;
   //This is the requested dimensions sent to Google API
   private final List<GoogleWebmasterFilter.Dimension> _requestedDimensions;
@@ -128,46 +126,15 @@ class GoogleWebmasterExtractorIterator {
     }
   }
 
-  public boolean hasNext()
-      throws IOException {
-    initialize();
-    if (!_cachedQueries.isEmpty()) {
-      return true;
-    }
+  @Override
+  protected Runnable initializationRunnable() {
     try {
-      String[] next = _cachedQueries.poll(1, TimeUnit.SECONDS);
-      while (next == null) {
-        if (_producerThread.isAlive()) {
-          //Job not done yet. Keep waiting.
-          next = _cachedQueries.poll(1, TimeUnit.SECONDS);
-        } else {
-          log.info("Producer job has finished. No more query data in the queue.");
-          return false;
-        }
-      }
-      //Must put it back. Implement in this way because LinkedBlockingDeque doesn't support blocking peek.
-      _cachedQueries.putFirst(next);
-      return true;
-    } catch (InterruptedException e) {
+      Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
+      return new ResponseProducer(allJobs);
+    } catch (Exception e) {
+      log.error(e.getMessage());
       throw new RuntimeException(e);
     }
-  }
-
-  private void initialize()
-      throws IOException {
-    if (_producerThread == null) {
-      Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
-      _producerThread = new Thread(new ResponseProducer(allJobs));
-      _producerThread.start();
-    }
-  }
-
-  public String[] next()
-      throws IOException {
-    if (hasNext()) {
-      return _cachedQueries.remove();
-    }
-    throw new NoSuchElementException();
   }
 
   /**
@@ -245,13 +212,13 @@ class GoogleWebmasterExtractorIterator {
             batch.add(job);
           }
           if (batch.size() == BATCH_SIZE) {
-            es.submit(getResponses(batch, retries, _cachedQueries, reporter));
+            es.submit(getResponses(batch, retries, _dataSink, reporter));
             batch = new ArrayList<>(BATCH_SIZE);
           }
         }
         //Send the last batch
         if (!batch.isEmpty()) {
-          es.submit(getResponses(batch, retries, _cachedQueries, reporter));
+          es.submit(getResponses(batch, retries, _dataSink, reporter));
         }
         log.info(String.format("Submitted all jobs at round %d.", r));
         try {
