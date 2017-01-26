@@ -25,10 +25,5 @@ subprojects {
         restClientCompile externalDependency.pegasus.restliClient,externalDependency.pegasus.restliCommon,externalDependency.pegasus.restliTools
       }
     }
-
-    if (project.hasProperty('requiresJavaVersion') && !project.requiresJavaVersion.equals(javaVersion)) {
-      throw new RuntimeException("Project ${name} requres Java version ${requiresJavaVersion}"
-          + " which conflicts with build version ${javaVersion}. Please use -PjdkVersion=${requiresJavaVersion} .")
-    }
   }
 }
