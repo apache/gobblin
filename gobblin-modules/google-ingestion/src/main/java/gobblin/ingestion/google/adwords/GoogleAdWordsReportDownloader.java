@@ -49,6 +49,7 @@ import com.opencsv.CSVParser;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
+import gobblin.ingestion.google.webmaster.GoogleWebmasterExtractor;
 
 
 @Slf4j
@@ -354,7 +355,7 @@ public class GoogleAdWordsReportDownloader {
     if (_dateRangeType.equals(ReportDefinitionDateRangeType.ALL_TIME)) {
       return Arrays.asList(Pair.of("", ""));
     } else {
-      DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyyMMdd");
+      DateTimeFormatter dateFormatter = GoogleWebmasterExtractor.dateFormatter;
       if (_dailyPartition) {
         DateTime start = dateFormatter.parseDateTime(_startDate);
         DateTime end = dateFormatter.parseDateTime(_endDate);
