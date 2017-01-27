@@ -17,7 +17,6 @@
 
 package gobblin.source.extractor.extract.kafka;
 
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaJsonDeserializer;
 
 import java.io.IOException;
@@ -72,14 +71,19 @@ public class KafkaDeserializerExtractor extends KafkaExtractor<Object, Object> {
 
   public static final String KAFKA_DESERIALIZER_TYPE = "kafka.deserializer.type";
 
+  static final String KAFKA_TOPIC_LATEST_SCHEMA = "kafka.topic.latest.schema";
+
   private static final String CONFLUENT_SCHEMA_REGISTRY_URL = "schema.registry.url";
 
   private final Deserializer<?> kafkaDeserializer;
   private final KafkaSchemaRegistry<?, ?> kafkaSchemaRegistry;
 
   public KafkaDeserializerExtractor(WorkUnitState state) throws ReflectiveOperationException {
-    this(state, getDeserializer(getProps(state)),
-        getKafkaSchemaRegistry(getProps(state)));
+    super(state);
+    this.kafkaSchemaRegistry = getKafkaSchemaRegistry(getProps(state));
+    Properties deserializerProps = getProps(state);
+    deserializerProps.put(KAFKA_TOPIC_LATEST_SCHEMA, getSchema());
+    this.kafkaDeserializer = getDeserializer(deserializerProps);
   }
 
   @VisibleForTesting
@@ -96,7 +100,7 @@ public class KafkaDeserializerExtractor extends KafkaExtractor<Object, Object> {
   }
 
   @Override
-  public Object getSchema() throws IOException {
+  public Object getSchema() {
     try {
       return this.kafkaSchemaRegistry.getLatestSchemaByTopic(this.topicName);
     } catch (SchemaRegistryException e) {
@@ -168,9 +172,9 @@ public class KafkaDeserializerExtractor extends KafkaExtractor<Object, Object> {
     /**
      * Confluent's Avro {@link Deserializer}
      *
-     * @see KafkaAvroDeserializer
+     * @see KafkaAvroWithReaderSchemaDeserializer
      */
-    CONFLUENT_AVRO(KafkaAvroDeserializer.class, ConfluentKafkaSchemaRegistry.class),
+    CONFLUENT_AVRO(KafkaAvroWithReaderSchemaDeserializer.class, ConfluentKafkaSchemaRegistry.class),
 
     /**
      * Confluent's JSON {@link Deserializer}
