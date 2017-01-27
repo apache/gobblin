@@ -19,6 +19,8 @@ package gobblin.metastore;
 
 import static gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
 
+import com.google.common.base.Predicate;
+import gobblin.util.HadoopUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -38,8 +40,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.configuration.State;
-import gobblin.util.HadoopUtils;
-
 
 /**
  * An implementation of {@link StateStore} backed by a {@link FileSystem}.
@@ -214,7 +214,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
           }
         }
       } catch (Exception e) {
-        throw new IOException(e);
+        throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);
@@ -247,7 +247,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
           state = this.stateClass.newInstance();
         }
       } catch (Exception e) {
-        throw new IOException(e);
+        throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);
@@ -272,6 +272,24 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     }
 
     return states;
+  }
+
+  @Override
+  public List<String> getTableNames(String storeName, Predicate<String> predicate) throws IOException {
+    List<String> names = Lists.newArrayList();
+
+    Path storePath = new Path(this.storeRootDir, storeName);
+    if (!this.fs.exists(storePath)) {
+      return names;
+    }
+
+    for (FileStatus status : this.fs.listStatus(storePath)) {
+      if (predicate.apply(status.getPath().getName())) {
+        names.add(status.getPath().getName());
+      }
+    }
+
+    return names;
   }
 
   @Override

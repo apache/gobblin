@@ -17,9 +17,14 @@
 
 package gobblin.metastore;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.password.PasswordManager;
+import gobblin.util.ConfigUtils;
 import gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -41,6 +46,7 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import javax.sql.DataSource;
+import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.hadoop.io.Text;
 
 /**
@@ -78,6 +84,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private static final String SELECT_JOB_STATE_EXISTS_TEMPLATE =
       "SELECT 1 FROM $TABLE$ WHERE store_name = ? and table_name = ?";
 
+  private static final String SELECT_JOB_STATE_NAMES_TEMPLATE =
+      "SELECT table_name FROM $TABLE$ WHERE store_name = ?";
+
   private static final String DELETE_JOB_STORE_TEMPLATE =
       "DELETE FROM $TABLE$ WHERE store_name = ?";
 
@@ -101,6 +110,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private final String SELECT_JOB_STATE_SQL;
   private final String SELECT_JOB_STATE_WITH_LIKE_SQL;
   private final String SELECT_JOB_STATE_EXISTS_SQL;
+  private final String SELECT_JOB_STATE_NAMES_SQL;
   private final String DELETE_JOB_STORE_SQL;
   private final String DELETE_JOB_STATE_SQL;
   private final String CLONE_JOB_STATE_SQL;
@@ -123,6 +133,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     SELECT_JOB_STATE_SQL = SELECT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_WITH_LIKE_SQL = SELECT_JOB_STATE_WITH_LIKE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_EXISTS_SQL = SELECT_JOB_STATE_EXISTS_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_JOB_STATE_NAMES_SQL = SELECT_JOB_STATE_NAMES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     DELETE_JOB_STORE_SQL = DELETE_JOB_STORE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     DELETE_JOB_STATE_SQL = DELETE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     CLONE_JOB_STATE_SQL = CLONE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -133,8 +144,36 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
         PreparedStatement createStatement = connection.prepareStatement(createJobTable)) {
       createStatement.executeUpdate();
     } catch (SQLException e) {
-      throw new IOException(e);
+      throw new IOException("Failure creation table " + stateStoreTableName, e);
     }
+  }
+
+  /**
+   * creates a new {@link BasicDataSource}
+   * @param config the properties used for datasource instantiation
+   * @return
+   */
+  public static BasicDataSource newDataSource(Config config) {
+    BasicDataSource basicDataSource = new BasicDataSource();
+    PasswordManager passwordManager = PasswordManager.getInstance(ConfigUtils.configToProperties(config));
+
+    basicDataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
+        ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
+    // MySQL server can timeout a connection so need to validate connections before use
+    basicDataSource.setValidationQuery("select 1");
+    basicDataSource.setTestOnBorrow(true);
+    basicDataSource.setDefaultAutoCommit(false);
+    basicDataSource.setTimeBetweenEvictionRunsMillis(60000);
+    basicDataSource.setUrl(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
+    basicDataSource.setUsername(passwordManager.readPassword(
+        config.getString(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
+    basicDataSource.setPassword(passwordManager.readPassword(
+        config.getString(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
+    basicDataSource.setMinEvictableIdleTimeMillis(
+        ConfigUtils.getLong(config, ConfigurationKeys.STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY,
+            ConfigurationKeys.DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME));
+
+    return basicDataSource;
   }
 
   @Override
@@ -168,7 +207,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
         }
       }
     } catch (SQLException e) {
-      throw new IOException(e);
+      throw new IOException("Failure checking existence of storeName " + storeName + " tableName " + tableName, e);
     }
   }
 
@@ -210,7 +249,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       insertStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(e);
+      throw new IOException("Failure storing state to store " + storeName + " table " + tableName, e);
     }
   }
 
@@ -249,7 +288,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     } catch (RuntimeException e) {
       throw e;
     }catch (Exception e) {
-      throw new IOException(e);
+      throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
     }
 
     return null;
@@ -287,7 +326,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     } catch (RuntimeException re) {
       throw re;
     } catch (Exception e) {
-      throw new IOException(e);
+      throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
     }
 
     return states;
@@ -301,6 +340,29 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   @Override
   public List<T> getAll(String storeName) throws IOException {
     return getAll(storeName, "%", true);
+  }
+
+  @Override
+  public List<String> getTableNames(String storeName, Predicate<String> predicate) throws IOException {
+    List<String> names = Lists.newArrayList();
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_JOB_STATE_NAMES_SQL)) {
+      queryStatement.setString(1, storeName);
+
+      try (ResultSet rs = queryStatement.executeQuery()) {
+        while (rs.next()) {
+          String name = rs.getString(1);
+          if (predicate.apply(name)) {
+            names.add(name);
+          }
+        }
+      }
+    } catch (SQLException e) {
+      throw new IOException(String.format("Could not query table names for store %s", storeName), e);
+    }
+
+    return names;
   }
 
   @Override
@@ -319,7 +381,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       cloneStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(e.getMessage());
+      throw new IOException(String.format("Failure creating alias for store %s original %s", storeName, original), e);
     }
   }
 
@@ -333,7 +395,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       deleteStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(e.getMessage());
+      throw new IOException("failure deleting storeName " + storeName + " tableName " + tableName, e);
     }
   }
 
@@ -345,7 +407,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       deleteStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(e.getMessage());
+      throw new IOException("failure deleting storeName " + storeName, e);
     }
   }
 }

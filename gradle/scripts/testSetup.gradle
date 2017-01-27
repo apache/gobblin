@@ -1,0 +1,73 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+subprojects {
+  plugins.withType(JavaPlugin) {
+    plugins.apply('findbugs')
+
+    test {
+      if (project.hasProperty("printTestOutput")) {
+        testLogging.showStandardStreams = true
+      }
+      useTestNG () {
+        excludeGroups 'ignore', 'performance'
+        if (project.hasProperty('skipTestGroup')) {
+          excludeGroups skipTestGroup
+        }
+        if (project.hasProperty('runTestGroups')) {
+          includeGroups project.runTestGroups
+        }
+      }
+      testLogging {
+        events "started","skipped","passed","failed"
+      }
+      // Some tests require MySQL we can either download an embedded Wix image or use a pre-installed version
+      if (rootProject.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(rootProject.usePreinstalledMysql)) {
+        systemProperty 'gobblin.metastore.testing.embeddedMysqlEnabled', 'false'
+      }
+    }
+
+    findbugs {
+      toolVersion = findBugsVersion
+      ignoreFailures = false
+      effort = "max"
+      sourceSets = [sourceSets.main] // Only analyze src/java/main, not src/java/test/
+      // The exclude filter file must be under "ligradle/findbugs/" for internal compatibility with ligradle FindBugs
+      excludeFilter = file(rootProject.projectDir.path + "/ligradle/findbugs/findbugsExclude.xml")
+    }
+  }
+
+  tasks.withType(FindBugs) {
+    // Only one findbugs report can be enabled at a time.
+    // There are 3 kinds of reports in gobblin.
+    // 1. xml - when withFindBugsXmlReport is set
+    // 2. xml:withMessages - For Li internal builds
+    // 3. html - otherwise
+    if (project.hasProperty("withFindBugsXmlReport") && reports.find { it.name == "xml:withMessages"} == null) {
+      reports {
+        html.enabled = false
+        xml.enabled = true
+      }
+    }
+    else if (reports.find { it.name == "xml:withMessages"} == null) {
+      reports {
+        html.enabled = true
+        xml.enabled = false
+      }
+    }
+  }
+}

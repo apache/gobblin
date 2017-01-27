@@ -63,3 +63,22 @@ modules.each { module ->
     }
   }
 }
+
+if (file('gobblin-restli').exists()) {
+  def restliSubModules = ['api', 'server', 'client']
+  include 'gobblin-restli:gobblin-restli-utils'
+  include 'gobblin-restli'
+
+  file('gobblin-restli').eachDir { submodule ->
+    if (!submodule.name.startsWith('.') && !submodule.name.equals('src')) {
+      def submoduleId = "gobblin-restli:${submodule.name}"
+      include submoduleId
+      restliSubModules.each { restliSubModule ->
+        def subSubModuleName = submodule.name + '-' + restliSubModule
+        if (new File(submodule, subSubModuleName).exists()) {
+          include "gobblin-restli:${submodule.name}:${subSubModuleName}"
+        }
+      }
+    }
+  }
+}

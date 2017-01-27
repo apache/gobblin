@@ -17,12 +17,16 @@
 
 package gobblin.cluster;
 
+import gobblin.metastore.StateStore;
+import gobblin.runtime.util.StateStores;
+import gobblin.util.ConfigUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import java.util.concurrent.Callable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -102,6 +106,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private volatile boolean jobSubmitted = false;
   private volatile boolean jobComplete = false;
+  private final StateStores stateStores;
 
   public GobblinHelixJobLauncher(Properties jobProps, HelixManager helixManager, Path appWorkDir,
       List<? extends Tag<?>> metadataTags)
@@ -124,11 +129,15 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
+    this.stateStores = new StateStores(ConfigUtils.propertiesToConfig(jobProps), appWorkDir,
+        GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
+        GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
+
     URI fsUri = URI.create(jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, new Configuration());
 
     this.taskStateCollectorService = new TaskStateCollectorService(jobProps, this.jobContext.getJobState(),
-        this.eventBus, this.fs, outputTaskStateDir);
+        this.eventBus, this.stateStores.taskStateStore, outputTaskStateDir);
   }
 
   @Override
@@ -241,12 +250,30 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   /**
    * Persist a single {@link WorkUnit} (flattened) to a file.
    */
-  private String persistWorkUnit(Path workUnitFileDir, WorkUnit workUnit, ParallelRunner stateSerDeRunner)
+  private String persistWorkUnit(final Path workUnitFileDir, final WorkUnit workUnit, ParallelRunner stateSerDeRunner)
       throws IOException {
-    String workUnitFileName = workUnit.getId() + (workUnit instanceof MultiWorkUnit ?
-        MULTI_WORK_UNIT_FILE_EXTENSION : WORK_UNIT_FILE_EXTENSION);
+    final StateStore stateStore;
+    String workUnitFileName = workUnit.getId();
+
+    if (workUnit instanceof MultiWorkUnit) {
+      workUnitFileName += MULTI_WORK_UNIT_FILE_EXTENSION;
+      stateStore = stateStores.mwuStateStore;
+    } else {
+      workUnitFileName += WORK_UNIT_FILE_EXTENSION;
+      stateStore = stateStores.wuStateStore;
+    }
+
     Path workUnitFile = new Path(workUnitFileDir, workUnitFileName);
-    stateSerDeRunner.serializeToFile(workUnit, workUnitFile);
+    final String fileName = workUnitFile.getName();
+    final String storeName = workUnitFile.getParent().getName();
+    stateSerDeRunner.submitCallable(new Callable<Void>() {
+      @Override
+      public Void call() throws Exception {
+        stateStore.put(storeName, fileName, workUnit);
+        return null;
+      }
+    }, "Serialize state to store " + storeName + " file " + fileName);
+
     return workUnitFile.toString();
   }
 
@@ -270,10 +297,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    * Delete persisted {@link WorkUnit}s upon job completion.
    */
   private void deletePersistedWorkUnitsForJob() throws IOException {
-    Path workUnitDir = new Path(this.inputWorkUnitDir, this.jobContext.getJobId());
-    if (this.fs.exists(workUnitDir)) {
-      LOGGER.info("Deleting persisted work units under " + workUnitDir);
-      this.fs.delete(workUnitDir, true);
-    }
+    LOGGER.info("Deleting persisted work units for job " + this.jobContext.getJobId());
+    stateStores.wuStateStore.delete(this.jobContext.getJobId());
   }
 }

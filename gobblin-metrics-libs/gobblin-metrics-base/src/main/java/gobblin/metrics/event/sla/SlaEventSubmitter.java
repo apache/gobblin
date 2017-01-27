@@ -56,6 +56,7 @@ public class SlaEventSubmitter {
   private String previousPublishTimestamp;
   private String dedupeStatus;
   private String completenessPercentage;
+  private String isFirstPublish;
   @Singular("additionalMetadata") private Map<String, String> additionalMetadata;
 
   /**
@@ -91,6 +92,7 @@ public class SlaEventSubmitter {
     this.recordCount = props.getProperty(SlaEventKeys.RECORD_COUNT_KEY);
     this.previousPublishTimestamp = props.getProperty(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY);
     this.dedupeStatus = props.getProperty(SlaEventKeys.DEDUPE_STATUS_KEY);
+    this.isFirstPublish = props.getProperty(SlaEventKeys.IS_FIRST_PUBLISH);
 
     this.additionalMetadata = Maps.newHashMap();
     for (Entry<Object, Object> entry : props.entrySet()) {
@@ -136,6 +138,7 @@ public class SlaEventSubmitter {
     eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.RECORD_COUNT_KEY), recordCount);
     eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY), previousPublishTimestamp);
     eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.DEDUPE_STATUS_KEY), dedupeStatus);
+    eventMetadataMap.put(withoutPropertiesPrefix(SlaEventKeys.IS_FIRST_PUBLISH), isFirstPublish);
 
     if (additionalMetadata != null) {
       eventMetadataMap.putAll(additionalMetadata);

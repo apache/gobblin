@@ -17,6 +17,7 @@
 
 package gobblin.runtime;
 
+import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
@@ -49,7 +50,7 @@ public class DummyJobContext extends JobContext {
   }
 
   @Override
-  protected FsDatasetStateStore createStateStore(Properties jobProps)
+  protected FsDatasetStateStore createStateStore(Config config)
       throws IOException {
     return new NoopDatasetStateStore(FileSystem.getLocal(new Configuration()), "");
   }

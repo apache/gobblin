@@ -17,6 +17,7 @@
 
 package gobblin.runtime;
 
+import com.typesafe.config.Config;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
@@ -63,6 +64,7 @@ import gobblin.runtime.util.JobMetrics;
 import gobblin.source.Source;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
 import gobblin.util.Either;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
@@ -91,7 +93,6 @@ public class JobContext implements Closeable {
   private final JobState jobState;
   @Getter(AccessLevel.PACKAGE)
   private final JobCommitPolicy jobCommitPolicy;
-  private final boolean jobLockEnabled;
   private final Optional<JobMetrics> jobMetricsOptional;
   private final Source<?, ?> source;
 
@@ -132,10 +133,7 @@ public class JobContext implements Closeable {
     this.jobBroker = instanceBroker.newSubscopedBuilder(new JobScopeInstance(this.jobName, this.jobId)).build();
     this.jobCommitPolicy = JobCommitPolicy.getCommitPolicy(jobProps);
 
-    this.jobLockEnabled =
-        Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, Boolean.TRUE.toString()));
-
-    this.datasetStateStore = createStateStore(jobProps);
+    this.datasetStateStore = createStateStore(ConfigUtils.propertiesToConfig(jobProps));
     this.jobHistoryStoreOptional = createJobHistoryStore(jobProps);
 
     State jobPropsState = new State();
@@ -166,16 +164,16 @@ public class JobContext implements Closeable {
         : 1;
   }
 
-  protected DatasetStateStore createStateStore(Properties jobProps) throws IOException {
-    boolean stateStoreEnabled = !jobProps.containsKey(ConfigurationKeys.STATE_STORE_ENABLED)
-        || Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.STATE_STORE_ENABLED));
+  protected DatasetStateStore createStateStore(Config jobConfig) throws IOException {
+    boolean stateStoreEnabled = !jobConfig.hasPath(ConfigurationKeys.STATE_STORE_ENABLED)
+        || jobConfig.getBoolean(ConfigurationKeys.STATE_STORE_ENABLED);
 
     String stateStoreType;
 
     if (!stateStoreEnabled) {
       stateStoreType = ConfigurationKeys.STATE_STORE_TYPE_NOOP;
     } else {
-      stateStoreType = jobProps.getProperty(ConfigurationKeys.STATE_STORE_TYPE_KEY,
+      stateStoreType = ConfigUtils.getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY,
           ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
     }
 
@@ -185,7 +183,7 @@ public class JobContext implements Closeable {
     try {
       DatasetStateStore.Factory stateStoreFactory =
           resolver.resolveClass(stateStoreType).newInstance();
-      return stateStoreFactory.createStateStore(jobProps);
+      return stateStoreFactory.createStateStore(jobConfig);
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -271,15 +269,6 @@ public class JobContext implements Closeable {
    */
   Source<?, ?> getSource() {
     return this.source;
-  }
-
-  /**
-   * Check whether the use of job lock is enabled or not.
-   *
-   * @return {@code true} if the use of job lock is enabled or {@code false} otherwise
-   */
-  boolean isJobLockEnabled() {
-    return this.jobLockEnabled;
   }
 
   protected void setTaskStagingAndOutputDirs() {

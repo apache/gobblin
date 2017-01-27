@@ -41,7 +41,9 @@ import lombok.Getter;
  */
 public class CountBasedLimiter extends NonRefillableLimiter {
 
-  @Alias(value = "CountBasedLimiter")
+  public static final String FACTORY_ALIAS = "CountBasedLimiter";
+
+  @Alias(value = FACTORY_ALIAS)
   public static class Factory implements LimiterFactory {
     public static final String COUNT_KEY = "maxPermits";
 

@@ -20,7 +20,7 @@ package gobblin.util.concurrent;
 import java.util.concurrent.TimeUnit;
 
 
-class AutoResetEvent {
+public class AutoResetEvent {
     private final Object syncObject = new Object();
     private boolean state;
 

@@ -21,6 +21,7 @@ import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.gobblin_scopes.TaskScopeInstance;
 import gobblin.broker.iface.SharedResourcesBroker;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -120,6 +121,7 @@ public class GobblinMultiTaskAttempt {
       throws IOException, InterruptedException {
     if (workUnits.isEmpty()) {
       log.warn("No work units to run in container " + containerIdOptional.or(""));
+      this.tasks = new ArrayList<>();
       return;
     }
 
@@ -144,7 +146,7 @@ public class GobblinMultiTaskAttempt {
    */
   public void commit()
       throws IOException {
-    if (this.tasks == null) {
+    if (this.tasks == null || this.tasks.isEmpty()) {
       log.warn("No tasks to be committed in container " + containerIdOptional.or(""));
       return;
     }

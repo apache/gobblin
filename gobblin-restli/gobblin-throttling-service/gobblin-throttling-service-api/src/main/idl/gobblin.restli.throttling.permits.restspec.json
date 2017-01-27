@@ -1,0 +1,22 @@
+{
+  "name" : "permits",
+  "namespace" : "gobblin.restli.throttling",
+  "path" : "/permits",
+  "schema" : "gobblin.restli.throttling.PermitAllocation",
+  "doc" : "Restli resource for allocating permits through Rest calls. Simply calls a {@link Limiter} in the server configured\n through {@link SharedResourcesBroker}.\n\ngenerated from: gobblin.restli.throttling.LimiterServerResource",
+  "collection" : {
+    "identifier" : {
+      "name" : "permitsId",
+      "type" : "gobblin.restli.throttling.PermitRequest",
+      "params" : "com.linkedin.restli.common.EmptyRecord"
+    },
+    "supports" : [ "get" ],
+    "methods" : [ {
+      "method" : "get",
+      "doc" : "Request permits from the limiter server. The returned {@link PermitAllocation} specifies the number of permits\n that the client can use."
+    } ],
+    "entity" : {
+      "path" : "/permits/{permitsId}"
+    }
+  }
+}

@@ -18,12 +18,14 @@
 package gobblin.runtime.embedded;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.api.client.util.Charsets;
 import com.google.common.io.Files;
 
 
@@ -40,6 +42,12 @@ public class EmbeddedGobblinDistcpTest {
 
     File tmpFile = new File(tmpSource, fileName);
     tmpFile.createNewFile();
+
+    FileOutputStream os = new FileOutputStream(tmpFile);
+    for (int i = 0; i < 100; i++) {
+      os.write("myString".getBytes(Charsets.UTF_8));
+    }
+    os.close();
 
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertFalse(new File(tmpTarget, fileName).exists());
