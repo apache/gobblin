@@ -90,6 +90,7 @@ import gobblin.metrics.Tag;
 import gobblin.metrics.event.EventSubmitter;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.JvmUtils;
 import gobblin.cluster.event.ClusterManagerShutdownRequest;
 import gobblin.yarn.event.ContainerShutdownRequest;
 import gobblin.yarn.event.NewContainerRequest;
@@ -411,7 +412,7 @@ public class YarnService extends AbstractIdleService {
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
         .append(" -Xmx").append(container.getResource().getMemory()).append("M")
-        .append(" ").append(this.containerJvmArgs.or(""))
+        .append(" ").append(JvmUtils.formatJvmArguments(this.containerJvmArgs))
         .append(" ").append(GobblinYarnTaskRunner.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)

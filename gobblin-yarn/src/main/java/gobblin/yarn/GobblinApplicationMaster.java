@@ -47,6 +47,7 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinClusterManager;
+import gobblin.util.JvmUtils;
 import gobblin.util.logs.Log4jConfigurationHelper;
 import gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
@@ -193,6 +194,8 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
       Log4jConfigurationHelper.updateLog4jConfiguration(GobblinApplicationMaster.class,
           GobblinYarnConfigurationKeys.GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE,
           GobblinYarnConfigurationKeys.GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE);
+
+      LOGGER.info(JvmUtils.getJvmInputArguments());
 
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
