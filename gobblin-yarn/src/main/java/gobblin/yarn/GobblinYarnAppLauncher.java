@@ -98,6 +98,7 @@ import gobblin.util.ConfigUtils;
 import gobblin.util.EmailUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.io.StreamUtils;
+import gobblin.util.JvmUtils;
 import gobblin.util.logs.LogCopier;
 import gobblin.yarn.event.ApplicationReportArrivalEvent;
 import gobblin.yarn.event.GetApplicationReportFailureEvent;
@@ -637,7 +638,7 @@ public class GobblinYarnAppLauncher {
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
         .append(" -Xmx").append(memoryMbs).append("M")
-        .append(" ").append(this.appMasterJvmArgs.or(""))
+        .append(" ").append(JvmUtils.formatJvmArguments(this.appMasterJvmArgs))
         .append(" ").append(GobblinApplicationMaster.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
