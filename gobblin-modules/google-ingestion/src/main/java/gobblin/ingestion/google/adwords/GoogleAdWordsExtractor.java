@@ -10,6 +10,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+
 import com.google.api.ads.adwords.axis.factory.AdWordsServices;
 import com.google.api.ads.adwords.axis.v201609.cm.ReportDefinitionField;
 import com.google.api.ads.adwords.axis.v201609.cm.ReportDefinitionServiceInterface;
@@ -31,6 +35,9 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.converter.avro.JsonElementConversionFactory;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
+import gobblin.source.extractor.extract.LongWatermark;
+
+import static gobblin.ingestion.google.webmaster.GoogleWebmasterExtractor.dateFormatter;
 
 
 @Slf4j
@@ -38,9 +45,12 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
   private final static Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
   private final WorkUnitState _state;
   private final GoogleAdWordsExtractorIterator _iterator;
+  private final DateTime _startDate;
+  private final DateTime _endDate;
   private String _schema;
-
+  private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   private final static HashMap<String, JsonElementConversionFactory.Type> typeConversionMap = new HashMap<>();
+  private boolean _successful = false;
 
   static {
     typeConversionMap.put("string", JsonElementConversionFactory.Type.STRING);
@@ -54,6 +64,11 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
   public GoogleAdWordsExtractor(WorkUnitState state)
       throws Exception {
     _state = state;
+    long lowWatermark = state.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
+    _startDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));
+    long highWatermark = state.getWorkunit().getExpectedHighWatermark(LongWatermark.class).getValue();
+    _endDate = watermarkFormatter.parseDateTime(Long.toString(highWatermark));
+
     GoogleAdWordsCredential credential = new GoogleAdWordsCredential(state);
     AdWordsSession.ImmutableAdWordsSession rootSession = credential.buildRootSession();
 
@@ -79,7 +94,8 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     }
 
     _iterator = new GoogleAdWordsExtractorIterator(
-        new GoogleAdWordsReportDownloader(rootSession, _state, reportType, dateRangeType, _schema),
+        new GoogleAdWordsReportDownloader(rootSession, _state, dateFormatter.print(_startDate),
+            dateFormatter.print(_endDate), reportType, dateRangeType, _schema),
         getConfiguredAccounts(rootSession, state));
   }
 
@@ -139,6 +155,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     while (_iterator.hasNext()) {
       return _iterator.next();
     }
+    _successful = true;
     return null;
   }
 
@@ -155,15 +172,14 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
   @Override
   public void close()
       throws IOException {
-//    if (_successful) {
-//      LOG.info(String.format("Successfully finished fetching data from Google Search Console from %s to %s.",
-//          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
-//      _wuState.setActualHighWatermark(
-//          new LongWatermark(Long.parseLong(watermarkFormatter.print(_endDate.plusDays(1)))));
-//    } else {
-//      LOG.warn(String.format("Had problems fetching all data from Google Search Console from %s to %s.",
-//          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
-//    }
+    if (_successful) {
+      log.info(String.format("Successfully finished fetching data from Google Search Console from %s to %s.",
+          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
+      _state.setActualHighWatermark(new LongWatermark(Long.parseLong(watermarkFormatter.print(_endDate.plusDays(1)))));
+    } else {
+      log.warn(String.format("Had problems fetching all data from Google Search Console from %s to %s.",
+          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
+    }
   }
 
   static String createSchema(HashMap<String, String> allFields, List<String> requestedColumns)

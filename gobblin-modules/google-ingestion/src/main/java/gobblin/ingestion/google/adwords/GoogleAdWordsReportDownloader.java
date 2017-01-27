@@ -49,7 +49,6 @@ import com.opencsv.CSVParser;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.source.extractor.extract.LongWatermark;
 
 
 @Slf4j
@@ -70,8 +69,6 @@ public class GoogleAdWordsReportDownloader {
   private final String _endDate;
   private final boolean _dailyPartition;
 
-  private final static DateTimeFormatter dateFormatter = DateTimeFormat.forPattern("yyyyMMdd");
-  private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   /**
    * debug in FILE mode is to download reports in file format directly
    */
@@ -85,17 +82,17 @@ public class GoogleAdWordsReportDownloader {
       .withStopStrategy(StopStrategies.stopAfterAttempt(5))
       .withWaitStrategy(WaitStrategies.fixedWait(1, TimeUnit.SECONDS)).build();
 
-  public GoogleAdWordsReportDownloader(AdWordsSession rootSession, WorkUnitState state,
-      ReportDefinitionReportType reportType, ReportDefinitionDateRangeType dateRangeType, String schema) {
+  public GoogleAdWordsReportDownloader(AdWordsSession rootSession, WorkUnitState state, String startDate,
+      String endDate, ReportDefinitionReportType reportType, ReportDefinitionDateRangeType dateRangeType,
+      String schema) {
     _rootSession = rootSession;
+    _startDate = startDate;
+    _endDate = endDate;
     _reportType = reportType;
     _dateRangeType = dateRangeType;
     _columnNames = schemaToColumnNames(schema);
     log.info("Downloaded fields are: " + Arrays.toString(_columnNames.toArray()));
 
-    long lowWatermark = state.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
-    _startDate = dateFormatter.print(watermarkFormatter.parseDateTime(Long.toString(lowWatermark)));
-    _endDate = _startDate;
     _dailyPartition = state.getPropAsBoolean(GoogleAdWordsSource.KEY_CUSTOM_DATE_DAILY, false);
     _debugFileOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_FILE, "");
     _debugStringOutputPath = state.getProp(GoogleAdWordsSource.KEY_DEBUG_PATH_STRING, "");
