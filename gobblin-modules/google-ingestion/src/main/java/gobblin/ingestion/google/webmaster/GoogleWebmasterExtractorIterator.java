@@ -44,7 +44,7 @@ import avro.shaded.com.google.common.base.Joiner;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.WorkUnitState;
-import gobblin.ingestion.google.IteratorWithDataSink;
+import gobblin.ingestion.google.AsyncIteratorWithDataSink;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.limiter.RateBasedLimiter;
 
@@ -53,7 +53,7 @@ import gobblin.util.limiter.RateBasedLimiter;
  * This iterator holds a GoogleWebmasterDataFetcher, through which it get all pages. And then for each page, it will get all query data(Clicks, Impressions, CTR, Position). Basically, it will cache all pages got, and for each page, cache the detailed query data, and then iterate through them one by one.
  */
 @Slf4j
-class GoogleWebmasterExtractorIterator extends IteratorWithDataSink<String[]> {
+class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[]> {
 
   private final RateBasedLimiter LIMITER;
   private final int ROUND_TIME_OUT;
@@ -127,7 +127,7 @@ class GoogleWebmasterExtractorIterator extends IteratorWithDataSink<String[]> {
   }
 
   @Override
-  protected Runnable initializationRunnable() {
+  protected Runnable getProducerRunnable() {
     try {
       Collection<ProducerJob> allJobs = _webmaster.getAllPages(_startDate, _endDate, _country, PAGE_LIMIT);
       return new ResponseProducer(allJobs);

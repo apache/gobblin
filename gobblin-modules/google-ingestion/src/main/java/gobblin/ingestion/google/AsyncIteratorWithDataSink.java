@@ -9,8 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-public abstract class IteratorWithDataSink<T> implements Iterator<T> {
-  protected Thread _producerThread;
+public abstract class AsyncIteratorWithDataSink<T> implements Iterator<T> {
+  private final Object lock = new Object();
+  private volatile Throwable exceptionInProducerThread = null;
+  private Thread _producerThread;
   protected LinkedBlockingDeque<T> _dataSink = new LinkedBlockingDeque<>(2000);
 
   @Override
@@ -23,9 +25,16 @@ public abstract class IteratorWithDataSink<T> implements Iterator<T> {
       T next = _dataSink.poll(1, TimeUnit.SECONDS);
       while (next == null) {
         if (_producerThread.isAlive()) {
-          //Job not done yet. Keep waiting.
+          //Job not done yet. Keep waiting...
           next = _dataSink.poll(1, TimeUnit.SECONDS);
         } else {
+          synchronized (lock) {
+            if (exceptionInProducerThread != null) {
+              throw new RuntimeException(
+                  String.format("Found exception in producer thread %s", _producerThread.getName()),
+                  exceptionInProducerThread);
+            }
+          }
           log.info("Producer job has finished. No more query data in the queue.");
           return false;
         }
@@ -40,12 +49,13 @@ public abstract class IteratorWithDataSink<T> implements Iterator<T> {
 
   private void initialize() {
     if (_producerThread == null) {
-      _producerThread = new Thread(initializationRunnable());
+      _producerThread = new Thread(getProducerRunnable());
+      _producerThread.setUncaughtExceptionHandler(getExceptionHandler());
       _producerThread.start();
     }
   }
 
-  protected abstract Runnable initializationRunnable();
+  protected abstract Runnable getProducerRunnable();
 
   @Override
   public T next() {
@@ -58,5 +68,16 @@ public abstract class IteratorWithDataSink<T> implements Iterator<T> {
   @Override
   public void remove() {
     throw new UnsupportedOperationException();
+  }
+
+  private Thread.UncaughtExceptionHandler getExceptionHandler() {
+    return new Thread.UncaughtExceptionHandler() {
+      @Override
+      public void uncaughtException(Thread t, Throwable e) {
+        synchronized (lock) {
+          exceptionInProducerThread = e;
+        }
+      }
+    };
   }
 }

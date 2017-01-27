@@ -4,11 +4,11 @@ import java.util.Collection;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.ingestion.google.IteratorWithDataSink;
+import gobblin.ingestion.google.AsyncIteratorWithDataSink;
 
 
 @Slf4j
-public class GoogleAdWordsExtractorIterator extends IteratorWithDataSink<String[]> {
+public class GoogleAdWordsExtractorIterator extends AsyncIteratorWithDataSink<String[]> {
   private GoogleAdWordsReportDownloader _googleAdWordsReportDownloader;
   private Collection<String> _accounts;
 
@@ -19,7 +19,7 @@ public class GoogleAdWordsExtractorIterator extends IteratorWithDataSink<String[
   }
 
   @Override
-  protected Runnable initializationRunnable() {
+  protected Runnable getProducerRunnable() {
     return new Runnable() {
       @Override
       public void run() {

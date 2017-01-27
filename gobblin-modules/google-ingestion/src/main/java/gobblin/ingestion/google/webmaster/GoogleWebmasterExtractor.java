@@ -186,7 +186,7 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       _wuState
           .setActualHighWatermark(new LongWatermark(Long.parseLong(watermarkFormatter.print(_endDate.plusDays(1)))));
     } else {
-      log.warn(String.format("Had problems fetching all data from Google Search Console from %s to %s.",
+      log.error(String.format("Had problems fetching all data from Google Search Console from %s to %s.",
           dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
     }
   }
