@@ -6,6 +6,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -22,7 +24,6 @@ import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 import com.github.rholder.retry.Retryer;
@@ -241,13 +242,13 @@ public class GoogleAdWordsReportDownloader {
       return;
     }
 
-    FileWriter debugFileWriter = null;
+    PrintWriter debugFileWriter = null;
     try {
       if (!_debugStringOutputPath.trim().isEmpty()) {
         //if STRING mode debug is enabled. A copy of downloaded strings/reports will be saved.
         File debugFile = new File(_debugStringOutputPath, reportName);
         createPath(debugFile);
-        debugFileWriter = new FileWriter(debugFile);
+        debugFileWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(debugFile), "UTF-8"));
       }
       processResponse(zippedStream, reportRows, debugFileWriter);
     } catch (IOException e) {
@@ -269,11 +270,15 @@ public class GoogleAdWordsReportDownloader {
         throw new RuntimeException(String.format("Cannot delete debug file: %s", file));
       }
     }
-    new File(file.getParent()).mkdirs(); //mkdir directories for debug files
+    boolean noUse = new File(file.getParent()).mkdirs(); //mkdir directories for debug files
+    if (!noUse) {
+      //This is only for suppressing findbugs warning...
+      log.info(String.format("%s already exists", file.getParent()));
+    }
   }
 
   private static GZIPInputStream processResponse(InputStream zippedStream, LinkedBlockingDeque<String[]> reportRows,
-      FileWriter debugFw)
+      PrintWriter debugFw)
       throws IOException, InterruptedException {
     byte[] buffer = new byte[SIZE];
 
