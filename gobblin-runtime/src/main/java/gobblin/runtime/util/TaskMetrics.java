@@ -77,6 +77,8 @@ public class TaskMetrics extends GobblinMetrics {
     List<Tag<?>> tags = Lists.newArrayList();
     tags.add(new Tag<>(TaskEvent.METADATA_TASK_ID, taskState.getTaskId()));
     tags.add(new Tag<>(TaskEvent.METADATA_TASK_ATTEMPT_ID, taskState.getTaskAttemptId().or("")));
+    tags.add(new Tag<>(ConfigurationKeys.DATASET_URN_KEY,
+        taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN)));
     tags.addAll(getCustomTagsFromState(taskState));
     return tags;
   }
