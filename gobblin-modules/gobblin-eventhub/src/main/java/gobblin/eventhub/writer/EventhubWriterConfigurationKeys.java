@@ -19,7 +19,7 @@ public class EventhubWriterConfigurationKeys {
   public static final String BATCH_TTL = "writer.eventhub.batch.ttl";
   public static final long   BATCH_TTL_DEFAULT = 3000; // 3 seconds
   public static final String BATCH_SIZE = "writer.eventhub.batch.size";
-  public static final long   BATCH_SIZE_DEFAULT = 256 * 1024; // 128KB
+  public static final long   BATCH_SIZE_DEFAULT = 256 * 1024; // 256KB
 
   public final static String  EVH_NAMESPACE = "eventhub.namespace";
   public final static String  EVH_HUBNAME = "eventhub.hubname";
