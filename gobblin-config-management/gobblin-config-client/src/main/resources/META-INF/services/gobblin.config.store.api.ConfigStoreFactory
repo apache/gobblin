@@ -16,3 +16,4 @@
 #
 
 gobblin.config.store.hdfs.SimpleHDFSConfigStoreFactory
+gobblin.config.store.hdfs.SimpleLocalHDFSConfigStoreFactory
