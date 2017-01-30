@@ -56,6 +56,7 @@ public class RootMetricContext extends MetricContext {
   private final ReferenceQueue<MetricContext> referenceQueue;
   private final Set<InnerMetricContext> innerMetricContexts;
   private final ScheduledExecutorService referenceQueueExecutorService;
+  @Getter
   private final Set<ContextAwareReporter> reporters;
 
   private volatile boolean reportingStarted;
