@@ -1,0 +1,91 @@
+{
+  "models" : [ {
+    "type" : "record",
+    "name" : "FlowConfig",
+    "namespace" : "gobblin.service",
+    "doc" : "Configuration for a flow",
+    "fields" : [ {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    }, {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    }, {
+      "name" : "schedule",
+      "type" : "string",
+      "doc" : "Schedule for flow in cron format"
+    }, {
+      "name" : "runImmediately",
+      "type" : "boolean",
+      "doc" : "Set to true to request that job be run immediately",
+      "optional" : true
+    }, {
+      "name" : "templateUris",
+      "type" : "string",
+      "doc" : "Comma separated list of URIs for templates used in the flow"
+    }, {
+      "name" : "properties",
+      "type" : {
+        "type" : "map",
+        "values" : "string"
+      },
+      "doc" : "Properties for the flow"
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "FlowConfigId",
+    "namespace" : "gobblin.service",
+    "doc" : "Identifier for a flow",
+    "fields" : [ {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    }, {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    } ]
+  }, {
+    "type" : "record",
+    "name" : "EmptyRecord",
+    "namespace" : "com.linkedin.restli.common",
+    "doc" : "An literally empty record.  Intended as a marker to indicate the absence of content where a record type is required.  If used the underlying DataMap *must* be empty, EmptyRecordValidator is provided to help enforce this.  For example,  CreateRequest extends Request<EmptyRecord> to indicate it has no response body.   Also, a ComplexKeyResource implementation that has no ParamKey should have a signature like XyzResource implements ComplexKeyResource<XyzKey, EmptyRecord, Xyz>.",
+    "fields" : [ ],
+    "validate" : {
+      "com.linkedin.restli.common.EmptyRecordValidator" : { }
+    }
+  } ],
+  "schema" : {
+    "name" : "flowconfigs",
+    "namespace" : "gobblin.service",
+    "path" : "/flowconfigs",
+    "schema" : "gobblin.service.FlowConfig",
+    "doc" : "generated from: gobblin.service.FlowConfigsResource",
+    "collection" : {
+      "identifier" : {
+        "name" : "flowconfigsId",
+        "type" : "gobblin.service.FlowConfigId",
+        "params" : "com.linkedin.restli.common.EmptyRecord"
+      },
+      "supports" : [ "create", "delete", "get", "update" ],
+      "methods" : [ {
+        "method" : "create",
+        "doc" : "Put a new {@link JobSpec} based on flowConfig in the {@link MutableJobCatalog}"
+      }, {
+        "method" : "get",
+        "doc" : "Retrieve the {@link FlowConfig} with the given key"
+      }, {
+        "method" : "update",
+        "doc" : "Update the {@link JobSpec} in the {@link MutableJobCatalog} based on the specified {@link FlowConfig}"
+      }, {
+        "method" : "delete",
+        "doc" : "delete a configured flow"
+      } ],
+      "entity" : {
+        "path" : "/flowconfigs/{flowconfigsId}"
+      }
+    }
+  }
+}
