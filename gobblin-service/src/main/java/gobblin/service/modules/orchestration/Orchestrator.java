@@ -1,0 +1,116 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package gobblin.service.modules.orchestration;
+
+import java.net.URI;
+
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import org.slf4j.Logger;
+
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
+import gobblin.runtime.api.FlowSpec;
+import gobblin.runtime.api.SpecCompiler;
+import gobblin.runtime.api.SpecExecutorInstance;
+import gobblin.runtime.api.TopologySpec;
+import gobblin.util.ConfigUtils;
+import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.runtime.api.Spec;
+import gobblin.runtime.api.SpecCatalogListener;
+
+
+/**
+ * Orchestrator that is a {@link SpecCatalogListener}. It listens to changes
+ * to {@link gobblin.service.modules.flow.FlowCatalog} and {@link gobblin.service.modules.topology.TopologyCatalog}
+ * and:
+ * If topology has changed: invokes FlowCompiler on all flows and provisions them on their respective executors
+ * If flow has changed: invokes FlowCompiler on all that flow and provisions it on its respective executors
+ */
+public class Orchestrator implements SpecCatalogListener {
+  public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = "gobblin.service.flowCompiler.class";
+  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS = "gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler";
+
+  protected final Optional<Logger> _log;
+  protected final SpecCompiler specCompiler;
+
+  public Orchestrator(Config config, Optional<Logger> log) {
+    _log = log;
+    this.specCompiler = GobblinConstructorUtils.invokeConstructor(SpecCompiler.class, ConfigUtils.getString(config,
+        GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY, DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS));
+  }
+
+  public Orchestrator(Config config, Logger log) {
+    this(config, Optional.of(log));
+  }
+
+  /** Constructor with no logging */
+  public Orchestrator(Config config) {
+    this(config, Optional.<Logger>absent());
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void onAddSpec(Spec addedSpec) {
+    if (_log.isPresent()) {
+      _log.get().info("New Spec detected: " + addedSpec);
+    }
+
+    if (addedSpec instanceof FlowSpec) {
+      Map<Spec, SpecExecutorInstance> specExecutorInstanceMap = specCompiler.compileFlow(addedSpec);
+
+      if (specExecutorInstanceMap.isEmpty()) {
+        if (_log.isPresent()) {
+          _log.get().warn("Spec: " + addedSpec + " added, but cannot determine an executor to run on.");
+        }
+        return;
+      }
+
+      // Using the first mapping, we will evolve to be more fancy in selecting which executor to run on later
+      SpecExecutorInstance selectedExecutor = specExecutorInstanceMap.values().iterator().next();
+
+      // Run this spec on this executor
+      try {
+        selectedExecutor.addSpec(addedSpec).get();
+      } catch (InterruptedException | ExecutionException e) {
+        if (_log.isPresent()) {
+          _log.get().error("Cannot successfully setup spec: " + addedSpec + " on excutor: " + selectedExecutor);
+        }
+      }
+    } else if (addedSpec instanceof TopologySpec) {
+      // TODO: Re-provision all jobs since topology has changed.
+    }
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+    if (_log.isPresent()) {
+      _log.get().info("Spec deleted: " + deletedSpecURI + "/" + deletedSpecVersion);
+    }
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public void onUpdateSpec(Spec updatedSpec) {
+    if (_log.isPresent()) {
+      _log.get().info("Spec changed: " + updatedSpec);
+    }
+  }
+}
