@@ -23,6 +23,7 @@ import java.io.IOException;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
@@ -42,6 +43,7 @@ import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
 
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.password.PasswordManager;
 import gobblin.writer.Batch;
 import gobblin.writer.BatchAsyncDataWriter;
 import gobblin.writer.SyncDataWriter;
@@ -115,10 +117,13 @@ public class EventhubDataWriter implements SyncDataWriter<JsonObject>, BatchAsyn
 
   /** User needs to provide eventhub properties */
   public EventhubDataWriter(Properties properties) {
+    PasswordManager manager = PasswordManager.getInstance(properties);
+
     namespaceName = properties.getProperty(EventhubWriterConfigurationKeys.EVH_NAMESPACE);
     eventHubName =  properties.getProperty(EventhubWriterConfigurationKeys.EVH_HUBNAME);
     sasKeyName = properties.getProperty(EventhubWriterConfigurationKeys.EVH_SAS_KEYNAME);
-    sasKey = properties.getProperty(EventhubWriterConfigurationKeys.EVH_SAS_KEYVALUE);
+    String encodedSasKey = properties.getProperty(EventhubWriterConfigurationKeys.EVH_SAS_KEYVALUE);
+    sasKey = manager.readPassword(encodedSasKey);
     targetURI = "https://" + namespaceName + ".servicebus.windows.net/" + eventHubName + "/messages";
     httpclient = HttpClients.createDefault();
   }
@@ -201,6 +206,10 @@ public class EventhubDataWriter implements SyncDataWriter<JsonObject>, BatchAsyn
     // do something useful with the response body
     // and ensure it is fully consumed
     EntityUtils.consume(entity2);
+
+    if (status.getStatusCode() != HttpStatus.SC_CREATED) {
+      throw new IOException(status.getReasonPhrase());
+    }
 
     return status.getStatusCode();
   }
