@@ -41,7 +41,7 @@ import lombok.Data;
 
 
 /**
- * Defines a Gobblin Flow (collection of {@link FlowSpec}) that can be run once, or multiple times.
+ * Defines a Gobblin Flow (potentially collection of {@link FlowSpec}) that can be run once, or multiple times.
  * A {@link FlowSpec} is {@link Configurable} so it has an associated {@link Config}, along with
  * other mandatory properties such as a uri, description, and version. A {@link FlowSpec} is
  * uniquely identified by its uri (containing group and name).
@@ -131,8 +131,6 @@ public class FlowSpec implements Configurable, Spec {
    */
   public static class Builder {
     public static final String DEFAULT_FLOW_CATALOG_SCHEME = "gobblin-flow";
-    public static final String GOBBLIN_SERVICE_FLOW_COMPILER_CLASS_KEY = "gobblin.service.flowCompiler.class";
-    public static final String DEFAULT_GOBBLIN_SERVICE_FLOW_COMPILER_CLASS_KEY = SpecCompiler.class.getName();
     @VisibleForTesting
     private Optional<Config> config = Optional.absent();
     private Optional<Properties> configAsProperties = Optional.absent();
