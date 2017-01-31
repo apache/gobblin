@@ -48,7 +48,7 @@ public class NoopDatasetStateStore extends FsDatasetStateStore {
     }
   }
 
-  public NoopDatasetStateStore(FileSystem fs, String storeRootDir) {
+  public NoopDatasetStateStore(FileSystem fs, String storeRootDir) throws IOException {
     super(fs, storeRootDir);
   }
 
@@ -90,9 +90,6 @@ public class NoopDatasetStateStore extends FsDatasetStateStore {
 
   @Override
   public void putAll(String storeName, String tableName, Collection<JobState.DatasetState> states) throws IOException {}
-
-  @Override
-  public void createAlias(String storeName, String original, String alias) throws IOException {}
 
   @Override
   public void delete(String storeName, String tableName) throws IOException {}

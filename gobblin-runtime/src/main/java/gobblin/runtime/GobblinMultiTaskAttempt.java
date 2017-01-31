@@ -341,11 +341,12 @@ public class GobblinMultiTaskAttempt {
    * </p>
    *
    * @param jobId the job ID
+   * @param containerId the container ID
+   * @param jobState the job state
    * @param workUnits the given list of {@link WorkUnit}s to submit to run
    * @param taskStateTracker a {@link TaskStateTracker} for task state tracking
    * @param taskExecutor a {@link TaskExecutor} for task execution
    * @param taskStateStore a {@link StateStore} for storing {@link TaskState}s
-   * @param logger a {@link Logger} for logging
    * @param multiTaskAttemptCommitPolicy {@link GobblinMultiTaskAttempt.CommitPolicy} for committing {@link GobblinMultiTaskAttempt}
    * @throws IOException if there's something wrong with any IO operations
    * @throws InterruptedException if the task execution gets cancelled

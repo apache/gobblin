@@ -17,18 +17,37 @@
 
 package gobblin.runtime;
 
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Strings;
+import java.io.DataInputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.Blob;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
+import javax.annotation.Nonnull;
+import javax.sql.DataSource;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.io.Text;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
+
+import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.MysqlStateStore;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import javax.sql.DataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import gobblin.metastore.util.StateStoreTableInfo;
+import gobblin.password.PasswordManager;
+import gobblin.runtime.util.DatasetUrnSanitizer;
+import gobblin.util.io.StreamUtils;
 
 
 /**
@@ -51,9 +70,20 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MysqlDatasetStateStore.class);
 
+  private static final String SELECT_JOB_STATE_LATEST_BY_PREFIX_TEMPLATE =
+          "SELECT CASE WHEN locate(?, table_name) = 0 THEN '' "
+                  + "ELSE substring(table_name, 1, locate(?, table_name) - 1) END, "
+                  + "table_name, state FROM $TABLE$ WHERE store_name = ? "
+                  + "AND table_name IN (SELECT max(table_name) FROM $TABLE$ "
+                  + "WHERE store_name = ? GROUP BY CASE WHEN locate(?, table_name) = 0 THEN '' "
+                  + "ELSE substring(table_name, 1, locate(?, table_name) - 1) END)";
+
+  private final String SELECT_JOB_STATE_LATEST_BY_PREFIX_SQL;
+
   public MysqlDatasetStateStore(DataSource dataSource, String stateStoreTableName, boolean compressedValues)
       throws IOException {
     super(dataSource, stateStoreTableName, compressedValues, JobState.DatasetState.class);
+    SELECT_JOB_STATE_LATEST_BY_PREFIX_SQL = SELECT_JOB_STATE_LATEST_BY_PREFIX_TEMPLATE.replace("$TABLE$", stateStoreTableName);
   }
 
   /**
@@ -64,12 +94,57 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
    * @throws IOException if there's something wrong reading the {@link JobState.DatasetState}s
    */
   public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName) throws IOException {
-    List<JobState.DatasetState> previousDatasetStates =
-        getAll(jobName, "%" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX, true);
+    final String storeName = jobName;
+    StatementBuilder statementBuilder = new StatementBuilder() {
+      @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE")
+      @Override
+      public PreparedStatement build(Connection connection) throws SQLException {
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_JOB_STATE_LATEST_BY_PREFIX_SQL);
+        queryStatement.setString(1, StateStoreTableInfo.TABLE_PREFIX_SEPARATOR);
+        queryStatement.setString(2, StateStoreTableInfo.TABLE_PREFIX_SEPARATOR);
+        queryStatement.setString(3, storeName);
+        queryStatement.setString(4, storeName);
+        queryStatement.setString(5, StateStoreTableInfo.TABLE_PREFIX_SEPARATOR);
+        queryStatement.setString(6, StateStoreTableInfo.TABLE_PREFIX_SEPARATOR);
+        return queryStatement;
+      }
+    };
 
+    ResultProcessor<Map<Optional<String>, Pair<String, JobState.DatasetState>>> resultProcessor =
+            new ResultProcessor<Map<Optional<String>, Pair<String, JobState.DatasetState>>>() {
+              @Nonnull
+              @Override
+              public Map<Optional<String>, Pair<String, JobState.DatasetState>> process(@Nonnull ResultSet rs) throws Exception {
+                Map<Optional<String>, Pair<String, JobState.DatasetState>> states = Maps.newHashMap();
+                while (rs.next()) {
+                  String urn = rs.getString(1);
+                  String tableName = rs.getString(2);
+                  Blob blob = rs.getBlob(3);
+                  Text key = new Text();
+
+                  try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
+                          new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+                       DataInputStream dis = new DataInputStream(is)) {
+                    // keep deserializing while we have data
+                    while (dis.available() > 0) {
+                      JobState.DatasetState state = JobState.DatasetState.class.newInstance();
+                      key.readString(dis);
+                      state.readFields(dis);
+                      states.put(Optional.fromNullable(urn), Pair.of(tableName, state));
+                    }
+                  } catch (EOFException e) {
+                    // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
+                  }
+                }
+                return states;
+              }
+            };
+
+    Map<Optional<String>, Pair<String, JobState.DatasetState>> latestDatasetStatesByUrns = getAll(statementBuilder, resultProcessor);
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
-    if (!previousDatasetStates.isEmpty()) {
-      JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
+    for (Map.Entry<Optional<String>, Pair<String, JobState.DatasetState>> state : latestDatasetStatesByUrns.entrySet()) {
+      JobState.DatasetState previousDatasetState = state.getValue().getValue();
+      previousDatasetState.setDatasetStateId(state.getValue().getKey());
       datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
     }
 
@@ -91,10 +166,11 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
    * @throws IOException
    */
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
-    String alias =
-        Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-            : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
-    return get(storeName, alias, datasetUrn);
+    Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
+    String tableName = sanitizedDatasetUrn.isPresent() ?
+            sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + StateStoreTableInfo.CURRENT_NAME :
+            StateStoreTableInfo.CURRENT_NAME;
+    return get(storeName, tableName, datasetUrn);
   }
 
   /**
@@ -108,17 +184,10 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
     String jobName = datasetState.getJobName();
     String jobId = datasetState.getJobId();
 
-    datasetUrn = CharMatcher.is(':').replaceFrom(datasetUrn, '.');
-    String tableName = Strings.isNullOrEmpty(datasetUrn) ? jobId + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
+    Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
+    String tableName = sanitizedDatasetUrn.isPresent() ?
+            sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + jobId : jobId;
     LOGGER.info("Persisting " + tableName + " to the job state store");
-
     put(jobName, tableName, datasetState);
-    createAlias(jobName, tableName, getAliasName(datasetUrn));
-  }
-
-  private static String getAliasName(String datasetUrn) {
-    return Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
   }
 }

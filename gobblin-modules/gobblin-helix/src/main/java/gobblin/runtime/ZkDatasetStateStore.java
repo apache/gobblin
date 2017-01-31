@@ -17,18 +17,25 @@
 
 package gobblin.runtime;
 
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.collect.Maps;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.metastore.ZkStateStore;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.google.common.base.Predicates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Maps;
+
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.DatasetStateStore;
+import gobblin.metastore.util.StateStoreTableInfo;
+import gobblin.metastore.ZkStateStore;
+import gobblin.runtime.util.DatasetUrnSanitizer;
 
 
 /**
@@ -42,8 +49,8 @@ import org.slf4j.LoggerFactory;
  */
 public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
     implements DatasetStateStore<JobState.DatasetState> {
+  private static final Pattern DATASET_URN_PATTERN = Pattern.compile("\\A(?:(.+)-)?.+(\\..?)?\\z");
   private static final Logger LOGGER = LoggerFactory.getLogger(ZkDatasetStateStore.class);
-  private static final String CURRENT_SUFFIX = CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
 
   public ZkDatasetStateStore(String connectString, String storeRootDir, boolean compressedValues) throws IOException {
     super(connectString, storeRootDir, compressedValues, JobState.DatasetState.class);
@@ -57,16 +64,16 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
    * @throws IOException if there's something wrong reading the {@link JobState.DatasetState}s
    */
   public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName) throws IOException {
-    List<JobState.DatasetState> previousDatasetStates = getAll(jobName, new Predicate<String>() {
-      @Override
-      public boolean apply(String input) {
-        return input.endsWith(CURRENT_SUFFIX);
-      }});
-
+    Map<Optional<String>, String> latestDatasetStateFilePathsByUrns = getLatestDatasetStateFilePathsByUrns(jobName);
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
-    if (!previousDatasetStates.isEmpty()) {
-      JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
-      datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
+    for (Map.Entry<Optional<String>, String> filePath : latestDatasetStateFilePathsByUrns.entrySet()) {
+      List<JobState.DatasetState> previousDatasetStates = getAll(jobName, filePath.getValue());
+      if (!previousDatasetStates.isEmpty()) {
+        // There should be a single dataset state on the list if the list is not empty
+        JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
+        previousDatasetState.setDatasetStateId(filePath.getValue());
+        datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
+      }
     }
 
     // The dataset (job) state from the deprecated "current.jst" will be read even though
@@ -87,10 +94,11 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
    * @throws IOException
    */
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
-    String alias =
-        Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-            : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
-    return get(storeName, alias, datasetUrn);
+    Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
+    String tableName = sanitizedDatasetUrn.isPresent() ?
+        sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + StateStoreTableInfo.CURRENT_NAME :
+        StateStoreTableInfo.CURRENT_NAME;
+    return get(storeName, tableName, datasetUrn);
   }
 
   /**
@@ -104,17 +112,36 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
     String jobName = datasetState.getJobName();
     String jobId = datasetState.getJobId();
 
-    datasetUrn = CharMatcher.is(':').replaceFrom(datasetUrn, '.');
-    String tableName = Strings.isNullOrEmpty(datasetUrn) ? jobId + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
+    Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
+    String tableName = sanitizedDatasetUrn.isPresent() ?
+            sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + jobId : jobId;
     LOGGER.info("Persisting " + tableName + " to the job state store");
-
     put(jobName, tableName, datasetState);
-    createAlias(jobName, tableName, getAliasName(datasetUrn));
   }
 
-  private static String getAliasName(String datasetUrn) {
-    return Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
+  private Map<Optional<String>, String> getLatestDatasetStateFilePathsByUrns(String storeName) throws IOException {
+    Iterable<String> tableNames = this.getTableNames(storeName, Predicates.<String>alwaysTrue());
+
+    Map<Optional<String>, String> datasetStateFilePathsByUrns = Maps.newHashMap();
+    for (String tableName : tableNames) {
+      Matcher matcher = DATASET_URN_PATTERN.matcher(tableName);
+      if (matcher.find()) {
+        Optional<String> datasetUrn = DatasetUrnSanitizer.sanitize(matcher.group(1));
+        if (!datasetStateFilePathsByUrns.containsKey(datasetUrn)) {
+          LOGGER.debug("Latest table for {} dataset set to {}", datasetUrn.or("DEFAULT"), tableName);
+          datasetStateFilePathsByUrns.put(datasetUrn, tableName);
+        } else {
+          String previousTableName = datasetStateFilePathsByUrns.get(datasetUrn);
+          if (tableName.compareTo(previousTableName) > 0) {
+            LOGGER.debug("Latest table for {} dataset set to {} instead of {}", datasetUrn.or("DEFAULT"), tableName, previousTableName);
+            datasetStateFilePathsByUrns.put(datasetUrn, tableName);
+          } else {
+            LOGGER.debug("Latest table for {} dataset left as {}. Table {} is being ignored", datasetUrn.or("DEFAULT"), previousTableName, tableName);
+          }
+        }
+      }
+    }
+
+    return datasetStateFilePathsByUrns;
   }
 }

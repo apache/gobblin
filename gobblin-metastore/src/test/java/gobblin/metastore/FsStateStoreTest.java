@@ -98,22 +98,6 @@ public class FsStateStoreTest {
     Assert.assertEquals(states.get(2).getProp("k3"), "v3");
   }
 
-  @Test(dependsOnMethods = { "testPut" })
-  public void testCreateAlias() throws IOException {
-    this.stateStore.createAlias("testStore", "testTable", "testTable1");
-    Assert.assertTrue(this.stateStore.exists("testStore", "testTable1"));
-  }
-
-  @Test(dependsOnMethods = { "testCreateAlias" })
-  public void testGetAlias() throws IOException {
-    List<State> states = this.stateStore.getAll("testStore", "testTable1");
-    Assert.assertEquals(states.size(), 3);
-
-    Assert.assertEquals(states.get(0).getProp("k1"), "v1");
-    Assert.assertEquals(states.get(1).getProp("k2"), "v2");
-    Assert.assertEquals(states.get(2).getProp("k3"), "v3");
-  }
-
   @AfterClass
   public void tearDown() throws IOException {
     FileSystem fs = FileSystem.getLocal(new Configuration(false));

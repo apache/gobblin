@@ -26,27 +26,32 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import org.I0Itec.zkclient.serialize.ZkSerializer;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.helix.AccessOption;
 import org.apache.helix.manager.zk.ByteArraySerializer;
 import org.apache.helix.store.HelixPropertyStore;
 import org.apache.helix.store.zk.ZkHelixPropertyStore;
+import org.I0Itec.zkclient.serialize.ZkSerializer;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 import gobblin.configuration.State;
+import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.util.io.StreamUtils;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -64,6 +69,7 @@ import gobblin.util.io.StreamUtils;
  *
  * @param <T> state object type
  **/
+@Slf4j
 public class ZkStateStore<T extends State> implements StateStore<T> {
 
   // Class of the state objects to be put into the store
@@ -89,16 +95,17 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
     propStore = new ZkHelixPropertyStore<byte[]>(connectString, serializer, storeRootDir);
   }
 
-  private String formPath(String storeName) {
+  protected String formPath(String storeName) {
     return "/" + storeName;
   }
 
-  private String formPath(String storeName, String tableName) {
+  protected String formPath(String storeName, String tableName) {
     return "/" + storeName + "/" + tableName;
   }
 
   @Override
   public boolean create(String storeName) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
     String path = formPath(storeName);
 
     return propStore.exists(path, 0) || propStore.create(path, ArrayUtils.EMPTY_BYTE_ARRAY,
@@ -107,6 +114,10 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public boolean create(String storeName, String tableName) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
+    Preconditions.checkArgument(!isCurrent(tableName),
+        String.format("Table name is %s", StateStoreTableInfo.CURRENT_NAME));
     String path = formPath(storeName, tableName);
 
     if (propStore.exists(path, 0)) {
@@ -119,6 +130,8 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public boolean exists(String storeName, String tableName) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
     String path = formPath(storeName, tableName);
 
     return propStore.exists(path, 0);
@@ -158,11 +171,21 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public void put(String storeName, String tableName, T state) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
+    Preconditions.checkArgument(!isCurrent(tableName),
+        String.format("Table name is %s", StateStoreTableInfo.CURRENT_NAME));
+    Preconditions.checkNotNull(state, "State is null.");
     putAll(storeName, tableName, Collections.singletonList(state));
   }
 
   @Override
   public void putAll(String storeName, String tableName, Collection<T> states) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
+    Preconditions.checkArgument(!isCurrent(tableName),
+        String.format("Table name is %s", StateStoreTableInfo.CURRENT_NAME));
+    Preconditions.checkNotNull(states, "States is null.");
     try (ByteArrayOutputStream byteArrayOs = new ByteArrayOutputStream();
         OutputStream os = compressedValues ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
         DataOutputStream dataOutput = new DataOutputStream(os)) {
@@ -178,7 +201,14 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public T get(String storeName, String tableName, String stateId) throws IOException {
-    String path = formPath(storeName, tableName);
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(stateId), "State id is null or empty.");
+    String path = getTablePath(storeName, tableName);
+    if (path == null) {
+      return null;
+    }
+
     byte[] data = propStore.get(path, null, 0);
     List<T> states = Lists.newArrayList();
 
@@ -189,6 +219,25 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
     } else {
       return states.get(0);
     }
+  }
+
+  /**
+   * Get a {@link State} with a given state ID from a the current table.
+   *
+   * @param storeName store name
+   * @param stateId state ID
+   * @return {@link State} with the given state ID or <em>null</em>
+   *         if the state with the given state ID does not exist
+   * @throws IOException
+   */
+  @Override
+  public T getCurrent(String storeName, String stateId) throws IOException {
+    return get(storeName, StateStoreTableInfo.CURRENT_NAME, stateId);
+  }
+
+  @Override
+  public List<T> getAllCurrent(String storeName) throws IOException {
+    return getAll(storeName, StateStoreTableInfo.CURRENT_NAME);
   }
 
   /**
@@ -221,8 +270,10 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public List<T> getAll(String storeName, String tableName) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
     List<T> states = Lists.newArrayList();
-    String path = formPath(storeName, tableName);
+    String path = getTablePath(storeName, tableName);
     byte[] data = propStore.get(path, null, 0);
 
     deserialize(data, states);
@@ -232,6 +283,7 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public List<T> getAll(String storeName) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
     return getAll(storeName, Predicates.<String>alwaysTrue());
   }
 
@@ -252,27 +304,19 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
     return names;
   }
-  @Override
-  public void createAlias(String storeName, String original, String alias) throws IOException {
-    String pathOriginal = formPath(storeName, original);
-    byte[] data;
-
-    if (!propStore.exists(pathOriginal, 0)) {
-      throw new IOException(String.format("State does not exist for table %s", original));
-    }
-
-    data = propStore.get(pathOriginal, null, 0);
-
-    putData(storeName, alias, data);
-  }
 
   @Override
   public void delete(String storeName, String tableName) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
+    Preconditions.checkArgument(!isCurrent(tableName),
+        String.format("Table name is %s", StateStoreTableInfo.CURRENT_NAME));
     propStore.remove(formPath(storeName, tableName), 0);
   }
 
   @Override
   public void delete(String storeName) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
     propStore.remove(formPath(storeName), 0);
   }
 
@@ -320,5 +364,45 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
    */
   private void deserialize(byte[] data, List<T> states) throws IOException {
     deserialize(data, states, null);
+  }
+
+  private boolean isCurrent(String tableName) {
+    StateStoreTableInfo tableInfo = StateStoreTableInfo.get(tableName);
+    return tableInfo.isCurrent();
+  }
+
+  private String getTablePath(String storeName, String tableName) throws IOException {
+    StateStoreTableInfo tableInfo = StateStoreTableInfo.get(tableName);
+    if (tableInfo.isCurrent()) {
+      return getLatestTablePath(storeName, tableInfo.getPrefix());
+    }
+    return formPath(storeName, tableName);
+  }
+
+  private String getLatestTablePath(String storeName, final String tableNamePrefix) throws IOException {
+    String path = Paths.get("/", storeName).toString();
+    List<String> children = propStore.getChildNames(path, 0);
+
+    if (children == null) {
+      return null;
+    }
+
+    String latestStatePath = null;
+    for (String c : children) {
+      if ((Strings.isNullOrEmpty(tableNamePrefix) ||
+        c.startsWith(tableNamePrefix + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR))) {
+        if (latestStatePath == null) {
+          log.debug("Latest table for {}/{}* set to {}", storeName, tableNamePrefix, c);
+          latestStatePath = c;
+        } else if (c.compareTo(latestStatePath) > 0) {
+          log.debug("Latest table for {}/{}* set to {} instead of {}", storeName, tableNamePrefix, c, latestStatePath);
+          latestStatePath = c;
+        } else {
+          log.debug("Latest table for {}/{}* left as {}. Previous table {} is being ignored", storeName, tableNamePrefix, latestStatePath, c);
+        }
+      }
+    }
+
+    return latestStatePath == null ? null : formPath(storeName, latestStatePath);
   }
 }

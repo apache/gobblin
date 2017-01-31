@@ -133,6 +133,18 @@ public interface StateStore<T extends State> {
       throws IOException;
 
   /**
+   * Get a {@link State} with a given state ID from a the current table.
+   *
+   * @param storeName store name
+   * @param stateId state ID
+   * @return {@link State} with the given state ID or <em>null</em>
+   *         if the state with the given state ID does not exist
+   * @throws IOException
+   */
+  public T getCurrent(String storeName, String stateId)
+      throws IOException;
+
+  /**
    * Get all {@link State}s from a table.
    *
    * @param storeName store name
@@ -141,6 +153,16 @@ public interface StateStore<T extends State> {
    * @throws IOException
    */
   public List<T> getAll(String storeName, String tableName)
+      throws IOException;
+
+  /**
+   * Get all {@link State}s from the current table.
+   *
+   * @param storeName store name
+   * @return (possibly empty) list of {@link State}s from the current table
+   * @throws IOException
+   */
+  public List<T> getAllCurrent(String storeName)
       throws IOException;
 
   /**
@@ -162,17 +184,6 @@ public interface StateStore<T extends State> {
    * @throws IOException
    */
   public List<String> getTableNames(String storeName, Predicate<String> predicate)
-      throws IOException;
-
-  /**
-   * Create an alias for an existing table.
-   *
-   * @param storeName store name
-   * @param original original table name
-   * @param alias alias table name
-   * @throws IOException
-   */
-  public void createAlias(String storeName, String original, String alias)
       throws IOException;
 
   /**

@@ -30,7 +30,7 @@ import gobblin.publisher.SingleTaskDataPublisher;
  * An implementation of {@link DataPublisher} for integration test.
  *
  * <p>
- *     This is a dummy implementation that exists purely to make
+ *     This is a dummy implementation that storeExists purely to make
  *     integration test work.
  * </p>
  */

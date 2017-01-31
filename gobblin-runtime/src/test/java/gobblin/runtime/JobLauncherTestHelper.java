@@ -32,6 +32,7 @@ import com.google.common.io.Closer;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.SourceState;
 import gobblin.configuration.WorkUnitState;
+import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.runtime.JobState.DatasetState;
 import gobblin.source.extractor.Extractor;
@@ -77,9 +78,10 @@ public class JobLauncherTestHelper {
     Assert.assertTrue(jobContext.getJobMetricsOptional().isPresent());
     String jobMetricContextTags = jobContext.getJobMetricsOptional().get().getMetricContext().getTags().toString();
     Assert.assertTrue(jobMetricContextTags.contains(ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME),
-        ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME + " tag missing in job metric context tags.");
+            ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME + " tag missing in job metric context tags.");
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId +
+            DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
     DatasetState datasetState = datasetStateList.get(0);
 
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
@@ -89,7 +91,7 @@ public class JobLauncherTestHelper {
     for (TaskState taskState : datasetState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
-          TestExtractor.TOTAL_RECORDS);
+              TestExtractor.TOTAL_RECORDS);
     }
   }
 
@@ -106,7 +108,8 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId +
+            DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
     DatasetState datasetState = datasetStateList.get(0);
 
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
@@ -151,7 +154,8 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId +
+            DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
     Assert.assertTrue(datasetStateList.isEmpty());
   }
 
@@ -164,7 +168,8 @@ public class JobLauncherTestHelper {
       jobLauncher.launchJob(null);
     }
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId +
+            DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
     DatasetState datasetState = datasetStateList.get(0);
 
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
@@ -175,18 +180,18 @@ public class JobLauncherTestHelper {
     for (TaskState taskState : datasetState.getTaskStates()) {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Path path = new Path(this.launcherProps.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
-          new Path(taskState.getExtract().getOutputFilePath(), "fork_0"));
+              new Path(taskState.getExtract().getOutputFilePath(), "fork_0"));
       Assert.assertTrue(lfs.exists(path));
       Assert.assertEquals(lfs.listStatus(path).length, 2);
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN + ".0"),
-          TestExtractor.TOTAL_RECORDS);
+              TestExtractor.TOTAL_RECORDS);
 
       path = new Path(this.launcherProps.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR),
-          new Path(taskState.getExtract().getOutputFilePath(), "fork_1"));
+              new Path(taskState.getExtract().getOutputFilePath(), "fork_1"));
       Assert.assertTrue(lfs.exists(path));
       Assert.assertEquals(lfs.listStatus(path).length, 2);
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN + ".1"),
-          TestExtractor.TOTAL_RECORDS);
+              TestExtractor.TOTAL_RECORDS);
     }
   }
 
@@ -206,7 +211,8 @@ public class JobLauncherTestHelper {
 
     for (int i = 0; i < 4; i++) {
       List<JobState.DatasetState> datasetStateList =
-          this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
+              this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current" +
+                      DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
       DatasetState datasetState = datasetStateList.get(0);
 
       Assert.assertEquals(datasetState.getDatasetUrn(), "Dataset" + i);
@@ -217,7 +223,7 @@ public class JobLauncherTestHelper {
         Assert.assertEquals(taskState.getProp(ConfigurationKeys.DATASET_URN_KEY), "Dataset" + i);
         Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
         Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
-            TestExtractor.TOTAL_RECORDS);
+                TestExtractor.TOTAL_RECORDS);
       }
     }
   }
@@ -239,7 +245,8 @@ public class JobLauncherTestHelper {
       closer.close();
     }
 
-    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId + ".jst");
+    List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, jobId +
+            DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
     JobState jobState = datasetStateList.get(0);
 
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
@@ -250,13 +257,13 @@ public class JobLauncherTestHelper {
       } else {
         Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
         Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
-            TestExtractor.TOTAL_RECORDS);
+                TestExtractor.TOTAL_RECORDS);
       }
     }
   }
 
   public void runTestWithMultipleDatasetsAndFaultyExtractor(Properties jobProps, boolean usePartialCommitPolicy)
-      throws Exception {
+          throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
@@ -277,7 +284,8 @@ public class JobLauncherTestHelper {
     }
 
     if (usePartialCommitPolicy) {
-      List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, "Dataset0-current.jst");
+      List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, "Dataset0-current" +
+              DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
       JobState.DatasetState datasetState = datasetStateList.get(0);
       Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
       Assert.assertEquals(datasetState.getTaskCount(), 1);
@@ -286,12 +294,14 @@ public class JobLauncherTestHelper {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
     } else {
       // Task 0 should have failed
-      Assert.assertTrue(this.datasetStateStore.getAll(jobName, "Dataset0-current.jst").isEmpty());
+      Assert.assertTrue(this.datasetStateStore.getAll(jobName, "Dataset0-current" +
+              DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX).isEmpty());
     }
 
     for (int i = 1; i < 4; i++) {
       List<JobState.DatasetState> datasetStateList =
-          this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current.jst");
+              this.datasetStateStore.getAll(jobName, "Dataset" + i + "-current" +
+                      DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
       JobState.DatasetState datasetState = datasetStateList.get(0);
 
       Assert.assertEquals(datasetState.getDatasetUrn(), "Dataset" + i);

@@ -24,15 +24,14 @@ import java.util.Map;
 
 public interface DatasetStateStore<T extends State> extends StateStore<T> {
   String DATASET_STATE_STORE_TABLE_SUFFIX = ".jst";
-  String CURRENT_DATASET_STATE_FILE_SUFFIX = "current";
 
   interface Factory {
     <T extends State> DatasetStateStore<T> createStateStore(Config config);
   }
 
-  public Map<String, T> getLatestDatasetStatesByUrns(String jobName) throws IOException;
+  Map<String, T> getLatestDatasetStatesByUrns(String jobName) throws IOException;
 
-  public T getLatestDatasetState(String storeName, String datasetUrn) throws IOException;
+  T getLatestDatasetState(String storeName, String datasetUrn) throws IOException;
 
-  public void persistDatasetState(String datasetUrn, T datasetState) throws IOException;
+  void persistDatasetState(String datasetUrn, T datasetState) throws IOException;
 }

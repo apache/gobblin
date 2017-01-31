@@ -17,8 +17,6 @@
 
 package gobblin.cluster;
 
-import com.typesafe.config.ConfigFactory;
-import gobblin.metastore.FsStateStore;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -44,10 +42,12 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.example.simplejson.SimpleJsonConverter;
 import gobblin.example.simplejson.SimpleJsonSource;
+import gobblin.metastore.FsStateStore;
 import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskExecutor;
@@ -125,6 +125,7 @@ public class GobblinHelixTaskTest {
     // expected path is appWorkDir/_workunits/job_id/job_id.wu
     Path workUnitDirPath = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
     FsStateStore<WorkUnit> wuStateStore = new FsStateStore<>(this.localFs, workUnitDirPath.toString(), WorkUnit.class);
+
     Path workUnitFilePath = new Path(new Path(workUnitDirPath, TestHelper.TEST_JOB_ID),
         TestHelper.TEST_JOB_NAME + ".wu");
     wuStateStore.put(TestHelper.TEST_JOB_ID, TestHelper.TEST_JOB_NAME + ".wu", workUnit);

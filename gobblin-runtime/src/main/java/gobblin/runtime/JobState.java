@@ -724,6 +724,10 @@ public class JobState extends SourceState {
       return super.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
     }
 
+    public void setDatasetStateId(String datasetStateId) {
+      super.setProp(ConfigurationKeys.DATASET_STATE_ID_KEY, datasetStateId);
+    }
+
     public void incrementJobFailures() {
       super.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
           Integer.parseInt(super.getProp(ConfigurationKeys.JOB_FAILURES_KEY, "0")) + 1);

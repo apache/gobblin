@@ -21,6 +21,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.Properties;
 
+import gobblin.runtime.FsDatasetStateStore;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -53,14 +54,14 @@ public class LocalJobLauncherTest {
 
   @BeforeClass
   public void startUp() throws Exception {
-    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    //testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
     this.launcherProps = new Properties();
     this.launcherProps.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
-    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
+    //this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
-    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
-        testMetastoreDatabase.getJdbcUrl());
+    //this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
+    //    testMetastoreDatabase.getJdbcUrl());
 
     StateStore<JobState.DatasetState> datasetStateStore =
         new FsStateStore<>(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
