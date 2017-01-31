@@ -17,19 +17,14 @@
 
 package gobblin.broker;
 
-import gobblin.broker.iface.SharedResourceKey;
-
+import gobblin.broker.iface.SharedResourceFactoryResponse;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 
+/**
+ * A {@link SharedResourceFactoryResponse} that returns a newly created resource instance.
+ */
 @Data
-@EqualsAndHashCode
-public class TestResourceKey implements SharedResourceKey {
-  private final String key;
-
-  @Override
-  public String toConfigurationKey() {
-    return this.key;
-  }
+public class ResourceInstance<T> implements SharedResourceFactoryResponse<T> {
+  private final T resource;
 }

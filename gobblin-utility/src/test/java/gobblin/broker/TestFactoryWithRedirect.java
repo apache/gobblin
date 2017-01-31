@@ -17,19 +17,16 @@
 
 package gobblin.broker;
 
-import gobblin.broker.iface.SharedResourceKey;
+import gobblin.broker.iface.ScopeType;
+import gobblin.broker.iface.ScopedConfigView;
+import gobblin.broker.iface.SharedResourceFactoryResponse;
+import gobblin.broker.iface.SharedResourcesBroker;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
-
-@Data
-@EqualsAndHashCode
-public class TestResourceKey implements SharedResourceKey {
-  private final String key;
+public class TestFactoryWithRedirect<S extends ScopeType<S>> extends TestFactory<S> {
 
   @Override
-  public String toConfigurationKey() {
-    return this.key;
+  public SharedResourceFactoryResponse<SharedResource> createResource(SharedResourcesBroker broker, ScopedConfigView config) {
+    return new ResourceCoordinate<>(new TestFactory<S>(), (TestResourceKey) config.getKey(), (S) config.getScope().rootScope());
   }
 }
