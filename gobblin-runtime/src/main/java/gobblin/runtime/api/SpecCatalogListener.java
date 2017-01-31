@@ -19,6 +19,9 @@ package gobblin.runtime.api;
 
 import java.net.URI;
 
+import com.google.common.base.Objects;
+
+import gobblin.util.callbacks.Callback;
 
 public interface SpecCatalogListener {
   /** Invoked when a new {@link Spec} is added to the catalog and for all pre-existing specs on registration
@@ -34,4 +37,53 @@ public interface SpecCatalogListener {
    * Invoked when the contents of a {@link Spec} gets updated in the catalog.
    */
   public void onUpdateSpec(Spec updatedSpec);
+
+  /** A standard implementation of onAddSpec as a functional object */
+  public static class AddSpecCallback extends Callback<SpecCatalogListener, Void> {
+    private final Spec _addedSpec;
+    public AddSpecCallback(Spec addedSpec) {
+      super(Objects.toStringHelper("onAddSpec").add("addedSpec", addedSpec).toString());
+      _addedSpec = addedSpec;
+    }
+
+    @Override public Void apply(SpecCatalogListener listener) {
+      listener.onAddSpec(_addedSpec);
+      return null;
+    }
+  }
+
+  /** A standard implementation of onDeleteSpec as a functional object */
+  public static class DeleteSpecCallback extends Callback<SpecCatalogListener, Void> {
+    private final URI _deletedSpecURI;
+    private final String _deletedSpecVersion;
+
+    public DeleteSpecCallback(URI deletedSpecURI, String deletedSpecVersion) {
+      super(Objects.toStringHelper("onDeleteSpec")
+          .add("deletedSpecURI", deletedSpecURI)
+          .add("deletedSpecVersion", deletedSpecVersion)
+          .toString());
+      _deletedSpecURI = deletedSpecURI;
+      _deletedSpecVersion = deletedSpecVersion;
+    }
+
+    @Override public Void apply(SpecCatalogListener listener) {
+      listener.onDeleteSpec(_deletedSpecURI, _deletedSpecVersion);
+      return null;
+    }
+  }
+
+  public static class UpdateSpecCallback extends Callback<SpecCatalogListener, Void> {
+    private final Spec _updatedSpec;
+    public UpdateSpecCallback(Spec updatedSpec) {
+      super(Objects.toStringHelper("onUpdateSpec")
+          .add("updatedSpec", updatedSpec).toString());
+      _updatedSpec = updatedSpec;
+    }
+
+    @Override
+    public Void apply(SpecCatalogListener listener) {
+      listener.onUpdateSpec(_updatedSpec);
+      return null;
+    }
+  }
 }
