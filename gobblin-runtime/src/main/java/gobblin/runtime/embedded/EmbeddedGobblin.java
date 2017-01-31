@@ -60,6 +60,7 @@ import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.metastore.FsStateStore;
+import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.runtime.JobLauncherFactory;
 import gobblin.runtime.Task;
@@ -429,7 +430,8 @@ public class EmbeddedGobblin {
   private Set<String> getCoreGobblinJars() {
     String gobblinApiJar = ClassUtil.findContainingJar(State.class);
     String gobblinCoreJar = ClassUtil.findContainingJar(Constructs.class);
-    String gobblinMetricsJar = ClassUtil.findContainingJar(MetricContext.class);
+    String gobblinMetricsCoreJar = ClassUtil.findContainingJar(MetricContext.class);
+    String gobblinMetricsJar = ClassUtil.findContainingJar(GobblinMetrics.class);
     String gobblinMetastoreJar = ClassUtil.findContainingJar(FsStateStore.class);
     String gobblinRuntimeJar = ClassUtil.findContainingJar(Task.class);
     String gobblinUtilityJar = ClassUtil.findContainingJar(PathUtils.class);
@@ -440,7 +442,7 @@ public class EmbeddedGobblin {
     String commons3Jar = ClassUtil.findContainingJar(ClassUtils.class);
     String avroJar = ClassUtil.findContainingJar(SchemaBuilder.class);
     String retryJar = ClassUtil.findContainingJar(RetryListener.class);
-    return Sets.newHashSet(gobblinApiJar, gobblinCoreJar, gobblinMetricsJar, gobblinMetastoreJar, gobblinRuntimeJar,
+    return Sets.newHashSet(gobblinApiJar, gobblinCoreJar, gobblinMetricsCoreJar, gobblinMetricsJar, gobblinMetastoreJar, gobblinRuntimeJar,
         gobblinUtilityJar, jodaTimeJar, guavaJar, dropwizardMetricsJar, pegasusJar, commons3Jar, avroJar, retryJar);
   }
 
