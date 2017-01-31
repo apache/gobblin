@@ -113,6 +113,13 @@ public class ConfigurationKeys {
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
 
   /**
+   * Common topology configuration properties.
+   */
+  public static final String TOPOLOGY_NAME_KEY = "topology.name";
+  public static final String TOPOLOGY_GROUP_KEY = "topology.group";
+  public static final String TOPOLOGY_DESCRIPTION_KEY = "topology.description";
+
+  /**
    * Common job configuration properties.
    */
   public static final String JOB_NAME_KEY = "job.name";
