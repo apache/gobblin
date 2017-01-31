@@ -106,6 +106,13 @@ public class ConfigurationKeys {
   public static final int DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = 1;
 
   /**
+   * Common flow configuration properties.
+   */
+  public static final String FLOW_NAME_KEY = "flow.name";
+  public static final String FLOW_GROUP_KEY = "flow.group";
+  public static final String FLOW_DESCRIPTION_KEY = "flow.description";
+
+  /**
    * Common job configuration properties.
    */
   public static final String JOB_NAME_KEY = "job.name";
