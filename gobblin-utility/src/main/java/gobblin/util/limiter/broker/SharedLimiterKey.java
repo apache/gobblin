@@ -19,19 +19,39 @@ package gobblin.util.limiter.broker;
 
 import gobblin.broker.iface.SharedResourceKey;
 
-import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 
 /**
  * A {@link SharedResourceKey} for use with {@link SharedLimiterFactory}. The resourceLimited should identify the resource
  * that will be limited, for example the uri of an external service for which calls should be throttled.
  */
-@Data
+@Getter
 @EqualsAndHashCode
 public class SharedLimiterKey implements SharedResourceKey {
 
+  public enum GlobalLimiterPolicy {
+    USE_GLOBAL,
+    USE_GLOBAL_IF_CONFIGURED,
+    LOCAL_ONLY
+  }
+
   private final String resourceLimited;
+  private final GlobalLimiterPolicy globalLimiterPolicy;
+
+  public SharedLimiterKey(String resourceLimited) {
+    this(resourceLimited, GlobalLimiterPolicy.USE_GLOBAL_IF_CONFIGURED);
+  }
+
+  public SharedLimiterKey(String resourceLimited, GlobalLimiterPolicy globalLimiterPolicy) {
+    this.resourceLimited = resourceLimited;
+    this.globalLimiterPolicy = globalLimiterPolicy;
+  }
+
+  public String toString() {
+    return toConfigurationKey();
+  }
 
   @Override
   public String toConfigurationKey() {

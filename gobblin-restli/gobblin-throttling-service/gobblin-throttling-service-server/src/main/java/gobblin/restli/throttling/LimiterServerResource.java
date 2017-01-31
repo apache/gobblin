@@ -31,11 +31,13 @@ import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.util.limiter.broker.SharedLimiterKey;
 
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Restli resource for allocating permits through Rest calls. Simply calls a {@link Limiter} in the server configured
  * through {@link SharedResourcesBroker}.
  */
+@Slf4j
 @RestLiCollection(name = "permits", namespace = "gobblin.restli.throttling")
 public class LimiterServerResource extends ComplexKeyResourceTemplate<PermitRequest, EmptyRecord, PermitAllocation> {
 
@@ -50,11 +52,12 @@ public class LimiterServerResource extends ComplexKeyResourceTemplate<PermitRequ
   public PermitAllocation get(ComplexResourceKey<PermitRequest, EmptyRecord> key) {
     try {
 
+      log.debug("Allocating request {}", key.getKey());
       PermitRequest request = key.getKey();
 
       Limiter limiter =
           (Limiter) this.broker.<Limiter, SharedLimiterKey>getSharedResource(new SharedLimiterFactory(),
-              new SharedLimiterKey(request.getResource()));
+              new SharedLimiterKey(request.getResource(), SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY));
 
       Closeable permit = limiter.acquirePermits(request.getPermits());
 

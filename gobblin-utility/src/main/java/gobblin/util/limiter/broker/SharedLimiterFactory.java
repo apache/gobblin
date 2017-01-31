@@ -29,11 +29,16 @@ import gobblin.broker.iface.ScopeType;
 import gobblin.broker.iface.ScopedConfigView;
 import gobblin.broker.iface.SharedResourceFactory;
 import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.broker.iface.SharedResourceFactoryResponse;
+import gobblin.broker.ResourceCoordinate;
+import gobblin.broker.ResourceInstance;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.LimiterFactory;
 import gobblin.util.limiter.MultiLimiter;
 import gobblin.util.limiter.NoopLimiter;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -47,10 +52,12 @@ import gobblin.util.limiter.NoopLimiter;
  *   parent {@link Limiter}s).
  * </p>
  */
+@Slf4j
 public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResourceFactory<Limiter, SharedLimiterKey, S> {
 
   public static final String NAME = "limiter";
   public static final String LIMITER_CLASS_KEY = "class";
+  public static final String FAIL_IF_NO_GLOBAL_LIMITER_KEY = "failIfNoGlobalLimiter";
 
   private static final ClassAliasResolver<LimiterFactory> RESOLVER = new ClassAliasResolver<>(LimiterFactory.class);
 
@@ -60,10 +67,34 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
   }
 
   @Override
-  public ResourceInstance<Limiter> createResource(SharedResourcesBroker broker, ScopedConfigView<?, SharedLimiterKey> configView)
+  public SharedResourceFactoryResponse<Limiter>
+    createResource(SharedResourcesBroker broker, ScopedConfigView<?, SharedLimiterKey> configView)
       throws NotConfiguredException{
+
     Config config = configView.getConfig();
+    SharedLimiterKey.GlobalLimiterPolicy globalLimiterPolicy = configView.getKey().getGlobalLimiterPolicy();
+
+    if (config.hasPath(FAIL_IF_NO_GLOBAL_LIMITER_KEY) && config.getBoolean(FAIL_IF_NO_GLOBAL_LIMITER_KEY)) {
+      // if user has specified FAIL_IF_NO_GLOBAL_LIMITER_KEY, promote the policy from USE_GLOBAL_IF_CONFIGURED to USE_GLOBAL
+      // e.g. fail if no GLOBAL configuration is present
+      SharedLimiterKey modifiedKey = new SharedLimiterKey(configView.getKey().getResourceLimited(),
+          SharedLimiterKey.GlobalLimiterPolicy.USE_GLOBAL);
+      return new ResourceCoordinate<>(this, modifiedKey, (S) configView.getScope());
+    }
+
     Limiter limiter;
+
+    if (!configView.getScope().isLocal() && !globalLimiterPolicy.equals(SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY)) {
+      try {
+        Class<?> klazz = Class.forName("gobblin.util.limiter.RestliLimiterFactory");
+        return new ResourceCoordinate<>((SharedResourceFactory<Limiter, SharedLimiterKey, S>) klazz.newInstance(),
+            configView.getKey(), (S) configView.getScope());
+      } catch (ReflectiveOperationException roe) {
+        if (globalLimiterPolicy.equals(SharedLimiterKey.GlobalLimiterPolicy.USE_GLOBAL)) {
+          throw new RuntimeException("There is no Global limiter factory in the classpath.");
+        }
+      }
+    }
 
     if (config.hasPath(LIMITER_CLASS_KEY)) {
       try {
