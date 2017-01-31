@@ -19,7 +19,8 @@ package gobblin.runtime.api;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Map;
+import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -28,6 +29,7 @@ import com.typesafe.config.Config;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.typesafe.config.ConfigFactory;
 
@@ -67,6 +69,10 @@ public class FlowSpec implements Configurable, Spec {
 
   /** URI of {@link gobblin.runtime.api.JobTemplate} to use. */
   final Optional<Set<URI>> templateURIs;
+
+  /** Child {@link Spec}s to this {@link FlowSpec} **/
+  // Note that a FlowSpec can be materialized into multiple FlowSpec or JobSpec hierarchy
+  final Optional<List<Spec>> childSpecs;
 
   public static FlowSpec.Builder builder(URI flowSpecUri) {
     return new FlowSpec.Builder(flowSpecUri);
@@ -135,6 +141,7 @@ public class FlowSpec implements Configurable, Spec {
     private Optional<String> description = Optional.absent();
     private Optional<URI> flowCatalogURI = Optional.absent();
     private Optional<Set<URI>> templateURIs = Optional.absent();
+    private Optional<List<Spec>> childSpecs = Optional.absent();
 
     public Builder(URI flowSpecUri) {
       Preconditions.checkNotNull(flowSpecUri);
@@ -161,7 +168,7 @@ public class FlowSpec implements Configurable, Spec {
       Preconditions.checkNotNull(this.version);
 
       return new FlowSpec(getURI(), getVersion(), getDescription(), getConfig(),
-          getConfigAsProperties(), getTemplateURIs());
+          getConfigAsProperties(), getTemplateURIs(), getChildSpecs());
     }
 
     /** The scheme and authority of the flow catalog URI are used to generate FlowSpec URIs from
@@ -298,6 +305,42 @@ public class FlowSpec implements Configurable, Spec {
       this.templateURIs.get().add(templateURI);
       return this;
     }
+
+    public FlowSpec.Builder withTemplates(Collection templateURIs) {
+      Preconditions.checkNotNull(templateURIs);
+      if (!this.templateURIs.isPresent()) {
+        Set<URI> templateURISet = Sets.newHashSet();
+        this.templateURIs = Optional.of(templateURISet);
+      }
+      this.templateURIs.get().addAll(templateURIs);
+      return this;
+    }
+
+    public Optional<List<Spec>> getChildSpecs() {
+      return this.childSpecs;
+    }
+
+    public FlowSpec.Builder withChildSpec(Spec childSpec) {
+      Preconditions.checkNotNull(childSpec);
+      if (!this.childSpecs.isPresent()) {
+        List<Spec> childSpecsList = Lists.newArrayList();
+        this.childSpecs = Optional.of(childSpecsList);
+      }
+      this.childSpecs.get().add(childSpec);
+      return this;
+    }
+
+    public FlowSpec.Builder withChildSpecs(List<Spec> childSpecs) {
+      Preconditions.checkNotNull(childSpecs);
+      if (!this.childSpecs.isPresent()) {
+        List<Spec> childSpecsList = Lists.newArrayList();
+        this.childSpecs = Optional.of(childSpecsList);
+      }
+      this.childSpecs.get().addAll(childSpecs);
+      return this;
+    }
+
+
   }
 
   /**
