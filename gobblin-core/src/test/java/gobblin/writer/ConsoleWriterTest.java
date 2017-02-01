@@ -106,31 +106,8 @@ public class ConsoleWriterTest {
       throws IOException {
     ConsoleWriter<TestObject> consoleWriter = new ConsoleWriter<>();
     writeEnvelope(consoleWriter, "hello 1", "dataset1", 1);
-
-    Map<String, CheckpointableWatermark> committed = consoleWriter.getCommittableWatermark();
-    verifyCommittedContents(committed, "dataset1", 1);
-
-    Map<String, CheckpointableWatermark> uncommitted = consoleWriter.getUnacknowledgedWatermark();
-    Assert.assertTrue(uncommitted.isEmpty());
-
     writeEnvelope(consoleWriter, "hello 2", "dataset1", 2);
-    committed = consoleWriter.getCommittableWatermark();
-    verifyCommittedContents(committed, "dataset1", 2);
-    uncommitted = consoleWriter.getUnacknowledgedWatermark();
-    Assert.assertTrue(uncommitted.isEmpty());
-
     writeEnvelope(consoleWriter, "hello 2", "dataset2", 1);
-    committed = consoleWriter.getCommittableWatermark();
-    verifyCommittedContents(committed, "dataset2", 1);
-    verifyCommittedContents(committed, "dataset1", 2);
-    uncommitted = consoleWriter.getUnacknowledgedWatermark();
-    Assert.assertTrue(uncommitted.isEmpty());
-
   }
-
-  private void verifyCommittedContents(Map<String, CheckpointableWatermark> committed, String source, long value) {
-    Assert.assertTrue(committed.containsKey(source));
-    Assert.assertEquals(committed.get(source).getSource(), source);
-    Assert.assertEquals(((LongWatermark) committed.get(source).getWatermark()).getValue(), value);
-  }
+  
 }

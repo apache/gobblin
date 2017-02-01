@@ -113,10 +113,7 @@ public class GobblinTaskRebalancer extends TaskRebalancer {
       Partition allNodes = (Partition)strategy.next();
       if(filteredPartitionSet.contains(Integer.valueOf(pId(allNodes.getPartitionName())))) {
         HashMap record = Maps.newHashMap();
-        if(prevAssignment != null) {
-          record.putAll(prevAssignment.getReplicaMap(allNodes));
-        }
-
+        record.putAll(prevAssignment.getReplicaMap(allNodes));
         record.putAll(currStateOutput.getCurrentStateMap(resourceId1, allNodes));
         record.putAll(currStateOutput.getPendingStateMap(resourceId1, allNodes));
         currentMapping.put(allNodes.getPartitionName(), record);

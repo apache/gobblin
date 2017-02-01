@@ -58,7 +58,25 @@ public class AcknowledgableWatermark implements Comparable<AcknowledgableWaterma
 
   @Override
   public int compareTo(AcknowledgableWatermark o) {
-    Preconditions.checkArgument(o instanceof AcknowledgableWatermark);
     return _checkpointableWatermark.compareTo(o._checkpointableWatermark);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    AcknowledgableWatermark watermark = (AcknowledgableWatermark) o;
+
+    return _checkpointableWatermark.equals(watermark._checkpointableWatermark);
+  }
+
+  @Override
+  public int hashCode() {
+    return _checkpointableWatermark.hashCode();
   }
 }
