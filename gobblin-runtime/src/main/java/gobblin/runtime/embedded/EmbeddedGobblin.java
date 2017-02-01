@@ -20,9 +20,10 @@ package gobblin.runtime.embedded;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -32,23 +33,24 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.avro.SchemaBuilder;
 import org.apache.commons.lang3.ClassUtils;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.ClassUtil;
 import org.joda.time.Period;
 import org.joda.time.ReadableInstant;
+import org.reflections.Reflections;
 import org.slf4j.Logger;
 
 import com.codahale.metrics.MetricFilter;
 import com.github.rholder.retry.RetryListener;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.escape.Escaper;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -56,9 +58,9 @@ import com.linkedin.data.template.DataTemplate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import gobblin.Constructs;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import gobblin.metastore.FsStateStore;
 import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
@@ -80,14 +82,19 @@ import gobblin.runtime.cli.EmbeddedGobblinCliSupport;
 import gobblin.runtime.cli.NotOnCli;
 import gobblin.runtime.instance.SimpleGobblinInstanceEnvironment;
 import gobblin.runtime.instance.StandardGobblinInstanceDriver;
+import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import gobblin.runtime.job_catalog.StaticJobCatalog;
+import gobblin.runtime.job_spec.ResolvedJobSpec;
 import gobblin.runtime.plugins.GobblinInstancePluginUtils;
 import gobblin.runtime.plugins.PluginStaticKeys;
 import gobblin.runtime.std.DefaultConfigurableImpl;
 import gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
+import gobblin.state.ConstructState;
 import gobblin.util.PathUtils;
+import gobblin.util.PullFileLoader;
 
+import javassist.bytecode.ClassFile;
 import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -123,7 +130,7 @@ public class EmbeddedGobblin {
   private final Map<String, String> builtConfigMap;
   private final Config defaultSysConfig;
   private final Map<String, String> sysConfigOverrides;
-  private final Set<String> distributedJars;
+  private final Map<String, Integer> distributedJars;
   private Runnable distributeJarsFunction;
   private JobTemplate template;
   private Logger useLog = log;
@@ -131,6 +138,7 @@ public class EmbeddedGobblin {
   private FullTimeout jobTimeout = new FullTimeout(10, TimeUnit.DAYS);
   private FullTimeout shutdownTimeout = new FullTimeout(10, TimeUnit.SECONDS);
   private List<GobblinInstancePluginFactory> plugins = Lists.newArrayList();
+  private Optional<Path> jobFile = Optional.absent();
 
   public EmbeddedGobblin() {
     this("EmbeddedGobblin");
@@ -143,7 +151,8 @@ public class EmbeddedGobblin {
     this.builtConfigMap = Maps.newHashMap();
     this.sysConfigOverrides = Maps.newHashMap();
     this.defaultSysConfig = getDefaultSysConfig();
-    this.distributedJars = getCoreGobblinJars();
+    this.distributedJars = Maps.newHashMap();
+    loadCoreGobblinJarsToDistributedJars();
     this.distributeJarsFunction = new Runnable() {
       @Override
       public void run() {
@@ -165,7 +174,7 @@ public class EmbeddedGobblin {
       public void run() {
         // Add jars needed at runtime to the sys config so MR job launcher will add them to distributed cache.
         EmbeddedGobblin.this.sysConfigOverrides.put(ConfigurationKeys.JOB_JAR_FILES_KEY,
-            Joiner.on(",").join(EmbeddedGobblin.this.distributedJars));
+            Joiner.on(",").join(getPrioritizedDistributedJars()));
       }
     };
     return this;
@@ -175,7 +184,27 @@ public class EmbeddedGobblin {
    * Specify that the input jar should be added to workers' classpath on distributed mode.
    */
   public EmbeddedGobblin distributeJar(String jarPath) {
-    this.distributedJars.add(jarPath);
+    return distributeJarWithPriority(jarPath, 0);
+  }
+
+  /**
+   * Specify that the input jar should be added to workers' classpath on distributed mode. Jars with lower priority value
+   * will appear first in the classpath. Default priority is 0.
+   */
+  public EmbeddedGobblin distributeJarByClassWithPriority(Class<?> klazz, int priority) {
+    return distributeJarWithPriority(ClassUtil.findContainingJar(klazz), priority);
+  }
+
+  /**
+   * Specify that the input jar should be added to workers' classpath on distributed mode. Jars with lower priority value
+   * will appear first in the classpath. Default priority is 0.
+   */
+  public synchronized EmbeddedGobblin distributeJarWithPriority(String jarPath, int priority) {
+    if (this.distributedJars.containsKey(jarPath)) {
+      this.distributedJars.put(jarPath, Math.min(priority, this.distributedJars.get(jarPath)));
+    } else {
+      this.distributedJars.put(jarPath, priority);
+    }
     return this;
   }
 
@@ -227,6 +256,14 @@ public class EmbeddedGobblin {
       throw new RuntimeException("Cannot parse " + keyValue + ". Expected <key>:<value>.");
     }
     return sysConfig(split.get(0), split.get(1));
+  }
+
+  /**
+   * Provide a job file.
+   */
+  public EmbeddedGobblin jobFile(String pathStr) {
+    this.jobFile = Optional.of(new Path(pathStr));
+    return this;
   }
 
   /**
@@ -350,22 +387,44 @@ public class EmbeddedGobblin {
     // Run function to distribute jars to workers in distributed mode
     this.distributeJarsFunction.run();
 
-    Config finalConfig = ConfigFactory.parseMap(this.userConfigMap)
-        .withFallback(ConfigFactory.parseMap(this.builtConfigMap))
+    Config sysProps = ConfigFactory.parseMap(this.builtConfigMap)
         .withFallback(this.defaultSysConfig);
+    Config userConfig = ConfigFactory.parseMap(this.userConfigMap);
 
-    if (this.template != null) {
+    JobSpec jobSpec;
+    if (this.jobFile.isPresent()) {
       try {
-        finalConfig = this.template.getResolvedConfig(finalConfig);
-      } catch (SpecNotFoundException | JobTemplate.TemplateException exc) {
-        throw new RuntimeException(exc);
+        Path jobFilePath = this.jobFile.get();
+        PullFileLoader loader =
+            new PullFileLoader(jobFilePath.getParent(), jobFilePath.getFileSystem(new Configuration()),
+                PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS,
+                PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
+        Config jobConfig = userConfig.withFallback(loader.loadPullFile(jobFilePath, sysProps, false));
+        ImmutableFSJobCatalog.JobSpecConverter converter =
+            new ImmutableFSJobCatalog.JobSpecConverter(jobFilePath.getParent(), Optional.<String>absent());
+        jobSpec = converter.apply(jobConfig);
+      } catch (IOException ioe) {
+        throw new RuntimeException("Failed to run embedded Gobblin.", ioe);
       }
+    } else {
+      Config finalConfig = userConfig.withFallback(sysProps);
+      if (this.template != null) {
+        try {
+          finalConfig = this.template.getResolvedConfig(finalConfig);
+        } catch (SpecNotFoundException | JobTemplate.TemplateException exc) {
+          throw new RuntimeException(exc);
+        }
+      }
+      jobSpec = this.specBuilder.withConfig(finalConfig).build();
     }
-    finalConfig = finalConfig.resolve();
 
-    this.specBuilder.withConfig(finalConfig);
-
-    final JobCatalog jobCatalog = new StaticJobCatalog(Optional.of(this.useLog), Lists.newArrayList(this.specBuilder.build()));
+    ResolvedJobSpec resolvedJobSpec;
+    try {
+      resolvedJobSpec = new ResolvedJobSpec(jobSpec);
+    } catch (SpecNotFoundException | JobTemplate.TemplateException exc) {
+      throw new RuntimeException("Failed to resolved template.", exc);
+    }
+    final JobCatalog jobCatalog = new StaticJobCatalog(Optional.of(this.useLog), Lists.<JobSpec>newArrayList(resolvedJobSpec));
 
     SimpleGobblinInstanceEnvironment instanceEnvironment =
         new SimpleGobblinInstanceEnvironment("EmbeddedGobblinInstance", this.useLog, getSysConfig());
@@ -427,23 +486,43 @@ public class EmbeddedGobblin {
    * This returns the set of jars required by a basic Gobblin ingestion job. In general, these need to be distributed
    * to workers in a distributed environment.
    */
-  private Set<String> getCoreGobblinJars() {
-    String gobblinApiJar = ClassUtil.findContainingJar(State.class);
-    String gobblinCoreJar = ClassUtil.findContainingJar(Constructs.class);
-    String gobblinMetricsCoreJar = ClassUtil.findContainingJar(MetricContext.class);
-    String gobblinMetricsJar = ClassUtil.findContainingJar(GobblinMetrics.class);
-    String gobblinMetastoreJar = ClassUtil.findContainingJar(FsStateStore.class);
-    String gobblinRuntimeJar = ClassUtil.findContainingJar(Task.class);
-    String gobblinUtilityJar = ClassUtil.findContainingJar(PathUtils.class);
-    String jodaTimeJar = ClassUtil.findContainingJar(ReadableInstant.class);
-    String guavaJar = ClassUtil.findContainingJar(Escaper.class); // Escaper was added in guava 15, so we use it to identify correct jar
-    String dropwizardMetricsJar = ClassUtil.findContainingJar(MetricFilter.class);
-    String pegasusJar = ClassUtil.findContainingJar(DataTemplate.class);
-    String commons3Jar = ClassUtil.findContainingJar(ClassUtils.class);
-    String avroJar = ClassUtil.findContainingJar(SchemaBuilder.class);
-    String retryJar = ClassUtil.findContainingJar(RetryListener.class);
-    return Sets.newHashSet(gobblinApiJar, gobblinCoreJar, gobblinMetricsCoreJar, gobblinMetricsJar, gobblinMetastoreJar, gobblinRuntimeJar,
-        gobblinUtilityJar, jodaTimeJar, guavaJar, dropwizardMetricsJar, pegasusJar, commons3Jar, avroJar, retryJar);
+  private void loadCoreGobblinJarsToDistributedJars() {
+    // Gobblin-api
+    distributeJarByClassWithPriority(State.class, 0);
+    // Gobblin-core
+    distributeJarByClassWithPriority(ConstructState.class, 0);
+    // Gobblin-core-base
+    distributeJarByClassWithPriority(InstrumentedExtractorBase.class, 0);
+    // Gobblin-metrics-base
+    distributeJarByClassWithPriority(MetricContext.class, 0);
+    // Gobblin-metrics
+    distributeJarByClassWithPriority(GobblinMetrics.class, 0);
+    // Gobblin-metastore
+    distributeJarByClassWithPriority(FsStateStore.class, 0);
+    // Gobblin-runtime
+    distributeJarByClassWithPriority(Task.class, 0);
+    // Gobblin-utility
+    distributeJarByClassWithPriority(PathUtils.class, 0);
+    // joda-time
+    distributeJarByClassWithPriority(ReadableInstant.class, 0);
+    // guava
+    distributeJarByClassWithPriority(Escaper.class, -10); // Escaper was added in guava 15, so we use it to identify correct jar
+    // dropwizard.metrics-core
+    distributeJarByClassWithPriority(MetricFilter.class, 0);
+    // pegasus
+    distributeJarByClassWithPriority(DataTemplate.class, 0);
+    // commons-lang3
+    distributeJarByClassWithPriority(ClassUtils.class, 0);
+    // avro
+    distributeJarByClassWithPriority(SchemaBuilder.class, 0);
+    // guava-retry
+    distributeJarByClassWithPriority(RetryListener.class, 0);
+    // config
+    distributeJarByClassWithPriority(ConfigFactory.class, 0);
+    // reflections
+    distributeJarByClassWithPriority(Reflections.class, 0);
+    // javassist
+    distributeJarByClassWithPriority(ClassFile.class, 0);
   }
 
   /**
@@ -453,6 +532,23 @@ public class EmbeddedGobblin {
   private static class FullTimeout {
     private final long timeout;
     private final TimeUnit timeUnit;
+  }
+
+  @VisibleForTesting
+  protected List<String> getPrioritizedDistributedJars() {
+    List<Map.Entry<String, Integer>> jarsWithPriority = Lists.newArrayList(this.distributedJars.entrySet());
+    Collections.sort(jarsWithPriority, new Comparator<Map.Entry<String, Integer>>() {
+      @Override
+      public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
+        return Integer.compare(o1.getValue(), o2.getValue());
+      }
+    });
+    return Lists.transform(jarsWithPriority, new Function<Map.Entry<String, Integer>, String>() {
+      @Override
+      public String apply(Map.Entry<String, Integer> input) {
+        return input.getKey();
+      }
+    });
   }
 
   /**
