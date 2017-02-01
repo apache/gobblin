@@ -65,7 +65,15 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
    */
   Config getStateStoreConfig(State state) {
     // Select and prefix-strip all properties prefixed by WATERMARK_STORAGE_CONFIG_PREFIX
-    Config config = ConfigUtils.propertiesToConfig(state.getProperties(), Optional.of(WATERMARK_STORAGE_CONFIG_PREFIX));
+    Properties properties = state.getProperties();
+    for (String key : properties.stringPropertyNames())  {
+      if (key.startsWith(WATERMARK_STORAGE_CONFIG_PREFIX)) {
+        properties.setProperty(key.substring(WATERMARK_STORAGE_CONFIG_PREFIX.length()),
+            (String) properties.get(key));
+      }
+    }
+
+    Config config = ConfigFactory.parseProperties(properties);
 
     // Defaults
     if (!config.hasPath(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY)) {
