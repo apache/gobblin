@@ -17,36 +17,33 @@
 
 package gobblin.service;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Properties;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.annotations.RestLiCollection;
-import com.linkedin.restli.server.CreateResponse;
-import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.JobSpecNotFoundException;
 import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.job_catalog.FSJobCatalog;
-import gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import static org.reflections.util.ConfigurationBuilder.*;
 
 
 @RestLiCollection(name = "flowconfigs", namespace = "gobblin.service")

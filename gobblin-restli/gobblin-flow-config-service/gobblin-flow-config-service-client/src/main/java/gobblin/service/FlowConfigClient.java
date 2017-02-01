@@ -17,6 +17,13 @@
 
 package gobblin.service;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Collections;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Optional;
 import com.linkedin.common.callback.FutureCallback;
 import com.linkedin.common.util.None;
@@ -34,11 +41,6 @@ import com.linkedin.restli.client.UpdateRequest;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.IdResponse;
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Collections;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**

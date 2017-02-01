@@ -17,6 +17,17 @@
 
 package gobblin.service;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.util.Map;
+
+import org.eclipse.jetty.http.HttpStatus;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
@@ -29,21 +40,12 @@ import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
+
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.restli.EmbeddedRestliServer;
 import gobblin.runtime.api.MutableJobCatalog;
 import gobblin.runtime.job_catalog.FSJobCatalog;
-import java.io.File;
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.util.Map;
-
-import org.eclipse.jetty.http.HttpStatus;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 
 @Test(groups = { "gobblin.service" })
