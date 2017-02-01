@@ -109,5 +109,5 @@ public class ConsoleWriterTest {
     writeEnvelope(consoleWriter, "hello 2", "dataset1", 2);
     writeEnvelope(consoleWriter, "hello 2", "dataset2", 1);
   }
-  
+
 }
