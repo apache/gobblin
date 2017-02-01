@@ -36,6 +36,7 @@ import com.google.common.util.concurrent.Service;
 import gobblin.broker.iface.ScopeType;
 import gobblin.broker.iface.SharedResourceFactory;
 import gobblin.broker.iface.SharedResourceKey;
+import gobblin.broker.iface.NoSuchScopeException;
 
 import javax.annotation.Nonnull;
 import lombok.AllArgsConstructor;
@@ -67,7 +68,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
     // Left if the key represents
     private final ScopeWrapper<S> scope;
     private final String factoryName;
-    private final String key;
+    private final SharedResourceKey key;
   }
 
   /**
@@ -80,7 +81,7 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       throws ExecutionException {
 
     // figure out auto scope
-    RawJobBrokerKey autoscopeCacheKey = new RawJobBrokerKey(broker.getWrappedSelfScope(), factory.getName(), key.toConfigurationKey());
+    RawJobBrokerKey autoscopeCacheKey = new RawJobBrokerKey(broker.getWrappedSelfScope(), factory.getName(), key);
     ScopeWrapper<S> selectedScope = this.autoScopeCache.get(autoscopeCacheKey, new Callable<ScopeWrapper<S>>() {
       @Override
       public ScopeWrapper<S> call() throws Exception {
@@ -101,14 +102,31 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
       @Nonnull final ScopeWrapper<S> scope, final SharedResourcesBrokerImpl<S> broker)
       throws ExecutionException {
 
-    RawJobBrokerKey fullKey = new RawJobBrokerKey(scope, factory.getName(), key.toConfigurationKey());
-    return (T) this.sharedResourceCache.get(fullKey, new Callable<Object>() {
+    RawJobBrokerKey fullKey = new RawJobBrokerKey(scope, factory.getName(), key);
+    Object obj = this.sharedResourceCache.get(fullKey, new Callable<Object>() {
       @Override
-      public Object call()
-          throws Exception {
+      public Object call() throws Exception {
         return factory.createResource(broker, broker.getConfigView(scope.getType(), key, factory.getName()));
       }
     });
+    if (obj instanceof ResourceCoordinate) {
+      ResourceCoordinate<T, K, S> resourceCoordinate = (ResourceCoordinate<T, K, S>) obj;
+      if (!SharedResourcesBrokerUtils.isScopeTypeAncestor((ScopeType) scope.getType(), ((ResourceCoordinate) obj).getScope())) {
+        throw new RuntimeException(String.format("%s returned an invalid coordinate: scope %s is not an ancestor of %s.",
+            factory.getName(), ((ResourceCoordinate) obj).getScope(), scope.getType()));
+      }
+      try {
+        return getScoped(resourceCoordinate.getFactory(), resourceCoordinate.getKey(),
+            broker.getWrappedScope(resourceCoordinate.getScope()), broker);
+      } catch (NoSuchScopeException nsse) {
+        throw new RuntimeException(String.format("%s returned an invalid coordinate: scope %s is not available.",
+            factory.getName(), resourceCoordinate.getScope().name()), nsse);
+      }
+    } else if (obj instanceof ResourceInstance) {
+      return ((ResourceInstance<T>) obj).getResource();
+    } else {
+      throw new RuntimeException(String.format("Invalid response from %s: %s.", factory.getName(), obj.getClass()));
+    }
   }
 
   /**
@@ -125,16 +143,18 @@ class DefaultBrokerCache<S extends ScopeType<S>> {
 
       this.sharedResourceCache.invalidate(entry.getKey());
 
-      Object obj = entry.getValue();
+      if (entry.getValue() instanceof ResourceInstance) {
+        Object obj = ((ResourceInstance) entry.getValue()).getResource();
 
-      if (obj instanceof Service) {
-        ((Service) obj).stopAsync();
-        awaitShutdown.add((Service) obj);
-      } else if (obj instanceof Closeable) {
-        try {
-          ((Closeable) obj).close();
-        } catch (IOException ioe) {
-          log.error("Failed to close {}.", obj);
+        if (obj instanceof Service) {
+          ((Service) obj).stopAsync();
+          awaitShutdown.add((Service) obj);
+        } else if (obj instanceof Closeable) {
+          try {
+            ((Closeable) obj).close();
+          } catch (IOException ioe) {
+            log.error("Failed to close {}.", obj);
+          }
         }
       }
     }

@@ -30,6 +30,10 @@ buildscript {
 apply plugin: 'pegasus'
 apply plugin: 'java'
 
+if (file('extraDependencies.gradle').exists()) {
+  apply from: 'extraDependencies.gradle'
+}
+
 def apiProject = project(project.getParent().getPath() + ":" + project.getParent().getName() + "-api")
 def serverProject = project(project.getParent().getPath() + ":" + project.getParent().getName() + "-server")
 
@@ -40,6 +44,8 @@ if (file('extraDependencies.gradle').exists()) {
 dependencies {
   compile project(path: apiProject.path, configuration: 'dataTemplate')
   compile project(path: apiProject.path, configuration: 'restClient')
+
+  compile externalDependency.lombok
 
   testCompile project(":gobblin-restli:gobblin-restli-utils")
   testCompile serverProject

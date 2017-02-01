@@ -17,19 +17,20 @@
 
 package gobblin.broker;
 
+import gobblin.broker.iface.ScopeType;
+import gobblin.broker.iface.SharedResourceFactory;
+import gobblin.broker.iface.SharedResourceFactoryResponse;
 import gobblin.broker.iface.SharedResourceKey;
-
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 
+/**
+ * A {@link SharedResourceFactoryResponse} that indicates the broker should return the object at a different coordinate
+ * (ie. factory, key, scope combination).
+ */
 @Data
-@EqualsAndHashCode
-public class TestResourceKey implements SharedResourceKey {
-  private final String key;
-
-  @Override
-  public String toConfigurationKey() {
-    return this.key;
-  }
+public class ResourceCoordinate<T, K extends SharedResourceKey, S extends ScopeType<S>> implements SharedResourceFactoryResponse<T> {
+  private final SharedResourceFactory<T, K, S> factory;
+  private final K key;
+  private final S scope;
 }

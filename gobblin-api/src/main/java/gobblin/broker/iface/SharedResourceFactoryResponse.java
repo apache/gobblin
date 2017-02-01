@@ -15,21 +15,10 @@
  * limitations under the License.
  */
 
-package gobblin.broker;
+package gobblin.broker.iface;
 
-import gobblin.broker.iface.SharedResourceKey;
-
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-
-
-@Data
-@EqualsAndHashCode
-public class TestResourceKey implements SharedResourceKey {
-  private final String key;
-
-  @Override
-  public String toConfigurationKey() {
-    return this.key;
-  }
+/**
+ * An empty interface for responses from a {@link SharedResourceFactory}.
+ */
+public interface SharedResourceFactoryResponse<T> {
 }

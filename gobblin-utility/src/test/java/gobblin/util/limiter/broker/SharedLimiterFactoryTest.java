@@ -38,6 +38,7 @@ import gobblin.util.limiter.CountBasedLimiter;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.MultiLimiter;
 import gobblin.util.limiter.NoopLimiter;
+import gobblin.broker.ResourceInstance;
 
 
 public class SharedLimiterFactoryTest {
@@ -56,8 +57,8 @@ public class SharedLimiterFactoryTest {
         factory.getAutoScope(broker, broker.getConfigView(SimpleScopeType.LOCAL, new SharedLimiterKey("resource"), factory.getName())),
         SimpleScopeType.GLOBAL);
 
-    Limiter limiter = factory.createResource(broker,
-        broker.getConfigView(SimpleScopeType.GLOBAL, new SharedLimiterKey("resource"), factory.getName()));
+    Limiter limiter = ((ResourceInstance<Limiter>) factory.createResource(broker,
+        broker.getConfigView(SimpleScopeType.GLOBAL, new SharedLimiterKey("resource"), factory.getName()))).getResource();
     Assert.assertTrue(limiter instanceof NoopLimiter);
   }
 
@@ -76,8 +77,8 @@ public class SharedLimiterFactoryTest {
         factory.getAutoScope(broker, broker.getConfigView(SimpleScopeType.LOCAL, new SharedLimiterKey("resource"), factory.getName())),
         SimpleScopeType.GLOBAL);
 
-    Limiter limiter = factory.createResource(broker,
-          broker.getConfigView(SimpleScopeType.GLOBAL, new SharedLimiterKey("resource"), factory.getName()));
+    Limiter limiter = ((ResourceInstance<Limiter>) factory.createResource(broker,
+          broker.getConfigView(SimpleScopeType.GLOBAL, new SharedLimiterKey("resource"), factory.getName()))).getResource();
 
     Assert.assertTrue(limiter instanceof CountBasedLimiter);
     Assert.assertEquals(((CountBasedLimiter) limiter).getCountLimit(), 10);
@@ -101,10 +102,10 @@ public class SharedLimiterFactoryTest {
 
     SharedLimiterFactory<SimpleScopeType> factory = new SharedLimiterFactory<>();
 
-    Limiter limiter1 = factory.createResource(localBroker1,
-        broker.getConfigView(SimpleScopeType.LOCAL, new SharedLimiterKey("resource"), factory.getName()));
-    Limiter limiter2 = factory.createResource(localBroker2,
-        broker.getConfigView(SimpleScopeType.LOCAL, new SharedLimiterKey("resource"), factory.getName()));
+    Limiter limiter1 = ((ResourceInstance<Limiter>) factory.createResource(localBroker1,
+        broker.getConfigView(SimpleScopeType.LOCAL, new SharedLimiterKey("resource"), factory.getName()))).getResource();
+    Limiter limiter2 = ((ResourceInstance<Limiter>) factory.createResource(localBroker2,
+        broker.getConfigView(SimpleScopeType.LOCAL, new SharedLimiterKey("resource"), factory.getName()))).getResource();
 
     Assert.assertTrue(limiter1 instanceof MultiLimiter);
     Assert.assertTrue(limiter2 instanceof MultiLimiter);
