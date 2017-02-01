@@ -1,0 +1,17 @@
+{
+  "type" : "record",
+  "name" : "FlowConfigId",
+  "namespace": "gobblin.service",
+  "doc" : "Identifier for a flow",
+  "fields" : [
+    {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    },
+    {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    } ]
+}

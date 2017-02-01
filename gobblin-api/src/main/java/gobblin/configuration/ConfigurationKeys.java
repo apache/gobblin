@@ -685,4 +685,8 @@ public class ConfigurationKeys {
   public static final String TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = "gobblin.task.is.single.branch.synchronous";
   public static final String DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = Boolean.toString(false);
 
+  /**
+   * Configuration properties related to Flows
+   */
+  public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
 }
