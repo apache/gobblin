@@ -4,29 +4,42 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Properties;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.lang3.StringUtils;
 
 import com.google.api.ads.adwords.lib.client.AdWordsSession;
 import com.google.api.ads.common.lib.auth.GoogleClientSecretsBuilder;
 import com.google.api.ads.common.lib.exception.ValidationException;
+import com.google.api.client.googleapis.GoogleUtils;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
+import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.source.extractor.extract.google.GoogleCommon;
+
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT;
+import static gobblin.configuration.ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL;
 
 
+@Slf4j
 public class GoogleAdWordsCredential {
   private static final String REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob";
   private static final ArrayList<String> SCOPES = Lists.newArrayList("https://www.googleapis.com/auth/adwords");
@@ -35,13 +48,15 @@ public class GoogleAdWordsCredential {
   private final String _appName;
   private final String _developerToken;
   private final String _refreshToken;
+  private final String _proxyUrl;
+  private final String _proxyPort;
 
   /**
    * This main method is for getting an updated refresh token.
    * Configure the google_adwords_credential.properties file to do all necessary setup.
    */
   public static void main(String[] args)
-      throws IOException, ValidationException {
+      throws IOException, ValidationException, GeneralSecurityException {
     InputStream input = GoogleAdWordsCredential.class.getResourceAsStream("/google_adwords_credential.properties");
     Properties prop = new Properties();
     prop.load(input);
@@ -58,6 +73,8 @@ public class GoogleAdWordsCredential {
   public GoogleAdWordsCredential(WorkUnitState state) {
     _developerToken = state.getProp(GoogleAdWordsSource.KEY_DEVELOPER_TOKEN);
     _refreshToken = state.getProp(GoogleAdWordsSource.KEY_REFRESH_TOKEN);
+    _proxyUrl = state.getProp(SOURCE_CONN_USE_PROXY_URL);
+    _proxyPort = state.getProp(SOURCE_CONN_USE_PROXY_PORT);
 
     _appName = state.getProp(ConfigurationKeys.SOURCE_ENTITY);
     _clientId = state.getProp(GoogleAdWordsSource.KEY_CLIENT_ID);
@@ -71,13 +88,15 @@ public class GoogleAdWordsCredential {
     _developerToken = developerToken;
     _refreshToken = null;
 
+    _proxyUrl = null;
+    _proxyPort = null;
     _appName = appName;
     _clientId = clientId;
     _clientSecret = clientSecret;
   }
 
   public AdWordsSession.ImmutableAdWordsSession buildRootSession()
-      throws ValidationException {
+      throws ValidationException, GeneralSecurityException, IOException {
     GoogleCredential credential = buildGoogleCredential();
     credential.setRefreshToken(_refreshToken);
     return new AdWordsSession.Builder().withDeveloperToken(_developerToken).withOAuth2Credential(credential)
@@ -85,7 +104,7 @@ public class GoogleAdWordsCredential {
   }
 
   private String getRefreshToken()
-      throws ValidationException, IOException {
+      throws ValidationException, IOException, GeneralSecurityException {
     GoogleClientSecrets clientSecrets = getGoogleClientSecrets();
     GoogleAuthorizationCodeFlow authorizationFlow =
         new GoogleAuthorizationCodeFlow.Builder(new NetHttpTransport(), new JacksonFactory(), clientSecrets, SCOPES)
@@ -116,12 +135,21 @@ public class GoogleAdWordsCredential {
   }
 
   private GoogleCredential buildGoogleCredential()
-      throws ValidationException {
+      throws ValidationException, GeneralSecurityException, IOException {
     return buildGoogleCredential(getGoogleClientSecrets());
   }
 
-  private static GoogleCredential buildGoogleCredential(GoogleClientSecrets clientSecrets) {
-    return new GoogleCredential.Builder().setTransport(new NetHttpTransport()).setJsonFactory(new JacksonFactory())
+  private GoogleCredential buildGoogleCredential(GoogleClientSecrets clientSecrets)
+      throws GeneralSecurityException, IOException {
+    HttpTransport httpTransport = new NetHttpTransport();
+
+    if (!StringUtils.isEmpty(_proxyUrl) && !StringUtils.isEmpty(_proxyPort)) {
+      log.info(String.format("Using proxy url: %s with port: %s", _proxyUrl, _proxyPort));
+      httpTransport = new NetHttpTransport.Builder()
+          .setProxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(_proxyUrl, Integer.parseInt(_proxyPort)))).build();
+    }
+
+    return new GoogleCredential.Builder().setTransport(httpTransport).setJsonFactory(new JacksonFactory())
         .setClientSecrets(clientSecrets).build();
   }
 

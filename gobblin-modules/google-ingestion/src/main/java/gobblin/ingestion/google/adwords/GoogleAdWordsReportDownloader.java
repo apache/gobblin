@@ -169,10 +169,13 @@ public class GoogleAdWordsReportDownloader {
     }
 
     if (!failedJobs.isEmpty()) {
-      log.error(String.format("%d downloading jobs failed: ", failedJobs.size()));
+      StringBuilder sb = new StringBuilder();
+      sb.append(String.format("%d downloading jobs failed: ", failedJobs.size()));
       for (Map.Entry<String, Exception> fail : failedJobs.entrySet()) {
-        log.error(String.format("%s => %s", fail.getKey(), fail.getValue().getMessage()));
+        sb.append(String.format("%s => %s", fail.getKey(), fail.getValue().getMessage()));
       }
+      log.error(sb.toString());
+      throw new RuntimeException(sb.toString());
     }
 
     log.info("End of downloading all reports.");

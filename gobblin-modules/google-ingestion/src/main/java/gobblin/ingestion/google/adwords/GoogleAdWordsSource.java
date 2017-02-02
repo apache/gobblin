@@ -84,9 +84,9 @@ public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
    * Optional. Default to false.
    */
   static final String KEY_REPORTING_USE_RAW_ENUM_VALUES = REQUEST_REPORTING + "use_raw_enum_values";
-  // ==================================================
-  // ========= REPORTING CONFIGURATION BEGIN ==========
-  // ==================================================
+  // ===============================================
+  // ======== REPORTING CONFIGURATION END ==========
+  // ===============================================
 
   // ==============================================
   // ========= REQUEST CONFIGURATION END ==========
