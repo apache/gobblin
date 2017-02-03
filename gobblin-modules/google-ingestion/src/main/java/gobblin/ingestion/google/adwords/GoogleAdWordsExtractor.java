@@ -47,7 +47,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
   private final GoogleAdWordsExtractorIterator _iterator;
   private final DateTime _startDate;
   private final DateTime _endDate;
-  private String _schema;
+  private JsonArray _schema;
   private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   private final static HashMap<String, JsonElementConversionFactory.Type> typeConversionMap = new HashMap<>();
   private boolean _successful = false;
@@ -146,7 +146,13 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
   @Override
   public String getSchema()
       throws IOException {
-    return _schema;
+    JsonArray updatedSchema = new JsonArray();
+    for (int i = 0; i < _schema.size(); i++) {
+      updatedSchema.add(_schema.get(i));
+    }
+    //add extra columns(AccountId) at the end of the original schema
+    updatedSchema.add(createColumnJson("extraAccId", false, JsonElementConversionFactory.Type.STRING));
+    return updatedSchema.toString();
   }
 
   @Override
@@ -182,7 +188,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     }
   }
 
-  static String createSchema(HashMap<String, String> allFields, List<String> requestedColumns)
+  static JsonArray createSchema(HashMap<String, String> allFields, List<String> requestedColumns)
       throws IOException {
     JsonArray schema = new JsonArray();
     TreeMap<String, String> selectedColumns;
@@ -201,23 +207,27 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     }
 
     for (Map.Entry<String, String> column : selectedColumns.entrySet()) {
-      JsonObject columnJson = new JsonObject();
-      columnJson.addProperty("columnName", column.getKey());
-      columnJson.addProperty("isNullable", true);
-
-      JsonObject typeJson = new JsonObject();
       String typeString = column.getValue().toLowerCase();
       JsonElementConversionFactory.Type acceptedType = typeConversionMap.get(typeString);
       if (acceptedType == null) {
         acceptedType = JsonElementConversionFactory.Type.STRING;
       }
-      typeJson.addProperty("type", acceptedType.toString());
-
-      columnJson.add("dataType", typeJson);
-      schema.add(columnJson);
+      schema.add(createColumnJson(column.getKey(), true, acceptedType));
     }
+    return schema;
+  }
 
-    return schema.toString();
+  private static JsonObject createColumnJson(String columnName, boolean isNullable,
+      JsonElementConversionFactory.Type columnType) {
+    JsonObject columnJson = new JsonObject();
+    columnJson.addProperty("columnName", columnName);
+    columnJson.addProperty("isNullable", isNullable);
+
+    JsonObject typeJson = new JsonObject();
+    typeJson.addProperty("type", columnType.toString());
+    columnJson.add("dataType", typeJson);
+
+    return columnJson;
   }
 
   private static HashMap<String, String> downloadReportFields(AdWordsSession rootSession,

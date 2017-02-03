@@ -2,7 +2,6 @@ package gobblin.ingestion.google.adwords;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -44,7 +43,6 @@ import com.google.api.ads.adwords.lib.utils.ReportException;
 import com.google.api.ads.adwords.lib.utils.v201609.ReportDownloader;
 import com.google.api.ads.common.lib.exception.ValidationException;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
 import com.opencsv.CSVParser;
 
 import lombok.extern.slf4j.Slf4j;
@@ -86,7 +84,7 @@ public class GoogleAdWordsReportDownloader {
 
   public GoogleAdWordsReportDownloader(AdWordsSession rootSession, WorkUnitState state, String startDate,
       String endDate, ReportDefinitionReportType reportType, ReportDefinitionDateRangeType dateRangeType,
-      String schema) {
+      JsonArray schema) {
     _rootSession = rootSession;
     _startDate = startDate;
     _endDate = endDate;
@@ -107,11 +105,10 @@ public class GoogleAdWordsReportDownloader {
     _includeZeroImpressions = state.getPropAsBoolean(GoogleAdWordsSource.KEY_REPORTING_INCLUDE_ZERO_IMPRESSION, false);
   }
 
-  static List<String> schemaToColumnNames(String schemaString) {
-    JsonArray schemaArray = new JsonParser().parse(schemaString).getAsJsonArray();
+  static List<String> schemaToColumnNames(JsonArray schemaJsonArray) {
     List<String> fields = new ArrayList<>();
-    for (int i = 0; i < schemaArray.size(); i++) {
-      fields.add(schemaArray.get(i).getAsJsonObject().get("columnName").getAsString());
+    for (int i = 0; i < schemaJsonArray.size(); i++) {
+      fields.add(schemaJsonArray.get(i).getAsJsonObject().get("columnName").getAsString());
     }
     return fields;
   }
@@ -253,7 +250,7 @@ public class GoogleAdWordsReportDownloader {
         createPath(debugFile);
         debugFileWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(debugFile), "UTF-8"));
       }
-      processResponse(zippedStream, reportRows, debugFileWriter);
+      processResponse(zippedStream, reportRows, debugFileWriter, account);
     } catch (IOException e) {
       throw new RuntimeException(
           String.format("Failed unzipping and processing records for %s. Reason is: %s", reportName, e.getMessage()),
@@ -281,7 +278,7 @@ public class GoogleAdWordsReportDownloader {
   }
 
   private static GZIPInputStream processResponse(InputStream zippedStream, LinkedBlockingDeque<String[]> reportRows,
-      PrintWriter debugFw)
+      PrintWriter debugFw, String account)
       throws IOException, InterruptedException {
     byte[] buffer = new byte[SIZE];
 
@@ -300,7 +297,7 @@ public class GoogleAdWordsReportDownloader {
         if (debugFw != null) {
           debugFw.write(str); //save a copy if STRING mode debug is enabled
         }
-        partiallyConsumed = addToQueue(reportRows, partiallyConsumed, str);
+        partiallyConsumed = addToQueue(reportRows, partiallyConsumed, str, account);
       }
       return gzipInputStream;
     }
@@ -311,7 +308,7 @@ public class GoogleAdWordsReportDownloader {
    * A whole record will be added to reportRows(data sink).
    * The last partially consumed string, if exists, will be returned to be processed in next round.
    */
-  static String addToQueue(LinkedBlockingDeque<String[]> reportRows, String previous, String current)
+  static String addToQueue(LinkedBlockingDeque<String[]> reportRows, String previous, String current, String account)
       throws InterruptedException, IOException {
     int start = -1;
     int i = -1;
@@ -326,6 +323,7 @@ public class GoogleAdWordsReportDownloader {
       } else {
         row = current.substring(start, i);
       }
+      row += "," + account; //append account id to the end of each line
 
       String[] splits = splitter.parseLine(row);
       String[] transformed = new String[splits.length];

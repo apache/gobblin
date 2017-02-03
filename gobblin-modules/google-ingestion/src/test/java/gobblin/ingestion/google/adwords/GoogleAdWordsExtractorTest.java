@@ -18,7 +18,7 @@ public class GoogleAdWordsExtractorTest {
     fields.put("c2", "Integer");
     fields.put("c3", "Double");
 
-    String schemaString = GoogleAdWordsExtractor.createSchema(fields, Arrays.asList("c1", "c2"));
+    String schemaString = GoogleAdWordsExtractor.createSchema(fields, Arrays.asList("c1", "c2")).toString();
 
     Assert.assertEquals(schemaString,
         "[{\"columnName\":\"c1\",\"isNullable\":true,\"dataType\":{\"type\":\"STRING\"}},{\"columnName\":\"c2\",\"isNullable\":true,\"dataType\":{\"type\":\"INT\"}}]");
@@ -30,7 +30,7 @@ public class GoogleAdWordsExtractorTest {
     HashMap<String, String> fields = new HashMap<>();
     fields.put("c1", "String");
 
-    String schemaString = GoogleAdWordsExtractor.createSchema(fields, null);
+    String schemaString = GoogleAdWordsExtractor.createSchema(fields, null).toString();
 
     Assert
         .assertEquals(schemaString, "[{\"columnName\":\"c1\",\"isNullable\":true,\"dataType\":{\"type\":\"STRING\"}}]");
