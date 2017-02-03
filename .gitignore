@@ -1,3 +1,5 @@
+dynamic.conf
+yarn-site.xml
 .classpath*
 .project*
 .settings

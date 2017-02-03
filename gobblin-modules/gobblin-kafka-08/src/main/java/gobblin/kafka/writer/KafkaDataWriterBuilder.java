@@ -17,20 +17,14 @@
 
 package gobblin.kafka.writer;
 
-import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-import com.typesafe.config.Config;
-
-import gobblin.configuration.State;
-import gobblin.util.ConfigUtils;
 import gobblin.writer.AsyncDataWriter;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
-import gobblin.writer.PartitionAwareDataWriterBuilder;
+import gobblin.writer.StreamEncoder;
+
 
 /**
  * Builder that hands back a {@link Kafka08DataWriter}
@@ -38,8 +32,8 @@ import gobblin.writer.PartitionAwareDataWriterBuilder;
 public class KafkaDataWriterBuilder extends BaseKafkaDataWriterBuilder {
 
   @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props) {
-    return new Kafka08DataWriter<>(props);
+  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props, List<StreamEncoder> encoders) {
+    return new Kafka08DataWriter<>(props, encoders);
   }
 
 }

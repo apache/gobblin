@@ -18,6 +18,9 @@
 package gobblin.writer;
 
 import java.io.IOException;
+import java.util.Map;
+
+import gobblin.capability.Capability;
 
 
 /**
@@ -34,7 +37,17 @@ public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]>
    */
   @Override
   public DataWriter<byte[]> build() throws IOException {
-    return new SimpleDataWriter(this, this.destination.getProperties());
+    return new SimpleDataWriter(this, this.destination.getProperties(), getEncoders());
   }
 
+  @Override
+  public boolean supportsCapability(Capability c, Map<String, Object> properties) {
+    if (super.supportsCapability(c, properties)) {
+      return true;
+    }
+
+    String encryptionType = (String) properties.get(Capability.ENCRYPTION_TYPE);
+
+    return c.equals(Capability.ENCRYPTION) && SimpleDataWriter.SUPPORTED_ENCRYPTION_TYPES.contains(encryptionType);
+  }
 }

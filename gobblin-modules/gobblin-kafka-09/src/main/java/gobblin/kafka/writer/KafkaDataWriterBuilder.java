@@ -17,11 +17,13 @@
 
 package gobblin.kafka.writer;
 
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.avro.generic.GenericRecord;
 
 import gobblin.writer.AsyncDataWriter;
+import gobblin.writer.StreamEncoder;
 
 
 /**
@@ -29,7 +31,7 @@ import gobblin.writer.AsyncDataWriter;
  */
 public class KafkaDataWriterBuilder extends BaseKafkaDataWriterBuilder {
   @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props) {
-    return new Kafka09DataWriter<>(props);
+  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props, List<StreamEncoder> encoders) {
+    return new Kafka09DataWriter<>(props, encoders);
   }
 }

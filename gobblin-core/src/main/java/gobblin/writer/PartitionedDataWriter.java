@@ -27,14 +27,13 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.io.Closer;
 
-import lombok.extern.slf4j.Slf4j;
-
+import gobblin.capability.Capability;
+import gobblin.capability.CapabilityParsers;
 import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -44,6 +43,8 @@ import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.util.AvroUtils;
 import gobblin.util.FinalState;
 import gobblin.writer.partitioner.WriterPartitioner;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -67,6 +68,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
   private final Closer closer;
   private boolean isSpeculativeAttemptSafe;
   private boolean isWatermarkCapable;
+  private final State state;
 
   public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state)
       throws IOException {
@@ -74,6 +76,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
     this.isWatermarkCapable = true;
     this.baseWriterId = builder.getWriterId();
     this.closer = Closer.create();
+    this.state = state;
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
       public DataWriter<D> load(final GenericRecord key)
@@ -83,21 +86,14 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
       }
     });
 
-    if (state.contains(ConfigurationKeys.WRITER_PARTITIONER_CLASS)) {
-      Preconditions.checkArgument(builder instanceof PartitionAwareDataWriterBuilder, String
-              .format("%s was specified but the writer %s does not support partitioning.",
-                  ConfigurationKeys.WRITER_PARTITIONER_CLASS, builder.getClass().getCanonicalName()));
-
+    if (CapabilityParsers.writerCapabilityForBranch(Capability.PARTITIONED_WRITER, state, builder.getBranches(),
+        builder.getBranch()).isConfigured()) {
       try {
         this.shouldPartition = true;
         this.builder = Optional.of(PartitionAwareDataWriterBuilder.class.cast(builder));
         this.partitioner = Optional.of(WriterPartitioner.class.cast(ConstructorUtils
                 .invokeConstructor(Class.forName(state.getProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS)), state,
                     builder.getBranches(), builder.getBranch())));
-        Preconditions
-            .checkArgument(this.builder.get().validatePartitionSchema(this.partitioner.get().partitionSchema()), String
-                    .format("Writer %s does not support schema from partitioner %s",
-                        builder.getClass().getCanonicalName(), this.partitioner.getClass().getCanonicalName()));
       } catch (ReflectiveOperationException roe) {
         throw new IOException(roe);
       }
@@ -201,8 +197,12 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
     if (!this.builder.isPresent()) {
       throw new IOException("Writer builder not found. This is an error in the code.");
     }
-    DataWriter dataWriter =  this.builder.get().forPartition(partition).withWriterId(this.baseWriterId + "_" + this.writerIdSuffix++)
-        .build();
+
+    @SuppressWarnings("unchecked")
+    DataWriterBuilder<S, D> builderForPartition =
+        this.builder.get().forPartition(partition).withWriterId(this.baseWriterId + "_" + this.writerIdSuffix++);
+
+    DataWriter<D> dataWriter = builderForPartition.build();
     this.isSpeculativeAttemptSafe = this.isSpeculativeAttemptSafe && this.isDataWriterForPartitionSafe(dataWriter);
     this.isWatermarkCapable = this.isWatermarkCapable && this.isDataWriterWatermarkCapable(dataWriter);
     return dataWriter;
@@ -303,5 +303,4 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
     }
     return watermarkTracker.getAllUnacknowledgedWatermarks();
   }
-
 }

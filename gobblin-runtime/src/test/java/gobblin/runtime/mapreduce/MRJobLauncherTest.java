@@ -38,12 +38,15 @@ import gobblin.metastore.StateStore;
 import gobblin.metastore.testing.ITestMetastoreDatabase;
 import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncherTestHelper;
 import gobblin.runtime.JobState;
 import gobblin.util.limiter.BaseLimiterType;
 import gobblin.util.limiter.DefaultLimiterFactory;
 import gobblin.writer.Destination;
 import gobblin.writer.WriterOutputFormat;
+
+import static org.testng.AssertJUnit.*;
 
 
 /**
@@ -146,6 +149,25 @@ public class MRJobLauncherTest extends BMNGRunner {
     jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
     try {
       this.jobLauncherTestHelper.runTest(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
+  @Test
+  public void testLaunchJobWithInvalidConfiguration() throws Exception {
+    Properties jobProps = loadJobProps();
+
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithEncryptionEnabledButUnsupported");
+    jobProps.setProperty(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "true");
+    jobProps.setProperty(ConfigurationKeys.WRITER_BUILDER_CLASS, "gobblin.writer.HiveWritableHdfsDataWriterBuilder");
+
+    try {
+      this.jobLauncherTestHelper.runTest(jobProps);
+      fail("Expected job to fail because encryption is configured w/ a writer that can't support it");
+    } catch (JobException e) {
+      // do nothing
     } finally {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
