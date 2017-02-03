@@ -33,6 +33,7 @@ extract.namespace=gobblin.streaming.test
 # Configure watermark storage for streaming
 #streaming.watermarkStateStore.type=zk
 #streaming.watermarkStateStore.config.state.store.zk.connectString=localhost:2181
+#streaming.watermarkStateStore.config.state.store.dir=/streamingWatermarks
 
 # Configure watermark commit settings for streaming
 #streaming.watermark.commitIntervalMillis=2000

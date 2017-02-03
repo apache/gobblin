@@ -21,10 +21,10 @@ package gobblin.runtime;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 import com.typesafe.config.Config;
@@ -38,7 +38,6 @@ import gobblin.configuration.State;
 import gobblin.metastore.StateStore;
 import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.util.ClassAliasResolver;
-import gobblin.util.ConfigUtils;
 import gobblin.util.io.GsonInterfaceAdapter;
 import gobblin.writer.WatermarkStorage;
 
@@ -87,7 +86,7 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
     return config;
   }
 
-  public StateStoreBasedWatermarkStorage(TaskState taskState) {
+  public StateStoreBasedWatermarkStorage(State taskState) {
     Preconditions.checkArgument(taskState != null);
     Preconditions.checkArgument(!taskState.getProp(ConfigurationKeys.JOB_NAME_KEY).isEmpty());
     String watermarkStateStoreType = taskState.getProp(WATERMARK_STORAGE_TYPE_KEY, WATERMARK_STORAGE_TYPE_DEFAULT);
@@ -108,6 +107,8 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
     Config config = getStateStoreConfig(taskState);
     _stateStore = stateStoreFactory.createStateStore(config, CheckpointableWatermarkState.class);
     _storeName = WATERMARK_STORAGE_PREFIX + taskState.getProp(ConfigurationKeys.JOB_NAME_KEY);
+    log.info("State Store directory configured as : {}", config.getString(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY));
+    log.info("Configured the StateStoreBasedWatermarkStorage with storeName: {}", _storeName);
   }
 
   @Override
@@ -137,4 +138,9 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
     }
     return committed;
   }
+
+  Iterable<CheckpointableWatermarkState> getAllCommittedWatermarks() throws IOException {
+    return _stateStore.getAll(_storeName);
+  }
+
 }
