@@ -157,10 +157,13 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         for (String resource: helixAdmin.getResourcesInCluster(clusterName)) {
           IdealState idealState = helixAdmin.getResourceIdealState(clusterName, resource);
           if (idealState!=null) {
+            /**
+             * Commenting this out until we fix the rebalancer
             if (!idealState.getRebalancerClassName().equals(rebalancerClassDesired)) {
               idealState.setRebalancerClassName(rebalancerClassDesired);
               helixAdmin.setResourceIdealState(clusterName, resource, idealState);
             }
+             **/
 
              // HACK to ensure that concurrent tasks per instance is set.
              // TODO: Remove this when we upgrade to a fixed Helix version
