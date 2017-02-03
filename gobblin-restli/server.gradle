@@ -33,6 +33,10 @@ apply plugin: 'war'
 def apiProject = project(project.getParent().getPath() + ":" + project.getParent().getName() + "-api")
 ext.apiProject = apiProject
 
+if (file('extraDependencies.gradle').exists()) {
+  apply from: 'extraDependencies.gradle'
+}
+
 dependencies {
   compile project(path: apiProject.path, configuration: 'dataTemplate')
   compile project(':gobblin-utility')

@@ -23,6 +23,8 @@ package gobblin.broker.iface;
  * and {@link SharedResourceKey}, but different objects if any of this differ. The key can contain information relevant
  * to the factory.
  *
+ * Note: keys are compared using {@link #equals(Object)}. It is important for implementations to override this method.
+ *
  * Example: for a file handle factory, the key could specify the path of the file for which the handle is needed.
  */
 public interface SharedResourceKey {

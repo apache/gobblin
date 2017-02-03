@@ -18,6 +18,7 @@
 package gobblin.runtime.embedded;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -33,7 +34,7 @@ import gobblin.writer.test.TestingEventBusAsserter;
 public class EmbeddedGobblinTest {
 
   @Test
-  public void test() throws Exception {
+  public void testRunWithTemplate() throws Exception {
     String eventBusId = this.getClass().getName();
     int numHellos = 5;
 
@@ -54,6 +55,41 @@ public class EmbeddedGobblinTest {
     }
     asserter.assertNextValuesEq(expectedEvents);
     asserter.close();
+  }
+
+  @Test
+  public void testRunWithJobFile() throws Exception {
+    String eventBusId = this.getClass().getName() + ".jobFileTest";
+
+    TestingEventBusAsserter asserter = new TestingEventBusAsserter(eventBusId);
+
+    EmbeddedGobblin embeddedGobblin =
+        new EmbeddedGobblin("TestJob").jobFile(getClass().getResource("/testJobs/helloWorld.conf").getPath());
+    embeddedGobblin.setConfiguration(ConfigurationKeys.WRITER_BUILDER_CLASS, GobblinTestEventBusWriter.Builder.class.getName());
+    embeddedGobblin.setConfiguration(GobblinTestEventBusWriter.FULL_EVENTBUSID_KEY, eventBusId);
+
+    JobExecutionResult result = embeddedGobblin.run();
+
+    Assert.assertTrue(result.isSuccessful());
+
+    ArrayList<String> expectedEvents = new ArrayList<>();
+    for (int i = 1; i <= 10; ++i) {
+      expectedEvents.add(HelloWorldSource.ExtractorImpl.helloMessage(i));
+    }
+    asserter.assertNextValuesEq(expectedEvents);
+    asserter.close();
+  }
+
+  @Test
+  public void testDistributedJars() throws Exception {
+    EmbeddedGobblin embeddedGobblin = new EmbeddedGobblin("Test");
+    embeddedGobblin.distributeJarWithPriority("myJar", 0);
+    embeddedGobblin.distributeJarWithPriority("myJar2", -100);
+    embeddedGobblin.distributeJarWithPriority("myJar3", 10);
+    List<String> jars = embeddedGobblin.getPrioritizedDistributedJars();
+
+    Assert.assertEquals(jars.get(0), "myJar2");
+    Assert.assertEquals(jars.get(jars.size() - 1), "myJar3");
   }
 
 }

@@ -20,6 +20,7 @@ package gobblin.util.limiter.broker;
 import gobblin.broker.iface.SharedResourceKey;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 
 /**
@@ -27,6 +28,7 @@ import lombok.Data;
  * that will be limited, for example the uri of an external service for which calls should be throttled.
  */
 @Data
+@EqualsAndHashCode
 public class SharedLimiterKey implements SharedResourceKey {
 
   private final String resourceLimited;

@@ -29,9 +29,14 @@ public interface SharedResourceFactory<T, K extends SharedResourceKey, S extends
   String getName();
 
   /**
-   * Create an object for the provided {@link SharedResourceKey}, with the provided configuration.
+   * Requests an object for the provided {@link SharedResourceKey}, with the provided configuration.
+   * The factory can return a variety of responses:
+   * * {@link gobblin.broker.ResourceInstance}: a newly built resource of type T for the input key and scope.
+   * * {@link gobblin.broker.ResourceCoordinate}: the coordinates (factory, key, scope) of another resource of type T that
+   *    should be used instead (this allows, for example, to use a different factory, or always return a global scoped object.)
    */
-  T createResource(SharedResourcesBroker broker, ScopedConfigView<?, K> config) throws NotConfiguredException;
+  SharedResourceFactoryResponse<T>
+      createResource(SharedResourcesBroker broker, ScopedConfigView<?, K> config) throws NotConfiguredException;
 
   /**
    * @return The {@link ScopeType} at which an auto scoped resource should be created. A good default is to return
