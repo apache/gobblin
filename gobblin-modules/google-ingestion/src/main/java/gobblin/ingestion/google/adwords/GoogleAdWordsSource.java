@@ -1,12 +1,22 @@
 package gobblin.ingestion.google.adwords;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 
+import org.apache.commons.lang3.StringUtils;
+
+import com.google.api.client.http.javanet.NetHttpTransport;
+
+import lombok.extern.slf4j.Slf4j;
+
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.extract.QueryBasedSource;
 
 
+@Slf4j
 public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
   private static final String ADWORDS = "source.google_adwords.";
   /**
@@ -143,9 +153,21 @@ public class GoogleAdWordsSource extends QueryBasedSource<String, String[]> {
   public Extractor<String, String[]> getExtractor(WorkUnitState state)
       throws IOException {
     try {
+      setupProxy(state);
       return new GoogleAdWordsExtractor(state);
     } catch (Exception e) {
       throw new IOException(e);
+    }
+  }
+
+  private void setupProxy(WorkUnitState state) {
+    String proxyUrl = state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL, "");
+    String proxyPort = state.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT, "");
+
+    if (!StringUtils.isEmpty(proxyUrl) && !StringUtils.isEmpty(proxyPort)) {
+      log.info(String.format("Using proxy url: %s with port: %s", proxyUrl, proxyPort));
+      System.setProperty("https.proxyHost", proxyUrl);
+      System.setProperty("https.proxyPort", proxyPort);
     }
   }
 }
