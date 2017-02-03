@@ -32,15 +32,19 @@ import gobblin.source.extractor.CheckpointableWatermark;
 public class AcknowledgableWatermark implements Comparable<AcknowledgableWatermark>, Ackable {
 
   private final CheckpointableWatermark _checkpointableWatermark;
-  private AtomicInteger _acked = new AtomicInteger(1);  // default number of acks needed is 1
+  private final AtomicInteger _acked;
 
   public AcknowledgableWatermark(CheckpointableWatermark watermark) {
+    _acked = new AtomicInteger(1); // default number of acks needed is 1
     _checkpointableWatermark = watermark;
   }
 
   @Override
   public void ack() {
-    _acked.decrementAndGet();
+    int ackValue = _acked.decrementAndGet();
+    if (ackValue < 0) {
+      throw new AssertionError("The acknowledgement counter for this watermark went negative. Please file a bug!");
+    }
   }
 
   public AcknowledgableWatermark incrementAck() {

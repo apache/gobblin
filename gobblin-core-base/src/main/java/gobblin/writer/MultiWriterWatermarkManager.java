@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +52,7 @@ import gobblin.util.ExecutorsUtils;
 public class MultiWriterWatermarkManager implements WatermarkManager {
 
 
-  private final List<WatermarkAwareWriter> _watermarkAwareWriters;
+  private final Queue<WatermarkAwareWriter> _watermarkAwareWriters;
   private final WatermarkStorage _watermarkStorage;
   private final long _commitIntervalMillis;
   private final ScheduledExecutorService _watermarkCommitThreadPool;
@@ -106,7 +108,7 @@ public class MultiWriterWatermarkManager implements WatermarkManager {
 
   public MultiWriterWatermarkManager(WatermarkStorage storage, long commitIntervalMillis, Optional<Logger> logger) {
     Preconditions.checkArgument(storage != null, "WatermarkStorage cannot be null");
-    _watermarkAwareWriters = new ArrayList<>(1);
+    _watermarkAwareWriters = new ConcurrentLinkedQueue<>();
     _watermarkStorage = storage;
     _commitIntervalMillis = commitIntervalMillis;
     _logger = logger.or(LoggerFactory.getLogger(MultiWriterWatermarkManager.class));

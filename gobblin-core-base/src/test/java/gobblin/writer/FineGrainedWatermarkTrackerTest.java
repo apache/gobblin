@@ -68,7 +68,7 @@ public class FineGrainedWatermarkTrackerTest {
         CheckpointableWatermark checkpointableWatermark = new DefaultCheckpointableWatermark("default", new LongWatermark(i));
         AcknowledgableWatermark ackable = new AcknowledgableWatermark(checkpointableWatermark);
         acknowledgableWatermarks[i] = ackable;
-        tracker.attempt(ackable);
+        tracker.track(ackable);
       }
 
       // Create some random holes. Don't fire acknowledgements for these messages.
@@ -128,6 +128,7 @@ public class FineGrainedWatermarkTrackerTest {
 
     for (int j =0; j < 1000; ++j) {
       FineGrainedWatermarkTracker tracker = new FineGrainedWatermarkTracker(ConfigFactory.empty());
+      tracker.setAutoStart(false);
 
       int numWatermarks = 1+random.nextInt(1000);
       AcknowledgableWatermark[] acknowledgableWatermarks = new AcknowledgableWatermark[numWatermarks];
@@ -136,7 +137,7 @@ public class FineGrainedWatermarkTrackerTest {
         CheckpointableWatermark checkpointableWatermark = new DefaultCheckpointableWatermark("default", new LongWatermark(i));
         AcknowledgableWatermark ackable = new AcknowledgableWatermark(checkpointableWatermark);
         acknowledgableWatermarks[i] = ackable;
-        tracker.attempt(ackable);
+        tracker.track(ackable);
       }
 
       int numMissingAcks = random.nextInt(numWatermarks);
@@ -192,7 +193,7 @@ public class FineGrainedWatermarkTrackerTest {
       for (int i = 0; i < numWatermarks; ++i) {
         CheckpointableWatermark checkpointableWatermark = new DefaultCheckpointableWatermark("default", new LongWatermark(i));
         final AcknowledgableWatermark ackable = new AcknowledgableWatermark(checkpointableWatermark);
-        tracker.attempt(ackable);
+        tracker.track(ackable);
         acknowledgableWatermarks[i] = ackable;
         // ack or not
         boolean ack = random.nextBoolean();

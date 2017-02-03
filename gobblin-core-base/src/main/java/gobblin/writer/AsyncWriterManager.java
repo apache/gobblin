@@ -353,6 +353,9 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
             // If this failure is fatal, set the writer to throw an exception at this point
             if (isFailureFatal()) {
               makeNextWriteThrow(throwable);
+            } else {
+              // since the failure is not fatal, ack the attempt and move forward
+              attempt.ackable.ack();
             }
           } finally {
             AsyncWriterManager.this.writePermits.release();

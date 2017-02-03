@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
@@ -135,7 +136,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
-    this.stateStores = new StateStores(ConfigUtils.propertiesToConfig(jobProps), appWorkDir,
+    final Config jobConfig = ConfigUtils.propertiesToConfig(jobProps);
+
+    this.stateStores = new StateStores(jobConfig, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
         GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
 
@@ -148,33 +151,37 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
 
     // HACK to fixup IDEAL state with a rebalancer that will rebalance running jobs as well
-    final String clusterName = "GobblinStandaloneCluster";
-    final String rebalancerClassDesired = GobblinTaskRebalancer.class.getName();
-    this.helixManager.addIdealStateChangeListener(new IdealStateChangeListener() {
-      @Override
-      public void onIdealStateChange(List<IdealState> list, NotificationContext notificationContext) {
-        HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
-        for (String resource: helixAdmin.getResourcesInCluster(clusterName)) {
-          IdealState idealState = helixAdmin.getResourceIdealState(clusterName, resource);
-          if (idealState!=null) {
-            /**
-             * Commenting this out until we fix the rebalancer
-            if (!idealState.getRebalancerClassName().equals(rebalancerClassDesired)) {
-              idealState.setRebalancerClassName(rebalancerClassDesired);
-              helixAdmin.setResourceIdealState(clusterName, resource, idealState);
-            }
-             **/
+    final String clusterName = ConfigUtils.getString(jobConfig, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, "");
+    if (!clusterName.isEmpty()) {
+      final String rebalancerClassDesired = GobblinTaskRebalancer.class.getName();
+      this.helixManager.addIdealStateChangeListener(new IdealStateChangeListener() {
+        @Override
+        public void onIdealStateChange(List<IdealState> list, NotificationContext notificationContext) {
+          HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
+          for (String resource : helixAdmin.getResourcesInCluster(clusterName)) {
+            IdealState idealState = helixAdmin.getResourceIdealState(clusterName, resource);
+            if (idealState != null) {
+              /**
+               * Commenting this out until we fix the rebalancer
+               if (!idealState.getRebalancerClassName().equals(rebalancerClassDesired)) {
+               idealState.setRebalancerClassName(rebalancerClassDesired);
+               helixAdmin.setResourceIdealState(clusterName, resource, idealState);
+               }
+               **/
 
-             // HACK to ensure that concurrent tasks per instance is set.
-             // TODO: Remove this when we upgrade to a fixed Helix version
-             final String taskResourceName = TaskUtil.getNamespacedJobName(jobContext.getJobName(), jobContext.getJobId());
-             HelixConfigScope resourceScope = new HelixConfigScopeBuilder(HelixConfigScope.ConfigScopeProperty.RESOURCE)
-             .forCluster(clusterName).forResource(taskResourceName).build();
-             helixManager.getConfigAccessor().set(resourceScope, JobConfig.NUM_CONCURRENT_TASKS_PER_INSTANCE, "100");
+              // HACK to ensure that concurrent tasks per instance is set.
+              // TODO: Remove this when we upgrade to a fixed Helix version
+              final String taskResourceName = TaskUtil.getNamespacedJobName(jobContext.getJobName(), jobContext.getJobId());
+              int jobConcurrency = ConfigUtils.getInt(jobConfig, GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
+                  GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT);
+              HelixConfigScope resourceScope =
+                  new HelixConfigScopeBuilder(HelixConfigScope.ConfigScopeProperty.RESOURCE).forCluster(clusterName).forResource(taskResourceName).build();
+              helixManager.getConfigAccessor().set(resourceScope, JobConfig.NUM_CONCURRENT_TASKS_PER_INSTANCE, ""+jobConcurrency);
+            }
           }
         }
-      }
-    });
+      });
+    }
 
   }
 

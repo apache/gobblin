@@ -59,8 +59,8 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
   private final String _storeName;
 
   /**
-   * A private method that creates a ZK state store config
-   * @return
+   * A private method that creates a state store config
+   * @return a filled out config that can be passed on to a state store.
    */
   Config getStateStoreConfig(State state) {
     // Select and prefix-strip all properties prefixed by WATERMARK_STORAGE_CONFIG_PREFIX
@@ -78,10 +78,6 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
     if (!config.hasPath(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY)) {
       config = config.withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
           ConfigValueFactory.fromAnyRef("/streamingWatermarks"));
-    }
-    if (!config.hasPath("state.store.zk.connectString")) {
-      config = config.withValue("state.store.zk.connectString",
-          ConfigValueFactory.fromAnyRef("localhost:2181"));
     }
     return config;
   }

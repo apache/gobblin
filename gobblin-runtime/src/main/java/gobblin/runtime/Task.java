@@ -359,7 +359,7 @@ public class Task implements Runnable {
           onRecordExtract();
           AcknowledgableWatermark ackableWatermark = new AcknowledgableWatermark(recordEnvelope.getWatermark());
           if (watermarkTracker.isPresent()) {
-            watermarkTracker.get().attempt(ackableWatermark);
+            watermarkTracker.get().track(ackableWatermark);
           }
           for (Object convertedRecord : converter.convertRecord(schema, recordEnvelope.getRecord(), this.taskState)) {
             processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches,
