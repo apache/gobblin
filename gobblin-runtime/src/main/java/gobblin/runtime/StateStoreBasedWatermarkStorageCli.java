@@ -121,18 +121,18 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
 
     StateStoreBasedWatermarkStorage stateStoreBasedWatermarkStorage = new StateStoreBasedWatermarkStorage(taskState);
 
-    boolean runForever = false;
+    final AtomicBoolean stop = new AtomicBoolean(true);
+
     if (cli.hasOption(WATCH.getOpt())) {
-      runForever = true;
+      stop.set(false);
     }
     try {
 
-      final AtomicBoolean shutdown = new AtomicBoolean(false);
 
-      if (runForever) {
+      if (!stop.get()) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
           public void run() {
-            shutdown.set(true);
+            stop.set(true);
           }
         });
       }
@@ -150,10 +150,10 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
         if (!foundWatermark) {
           System.out.println("No watermarks found.");
         }
-        if (runForever) {
+        if (!stop.get()) {
           Thread.sleep(1000);
         }
-      } while (!shutdown.get());
+      } while (!stop.get());
     } catch (Exception e) {
       Throwables.propagate(e);
     }
