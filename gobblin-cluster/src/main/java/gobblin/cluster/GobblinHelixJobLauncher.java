@@ -153,7 +153,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     // HACK to fixup IDEAL state with a rebalancer that will rebalance running jobs as well
     final String clusterName = ConfigUtils.getString(jobConfig, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, "");
     if (!clusterName.isEmpty()) {
-      final String rebalancerClassDesired = GobblinTaskRebalancer.class.getName();
       this.helixManager.addIdealStateChangeListener(new IdealStateChangeListener() {
         @Override
         public void onIdealStateChange(List<IdealState> list, NotificationContext notificationContext) {
@@ -163,6 +162,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
             if (idealState != null) {
               /**
                * Commenting this out until we fix the rebalancer
+               final String rebalancerClassDesired = GobblinTaskRebalancer.class.getName();
                if (!idealState.getRebalancerClassName().equals(rebalancerClassDesired)) {
                idealState.setRebalancerClassName(rebalancerClassDesired);
                helixAdmin.setResourceIdealState(clusterName, resource, idealState);

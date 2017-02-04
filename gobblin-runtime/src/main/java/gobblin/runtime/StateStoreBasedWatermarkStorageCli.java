@@ -22,6 +22,7 @@ package gobblin.runtime;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -80,7 +81,7 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
 
     if (cli.hasOption(HELP.getOpt())) {
       printUsage(options);
-      System.exit(0);
+      return;
     }
 
 
@@ -115,7 +116,7 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
     } else {
       log.error("Need root directory specified");
       printUsage(options);
-      System.exit(1);
+      return;
     }
 
     StateStoreBasedWatermarkStorage stateStoreBasedWatermarkStorage = new StateStoreBasedWatermarkStorage(taskState);
@@ -126,6 +127,15 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
     }
     try {
 
+      final AtomicBoolean shutdown = new AtomicBoolean(false);
+
+      if (runForever) {
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+          public void run() {
+            shutdown.set(true);
+          }
+        });
+      }
       do {
         boolean foundWatermark = false;
         try {
@@ -143,7 +153,7 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
         if (runForever) {
           Thread.sleep(1000);
         }
-      } while (runForever);
+      } while (!shutdown.get());
     } catch (Exception e) {
       Throwables.propagate(e);
     }
