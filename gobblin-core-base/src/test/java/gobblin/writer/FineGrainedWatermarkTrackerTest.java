@@ -61,7 +61,7 @@ public class FineGrainedWatermarkTrackerTest {
     for (int j =0; j < 100; ++j) {
       FineGrainedWatermarkTracker tracker = new FineGrainedWatermarkTracker(config);
 
-      int numWatermarks = random.nextInt(1000);
+      int numWatermarks = 1 + random.nextInt(1000);
       AcknowledgableWatermark[] acknowledgableWatermarks = new AcknowledgableWatermark[numWatermarks];
 
       for (int i = 0; i < numWatermarks; ++i) {
@@ -184,7 +184,7 @@ public class FineGrainedWatermarkTrackerTest {
       FineGrainedWatermarkTracker tracker = new FineGrainedWatermarkTracker(ConfigFactory.empty());
       tracker.start();
 
-      int numWatermarks = random.nextInt(1000);
+      int numWatermarks = 1 + random.nextInt(1000);
       AcknowledgableWatermark[] acknowledgableWatermarks = new AcknowledgableWatermark[numWatermarks];
       SortedSet<Integer> holes = new TreeSet<>();
 
