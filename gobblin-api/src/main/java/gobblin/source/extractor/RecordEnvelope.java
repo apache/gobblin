@@ -37,15 +37,6 @@ public class RecordEnvelope<D> {
     return _record;
   }
 
-  /**
-   * Swap the record attached to this watermark, useful when transmitting envelopes down a
-   * processing chain to save on object creation
-   */
-  public RecordEnvelope setRecord(D record) {
-    _record = record;
-    return this;
-  }
-
   public CheckpointableWatermark getWatermark() {
     return _watermark;
   }

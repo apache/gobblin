@@ -93,13 +93,12 @@ public class ConsoleWriterTest {
 
   private void writeEnvelope(ConsoleWriter consoleWriter, String content, String source, long value)
       throws IOException {
-    RecordEnvelope mockEnvelope = mock(RecordEnvelope.class);
     CheckpointableWatermark watermark =
         new DefaultCheckpointableWatermark(source, new LongWatermark(value));
-    when(mockEnvelope.getRecord()).thenReturn(content);
-    when(mockEnvelope.getWatermark()).thenReturn(watermark);
+    AcknowledgableWatermark ackable = new AcknowledgableWatermark(watermark);
+    AcknowledgableRecordEnvelope mockEnvelope = new AcknowledgableRecordEnvelope<>(content, ackable);
     consoleWriter.writeEnvelope(mockEnvelope);
-
+    Assert.assertTrue(ackable.isAcked());
   }
 
   @Test
@@ -107,31 +106,8 @@ public class ConsoleWriterTest {
       throws IOException {
     ConsoleWriter<TestObject> consoleWriter = new ConsoleWriter<>();
     writeEnvelope(consoleWriter, "hello 1", "dataset1", 1);
-
-    Map<String, CheckpointableWatermark> committed = consoleWriter.getCommittableWatermark();
-    verifyCommittedContents(committed, "dataset1", 1);
-
-    Map<String, CheckpointableWatermark> uncommitted = consoleWriter.getUnacknowledgedWatermark();
-    Assert.assertTrue(uncommitted.isEmpty());
-
     writeEnvelope(consoleWriter, "hello 2", "dataset1", 2);
-    committed = consoleWriter.getCommittableWatermark();
-    verifyCommittedContents(committed, "dataset1", 2);
-    uncommitted = consoleWriter.getUnacknowledgedWatermark();
-    Assert.assertTrue(uncommitted.isEmpty());
-
     writeEnvelope(consoleWriter, "hello 2", "dataset2", 1);
-    committed = consoleWriter.getCommittableWatermark();
-    verifyCommittedContents(committed, "dataset2", 1);
-    verifyCommittedContents(committed, "dataset1", 2);
-    uncommitted = consoleWriter.getUnacknowledgedWatermark();
-    Assert.assertTrue(uncommitted.isEmpty());
-
   }
 
-  private void verifyCommittedContents(Map<String, CheckpointableWatermark> committed, String source, long value) {
-    Assert.assertTrue(committed.containsKey(source));
-    Assert.assertEquals(committed.get(source).getSource(), source);
-    Assert.assertEquals(((LongWatermark) committed.get(source).getWatermark()).getValue(), value);
-  }
 }

@@ -20,9 +20,12 @@
 package gobblin.source.extractor;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 
 import lombok.EqualsAndHashCode;
+
+import gobblin.util.io.GsonInterfaceAdapter;
 
 
 /**
@@ -30,7 +33,8 @@ import lombok.EqualsAndHashCode;
  */
 @EqualsAndHashCode
 public class DefaultCheckpointableWatermark implements CheckpointableWatermark {
-  private static final Gson GSON = new Gson();
+
+  private static final Gson GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   private final String source;
   private final ComparableWatermark comparable;
@@ -60,7 +64,7 @@ public class DefaultCheckpointableWatermark implements CheckpointableWatermark {
 
   @Override
   public JsonElement toJson() {
-    return comparable.toJson();
+    return GSON.toJsonTree(this);
   }
 
   @Override

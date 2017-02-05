@@ -673,17 +673,6 @@ public class ConfigurationKeys {
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
   public static final int PERMISSION_PARSING_RADIX = 8;
 
-  /**
-   * Configuration properties related to continuous / streaming mode
-   */
-  public static final String TASK_EXECUTION_MODE = "gobblin.task.executionMode";
-  public static final String DEFAULT_TASK_EXECUTION_MODE = "BATCH";
-
-  /**
-   * Configuration properties related to optimizations for single branch tasks
-   */
-  public static final String TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = "gobblin.task.is.single.branch.synchronous";
-  public static final String DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = Boolean.toString(false);
 
   /**
    * Configuration properties related to Flows

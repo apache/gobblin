@@ -28,7 +28,8 @@ import java.util.Properties;
 public class ZkStateStoreFactory implements StateStore.Factory {
   @Override
   public <T extends State> StateStore<T> createStateStore(Config config, Class<T> stateClass) {
-    String connectString = config.getString(ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY);
+    String connectString = ConfigUtils.getString(config, ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY,
+        ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_DEFAULT);
     String rootDir = config.getString(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
     boolean compressedValues = ConfigUtils.getBoolean(config, ConfigurationKeys.STATE_STORE_COMPRESSED_VALUES_KEY,
             ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES);

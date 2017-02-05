@@ -21,7 +21,9 @@ package gobblin.writer;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
@@ -52,6 +54,7 @@ import gobblin.metrics.GobblinMetrics;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.MetricNames;
 import gobblin.metrics.Tag;
+import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.FinalState;
@@ -70,7 +73,7 @@ import gobblin.util.FinalState;
  *
  *
  */
-public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Closeable, FinalState {
+public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWriter<D>, Instrumentable, Closeable, FinalState {
   private static final long MILLIS_TO_NANOS = 1000 * 1000;
   public static final long COMMIT_TIMEOUT_MILLIS_DEFAULT = 60000L; // 1 minute
   public static final long COMMIT_STEP_WAITTIME_MILLIS_DEFAULT = 500; // 500 ms sleep while waiting for commit
@@ -111,12 +114,28 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
   private final Semaphore writePermits;
   private volatile Throwable cachedWriteException = null;
 
+  @Override
+  public boolean isWatermarkCapable() {
+    return true;
+  }
+
+  @Override
+  public Map<String, CheckpointableWatermark> getCommittableWatermark() {
+    throw new UnsupportedOperationException("This writer does not keep track of committed watermarks");
+  }
+
+  @Override
+  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
+    throw new UnsupportedOperationException("This writer does not keep track of uncommitted watermarks");
+  }
+
   /**
    * A class to store attempts at writing a record
    **/
   @Getter
   class Attempt {
     private final D record;
+    private final Ackable ackable;
     private int attemptNum;
     @Setter
     private Throwable prevAttemptFailure; // Any failure
@@ -127,8 +146,9 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
       ++this.attemptNum;
     }
 
-    Attempt(D record) {
+    Attempt(D record, Ackable ackable) {
       this.record = record;
+      this.ackable = ackable;
       this.attemptNum = 1;
       this.prevAttemptFailure = null;
       this.prevAttemptTimestampNanos = -1;
@@ -236,7 +256,19 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
   }
 
   @Override
+  public void writeEnvelope(AcknowledgableRecordEnvelope<D> recordEnvelope)
+      throws IOException {
+    write(recordEnvelope.getRecord(), recordEnvelope);
+  }
+
+  @Override
   public void write(final D record)
+      throws IOException {
+    write(record, Ackable.NoopAckable);
+  }
+
+
+  private void write(final D record, Ackable ackable)
       throws IOException {
     maybeThrow();
     int spinNum = 0;
@@ -253,8 +285,9 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
       Throwables.propagate(e);
     }
     this.recordsIn.mark();
-    attemptWrite(new Attempt(record));
+    attemptWrite(new Attempt(record, ackable));
   }
+
 
   /**
    * Checks if the current operating metrics would imply that
@@ -288,6 +321,7 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
       @Override
       public void onSuccess(WriteResponse writeResponse) {
         try {
+          attempt.ackable.ack();
           AsyncWriterManager.this.recordsSuccess.mark();
           if (writeResponse.bytesWritten() > 0) {
             AsyncWriterManager.this.bytesWritten.mark(writeResponse.bytesWritten());
@@ -319,6 +353,9 @@ public class AsyncWriterManager<D> implements DataWriter<D>, Instrumentable, Clo
             // If this failure is fatal, set the writer to throw an exception at this point
             if (isFailureFatal()) {
               makeNextWriteThrow(throwable);
+            } else {
+              // since the failure is not fatal, ack the attempt and move forward
+              attempt.ackable.ack();
             }
           } finally {
             AsyncWriterManager.this.writePermits.release();

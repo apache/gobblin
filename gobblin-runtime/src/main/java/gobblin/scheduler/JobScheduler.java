@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.Path;
 
 import org.quartz.CronScheduleBuilder;
 import org.quartz.DisallowConcurrentExecution;
+import org.quartz.InterruptableJob;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
@@ -44,6 +45,7 @@ import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
+import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.StdSchedulerFactory;
 
 import org.slf4j.Logger;
@@ -57,6 +59,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.AbstractIdleService;
+
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobException;
@@ -197,6 +201,12 @@ public class JobScheduler extends AbstractIdleService {
         ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY)) {
       this.pathAlterationDetector.stop(1000);
     }
+
+    List<JobExecutionContext> currentExecutions = this.scheduler.getScheduler().getCurrentlyExecutingJobs();
+    for (JobExecutionContext jobExecutionContext : currentExecutions) {
+      this.scheduler.getScheduler().interrupt(jobExecutionContext.getFireInstanceId());
+    }
+
 
     ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
   }
@@ -459,7 +469,8 @@ public class JobScheduler extends AbstractIdleService {
    * A Gobblin job to be scheduled.
    */
   @DisallowConcurrentExecution
-  public static class GobblinJob implements Job {
+  @Slf4j
+  public static class GobblinJob implements InterruptableJob {
 
     @Override
     public void execute(JobExecutionContext context)
@@ -475,6 +486,13 @@ public class JobScheduler extends AbstractIdleService {
       } catch (Throwable t) {
         throw new JobExecutionException(t);
       }
+    }
+
+    @Override
+    public void interrupt()
+        throws UnableToInterruptJobException {
+      log.info("Job was interrupted");
+
     }
   }
 

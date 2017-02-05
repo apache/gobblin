@@ -40,4 +40,5 @@ public interface CheckpointableWatermark extends Watermark, Comparable<Checkpoin
    * @return the source-local watermark.
    */
   ComparableWatermark getWatermark();
+
 }

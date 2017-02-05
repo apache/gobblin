@@ -41,7 +41,6 @@ import gobblin.configuration.State;
 import gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
 import gobblin.source.extractor.CheckpointableWatermark;
-import gobblin.source.extractor.RecordEnvelope;
 import gobblin.util.AvroUtils;
 import gobblin.util.FinalState;
 import gobblin.writer.partitioner.WriterPartitioner;
@@ -118,6 +117,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
   private boolean isDataWriterWatermarkCapable(DataWriter<D> dataWriter) {
     return (dataWriter instanceof WatermarkAwareWriter) && (((WatermarkAwareWriter) dataWriter).isWatermarkCapable());
   }
+
 
   @Override
   public void write(D record)
@@ -255,7 +255,7 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
   }
 
   @Override
-  public void writeEnvelope(RecordEnvelope<D> recordEnvelope)
+  public void writeEnvelope(AcknowledgableRecordEnvelope<D> recordEnvelope)
       throws IOException {
     try {
       DataWriter<D> writer = getDataWriterForRecord(recordEnvelope.getRecord());
@@ -303,4 +303,5 @@ public class PartitionedDataWriter<S, D> implements DataWriter<D>, FinalState, S
     }
     return watermarkTracker.getAllUnacknowledgedWatermarks();
   }
+
 }
