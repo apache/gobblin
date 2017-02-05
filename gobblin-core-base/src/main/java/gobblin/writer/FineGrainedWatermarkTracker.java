@@ -60,7 +60,6 @@ import gobblin.util.ExecutorsUtils;
 /**
  * A class to handle fine-grain watermarks.
  * Thread-safe only if you know what you are doing :)
- * TODO: performance benchmarks
  *
  */
 @NotThreadSafe
