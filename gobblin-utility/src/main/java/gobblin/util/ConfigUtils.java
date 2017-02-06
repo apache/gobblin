@@ -37,6 +37,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.opencsv.CSVReader;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
@@ -45,6 +46,7 @@ import com.typesafe.config.ConfigList;
 import com.typesafe.config.ConfigValue;
 
 import gobblin.configuration.State;
+import gobblin.password.PasswordManager;
 
 
 /**
@@ -461,5 +463,35 @@ public class ConfigUtils {
       }
     }
     return true;
+  }
+
+  /**
+   * Resolves encrypted config value(s) by considering on the path with "encConfigPath" as encrypted.
+   * It will use Password manager via given config. Thus, convention of PasswordManager need to be followed in order to be decrypted.
+   * Note that "encConfigPath" path will be removed from the config key, leaving child path on the config key.
+   * e.g:
+   *  encConfigPath = enc.conf
+   *  - Before : { enc.conf.secret_key : ENC(rOF43721f0pZqAXg#63a) }
+   *  - After  : { secret_key : decrypted_val }
+   *
+   * @param config
+   * @param encConfigPath
+   * @return
+   */
+  public static Config resolveEncrypted(Config config, Optional<String> encConfigPath) {
+    if (!encConfigPath.isPresent() || !config.hasPath(encConfigPath.get())) {
+      return config;
+    }
+
+    Config encryptedConfig = config.getConfig(encConfigPath.get());
+
+    PasswordManager passwordManager = PasswordManager.getInstance(configToProperties(config));
+    Map<String, String> tmpMap = Maps.newHashMap();
+    for (Map.Entry<String, ConfigValue> entry : encryptedConfig.entrySet()) {
+      String val = entry.getValue().unwrapped().toString();
+      val = passwordManager.readPassword(val);
+      tmpMap.put(entry.getKey(), val);
+    }
+    return ConfigFactory.parseMap(tmpMap).withFallback(config);
   }
 }

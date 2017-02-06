@@ -38,6 +38,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -68,7 +69,6 @@ import gobblin.util.io.StreamCopierSharedLimiterKey;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.writer.DataWriter;
-
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -123,7 +123,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
         ConfigurationKeys.LOCAL_FS_URI);
 
-    this.fs = FileSystem.get(URI.create(uri), new Configuration());
+    this.fs = FileSystem.get(URI.create(uri), WriterUtils.getFsConfiguration(state));
     this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
         .getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
         : WriterUtils.getWriterStagingDir(state, numBranches, branchId);

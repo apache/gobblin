@@ -78,7 +78,7 @@ public class ProxiedFileSystemWrapper {
    * @throws URISyntaxException
    * @return proxiedFs
    */
-  public FileSystem getProxiedFileSystem(State properties, AuthType authType, String authPath, String uri)
+  public FileSystem getProxiedFileSystem(State properties, AuthType authType, String authPath, String uri, final Configuration conf)
       throws IOException, InterruptedException, URISyntaxException {
     Preconditions.checkArgument(StringUtils.isNotBlank(properties.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)),
         "State does not contain a proper proxy user name");
@@ -108,8 +108,6 @@ public class ProxiedFileSystemWrapper {
         break;
     }
 
-    final Configuration conf = new Configuration();
-    JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     final URI fsURI = URI.create(uri);
     proxyUser.doAs(new PrivilegedExceptionAction<Void>() {
       @Override

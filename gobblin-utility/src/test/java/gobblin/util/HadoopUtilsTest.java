@@ -17,7 +17,9 @@
 
 package gobblin.util;
 
+import java.io.IOException;
 import java.net.URI;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -36,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 
 import gobblin.configuration.State;
@@ -226,6 +230,55 @@ public class HadoopUtilsTest {
       throw new RuntimeException();
     } catch (RuntimeException e) {
       Assert.assertTrue(e.getMessage().contains("substitute contains illegal characters"));
+    }
+  }
+
+  @Test
+  public void testStateToConfiguration() throws IOException {
+    Map<String, String> vals = Maps.newHashMap();
+    vals.put("test_key1", "test_val1");
+    vals.put("test_key2", "test_val2");
+
+    Configuration expected = HadoopUtils.newConfiguration();
+    State state = new State();
+    for (Map.Entry<String, String> entry : vals.entrySet()) {
+      state.setProp(entry.getKey(), entry.getValue());
+      expected.set(entry.getKey(), entry.getValue());
+    }
+    Assert.assertEquals(HadoopUtils.getConfFromState(state), expected);
+    Assert.assertEquals(HadoopUtils.getConfFromState(state, Optional.<String>absent()), expected);
+    Assert.assertEquals(HadoopUtils.getConfFromState(state, Optional.of("dummy")), expected);
+  }
+
+  @Test
+  public void testEncryptedStateToConfiguration() throws IOException {
+    Map<String, String> vals = Maps.newHashMap();
+    vals.put("test_key1", "test_val1");
+    vals.put("test_key2", "test_val2");
+
+    State state = new State();
+    for (Map.Entry<String, String> entry : vals.entrySet()) {
+      state.setProp(entry.getKey(), entry.getValue());
+    }
+
+    Map<String, String> encryptedVals = Maps.newHashMap();
+    encryptedVals.put("key1", "val1");
+    encryptedVals.put("key2", "val2");
+
+    final String encryptedPath = "encrypted.name.space";
+    for (Map.Entry<String, String> entry : encryptedVals.entrySet()) {
+      state.setProp(encryptedPath + "." + entry.getKey(), entry.getValue());
+    }
+
+    Configuration configuration = HadoopUtils.getConfFromState(state, Optional.of(encryptedPath));
+
+    for (Map.Entry<String, String> entry : vals.entrySet()) {
+      String val = configuration.get(entry.getKey());
+      Assert.assertEquals(val, entry.getValue());
+    }
+
+    for (Map.Entry<String, String> entry : encryptedVals.entrySet()) {
+      Assert.assertNotNull(configuration.get(entry.getKey())); //Verify key with child path exist as decryption is unit tested in ConfigUtil.
     }
   }
 }

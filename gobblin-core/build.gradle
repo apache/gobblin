@@ -57,6 +57,7 @@ dependencies {
   compile externalDependency.hadoopHdfs
 
   runtime externalDependency.protobuf
+  runtime externalDependency.hadoopAdl
 
   testRuntime externalDependency.hadoopAws
   testCompile externalDependency.calciteCore

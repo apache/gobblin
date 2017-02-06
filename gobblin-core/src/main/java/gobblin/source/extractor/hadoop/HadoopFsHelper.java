@@ -51,7 +51,7 @@ public class HadoopFsHelper implements TimestampAwareFileBasedHelper {
   private FileSystem fs;
 
   public HadoopFsHelper(State state) {
-    this(state, HadoopUtils.newConfiguration());
+    this(state, HadoopUtils.getConfFromState(state));
   }
 
   public HadoopFsHelper(State state, Configuration configuration) {
@@ -117,7 +117,7 @@ public class HadoopFsHelper implements TimestampAwareFileBasedHelper {
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       // Initialize file system as a proxy user.
       this.fs = new ProxiedFileSystemWrapper().getProxiedFileSystem(this.state, ProxiedFileSystemWrapper.AuthType.TOKEN,
-          this.state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri);
+          this.state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE), uri, configuration);
 
     } else {
       // Initialize file system as the current user.

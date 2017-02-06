@@ -56,7 +56,7 @@ import gobblin.metrics.event.EventSubmitter;
 import gobblin.publisher.DataPublisher;
 import gobblin.publisher.UnpublishedHandling;
 import gobblin.util.HadoopUtils;
-
+import gobblin.util.WriterUtils;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -88,10 +88,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    */
   public CopyDataPublisher(State state) throws IOException {
     super(state);
-    Configuration conf = new Configuration();
     String uri = this.state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
-
-    this.fs = FileSystem.get(URI.create(uri), conf);
+    this.fs = FileSystem.get(URI.create(uri), WriterUtils.getFsConfiguration(state));
 
     FileAwareInputStreamDataWriterBuilder.setJobSpecificOutputPaths(state);
 

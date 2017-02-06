@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.ExecutionException;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.hadoop.conf.Configuration;
@@ -28,11 +30,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.token.Token;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -42,7 +42,10 @@ import gobblin.source.workunit.WorkUnit;
 /**
  * Utility class for use with the {@link gobblin.writer.DataWriter} class.
  */
+@Slf4j
 public class WriterUtils {
+
+  public static final String WRITER_ENCRYPTED_CONFIG_PATH = ConfigurationKeys.WRITER_PREFIX + ".encrypted";
 
   /**
    * TABLENAME should be used for jobs that pull from multiple tables/topics and intend to write the records
@@ -264,6 +267,7 @@ public class WriterUtils {
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
         ConfigurationKeys.LOCAL_FS_URI));
 
+    Configuration hadoopConf = getFsConfiguration(state);
     if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       // Initialize file system as a proxy user.
@@ -276,12 +280,16 @@ public class WriterUtils {
         }
         return ProxiedFileSystemCache.fromToken().userNameToken(token.get())
             .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri)
-            .conf(HadoopUtils.newConfiguration()).build();
+            .conf(hadoopConf).build();
       } catch (ExecutionException e) {
         throw new IOException(e);
       }
     }
     // Initialize file system as the current user.
-    return FileSystem.get(uri, new Configuration());
+    return FileSystem.get(uri, hadoopConf);
+  }
+
+  public static Configuration getFsConfiguration(State state) {
+    return HadoopUtils.getConfFromState(state, Optional.of(WRITER_ENCRYPTED_CONFIG_PATH));
   }
 }

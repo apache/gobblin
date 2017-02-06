@@ -159,7 +159,8 @@ ext.externalDependency = [
     "googleHttpClientGson": "com.google.http-client:google-http-client-gson:" + googleVersion,
     "googleOauthClient": "com.google.oauth-client:google-oauth-client:" + googleVersion,
     "googleApiClient": "com.google.api-client:google-api-client:" + googleVersion,
-    "opencsv": "com.opencsv:opencsv:3.8"
+    "opencsv": "com.opencsv:opencsv:3.8",
+    "hadoopAdl" : "org.apache.hadoop:hadoop-azure-datalake:3.0.0-alpha2"
 ]
 
 if (!isDefaultEnvironment)
