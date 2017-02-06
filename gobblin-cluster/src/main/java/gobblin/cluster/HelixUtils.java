@@ -39,9 +39,20 @@ public class HelixUtils {
    * @param clusterName the Helix cluster name
    */
   public static void createGobblinHelixCluster(String zkConnectionString, String clusterName) {
+    createGobblinHelixCluster(zkConnectionString, clusterName, true);
+  }
+
+  /**
+   * Create a Helix cluster for the Gobblin Cluster application.
+   *
+   * @param zkConnectionString the ZooKeeper connection string
+   * @param clusterName the Helix cluster name
+   * @param overwrite true to overwrite exiting cluster, false to reuse existing cluster
+   */
+  public static void createGobblinHelixCluster(String zkConnectionString, String clusterName, boolean overwrite) {
     ClusterSetup clusterSetup = new ClusterSetup(zkConnectionString);
     // Create the cluster and overwrite if it already exists
-    clusterSetup.addCluster(clusterName, true);
+    clusterSetup.addCluster(clusterName, overwrite);
     // Helix 0.6.x requires a configuration property to have the form key=value.
     String autoJoinConfig = ZKHelixManager.ALLOW_PARTICIPANT_AUTO_JOIN + "=true";
     clusterSetup.setConfig(HelixConfigScope.ConfigScopeProperty.CLUSTER, clusterName, autoJoinConfig);
