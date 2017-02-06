@@ -25,6 +25,7 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.Iterator;
 
@@ -37,8 +38,10 @@ import com.typesafe.config.Config;
 import gobblin.util.ConfigUtils;
 import gobblin.writer.Batch;
 import gobblin.writer.BatchAccumulator;
+import gobblin.writer.RecordFuture;
 import gobblin.writer.RecordMetadata;
 import gobblin.writer.WriteCallback;
+import gobblin.writer.WriteResponse;
 
 
 /**
@@ -50,11 +53,13 @@ public class EventhubBatchAccumulator extends BatchAccumulator<JsonObject> {
   private Deque<EventhubBatch> dq = new ArrayDeque<>();
   private IncompleteRecordBatches incomplete = new IncompleteRecordBatches();
   private final long batchSizeLimit;
+  private final long memSizeLimit;
+  private final double tolerance = 0.95;
   private final long expireInMilliSecond;
   private static final Logger LOG = LoggerFactory.getLogger(EventhubBatchAccumulator.class);
 
   public EventhubBatchAccumulator () {
-    this (1024 * 128, 3000);
+    this (1024 * 256, 3000);
   }
 
   public EventhubBatchAccumulator (Properties properties) {
@@ -64,15 +69,18 @@ public class EventhubBatchAccumulator extends BatchAccumulator<JsonObject> {
 
     this.expireInMilliSecond = ConfigUtils.getLong(config, EventhubWriterConfigurationKeys.BATCH_TTL,
         EventhubWriterConfigurationKeys.BATCH_TTL_DEFAULT);
+
+    this.memSizeLimit = (long) (this.tolerance * this.batchSizeLimit);
   }
 
   public EventhubBatchAccumulator (long batchSizeLimit, long expireInMilliSecond) {
     this.batchSizeLimit = batchSizeLimit;
     this.expireInMilliSecond = expireInMilliSecond;
+    this.memSizeLimit = (long) (this.tolerance * this.batchSizeLimit);
   }
 
   public long getMemSizeLimit () {
-    return this.batchSizeLimit;
+    return this.memSizeLimit;
   }
 
   public long getExpireInMilliSecond () {
@@ -85,7 +93,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<JsonObject> {
   public final Future<RecordMetadata> enqueue (JsonObject record, WriteCallback callback) throws InterruptedException {
 
     synchronized (dq) {
-      Batch last = dq.peekLast();
+      EventhubBatch last = dq.peekLast();
       if (last != null) {
         Future<RecordMetadata> future = last.tryAppend(record, callback);
         if (future != null)
@@ -93,9 +101,19 @@ public class EventhubBatchAccumulator extends BatchAccumulator<JsonObject> {
       }
 
       // Create a new batch because previous one has no space
-      EventhubBatch batch = new EventhubBatch(this.batchSizeLimit, this.expireInMilliSecond);
+      EventhubBatch batch = new EventhubBatch(this.memSizeLimit, this.expireInMilliSecond);
       LOG.info ("Batch " + batch.getId() + " is generated");
       Future<RecordMetadata> future = batch.tryAppend(record, callback);
+
+      // Even single record can exceed the size limit from one batch
+      // Ignore the record because Eventhub can only accept payload less than 256KB
+      if (future == null) {
+        LOG.warn ("Batch " + batch.getId() + " is marked as complete because it contains a huge record: " + record.toString());
+        future = new RecordFuture(new CountDownLatch(0), 0);
+        callback.onSuccess(WriteResponse.EMPTY);
+        return future;
+      }
+
       dq.addLast(batch);
       incomplete.add(batch);
       return future;
@@ -171,7 +189,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<JsonObject> {
     }
 
     public void remove() {
-      // Do nothing
+      throw new UnsupportedOperationException("EventhubBatchIterator doesn't support remove operation");
     }
   }
 

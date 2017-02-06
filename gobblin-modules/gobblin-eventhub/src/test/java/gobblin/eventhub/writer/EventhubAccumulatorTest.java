@@ -17,13 +17,15 @@ public class EventhubAccumulatorTest {
   @Test
   public void testAccumulator() throws IOException, InterruptedException{
 
-    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator(128 * 1024, 3000);
+    EventhubBatchAccumulator accumulator = new EventhubBatchAccumulator();
     JsonObject obj = new JsonObject();
-    obj.addProperty("id", 1); // size is 8 bytes
-    long unit = obj.toString().getBytes(Charsets.UTF_8).length;
+    obj.addProperty("id", 1);
 
-    // Assuming batch size is 128K, and each record has 8 bytes
-    // Adding 16K records should not overflow the memory of first batch
+    // overhead has 15 bytes
+    long unit = obj.toString().getBytes(Charsets.UTF_8).length + 15;
+
+    // Assuming batch size is 256K bytes, and each record has (8 + 15) bytes
+    // Adding {bytes/unit} records should not overflow the memory of first batch
     // The first batch is still waiting for more incoming records so it is not ready to be sent out
     long bytes = accumulator.getMemSizeLimit();
     for (int i=0; i<bytes/unit; ++i) {

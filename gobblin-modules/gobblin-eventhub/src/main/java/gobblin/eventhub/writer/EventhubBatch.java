@@ -39,6 +39,7 @@ public class EventhubBatch extends Batch<JsonObject>{
   private final long creationTimestamp;
   private final long memSizeLimit;
   private final long ttlInMilliSeconds;
+  public static final int overheadSizeInByte = 15;
 
   public EventhubBatch (long memSizeLimit, long ttlInMilliSeconds) {
     this.creationTimestamp = System.currentTimeMillis();
@@ -51,6 +52,10 @@ public class EventhubBatch extends Batch<JsonObject>{
     return (System.currentTimeMillis() - creationTimestamp) >= ttlInMilliSeconds;
   }
 
+  private long getInternalSize(JsonObject record) {
+    return  record.toString().getBytes(Charsets.UTF_8).length + this.overheadSizeInByte;
+  }
+
   public  class RecordMemory {
     private List<JsonObject> records;
     private long byteSize;
@@ -61,15 +66,12 @@ public class EventhubBatch extends Batch<JsonObject>{
     }
 
     void append (JsonObject record) {
-      byteSize += record.toString().getBytes(Charsets.UTF_8).length;
+      byteSize += EventhubBatch.this.getInternalSize(record);
       records.add(record);
     }
 
     boolean hasRoom (JsonObject record) {
-      long recordLen = record.toString().getBytes(Charsets.UTF_8).length;
-      if (byteSize == 0 && EventhubBatch.this.memSizeLimit <= recordLen)
-        return true;
-
+      long recordLen = EventhubBatch.this.getInternalSize(record);
       return (byteSize + recordLen) <= EventhubBatch.this.memSizeLimit;
     }
 
