@@ -71,9 +71,9 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
   private static final Logger LOGGER = LoggerFactory.getLogger(MysqlDatasetStateStore.class);
 
   private static final String SELECT_JOB_STATE_LATEST_BY_PREFIX_TEMPLATE =
-          "SELECT CASE WHEN locate(?, table_name) = 0 THEN '' "
+          "SELECT state, CASE WHEN locate(?, table_name) = 0 THEN '' "
                   + "ELSE substring(table_name, 1, locate(?, table_name) - 1) END, "
-                  + "table_name, state FROM $TABLE$ WHERE store_name = ? "
+                  + "table_name FROM $TABLE$ WHERE store_name = ? "
                   + "AND table_name IN (SELECT max(table_name) FROM $TABLE$ "
                   + "WHERE store_name = ? GROUP BY CASE WHEN locate(?, table_name) = 0 THEN '' "
                   + "ELSE substring(table_name, 1, locate(?, table_name) - 1) END)";
@@ -110,37 +110,8 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
       }
     };
 
-    ResultProcessor<Map<Optional<String>, Pair<String, JobState.DatasetState>>> resultProcessor =
-            new ResultProcessor<Map<Optional<String>, Pair<String, JobState.DatasetState>>>() {
-              @Nonnull
-              @Override
-              public Map<Optional<String>, Pair<String, JobState.DatasetState>> process(@Nonnull ResultSet rs) throws Exception {
-                Map<Optional<String>, Pair<String, JobState.DatasetState>> states = Maps.newHashMap();
-                while (rs.next()) {
-                  String urn = rs.getString(1);
-                  String tableName = rs.getString(2);
-                  Blob blob = rs.getBlob(3);
-                  Text key = new Text();
-
-                  try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
-                          new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
-                       DataInputStream dis = new DataInputStream(is)) {
-                    // keep deserializing while we have data
-                    while (dis.available() > 0) {
-                      JobState.DatasetState state = JobState.DatasetState.class.newInstance();
-                      key.readString(dis);
-                      state.readFields(dis);
-                      states.put(Optional.fromNullable(urn), Pair.of(tableName, state));
-                    }
-                  } catch (EOFException e) {
-                    // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
-                  }
-                }
-                return states;
-              }
-            };
-
-    Map<Optional<String>, Pair<String, JobState.DatasetState>> latestDatasetStatesByUrns = getAll(statementBuilder, resultProcessor);
+    Map<Optional<String>, Pair<String, JobState.DatasetState>> latestDatasetStatesByUrns =
+            getAll(statementBuilder, new LatestDatasetStatesByUrnsAccumulator());
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
     for (Map.Entry<Optional<String>, Pair<String, JobState.DatasetState>> state : latestDatasetStatesByUrns.entrySet()) {
       JobState.DatasetState previousDatasetState = state.getValue().getValue();
@@ -189,5 +160,28 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
             sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + jobId : jobId;
     LOGGER.info("Persisting " + tableName + " to the job state store");
     put(jobName, tableName, datasetState);
+  }
+
+  private static class LatestDatasetStatesByUrnsAccumulator
+          implements ResultAccumulator<Map<Optional<String>, Pair<String, JobState.DatasetState>>, JobState.DatasetState> {
+    private Map<Optional<String>, Pair<String, JobState.DatasetState>> states;
+
+    @Override
+    public void initialize() {
+      states = Maps.newHashMap();
+    }
+
+    @Override
+    public void add(@Nonnull ResultSet rs, JobState.DatasetState state) throws SQLException {
+      String urn = rs.getString(2);
+      String tableName = rs.getString(3);
+      states.put(Optional.fromNullable(urn), Pair.of(tableName, state));
+    }
+
+    @Nonnull
+    @Override
+    public Map<Optional<String>, Pair<String, JobState.DatasetState>> complete() {
+      return states;
+    }
   }
 }

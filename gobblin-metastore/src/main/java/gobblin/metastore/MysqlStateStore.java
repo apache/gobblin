@@ -331,49 +331,39 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
         public PreparedStatement build(Connection c) throws SQLException {
           return getAllQuery(c, store, table, like);
         }
-      });
+      }, new GetAllAccumulator<T>());
     } catch (IOException e) {
       throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
     }
   }
 
-  protected List<T> getAll(StatementBuilder builder) throws IOException {
-    return getAll(builder, new ResultProcessor<List<T>>() {
-      @Nonnull
-      @Override
-      public List<T> process(@Nonnull ResultSet rs) throws Exception {
-        List<T> states = Lists.newArrayList();
-        while (rs.next()) {
-          Blob blob = rs.getBlob(1);
-          Text key = new Text();
-
-          try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
-                  new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
-               DataInputStream dis = new DataInputStream(is)) {
-            // keep deserializing while we have data
-            while (dis.available() > 0) {
-              T state = stateClass.newInstance();
-              key.readString(dis);
-              state.readFields(dis);
-              states.add(state);
-            }
-          } catch (EOFException e) {
-            // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
-          }
-        }
-        return states;
-      }
-    });
-  }
-
-  protected <R> R getAll(StatementBuilder builder, ResultProcessor<R> processor) throws IOException {
+  protected <R> R getAll(StatementBuilder builder, final ResultAccumulator<R, T> accumulator) throws IOException {
     Preconditions.checkNotNull(builder, "Builder is null.");
-    Preconditions.checkNotNull(processor, "Processor is null.");
+    Preconditions.checkNotNull(accumulator, "Accumulator is null.");
 
     try (Connection connection = dataSource.getConnection();
          PreparedStatement queryStatement = builder.build(connection);
          ResultSet rs = queryStatement.executeQuery()) {
-      return processor.process(rs);
+      accumulator.initialize();
+      while (rs.next()) {
+        Blob blob = rs.getBlob(1);
+        Text key = new Text();
+
+        try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
+                new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+             DataInputStream dis = new DataInputStream(is)) {
+          // keep deserializing while we have data
+          while (dis.available() > 0) {
+            T state = stateClass.newInstance();
+            key.readString(dis);
+            state.readFields(dis);
+            accumulator.add(rs, state);
+          }
+        } catch (EOFException e) {
+          // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
+        }
+      }
+      return accumulator.complete();
     } catch (RuntimeException re) {
       throw re;
     } catch (Exception e) {
@@ -498,8 +488,32 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     PreparedStatement build(Connection connection) throws SQLException;
   }
 
-  protected interface ResultProcessor<T> {
+  protected interface ResultAccumulator<T, S> {
+    void initialize();
+
+    void add(@Nonnull ResultSet rs, S state) throws SQLException;
+
     @Nonnull
-    T process(@Nonnull ResultSet rs) throws Exception;
+    T complete();
+  }
+
+  private class GetAllAccumulator<T extends State> implements ResultAccumulator<List<T>, T> {
+    private List<T> states;
+
+    @Override
+    public void initialize() {
+      states = Lists.newArrayList();
+    }
+
+    @Override
+    public void add(@Nonnull ResultSet rs, T state) {
+      states.add(state);
+    }
+
+    @Nonnull
+    @Override
+    public List<T> complete() {
+      return states;
+    }
   }
 }
