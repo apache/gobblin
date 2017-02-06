@@ -142,6 +142,7 @@ ext.classification="library"
  *           -PsysConfigPath=... -PoutputDir=...
  */
 task pullFileConverter(type: JavaExec) {
+  dependsOn jar
   doFirst {
     main = "gobblin.runtime.template.PullFileToConfigConverter"
 
