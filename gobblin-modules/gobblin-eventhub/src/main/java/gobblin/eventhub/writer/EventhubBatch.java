@@ -39,7 +39,7 @@ public class EventhubBatch extends Batch<JsonObject>{
   private final long creationTimestamp;
   private final long memSizeLimit;
   private final long ttlInMilliSeconds;
-  public static final int overheadSizeInByte = 15;
+  public static final int OVERHEAD_SIZE_IN_BYTES = 15;
 
   public EventhubBatch (long memSizeLimit, long ttlInMilliSeconds) {
     this.creationTimestamp = System.currentTimeMillis();
@@ -53,7 +53,7 @@ public class EventhubBatch extends Batch<JsonObject>{
   }
 
   private long getInternalSize(JsonObject record) {
-    return  record.toString().getBytes(Charsets.UTF_8).length + this.overheadSizeInByte;
+    return  record.toString().getBytes(Charsets.UTF_8).length + this.OVERHEAD_SIZE_IN_BYTES;
   }
 
   public  class RecordMemory {

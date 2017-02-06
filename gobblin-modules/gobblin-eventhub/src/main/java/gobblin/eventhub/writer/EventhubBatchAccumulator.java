@@ -25,20 +25,19 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.Iterator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.util.concurrent.Futures;
 import com.google.gson.JsonObject;
 import com.typesafe.config.Config;
 
 import gobblin.util.ConfigUtils;
 import gobblin.writer.Batch;
 import gobblin.writer.BatchAccumulator;
-import gobblin.writer.RecordFuture;
 import gobblin.writer.RecordMetadata;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
@@ -109,7 +108,7 @@ public class EventhubBatchAccumulator extends BatchAccumulator<JsonObject> {
       // Ignore the record because Eventhub can only accept payload less than 256KB
       if (future == null) {
         LOG.warn ("Batch " + batch.getId() + " is marked as complete because it contains a huge record: " + record.toString());
-        future = new RecordFuture(new CountDownLatch(0), 0);
+        future = Futures.immediateFuture(new RecordMetadata(0));
         callback.onSuccess(WriteResponse.EMPTY);
         return future;
       }
