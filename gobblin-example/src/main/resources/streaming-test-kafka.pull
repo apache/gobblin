@@ -23,12 +23,13 @@ job.description=A getting started example for Gobblin streaming to Kafka
 job.lock.enabled=false
 task.executionMode=STREAMING
 
-source.class=gobblin.test.SequentialStreamingTestSource
+source.class=gobblin.test.SequentialTestSource
 source.numParallelism=2
 source.sleepTimePerRecordMillis=1000
 
 extract.namespace=gobblin.streaming.test
 
+#converter.classes=gobblin.test.AnyToJsonConverter
 
 # Configure watermark storage for streaming
 #streaming.watermarkStateStore.type=zk
@@ -39,9 +40,10 @@ extract.namespace=gobblin.streaming.test
 #streaming.watermark.commitIntervalMillis=2000
 
 #No partitioner as kafka writer doesn't work with a partitioner
-writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
-writer.kafka.topic=StreamingTestTopic
-writer.kafka.producerConfig.bootstrap.servers=localhost:9092
-writer.kafka.producerConfig.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+writer.builder.class=gobblin.writer.ConsoleWriterBuilder
+#writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
+#writer.kafka.topic=StreamingTestTopic
+#writer.kafka.producerConfig.bootstrap.servers=localhost:9092
+#writer.kafka.producerConfig.value.serializer=org.apache.kafka.common.serialization.StringSerializer
 
 data.publisher.type=gobblin.publisher.NoopPublisher
