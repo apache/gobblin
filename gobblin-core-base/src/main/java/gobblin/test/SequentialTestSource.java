@@ -150,7 +150,7 @@ public class SequentialTestSource implements Source<String, Object> {
   }
 
 
-  class TestBatchExtractor implements Extractor<String, Object> {
+  static class TestBatchExtractor implements Extractor<String, Object> {
     private long recordsExtracted = 0;
     private final long numRecordsPerExtract;
     private LongWatermark currentWatermark;
@@ -218,7 +218,7 @@ public class SequentialTestSource implements Source<String, Object> {
   }
 
 
-  class TestStreamingExtractor implements StreamingExtractor<String, Object> {
+  static class TestStreamingExtractor implements StreamingExtractor<String, Object> {
     private Optional<WatermarkStorage> watermarkStorage;
     private final TestBatchExtractor extractor;
 
