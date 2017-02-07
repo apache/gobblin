@@ -192,7 +192,7 @@ public class GobblinClusterKillTest {
         FileUtils.listFiles(writerOutputDir, new String[]{"txt"}, true).size());
 
     _clusterWorkers[0].disconnectHelixManager();
-
+//Testing
     AssertWithBackoff.create().logger(LOG).timeoutMs(ASSERT_TIMEOUT).maxSleepMs(ASSERT_MAX_SLEEP).backoffFactor(1.5)
         .assertTrue(new Predicate<Void>() {
       @Override
