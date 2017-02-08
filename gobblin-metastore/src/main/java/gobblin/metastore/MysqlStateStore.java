@@ -75,8 +75,6 @@ import gobblin.util.io.StreamUtils;
  **/
 public class MysqlStateStore<T extends State> implements StateStore<T> {
 
-  public static final String CURRENT_NAME = "current";
-
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;
   private final DataSource dataSource;
@@ -196,7 +194,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   public boolean create(String storeName, String tableName) throws IOException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
-    Preconditions.checkArgument(!isCurrent(tableName), String.format("Table name is %s.", CURRENT_NAME));
+    Preconditions.checkArgument(!isCurrent(tableName), String.format("Table name is %s.", StateStoreTableInfo.CURRENT_NAME));
 
     if (exists(storeName, tableName)) {
       throw new IOException(String.format("State already exists for storeName %s tableName %s", storeName,
@@ -249,7 +247,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   public void putAll(String storeName, String tableName, Collection<T> states) throws IOException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
-    Preconditions.checkArgument(!isCurrent(tableName), String.format("Table name is %s.", CURRENT_NAME));
+    Preconditions.checkArgument(!isCurrent(tableName), String.format("Table name is %s.", StateStoreTableInfo.CURRENT_NAME));
     Preconditions.checkNotNull(states, "States is null.");
     Preconditions.checkArgument(states.size() > 0, "States is empty");
 
@@ -372,16 +370,6 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   }
 
   @Override
-  public List<T> getAllCurrent(String storeName) throws IOException {
-    return getAll(storeName, CURRENT_NAME);
-  }
-
-  @Override
-  public T getCurrent(String storeName, String stateId) throws IOException {
-    return get(storeName, CURRENT_NAME, stateId);
-  }
-
-  @Override
   public List<T> getAll(String storeName, String tableName) throws IOException {
     return getAll(storeName, tableName, false);
   }
@@ -418,7 +406,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   public void delete(String storeName, String tableName) throws IOException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
-    Preconditions.checkArgument(!isCurrent(tableName), String.format("Table name is %s", CURRENT_NAME));
+    Preconditions.checkArgument(!isCurrent(tableName), String.format("Table name is %s", StateStoreTableInfo.CURRENT_NAME));
 
     try (Connection connection = dataSource.getConnection();
         PreparedStatement deleteStatement = connection.prepareStatement(DELETE_JOB_STATE_SQL)) {

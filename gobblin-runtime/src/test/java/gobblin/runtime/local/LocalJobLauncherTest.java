@@ -21,7 +21,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.Properties;
 
-import gobblin.runtime.FsDatasetStateStore;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;

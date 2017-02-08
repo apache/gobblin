@@ -27,15 +27,15 @@ public class StateStoreTableInfo {
       return new StateStoreTableInfo("", true);
     }
     int suffixIndex = name.lastIndexOf(TABLE_PREFIX_SEPARATOR);
+    String prefix = "";
+    String suffix = "";
     if (suffixIndex >= 0) {
-      String prefix = suffixIndex > 0 ? name.substring(0, suffixIndex) : "";
-      String suffix = suffixIndex < name.length() - 1 ? name.substring(suffixIndex + 1) : "";
-      if (CURRENT_NAME.equalsIgnoreCase(suffix)) {
-        return new StateStoreTableInfo(prefix, true);
-      } else {
-        return new StateStoreTableInfo(prefix, false);
-      }
+      prefix = name.substring(0, suffixIndex);
+      suffix = suffixIndex < name.length() - 1 ? name.substring(suffixIndex + 1) : "";
     }
-    return new StateStoreTableInfo("", false);
+    if (CURRENT_NAME.equalsIgnoreCase(suffix)) {
+      return new StateStoreTableInfo(prefix, true);
+    }
+    return new StateStoreTableInfo(prefix, false);
   }
 }

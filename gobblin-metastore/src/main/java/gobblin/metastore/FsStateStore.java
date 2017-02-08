@@ -170,7 +170,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     return tablePath != null && this.fs.exists(tablePath);
   }
 
-    /**
+  /**
    * See {@link StateStore#put(String, String, T)}.
    *
    * <p>
@@ -274,20 +274,6 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     return null;
   }
 
-  /**
-   * Get a {@link State} with a given state ID from a the current table.
-   *
-   * @param storeName store name
-   * @param stateId state ID
-   * @return {@link State} with the given state ID or <em>null</em>
-   *         if the state with the given state ID does not exist
-   * @throws IOException
-   */
-  @Override
-  public T getCurrent(String storeName, String stateId) throws IOException {
-    return get(storeName, StateStoreTableInfo.CURRENT_NAME, stateId);
-  }
-
   @Override
   public List<T> getAll(String storeName, String tableName) throws IOException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
@@ -322,18 +308,6 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     }
 
     return states;
-  }
-
-  /**
-   * Get all {@link State}s from the current table.
-   *
-   * @param storeName store name
-   * @return (possibly empty) list of {@link State}s from the current table
-   * @throws IOException
-   */
-  @Override
-  public List<T> getAllCurrent(String storeName) throws IOException {
-    return getAll(storeName, StateStoreTableInfo.CURRENT_NAME);
   }
 
   @Override

@@ -30,8 +30,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import gobblin.util.HadoopUtils;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -49,6 +47,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.HadoopUtils;
 
 
 /**
@@ -57,7 +56,6 @@ import gobblin.util.ExecutorsUtils;
  *
  * @author Yinan Li
  */
-@Slf4j
 public class StateStoreCleaner extends AbstractIdleService implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(StateStoreCleaner.class);
@@ -107,8 +105,8 @@ public class StateStoreCleaner extends AbstractIdleService implements Closeable 
 
   @Override
   protected void startUp() throws Exception {
-    log.info("Starting the " + StateStoreCleaner.class.getSimpleName());
-    log.info(String.format("Scheduling the state store cleaner task with an interval of %d minute(s)",
+    LOGGER.info("Starting the " + StateStoreCleaner.class.getSimpleName());
+    LOGGER.info(String.format("Scheduling the state store cleaner task with an interval of %d minute(s)",
         this.cleanerIntervalInMinutes));
 
     this.scheduledExecutor.scheduleAtFixedRate(new Runnable() {
@@ -117,7 +115,7 @@ public class StateStoreCleaner extends AbstractIdleService implements Closeable 
         try {
           StateStoreCleaner.this.run();
         } catch (IOException | ExecutionException e) {
-          log.error("Failed to cleanup state store", e);
+          LOGGER.error("Failed to cleanup state store", e);
         }
       }
     }, 0, this.cleanerIntervalInMinutes, TimeUnit.MINUTES);
@@ -136,7 +134,7 @@ public class StateStoreCleaner extends AbstractIdleService implements Closeable 
     if (this.fs.exists(this.stateStoreRootDir)) {
       FileStatus[] stateStoreDirs = this.fs.listStatus(this.stateStoreRootDir);
       if (stateStoreDirs == null || stateStoreDirs.length == 0) {
-        log.warn("The state store root directory does not exist or is empty");
+        LOGGER.warn("The state store root directory does not exist or is empty");
         return;
       }
 
@@ -193,18 +191,18 @@ public class StateStoreCleaner extends AbstractIdleService implements Closeable 
       try {
         FileStatus[] stateStoreFiles = this.fs.listStatus(this.stateStoreDir, new StateStoreFileFilter());
         if (stateStoreFiles == null || stateStoreFiles.length == 0) {
-          log.warn("No state store files found in directory: " + this.stateStoreDir);
+          LOGGER.warn("No state store files found in directory: " + this.stateStoreDir);
           return;
         }
 
-        log.info("Cleaning up state store directory: " + this.stateStoreDir);
+        LOGGER.info("Cleaning up state store directory: " + this.stateStoreDir);
         for (FileStatus file : stateStoreFiles) {
           if (shouldCleanUp(file) && !this.fs.delete(file.getPath(), false)) {
-            log.error("Failed to delete state store file: " + file.getPath());
+            LOGGER.error("Failed to delete state store file: " + file.getPath());
           }
         }
       } catch (IOException ioe) {
-        log.error("Failed to run state store cleaner for directory: " + this.stateStoreDir, ioe);
+        LOGGER.error("Failed to run state store cleaner for directory: " + this.stateStoreDir, ioe);
       }
     }
 

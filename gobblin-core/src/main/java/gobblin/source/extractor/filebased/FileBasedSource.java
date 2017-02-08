@@ -110,6 +110,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
       if (previousWorkunits.get(0).getWorkunit().contains(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT)) {
         previousWorkunits.get(0).getWorkunit().getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT);
       }
+	}
 
     List<WorkUnit> workUnits = Lists.newArrayList();
     List<WorkUnit> previousWorkUnitsForRetry = this.getPreviousWorkUnitsForRetry(state);

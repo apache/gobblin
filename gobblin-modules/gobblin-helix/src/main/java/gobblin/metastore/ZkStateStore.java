@@ -222,25 +222,6 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
   }
 
   /**
-   * Get a {@link State} with a given state ID from a the current table.
-   *
-   * @param storeName store name
-   * @param stateId state ID
-   * @return {@link State} with the given state ID or <em>null</em>
-   *         if the state with the given state ID does not exist
-   * @throws IOException
-   */
-  @Override
-  public T getCurrent(String storeName, String stateId) throws IOException {
-    return get(storeName, StateStoreTableInfo.CURRENT_NAME, stateId);
-  }
-
-  @Override
-  public List<T> getAllCurrent(String storeName) throws IOException {
-    return getAll(storeName, StateStoreTableInfo.CURRENT_NAME);
-  }
-
-  /**
    * Retrieve states from the state store based on the store name and a filtering predicate
    * @param storeName The store name enclosing the state files
    * @param predicate The predicate for state file filtering

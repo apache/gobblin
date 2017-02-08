@@ -26,7 +26,6 @@ import java.io.Writer;
 import java.util.List;
 import java.util.Properties;
 
-import gobblin.metastore.DatasetStateStore;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -45,6 +44,7 @@ import com.google.gson.stream.JsonWriter;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.StateStore;
+import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobState;
 import gobblin.util.JobConfigurationUtils;
@@ -81,7 +81,7 @@ public class JobStateToJsonConverter {
    * @throws IOException
    */
   public void convert(String jobName, String jobId, Writer writer) throws IOException {
-    List<? extends JobState> jobStates = this.jobStateStore.getAllCurrent(jobName);
+    List<? extends JobState> jobStates = this.jobStateStore.getAll(jobName, StateStoreTableInfo.CURRENT_NAME);
     if (jobStates.isEmpty()) {
       LOGGER.warn(String.format("No job state found for job with name %s and id %s", jobName, jobId));
       return;

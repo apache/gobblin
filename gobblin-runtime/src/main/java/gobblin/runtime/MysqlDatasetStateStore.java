@@ -17,37 +17,28 @@
 
 package gobblin.runtime;
 
-import java.io.DataInputStream;
-import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Map;
-import java.util.zip.GZIPInputStream;
 import javax.annotation.Nonnull;
 import javax.sql.DataSource;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.io.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
-import gobblin.annotation.Alias;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.MysqlStateStore;
 import gobblin.metastore.util.StateStoreTableInfo;
-import gobblin.password.PasswordManager;
 import gobblin.runtime.util.DatasetUrnSanitizer;
-import gobblin.util.io.StreamUtils;
 
 
 /**
@@ -138,9 +129,9 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
    */
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
     Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
-    String tableName = sanitizedDatasetUrn.isPresent() ?
-            sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + StateStoreTableInfo.CURRENT_NAME :
-            StateStoreTableInfo.CURRENT_NAME;
+    String tableName = (sanitizedDatasetUrn.isPresent() ?
+        sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + StateStoreTableInfo.CURRENT_NAME :
+        StateStoreTableInfo.CURRENT_NAME) + DATASET_STATE_STORE_TABLE_SUFFIX;
     return get(storeName, tableName, datasetUrn);
   }
 
@@ -156,8 +147,9 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
     String jobId = datasetState.getJobId();
 
     Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
-    String tableName = sanitizedDatasetUrn.isPresent() ?
-            sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + jobId : jobId;
+    String tableName = (sanitizedDatasetUrn.isPresent() ?
+        sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + jobId : jobId) +
+        DATASET_STATE_STORE_TABLE_SUFFIX;
     LOGGER.info("Persisting " + tableName + " to the job state store");
     put(jobName, tableName, datasetState);
   }

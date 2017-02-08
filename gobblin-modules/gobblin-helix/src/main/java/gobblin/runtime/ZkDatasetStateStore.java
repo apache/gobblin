@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.base.Predicates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +35,8 @@ import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.metastore.ZkStateStore;
 import gobblin.runtime.util.DatasetUrnSanitizer;
+
+import javax.annotation.Nullable;
 
 
 /**
@@ -95,9 +96,9 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
    */
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
     Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
-    String tableName = sanitizedDatasetUrn.isPresent() ?
+    String tableName = (sanitizedDatasetUrn.isPresent() ?
         sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + StateStoreTableInfo.CURRENT_NAME :
-        StateStoreTableInfo.CURRENT_NAME;
+        StateStoreTableInfo.CURRENT_NAME) + DATASET_STATE_STORE_TABLE_SUFFIX;
     return get(storeName, tableName, datasetUrn);
   }
 
@@ -113,14 +114,20 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
     String jobId = datasetState.getJobId();
 
     Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
-    String tableName = sanitizedDatasetUrn.isPresent() ?
-            sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + jobId : jobId;
+    String tableName = (sanitizedDatasetUrn.isPresent() ?
+        sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + jobId : jobId) +
+        DATASET_STATE_STORE_TABLE_SUFFIX;
     LOGGER.info("Persisting " + tableName + " to the job state store");
     put(jobName, tableName, datasetState);
   }
 
   private Map<Optional<String>, String> getLatestDatasetStateFilePathsByUrns(String storeName) throws IOException {
-    Iterable<String> tableNames = this.getTableNames(storeName, Predicates.<String>alwaysTrue());
+    Iterable<String> tableNames = this.getTableNames(storeName, new Predicate<String>() {
+      @Override
+      public boolean apply(String input) {
+        return input.endsWith(DATASET_STATE_STORE_TABLE_SUFFIX);
+      }
+    });
 
     Map<Optional<String>, String> datasetStateFilePathsByUrns = Maps.newHashMap();
     for (String tableName : tableNames) {
