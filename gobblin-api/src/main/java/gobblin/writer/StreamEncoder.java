@@ -17,4 +17,9 @@ public interface StreamEncoder {
    * @return A wrapped stream for encryption
    */
   OutputStream wrapOutputStream(OutputStream origStream);
+
+  /**
+   * Get tag/file extension associated with encoder
+   */
+  String getTag();
 }

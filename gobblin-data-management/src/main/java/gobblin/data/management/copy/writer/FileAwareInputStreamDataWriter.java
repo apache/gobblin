@@ -18,6 +18,7 @@
 package gobblin.data.management.copy.writer;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Iterator;
@@ -68,6 +69,7 @@ import gobblin.util.io.StreamCopierSharedLimiterKey;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.writer.DataWriter;
+import gobblin.writer.StreamEncoder;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -87,6 +89,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final Path stagingDir;
   protected final Path outputDir;
   protected final Closer closer = Closer.create();
+  protected final List<StreamEncoder> encoders;
   protected CopyableDatasetMetadata copyableDatasetMetadata;
   protected final RecoveryHelper recoveryHelper;
   protected final SharedResourcesBroker<GobblinScopeTypes> taskBroker;
@@ -102,8 +105,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    */
   protected Optional<CopyableFile> actualProcessedCopyableFile;
 
-  public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId, String writerAttemptId)
-      throws IOException {
+  public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId, String writerAttemptId,
+      List<StreamEncoder> encoders) throws IOException {
     super(state);
 
     if (numBranches > 1) {
@@ -132,21 +135,24 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.actualProcessedCopyableFile = Optional.absent();
+    this.encoders = encoders;
 
     this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
 
     this.bufferSize = state.getPropAsInt(CopyConfiguration.BUFFER_SIZE, StreamCopier.DEFAULT_BUFFER_SIZE);
   }
 
-  public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
+  public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId, List<StreamEncoder> encoders)
       throws IOException {
-    this(state, numBranches, branchId, null);
+    this(state, numBranches, branchId, null, encoders);
   }
 
   @Override
   public final void writeImpl(FileAwareInputStream fileAwareInputStream)
       throws IOException {
     CopyableFile copyableFile = fileAwareInputStream.getFile();
+    appendEncoderExtensions(copyableFile);
+
     Path stagingFile = getStagingFilePath(copyableFile);
     if (this.actualProcessedCopyableFile.isPresent()) {
       throw new IOException(this.getClass().getCanonicalName() + " can only process one file.");
@@ -155,6 +161,12 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.fs.mkdirs(stagingFile.getParent());
     writeImpl(fileAwareInputStream.getInputStream(), stagingFile, copyableFile);
     this.filesWritten.incrementAndGet();
+  }
+
+  protected void appendEncoderExtensions(CopyableFile copyableFile) {
+    for (StreamEncoder e: encoders) {
+      copyableFile.setDestination(PathUtils.addExtension(copyableFile.getDestination(), "." + e.getTag()));
+    }
   }
 
   /**
@@ -198,9 +210,10 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
       FSDataOutputStream os =
           this.fs.create(writeAt, true, this.fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
-      try {
+      OutputStream encodedStream = attachEncodersToStream(os);
 
-        StreamCopier copier = new StreamCopier(inputStream, os).withBufferSize(this.bufferSize);
+      try {
+        StreamCopier copier = new StreamCopier(inputStream, encodedStream).withBufferSize(this.bufferSize);
 
         StreamCopierSharedLimiterKey key =
             new StreamCopierSharedLimiterKey(copyableFile.getOrigin().getPath().toUri(), this.fs.makeQualified(writeAt).toUri());
@@ -223,10 +236,18 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
           log.info("File {} copied.", copyableFile.getOrigin().getPath());
         }
       } finally {
-        os.close();
+        encodedStream.close();
         inputStream.close();
       }
     }
+  }
+
+  protected OutputStream attachEncodersToStream(OutputStream os) {
+    OutputStream encodedStream = os;
+    for (StreamEncoder e: encoders) {
+      encodedStream = e.wrapOutputStream(encodedStream);
+    }
+    return encodedStream;
   }
 
   /**

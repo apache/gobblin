@@ -46,4 +46,9 @@ public class SimpleEncryptor implements StreamEncoder {
       }
     };
   }
+
+  @Override
+  public String getTag() {
+    return "encrypted_simple";
+  }
 }

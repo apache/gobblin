@@ -18,6 +18,7 @@ package gobblin.data.management.copy.writer;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
+import gobblin.crypto.EncryptionUtils;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopySource;
 import gobblin.data.management.copy.CopyableDatasetMetadata;
@@ -29,10 +30,14 @@ import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.TestCopyableDataset;
 import gobblin.util.TestUtils;
 import gobblin.util.io.StreamUtils;
+import gobblin.writer.Destination;
+import gobblin.writer.StreamEncoder;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -44,12 +49,14 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.DFSClient;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
@@ -84,7 +91,8 @@ public class FileAwareInputStreamDataWriterTest {
     CopySource.serializeCopyEntity(state, cf);
     CopySource.serializeCopyableDataset(state, metadata);
 
-    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0,
+        Collections.<StreamEncoder>emptyList());
 
     FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(IOUtils.toInputStream(streamString)));
     dataWriter.write(fileAwareInputStream);
@@ -92,6 +100,44 @@ public class FileAwareInputStreamDataWriterTest {
     Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
         cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
     Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString);
+  }
+
+  @Test
+  public void testEncryption() throws IOException {
+    byte[] bytesToWrite = "testWEncryption".getBytes("UTF-8");
+    byte[] expectedBytes = new byte[bytesToWrite.length];
+    for (int i = 0; i < bytesToWrite.length; i++) {
+      expectedBytes[i] = (byte)((bytesToWrite[i] + 1) % 256);
+    }
+
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    state.setProp(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "simple");
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0,
+        ImmutableList.of(EncryptionUtils.buildStreamEncryptor("simple", Collections.<String, Object>emptyMap())));
+
+    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf,
+        StreamUtils.convertStream(new ByteArrayInputStream(bytesToWrite)));
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+    Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+    Assert.assertTrue(writtenFilePath.getName().endsWith(".encrypted_simple"));
+    byte[] readString = IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString()));
+
+    Assert.assertEquals(readString, expectedBytes);
   }
 
   @Test
@@ -153,7 +199,8 @@ public class FileAwareInputStreamDataWriterTest {
     CopySource.serializeCopyableDataset(state, metadata);
 
     // create writer
-    FileAwareInputStreamDataWriter writer = new FileAwareInputStreamDataWriter(state, 1, 0);
+    FileAwareInputStreamDataWriter writer =
+        new FileAwareInputStreamDataWriter(state, 1, 0, Collections.<StreamEncoder>emptyList());
 
     // create output of writer.write
     Path writtenFile = writer.getStagingFilePath(cf);
