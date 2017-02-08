@@ -67,3 +67,5 @@ task JettyRunWar(type: JavaExec) {
 afterEvaluate {
   tasks["publishRestliIdl"].dependsOn(apiProject.path + ":mainGeneratedDataTemplateClasses")
 }
+
+build.dependsOn jar
