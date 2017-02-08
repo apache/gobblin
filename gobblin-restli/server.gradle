@@ -68,4 +68,6 @@ afterEvaluate {
   tasks["publishRestliIdl"].dependsOn(apiProject.path + ":mainGeneratedDataTemplateClasses")
 }
 
-build.dependsOn jar
+artifacts {
+  archives jar
+}
