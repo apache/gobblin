@@ -24,7 +24,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -38,7 +37,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -69,6 +67,7 @@ import gobblin.util.io.StreamCopierSharedLimiterKey;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.writer.DataWriter;
+
 import lombok.extern.slf4j.Slf4j;
 
 

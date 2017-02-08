@@ -229,8 +229,8 @@ public class ConfigUtilsTest {
     state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, keyFile.getAbsolutePath());
 
     Map<String, String> encryptedVals = Maps.newHashMap();
-    encryptedVals.put("key1", "val1");
-    encryptedVals.put("key2", "val2");
+    encryptedVals.put("my.nested.key1", "val1");
+    encryptedVals.put("my.nested.key2", "val2");
 
     String encPrefix = "testenc";
     for (Map.Entry<String, String> entry : encryptedVals.entrySet()) {

@@ -68,6 +68,26 @@ public class ProxiedFileSystemWrapper {
   }
 
   /**
+   * Same as @see #getProxiedFileSystem(State, AuthType, String, String, Configuration) where state properties will be copied
+   * into Configuration.
+   *
+   * @param properties
+   * @param authType
+   * @param authPath
+   * @param uri
+   * @return
+   * @throws IOException
+   * @throws InterruptedException
+   * @throws URISyntaxException
+   */
+  public FileSystem getProxiedFileSystem(State properties, AuthType authType, String authPath, String uri)
+      throws IOException, InterruptedException, URISyntaxException {
+    Configuration conf = new Configuration();
+    JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
+    return getProxiedFileSystem(properties, authType, authPath, uri, conf);
+  }
+
+  /**
    * Getter for proxiedFs, using the passed parameters to create an instance of a proxiedFs.
    * @param properties
    * @param authType is either TOKEN or KEYTAB.

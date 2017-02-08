@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -57,6 +56,7 @@ import gobblin.publisher.DataPublisher;
 import gobblin.publisher.UnpublishedHandling;
 import gobblin.util.HadoopUtils;
 import gobblin.util.WriterUtils;
+
 import lombok.extern.slf4j.Slf4j;
 
 

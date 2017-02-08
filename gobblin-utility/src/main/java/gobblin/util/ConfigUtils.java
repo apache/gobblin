@@ -467,6 +467,7 @@ public class ConfigUtils {
 
   /**
    * Resolves encrypted config value(s) by considering on the path with "encConfigPath" as encrypted.
+   * (If encConfigPath is absent or encConfigPath does not exist in config, config will be just returned untouched.)
    * It will use Password manager via given config. Thus, convention of PasswordManager need to be followed in order to be decrypted.
    * Note that "encConfigPath" path will be removed from the config key, leaving child path on the config key.
    * e.g:
