@@ -37,7 +37,7 @@ import com.typesafe.config.ConfigFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.writer.AsyncDataWriter;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 import gobblin.writer.WriteResponseFuture;
@@ -80,7 +80,7 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
 
   private final Producer<String, byte[]> producer;
   private final String topic;
-  private final List<StreamEncoder> encoders;
+  private final List<StreamCodec> encoders;
   private final Serializer<D> valueSerializer;
 
   public Producer<String, byte[]> getKafkaProducer(Properties props)
@@ -100,7 +100,7 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
 
 
   @SuppressWarnings("unchecked")
-  public Kafka08DataWriter(Properties props, List<StreamEncoder> encoders) {
+  public Kafka08DataWriter(Properties props, List<StreamCodec> encoders) {
     this.producer = getKafkaProducer(props);
     this.valueSerializer = (Serializer<D>)KafkaWriterHelper.getValueSerializer(Serializer.class, props);
     this.encoders = encoders;
@@ -146,7 +146,7 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
     if (this.encoders.size() > 0) {
       ByteArrayOutputStream byteOs = new ByteArrayOutputStream();
       OutputStream encodedStream = byteOs;
-      for (StreamEncoder e: encoders) {
+      for (StreamCodec e: encoders) {
         encodedStream = e.wrapOutputStream(encodedStream);
       }
 

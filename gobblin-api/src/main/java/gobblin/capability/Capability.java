@@ -1,5 +1,8 @@
 package gobblin.capability;
 
+import gobblin.annotation.Alpha;
+
+
 /**
  * Represents a set of functionality a job-creator can ask for. Examples could include
  * encryption, compression, partitioning...
@@ -7,6 +10,7 @@ package gobblin.capability;
  * Each Capability has a name and then a set of associated configuration properties. An example is
  * the encryption algorithm to use.
  */
+@Alpha
 public class Capability {
   private final String name;
   private final boolean critical;

@@ -2,13 +2,9 @@ package gobblin.writer;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import gobblin.capability.Capability;
-import gobblin.capability.CapabilityParser;
-import gobblin.capability.CapabilityParsers;
 import gobblin.configuration.State;
 import gobblin.crypto.EncryptionUtils;
 
@@ -21,9 +17,9 @@ import gobblin.crypto.EncryptionUtils;
 public abstract class FileStreamBasedWriter<D> extends FsDataWriter<D> {
   static final Set<String> SUPPORTED_ENCRYPTION_TYPES = EncryptionUtils.supportedStreamingAlgorithms();
 
-  protected List<StreamEncoder> encoders;
+  protected List<StreamCodec> encoders;
 
-  public FileStreamBasedWriter(FsDataWriterBuilder<?, D> builder, State properties, List<StreamEncoder> encoders) throws IOException {
+  public FileStreamBasedWriter(FsDataWriterBuilder<?, D> builder, State properties, List<StreamCodec> encoders) throws IOException {
     super(builder, properties);
 
     this.encoders = encoders;
@@ -41,7 +37,7 @@ public abstract class FileStreamBasedWriter<D> extends FsDataWriter<D> {
         .create(this.stagingFile, this.filePermission, true, this.bufferSize, this.replicationFactor, this.blockSize,
             null);
 
-    for (StreamEncoder e: encoders) {
+    for (StreamCodec e: encoders) {
       origStream = e.wrapOutputStream(origStream);
     }
     return this.closer.register(origStream);

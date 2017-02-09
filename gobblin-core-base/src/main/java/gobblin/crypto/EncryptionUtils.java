@@ -23,7 +23,7 @@ import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
 
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -47,10 +47,10 @@ public class EncryptionUtils {
    * Return a StreamEncryptor for the given parameters. The algorithm type to use will be extracted
    * from the parameters object.
    * @param parameters Configured parameters for algorithm.
-   * @return A StreamEncoder for the requested algorithm
+   * @return A StreamCodec for the requested algorithm
    * @throws IllegalArgumentException If the given algorithm/parameter pair cannot be built
    */
-  public static StreamEncoder buildStreamEncryptor(Map<String, Object> parameters) {
+  public static StreamCodec buildStreamEncryptor(Map<String, Object> parameters) {
     String encryptionType = EncryptionCapabilityParser.getEncryptionType(parameters);
     if (encryptionType == null) {
       throw new IllegalArgumentException("Encryption type not present in parameters!");
@@ -66,14 +66,14 @@ public class EncryptionUtils {
    * @return A SreamEncoder for that algorithm
    * @throws IllegalArgumentException If the given algorithm/parameter pair cannot be built
    */
-  public static StreamEncoder buildStreamEncryptor(String algorithm, Map<String, Object> parameters) {
+  public static StreamCodec buildStreamEncryptor(String algorithm, Map<String, Object> parameters) {
     /* TODO - Ideally this would dynamically discover plugins somehow which would let us move
      * move crypto algorithms into gobblin-modules and just keep the factory in core. (The factory
      * would fail to build anything if the corresponding gobblin-modules aren't included).
      */
     switch (algorithm) {
       case "insecure_shift":
-        return new InsecureShiftEncryptor(parameters);
+        return new InsecureShiftCodec(parameters);
       case EncryptionCapabilityParser.ENCRYPTION_TYPE_ANY:
       case "aes_rotating":
         CredentialStore cs = buildCredentialStore(parameters);
@@ -81,7 +81,7 @@ public class EncryptionUtils {
           throw new IllegalArgumentException("Failed to build credential store; can't instantiate AES");
         }
 
-        return new RotatingAESEncryptor(cs);
+        return new RotatingAESCodec(cs);
       default:
         throw new IllegalArgumentException("Do not support encryption type " + algorithm);
     }

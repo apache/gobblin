@@ -41,7 +41,7 @@ import gobblin.writer.AsyncWriterManager;
 import gobblin.writer.AsyncDataWriter;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 
 /**
@@ -50,7 +50,7 @@ import gobblin.writer.StreamEncoder;
 
 public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schema, GenericRecord> implements CapabilityAware {
 
-  protected abstract AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props, List<StreamEncoder> encoders);
+  protected abstract AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props, List<StreamCodec> encoders);
 
   /**
    * Build a {@link DataWriter}.
@@ -74,7 +74,7 @@ public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schem
     CapabilityParser.CapabilityRecord encryptionRecord =
         CapabilityParsers.writerCapabilityForBranch(Capability.ENCRYPTION, state, getBranches(), getBranch());
 
-    List<StreamEncoder> encoders = Collections.emptyList();
+    List<StreamCodec> encoders = Collections.emptyList();
 
     if (encryptionRecord.isConfigured()) {
       encoders = ImmutableList.of(EncryptionUtils.buildStreamEncryptor(encryptionRecord.getParameters()));

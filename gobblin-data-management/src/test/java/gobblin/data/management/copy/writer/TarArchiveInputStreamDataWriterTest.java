@@ -28,7 +28,7 @@ import gobblin.data.management.copy.TestCopyableDataset;
 import gobblin.data.management.copy.converter.UnGzipConverter;
 import gobblin.util.PathUtils;
 import gobblin.util.TestUtils;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -89,7 +89,7 @@ public class TarArchiveInputStreamDataWriterTest {
     CopySource.serializeCopyEntity(state, fileAwareInputStream.getFile());
 
     TarArchiveInputStreamDataWriter dataWriter = new TarArchiveInputStreamDataWriter(state, 1, 0,
-        Collections.<StreamEncoder>emptyList());
+        Collections.<StreamCodec>emptyList());
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
 

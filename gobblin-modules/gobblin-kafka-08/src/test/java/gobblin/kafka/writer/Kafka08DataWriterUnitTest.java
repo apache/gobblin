@@ -24,7 +24,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -45,7 +45,7 @@ public class Kafka08DataWriterUnitTest {
 
     try {
       Kafka08DataWriter<GenericRecord> kafkaWriter =
-          new Kafka08DataWriter<>(props, Collections.<StreamEncoder>emptyList());
+          new Kafka08DataWriter<>(props, Collections.<StreamCodec>emptyList());
     } catch (Exception e) {
       Assert.fail("Should not throw exception", e);
     }

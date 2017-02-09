@@ -126,7 +126,7 @@ public class JCEKSKeystoreCredentialStore implements CredentialStore {
       Key k = ks.getKey(id, password);
       return (k == null) ? null : k.getEncoded();
     } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException e) {
-      // log
+      log.warn("Error trying to decode key " + id, e);
       return null;
     }
   }
@@ -136,18 +136,18 @@ public class JCEKSKeystoreCredentialStore implements CredentialStore {
     Map<String, byte[]> ret = new HashMap<>();
     try {
       Enumeration<String> aliases = ks.aliases();
-      try {
-        while (aliases.hasMoreElements()) {
-          String key = aliases.nextElement();
+      while (aliases.hasMoreElements()) {
+        String key = aliases.nextElement();
+        try {
           if (ks.isKeyEntry(key)) {
             ret.put(key, getEncodedKey(key));
           }
+        } catch (KeyStoreException e) {
+          log.warn("Error trying to decode key id " + key + ", not returning in list", e);
         }
-      } catch (KeyStoreException e) {
-        // log, continue loop
       }
     } catch (KeyStoreException e) {
-      // TODO lpg
+      log.warn("Error retrieving all aliases in keystore; treating as empty", e);
       return ret;
     }
 

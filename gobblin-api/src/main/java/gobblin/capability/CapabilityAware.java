@@ -2,10 +2,13 @@ package gobblin.capability;
 
 import java.util.Map;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * Describes an object that is aware of the capabilities it supports.
  */
+@Alpha
 public interface CapabilityAware {
   /**
    * Checks if this object supports the given Capability with the given properties.

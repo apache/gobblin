@@ -27,7 +27,7 @@ import gobblin.crypto.EncryptionUtils;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -53,13 +53,13 @@ public class FileAwareInputStreamDataWriterBuilder extends DataWriterBuilder<Str
   }
 
   protected DataWriter<FileAwareInputStream> buildWriter() throws IOException {
-    List<StreamEncoder> encoders = getStreamEncoders();
+    List<StreamCodec> encoders = getStreamEncoders();
     return new FileAwareInputStreamDataWriter(this.destination.getProperties(), this.branches, this.branch,
         this.writerAttemptId, encoders);
   }
 
-  protected List<StreamEncoder> getStreamEncoders() {
-    List<StreamEncoder> encoders = Collections.emptyList();
+  protected List<StreamCodec> getStreamEncoders() {
+    List<StreamCodec> encoders = Collections.emptyList();
 
     CapabilityParser.CapabilityRecord encryptionInfo =
         CapabilityParsers.writerCapabilityForBranch(Capability.ENCRYPTION, this.destination.getProperties(),

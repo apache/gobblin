@@ -110,8 +110,8 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
         this.getBranch());
   }
 
-  protected List<StreamEncoder> getEncoders() {
-    List<StreamEncoder> encoders = new ArrayList<>();
+  protected List<StreamCodec> getEncoders() {
+    List<StreamCodec> encoders = new ArrayList<>();
     if (encryptionEnabledAndSupported()) {
       // this parses capability out twice but since it's at construct time not trying to micro-optimize
       CapabilityParser.CapabilityRecord encryptionInfo = getRequestedCapability(Capability.ENCRYPTION);

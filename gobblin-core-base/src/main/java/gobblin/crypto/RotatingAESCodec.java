@@ -2,6 +2,7 @@ package gobblin.crypto;
 
 import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -12,7 +13,7 @@ import java.util.Random;
 
 import org.apache.commons.codec.binary.Base64OutputStream;
 
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherOutputStream;
@@ -33,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
  * 4. Ciphertext will be base64 encoded and written out. We do not insert linebreaks.
  */
 @Slf4j
-public class RotatingAESEncryptor implements StreamEncoder {
+public class RotatingAESCodec implements StreamCodec {
   private static final int AES_KEY_LEN = 16;
 
   private final Random random;
@@ -44,7 +45,7 @@ public class RotatingAESEncryptor implements StreamEncoder {
    * Create a new encryptor
    * @param credentialStore Credential store where keys can be found
    */
-  public RotatingAESEncryptor(CredentialStore credentialStore) {
+  public RotatingAESCodec(CredentialStore credentialStore) {
     this.credentialStore = credentialStore;
     this.random = new Random();
   }
@@ -52,8 +53,11 @@ public class RotatingAESEncryptor implements StreamEncoder {
   @Override
   public OutputStream wrapOutputStream(OutputStream origStream) {
     return new StreamInstance(random, getKeyRecords(), origStream).wrapOutputStream();
+  }
 
-
+  @Override
+  public InputStream wrapInputStream(InputStream origStream) throws IOException {
+    throw new AssertionError("not implemented yet");
   }
 
   private synchronized List<KeyRecord> getKeyRecords() {
@@ -84,7 +88,7 @@ public class RotatingAESEncryptor implements StreamEncoder {
 
   @Override
   public String getTag() {
-    return "aes128_rotating";
+    return "aes_rotating";
   }
 
   /**

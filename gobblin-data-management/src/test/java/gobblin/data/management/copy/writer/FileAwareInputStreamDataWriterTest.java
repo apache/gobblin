@@ -30,8 +30,7 @@ import gobblin.data.management.copy.PreserveAttributes;
 import gobblin.data.management.copy.TestCopyableDataset;
 import gobblin.util.TestUtils;
 import gobblin.util.io.StreamUtils;
-import gobblin.writer.Destination;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -49,7 +48,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.hdfs.DFSClient;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -92,7 +90,7 @@ public class FileAwareInputStreamDataWriterTest {
     CopySource.serializeCopyableDataset(state, metadata);
 
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0,
-        Collections.<StreamEncoder>emptyList());
+        Collections.<StreamCodec>emptyList());
 
     FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(IOUtils.toInputStream(streamString)));
     dataWriter.write(fileAwareInputStream);
@@ -134,7 +132,7 @@ public class FileAwareInputStreamDataWriterTest {
     dataWriter.commit();
     Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
         cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
-    Assert.assertTrue(writtenFilePath.getName().endsWith(".encrypted_simple"));
+    Assert.assertTrue(writtenFilePath.getName().endsWith(".encrypted_insecure_shift"));
     byte[] readString = IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString()));
 
     Assert.assertEquals(readString, expectedBytes);
@@ -200,7 +198,7 @@ public class FileAwareInputStreamDataWriterTest {
 
     // create writer
     FileAwareInputStreamDataWriter writer =
-        new FileAwareInputStreamDataWriter(state, 1, 0, Collections.<StreamEncoder>emptyList());
+        new FileAwareInputStreamDataWriter(state, 1, 0, Collections.<StreamCodec>emptyList());
 
     // create output of writer.write
     Path writtenFile = writer.getStagingFilePath(cf);

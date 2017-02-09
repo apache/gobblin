@@ -16,24 +16,23 @@
  */
 package gobblin.crypto;
 
+import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Map;
 
-import com.google.common.base.Optional;
-
-import gobblin.configuration.State;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 
 /**
  * Simple encryption algorithm that just increments every byte sent
  * through it by 1. Useful for unit tests or proof of concept, but is not actually secure.
  */
-public class InsecureShiftEncryptor implements StreamEncoder {
-  public InsecureShiftEncryptor(Map<String, Object> parameters) {
-    // InsecureShiftEncryptor doesn't care about parameters
+public class InsecureShiftCodec implements StreamCodec {
+  public InsecureShiftCodec(Map<String, Object> parameters) {
+    // InsecureShiftCodec doesn't care about parameters
   }
 
   @Override
@@ -59,6 +58,41 @@ public class InsecureShiftEncryptor implements StreamEncoder {
       @Override
       public void close() throws IOException {
         out.close();
+      }
+    };
+  }
+
+  public InputStream wrapInputStream(InputStream in) {
+    return new FilterInputStream(in) {
+      @Override
+      public int read() throws IOException {
+        int upstream = in.read();
+        if (upstream == 0) {
+          upstream = 255;
+        } else if (upstream > 0) {
+          upstream--;
+        }
+
+        return upstream;
+      }
+
+      @Override
+      public int read(byte[] b) throws IOException {
+        return read(b, 0, b.length);
+      }
+
+      @Override
+      public int read(byte[] b, int off, int len) throws IOException {
+        for (int i = 0; i < len; i++) {
+          int result = read();
+          if (result == -1) {
+            return (i == 0) ? -1 : i;
+          }
+
+          b[off + i] = (byte) result;
+        }
+
+        return len;
       }
     };
   }

@@ -23,7 +23,7 @@ import java.util.Properties;
 import org.apache.avro.generic.GenericRecord;
 
 import gobblin.writer.AsyncDataWriter;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 
 /**
@@ -32,7 +32,7 @@ import gobblin.writer.StreamEncoder;
 public class KafkaDataWriterBuilder extends BaseKafkaDataWriterBuilder {
 
   @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props, List<StreamEncoder> encoders) {
+  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props, List<StreamCodec> encoders) {
     return new Kafka08DataWriter<>(props, encoders);
   }
 

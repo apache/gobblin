@@ -60,7 +60,7 @@ public class AvroHdfsDataWriter extends FileStreamBasedWriter<GenericRecord> {
   protected final AtomicLong count = new AtomicLong(0);
 
   public AvroHdfsDataWriter(FsDataWriterBuilder<Schema, GenericRecord> builder, State state,
-      List<StreamEncoder> encoders) throws IOException {
+      List<StreamCodec> encoders) throws IOException {
     super(builder, state, encoders);
 
     CodecFactory codecFactory = WriterUtils.getCodecFactory(

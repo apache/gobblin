@@ -26,14 +26,14 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 
 
-public class RotatingAESEncryptorTest {
+public class RotatingAESCodecTest {
   @Test
   public void testStream() throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
                            InvalidAlgorithmParameterException{
     final byte[] toWrite = "hello world".getBytes();
 
     SimpleCredentialStore credStore = new SimpleCredentialStore();
-    RotatingAESEncryptor encryptor = new RotatingAESEncryptor(credStore);
+    RotatingAESCodec encryptor = new RotatingAESCodec(credStore);
     ByteArrayOutputStream sink = new ByteArrayOutputStream();
     OutputStream os = encryptor.wrapOutputStream(sink);
     os.write(toWrite);

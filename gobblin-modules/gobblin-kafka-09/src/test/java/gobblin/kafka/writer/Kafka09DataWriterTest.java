@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
@@ -34,7 +33,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
 
-import kafka.security.auth.Write;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.capability.Capability;
@@ -50,7 +48,7 @@ import gobblin.kafka.serialize.LiAvroSerializer;
 import gobblin.test.TestUtils;
 import gobblin.writer.DataWriter;
 import gobblin.writer.Destination;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 
@@ -98,7 +96,7 @@ public class Kafka09DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-    Kafka09DataWriter<String> kafka09DataWriter = new Kafka09DataWriter<String>(props, Collections.<StreamEncoder>emptyList());
+    Kafka09DataWriter<String> kafka09DataWriter = new Kafka09DataWriter<String>(props, Collections.<StreamCodec>emptyList());
     String messageString = "foobar";
     WriteCallback callback = mock(WriteCallback.class);
     Future<WriteResponse> future;
@@ -131,7 +129,7 @@ public class Kafka09DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-    Kafka09DataWriter<byte[]> kafka09DataWriter = new Kafka09DataWriter<byte[]>(props, Collections.<StreamEncoder>emptyList());
+    Kafka09DataWriter<byte[]> kafka09DataWriter = new Kafka09DataWriter<byte[]>(props, Collections.<StreamCodec>emptyList());
     WriteCallback callback = mock(WriteCallback.class);
     byte[] messageBytes = TestUtils.generateRandomBytes();
 
@@ -167,7 +165,7 @@ public class Kafka09DataWriterTest {
         + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
         ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
-    Kafka09DataWriter<GenericRecord> kafka09DataWriter = new Kafka09DataWriter<>(props, Collections.<StreamEncoder>emptyList());
+    Kafka09DataWriter<GenericRecord> kafka09DataWriter = new Kafka09DataWriter<>(props, Collections.<StreamCodec>emptyList());
     WriteCallback callback = mock(WriteCallback.class);
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();

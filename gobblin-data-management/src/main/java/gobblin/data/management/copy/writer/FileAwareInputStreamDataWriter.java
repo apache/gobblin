@@ -69,7 +69,7 @@ import gobblin.util.io.StreamCopierSharedLimiterKey;
 import gobblin.util.limiter.Limiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.writer.DataWriter;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -89,7 +89,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final Path stagingDir;
   protected final Path outputDir;
   protected final Closer closer = Closer.create();
-  protected final List<StreamEncoder> encoders;
+  protected final List<StreamCodec> encoders;
   protected CopyableDatasetMetadata copyableDatasetMetadata;
   protected final RecoveryHelper recoveryHelper;
   protected final SharedResourcesBroker<GobblinScopeTypes> taskBroker;
@@ -106,7 +106,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected Optional<CopyableFile> actualProcessedCopyableFile;
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId, String writerAttemptId,
-      List<StreamEncoder> encoders) throws IOException {
+      List<StreamCodec> encoders) throws IOException {
     super(state);
 
     if (numBranches > 1) {
@@ -142,7 +142,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.bufferSize = state.getPropAsInt(CopyConfiguration.BUFFER_SIZE, StreamCopier.DEFAULT_BUFFER_SIZE);
   }
 
-  public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId, List<StreamEncoder> encoders)
+  public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId, List<StreamCodec> encoders)
       throws IOException {
     this(state, numBranches, branchId, null, encoders);
   }
@@ -164,7 +164,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   }
 
   protected void appendEncoderExtensions(CopyableFile copyableFile) {
-    for (StreamEncoder e: encoders) {
+    for (StreamCodec e: encoders) {
       copyableFile.setDestination(PathUtils.addExtension(copyableFile.getDestination(), "." + e.getTag()));
     }
   }
@@ -242,9 +242,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
   }
 
-  protected OutputStream attachEncodersToStream(OutputStream os) {
+  protected OutputStream attachEncodersToStream(OutputStream os) throws IOException {
     OutputStream encodedStream = os;
-    for (StreamEncoder e: encoders) {
+    for (StreamCodec e: encoders) {
       encodedStream = e.wrapOutputStream(encodedStream);
     }
     return encodedStream;

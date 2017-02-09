@@ -39,7 +39,7 @@ import gobblin.data.management.copy.CopyableFile;
 import gobblin.data.management.copy.FileAwareInputStream;
 import gobblin.util.PathUtils;
 import gobblin.util.io.StreamCopier;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -52,7 +52,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWriter {
 
-  public TarArchiveInputStreamDataWriter(State state, int numBranches, int branchId, List<StreamEncoder> encoders) throws IOException {
+  public TarArchiveInputStreamDataWriter(State state, int numBranches, int branchId, List<StreamCodec> encoders) throws IOException {
     super(state, numBranches, branchId, encoders);
   }
 
@@ -83,7 +83,7 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
         // the API tarEntry.getName() is misleading, it is actually the path of the tarEntry in the tar file
         String newTarEntryPath = tarEntry.getName().replace(tarEntryRootName, writeAt.getName());
         Path tarEntryStagingPath = new Path(writeAt.getParent(), newTarEntryPath);
-        for (StreamEncoder e: encoders) {
+        for (StreamCodec e: encoders) {
           tarEntryStagingPath = PathUtils.addExtension(tarEntryStagingPath, e.getTag());
         }
 

@@ -43,7 +43,7 @@ import gobblin.test.ErrorManager;
 import gobblin.test.TestUtils;
 import gobblin.writer.DataWriter;
 import gobblin.writer.Destination;
-import gobblin.writer.StreamEncoder;
+import gobblin.writer.StreamCodec;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 
@@ -89,7 +89,7 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-    Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<String>(props, Collections.<StreamEncoder>emptyList());
+    Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<String>(props, Collections.<StreamCodec>emptyList());
     String messageString = "foobar";
     WriteCallback callback = mock(WriteCallback.class);
 
@@ -118,7 +118,7 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-    Kafka08DataWriter<byte[]> kafka08DataWriter = new Kafka08DataWriter<byte[]>(props, Collections.<StreamEncoder>emptyList());
+    Kafka08DataWriter<byte[]> kafka08DataWriter = new Kafka08DataWriter<byte[]>(props, Collections.<StreamCodec>emptyList());
     WriteCallback callback = mock(WriteCallback.class);
 
     byte[] messageBytes = TestUtils.generateRandomBytes();
@@ -154,7 +154,7 @@ public class Kafka08DataWriterTest {
         + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
         ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
-    Kafka08DataWriter<GenericRecord> kafka08DataWriter = new Kafka08DataWriter<>(props, Collections.<StreamEncoder>emptyList());
+    Kafka08DataWriter<GenericRecord> kafka08DataWriter = new Kafka08DataWriter<>(props, Collections.<StreamCodec>emptyList());
     WriteCallback callback = mock(WriteCallback.class);
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
@@ -195,7 +195,7 @@ public class Kafka08DataWriterTest {
             + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
         ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
-    Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<>(props, Collections.<StreamEncoder>emptyList());
+    Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<>(props, Collections.<StreamCodec>emptyList());
     WriteCallback callback = mock(WriteCallback.class);
 
     try {

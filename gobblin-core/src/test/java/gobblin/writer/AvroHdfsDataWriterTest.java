@@ -23,6 +23,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.Map;
 
 import org.apache.avro.Schema;
@@ -47,7 +48,7 @@ import gobblin.capability.Capability;
 import gobblin.capability.CapabilityParser;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.crypto.InsecureShiftDecryptor;
+import gobblin.crypto.InsecureShiftCodec;
 
 
 /**
@@ -193,7 +194,7 @@ public class AvroHdfsDataWriterTest {
             TestConstants.TEST_FILE_NAME + ".encrypted_" + encryptionName);
 
     InputStream readerStream = new FileInputStream(outputFile);
-    readerStream = new InsecureShiftDecryptor().wrapInputStream(readerStream);
+    readerStream = new InsecureShiftCodec(Collections.<String, Object>emptyMap()).wrapInputStream(readerStream);
     DataFileStream<GenericRecord> reader = new DataFileStream<GenericRecord>(readerStream,
         new GenericDatumReader<GenericRecord>(this.schema));
 
