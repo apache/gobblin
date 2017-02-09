@@ -42,6 +42,14 @@ class EncryptionCapabilityParser extends CapabilityParser {
       }
     }
 
+    String ksPathPropName =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_ENCRYPT_KEYSTORE_LOCATION, numBranches,
+            branch);
+    String ksPath = taskState.getProp(ksPathPropName);
+
+    if (ksPath != null) {
+      properties.put("ks_path", ksPath);
+    }
     return ImmutableList.of(new CapabilityRecord(Capability.ENCRYPTION, capabilityExists, properties));
   }
 }

@@ -1,5 +1,6 @@
 package gobblin.crypto;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
@@ -14,7 +15,7 @@ import gobblin.writer.StreamEncoder;
  */
 public class EncryptionUtils {
   private final static Set<String> SUPPORTED_STREAMING_ALGORITHMS =
-      ImmutableSet.of("simple", Capability.ENCRYPTION_TYPE_ANY);
+      ImmutableSet.of("simple", "aes_rotating", Capability.ENCRYPTION_TYPE_ANY);
 
   /**
    * Return a set of streaming algorithms (StreamEncoders) that this factory knows how to build
@@ -52,12 +53,20 @@ public class EncryptionUtils {
      * move crypto algorithms into gobblin-modules and just keep the factory in core. (The factory
      * would fail to build anything if the corresponding gobblin-modules aren't included).
      */
-    switch (algorithm) {
-      case "simple":
-      case Capability.ENCRYPTION_TYPE_ANY:
-        return new SimpleEncryptor(parameters);
-      default:
-        throw new IllegalArgumentException("Do not support encryption type " + algorithm);
+    try {
+      switch (algorithm) {
+        case "simple":
+          return new SimpleEncryptor(parameters);
+        case Capability.ENCRYPTION_TYPE_ANY:
+        case "aes_rotating":
+          String password = "abcd";
+          String ks_path = (String) parameters.get("ks_path");
+          return new RotatingAESEncryptor(new KeystoreCredentialStore(ks_path, password));
+        default:
+          throw new IllegalArgumentException("Do not support encryption type " + algorithm);
+      }
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Error loading keys", e);
     }
   }
 

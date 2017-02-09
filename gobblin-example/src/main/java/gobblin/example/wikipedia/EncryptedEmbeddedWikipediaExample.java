@@ -95,7 +95,8 @@ public class EncryptedEmbeddedWikipediaExample extends EmbeddedGobblin {
     this.setConfiguration(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE, BaseDataPublisher.class.getName());
     this.setConfiguration(ConfigurationKeys.CONVERTER_CLASSES_KEY, WikipediaConverter.class.getName());
     this.setConfiguration(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, outputPath);
-    this.setConfiguration(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "true");
+    this.setConfiguration(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "aes_rotating");
+    this.setConfiguration(ConfigurationKeys.WRITER_PREFIX + ".ks_path", "/tmp/keystore");
     return this;
   }
 

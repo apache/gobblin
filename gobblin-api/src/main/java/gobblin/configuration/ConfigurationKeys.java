@@ -286,6 +286,7 @@ public class ConfigurationKeys {
   public static final String WRITER_EAGER_INITIALIZATION_KEY = WRITER_PREFIX + ".eager.initialization";
   public static final String WRITER_PARTITIONER_CLASS = WRITER_PREFIX + ".partitioner.class";
   public static final String WRITER_ENABLE_ENCRYPT = WRITER_PREFIX + ".encrypt";
+  public static final String WRITER_ENCRYPT_KEYSTORE_LOCATION = WRITER_PREFIX + ".encrypt.ks_path";
   public static final boolean DEFAULT_WRITER_EAGER_INITIALIZATION = false;
   public static final String WRITER_GROUP_NAME = WRITER_PREFIX + ".group.name";
   public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";
