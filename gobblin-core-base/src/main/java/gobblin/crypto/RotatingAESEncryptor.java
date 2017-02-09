@@ -5,10 +5,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.commons.codec.binary.Base64OutputStream;
 
@@ -20,20 +20,23 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Implementation of an encryption algorithm that works in the following way:
  *
  * 1. A credentialStore is provisioned with a set of AES keys
- * 2. When wrapOutputStream() is called, an AES key will be picked at random
+ * 2. When wrapOutputStream() is called, an AES key will be picked at random and a new initialization vector (IV)
+ *    will be generated.
  * 3. A header will be written [keyId][ivLength][base64 encoded iv]
  * 4. Ciphertext will be base64 encoded and written out
  */
+@Slf4j
 public class RotatingAESEncryptor implements StreamEncoder {
   private static final int AES_KEY_LEN = 16;
 
-  private final SecureRandom random;
+  private final Random random;
   private final CredentialStore credentialStore;
   private boolean headerWritten;
   private OutputStream origStream;
@@ -48,7 +51,7 @@ public class RotatingAESEncryptor implements StreamEncoder {
    */
   public RotatingAESEncryptor(CredentialStore credentialStore) {
     this.credentialStore = credentialStore;
-    this.random = new SecureRandom();
+    this.random = new Random();
     this.headerWritten = false;
   }
 
@@ -126,7 +129,10 @@ public class RotatingAESEncryptor implements StreamEncoder {
       keyRecords = new ArrayList<>();
       for (Map.Entry<String, byte[]> entry : credentialStore.getAllEncodedKeys().entrySet()) {
         if (entry.getValue().length != AES_KEY_LEN) {
-          // log
+          log.debug("Skipping keyId {} because it is length {}; expected {}",
+              entry.getKey(),
+              entry.getValue().length,
+              AES_KEY_LEN);
           continue;
         }
 
@@ -136,7 +142,7 @@ public class RotatingAESEncryptor implements StreamEncoder {
 
           keyRecords.add(new KeyRecord(keyId, key));
         } catch (NumberFormatException e) {
-          // TODO log
+          log.debug("Skipping keyId {} because this algorithm can only use numeric key ids", entry.getKey());
         }
       }
     }

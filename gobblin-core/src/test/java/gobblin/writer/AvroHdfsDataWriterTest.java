@@ -47,7 +47,7 @@ import gobblin.capability.Capability;
 import gobblin.capability.CapabilityParser;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
-import gobblin.crypto.SimpleDecryptor;
+import gobblin.crypto.InsecureShiftDecryptor;
 
 
 /**
@@ -159,7 +159,7 @@ public class AvroHdfsDataWriterTest {
     CapabilityParser.CapabilityRecord r = encryptionWithType("any");
     Assert.assertTrue(builder.supportsCapability(r.getCapability(), r.getParameters()));
 
-    r = encryptionWithType("simple");
+    r = encryptionWithType("insecure_shift");
     Assert.assertTrue(builder.supportsCapability(r.getCapability(), r.getParameters()));
 
     r = encryptionWithType("doesntexist");
@@ -168,8 +168,9 @@ public class AvroHdfsDataWriterTest {
 
   @Test
   public void testEncryptionSupport() throws IOException {
+    final String encryptionName = "insecure_shift";
     State properties = defaultProperties();
-    properties.setProp(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "simple");
+    properties.setProp(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, encryptionName);
 
     DataWriter<GenericRecord> writer = new AvroDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
         .writeInFormat(WriterOutputFormat.AVRO)
@@ -189,10 +190,10 @@ public class AvroHdfsDataWriterTest {
 
     File outputFile =
         new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
-            TestConstants.TEST_FILE_NAME + ".encrypted_simple");
+            TestConstants.TEST_FILE_NAME + ".encrypted_" + encryptionName);
 
     InputStream readerStream = new FileInputStream(outputFile);
-    readerStream = new SimpleDecryptor().wrapInputStream(readerStream);
+    readerStream = new InsecureShiftDecryptor().wrapInputStream(readerStream);
     DataFileStream<GenericRecord> reader = new DataFileStream<GenericRecord>(readerStream,
         new GenericDatumReader<GenericRecord>(this.schema));
 

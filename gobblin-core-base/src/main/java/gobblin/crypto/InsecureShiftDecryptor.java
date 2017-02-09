@@ -6,9 +6,9 @@ import java.io.InputStream;
 
 
 /**
- * Inverse of SimpleEncryptor - only use is for proof of concept testing - not secure!
+ * Inverse of InsecureShiftEncryptor - only use is for proof of concept testing - not secure!
  */
-public class SimpleDecryptor {
+public class InsecureShiftDecryptor {
   public InputStream wrapInputStream(InputStream in) {
     return new FilterInputStream(in) {
       @Override

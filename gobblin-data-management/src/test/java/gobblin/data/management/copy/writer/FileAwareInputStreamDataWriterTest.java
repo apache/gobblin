@@ -121,12 +121,12 @@ public class FileAwareInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
-    state.setProp(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "simple");
+    state.setProp(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "insecure_shift");
     CopySource.serializeCopyEntity(state, cf);
     CopySource.serializeCopyableDataset(state, metadata);
 
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0,
-        ImmutableList.of(EncryptionUtils.buildStreamEncryptor("simple", Collections.<String, Object>emptyMap())));
+        ImmutableList.of(EncryptionUtils.buildStreamEncryptor("insecure_shift", Collections.<String, Object>emptyMap())));
 
     FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf,
         StreamUtils.convertStream(new ByteArrayInputStream(bytesToWrite)));

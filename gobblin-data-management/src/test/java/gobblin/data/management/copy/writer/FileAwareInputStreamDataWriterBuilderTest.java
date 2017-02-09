@@ -31,7 +31,7 @@ public class FileAwareInputStreamDataWriterBuilderTest {
     FileAwareInputStreamDataWriterBuilder builder = new FileAwareInputStreamDataWriterBuilder();
 
     Assert.assertTrue(builder.supportsCapability(Capability.ENCRYPTION,
-        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "simple")
+        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "insecure_shift")
     ));
     Assert.assertTrue(builder.supportsCapability(Capability.ENCRYPTION,
         ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "any")

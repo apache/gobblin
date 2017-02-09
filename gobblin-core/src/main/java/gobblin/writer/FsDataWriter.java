@@ -61,7 +61,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
   protected final int branchId;
   protected final String fileName;
   protected final FileSystem fs;
-  protected Path stagingFile;
+  protected final Path stagingFile;
   protected Path outputFile;
   protected final String allOutputFilesPropName;
   protected final boolean shouldIncludeRecordCountInFileName;

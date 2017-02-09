@@ -285,8 +285,20 @@ public class ConfigurationKeys {
   public static final String WRITER_CODEC_TYPE = WRITER_PREFIX + ".codec.type";
   public static final String WRITER_EAGER_INITIALIZATION_KEY = WRITER_PREFIX + ".eager.initialization";
   public static final String WRITER_PARTITIONER_CLASS = WRITER_PREFIX + ".partitioner.class";
+  /* Encryption related config settings
+   *
+   * writer.encrypt: Enables encryption for output.
+   *    Can be "any", "aes_rotating" or any other supplied encryption algorithms. If not present
+   *    or set to "false", the output data set will not be encrypted.
+   *
+   * Note that the settings below for credential storage are likely to change:
+   * writer.encrypt.ks_path: Path to the keystore used to provide keys for aes_rotating encryption.
+   * writer.encrypt.ks_password: Password that unlocks the keystore.
+   */
   public static final String WRITER_ENABLE_ENCRYPT = WRITER_PREFIX + ".encrypt";
   public static final String WRITER_ENCRYPT_KEYSTORE_LOCATION = WRITER_PREFIX + ".encrypt.ks_path";
+  public static final String WRITER_ENCRYPT_KEYSTORE_PASSWORD = WRITER_PREFIX + ".encrypt.ks_password";
+
   public static final boolean DEFAULT_WRITER_EAGER_INITIALIZATION = false;
   public static final String WRITER_GROUP_NAME = WRITER_PREFIX + ".group.name";
   public static final String DEFAULT_WRITER_FILE_BASE_NAME = "part";

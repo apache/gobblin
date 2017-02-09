@@ -218,7 +218,7 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers",
         "localhost:" + _kafkaTestHelper.getKafkaServerPort());
-    props.setProperty(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "simple");
+    props.setProperty(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "insecure_shift");
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG,
         "org.apache.kafka.common.serialization.StringSerializer");
 
@@ -227,7 +227,7 @@ public class Kafka08DataWriterTest {
         .forBranch(1)
         .writeTo(Destination.of(Destination.DestinationType.KAFKA, new State(props)));
     Assert.assertTrue(builder.supportsCapability(Capability.ENCRYPTION,
-        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "simple")),
+        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "insecure_shift")),
         "Expected writer builder to support encryption");
 
     // TODO this cast is ugly, but we need to test that the builder passes down streamencoders properly

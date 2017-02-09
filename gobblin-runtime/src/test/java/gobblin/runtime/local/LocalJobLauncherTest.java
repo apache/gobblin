@@ -135,8 +135,8 @@ public class LocalJobLauncherTest {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithEncryptionEnabled");
-    jobProps.setProperty(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "simple");
-    
+    jobProps.setProperty(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "insecure_shift");
+
     try {
       this.jobLauncherTestHelper.runTest(jobProps);
     } finally {

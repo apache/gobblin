@@ -19,7 +19,8 @@ public interface StreamEncoder {
   OutputStream wrapOutputStream(OutputStream origStream);
 
   /**
-   * Get tag/file extension associated with encoder
+   * Get tag/file extension associated with encoder. This may be added to
+   * the file extension or other metadata by various writers in the system.
    */
   String getTag();
 }

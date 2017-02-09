@@ -11,7 +11,7 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 
-public class KeystoreCredentialStoreTest {
+public class JCEKSKeystoreCredentialStoreTest {
   private File tempFile;
 
   @BeforeTest
@@ -31,17 +31,17 @@ public class KeystoreCredentialStoreTest {
     final String password = "abcd";
 
     try {
-      KeystoreCredentialStore cs = new KeystoreCredentialStore(path, password);
+      JCEKSKeystoreCredentialStore cs = new JCEKSKeystoreCredentialStore(path, password);
       Assert.fail("Expected exception to be thrown because keystore doesn't exist");
     } catch (IllegalArgumentException e) {
       // pass
     }
 
-    KeystoreCredentialStore cs = new KeystoreCredentialStore(path, password, EnumSet.of(
-        KeystoreCredentialStore.CreationOptions.CREATE_IF_MISSING));
-    cs.generateAesKeys(20);
+    JCEKSKeystoreCredentialStore cs = new JCEKSKeystoreCredentialStore(path, password, EnumSet.of(
+        JCEKSKeystoreCredentialStore.CreationOptions.CREATE_IF_MISSING));
+    cs.generateAesKeys(20, 0);
 
-    cs = new KeystoreCredentialStore(path, password);
+    cs = new JCEKSKeystoreCredentialStore(path, password);
     Assert.assertEquals(cs.getAllEncodedKeys().size(), 20);
   }
 }
