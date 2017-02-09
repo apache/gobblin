@@ -169,7 +169,8 @@ public class GobblinClusterKillTest {
     }
   }
 
-  @Test
+  // The kill tests are unreliable on Travis
+  @Test(groups = { "disabledOnTravis" })
   public void testKillWorker() throws TimeoutException, InterruptedException {
     Collection<File> matches = Collections.EMPTY_LIST;
 
@@ -206,7 +207,8 @@ public class GobblinClusterKillTest {
     }, "Waiting for job-completion");
   }
 
-  @Test(dependsOnMethods = "testKillWorker")
+  // The kill tests are unreliable on Travis
+  @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testKillWorker")
   public void testKillManager() throws IOException, TimeoutException, InterruptedException {
     Collection<File> matches = Collections.EMPTY_LIST;
     final File writerOutputDir = new File(_testDirPath + "/writer-output/gobblin/util/test/HelloWorldSource/");
