@@ -20,6 +20,7 @@ import gobblin.capability.Capability;
 import gobblin.capability.CapabilityAware;
 import gobblin.capability.CapabilityParser;
 import gobblin.capability.CapabilityParsers;
+import gobblin.capability.EncryptionCapabilityParser;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.crypto.EncryptionUtils;
@@ -91,7 +92,7 @@ public class FileAwareInputStreamDataWriterBuilder extends DataWriterBuilder<Str
 
   @Override
   public boolean supportsCapability(Capability c, Map<String, Object> properties) {
-    String type = (String)properties.get(Capability.ENCRYPTION_TYPE);
-    return (c.equals(Capability.ENCRYPTION) && EncryptionUtils.supportedStreamingAlgorithms().contains(type));
+    String encryptionType = EncryptionCapabilityParser.getEncryptionType(properties);
+    return (c.equals(Capability.ENCRYPTION) && EncryptionUtils.supportedStreamingAlgorithms().contains(encryptionType));
   }
 }

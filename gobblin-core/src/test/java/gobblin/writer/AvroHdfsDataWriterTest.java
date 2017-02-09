@@ -17,6 +17,7 @@
 
 package gobblin.writer;
 
+import gobblin.capability.EncryptionCapabilityParser;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -200,7 +201,7 @@ public class AvroHdfsDataWriterTest {
 
   private CapabilityParser.CapabilityRecord encryptionWithType(String type) {
     return new CapabilityParser.CapabilityRecord(Capability.ENCRYPTION, true,
-        ImmutableMap.<String, Object>of(Capability.ENCRYPTION_TYPE, type));
+        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, type));
   }
 
   @AfterClass

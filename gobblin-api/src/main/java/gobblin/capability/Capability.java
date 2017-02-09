@@ -17,7 +17,6 @@ public class Capability {
    *  partitionSchema: Schema output by the selected partitioner
    */
   public static final Capability PARTITIONED_WRITER = new Capability("PARTITIONED_WRITER", true);
-  public static final String PARTITIONING_SCHEMA = "partitionSchema";
 
   /**
    * Encryption capability.
@@ -26,9 +25,6 @@ public class Capability {
    *         If not present we assume encryption is disabled for this fork.
    */
   public static final Capability ENCRYPTION = new Capability("ENCRYPTION", true);
-
-  public static final String ENCRYPTION_TYPE = "type";
-  public static final String ENCRYPTION_TYPE_ANY = "any";
 
   /**
    * Create a new Capability description.

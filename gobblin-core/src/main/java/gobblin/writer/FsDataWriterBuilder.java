@@ -17,6 +17,7 @@
 
 package gobblin.writer;
 
+import gobblin.capability.EncryptionCapabilityParser;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -69,7 +70,7 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
             this.getBranches(), this.getBranch());
 
     if (encryptionEnabledAndSupported()) {
-      String encryptionType = (String) encryptionInfo.getParameters().get(Capability.ENCRYPTION_TYPE);
+      String encryptionType = EncryptionCapabilityParser.getEncryptionType(encryptionInfo.getParameters());
       fileName = fileName + ".encrypted_" + encryptionType;
     }
 
@@ -114,8 +115,7 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
     if (encryptionEnabledAndSupported()) {
       // this parses capability out twice but since it's at construct time not trying to micro-optimize
       CapabilityParser.CapabilityRecord encryptionInfo = getRequestedCapability(Capability.ENCRYPTION);
-      String encryptionType = (String)encryptionInfo.getParameters().get(Capability.ENCRYPTION_TYPE);
-      encoders.add(EncryptionUtils.buildStreamEncryptor(encryptionType, encryptionInfo.getParameters()));
+      encoders.add(EncryptionUtils.buildStreamEncryptor(encryptionInfo.getParameters()));
     }
 
     return encoders;

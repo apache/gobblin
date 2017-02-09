@@ -17,6 +17,7 @@
 
 package gobblin.writer;
 
+import gobblin.capability.PartitioningCapabilityParser;
 import java.util.Map;
 
 import org.apache.avro.Schema;
@@ -84,10 +85,9 @@ public abstract class PartitionAwareDataWriterBuilder<S, D> extends DataWriterBu
     }
 
     // We only support partitioning if we can successfully validate the associated partition schema
-    Object schemaRaw = properties.get(Capability.PARTITIONING_SCHEMA);
+    Object schemaRaw = PartitioningCapabilityParser.getPartitioningSchema(properties);
     if (schemaRaw == null) {
-      throw new IllegalStateException("Error retrieving required property " +
-          Capability.PARTITIONING_SCHEMA + " from properties");
+      throw new IllegalStateException("Error retrieving required partitioning schema from properties");
     }
 
     return validatePartitionSchema((Schema)schemaRaw);

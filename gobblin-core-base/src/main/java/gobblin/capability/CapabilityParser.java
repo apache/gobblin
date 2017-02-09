@@ -1,7 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package gobblin.capability;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import gobblin.configuration.State;
@@ -86,6 +104,44 @@ public abstract class CapabilityParser {
       return "CapabilityRecord{" + "capability=" + capability + ", supportsCapability=" + supportsCapability + ", parameters="
           + parameters + '}';
     }
+  }
+
+  /**
+   * Extract a set of properties for a given branch, stripping out the prefix and branch
+   * suffix.
+   *
+   * Eg - original output:
+   *  writer.encrypt.1 -> foo
+   *  writer.encrypt.something.1 -> bar
+   *
+   *  will transform to
+   *
+   *  "" -> foo
+   *  something - bar
+   *
+   * @param properties Properties to extract data from
+   * @param prefix Prefix to match; all other properties will be ignored
+   * @param numBranches # of branchces
+   * @param branch Branch # to extract
+   * @return Transformed properties as described above
+   */
+  protected Map<String, Object> extractPropertiesForBranch(
+      Properties properties, String prefix, int numBranches, int branch) {
+
+    Map<String, Object> ret = new HashMap<>();
+    String branchSuffix = (numBranches > 1) ? String.format(".%d", branch) : "";
+
+    for (Map.Entry<Object, Object> prop: properties.entrySet()) {
+      String key = (String)prop.getKey();
+      if (key.startsWith(prefix) && (branchSuffix.length() == 0 || key.endsWith(branchSuffix))) {
+        int strippedKeyStart =  Math.min(key.length(), prefix.length() + 1);
+        int strippedKeyEnd = Math.max(strippedKeyStart, key.length() - branchSuffix.length());
+        String strippedKey = key.substring(strippedKeyStart, strippedKeyEnd);
+        ret.put(strippedKey, prop.getValue());
+      }
+    }
+
+    return ret;
   }
 
   private final Set<Capability> supportedCapabilities;

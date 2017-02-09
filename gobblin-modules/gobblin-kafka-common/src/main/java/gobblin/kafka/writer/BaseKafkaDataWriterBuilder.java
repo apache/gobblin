@@ -17,6 +17,7 @@
 
 package gobblin.kafka.writer;
 
+import gobblin.capability.EncryptionCapabilityParser;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -95,8 +96,7 @@ public abstract class BaseKafkaDataWriterBuilder extends DataWriterBuilder<Schem
       return false;
     }
 
-    String encryptionType = (String)properties.get(Capability.ENCRYPTION_TYPE);
+    String encryptionType = EncryptionCapabilityParser.getEncryptionType(properties);
     return EncryptionUtils.supportedStreamingAlgorithms().contains(encryptionType);
-
   }
 }

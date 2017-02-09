@@ -16,6 +16,7 @@
  */
 package gobblin.data.management.copy.writer;
 
+import gobblin.capability.EncryptionCapabilityParser;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -30,10 +31,10 @@ public class FileAwareInputStreamDataWriterBuilderTest {
     FileAwareInputStreamDataWriterBuilder builder = new FileAwareInputStreamDataWriterBuilder();
 
     Assert.assertTrue(builder.supportsCapability(Capability.ENCRYPTION,
-        ImmutableMap.<String, Object>of(Capability.ENCRYPTION_TYPE, "simple")
+        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "simple")
     ));
     Assert.assertTrue(builder.supportsCapability(Capability.ENCRYPTION,
-        ImmutableMap.<String, Object>of(Capability.ENCRYPTION_TYPE, "any")
+        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "any")
     ));
 
   }

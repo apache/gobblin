@@ -17,19 +17,14 @@
 
 package gobblin.writer;
 
-import java.io.IOException;
-import java.util.Map;
-
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
 import gobblin.capability.Capability;
-import gobblin.capability.CapabilityParser;
-import gobblin.capability.CapabilityParsers;
-import gobblin.configuration.State;
+import gobblin.capability.EncryptionCapabilityParser;
+import java.io.IOException;
+import java.util.Map;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
 
 
 /**
@@ -60,7 +55,7 @@ public class AvroDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRe
       return true;
     }
 
-    String encryptionType = (String) properties.get(Capability.ENCRYPTION_TYPE);
+    String encryptionType = EncryptionCapabilityParser.getEncryptionType(properties);
 
     // TODO Feels a little weird to hardcode AvroHdfsDataWriter here since we need to manually keep
     // this block in-sync with the switch statement in build() - should refactor to be a little more generic

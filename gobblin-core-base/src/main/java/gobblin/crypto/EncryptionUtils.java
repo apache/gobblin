@@ -1,5 +1,6 @@
 package gobblin.crypto;
 
+import gobblin.capability.EncryptionCapabilityParser;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -8,14 +9,16 @@ import com.google.common.collect.ImmutableSet;
 
 import gobblin.capability.Capability;
 import gobblin.writer.StreamEncoder;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Helper and factory methods for encryption algorithms.
  */
+@Slf4j
 public class EncryptionUtils {
   private final static Set<String> SUPPORTED_STREAMING_ALGORITHMS =
-      ImmutableSet.of("simple", "aes_rotating", Capability.ENCRYPTION_TYPE_ANY);
+      ImmutableSet.of("simple", "aes_rotating", EncryptionCapabilityParser.ENCRYPTION_TYPE_ANY);
 
   /**
    * Return a set of streaming algorithms (StreamEncoders) that this factory knows how to build
@@ -33,7 +36,7 @@ public class EncryptionUtils {
    * @throws IllegalArgumentException If the given algorithm/parameter pair cannot be built
    */
   public static StreamEncoder buildStreamEncryptor(Map<String, Object> parameters) {
-    String encryptionType = (String)parameters.get(Capability.ENCRYPTION_TYPE);
+    String encryptionType = EncryptionCapabilityParser.getEncryptionType(parameters);
     if (encryptionType == null) {
       throw new IllegalArgumentException("Encryption type not present in parameters!");
     }
@@ -53,20 +56,31 @@ public class EncryptionUtils {
      * move crypto algorithms into gobblin-modules and just keep the factory in core. (The factory
      * would fail to build anything if the corresponding gobblin-modules aren't included).
      */
+    switch (algorithm) {
+      case "simple":
+        return new SimpleEncryptor(parameters);
+      case EncryptionCapabilityParser.ENCRYPTION_TYPE_ANY:
+      case "aes_rotating":
+        CredentialStore cs = buildCredentialStore(parameters);
+        if (cs == null) {
+          throw new IllegalArgumentException("Failed to build credential store; can't instantiate AES");
+        }
+
+        return new RotatingAESEncryptor(cs);
+      default:
+        throw new IllegalArgumentException("Do not support encryption type " + algorithm);
+    }
+  }
+
+  private static CredentialStore buildCredentialStore(Map<String, Object> parameters) {
+    String ks_path = EncryptionCapabilityParser.getKeystorePath(parameters);
+    String ks_password = EncryptionCapabilityParser.getKeystorePassword(parameters);
+
     try {
-      switch (algorithm) {
-        case "simple":
-          return new SimpleEncryptor(parameters);
-        case Capability.ENCRYPTION_TYPE_ANY:
-        case "aes_rotating":
-          String password = "abcd";
-          String ks_path = (String) parameters.get("ks_path");
-          return new RotatingAESEncryptor(new KeystoreCredentialStore(ks_path, password));
-        default:
-          throw new IllegalArgumentException("Do not support encryption type " + algorithm);
-      }
+      return new KeystoreCredentialStore(ks_path, ks_password);
     } catch (IOException e) {
-      throw new IllegalArgumentException("Error loading keys", e);
+      log.error("Error building credential store, returning null", e);
+      return null;
     }
   }
 
