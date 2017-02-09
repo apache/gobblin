@@ -1,0 +1,51 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# A sample pull file that copies an input Kafka topic and produces to an output Kafka topic
+# with sampling
+job.name=Kafka2KafkaStreaming
+job.group=Kafka
+job.description=This is a job that runs forever, copies an input Kafka topic to an output Kafka topic
+job.lock.enabled=false
+task.executionMode=STREAMING
+
+# Configure watermark storage for streaming
+#streaming.watermarkStateStore.type=zk
+#streaming.watermarkStateStore.config.state.store.zk.connectString=localhost:2181
+
+# Configure watermark commit settings for streaming
+#streaming.watermark.commitIntervalMillis=2000
+
+
+gobblin.streaming.kafka.topic.key.deserializer=org.apache.kafka.common.serialization.StringDeserializer
+gobblin.streaming.kafka.topic.value.deserializer=org.apache.kafka.common.serialization.ByteArrayDeserializer
+
+source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource
+gobblin.streaming.kafka.topic.singleton=test
+kafka.brokers=localhost:9092
+
+# Sample 10% of the records
+converter.classes=gobblin.converter.SamplingConverter
+converter.sample.ratio=0.10
+
+writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
+writer.kafka.topic=test_copied
+writer.kafka.producerConfig.bootstrap.servers=localhost:9092
+writer.kafka.producerConfig.value.serializer=org.apache.kafka.common.serialization.ByteArraySerializer 
+
+
+data.publisher.type=gobblin.publisher.NoopPublisher
