@@ -104,7 +104,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     Set<String> prevFsSnapshot = Sets.newHashSet();
 
     // Get list of files seen in the previous run
-    if (!previousWorkunits.isEmpty()
+    if (!previousWorkunits.isEmpty()) {
       state.setProp(ConfigurationKeys.PREVIOUS_STATE_ID_KEY, previousWorkunits.get(0)
 	      .getProp(ConfigurationKeys.DATASET_STATE_ID_KEY, ConfigurationKeys.DEFAULT_DATASET_STATE_ID));
       if (previousWorkunits.get(0).getWorkunit().contains(ConfigurationKeys.SOURCE_FILEBASED_FS_SNAPSHOT)) {

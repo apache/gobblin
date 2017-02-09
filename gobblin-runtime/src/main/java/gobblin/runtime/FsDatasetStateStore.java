@@ -21,9 +21,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -49,6 +48,7 @@ import gobblin.metastore.FsStateStore;
 import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.runtime.util.DatasetUrnSanitizer;
 import gobblin.util.ConfigUtils;
+import gobblin.util.Id;
 
 
 /**
@@ -69,8 +69,6 @@ import gobblin.util.ConfigUtils;
  */
 public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
     implements DatasetStateStore<JobState.DatasetState> {
-  private static final Pattern DATASET_URN_PATTERN = Pattern.compile("\\A(?:(.+)-)?.+" +
-          Pattern.quote(DATASET_STATE_STORE_TABLE_SUFFIX) +"\\z");
   private static final Logger LOGGER = LoggerFactory.getLogger(FsDatasetStateStore.class);
 
   protected static DatasetStateStore<JobState.DatasetState> createStateStore(Config config, String className) {
@@ -246,8 +244,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
     put(jobName, tableName, datasetState);
   }
 
-  private Map<Optional<String>, String> getLatestDatasetStateFilePathsByUrns(String storeName) throws IOException {
-    Path stateStorePath = new Path(this.storeRootDir, storeName);
+  private Map<Optional<String>, String> getLatestDatasetStateFilePathsByUrns(String jobName) throws IOException {
+    Path stateStorePath = new Path(this.storeRootDir, jobName);
     if (!this.fs.exists(stateStorePath)) {
       return Maps.newHashMap();
     }
@@ -259,27 +257,40 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
       }
     });
 
+    String jobPrefix = StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + Id.Job.create(jobName).toString();
     Map<Optional<String>, String> datasetStateFilePathsByUrns = Maps.newHashMap();
     for (FileStatus fileStatus : stateStoreFileStatuses) {
       String tableName = fileStatus.getPath().getName();
-      Matcher matcher = DATASET_URN_PATTERN.matcher(tableName);
-      if (matcher.find()) {
-        Optional<String> datasetUrn = DatasetUrnSanitizer.sanitize(matcher.group(1));
-        if (!datasetStateFilePathsByUrns.containsKey(datasetUrn)) {
-          LOGGER.debug("Latest table for {} dataset set to {}", datasetUrn.or("DEFAULT"), tableName);
+
+      int jobPrefixIndex = tableName.lastIndexOf(jobPrefix);
+      Optional<String> datasetUrn = Optional.absent();
+      if (jobPrefixIndex > 1) {
+        datasetUrn = DatasetUrnSanitizer.sanitize(tableName.substring(0, jobPrefixIndex));
+      }
+      if (!datasetStateFilePathsByUrns.containsKey(datasetUrn)) {
+        LOGGER.debug("Latest table for {} dataset set to {}", datasetUrn.or("DEFAULT"), tableName);
+        datasetStateFilePathsByUrns.put(datasetUrn, tableName);
+      } else {
+        String previousTableName = datasetStateFilePathsByUrns.get(datasetUrn);
+        Id currentJobId = getJobId(datasetUrn, tableName);
+        Id previousJobId = getJobId(datasetUrn, previousTableName);
+        if (currentJobId.getSequence().compareTo(previousJobId.getSequence()) > 0) {
+          LOGGER.debug("Latest table for {} dataset set to {} instead of {}", datasetUrn.or("DEFAULT"), tableName, previousTableName);
           datasetStateFilePathsByUrns.put(datasetUrn, tableName);
         } else {
-          String previousTableName = datasetStateFilePathsByUrns.get(datasetUrn);
-          if (tableName.compareTo(previousTableName) > 0) {
-            LOGGER.debug("Latest table for {} dataset set to {} instead of {}", datasetUrn.or("DEFAULT"), tableName, previousTableName);
-            datasetStateFilePathsByUrns.put(datasetUrn, tableName);
-          } else {
-            LOGGER.debug("Latest table for {} dataset left as {}. Table {} is being ignored", datasetUrn.or("DEFAULT"), previousTableName, tableName);
-          }
+          LOGGER.debug("Latest table for {} dataset left as {}. Table {} is being ignored", datasetUrn.or("DEFAULT"), previousTableName, tableName);
         }
       }
     }
 
     return datasetStateFilePathsByUrns;
+  }
+
+  private Id getJobId(Optional<String> datasetUrn, String tableName) {
+    String jobId = FilenameUtils.removeExtension(tableName);
+    if (datasetUrn.isPresent()) {
+      jobId = jobId.substring(datasetUrn.get().length() + 1);
+    }
+    return Id.Job.parse(jobId);
   }
 }

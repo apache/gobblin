@@ -59,10 +59,7 @@ public class JobLauncherUtils {
    * @return new job ID
    */
   public static String newJobId(String jobName) {
-    // Job ID in the form of job_<job_id_suffix>
-    // <job_id_suffix> is in the form of <job_name>_<current_timestamp>
-    String jobId = String.format("job_%s_%d", jobName, System.currentTimeMillis());
-    return jobId;
+    return Id.Job.create(jobName, System.currentTimeMillis()).toString();
   }
 
   /**
@@ -73,7 +70,8 @@ public class JobLauncherUtils {
    * @return new task ID
    */
   public static String newTaskId(String jobId, int sequence) {
-    return String.format("task_%s_%d", jobId.substring(jobId.indexOf('_') + 1), sequence);
+    Id parsedJobId = Id.Job.parse(jobId);
+    return Id.Task.create(parsedJobId.get(Id.Parts.INSTANCE_NAME), sequence).toString();
   }
 
   /**
@@ -85,7 +83,8 @@ public class JobLauncherUtils {
    * @return new multi-task ID
    */
   public static String newMultiTaskId(String jobId, int sequence) {
-    return String.format("multitask_%s_%d", jobId.substring(jobId.indexOf('_') + 1), sequence);
+    Id parsedJobId = Id.Job.parse(jobId);
+    return Id.MultiTask.create(parsedJobId.get(Id.Parts.INSTANCE_NAME), sequence).toString();
   }
 
   /**

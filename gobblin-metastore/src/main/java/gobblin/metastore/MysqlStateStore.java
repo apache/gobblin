@@ -85,7 +85,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
           + " ON DUPLICATE KEY UPDATE state = values(state)";
 
   private static final String SELECT_JOB_STATE_LATEST_TEMPLATE =
-      "SELECT state FROM $TABLE$ WHERE store_name = ? ORDER BY table_name DESC LIMIT 1";
+      "SELECT state FROM $TABLE$ WHERE store_name = ?"
+          + " ORDER BY CAST(REVERSE(SUBSTRING_INDEX(REVERSE(table_name), '_', 1)) AS UNSIGNED) DESC"
+          + " LIMIT 1";
 
   private static final String SELECT_JOB_STATE_TEMPLATE =
       "SELECT state FROM $TABLE$ WHERE store_name = ? and table_name = ?";

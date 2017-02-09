@@ -20,9 +20,8 @@ package gobblin.runtime;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,8 +34,7 @@ import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.metastore.ZkStateStore;
 import gobblin.runtime.util.DatasetUrnSanitizer;
-
-import javax.annotation.Nullable;
+import gobblin.util.Id;
 
 
 /**
@@ -50,7 +48,6 @@ import javax.annotation.Nullable;
  */
 public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
     implements DatasetStateStore<JobState.DatasetState> {
-  private static final Pattern DATASET_URN_PATTERN = Pattern.compile("\\A(?:(.+)-)?.+(\\..?)?\\z");
   private static final Logger LOGGER = LoggerFactory.getLogger(ZkDatasetStateStore.class);
 
   public ZkDatasetStateStore(String connectString, String storeRootDir, boolean compressedValues) throws IOException {
@@ -121,34 +118,46 @@ public class ZkDatasetStateStore extends ZkStateStore<JobState.DatasetState>
     put(jobName, tableName, datasetState);
   }
 
-  private Map<Optional<String>, String> getLatestDatasetStateFilePathsByUrns(String storeName) throws IOException {
-    Iterable<String> tableNames = this.getTableNames(storeName, new Predicate<String>() {
+  private Map<Optional<String>, String> getLatestDatasetStateFilePathsByUrns(String jobName) throws IOException {
+    Iterable<String> tableNames = this.getTableNames(jobName, new Predicate<String>() {
       @Override
       public boolean apply(String input) {
         return input.endsWith(DATASET_STATE_STORE_TABLE_SUFFIX);
       }
     });
 
+    String jobPrefix = StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + Id.Job.create(jobName).toString();
     Map<Optional<String>, String> datasetStateFilePathsByUrns = Maps.newHashMap();
     for (String tableName : tableNames) {
-      Matcher matcher = DATASET_URN_PATTERN.matcher(tableName);
-      if (matcher.find()) {
-        Optional<String> datasetUrn = DatasetUrnSanitizer.sanitize(matcher.group(1));
-        if (!datasetStateFilePathsByUrns.containsKey(datasetUrn)) {
-          LOGGER.debug("Latest table for {} dataset set to {}", datasetUrn.or("DEFAULT"), tableName);
+      int jobPrefixIndex = tableName.lastIndexOf(jobPrefix);
+      Optional<String> datasetUrn = Optional.absent();
+      if (jobPrefixIndex > 1) {
+        datasetUrn = DatasetUrnSanitizer.sanitize(tableName.substring(0, jobPrefixIndex));
+      }
+      if (!datasetStateFilePathsByUrns.containsKey(datasetUrn)) {
+        LOGGER.debug("Latest table for {} dataset set to {}", datasetUrn.or("DEFAULT"), tableName);
+        datasetStateFilePathsByUrns.put(datasetUrn, tableName);
+      } else {
+        String previousTableName = datasetStateFilePathsByUrns.get(datasetUrn);
+        Id currentJobId = getJobId(datasetUrn, tableName);
+        Id previousJobId = getJobId(datasetUrn, previousTableName);
+        if (currentJobId.getSequence().compareTo(previousJobId.getSequence()) > 0) {
+          LOGGER.debug("Latest table for {} dataset set to {} instead of {}", datasetUrn.or("DEFAULT"), tableName, previousTableName);
           datasetStateFilePathsByUrns.put(datasetUrn, tableName);
         } else {
-          String previousTableName = datasetStateFilePathsByUrns.get(datasetUrn);
-          if (tableName.compareTo(previousTableName) > 0) {
-            LOGGER.debug("Latest table for {} dataset set to {} instead of {}", datasetUrn.or("DEFAULT"), tableName, previousTableName);
-            datasetStateFilePathsByUrns.put(datasetUrn, tableName);
-          } else {
-            LOGGER.debug("Latest table for {} dataset left as {}. Table {} is being ignored", datasetUrn.or("DEFAULT"), previousTableName, tableName);
-          }
+          LOGGER.debug("Latest table for {} dataset left as {}. Table {} is being ignored", datasetUrn.or("DEFAULT"), previousTableName, tableName);
         }
       }
     }
 
     return datasetStateFilePathsByUrns;
+  }
+
+  private Id getJobId(Optional<String> datasetUrn, String tableName) {
+    String jobId = FilenameUtils.removeExtension(tableName);
+    if (datasetUrn.isPresent()) {
+      jobId = jobId.substring(datasetUrn.get().length() + 1);
+    }
+    return Id.Job.parse(jobId);
   }
 }

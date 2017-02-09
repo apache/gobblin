@@ -18,9 +18,11 @@
 package gobblin.runtime;
 
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.Map;
 
 import gobblin.metastore.util.StateStoreTableInfo;
+import gobblin.util.Id;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -44,8 +46,8 @@ import gobblin.metastore.StateStore;
 public class FsDatasetStateStoreTest {
 
   private static final String TEST_JOB_NAME = "TestJob";
-  private static final String TEST_JOB_ID = "TestJob1";
-  private static final String TEST_TASK_ID_PREFIX = "TestTask-";
+  private static final String TEST_JOB_ID = Id.Job.create(TEST_JOB_NAME, 1).toString();
+  private static final String TEST_TASK_ID_PREFIX = Id.parse(TEST_JOB_ID).get(Id.Parts.INSTANCE_NAME);
   private static final String TEST_DATASET_URN = "TestDataset";
 
   private StateStore<JobState> fsJobStateStore;
@@ -74,15 +76,16 @@ public class FsDatasetStateStoreTest {
     jobState.setDuration(1000);
 
     for (int i = 0; i < 3; i++) {
+      String taskId = Id.Task.create(TEST_TASK_ID_PREFIX, i).toString();
       TaskState taskState = new TaskState();
       taskState.setJobId(TEST_JOB_ID);
-      taskState.setTaskId(TEST_TASK_ID_PREFIX + i);
-      taskState.setId(TEST_TASK_ID_PREFIX + i);
+      taskState.setTaskId(taskId);
+      taskState.setId(taskId);
       taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
       jobState.addTaskState(taskState);
     }
 
-    this.fsJobStateStore.put(TEST_JOB_NAME, "TestJob0" +
+    this.fsJobStateStore.put(TEST_JOB_NAME, Id.Job.create(TEST_JOB_NAME, 0).toString() +
             FsDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX, jobState);
   }
 
@@ -102,8 +105,8 @@ public class FsDatasetStateStoreTest {
     for (int i = 0; i < jobState.getCompletedTasks(); i++) {
       TaskState taskState = jobState.getTaskStates().get(i);
       Assert.assertEquals(taskState.getJobId(), TEST_JOB_ID);
-      Assert.assertEquals(taskState.getTaskId(), TEST_TASK_ID_PREFIX + i);
-      Assert.assertEquals(taskState.getId(), TEST_TASK_ID_PREFIX + i);
+      Assert.assertEquals(taskState.getTaskId(), "task_" + TEST_TASK_ID_PREFIX + "_" + i);
+      Assert.assertEquals(taskState.getId(), "task_" + TEST_TASK_ID_PREFIX + "_" + i);
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
     }
   }
@@ -120,10 +123,11 @@ public class FsDatasetStateStoreTest {
     datasetState.setDuration(1000);
 
     for (int i = 0; i < 3; i++) {
+      String taskId = Id.Task.create(TEST_TASK_ID_PREFIX, i).toString();
       TaskState taskState = new TaskState();
       taskState.setJobId(TEST_JOB_ID);
-      taskState.setTaskId(TEST_TASK_ID_PREFIX + i);
-      taskState.setId(TEST_TASK_ID_PREFIX + i);
+      taskState.setTaskId(taskId);
+      taskState.setId(taskId);
       taskState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
       datasetState.addTaskState(taskState);
     }
@@ -148,8 +152,8 @@ public class FsDatasetStateStoreTest {
     for (int i = 0; i < datasetState.getCompletedTasks(); i++) {
       TaskState taskState = datasetState.getTaskStates().get(i);
       Assert.assertEquals(taskState.getJobId(), TEST_JOB_ID);
-      Assert.assertEquals(taskState.getTaskId(), TEST_TASK_ID_PREFIX + i);
-      Assert.assertEquals(taskState.getId(), TEST_TASK_ID_PREFIX + i);
+      Assert.assertEquals(taskState.getTaskId(), "task_" + TEST_TASK_ID_PREFIX + "_" + i);
+      Assert.assertEquals(taskState.getId(), "task_" + TEST_TASK_ID_PREFIX + "_" + i);
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
     }
   }

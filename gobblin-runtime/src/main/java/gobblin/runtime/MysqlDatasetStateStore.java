@@ -22,23 +22,30 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.MysqlStateStore;
 import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.runtime.util.DatasetUrnSanitizer;
+import gobblin.util.Id;
 
 
 /**
@@ -61,20 +68,15 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MysqlDatasetStateStore.class);
 
-  private static final String SELECT_JOB_STATE_LATEST_BY_PREFIX_TEMPLATE =
-          "SELECT state, CASE WHEN locate(?, table_name) = 0 THEN '' "
-                  + "ELSE substring(table_name, 1, locate(?, table_name) - 1) END, "
-                  + "table_name FROM $TABLE$ WHERE store_name = ? "
-                  + "AND table_name IN (SELECT max(table_name) FROM $TABLE$ "
-                  + "WHERE store_name = ? GROUP BY CASE WHEN locate(?, table_name) = 0 THEN '' "
-                  + "ELSE substring(table_name, 1, locate(?, table_name) - 1) END)";
+  private static final String SELECT_JOB_STATE_LATEST_BULK_TEMPLATE =
+          "SELECT state, table_name FROM $TABLE$ WHERE store_name = ? and table_name IN (%s)";;
 
-  private final String SELECT_JOB_STATE_LATEST_BY_PREFIX_SQL;
+  private final String SELECT_JOB_STATE_LATEST_BULK_SQL;
 
   public MysqlDatasetStateStore(DataSource dataSource, String stateStoreTableName, boolean compressedValues)
       throws IOException {
     super(dataSource, stateStoreTableName, compressedValues, JobState.DatasetState.class);
-    SELECT_JOB_STATE_LATEST_BY_PREFIX_SQL = SELECT_JOB_STATE_LATEST_BY_PREFIX_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_JOB_STATE_LATEST_BULK_SQL = SELECT_JOB_STATE_LATEST_BULK_TEMPLATE.replace("$TABLE$", stateStoreTableName);
   }
 
   /**
@@ -84,29 +86,30 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
    * @return a {@link Map} from dataset URNs to the latest {@link JobState.DatasetState}s
    * @throws IOException if there's something wrong reading the {@link JobState.DatasetState}s
    */
-  public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName) throws IOException {
-    final String storeName = jobName;
+  public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(final String jobName) throws IOException {
+    final Map<Optional<String>, String> latestDatasetStateTableNamesByUrns = getLatestDatasetStateTableNamesByUrns(jobName);
     StatementBuilder statementBuilder = new StatementBuilder() {
       @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE")
       @Override
       public PreparedStatement build(Connection connection) throws SQLException {
-        PreparedStatement queryStatement = connection.prepareStatement(SELECT_JOB_STATE_LATEST_BY_PREFIX_SQL);
-        queryStatement.setString(1, StateStoreTableInfo.TABLE_PREFIX_SEPARATOR);
-        queryStatement.setString(2, StateStoreTableInfo.TABLE_PREFIX_SEPARATOR);
-        queryStatement.setString(3, storeName);
-        queryStatement.setString(4, storeName);
-        queryStatement.setString(5, StateStoreTableInfo.TABLE_PREFIX_SEPARATOR);
-        queryStatement.setString(6, StateStoreTableInfo.TABLE_PREFIX_SEPARATOR);
+        int index = 1;
+        String template = String.format(SELECT_JOB_STATE_LATEST_BULK_SQL,
+                getInPredicate(latestDatasetStateTableNamesByUrns.size()));
+        PreparedStatement queryStatement = connection.prepareStatement(template);
+        queryStatement.setString(index++, jobName);
+        for (String tableName : latestDatasetStateTableNamesByUrns.values()) {
+          queryStatement.setString(index++, tableName);
+        }
         return queryStatement;
       }
     };
 
-    Map<Optional<String>, Pair<String, JobState.DatasetState>> latestDatasetStatesByUrns =
-            getAll(statementBuilder, new LatestDatasetStatesByUrnsAccumulator());
+    Map<String, JobState.DatasetState> datasetStatesByTableName =
+            getAll(statementBuilder, new DatasetStatesByTableNameAccumulator());
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
-    for (Map.Entry<Optional<String>, Pair<String, JobState.DatasetState>> state : latestDatasetStatesByUrns.entrySet()) {
-      JobState.DatasetState previousDatasetState = state.getValue().getValue();
-      previousDatasetState.setDatasetStateId(state.getValue().getKey());
+    for (Map.Entry<String, JobState.DatasetState> state : datasetStatesByTableName.entrySet()) {
+      JobState.DatasetState previousDatasetState = state.getValue();
+      previousDatasetState.setDatasetStateId(state.getKey());
       datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
     }
 
@@ -154,9 +157,56 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
     put(jobName, tableName, datasetState);
   }
 
-  private static class LatestDatasetStatesByUrnsAccumulator
-          implements ResultAccumulator<Map<Optional<String>, Pair<String, JobState.DatasetState>>, JobState.DatasetState> {
-    private Map<Optional<String>, Pair<String, JobState.DatasetState>> states;
+  private Map<Optional<String>, String> getLatestDatasetStateTableNamesByUrns(String jobName) throws IOException {
+    List<String> tableNames = getTableNames(jobName, new Predicate<String>() {
+      @Override
+      public boolean apply(String tableName) {
+        return tableName.endsWith(DATASET_STATE_STORE_TABLE_SUFFIX);
+      }
+    });
+
+    String jobPrefix = StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + Id.Job.create(jobName).toString();
+    Map<Optional<String>, String> datasetStateFilePathsByUrns = Maps.newHashMap();
+    for (String tableName : tableNames) {
+      int jobPrefixIndex = tableName.lastIndexOf(jobPrefix);
+      Optional<String> datasetUrn = Optional.absent();
+      if (jobPrefixIndex > 1) {
+        datasetUrn = DatasetUrnSanitizer.sanitize(tableName.substring(0, jobPrefixIndex));
+      }
+      if (!datasetStateFilePathsByUrns.containsKey(datasetUrn)) {
+        LOGGER.debug("Latest table for {} dataset set to {}", datasetUrn.or("DEFAULT"), tableName);
+        datasetStateFilePathsByUrns.put(datasetUrn, tableName);
+      } else {
+        String previousTableName = datasetStateFilePathsByUrns.get(datasetUrn);
+        Id currentJobId = getJobId(datasetUrn, tableName);
+        Id previousJobId = getJobId(datasetUrn, previousTableName);
+        if (currentJobId.getSequence().compareTo(previousJobId.getSequence()) > 0) {
+          LOGGER.debug("Latest table for {} dataset set to {} instead of {}", datasetUrn.or("DEFAULT"), tableName, previousTableName);
+          datasetStateFilePathsByUrns.put(datasetUrn, tableName);
+        } else {
+          LOGGER.debug("Latest table for {} dataset left as {}. Table {} is being ignored", datasetUrn.or("DEFAULT"), previousTableName, tableName);
+        }
+      }
+    }
+
+    return datasetStateFilePathsByUrns;
+  }
+
+  private Id getJobId(Optional<String> datasetUrn, String tableName) {
+    String jobId = FilenameUtils.removeExtension(tableName);
+    if (datasetUrn.isPresent()) {
+      jobId = jobId.substring(datasetUrn.get().length() + 1);
+    }
+    return Id.Job.parse(jobId);
+  }
+
+  private static String getInPredicate(int count) {
+    return StringUtils.join(Iterables.limit(Iterables.cycle("?"), count).iterator(), ",");
+  }
+
+  private static class DatasetStatesByTableNameAccumulator
+          implements ResultAccumulator<Map<String, JobState.DatasetState>, JobState.DatasetState> {
+    private Map<String, JobState.DatasetState> states;
 
     @Override
     public void initialize() {
@@ -165,14 +215,13 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
 
     @Override
     public void add(@Nonnull ResultSet rs, JobState.DatasetState state) throws SQLException {
-      String urn = rs.getString(2);
-      String tableName = rs.getString(3);
-      states.put(Optional.fromNullable(urn), Pair.of(tableName, state));
+      String tableName = rs.getString(2);
+      states.put(tableName, state);
     }
 
     @Nonnull
     @Override
-    public Map<Optional<String>, Pair<String, JobState.DatasetState>> complete() {
+    public Map<String, JobState.DatasetState> complete() {
       return states;
     }
   }

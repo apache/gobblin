@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.helix.AccessOption;
@@ -49,6 +50,7 @@ import com.google.common.collect.Lists;
 
 import gobblin.configuration.State;
 import gobblin.metastore.util.StateStoreTableInfo;
+import gobblin.util.Id;
 import gobblin.util.io.StreamUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -375,15 +377,27 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
         if (latestStatePath == null) {
           log.debug("Latest table for {}/{}* set to {}", storeName, tableNamePrefix, c);
           latestStatePath = c;
-        } else if (c.compareTo(latestStatePath) > 0) {
-          log.debug("Latest table for {}/{}* set to {} instead of {}", storeName, tableNamePrefix, c, latestStatePath);
-          latestStatePath = c;
         } else {
-          log.debug("Latest table for {}/{}* left as {}. Previous table {} is being ignored", storeName, tableNamePrefix, latestStatePath, c);
+          Id latestId = getId(tableNamePrefix, latestStatePath);
+          Id newId = getId(tableNamePrefix, c);
+          if (newId.getSequence().compareTo(latestId.getSequence()) > 0) {
+            log.debug("Latest table for {}/{}* set to {} instead of {}", storeName, tableNamePrefix, c, latestStatePath);
+            latestStatePath = c;
+          } else {
+            log.debug("Latest table for {}/{}* left as {}. Previous table {} is being ignored", storeName, tableNamePrefix, latestStatePath, c);
+          }
         }
       }
     }
 
     return latestStatePath == null ? null : formPath(storeName, latestStatePath);
+  }
+
+  private Id getId(String tableNamePrefix, String tableName) {
+    String id = FilenameUtils.removeExtension(tableName);
+    if (Strings.isNullOrEmpty(tableNamePrefix)) {
+      id = id.substring(tableNamePrefix.length() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR.length() + 1);
+    }
+    return Id.parse(id);
   }
 }

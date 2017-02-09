@@ -24,6 +24,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,6 +45,7 @@ import com.google.common.io.Closer;
 import gobblin.configuration.State;
 import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.util.HadoopUtils;
+import gobblin.util.Id;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -398,15 +400,27 @@ public class FsStateStore<T extends State> implements StateStore<T> {
       if (latestStateFilePath == null) {
         log.debug("Latest table for {}/{}* set to {}", storeName, tableNamePrefix, tableName);
         latestStateFilePath = tableName;
-      } else if (tableName.compareTo(latestStateFilePath) > 0) {
-        log.debug("Latest table for {}/{}* set to {} instead of {}", storeName, tableNamePrefix, tableName, latestStateFilePath);
-        latestStateFilePath = tableName;
       } else {
-        log.debug("Latest table for {}/{}* left as {}. Previous table {} is being ignored", storeName, tableNamePrefix, latestStateFilePath, tableName);
+        Id latestId = getId(tableNamePrefix, latestStateFilePath);
+        Id newId = getId(tableNamePrefix, tableName);
+        if (newId.getSequence().compareTo(latestId.getSequence()) > 0) {
+          log.debug("Latest table for {}/{}* set to {} instead of {}", storeName, tableNamePrefix, tableName, latestStateFilePath);
+          latestStateFilePath = tableName;
+        } else {
+          log.debug("Latest table for {}/{}* left as {}. Previous table {} is being ignored", storeName, tableNamePrefix, latestStateFilePath, tableName);
+        }
       }
     }
 
     return latestStateFilePath == null ? null : new Path(new Path(this.storeRootDir, storeName), latestStateFilePath);
+  }
+
+  private Id getId(String tableNamePrefix, String tableName) {
+    String id = FilenameUtils.removeExtension(tableName);
+    if (!Strings.isNullOrEmpty(tableNamePrefix)) {
+      id = id.substring(tableNamePrefix.length() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR.length() + 1);
+    }
+    return Id.parse(id);
   }
 
   private boolean isCurrentFile(String tableName) {
