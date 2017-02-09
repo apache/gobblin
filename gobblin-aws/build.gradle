@@ -59,6 +59,7 @@ dependencies {
   compile externalDependency.hadoopYarnClient
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
+  compile externalDependency.helix
 
   testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
@@ -68,8 +69,6 @@ dependencies {
   testCompile externalDependency.curatorTest
   testCompile externalDependency.mockito
   testCompile externalDependency.powermock
-
-  compile files('./src/main/resources/helix-core-0.6.6-SNAPSHOT.jar')
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

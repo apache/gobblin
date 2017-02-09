@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
@@ -40,6 +41,7 @@ import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.HelixProperty;
@@ -49,9 +51,12 @@ import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.model.IdealState;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
 import org.apache.helix.task.TaskDriver;
+import org.apache.helix.task.TaskUtil;
+import org.apache.helix.task.WorkflowConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,28 +188,22 @@ public class GobblinClusterManager implements ApplicationLauncher {
         LOGGER.info("New Helix Controller leader {}", this.helixManager.getInstanceName());
 
         // Clean up existing jobs
-        HelixAdmin helixAdmin = this.helixManager.getClusterManagmentTool();
-
-        String clusterName = this.helixManager.getClusterName();
         TaskDriver taskDriver = new TaskDriver(this.helixManager);
+        GobblinHelixTaskDriver gobblinHelixTaskDriver = new GobblinHelixTaskDriver(this.helixManager);
+        Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
 
-        List<String> resourceNames = helixAdmin.getResourcesInCluster(clusterName);
+        for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
+          String queueName = entry.getKey();
+          WorkflowConfig workflowConfig = entry.getValue();
 
-        for (String r : resourceNames) {
-          LOGGER.info("resource {} found", r);
+          for (String namespacedJobName : workflowConfig.getJobDag().getAllNodes()) {
+            String jobName = TaskUtil.getDenamespacedJobName(queueName, namespacedJobName);
+            LOGGER.info("job {} found for queue {} ", jobName, queueName);
 
-          // try to infer queue and job names from the resource name.
-          // the resource name is in <queue name>_<jobid> format where the job id may start with _job or _
-          int separatorIndex = r.indexOf("_job");
-
-          if (separatorIndex == -1) {
-            separatorIndex = r.indexOf('_');
+            // working around 0.6.7 delete job issue for queues with IN_PROGRESS state
+            gobblinHelixTaskDriver.deleteJob(queueName, jobName);
+            LOGGER.info("deleted job {} from queue {}", jobName, queueName);
           }
-
-          String queue = r.substring(0, separatorIndex);
-          String job = r.substring(separatorIndex + 1);
-          taskDriver.deleteJob(queue, job);
-          LOGGER.info("deleted job {} from queue {}", job, queue);
         }
 
         this.applicationLauncher.start();
@@ -384,7 +383,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
       this.helixManager.connect();
       this.helixManager.addLiveInstanceChangeListener(new GobblinLiveInstanceChangeListener());
       this.helixManager.getMessagingService().registerMessageHandlerFactory(
-          Message.MessageType.SHUTDOWN.toString(), new ControllerShutdownMessageHandlerFactory());
+          GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE, new ControllerShutdownMessageHandlerFactory());
       this.helixManager.getMessagingService().registerMessageHandlerFactory(
           Message.MessageType.USER_DEFINE_MSG.toString(), getUserDefinedMessageHandlerFactory());
     } catch (Exception e) {
@@ -423,10 +422,11 @@ public class GobblinClusterManager implements ApplicationLauncher {
     criteria.setPartition("%");
     criteria.setPartitionState("%");
     criteria.setRecipientInstanceType(InstanceType.PARTICIPANT);
-    criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
+    // Add this back when messaging to instances is ported to 0.6 branch
+    //criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
     criteria.setSessionSpecific(true);
 
-    Message shutdownRequest = new Message(Message.MessageType.SHUTDOWN,
+    Message shutdownRequest = new Message(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
         HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString().toLowerCase() + UUID.randomUUID().toString());
     shutdownRequest.setMsgSubType(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
     shutdownRequest.setMsgState(Message.MessageState.NEW);
@@ -434,8 +434,14 @@ public class GobblinClusterManager implements ApplicationLauncher {
     // Wait for 5 minutes
     final int timeout = 300000;
 
-    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest,
-        new NoopReplyHandler(), timeout);
+    // Temporarily bypass the default messaging service to allow upgrade to 0.6.7 which is missing support
+    // for messaging to instances
+    //int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest,
+    //    new NoopReplyHandler(), timeout);
+    GobblinHelixMessagingService messagingService = new GobblinHelixMessagingService(this.helixManager);
+
+    int messagesSent = messagingService.send(criteria, shutdownRequest,
+            new NoopReplyHandler(), timeout);
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the participants", shutdownRequest.getMsgSubType()));
     }
@@ -461,7 +467,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   /**
    * A custom {@link MessageHandlerFactory} for {@link MessageHandler}s that handle messages of type
-   * {@link org.apache.helix.model.Message.MessageType#SHUTDOWN} for shutting down the controller.
+   * "SHUTDOWN" for shutting down the controller.
    */
   private class ControllerShutdownMessageHandlerFactory implements MessageHandlerFactory {
 
@@ -472,7 +478,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
     @Override
     public String getMessageType() {
-      return Message.MessageType.SHUTDOWN.toString();
+      return GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE;
     }
 
     @Override
@@ -495,7 +501,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
         String messageSubType = this._message.getMsgSubType();
         Preconditions.checkArgument(
             messageSubType.equalsIgnoreCase(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString()),
-            String.format("Unknown %s message subtype: %s", Message.MessageType.SHUTDOWN.toString(), messageSubType));
+            String.format("Unknown %s message subtype: %s", GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE, messageSubType));
 
         HelixTaskResult result = new HelixTaskResult();
 

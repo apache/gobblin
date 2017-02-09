@@ -60,6 +60,7 @@ import com.typesafe.config.ConfigFactory;
 import gobblin.annotation.Alpha;
 import gobblin.cluster.GobblinClusterConfigurationKeys;
 import gobblin.cluster.GobblinClusterUtils;
+import gobblin.cluster.GobblinHelixConstants;
 import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.cluster.HelixUtils;
 import gobblin.util.ConfigUtils;
@@ -593,7 +594,7 @@ public class GobblinAWSClusterLauncher {
     criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
     criteria.setSessionSpecific(true);
 
-    final Message shutdownRequest = new Message(Message.MessageType.SHUTDOWN,
+    final Message shutdownRequest = new Message(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
         HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString().toLowerCase() + UUID.randomUUID().toString());
     shutdownRequest.setMsgSubType(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
     shutdownRequest.setMsgState(Message.MessageState.NEW);
