@@ -19,7 +19,10 @@
 
 package gobblin.source.extractor;
 
+import java.io.IOException;
+
 import gobblin.annotation.Alpha;
+import gobblin.writer.WatermarkStorage;
 
 
 /**
@@ -27,4 +30,12 @@ import gobblin.annotation.Alpha;
  */
 @Alpha
 public interface StreamingExtractor<S, D> extends Extractor<S, RecordEnvelope<D>> {
+
+  /**
+   * Initialize the extractor to be ready to read records
+   * @param watermarkStorage : watermark storage to retrieve previously committed watermarks
+   * @throws IOException : typically if there was a failure in retrieving watermarks
+   */
+  void start(WatermarkStorage watermarkStorage) throws IOException;
+
 }

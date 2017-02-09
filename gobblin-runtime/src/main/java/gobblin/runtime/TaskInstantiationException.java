@@ -22,7 +22,7 @@ package gobblin.runtime;
 /**
  * An exception class to capture failures in Task instantiation
  */
-public class TaskInstantiationException extends Exception {
+public class TaskInstantiationException extends RuntimeException {
 
   public TaskInstantiationException(String s) {
     super(s);

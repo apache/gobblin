@@ -35,6 +35,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
@@ -53,9 +54,12 @@ import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.ComparableWatermark;
 import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.metrics.Tag;
+import gobblin.util.io.GsonInterfaceAdapter;
 import gobblin.writer.WatermarkStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import lombok.ToString;
 
 
 /**
@@ -65,9 +69,32 @@ import org.slf4j.LoggerFactory;
  *
  *
  */
-public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, RecordEnvelope<D>> implements StreamingExtractor<S, D>, WatermarkStorage {
+public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, RecordEnvelope<D>> implements StreamingExtractor<S, D> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSimpleStreamingExtractor.class);
+  private AtomicBoolean _isStarted = new AtomicBoolean(false);
+
+
+  @Override
+  public void start(WatermarkStorage watermarkStorage) throws IOException {
+    Preconditions.checkArgument(watermarkStorage != null, "Watermark Storage should not be null");
+    Map<String, CheckpointableWatermark> watermarkMap = watermarkStorage.getCommittedWatermarks(KafkaWatermark.class,
+        Collections.singletonList(_partition.toString()));
+    KafkaWatermark watermark = (KafkaWatermark) watermarkMap.get(_partition.toString());
+    if (watermark == null) {
+      LOG.info("Offset is null - seeking to beginning of topic");
+      _consumer.seekToBeginning(_partition);
+    }
+    else {
+      // seek needs to go one past the last committed offset
+      LOG.info("Offset found in consumer. Seeking to one past what we found : {}", watermark.getLwm().getValue()+1);
+      _consumer.seek(_partition, watermark.getLwm().getValue()+1);
+    }
+    _isStarted.set(true);
+
+  }
+
+  @ToString
   public static class KafkaWatermark implements CheckpointableWatermark {
     TopicPartition _topicPartition;
     LongWatermark _lwm;
@@ -111,7 +138,7 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
       if (obj == null)
         return false;
       if (!(obj instanceof KafkaWatermark))
-          return false;
+        return false;
       return this.compareTo((CheckpointableWatermark)obj) == 0;
     }
 
@@ -139,29 +166,19 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
     _consumer = KafkaSimpleStreamingSource.getKafkaConsumer(state);
     closer.register(_consumer);
     _partition = new TopicPartition(KafkaSimpleStreamingSource.getTopicNameFromState(state),
-                                    KafkaSimpleStreamingSource.getPartitionIdFromState(state));
+        KafkaSimpleStreamingSource.getPartitionIdFromState(state));
     _consumer.assign(Collections.singletonList(_partition));
-    OffsetAndMetadata offset = _consumer.committed(_partition);
-    if (offset == null) {
-      LOG.info("Offset is null - seeking to beginning of topic");
-      _consumer.seekToBeginning(_partition);
-    }
-    else {
-      LOG.info("Offset found in consumer. Seeking to {}", offset);
-      _consumer.seek(_partition, offset.offset());
-    }
-
     this._schemaRegistry = state.contains(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS)
         ? Optional.of(KafkaSchemaRegistry.<String, S> get(state.getProperties()))
         : Optional.<KafkaSchemaRegistry<String, S>> absent();
   }
 
   /**
-  * Get the schema (metadata) of the extracted data records.
-  *
-  * @return the schema of Kafka topic being extracted
-  * @throws IOException if there is problem getting the schema
-  */
+   * Get the schema (metadata) of the extracted data records.
+   *
+   * @return the schema of Kafka topic being extracted
+   * @throws IOException if there is problem getting the schema
+   */
   @Override
   public S getSchema() throws IOException {
     try {
@@ -185,6 +202,9 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
    */
   @Override
   public RecordEnvelope<D> readRecordImpl(RecordEnvelope<D> reuse) throws DataRecordException, IOException {
+    if (!_isStarted.get()) {
+      throw new IOException("Streaming extractor has not been started.");
+    }
     while ((_records == null) || (!_records.hasNext())) {
       synchronized (_consumer) {
         if (_close.get())
@@ -217,19 +237,4 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
     return 0;
   }
 
-  @Override
-  public void commitWatermarks(Iterable<CheckpointableWatermark> watermarks) throws IOException {
-    Map<TopicPartition, OffsetAndMetadata> wmToCommit = new HashMap<TopicPartition, OffsetAndMetadata>();
-    for (CheckpointableWatermark cwm : watermarks) {
-      Preconditions.checkArgument(cwm instanceof KafkaWatermark);
-      KafkaWatermark kwm = ((KafkaWatermark)cwm);
-      // seek requires moving offset past last record
-      wmToCommit.put(kwm.getTopicPartition(), new OffsetAndMetadata(kwm.getLwm().getValue()+1));
-    }
-    synchronized (_consumer) {
-      if (_close.get())
-        throw new ClosedChannelException();
-      _consumer.commitSync(wmToCommit);
-    }
-  }
 }

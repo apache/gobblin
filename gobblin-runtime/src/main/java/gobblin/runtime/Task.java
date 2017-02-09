@@ -37,6 +37,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import gobblin.Constructs;
 import gobblin.commit.SpeculativeAttemptAwareConstruct;
@@ -59,14 +61,19 @@ import gobblin.runtime.fork.AsynchronousFork;
 import gobblin.runtime.fork.Fork;
 import gobblin.runtime.fork.SynchronousFork;
 import gobblin.runtime.util.TaskMetrics;
-import gobblin.source.extractor.CheckpointableWatermark;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.extractor.RecordEnvelope;
 import gobblin.source.extractor.StreamingExtractor;
 import gobblin.state.ConstructState;
+import gobblin.util.ConfigUtils;
+import gobblin.writer.AcknowledgableRecordEnvelope;
+import gobblin.writer.AcknowledgableWatermark;
 import gobblin.writer.DataWriter;
+import gobblin.writer.FineGrainedWatermarkTracker;
+import gobblin.writer.TrackerBasedWatermarkManager;
 import gobblin.writer.WatermarkAwareWriter;
+import gobblin.writer.MultiWriterWatermarkManager;
 import gobblin.writer.WatermarkManager;
 import gobblin.writer.WatermarkStorage;
 
@@ -119,7 +126,10 @@ public class Task implements Runnable {
   private final InstrumentedExtractorBase extractor;
   private final RowLevelPolicyChecker rowChecker;
   private final ExecutionModel taskMode;
-  private Optional<WatermarkManager> watermarkManager;
+  private final String watermarkingStrategy;
+  private final Optional<WatermarkManager> watermarkManager;
+  private final Optional<FineGrainedWatermarkTracker> watermarkTracker;
+  private final Optional<WatermarkStorage> watermarkStorage;
 
   private final Closer closer;
 
@@ -169,11 +179,56 @@ public class Task implements Runnable {
     this.lastRecordPulledTimestampMillis = 0;
     this.shutdownRequested = new AtomicBoolean(false);
     this.shutdownLatch = new CountDownLatch(1);
+
+    // Setup Streaming constructs
+
+    this.watermarkingStrategy = "FineGrain"; // TODO: Configure
+
+    if (isStreamingTask()) {
+      Extractor underlyingExtractor = this.taskContext.getRawSourceExtractor();
+      if (!(underlyingExtractor instanceof StreamingExtractor)) {
+        LOG.error(
+            "Extractor {}  is not an instance of StreamingExtractor but the task is configured to run in continuous mode",
+            underlyingExtractor.getClass().getName());
+        throw new TaskInstantiationException("Extraction " + underlyingExtractor.getClass().getName()
+            + " is not an instance of StreamingExtractor but the task is configured to run in continuous mode");
+      }
+
+      this.watermarkStorage = Optional.of(taskContext.getWatermarkStorage());
+      Config config;
+      try {
+        config = ConfigUtils.propertiesToConfig(taskState.getProperties());
+      } catch (Exception e) {
+        LOG.warn("Failed to deserialize taskState into Config.. continuing with an empty config", e);
+        config = ConfigFactory.empty();
+      }
+
+      long commitIntervalMillis = ConfigUtils.getLong(config,
+          TaskConfigurationKeys.STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS,
+          TaskConfigurationKeys.DEFAULT_STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS);
+      if (watermarkingStrategy.equals("FineGrain")) { // TODO: Configure
+        this.watermarkTracker = Optional.of(this.closer.register(new FineGrainedWatermarkTracker(config)));
+        this.watermarkManager = Optional.of((WatermarkManager) this.closer.register(
+            new TrackerBasedWatermarkManager(this.watermarkStorage.get(), this.watermarkTracker.get(),
+                commitIntervalMillis, Optional.of(this.LOG))));
+
+      } else {
+        // writer-based watermarking
+        this.watermarkManager = Optional.of((WatermarkManager) this.closer.register(
+            new MultiWriterWatermarkManager(this.watermarkStorage.get(), commitIntervalMillis, Optional.of(this.LOG))));
+        this.watermarkTracker = Optional.absent();
+      }
+    } else {
+      this.watermarkManager = Optional.absent();
+      this.watermarkTracker = Optional.absent();
+      this.watermarkStorage = Optional.absent();
+    }
   }
+
 
   private ExecutionModel getTaskMode(TaskContext taskContext) {
     String mode = taskContext.getTaskState()
-        .getProp(ConfigurationKeys.TASK_EXECUTION_MODE, ConfigurationKeys.DEFAULT_TASK_EXECUTION_MODE);
+        .getProp(TaskConfigurationKeys.TASK_EXECUTION_MODE, TaskConfigurationKeys.DEFAULT_TASK_EXECUTION_MODE);
     try {
       return ExecutionModel.valueOf(mode.toUpperCase());
     } catch (Exception e) {
@@ -184,7 +239,7 @@ public class Task implements Runnable {
 
   private boolean areSingleBranchTasksSynchronous(TaskContext taskContext) {
     return BooleanUtils.toBoolean(taskContext.getTaskState()
-            .getProp(ConfigurationKeys.TASK_IS_SINGLE_BRANCH_SYNCHRONOUS, ConfigurationKeys.DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS));
+            .getProp(TaskConfigurationKeys.TASK_IS_SINGLE_BRANCH_SYNCHRONOUS, TaskConfigurationKeys.DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS));
   }
 
   private boolean isStreamingTask() {
@@ -260,28 +315,7 @@ public class Task implements Runnable {
         throw new CopyNotSupportedException(schema + " is not copyable");
       }
 
-      if (isStreamingTask()) {
-        Extractor underlyingExtractor = this.taskContext.getExtractor();
-        if (!(underlyingExtractor instanceof StreamingExtractor)) {
-          LOG.error(
-              "Extractor {}  is not an instance of StreamingExtractor but the task is configured to run in continuous mode",
-              underlyingExtractor.getClass().getName());
-          throw new TaskInstantiationException("Extraction " + underlyingExtractor.getClass().getName()
-              + " is not an instance of StreamingExtractor but the task is configured to run in continuous mode");
-        }
-        if (!(underlyingExtractor instanceof WatermarkStorage)) {
-          LOG.error(
-              "Extractor {}  is not an instance of WatermarkStorage but the task is configured to run in continuous mode",
-              underlyingExtractor.getClass().getName());
-          throw new TaskInstantiationException("Extractor " + underlyingExtractor.getClass().getName()
-              + " is not an instance of WatermarkStorage but the task is configured to run in continuous mode");
-        }
-        long commitIntervalMillis = 1000; // TODO: Configure
-        this.watermarkManager = Optional.of(this.closer.register(
-            new WatermarkManager((WatermarkStorage) underlyingExtractor, commitIntervalMillis, Optional.of(this.LOG))));
-      } else {
-        this.watermarkManager = Optional.absent();
-      }
+
 
       rowChecker = closer.register(this.taskContext.getRowLevelPolicyChecker());
       RowLevelPolicyCheckResults rowResults = new RowLevelPolicyCheckResults();
@@ -293,7 +327,7 @@ public class Task implements Runnable {
             AsynchronousFork fork = closer.register(
               new AsynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
                   branches, i, this.taskMode));
-            configureStreamingFork(fork);
+            configureStreamingFork(fork, watermarkingStrategy);
             // Run the Fork
             this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>>of(this.taskExecutor.submit(fork)));
           } else {
@@ -304,23 +338,34 @@ public class Task implements Runnable {
         SynchronousFork fork = closer.register(
             new SynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
                 branches, 0, this.taskMode));
-        configureStreamingFork(fork);
+        configureStreamingFork(fork, watermarkingStrategy);
         this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>> of(this.taskExecutor.submit(fork)));
       }
 
       if (isStreamingTask()) {
-        this.watermarkManager.get().start();
-      }
 
-      if (isStreamingTask()) {
+        // Start watermark manager and tracker
+        if (this.watermarkTracker.isPresent()) {
+          this.watermarkTracker.get().start();
+        }
+        this.watermarkManager.get().start();
+
+        ((StreamingExtractor) this.taskContext.getRawSourceExtractor()).start(this.watermarkStorage.get());
+
+
         RecordEnvelope recordEnvelope;
         // Extract, convert, and fork one source record at a time.
         while (!shutdownRequested() && (recordEnvelope = (RecordEnvelope) extractor.readRecord(null)) != null) {
           onRecordExtract();
+          AcknowledgableWatermark ackableWatermark = new AcknowledgableWatermark(recordEnvelope.getWatermark());
+          if (watermarkTracker.isPresent()) {
+            watermarkTracker.get().track(ackableWatermark);
+          }
           for (Object convertedRecord : converter.convertRecord(schema, recordEnvelope.getRecord(), this.taskState)) {
             processRecord(convertedRecord, forkOperator, rowChecker, rowResults, branches,
-                recordEnvelope.getWatermark());
+                ackableWatermark.incrementAck());
           }
+          ackableWatermark.ack();
         }
       } else {
         Object record;
@@ -359,8 +404,12 @@ public class Task implements Runnable {
         }
       }
 
+      //TODO: Move these to explicit shutdown phase
       if (watermarkManager.isPresent()) {
         watermarkManager.get().close();
+      }
+      if (watermarkTracker.isPresent()) {
+        watermarkTracker.get().close();
       }
     } catch (Throwable t) {
       failTask(t);
@@ -370,11 +419,13 @@ public class Task implements Runnable {
     }
   }
 
-  private void configureStreamingFork(Fork fork) throws IOException {
+  private void configureStreamingFork(Fork fork, String watermarkingStrategy) throws IOException {
     if (isStreamingTask()) {
       DataWriter forkWriter = fork.getWriter();
       if (forkWriter instanceof WatermarkAwareWriter) {
-        this.watermarkManager.get().registerWriter((WatermarkAwareWriter) forkWriter);
+        if (watermarkingStrategy.equals("WriterBased")) {
+          ((MultiWriterWatermarkManager) this.watermarkManager.get()).registerWriter((WatermarkAwareWriter) forkWriter);
+        }
       } else {
         String errorMessage = String.format("The Task is configured to run in continuous mode, "
             + "but the writer %s is not a WatermarkAwareWriter", forkWriter.getClass().getName());
@@ -577,10 +628,13 @@ public class Task implements Runnable {
    */
   @SuppressWarnings("unchecked")
   private void processRecord(Object convertedRecord, ForkOperator forkOperator, RowLevelPolicyChecker rowChecker,
-      RowLevelPolicyCheckResults rowResults, int branches, CheckpointableWatermark watermark)
+      RowLevelPolicyCheckResults rowResults, int branches, AcknowledgableWatermark watermark)
       throws Exception {
     // Skip the record if quality checking fails
     if (!rowChecker.executePolicies(convertedRecord, rowResults)) {
+      if (watermark != null) {
+        watermark.ack();
+      }
       return;
     }
 
@@ -595,41 +649,26 @@ public class Task implements Runnable {
       throw new CopyNotSupportedException(convertedRecord + " is not copyable");
     }
 
-    // If the record has been successfully put into the queues of every forks
-    boolean allPutsSucceeded = false;
-
-    // Use an array of primitive boolean type to avoid unnecessary boxing/unboxing
-    boolean[] succeededPuts = new boolean[branches];
-
     // Put the record into the record queue of each fork. A put may timeout and return a false, in which
-    // case the put needs to be retried in the next iteration along with other failed puts. This goes on
-    // until all puts succeed, at which point the task moves to the next record.
-    while (!allPutsSucceeded) {
-      allPutsSucceeded = true;
-
-      int branch = 0;
-      for (Optional<Fork> fork : this.forks.keySet()) {
-        if (succeededPuts[branch]) {
-          branch++;
-          continue;
+    // case the put is retried until it is successful.
+    int branch = 0;
+    for (Optional<Fork> fork : this.forks.keySet()) {
+      if (fork.isPresent() && forkedRecords.get(branch)) {
+        Object recordForFork =
+            convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord;
+        if (isStreamingTask()) {
+          // Send the record, watermark pair down the fork
+          recordForFork = new AcknowledgableRecordEnvelope<>(recordForFork, watermark.incrementAck());
         }
-        if (fork.isPresent() && forkedRecords.get(branch)) {
-          Object recordForFork =
-              convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord;
-          if (isStreamingTask()) {
-            // Send the record, watermark pair down the fork
-            recordForFork = new RecordEnvelope<>(recordForFork, watermark);
-          }
-          boolean succeeded = fork.get().putRecord(recordForFork);
-          succeededPuts[branch] = succeeded;
-          if (!succeeded) {
-            allPutsSucceeded = false;
-          }
-        } else {
-          succeededPuts[branch] = true;
+        boolean succeeded = false;
+        while (!succeeded) {
+          succeeded = fork.get().putRecord(recordForFork);
         }
         branch++;
       }
+    }
+    if (watermark != null) {
+      watermark.ack();
     }
   }
 

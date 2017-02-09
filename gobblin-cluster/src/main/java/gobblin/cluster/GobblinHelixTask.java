@@ -172,6 +172,7 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public void cancel() {
+    LOGGER.warn("Asked to cancel task with jobId: {} but I'm ignoring", jobId);
     // TODO: implement cancellation.
   }
 }

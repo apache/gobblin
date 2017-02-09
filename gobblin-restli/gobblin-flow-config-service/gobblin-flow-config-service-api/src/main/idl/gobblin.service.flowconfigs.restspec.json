@@ -1,0 +1,31 @@
+{
+  "name" : "flowconfigs",
+  "namespace" : "gobblin.service",
+  "path" : "/flowconfigs",
+  "schema" : "gobblin.service.FlowConfig",
+  "doc" : "generated from: gobblin.service.FlowConfigsResource",
+  "collection" : {
+    "identifier" : {
+      "name" : "flowconfigsId",
+      "type" : "gobblin.service.FlowConfigId",
+      "params" : "com.linkedin.restli.common.EmptyRecord"
+    },
+    "supports" : [ "create", "delete", "get", "update" ],
+    "methods" : [ {
+      "method" : "create",
+      "doc" : "Put a new {@link JobSpec} based on flowConfig in the {@link MutableJobCatalog}"
+    }, {
+      "method" : "get",
+      "doc" : "Retrieve the {@link FlowConfig} with the given key"
+    }, {
+      "method" : "update",
+      "doc" : "Update the {@link JobSpec} in the {@link MutableJobCatalog} based on the specified {@link FlowConfig}"
+    }, {
+      "method" : "delete",
+      "doc" : "delete a configured flow"
+    } ],
+    "entity" : {
+      "path" : "/flowconfigs/{flowconfigsId}"
+    }
+  }
+}

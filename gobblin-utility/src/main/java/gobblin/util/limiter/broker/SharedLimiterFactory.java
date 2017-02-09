@@ -21,6 +21,7 @@ import java.util.Collection;
 
 import com.typesafe.config.Config;
 
+import gobblin.broker.ResourceInstance;
 import gobblin.broker.iface.ConfigView;
 import gobblin.broker.iface.NoSuchScopeException;
 import gobblin.broker.iface.NotConfiguredException;
@@ -59,7 +60,7 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
   }
 
   @Override
-  public Limiter createResource(SharedResourcesBroker broker, ScopedConfigView<?, SharedLimiterKey> configView)
+  public ResourceInstance<Limiter> createResource(SharedResourcesBroker broker, ScopedConfigView<?, SharedLimiterKey> configView)
       throws NotConfiguredException{
     Config config = configView.getConfig();
     Limiter limiter;
@@ -88,7 +89,7 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
       }
     }
 
-    return limiter;
+    return new ResourceInstance<>(limiter);
   }
 
   /**

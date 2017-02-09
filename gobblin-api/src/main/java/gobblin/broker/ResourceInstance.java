@@ -14,20 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* This is a sample pull file to be used for streaming */
-job.name=PullFromKafka
-job.group=KafkaRunForver-test
-job.description=this is a job that runs forever and consumes from kafka
-job.lock.enabled=false
-gobblin.task.executionMode=STREAMING
-gobblin.streaming.kafka.topic.key.deserializer=org.apache.kafka.common.serialization.StringDeserializer
-gobblin.streaming.kafka.topic.value.deserializer=org.apache.kafka.common.serialization.ByteArrayDeserializer
 
-source.class=gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource
-gobblin.streaming.kafka.topic.singleton=test
-kafka.brokers=localhost:9092
+package gobblin.broker;
 
-writer.builder.class=gobblin.writer.ConsoleWriterBuilder
+import gobblin.broker.iface.SharedResourceFactoryResponse;
+import lombok.Data;
 
 
-data.publisher.type=gobblin.publisher.NoopPublisher
+/**
+ * A {@link SharedResourceFactoryResponse} that returns a newly created resource instance.
+ */
+@Data
+public class ResourceInstance<T> implements SharedResourceFactoryResponse<T> {
+  private final T resource;
+}

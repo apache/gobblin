@@ -1,0 +1,49 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# A sample job that generates test data to write to Kafka in a streaming manner
+job.name=TestStreamingToKafka
+job.group=streaming
+job.description=A getting started example for Gobblin streaming to Kafka
+
+job.lock.enabled=false
+task.executionMode=STREAMING
+
+source.class=gobblin.test.SequentialTestSource
+source.numParallelism=2
+source.sleepTimePerRecordMillis=1000
+
+extract.namespace=gobblin.streaming.test
+
+#converter.classes=gobblin.test.AnyToJsonConverter
+
+# Configure watermark storage for streaming
+#streaming.watermarkStateStore.type=zk
+#streaming.watermarkStateStore.config.state.store.zk.connectString=localhost:2181
+#streaming.watermarkStateStore.config.state.store.dir=/streamingWatermarks
+
+# Configure watermark commit settings for streaming
+#streaming.watermark.commitIntervalMillis=2000
+
+#No partitioner as kafka writer doesn't work with a partitioner
+writer.builder.class=gobblin.writer.ConsoleWriterBuilder
+#writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
+#writer.kafka.topic=StreamingTestTopic
+#writer.kafka.producerConfig.bootstrap.servers=localhost:9092
+#writer.kafka.producerConfig.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+
+data.publisher.type=gobblin.publisher.NoopPublisher

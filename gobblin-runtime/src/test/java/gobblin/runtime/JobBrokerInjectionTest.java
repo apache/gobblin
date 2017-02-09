@@ -57,8 +57,10 @@ import gobblin.runtime.std.JobSpecFilter;
 import gobblin.writer.test.GobblinTestEventBusWriter;
 import gobblin.writer.test.TestingEventBusAsserter;
 import gobblin.writer.test.TestingEventBuses;
+import gobblin.broker.ResourceInstance;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 
 public class JobBrokerInjectionTest {
@@ -214,8 +216,8 @@ public class JobBrokerInjectionTest {
     }
 
     @Override
-    public MySharedObject createResource(SharedResourcesBroker broker, ScopedConfigView<?, MySharedKey> config) {
-      return new MySharedObject();
+    public ResourceInstance<MySharedObject> createResource(SharedResourcesBroker broker, ScopedConfigView<?, MySharedKey> config) {
+      return new ResourceInstance<>(new MySharedObject());
     }
 
     @Override
@@ -224,6 +226,7 @@ public class JobBrokerInjectionTest {
     }
   }
 
+  @EqualsAndHashCode
   public static class MySharedKey implements SharedResourceKey {
     @Override
     public String toConfigurationKey() {

@@ -19,44 +19,44 @@ package gobblin.kafka.source.extractor.extract.kafka;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.nio.channels.ClosedChannelException;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
-import java.util.Arrays;
 
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
+import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.KafkaProducer;
-
-import com.sun.tools.javac.util.Assert;
 
 import lombok.extern.slf4j.Slf4j;
 
-import gobblin.source.extractor.DataRecordException;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.SourceState;
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.kafka.KafkaTestBase;
-import gobblin.configuration.State;
-import gobblin.configuration.SourceState;
+import gobblin.source.extractor.CheckpointableWatermark;
+import gobblin.source.extractor.DataRecordException;
+import gobblin.source.extractor.RecordEnvelope;
+import gobblin.source.extractor.extract.LongWatermark;
 import gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingExtractor;
 import gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource;
-import gobblin.source.extractor.RecordEnvelope;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.source.extractor.extract.LongWatermark;
+import gobblin.writer.WatermarkStorage;
 
-
-import static org.mockito.Mockito.verify;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 /**
- * Simple unit tests for the streaming kafka producer.Covers very simple scenarios
+ * Simple unit tests for the streaming kafka producer. Covers very simple scenarios
  */
 @Slf4j
 public class KafkaSimpleStreamingTest {
@@ -95,6 +95,15 @@ public class KafkaSimpleStreamingTest {
       throws IOException, InterruptedException {
     String topic = "testSimpleStreamingSource";
     _kafkaTestHelper.provisionTopic(topic);
+    List<WorkUnit> lWu = getWorkUnits(topic);
+    // Check we have a single WorkUnit with the right properties setup.
+    Assert.assertEquals(lWu.size(), 1);
+    WorkUnit wU = lWu.get(0);
+    Assert.assertEquals(KafkaSimpleStreamingSource.getTopicNameFromState(wU), topic);
+    Assert.assertEquals(KafkaSimpleStreamingSource.getPartitionIdFromState(wU), 0);
+  }
+
+  private List<WorkUnit> getWorkUnits(String topic) {
     SourceState ss = new SourceState();
     ss.setProp(ConfigurationKeys.KAFKA_BROKERS, "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     ss.setProp(KafkaSimpleStreamingSource.TOPIC_WHITELIST, topic);
@@ -102,12 +111,23 @@ public class KafkaSimpleStreamingTest {
     ss.setProp(KafkaSimpleStreamingSource.TOPIC_KEY_DESERIALIZER, "org.apache.kafka.common.serialization.StringDeserializer");
     ss.setProp(KafkaSimpleStreamingSource.TOPIC_VALUE_DESERIALIZER, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     KafkaSimpleStreamingSource<String, byte[]> simpleSource = new KafkaSimpleStreamingSource<String, byte[]>();
-    List<WorkUnit> lWu = simpleSource.getWorkunits(ss);
-    // Check we have a single WorkUnit with the right properties setup.
-    Assert.check(lWu.size() == 1);
+    return simpleSource.getWorkunits(ss);
+  }
+
+  private KafkaSimpleStreamingExtractor<String, byte[]> getStreamingExtractor(String topic) {
+    _kafkaTestHelper.provisionTopic(topic);
+
+    List<WorkUnit> lWu = getWorkUnits(topic);
     WorkUnit wU = lWu.get(0);
-    Assert.check(KafkaSimpleStreamingSource.getTopicNameFromState(wU).equals(topic));
-    Assert.check(KafkaSimpleStreamingSource.getPartitionIdFromState(wU) == 0);
+    WorkUnitState wSU = new WorkUnitState(wU, new State());
+    wSU.setProp(ConfigurationKeys.KAFKA_BROKERS, "localhost:" + _kafkaTestHelper.getKafkaServerPort());
+
+    wSU.setProp(KafkaSimpleStreamingSource.TOPIC_WHITELIST, topic);
+    wSU.setProp(ConfigurationKeys.JOB_NAME_KEY, topic);
+    wSU.setProp(KafkaSimpleStreamingSource.TOPIC_KEY_DESERIALIZER, "org.apache.kafka.common.serialization.StringDeserializer");
+    wSU.setProp(KafkaSimpleStreamingSource.TOPIC_VALUE_DESERIALIZER, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    // Create an extractor
+    return new KafkaSimpleStreamingExtractor<String, byte[]>(wSU);
   }
 
   /**
@@ -140,34 +160,26 @@ public class KafkaSimpleStreamingTest {
     producer.send(new ProducerRecord<String, byte[]>(topic, topic, record_1));
     producer.flush();
 
-    SourceState ss = new SourceState();
-    ss.setProp(ConfigurationKeys.KAFKA_BROKERS, "localhost:" + _kafkaTestHelper.getKafkaServerPort());
-    ss.setProp(KafkaSimpleStreamingSource.TOPIC_WHITELIST, topic);
-    ss.setProp(ConfigurationKeys.JOB_NAME_KEY, topic);
-    ss.setProp(KafkaSimpleStreamingSource.TOPIC_KEY_DESERIALIZER, "org.apache.kafka.common.serialization.StringDeserializer");
-    ss.setProp(KafkaSimpleStreamingSource.TOPIC_VALUE_DESERIALIZER, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-    KafkaSimpleStreamingSource<String, byte[]> simpleSource = new KafkaSimpleStreamingSource<String, byte[]>();
+    KafkaSimpleStreamingExtractor<String, byte[]> kSSE = getStreamingExtractor(topic);
 
-    List<WorkUnit> lWu = simpleSource.getWorkunits(ss);
-    WorkUnit wU = lWu.get(0);
-    WorkUnitState wSU = new WorkUnitState(wU, new State());
-    wSU.setProp(ConfigurationKeys.KAFKA_BROKERS, "localhost:" + _kafkaTestHelper.getKafkaServerPort());
-
-    wSU.setProp(KafkaSimpleStreamingSource.TOPIC_WHITELIST, topic);
-    wSU.setProp(ConfigurationKeys.JOB_NAME_KEY, topic);
-    wSU.setProp(KafkaSimpleStreamingSource.TOPIC_KEY_DESERIALIZER, "org.apache.kafka.common.serialization.StringDeserializer");
-    wSU.setProp(KafkaSimpleStreamingSource.TOPIC_VALUE_DESERIALIZER, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-    // Create an extractor
-    KafkaSimpleStreamingExtractor<String, byte[]> kSSE = new KafkaSimpleStreamingExtractor<String, byte[]>(wSU);
     TopicPartition tP = new TopicPartition(topic, 0);
     KafkaSimpleStreamingExtractor.KafkaWatermark kwm =
         new KafkaSimpleStreamingExtractor.KafkaWatermark(tP, new LongWatermark(0));
     byte [] reuse = new byte[1];
     RecordEnvelope<byte[]> oldRecord = new RecordEnvelope<>(reuse, kwm);
 
+    Map<String, CheckpointableWatermark> committedWatermarks = new HashMap<>();
+
+    WatermarkStorage mockWatermarkStorage = mock(WatermarkStorage.class);
+    when(mockWatermarkStorage.getCommittedWatermarks(any(Class.class), any(Iterable.class)))
+        .thenReturn(committedWatermarks);
+
+    kSSE.start(mockWatermarkStorage);
+
+
     // read and verify the record matches we just wrote
     RecordEnvelope<byte[]> record = kSSE.readRecord(oldRecord);
-    Assert.check(Arrays.equals(record.getRecord(), record_1));
+    Assert.assertEquals(record.getRecord(), record_1);
 
     // write a second record.
     producer.send(new ProducerRecord<String, byte[]>(topic, topic, record_2));
@@ -175,31 +187,24 @@ public class KafkaSimpleStreamingTest {
 
     // read the second record using same extractor to verify it matches whats expected
     record = kSSE.readRecord(oldRecord);
-    Assert.check(Arrays.equals(record.getRecord(), record_2));
+    Assert.assertEquals(record.getRecord(), record_2);
 
-    // Call the commit watermark
-    kSSE.commitWatermarks(Collections.singletonList(record.getWatermark()));
-
-    Consumer<String, byte[]> kC = KafkaSimpleStreamingSource.getKafkaConsumer(wSU);
-    OffsetAndMetadata oM = kC.committed(tP);
-
-
-    // verify committed watermark matches whats expected.
-    Assert.check(record.getWatermark() instanceof KafkaSimpleStreamingExtractor.KafkaWatermark);
-    KafkaSimpleStreamingExtractor.KafkaWatermark kWM = (KafkaSimpleStreamingExtractor.KafkaWatermark)record.getWatermark();
-    Assert.check(oM.offset() == kWM.getLwm().getValue()+1);
+    // Commit the watermark
+    committedWatermarks.put(record.getWatermark().getSource(), record.getWatermark());
 
     // write a third record.
     producer.send(new ProducerRecord<String, byte[]>(topic, topic, record_3));
     producer.flush();
 
-    // recreate extractor to force a seek.
-    kSSE = new KafkaSimpleStreamingExtractor(wSU);
 
+    // recreate extractor to force a seek.
+    kSSE = getStreamingExtractor(topic);
+
+    kSSE.start(mockWatermarkStorage);
     record = kSSE.readRecord(oldRecord);
 
     // check it matches the data written
-    Assert.check(Arrays.equals(record.getRecord(), record_3));
+    Assert.assertEquals(record.getRecord(), record_3);
   }
 
   /**
@@ -211,27 +216,7 @@ public class KafkaSimpleStreamingTest {
   @Test(timeOut = 10000)
   public void testThreadedExtractor() {
     final String topic = "testThreadedExtractor";
-    _kafkaTestHelper.provisionTopic(topic);
-
-    SourceState ss = new SourceState();
-    ss.setProp(ConfigurationKeys.KAFKA_BROKERS, "localhost:" + _kafkaTestHelper.getKafkaServerPort());
-    ss.setProp(KafkaSimpleStreamingSource.TOPIC_WHITELIST, topic);
-    ss.setProp(ConfigurationKeys.JOB_NAME_KEY, topic);
-    ss.setProp(KafkaSimpleStreamingSource.TOPIC_KEY_DESERIALIZER, "org.apache.kafka.common.serialization.StringDeserializer");
-    ss.setProp(KafkaSimpleStreamingSource.TOPIC_VALUE_DESERIALIZER, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-    KafkaSimpleStreamingSource<String, byte[]> simpleSource = new KafkaSimpleStreamingSource<String, byte[]>();
-
-    List<WorkUnit> lWu = simpleSource.getWorkunits(ss);
-    WorkUnit wU = lWu.get(0);
-    WorkUnitState wSU = new WorkUnitState(wU, new State());
-    wSU.setProp(ConfigurationKeys.KAFKA_BROKERS, "localhost:" + _kafkaTestHelper.getKafkaServerPort());
-
-    wSU.setProp(KafkaSimpleStreamingSource.TOPIC_WHITELIST, topic);
-    wSU.setProp(ConfigurationKeys.JOB_NAME_KEY, topic);
-    wSU.setProp(KafkaSimpleStreamingSource.TOPIC_KEY_DESERIALIZER, "org.apache.kafka.common.serialization.StringDeserializer");
-    wSU.setProp(KafkaSimpleStreamingSource.TOPIC_VALUE_DESERIALIZER, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-    // Create an extractor
-    final KafkaSimpleStreamingExtractor<String, byte[]> kSSE = new KafkaSimpleStreamingExtractor<String, byte[]>(wSU);
+    final KafkaSimpleStreamingExtractor<String, byte[]> kSSE = getStreamingExtractor(topic);
 
     Thread waitingThread = new Thread () {
       public void run () {
@@ -243,7 +228,7 @@ public class KafkaSimpleStreamingTest {
         try {
           RecordEnvelope<byte[]> record = kSSE.readRecord(oldRecord);
         } catch (Exception e) {
-          Assert.check((e instanceof WakeupException) || (e instanceof ClosedChannelException));
+          Assert.assertTrue((e instanceof WakeupException) || (e instanceof ClosedChannelException));
         }
       }
     };
@@ -255,6 +240,28 @@ public class KafkaSimpleStreamingTest {
       // should never come here
       throw new Error(e);
     }
+  }
+
+
+
+  /**
+   * Test that the extractor barfs on not calling start
+   */
+  @Test(timeOut = 10000)
+  public void testExtractorStart() {
+
+    final String topic = "testExtractorStart";
+    final KafkaSimpleStreamingExtractor<String, byte[]> kSSE = getStreamingExtractor(topic);
+
+    try {
+      kSSE.readRecord(null);
+      Assert.fail("Should have thrown an exception");
+    } catch (IOException e) {
+
+    } catch (Exception e) {
+      Assert.fail("Should only throw IOException");
+    }
+
   }
 
 }
