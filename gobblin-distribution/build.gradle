@@ -47,7 +47,6 @@ dependencies {
   compile project(':gobblin-yarn')
   compile project(':gobblin-aws')
   compile project(':gobblin-runtime-hadoop')
-  compile project(':gobblin-azure-datalake')
 }
 
 apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"
