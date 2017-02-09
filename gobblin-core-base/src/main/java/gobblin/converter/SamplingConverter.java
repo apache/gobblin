@@ -38,8 +38,8 @@ import gobblin.util.ConfigUtils;
 @Slf4j
 public class SamplingConverter extends Converter<Object, Object, Object, Object> {
 
-  public static String SAMPLE_RATIO_KEY="converter.sample.ratio";
-  public static double DEFAULT_SAMPLE_RATIO=0.01; // Sample 1% by default
+  public static final String SAMPLE_RATIO_KEY="converter.sample.ratio";
+  public static final double DEFAULT_SAMPLE_RATIO=0.01; // Sample 1% by default
 
   private final Random random = new Random();
   private double sampleRatio = DEFAULT_SAMPLE_RATIO;
