@@ -4,7 +4,6 @@ import java.io.IOException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.gson.JsonObject;
 import gobblin.writer.WriteCallback;
 
 
@@ -15,14 +14,13 @@ public class EventhubBatchTest {
     // Assume memory size has only 2 bytes
     EventhubBatch batch = new EventhubBatch(8, 3000);
 
-    JsonObject obj = new JsonObject();
-    obj.addProperty("id", 1); // size is 8 bytes
+    byte[] record = new byte[8];
 
     // Record is larger than the memory size limit, the first append should fail
-    Assert.assertNull(batch.tryAppend(obj, WriteCallback.EMPTY));
+    Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY));
 
     // The second append should still fail
-    Assert.assertNull(batch.tryAppend(obj, WriteCallback.EMPTY));
+    Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY));
   }
 
   @Test
@@ -30,13 +28,10 @@ public class EventhubBatchTest {
     // Assume memory size has only 200 bytes
     EventhubBatch batch = new EventhubBatch(200, 3000);
 
-    JsonObject record = new JsonObject();
+    // single record has 8 bytes, it converts to 12 bytes due to Base64 encoding
+    // Add additional 15 bytes overhead, total size is 27 bytes
+    byte[] record = new byte[8];
 
-    // single record has 8 bytes, but overhead has 15 bytes, total size is 23 bytes
-    record.addProperty("id", 1);
-
-    // Add 8 records into batch
-    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
@@ -44,11 +39,11 @@ public class EventhubBatchTest {
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
 
-    // Batch has room for 8th record
+    // Batch has room for 7th record
     Assert.assertEquals(batch.hasRoom(record), true);
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
 
-    // Batch has no room for 9th record
+    // Batch has no room for 8th record
     Assert.assertEquals(batch.hasRoom(record), false);
     Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY));
   }

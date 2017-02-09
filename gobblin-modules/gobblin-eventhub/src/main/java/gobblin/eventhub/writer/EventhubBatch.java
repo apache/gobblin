@@ -21,12 +21,9 @@ package gobblin.eventhub.writer;
 import gobblin.annotation.Alpha;
 import gobblin.writer.Batch;
 
+import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
-
-import com.google.common.base.Charsets;
-import com.google.gson.JsonObject;
-
 
 
 /**
@@ -34,7 +31,7 @@ import com.google.gson.JsonObject;
  * For now we are using LinkedList as our internal memory storage
  */
 @Alpha
-public class EventhubBatch extends Batch<JsonObject>{
+public class EventhubBatch extends Batch<byte[]>{
   private RecordMemory memory;
   private final long creationTimestamp;
   private final long memSizeLimit;
@@ -52,12 +49,12 @@ public class EventhubBatch extends Batch<JsonObject>{
     return (System.currentTimeMillis() - creationTimestamp) >= ttlInMilliSeconds;
   }
 
-  private long getInternalSize(JsonObject record) {
-    return  record.toString().getBytes(Charsets.UTF_8).length + this.OVERHEAD_SIZE_IN_BYTES;
+  private long getInternalSize(byte[] record) {
+    return Base64.getEncoder().encodeToString(record).length() + this.OVERHEAD_SIZE_IN_BYTES;
   }
 
   public  class RecordMemory {
-    private List<JsonObject> records;
+    private List<byte[]> records;
     private long byteSize;
 
     public RecordMemory () {
@@ -65,12 +62,12 @@ public class EventhubBatch extends Batch<JsonObject>{
       records = new LinkedList<>();
     }
 
-    void append (JsonObject record) {
+    void append (byte[] record) {
       byteSize += EventhubBatch.this.getInternalSize(record);
       records.add(record);
     }
 
-    boolean hasRoom (JsonObject record) {
+    boolean hasRoom (byte[] record) {
       long recordLen = EventhubBatch.this.getInternalSize(record);
       return (byteSize + recordLen) <= EventhubBatch.this.memSizeLimit;
     }
@@ -79,20 +76,20 @@ public class EventhubBatch extends Batch<JsonObject>{
       return byteSize;
     }
 
-    List<JsonObject> getRecords() {
+    List<byte[]> getRecords() {
       return records;
     }
   }
 
-  public List<JsonObject> getRecords() {
+  public List<byte[]> getRecords() {
     return memory.getRecords();
   }
 
-  public boolean hasRoom(JsonObject object) {
+  public boolean hasRoom(byte[] object) {
     return memory.hasRoom(object);
   }
 
-  public void append(JsonObject object) {
+  public void append(byte[] object) {
      memory.append(object);
   }
 

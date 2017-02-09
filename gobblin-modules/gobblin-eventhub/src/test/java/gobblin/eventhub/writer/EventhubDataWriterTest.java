@@ -33,7 +33,6 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.gson.JsonObject;
 
 import gobblin.writer.Batch;
 import gobblin.writer.WriteCallback;
@@ -65,11 +64,11 @@ public class EventhubDataWriterTest {
     EventhubDataWriter eventhubDataWriter = Mockito.spy(new EventhubDataWriter(props, mockHttpClient));
     Mockito.doNothing().when(eventhubDataWriter).refreshSignature();
 
-    List<JsonObject> records = new LinkedList<>();
+    List<byte[]> records = new LinkedList<>();
     for (int i=0; i<50; ++i)
-      records.add(new JsonObject());
+      records.add(new byte[8]);
 
-    Batch<JsonObject> batch = mock(Batch.class);
+    Batch<byte[]> batch = mock(Batch.class);
     WriteCallback callback = mock(WriteCallback.class);
     Mockito.when(batch.getRecords()).thenReturn(records);
 
@@ -87,7 +86,7 @@ public class EventhubDataWriterTest {
     EventhubDataWriter eventhubDataWriter = Mockito.spy(new EventhubDataWriter(props, mockHttpClient));
     Mockito.doNothing().when(eventhubDataWriter).refreshSignature();
 
-    JsonObject record = new JsonObject();
+    byte[] record = new byte[8];
     WriteResponse<Integer> writeResponse = eventhubDataWriter.write(record);
     int returnCode = writeResponse.getRawResponse();
     Assert.assertEquals(returnCode, 201);

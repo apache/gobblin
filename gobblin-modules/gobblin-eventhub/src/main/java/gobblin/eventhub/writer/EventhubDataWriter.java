@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import com.codahale.metrics.Meter;
 import com.google.common.base.Charsets;
 import com.google.common.util.concurrent.Futures;
-import com.google.gson.JsonObject;
 import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
 
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +51,8 @@ import gobblin.writer.WriteResponse;
 import gobblin.writer.WriteResponseFuture;
 import gobblin.writer.WriteResponseMapper;
 
+import java.util.Base64;
+import java.util.Base64.Encoder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,9 +69,12 @@ import com.codahale.metrics.Timer;
  * and consume the response.
  *
  * Also this class supports sending multiple records in a batch manner.
+ *
+ * This class use Base64 to encode any byte array, so the consumer side should use the corresponding
+ * decoder to recover the original bytes.
  */
 @Slf4j
-public class EventhubDataWriter implements SyncDataWriter<JsonObject>, BatchAsyncDataWriter<JsonObject> {
+public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDataWriter<byte[]> {
 
   private static final Logger LOG = LoggerFactory.getLogger(EventhubDataWriter.class);
   private HttpClient httpclient;
@@ -83,7 +87,7 @@ public class EventhubDataWriter implements SyncDataWriter<JsonObject>, BatchAsyn
   private final String targetURI;
   private final Timer timer = new Timer();
   private final Meter bytesWritten = new Meter();
-
+  private final Encoder encoder = Base64.getEncoder();
   private long postStartTimestamp = 0;
   private long sigExpireInMinute = 1;
   private String signature = "";
@@ -137,7 +141,7 @@ public class EventhubDataWriter implements SyncDataWriter<JsonObject>, BatchAsyn
   /**
    * Write a whole batch to eventhub
    */
-  public Future<WriteResponse> write (Batch<JsonObject> batch, WriteCallback callback) {
+  public Future<WriteResponse> write (Batch<byte[]> batch, WriteCallback callback) {
     long before = System.nanoTime();
     int returnCode = 0;
 
@@ -149,6 +153,7 @@ public class EventhubDataWriter implements SyncDataWriter<JsonObject>, BatchAsyn
       WriteResponse<Integer> response = WRITE_RESPONSE_WRAPPER.wrap(returnCode);
       callback.onSuccess(response);
     } catch (Exception e) {
+      LOG.error("Write batch " + batch.getId() + " failed :" + e.toString());
       callback.onFailure(e);
     }
 
@@ -159,7 +164,7 @@ public class EventhubDataWriter implements SyncDataWriter<JsonObject>, BatchAsyn
   /**
    * Write a single record to eventhub
    */
-  public WriteResponse write (JsonObject record) throws IOException {
+  public WriteResponse write (byte[] record) throws IOException {
     long before = System.nanoTime();
     String encoded = encodeRecord(record);
     bytesWritten.mark(encoded.getBytes(Charsets.UTF_8).length);
@@ -218,15 +223,16 @@ public class EventhubDataWriter implements SyncDataWriter<JsonObject>, BatchAsyn
    * Each record of batch is wrapped by a 'Body' json object
    * put this new object into an array, encode the whole array
    */
-  private String encodeBatch (Batch<JsonObject> batch) throws IOException{
+  private String encodeBatch (Batch<byte[]> batch) throws IOException {
     // Convert original json object to a new json object with format {"Body": "originalJson"}
     // Add new json object to an array and send the whole array to eventhub using REST api
     // Refer to https://docs.microsoft.com/en-us/rest/api/eventhub/send-batch-events
-    List<JsonObject> records = batch.getRecords();
+    List<byte[]> records = batch.getRecords();
     ArrayList<EventhubRequest> arrayList = new ArrayList<>();
 
-    for (JsonObject record: records) {
-      arrayList.add(new EventhubRequest(record.toString()));
+
+    for (byte[] record: records) {
+      arrayList.add(new EventhubRequest(encoder.encodeToString(record)));
     }
     return mapper.writeValueAsString (arrayList);
   }
@@ -235,12 +241,12 @@ public class EventhubDataWriter implements SyncDataWriter<JsonObject>, BatchAsyn
    * A single record is wrapped by a 'Body' json object
    * encode this json object
    */
-  private String encodeRecord (JsonObject record)throws  IOException {
+  private String encodeRecord (byte[] record)throws  IOException {
     // Convert original json object to a new json object with format {"Body": "originalJson"}
     // Add new json object to an array and send the whole array to eventhub using REST api
     // Refer to https://docs.microsoft.com/en-us/rest/api/eventhub/send-batch-events
     ArrayList<EventhubRequest> arrayList = new ArrayList<>();
-    arrayList.add(new EventhubRequest(record.toString()));
+    arrayList.add(new EventhubRequest(encoder.encodeToString(record)));
 
     return mapper.writeValueAsString (arrayList);
   }
