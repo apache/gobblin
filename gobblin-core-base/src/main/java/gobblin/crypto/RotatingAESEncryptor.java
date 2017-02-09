@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
  * 2. When wrapOutputStream() is called, an AES key will be picked at random and a new initialization vector (IV)
  *    will be generated.
  * 3. A header will be written [keyId][ivLength][base64 encoded iv]
- * 4. Ciphertext will be base64 encoded and written out
+ * 4. Ciphertext will be base64 encoded and written out. We do not insert linebreaks.
  */
 @Slf4j
 public class RotatingAESEncryptor implements StreamEncoder {
@@ -38,11 +38,6 @@ public class RotatingAESEncryptor implements StreamEncoder {
 
   private final Random random;
   private final CredentialStore credentialStore;
-  private boolean headerWritten;
-  private OutputStream origStream;
-  private Cipher cipher;
-  private String base64Iv;
-  private KeyRecord currentKey;
   private List<KeyRecord> keyRecords;
 
   /**
@@ -52,79 +47,16 @@ public class RotatingAESEncryptor implements StreamEncoder {
   public RotatingAESEncryptor(CredentialStore credentialStore) {
     this.credentialStore = credentialStore;
     this.random = new Random();
-    this.headerWritten = false;
   }
 
   @Override
   public OutputStream wrapOutputStream(OutputStream origStream) {
-    this.origStream = origStream;
+    return new StreamInstance(random, getKeyRecords(), origStream).wrapOutputStream();
 
-    rekey();
-    final Base64OutputStream base64OutputStream = new Base64OutputStream(origStream);
-    final CipherOutputStream encryptedStream = new CipherOutputStream(base64OutputStream, cipher);
 
-    return new FilterOutputStream(origStream) {
-      @Override
-      public void write(int b) throws IOException {
-        writeHeaderIfNecessary();
-        encryptedStream.write(b);
-      }
-
-      @Override
-      public void write(byte[] b) throws IOException {
-        writeHeaderIfNecessary();
-        encryptedStream.write(b);
-      }
-
-      @Override
-      public void write(byte[] b, int off, int len) throws IOException {
-        writeHeaderIfNecessary();
-        encryptedStream.write(b, off, len);
-      }
-
-      @Override
-      public void close() throws IOException {
-        encryptedStream.close();
-      }
-    };
   }
 
-  @Override
-  public String getTag() {
-    return "aes128_rotating";
-  }
-
-  private void rekey() {
-    if (origStream == null) {
-      throw new IllegalStateException("Can't rekey stream before wrapOutputStream() has been called!");
-    }
-
-    try {
-      currentKey = getNewKey();
-
-      cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-      cipher.init(Cipher.ENCRYPT_MODE, currentKey.getSecretKey());
-      byte[] iv = cipher.getIV();
-      base64Iv = DatatypeConverter.printBase64Binary(iv);
-      this.headerWritten = false;
-    } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-      throw new IllegalStateException("Error creating AES algorithm? Should always exist in JRE");
-    } catch (InvalidKeyException e) {
-      throw new IllegalStateException(
-          "Key id " + String.valueOf(currentKey.getKeyId()) + " is illegal - please check credential store");
-    }
-  }
-
-  private void writeHeaderIfNecessary() throws IOException {
-    if (!headerWritten) {
-      String header = String.format("%04d%03d%s", currentKey.getKeyId(), base64Iv.length(), base64Iv);
-
-      origStream.write(header.getBytes("UTF-8"));
-      this.headerWritten = true;
-    }
-  }
-
-  private KeyRecord getNewKey() {
+  private synchronized List<KeyRecord> getKeyRecords() {
     if (keyRecords == null) {
       keyRecords = new ArrayList<>();
       for (Map.Entry<String, byte[]> entry : credentialStore.getAllEncodedKeys().entrySet()) {
@@ -147,28 +79,123 @@ public class RotatingAESEncryptor implements StreamEncoder {
       }
     }
 
-    if (keyRecords.size() == 0) {
-      throw new IllegalStateException("Couldn't find any valid keys in store!");
-    }
-
-    return keyRecords.get(random.nextInt(keyRecords.size()));
+    return keyRecords;
   }
 
+  @Override
+  public String getTag() {
+    return "aes128_rotating";
+  }
+
+  /**
+   * Represents a set of parsed AES keys that we can choose from when encrypting.
+   */
   static class KeyRecord {
     private final int keyId;
     private final SecretKey secretKey;
 
-    public KeyRecord(int keyId, SecretKey secretKey) {
+    KeyRecord(int keyId, SecretKey secretKey) {
       this.keyId = keyId;
       this.secretKey = secretKey;
     }
 
-    public int getKeyId() {
+    int getKeyId() {
       return keyId;
     }
 
-    public SecretKey getSecretKey() {
+    SecretKey getSecretKey() {
       return secretKey;
+    }
+  }
+
+  /**
+   * Helper class that keeps state around for a wrapped output stream. Each stream will have a different
+   * selected key, IV, and cipher state.
+   */
+  static class StreamInstance {
+    private final OutputStream origStream;
+    private final List<KeyRecord> keyRecords;
+    private final Random random;
+
+    private Cipher cipher;
+    private String base64Iv;
+    private KeyRecord currentKey;
+    private boolean headerWritten = false;
+
+
+    StreamInstance(Random random, List<KeyRecord> keyRecords, OutputStream origStream) {
+      this.random = random;
+      this.origStream = origStream;
+      this.keyRecords = keyRecords;
+    }
+
+    OutputStream wrapOutputStream() {
+      initCipher();
+      final Base64OutputStream base64OutputStream = new Base64OutputStream(origStream, true, 0, null);
+      final CipherOutputStream encryptedStream = new CipherOutputStream(base64OutputStream, cipher);
+
+      return new FilterOutputStream(origStream) {
+        @Override
+        public void write(int b) throws IOException {
+          writeHeaderIfNecessary();
+          encryptedStream.write(b);
+        }
+
+        @Override
+        public void write(byte[] b) throws IOException {
+          writeHeaderIfNecessary();
+          encryptedStream.write(b);
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+          writeHeaderIfNecessary();
+          encryptedStream.write(b, off, len);
+        }
+
+        @Override
+        public void close() throws IOException {
+          encryptedStream.close();
+        }
+      };
+    }
+
+    private void initCipher() {
+      if (origStream == null) {
+        throw new IllegalStateException("Can't initCipher stream before wrapOutputStream() has been called!");
+      }
+
+      try {
+        currentKey = getNewKey();
+
+        cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, currentKey.getSecretKey());
+        byte[] iv = cipher.getIV();
+        base64Iv = DatatypeConverter.printBase64Binary(iv);
+        this.headerWritten = false;
+      } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+        throw new IllegalStateException("Error creating AES algorithm? Should always exist in JRE");
+      } catch (InvalidKeyException e) {
+        throw new IllegalStateException(
+            "Key id " + String.valueOf(currentKey.getKeyId()) + " is illegal - please check credential store");
+      }
+    }
+
+    private void writeHeaderIfNecessary() throws IOException {
+      if (!headerWritten) {
+        String header = String.format("%04d%03d%s", currentKey.getKeyId(), base64Iv.length(), base64Iv);
+
+        origStream.write(header.getBytes("UTF-8"));
+        this.headerWritten = true;
+      }
+    }
+
+    private KeyRecord getNewKey() {
+      if (keyRecords.size() == 0) {
+        throw new IllegalStateException("Couldn't find any valid keys in store!");
+      }
+
+      return keyRecords.get(random.nextInt(keyRecords.size()));
     }
   }
 }
