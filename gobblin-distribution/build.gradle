@@ -43,9 +43,6 @@ dependencies {
   compile project(":gobblin-rest-service:gobblin-rest-server")
   compile project(":gobblin-config-management:gobblin-config-client")
   compile project(":gobblin-config-management:gobblin-config-core")
-  compile project(':gobblin-cluster')
-  compile project(':gobblin-yarn')
-  compile project(':gobblin-aws')
   compile project(':gobblin-runtime-hadoop')
 }
 
@@ -53,7 +50,7 @@ apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"
 
 task buildDistributionTar(type: Tar, overwrite: true) {
   extension = 'tar.gz'
-  baseName = project.name
+  baseName = ('standard'.equals(project.gobblinFlavor)) ?  project.name : project.name + '-' + project.gobblinFlavor
   compression = Compression.GZIP
 
   into("conf") { from "../conf/" }

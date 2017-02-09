@@ -16,15 +16,10 @@
  */
 
 dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-azkaban')
   compile project(':gobblin-aws')
+  compile project(':gobblin-modules:gobblin-azkaban')
   compile project(':gobblin-cluster')
-  compile project(':gobblin-modules:gobblin-compliance')
-  compile project(':gobblin-modules:gobblin-couchbase')
-  compile project(':gobblin-modules:gobblin-kafka-08')
   compile project(':gobblin-modules:gobblin-helix')
+  compile project(':gobblin-modules:gobblin-kafka-08')
   compile project(':gobblin-yarn')
-  compile project(':gobblin-modules:google-ingestion')
 }
-
