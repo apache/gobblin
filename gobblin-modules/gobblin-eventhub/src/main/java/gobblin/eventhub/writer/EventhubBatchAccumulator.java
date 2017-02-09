@@ -27,8 +27,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.Iterator;
+import java.util.Base64;
 
-import com.google.common.base.Charsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,8 +107,8 @@ public class EventhubBatchAccumulator extends BatchAccumulator<byte[]> {
       // Even single record can exceed the size limit from one batch
       // Ignore the record because Eventhub can only accept payload less than 256KB
       if (future == null) {
-        LOG.warn ("Batch " + batch.getId() + " is marked as complete because it contains a huge record: "
-                + new String(record, Charsets.UTF_8));
+        LOG.debug ("Batch " + batch.getId() + " is marked as complete because it contains a huge record: "
+                + Base64.getEncoder().encodeToString(record));
         future = Futures.immediateFuture(new RecordMetadata(0));
         callback.onSuccess(WriteResponse.EMPTY);
         return future;
