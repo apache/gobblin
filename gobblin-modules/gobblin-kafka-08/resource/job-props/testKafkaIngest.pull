@@ -24,6 +24,8 @@ extract.namespace=gobblin.kafka.writer.test1
 source.class=gobblin.test.SequentialTestSource
 source.numRecordsPerExtract=5
 
+converter.classes=gobblin.test.AnyToStringConverter
+
 writer.builder.class=gobblin.kafka.writer.KafkaDataWriterBuilder
 writer.kafka.topic={$topic}
 writer.kafka.producerClass=gobblin.kafka.FlakyKafkaProducer

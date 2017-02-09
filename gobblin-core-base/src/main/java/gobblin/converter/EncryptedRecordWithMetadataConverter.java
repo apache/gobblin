@@ -19,6 +19,7 @@
 
 package gobblin.converter;
 
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 
 import org.apache.avro.generic.GenericRecord;
@@ -50,9 +51,13 @@ public class EncryptedRecordWithMetadataConverter extends Converter<String, Stri
       throws DataConversionException {
 
     //TODO: Encrypt this
-    byte[] serialized = GSON.toJson(inputRecord.getRecord()).getBytes();
-    SerializedRecordWithMetadata serializedRecordWithMetadata = new SerializedRecordWithMetadata(serialized,
-        inputRecord.getMetadata());
-    return new SingleRecordIterable<>(serializedRecordWithMetadata);
+    try {
+      byte[] serialized = GSON.toJson(inputRecord.getRecord()).getBytes("UTF-8");
+      SerializedRecordWithMetadata serializedRecordWithMetadata = new SerializedRecordWithMetadata(serialized,
+          inputRecord.getMetadata());
+      return new SingleRecordIterable<>(serializedRecordWithMetadata);
+    } catch (UnsupportedEncodingException e) {
+      throw new DataConversionException(e);
+    }
   }
 }
