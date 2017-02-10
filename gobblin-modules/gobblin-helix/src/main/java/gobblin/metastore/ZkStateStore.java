@@ -17,12 +17,6 @@
 
 package gobblin.metastore;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import gobblin.configuration.State;
-import gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -37,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+
 import org.I0Itec.zkclient.serialize.ZkSerializer;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.io.Text;
@@ -44,6 +39,14 @@ import org.apache.helix.AccessOption;
 import org.apache.helix.manager.zk.ByteArraySerializer;
 import org.apache.helix.store.HelixPropertyStore;
 import org.apache.helix.store.zk.ZkHelixPropertyStore;
+
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+
+import gobblin.configuration.State;
+import gobblin.util.io.StreamUtils;
 
 
 /**

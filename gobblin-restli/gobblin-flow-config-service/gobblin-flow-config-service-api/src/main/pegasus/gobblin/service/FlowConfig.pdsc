@@ -1,0 +1,38 @@
+{
+  "type" : "record",
+  "name" : "FlowConfig",
+  "namespace": "gobblin.service",
+  "doc" : "Configuration for a flow",
+  "fields" : [
+    {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Name of the flow"
+    },
+    {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Group of the flow. This defines the namespace for the flow."
+    },
+    {
+      "name" : "schedule",
+      "type" : "string",
+      "doc" : "Schedule for flow in cron format"
+    },
+    {
+      "name" : "runImmediately",
+      "type" : "boolean",
+      "optional" : true,
+      "doc" : "Set to true to request that job be run immediately"
+    },
+    {
+      "name" : "templateUris",
+      "type" : "string",
+      "doc" : "Comma separated list of URIs for templates used in the flow"
+    },
+    {
+      "name" : "properties",
+      "type" : { "type" : "map", "values" : "string" },
+      "doc" : "Properties for the flow"
+    } ]
+}

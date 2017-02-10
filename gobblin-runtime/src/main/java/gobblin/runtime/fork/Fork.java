@@ -51,6 +51,7 @@ import gobblin.source.extractor.RecordEnvelope;
 import gobblin.state.ConstructState;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
+import gobblin.writer.AcknowledgableRecordEnvelope;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 import gobblin.writer.DataWriterWrapperBuilder;
@@ -388,6 +389,7 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
 
   protected abstract void processRecords() throws IOException, DataConversionException;
 
+
   protected void processRecord(Object record) throws IOException, DataConversionException {
     if (this.forkState.compareAndSet(ForkState.FAILED, ForkState.FAILED)) {
       throw new IllegalStateException(
@@ -404,14 +406,17 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
     } else {
       if (isStreamingMode()) {
         // Unpack the record from its container
-        RecordEnvelope recordEnvelope = (RecordEnvelope) record;
+        AcknowledgableRecordEnvelope recordEnvelope = (AcknowledgableRecordEnvelope) record;
         // Convert the record, check its data quality, and finally write it out if quality checking passes.
         for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, recordEnvelope.getRecord(), this.taskState)) {
           if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
-            // Preserve watermark, swap record
-            ((WatermarkAwareWriter) this.writer.get()).writeEnvelope(recordEnvelope.setRecord(convertedRecord));
+            // for each additional record we pass down, increment the acks needed
+            ((WatermarkAwareWriter) this.writer.get()).writeEnvelope(
+                recordEnvelope.derivedEnvelope(convertedRecord));
           }
         }
+        // ack this fork's processing done
+        recordEnvelope.ack();
       } else {
         buildWriterIfNotPresent();
 

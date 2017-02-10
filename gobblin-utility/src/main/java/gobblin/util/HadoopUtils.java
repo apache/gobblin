@@ -42,6 +42,9 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.google.common.io.BaseEncoding;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -656,9 +659,37 @@ public class HadoopUtils {
   }
 
   public static Configuration getConfFromState(State state) {
+    return getConfFromState(state, Optional.<String> absent());
+  }
+
+  /**
+   * Provides Hadoop configuration given state.
+   * It also supports decrypting values on "encryptedPath".
+   * Note that this encryptedPath path will be removed from full path of each config key and leaving only child path on the key(s).
+   * If there's same config path as child path, the one stripped will have higher priority.
+   *
+   * e.g:
+   * - encryptedPath: writer.fs.encrypted
+   *   before: writer.fs.encrypted.secret
+   *   after: secret
+   *
+   * Common use case for these encryptedPath:
+   *   When there's have encrypted credential in job property but you'd like Filesystem to get decrypted value.
+   *
+   * @param srcConfig source config.
+   * @param encryptedPath Optional. If provided, config that is on this path will be decrypted. @see ConfigUtils.resolveEncrypted
+   *                      Note that config on encryptedPath will be included in the end result even it's not part of includeOnlyPath
+   * @return Hadoop Configuration.
+   */
+  public static Configuration getConfFromState(State state, Optional<String> encryptedPath) {
+    Config config = ConfigFactory.parseProperties(state.getProperties());
+    if (encryptedPath.isPresent()) {
+      config = ConfigUtils.resolveEncrypted(config, encryptedPath);
+    }
     Configuration conf = newConfiguration();
-    for (String propName : state.getPropertyNames()) {
-      conf.set(propName, state.getProp(propName));
+
+    for (Entry<String, ConfigValue> entry : config.entrySet()) {
+      conf.set(entry.getKey(), entry.getValue().unwrapped().toString());
     }
     return conf;
   }

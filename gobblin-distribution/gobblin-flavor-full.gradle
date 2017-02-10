@@ -23,5 +23,6 @@ dependencies {
   compile project(':gobblin-modules:gobblin-kafka-08')
   compile project(':gobblin-modules:google-ingestion')
   compile project(':gobblin-modules:gobblin-helix')
+  compile project(':gobblin-modules:gobblin-azure-datalake')
 }
 

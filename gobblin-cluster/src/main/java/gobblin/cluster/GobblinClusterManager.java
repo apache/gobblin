@@ -17,6 +17,7 @@
 
 package gobblin.cluster;
 
+import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -35,7 +36,9 @@ import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.Criteria;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -48,6 +51,7 @@ import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
+import org.apache.helix.task.TaskDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,8 +122,22 @@ public class GobblinClusterManager implements ApplicationLauncher {
 
   protected final String applicationId;
 
+  // thread used to keep process up for an idle controller
+  private Thread idleProcessThread;
+
+  // set to true to stop the idle process thread
+  private volatile boolean stopIdleProcessThread = false;
+
+  // flag to keep track of leader and avoid processing duplicate leadership change notifications
+  private boolean isLeader = false;
+
+  private final boolean isStandaloneMode;
+
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
+
+    this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
+        GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
     // Done to preserve backwards compatibility with the previously hard-coded timeout of 5 minutes
     Properties properties = ConfigUtils.configToProperties(config);
@@ -149,15 +167,109 @@ public class GobblinClusterManager implements ApplicationLauncher {
   }
 
   /**
+   * Handle leadership change.
+   * The applicationLauncher is only started on the leader.
+   * The leader cleans up existing jobs before starting the applicationLauncher.
+   * @param changeContext notification context
+   */
+  private void handleLeadershipChange(NotificationContext changeContext) {
+    if (this.helixManager.isLeader()) {
+      // can get multiple notifications on a leadership change, so only start the application launcher the first time
+      // the notification is received
+      LOGGER.info("Leader notification for {} isLeader {} HM.isLeader {}", this.helixManager.getInstanceName(),
+          isLeader, this.helixManager.isLeader());
+
+      if (!isLeader) {
+        LOGGER.info("New Helix Controller leader {}", this.helixManager.getInstanceName());
+
+        // Clean up existing jobs
+        HelixAdmin helixAdmin = this.helixManager.getClusterManagmentTool();
+
+        String clusterName = this.helixManager.getClusterName();
+        TaskDriver taskDriver = new TaskDriver(this.helixManager);
+
+        List<String> resourceNames = helixAdmin.getResourcesInCluster(clusterName);
+
+        for (String r : resourceNames) {
+          LOGGER.info("resource {} found", r);
+
+          // try to infer queue and job names from the resource name.
+          // the resource name is in <queue name>_<jobid> format where the job id may start with _job or _
+          int separatorIndex = r.indexOf("_job");
+
+          if (separatorIndex == -1) {
+            separatorIndex = r.indexOf('_');
+          }
+
+          String queue = r.substring(0, separatorIndex);
+          String job = r.substring(separatorIndex + 1);
+          taskDriver.deleteJob(queue, job);
+          LOGGER.info("deleted job {} from queue {}", job, queue);
+        }
+
+        this.applicationLauncher.start();
+        isLeader = true;
+      }
+    } else {
+      // stop application launcher if lost leadership role
+      if (isLeader) {
+        isLeader = false;
+        try {
+          this.applicationLauncher.stop();
+        } catch (ApplicationException ae) {
+          LOGGER.error("Error while stopping Gobblin Cluser application launcheer", ae);
+        }
+      }
+    }
+  }
+
+  /**
    * Start the Gobblin Cluster Manager.
    */
   @Override
-  public void start() {
+  public synchronized void start() {
     LOGGER.info("Starting the Gobblin Cluster Manager");
 
     this.eventBus.register(this);
     connectHelixManager();
-    this.applicationLauncher.start();
+
+    // standalone mode listens for controller change
+    if (this.isStandaloneMode) {
+      // Subscribe to leadership changes
+      this.helixManager.addControllerListener(new ControllerChangeListener() {
+        @Override
+        public void onControllerChange(NotificationContext changeContext) {
+          handleLeadershipChange(changeContext);
+        }
+      });
+
+      this.idleProcessThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+          while (!GobblinClusterManager.this.stopInProgress && !GobblinClusterManager.this.stopIdleProcessThread) {
+            try {
+              Thread.sleep(300);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              break;
+            }
+          }
+        }
+      });
+
+      this.idleProcessThread.start();
+
+      // Need this in case a kill is issued to the process so that the idle thread does not keep the process up
+      // since GobblinClusterManager.stop() is not called this case.
+      Runtime.getRuntime().addShutdownHook(new Thread() {
+        @Override
+        public void run() {
+          GobblinClusterManager.this.stopIdleProcessThread = true;
+        }
+      });
+    } else {
+      this.applicationLauncher.start();
+    }
   }
 
   /**
@@ -172,6 +284,14 @@ public class GobblinClusterManager implements ApplicationLauncher {
     this.stopInProgress = true;
 
     LOGGER.info("Stopping the Gobblin Cluster Manager");
+
+    if (this.idleProcessThread != null) {
+      try {
+        this.idleProcessThread.join();
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
+    }
 
     // Send a shutdown request to all GobblinTaskRunners
     sendShutdownRequest();
@@ -197,7 +317,8 @@ public class GobblinClusterManager implements ApplicationLauncher {
    * Build the {@link HelixManager} for the Application Master.
    */
   private HelixManager buildHelixManager(Config config, String zkConnectionString) {
-    String helixInstanceName = GobblinClusterManager.class.getSimpleName();
+    String helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinClusterManager.class.getSimpleName());
     return HelixManagerFactory.getZKHelixManager(
         config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), helixInstanceName,
         InstanceType.CONTROLLER, zkConnectionString);
@@ -488,6 +609,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
     Options options = new Options();
     options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Gobblin application name");
     options.addOption("s", GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE, true, "Standalone cluster mode");
+    options.addOption("i", GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME, true, "Helix instance name");
     return options;
   }
 
@@ -515,6 +637,18 @@ public class GobblinClusterManager implements ApplicationLauncher {
           GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_LOG4J_CONFIGURATION_FILE);
 
       Config config = ConfigFactory.load();
+
+      if (cmd.hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {
+        config = config.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+            ConfigValueFactory.fromAnyRef(cmd.getOptionValue(
+                GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)));
+      }
+
+      if (isStandaloneClusterManager) {
+        config = config.withValue(GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
+            ConfigValueFactory.fromAnyRef(true));
+      }
+
       try (GobblinClusterManager gobblinClusterManager = new GobblinClusterManager(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), getApplicationId(),
           config, Optional.<Path>absent())) {
@@ -525,7 +659,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
           // Create Helix cluster and connect to it
           String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
           String helixClusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-          HelixUtils.createGobblinHelixCluster(zkConnectionString, helixClusterName);
+          HelixUtils.createGobblinHelixCluster(zkConnectionString, helixClusterName, false);
           LOGGER.info("Created Helix cluster " + helixClusterName);
         }
 

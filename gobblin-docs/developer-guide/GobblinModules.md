@@ -70,6 +70,7 @@ Users/developers can define their own flavor files.
 | gobblin-metrics-hadoop | standard, full | metrics reporter to Hadoop counters |
 | gobblin-yarn | cluster, full | Classes to run gobblin clusters on YARN as a native app |
 | google-ingestion | standard, full | Source/extractors for GoogleWebMaster, GoogleAnalytics, GoogleDrive |
+| gobblin-azure-datalake | full | FileSystem for Azure Data lake |
 
 Note: Some grandfathered modules may not be in the gobblin-modules/ directory yet. Typically, those are in the root directory.
 

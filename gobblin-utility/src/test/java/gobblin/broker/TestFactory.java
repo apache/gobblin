@@ -17,6 +17,7 @@
 
 package gobblin.broker;
 
+import gobblin.broker.iface.SharedResourceFactoryResponse;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Random;
@@ -55,8 +56,9 @@ public class TestFactory<S extends ScopeType<S>> implements SharedResourceFactor
   }
 
   @Override
-  public SharedResource createResource(SharedResourcesBroker broker, ScopedConfigView<?, TestResourceKey> config) {
-    return new SharedResource(config.getKey().getKey(), config.getConfig());
+  public SharedResourceFactoryResponse<SharedResource>
+      createResource(SharedResourcesBroker broker, ScopedConfigView<?, TestResourceKey> config) {
+    return new ResourceInstance<>(new SharedResource(config.getKey().getKey(), config.getConfig()));
   }
 
   @Override

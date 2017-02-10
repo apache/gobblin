@@ -18,15 +18,15 @@
 package gobblin.data.management.copy.writer;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -47,6 +47,8 @@ import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.crypto.EncryptionConfigParser;
+import gobblin.crypto.EncryptionFactory;
 import gobblin.data.management.copy.CopyConfiguration;
 import gobblin.data.management.copy.CopyEntity;
 import gobblin.data.management.copy.CopySource;
@@ -87,6 +89,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final Path stagingDir;
   protected final Path outputDir;
   protected final Closer closer = Closer.create();
+  private final Map<String, Object> encryptionConfig;
   protected CopyableDatasetMetadata copyableDatasetMetadata;
   protected final RecoveryHelper recoveryHelper;
   protected final SharedResourcesBroker<GobblinScopeTypes> taskBroker;
@@ -123,7 +126,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
         ConfigurationKeys.LOCAL_FS_URI);
 
-    this.fs = FileSystem.get(URI.create(uri), new Configuration());
+    this.fs = FileSystem.get(URI.create(uri), WriterUtils.getFsConfiguration(state));
     this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
         .getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
         : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
@@ -136,6 +139,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
 
     this.bufferSize = state.getPropAsInt(CopyConfiguration.BUFFER_SIZE, StreamCopier.DEFAULT_BUFFER_SIZE);
+    this.encryptionConfig = EncryptionConfigParser.getConfigForBranch(this.state, numBranches, branchId);
   }
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
@@ -147,6 +151,10 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public final void writeImpl(FileAwareInputStream fileAwareInputStream)
       throws IOException {
     CopyableFile copyableFile = fileAwareInputStream.getFile();
+    if (encryptionConfig != null) {
+      copyableFile.setDestination(PathUtils.addExtension(copyableFile.getDestination(),
+          "." + EncryptionConfigParser.getEncryptionType(encryptionConfig)));
+    }
     Path stagingFile = getStagingFilePath(copyableFile);
     if (this.actualProcessedCopyableFile.isPresent()) {
       throw new IOException(this.getClass().getCanonicalName() + " can only process one file.");
@@ -196,8 +204,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       this.fs.rename(persistedFile.get().getPath(), writeAt);
     } else {
 
-      FSDataOutputStream os =
+      OutputStream os =
           this.fs.create(writeAt, true, this.fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
+      if (encryptionConfig != null) {
+        os = EncryptionFactory.buildStreamEncryptor(encryptionConfig).encodeOutputStream(os);
+      }
       try {
 
         StreamCopier copier = new StreamCopier(inputStream, os).withBufferSize(this.bufferSize);

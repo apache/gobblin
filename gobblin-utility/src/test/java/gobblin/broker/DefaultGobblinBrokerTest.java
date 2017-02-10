@@ -79,6 +79,25 @@ public class DefaultGobblinBrokerTest {
   }
 
   @Test
+  public void testRedirect() throws Exception {
+    Config config = ConfigFactory.empty();
+
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
+        topBroker.newSubscopedBuilder(new JobScopeInstance("myJob", "job123")).build();
+
+    // create a shared resource
+    TestFactory.SharedResource resource =
+        jobBroker.getSharedResourceAtScope(new TestFactoryWithRedirect<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.JOB);
+    Assert.assertEquals(resource.getKey(), "myKey");
+    Assert.assertEquals(topBroker.getSharedResourceAtScope(new TestFactoryWithRedirect<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.GLOBAL),
+        resource);
+    Assert.assertEquals(topBroker.getSharedResourceAtScope(new TestFactory<GobblinScopeTypes>(), new TestResourceKey("myKey"), GobblinScopeTypes.GLOBAL),
+        resource);
+  }
+
+  @Test
   public void testConfigurationInjection() throws Exception {
 
     String key = "myKey";

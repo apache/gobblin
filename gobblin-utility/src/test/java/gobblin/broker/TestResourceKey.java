@@ -20,9 +20,11 @@ package gobblin.broker;
 import gobblin.broker.iface.SharedResourceKey;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 
 @Data
+@EqualsAndHashCode
 public class TestResourceKey implements SharedResourceKey {
   private final String key;
 

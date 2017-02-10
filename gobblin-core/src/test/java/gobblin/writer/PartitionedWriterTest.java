@@ -149,8 +149,8 @@ public class PartitionedWriterTest {
 
     PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
 
-    RecordEnvelope<String> recordEnvelope = new RecordEnvelope<>("0",
-        new DefaultCheckpointableWatermark(defaultSource, new LongWatermark(0)));
+    AcknowledgableRecordEnvelope<String> recordEnvelope = new AcknowledgableRecordEnvelope<>("0",
+        new AcknowledgableWatermark(new DefaultCheckpointableWatermark(defaultSource, new LongWatermark(0))));
     writer.writeEnvelope(recordEnvelope);
 
     Map<String, CheckpointableWatermark> watermark = writer.getCommittableWatermark();

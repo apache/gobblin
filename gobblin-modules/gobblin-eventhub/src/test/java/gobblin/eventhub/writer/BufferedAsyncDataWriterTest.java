@@ -33,8 +33,6 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.gson.JsonObject;
-
 import gobblin.writer.BufferedAsyncDataWriter;
 import gobblin.writer.RecordMetadata;
 import gobblin.writer.WriteCallback;
@@ -77,7 +75,7 @@ public class BufferedAsyncDataWriterTest {
     int totalTimes = 500;
     try {
       for (int i=0; i<totalTimes; ++i) {
-        JsonObject record = new JsonObject();
+        byte[] record = new byte[8];
         futures.add(dataWriter.write(record, callback));
       }
 

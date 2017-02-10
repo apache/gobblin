@@ -17,16 +17,17 @@
  * under the License.
  */
 
-package gobblin.writer;
+package gobblin.type;
 
-import java.io.IOException;
+import java.util.Map;
 
-import gobblin.annotation.Alpha;
-import gobblin.source.extractor.CheckpointableWatermark;
 
-@Alpha
-public interface WatermarkStorage {
+/**
+ * A holder for serialized records with Metadata
+ */
+public class SerializedRecordWithMetadata extends RecordWithMetadata<byte[]> {
 
-  void commitWatermarks(Iterable<CheckpointableWatermark> watermarks) throws IOException;
-
+  public SerializedRecordWithMetadata(byte[] record, Map<String, Object> metadata) {
+    super(record, metadata);
+  }
 }

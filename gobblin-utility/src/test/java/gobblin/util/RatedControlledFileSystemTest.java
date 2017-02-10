@@ -73,7 +73,7 @@ public class RatedControlledFileSystemTest {
   public void testFsOperation() throws IOException, InterruptedException {
     Meter meter = new Meter();
     Path fakePath = new Path("fakePath");
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 100; i++) {
       Assert.assertFalse(this.rateControlledFs.exists(fakePath));
       meter.mark();
       Thread.sleep((RANDOM.nextInt() & Integer.MAX_VALUE) % 10);

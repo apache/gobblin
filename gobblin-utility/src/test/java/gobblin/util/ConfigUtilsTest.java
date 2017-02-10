@@ -17,12 +17,17 @@
 
 package gobblin.util;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 
+import org.jasypt.util.text.BasicTextEncryptor;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -30,10 +35,12 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 
 
@@ -204,5 +211,51 @@ public class ConfigUtilsTest {
     fullPrefixKeys =
         ConfigUtils.findFullPrefixKeys(props, Optional.<String>absent());
     Assert.assertTrue(fullPrefixKeys.isEmpty());
+  }
+
+  @Test
+  public void testConfigResolveEncrypted() throws IOException {
+    Map<String, String> vals = Maps.newHashMap();
+    vals.put("test.key1", "test_val1");
+    vals.put("test.key2", "test_val2");
+
+    State state = new State();
+    for (Map.Entry<String, String> entry : vals.entrySet()) {
+      state.setProp(entry.getKey(), entry.getValue());
+    }
+
+    String key = UUID.randomUUID().toString();
+    File keyFile = newKeyFile(key);
+    state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, keyFile.getAbsolutePath());
+
+    Map<String, String> encryptedVals = Maps.newHashMap();
+    encryptedVals.put("my.nested.key1", "val1");
+    encryptedVals.put("my.nested.key2", "val2");
+
+    String encPrefix = "testenc";
+    for (Map.Entry<String, String> entry : encryptedVals.entrySet()) {
+      BasicTextEncryptor encryptor = new BasicTextEncryptor();
+      encryptor.setPassword(key);
+      String encrypted = "ENC(" + encryptor.encrypt(entry.getValue()) + ")";
+      state.setProp(encPrefix + "." + entry.getKey(), encrypted);
+    }
+
+    Config config = ConfigUtils.resolveEncrypted(ConfigUtils.propertiesToConfig(state.getProperties()), Optional.of(encPrefix));
+    Map<String, String> expected = ImmutableMap.<String, String>builder()
+        .putAll(vals)
+        .putAll(encryptedVals)
+        .build();
+    for (Map.Entry<String, String> entry : expected.entrySet()) {
+      String val = config.getString(entry.getKey());
+      Assert.assertEquals(val, entry.getValue());
+    }
+    keyFile.delete();
+  }
+
+  private File newKeyFile(String masterPwd) throws IOException {
+    File masterPwdFile = File.createTempFile("masterPassword", null);
+    masterPwdFile.deleteOnExit();
+    Files.write(masterPwd, masterPwdFile, Charset.defaultCharset());
+    return masterPwdFile;
   }
 }

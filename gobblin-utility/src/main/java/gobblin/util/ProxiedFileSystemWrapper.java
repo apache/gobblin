@@ -68,6 +68,26 @@ public class ProxiedFileSystemWrapper {
   }
 
   /**
+   * Same as @see #getProxiedFileSystem(State, AuthType, String, String, Configuration) where state properties will be copied
+   * into Configuration.
+   *
+   * @param properties
+   * @param authType
+   * @param authPath
+   * @param uri
+   * @return
+   * @throws IOException
+   * @throws InterruptedException
+   * @throws URISyntaxException
+   */
+  public FileSystem getProxiedFileSystem(State properties, AuthType authType, String authPath, String uri)
+      throws IOException, InterruptedException, URISyntaxException {
+    Configuration conf = new Configuration();
+    JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
+    return getProxiedFileSystem(properties, authType, authPath, uri, conf);
+  }
+
+  /**
    * Getter for proxiedFs, using the passed parameters to create an instance of a proxiedFs.
    * @param properties
    * @param authType is either TOKEN or KEYTAB.
@@ -78,7 +98,7 @@ public class ProxiedFileSystemWrapper {
    * @throws URISyntaxException
    * @return proxiedFs
    */
-  public FileSystem getProxiedFileSystem(State properties, AuthType authType, String authPath, String uri)
+  public FileSystem getProxiedFileSystem(State properties, AuthType authType, String authPath, String uri, final Configuration conf)
       throws IOException, InterruptedException, URISyntaxException {
     Preconditions.checkArgument(StringUtils.isNotBlank(properties.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)),
         "State does not contain a proper proxy user name");
@@ -108,8 +128,6 @@ public class ProxiedFileSystemWrapper {
         break;
     }
 
-    final Configuration conf = new Configuration();
-    JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     final URI fsURI = URI.create(uri);
     proxyUser.doAs(new PrivilegedExceptionAction<Void>() {
       @Override

@@ -635,6 +635,7 @@ public class ConfigurationKeys {
    * Password encryption and decryption properties.
    */
   public static final String ENCRYPT_KEY_FS_URI = "encrypt.key.fs.uri";
+  public static final String ENCRYPT_KEY_VAL = "encrypt.key.val";
   public static final String ENCRYPT_KEY_LOC = "encrypt.key.loc";
   public static final String ENCRYPT_USE_STRONG_ENCRYPTOR = "encrypt.use.strong.encryptor";
   public static final boolean DEFAULT_ENCRYPT_USE_STRONG_ENCRYPTOR = false;
@@ -673,16 +674,9 @@ public class ConfigurationKeys {
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
   public static final int PERMISSION_PARSING_RADIX = 8;
 
-  /**
-   * Configuration properties related to continuous / streaming mode
-   */
-  public static final String TASK_EXECUTION_MODE = "gobblin.task.executionMode";
-  public static final String DEFAULT_TASK_EXECUTION_MODE = "BATCH";
 
   /**
-   * Configuration properties related to optimizations for single branch tasks
+   * Configuration properties related to Flows
    */
-  public static final String TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = "gobblin.task.is.single.branch.synchronous";
-  public static final String DEFAULT_TASK_IS_SINGLE_BRANCH_SYNCHRONOUS = Boolean.toString(false);
-
+  public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
 }
