@@ -71,6 +71,21 @@ public class PasswordManagerTest {
   }
 
   @Test
+  public void testEncryptDecryptWithKeyVal() throws IOException {
+    String password = UUID.randomUUID().toString();
+    String masterPassword = UUID.randomUUID().toString();
+
+    State state = new State();
+    state.setProp(ConfigurationKeys.ENCRYPT_KEY_VAL, masterPassword);
+    BasicTextEncryptor encryptor = new BasicTextEncryptor();
+    encryptor.setPassword(masterPassword);
+    String encrypted = encryptor.encrypt(password);
+    encrypted = "ENC(" + encrypted + ")";
+    String decrypted = PasswordManager.getInstance(state).readPassword(encrypted);
+    Assert.assertEquals(decrypted, password);
+  }
+
+  @Test
   public void testStrongEncryptionAndDecryption() throws IOException {
     String password = UUID.randomUUID().toString();
     String masterPassword = UUID.randomUUID().toString();
