@@ -17,11 +17,14 @@
 
 package gobblin.kafka.writer;
 
+import java.util.Collections;
 import java.util.Properties;
 
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import gobblin.writer.StreamCodec;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,17 +37,16 @@ import lombok.extern.slf4j.Slf4j;
 public class Kafka08DataWriterUnitTest {
 
   @Test
-  public void testMinimalConfig()
-  {
+  public void testMinimalConfig() {
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, "FakeTopic");
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", "localhost:9092");
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers",
+        "localhost:9092");
 
     try {
-      Kafka08DataWriter<GenericRecord> kafkaWriter = new Kafka08DataWriter<>(props);
-    }
-    catch (Exception e)
-    {
+      Kafka08DataWriter<GenericRecord> kafkaWriter =
+          new Kafka08DataWriter<>(props, Collections.<StreamCodec>emptyList());
+    } catch (Exception e) {
       Assert.fail("Should not throw exception", e);
     }
   }

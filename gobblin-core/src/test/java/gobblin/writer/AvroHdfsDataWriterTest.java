@@ -17,13 +17,18 @@
 
 package gobblin.writer;
 
+import gobblin.capability.EncryptionCapabilityParser;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
+import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -34,12 +39,16 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.reflect.TypeToken;
 
+import gobblin.capability.Capability;
+import gobblin.capability.CapabilityParser;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.crypto.InsecureShiftCodec;
 
 
 /**
@@ -47,10 +56,11 @@ import gobblin.configuration.State;
  *
  * @author Yinan Li
  */
-@Test(groups = { "gobblin.writer" })
+@Test(groups = {"gobblin.writer"})
 public class AvroHdfsDataWriterTest {
 
-  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
+  private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {
+  }.getType();
 
   private Schema schema;
   private DataWriter<GenericRecord> writer;
@@ -70,9 +80,23 @@ public class AvroHdfsDataWriterTest {
 
     this.schema = new Schema.Parser().parse(TestConstants.AVRO_SCHEMA);
 
-    this.filePath = TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + TestConstants.TEST_EXTRACT_TABLE
-        + "/" + TestConstants.TEST_EXTRACT_ID + "_" + TestConstants.TEST_EXTRACT_PULL_TYPE;
+    this.filePath =
+        TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + TestConstants.TEST_EXTRACT_TABLE + "/"
+            + TestConstants.TEST_EXTRACT_ID + "_" + TestConstants.TEST_EXTRACT_PULL_TYPE;
 
+    State properties = defaultProperties();
+
+    // Build a writer to write test records
+    this.writer = new AvroDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
+        .writeInFormat(WriterOutputFormat.AVRO)
+        .withWriterId(TestConstants.TEST_WRITER_ID)
+        .withSchema(this.schema)
+        .withBranches(1)
+        .forBranch(0)
+        .build();
+  }
+
+  private State defaultProperties() {
     State properties = new State();
     properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
     properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, TestConstants.TEST_FS_URI);
@@ -80,11 +104,7 @@ public class AvroHdfsDataWriterTest {
     properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, TestConstants.TEST_OUTPUT_DIR);
     properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, this.filePath);
     properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, TestConstants.TEST_FILE_NAME);
-
-    // Build a writer to write test records
-    this.writer = new AvroDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
-        .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-        .withBranches(1).forBranch(0).build();
+    return properties;
   }
 
   @Test
@@ -103,7 +123,12 @@ public class AvroHdfsDataWriterTest {
         new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath, TestConstants.TEST_FILE_NAME);
     DataFileReader<GenericRecord> reader =
         new DataFileReader<>(outputFile, new GenericDatumReader<GenericRecord>(this.schema));
+    verifyRecords(reader);
 
+    reader.close();
+  }
+
+  private void verifyRecords(DataFileStream<GenericRecord> reader) {
     // Read the records back and assert they are identical to the ones written
     GenericRecord user1 = reader.next();
     // Strings are in UTF8, so we have to call toString() here and below
@@ -120,8 +145,65 @@ public class AvroHdfsDataWriterTest {
     Assert.assertEquals(user3.get("name").toString(), "Charlie");
     Assert.assertEquals(user3.get("favorite_number"), 68);
     Assert.assertEquals(user3.get("favorite_color").toString(), "blue");
+  }
 
-    reader.close();
+  @Test
+  public void testEncryptionCapabilitySupport() {
+    AvroDataWriterBuilder builder = new AvroDataWriterBuilder();
+    builder.writeTo(Destination.of(Destination.DestinationType.HDFS, defaultProperties()))
+        .writeInFormat(WriterOutputFormat.AVRO)
+        .withWriterId(TestConstants.TEST_WRITER_ID)
+        .withSchema(this.schema)
+        .withBranches(1)
+        .forBranch(0);
+
+    CapabilityParser.CapabilityRecord r = encryptionWithType("any");
+    Assert.assertTrue(builder.supportsCapability(r.getCapability(), r.getParameters()));
+
+    r = encryptionWithType("insecure_shift");
+    Assert.assertTrue(builder.supportsCapability(r.getCapability(), r.getParameters()));
+
+    r = encryptionWithType("doesntexist");
+    Assert.assertFalse(builder.supportsCapability(r.getCapability(), r.getParameters()));
+  }
+
+  @Test
+  public void testEncryptionSupport() throws IOException {
+    final String encryptionName = "insecure_shift";
+    State properties = defaultProperties();
+    properties.setProp(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, encryptionName);
+
+    DataWriter<GenericRecord> writer = new AvroDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
+        .writeInFormat(WriterOutputFormat.AVRO)
+        .withWriterId(TestConstants.TEST_WRITER_ID)
+        .withSchema(this.schema)
+        .withBranches(1)
+        .forBranch(0)
+        .build();
+
+    for (String record : TestConstants.JSON_RECORDS) {
+      writer.write(convertRecord(record));
+    }
+    writer.close();
+    writer.commit();
+
+    Assert.assertEquals(writer.recordsWritten(), 3);
+
+    File outputFile =
+        new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath,
+            TestConstants.TEST_FILE_NAME + ".encrypted_" + encryptionName);
+
+    InputStream readerStream = new FileInputStream(outputFile);
+    readerStream = new InsecureShiftCodec(Collections.<String, Object>emptyMap()).wrapInputStream(readerStream);
+    DataFileStream<GenericRecord> reader = new DataFileStream<GenericRecord>(readerStream,
+        new GenericDatumReader<GenericRecord>(this.schema));
+
+    verifyRecords(reader);
+  }
+
+  private CapabilityParser.CapabilityRecord encryptionWithType(String type) {
+    return new CapabilityParser.CapabilityRecord(Capability.ENCRYPTION, true,
+        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, type));
   }
 
   @AfterClass

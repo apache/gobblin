@@ -15,6 +15,7 @@ package gobblin.runtime.fork;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -27,6 +28,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
 import gobblin.Constructs;
+import gobblin.capability.Capability;
+import gobblin.capability.CapabilityAware;
+import gobblin.capability.CapabilityParsers;
 import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -47,7 +51,6 @@ import gobblin.runtime.TaskContext;
 import gobblin.runtime.TaskExecutor;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.util.TaskMetrics;
-import gobblin.source.extractor.RecordEnvelope;
 import gobblin.state.ConstructState;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
@@ -448,9 +451,31 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
       builder.withAttemptId(this.taskAttemptId.get());
     }
 
+    verifyBuilderSupportsRequiredCapabilities(builder);
+
     DataWriter<Object> writer = new PartitionedDataWriter<>(builder, this.taskContext.getTaskState());
     logger.info("Wrapping writer " + writer);
     return new DataWriterWrapperBuilder<>(writer, this.taskState).build();
+  }
+
+  /** Make sure the DataWriterBuilder knows how to build an object with all critical capabilities. */
+  private void verifyBuilderSupportsRequiredCapabilities(DataWriterBuilder<Object, Object> builder) {
+    Map<Capability, Map<String, Object>> requiredCapabilities =
+        CapabilityParsers.allWriterCapabilitiesForBranch(taskState, builder.getBranches(), builder.getBranch());
+    for (Map.Entry<Capability, Map<String, Object>> entry: requiredCapabilities.entrySet()) {
+      if (!builderHasCapability(builder, entry.getKey(), entry.getValue())) {
+        if (entry.getKey().isCritical()) {
+          throw new IllegalArgumentException(
+              String.format("Job misconfiguration: Writer %s does not support critical capability %s",
+                  builder.getClass().getCanonicalName(),
+                  entry.getKey().toString()));
+        } else {
+          logger.info("Writer {} does not support capability {} but is not marked critical; continuing",
+              builder.getClass().getCanonicalName(),
+              entry.getKey().getName());
+        }
+      }
+    }
   }
 
   private void buildWriterIfNotPresent()
@@ -588,5 +613,15 @@ public abstract class Fork implements Closeable, Runnable, FinalState {
   public DataWriter getWriter() throws IOException {
     Preconditions.checkState(this.writer.isPresent(), "Asked to get a writer, but writer is null");
     return this.writer.get();
+  }
+
+  private boolean builderHasCapability(DataWriterBuilder builder, Capability c,
+      Map<String, Object> properties) {
+    if (!(builder instanceof CapabilityAware)) {
+      logger.debug("builder {} not aware of capabilities, returning false", builder.toString());
+      return false;
+    }
+
+    return ((CapabilityAware) builder).supportsCapability(c, properties);
   }
 }

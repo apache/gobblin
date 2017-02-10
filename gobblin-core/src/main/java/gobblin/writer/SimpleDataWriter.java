@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -47,7 +48,7 @@ import gobblin.configuration.State;
  * </ul>
  * @author akshay@nerdwallet.com
  */
-public class SimpleDataWriter extends FsDataWriter<byte[]> {
+public class SimpleDataWriter extends FileStreamBasedWriter<byte[]> {
 
   private final Optional<Byte> recordDelimiter; // optional byte to place between each record write
   private final boolean prependSize;
@@ -57,8 +58,8 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
 
   private final OutputStream stagingFileOutputStream;
 
-  public SimpleDataWriter(SimpleDataWriterBuilder builder, State properties) throws IOException {
-    super(builder, properties);
+  public SimpleDataWriter(SimpleDataWriterBuilder builder, State properties, List<StreamCodec> encoders) throws IOException {
+    super(builder, properties, encoders);
     String delim;
     if ((delim = properties.getProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, null)) == null || delim.length() == 0) {
       this.recordDelimiter = Optional.absent();

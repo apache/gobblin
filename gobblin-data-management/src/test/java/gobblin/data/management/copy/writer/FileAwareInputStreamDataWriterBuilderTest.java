@@ -16,22 +16,26 @@
  */
 package gobblin.data.management.copy.writer;
 
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import gobblin.capability.EncryptionCapabilityParser;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-import java.io.IOException;
+import com.google.common.collect.ImmutableMap;
+
+import gobblin.capability.Capability;
 
 
-/**
- * A {@link DataWriterBuilder} for {@link TarArchiveInputStreamDataWriter}
- */
-public class TarArchiveInputStreamDataWriterBuilder extends FileAwareInputStreamDataWriterBuilder {
+public class FileAwareInputStreamDataWriterBuilderTest {
+  @Test
+  public void testCapabilitySupport() {
+    FileAwareInputStreamDataWriterBuilder builder = new FileAwareInputStreamDataWriterBuilder();
 
-  @Override
-  protected DataWriter<FileAwareInputStream> buildWriter() throws IOException {
-    return new TarArchiveInputStreamDataWriter(this.destination.getProperties(), this.branches, this.branch,
-        getStreamEncoders());
+    Assert.assertTrue(builder.supportsCapability(Capability.ENCRYPTION,
+        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "insecure_shift")
+    ));
+    Assert.assertTrue(builder.supportsCapability(Capability.ENCRYPTION,
+        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "any")
+    ));
+
   }
-
 }

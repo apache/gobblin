@@ -17,10 +17,11 @@
 
 package gobblin.kafka.writer;
 
+import gobblin.capability.EncryptionCapabilityParser;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.util.Collections;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
@@ -28,17 +29,25 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.collect.ImmutableMap;
 
+import gobblin.capability.Capability;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
 import gobblin.kafka.KafkaTestBase;
 import gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
 import gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import gobblin.kafka.schemareg.SchemaRegistryException;
 import gobblin.kafka.serialize.LiAvroDeserializer;
-import gobblin.kafka.serialize.LiAvroDeserializerBase;
+import gobblin.test.ErrorManager;
 import gobblin.test.TestUtils;
+import gobblin.writer.DataWriter;
+import gobblin.writer.Destination;
+import gobblin.writer.StreamCodec;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
+
+import lombok.extern.slf4j.Slf4j;
 
 import static org.mockito.Mockito.*;
 
@@ -80,7 +89,7 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-    Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<String>(props);
+    Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<String>(props, Collections.<StreamCodec>emptyList());
     String messageString = "foobar";
     WriteCallback callback = mock(WriteCallback.class);
 
@@ -109,7 +118,7 @@ public class Kafka08DataWriterTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-    Kafka08DataWriter<byte[]> kafka08DataWriter = new Kafka08DataWriter<byte[]>(props);
+    Kafka08DataWriter<byte[]> kafka08DataWriter = new Kafka08DataWriter<byte[]>(props, Collections.<StreamCodec>emptyList());
     WriteCallback callback = mock(WriteCallback.class);
 
     byte[] messageBytes = TestUtils.generateRandomBytes();
@@ -145,7 +154,7 @@ public class Kafka08DataWriterTest {
         + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
         ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
-    Kafka08DataWriter<GenericRecord> kafka08DataWriter = new Kafka08DataWriter<>(props);
+    Kafka08DataWriter<GenericRecord> kafka08DataWriter = new Kafka08DataWriter<>(props, Collections.<StreamCodec>emptyList());
     WriteCallback callback = mock(WriteCallback.class);
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
@@ -167,6 +176,79 @@ public class Kafka08DataWriterTest {
     Assert.assertEquals(record.toString(), receivedRecord.toString());
   }
 
+  @Test
+  public void testIncorrectSerialization()
+      throws IOException, InterruptedException, SchemaRegistryException {
+    String topic = "testIncorrectSerialization";
+    _kafkaTestHelper.provisionTopic(topic);
+    Properties props = new Properties();
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "value.serializer",
+        "gobblin.kafka.serialize.LiAvroSerializer");
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_WRITER_PRODUCER_CLASS, "gobblin.kafka.FlakyKafkaProducer");
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + ErrorManager.ERROR_TYPE_CONFIGURATION_KEY, "all");
 
+    // set up mock schema registry
 
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX
+            + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
+        ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
+
+    Kafka08DataWriter<String> kafka08DataWriter = new Kafka08DataWriter<>(props, Collections.<StreamCodec>emptyList());
+    WriteCallback callback = mock(WriteCallback.class);
+
+    try {
+      kafka08DataWriter.write("thisshouldfailtoserialize", callback);
+      Assert.fail("Expected ClassCastException to be thrown");
+    } catch (ClassCastException e) {
+      // do nothing
+    }
+    finally
+    {
+      kafka08DataWriter.close();
+    }
+  }
+
+  @Test
+  public void testEncryption() throws IOException {
+    String topic = "testAvroSerializationEncryption";
+    _kafkaTestHelper.provisionTopic(topic);
+    Properties props = new Properties();
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers",
+        "localhost:" + _kafkaTestHelper.getKafkaServerPort());
+    props.setProperty(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "insecure_shift");
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG,
+        "org.apache.kafka.common.serialization.StringSerializer");
+
+    KafkaDataWriterBuilder builder = (KafkaDataWriterBuilder)new KafkaDataWriterBuilder()
+        .withBranches(1)
+        .forBranch(1)
+        .writeTo(Destination.of(Destination.DestinationType.KAFKA, new State(props)));
+    Assert.assertTrue(builder.supportsCapability(Capability.ENCRYPTION,
+        ImmutableMap.<String, Object>of(EncryptionCapabilityParser.ENCRYPTION_TYPE_PROPERTY, "insecure_shift")),
+        "Expected writer builder to support encryption");
+
+    // TODO this cast is ugly, but we need to test that the builder passes down streamencoders properly
+    // and KafkaDataWriterBuilder shouldn't really be hardcoding GenericRecord as its type
+    // since it lets user pass in arbitrary serializers
+    @SuppressWarnings("unchecked")
+    DataWriter writer = (DataWriter)builder.build();
+    WriteCallback callback = mock(WriteCallback.class);
+    final String recordText = "hello";
+    try {
+      writer.write(recordText);
+    } finally {
+      writer.close();
+    }
+
+    byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
+    byte[] expectedMessage = new byte[recordText.length()];
+    for (int i = 0; i < expectedMessage.length; i++) {
+      expectedMessage[i] = (byte)(recordText.charAt(i) + 1);
+    }
+
+    Assert.assertEquals(message, expectedMessage, "Expected message to come back encrypted");
+  }
 }

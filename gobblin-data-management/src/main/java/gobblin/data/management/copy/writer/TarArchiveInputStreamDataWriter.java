@@ -17,20 +17,14 @@
 
 package gobblin.data.management.copy.writer;
 
-import gobblin.configuration.State;
-import gobblin.data.management.copy.CopyableFile;
-import gobblin.data.management.copy.FileAwareInputStream;
-import gobblin.util.io.StreamCopier;
-import gobblin.util.io.StreamUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
-
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -40,17 +34,26 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import gobblin.configuration.State;
+import gobblin.data.management.copy.CopyableFile;
+import gobblin.data.management.copy.FileAwareInputStream;
+import gobblin.util.PathUtils;
+import gobblin.util.io.StreamCopier;
+import gobblin.writer.StreamCodec;
+
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
- * An {@link FileAwareInputStreamDataWriter} to write archived {@link InputStream}s. The {@link #write(FileAwareInputStream)}
+ * An {@link FileAwareInputStreamDataWriter} to write archived {@link InputStream}s. The {@link #write}
  * method receives a {@link GZIPInputStream} and converts it to a {@link TarArchiveInputStream}. Each
  * {@link TarArchiveEntry} is then written to the {@link FileSystem}.
  */
 @Slf4j
 public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWriter {
 
-  public TarArchiveInputStreamDataWriter(State state, int numBranches, int branchId) throws IOException {
-    super(state, numBranches, branchId);
+  public TarArchiveInputStreamDataWriter(State state, int numBranches, int branchId, List<StreamCodec> encoders) throws IOException {
+    super(state, numBranches, branchId, encoders);
   }
 
   /**
@@ -58,7 +61,7 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
    * {@link TarArchiveEntry} in the stream as the directory name for the untarred file. The method also commits the data
    * by moving the file from staging to output directory.
    *
-   * @see gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter#write(gobblin.data.management.copy.FileAwareInputStream)
+   * @see gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter#write
    */
   @Override
   public void writeImpl(FSDataInputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
@@ -80,12 +83,16 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
         // the API tarEntry.getName() is misleading, it is actually the path of the tarEntry in the tar file
         String newTarEntryPath = tarEntry.getName().replace(tarEntryRootName, writeAt.getName());
         Path tarEntryStagingPath = new Path(writeAt.getParent(), newTarEntryPath);
+        for (StreamCodec e: encoders) {
+          tarEntryStagingPath = PathUtils.addExtension(tarEntryStagingPath, e.getTag());
+        }
 
         if (tarEntry.isDirectory() && !this.fs.exists(tarEntryStagingPath)) {
           this.fs.mkdirs(tarEntryStagingPath);
         } else if (!tarEntry.isDirectory()) {
           FSDataOutputStream out = this.fs.create(tarEntryStagingPath, true);
-          final WritableByteChannel outputChannel = Channels.newChannel(out);
+          OutputStream encodedStream = attachEncodersToStream(out);
+          final WritableByteChannel outputChannel = Channels.newChannel(encodedStream);
           try {
             StreamCopier copier = new StreamCopier(inputChannel, outputChannel);
             if (isInstrumentationEnabled()) {
@@ -98,7 +105,7 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
               log.info("File {} copied.", copyableFile.getOrigin().getPath());
             }
           } finally {
-            out.close();
+            encodedStream.close();
             outputChannel.close();
           }
         }

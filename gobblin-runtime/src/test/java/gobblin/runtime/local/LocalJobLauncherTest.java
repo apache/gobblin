@@ -17,6 +17,8 @@
 
 package gobblin.runtime.local;
 
+import gobblin.runtime.JobException;
+import gobblin.runtime.locks.FileBasedJobLock;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Properties;
@@ -61,6 +63,7 @@ public class LocalJobLauncherTest {
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
         testMetastoreDatabase.getJdbcUrl());
+    this.launcherProps.setProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
 
     StateStore<JobState.DatasetState> datasetStateStore =
         new FsStateStore<>(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
@@ -103,6 +106,37 @@ public class LocalJobLauncherTest {
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithMultiWorkUnit");
     jobProps.setProperty("use.multiworkunit", Boolean.toString(true));
+    try {
+      this.jobLauncherTestHelper.runTest(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
+  @Test
+  public void testLaunchJobWithBadEncryption() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithEncryptionEnabledButUnsupported");
+    jobProps.setProperty(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "true");
+    jobProps.setProperty(ConfigurationKeys.WRITER_BUILDER_CLASS, "gobblin.writer.HiveWritableHdfsDataWriterBuilder");
+    try {
+      this.jobLauncherTestHelper.runTest(jobProps);
+      org.testng.Assert.fail("Expected JobException to be thrown - encryption enabled but writer doesn't support it");
+    } catch (JobException e) {
+      // do nothing
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
+  @Test
+  public void testLaunchJobWithEncryptionEnabled() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithEncryptionEnabled");
+    jobProps.setProperty(ConfigurationKeys.WRITER_ENABLE_ENCRYPT, "insecure_shift");
+
     try {
       this.jobLauncherTestHelper.runTest(jobProps);
     } finally {

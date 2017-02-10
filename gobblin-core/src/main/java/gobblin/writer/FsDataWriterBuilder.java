@@ -17,12 +17,20 @@
 
 package gobblin.writer;
 
+import gobblin.capability.EncryptionCapabilityParser;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 
+import gobblin.capability.Capability;
+import gobblin.capability.CapabilityParser;
+import gobblin.capability.CapabilityParsers;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.crypto.EncryptionUtils;
 import gobblin.util.AvroUtils;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.WriterUtils;
@@ -45,17 +53,25 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
       ConfigurationKeys.WRITER_PREFIX + ".replace.path.separators.in.partitions";
 
   /**
-   * Get the file name to be used by the writer. If a {@link gobblin.writer.partitioner.WriterPartioner} is used,
+   * Get the file name to be used by the writer. If partitions are used,
    * the partition will be added as part of the file name.
    */
   public String getFileName(State properties) {
-
     String extension =
         this.format.equals(WriterOutputFormat.OTHER) ? getExtension(properties) : this.format.getExtension();
     String fileName = WriterUtils.getWriterFileName(properties, this.branches, this.branch, this.writerId, extension);
 
     if (this.partition.isPresent()) {
       fileName = getPartitionedFileName(properties, fileName);
+    }
+
+    CapabilityParser.CapabilityRecord encryptionInfo =
+        CapabilityParsers.writerCapabilityForBranch(Capability.ENCRYPTION, this.getDestination().getProperties(),
+            this.getBranches(), this.getBranch());
+
+    if (encryptionEnabledAndSupported()) {
+      String encryptionType = EncryptionCapabilityParser.getEncryptionType(encryptionInfo.getParameters());
+      fileName = fileName + ".encrypted_" + encryptionType;
     }
 
     return fileName;
@@ -69,8 +85,9 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
     boolean includePartitionerFieldNames = properties.getPropAsBoolean(
         ForkOperatorUtils.getPropertyNameForBranch(WRITER_INCLUDE_PARTITION_IN_FILE_NAMES, this.branches, this.branch),
         false);
-    boolean removePathSeparators = properties.getPropAsBoolean(ForkOperatorUtils
-        .getPropertyNameForBranch(WRITER_REPLACE_PATH_SEPARATORS_IN_PARTITIONS, this.branches, this.branch), false);
+    boolean removePathSeparators = properties.getPropAsBoolean(
+        ForkOperatorUtils.getPropertyNameForBranch(WRITER_REPLACE_PATH_SEPARATORS_IN_PARTITIONS, this.branches,
+            this.branch), false);
 
     return new Path(
         AvroUtils.serializeAsPath(this.partition.get(), includePartitionerFieldNames, removePathSeparators).toString(),
@@ -80,5 +97,27 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
   @Override
   public boolean validatePartitionSchema(Schema partitionSchema) {
     return true;
+  }
+
+  private boolean encryptionEnabledAndSupported() {
+    CapabilityParser.CapabilityRecord encryptionInfo = getRequestedCapability(Capability.ENCRYPTION);
+    return (encryptionInfo.supportsCapability() && supportsCapability(encryptionInfo.getCapability(),
+        encryptionInfo.getParameters()));
+  }
+
+  private CapabilityParser.CapabilityRecord getRequestedCapability(Capability capability) {
+    return CapabilityParsers.writerCapabilityForBranch(capability, this.getDestination().getProperties(), this.getBranches(),
+        this.getBranch());
+  }
+
+  protected List<StreamCodec> getEncoders() {
+    List<StreamCodec> encoders = new ArrayList<>();
+    if (encryptionEnabledAndSupported()) {
+      // this parses capability out twice but since it's at construct time not trying to micro-optimize
+      CapabilityParser.CapabilityRecord encryptionInfo = getRequestedCapability(Capability.ENCRYPTION);
+      encoders.add(EncryptionUtils.buildStreamEncryptor(encryptionInfo.getParameters()));
+    }
+
+    return encoders;
   }
 }

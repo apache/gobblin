@@ -17,7 +17,10 @@
 
 package gobblin.kafka.writer;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
@@ -26,14 +29,15 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.serialization.Serializer;
 
 import com.google.common.base.Throwables;
-import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.writer.AsyncDataWriter;
+import gobblin.writer.StreamCodec;
 import gobblin.writer.WriteCallback;
 import gobblin.writer.WriteResponse;
 import gobblin.writer.WriteResponseFuture;
@@ -74,15 +78,19 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
         }
       };
 
-  private final Producer<String, D> producer;
+  private final Producer<String, byte[]> producer;
   private final String topic;
+  private final List<StreamCodec> encoders;
+  private final Serializer<D> valueSerializer;
 
-  public static Producer getKafkaProducer(Properties props)
+  public Producer<String, byte[]> getKafkaProducer(Properties props)
   {
     Object producerObject = KafkaWriterHelper.getKafkaProducer(props);
     try
     {
-      Producer producer = (Producer) producerObject;
+      @SuppressWarnings("unchecked")
+      Producer<String, byte[]> producer = (Producer<String, byte[]>) producerObject;
+
       return producer;
     } catch (ClassCastException e) {
       log.error("Failed to instantiate Kafka producer " + producerObject.getClass().getName() + " as instance of Producer.class", e);
@@ -90,14 +98,13 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
     }
   }
 
-  public Kafka08DataWriter(Properties props) {
-    this(getKafkaProducer(props), ConfigFactory.parseProperties(props));
-  }
 
-  public Kafka08DataWriter(Producer producer, Config config)
-  {
-    this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
-    this.producer = producer;
+  @SuppressWarnings("unchecked")
+  public Kafka08DataWriter(Properties props, List<StreamCodec> encoders) {
+    this.producer = getKafkaProducer(props);
+    this.valueSerializer = (Serializer<D>)KafkaWriterHelper.getValueSerializer(Serializer.class, props);
+    this.encoders = encoders;
+    this.topic = ConfigFactory.parseProperties(props).getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
   }
 
   @Override
@@ -106,21 +113,49 @@ public class Kafka08DataWriter<D> implements AsyncDataWriter<D> {
     log.debug("Close called");
     this.producer.close();
   }
-  
-  
+
+
 
   @Override
   public Future<WriteResponse> write(final D record, final WriteCallback callback) {
-    return new WriteResponseFuture<>(this.producer.send(new ProducerRecord<String, D>(topic, record), new Callback() {
-      @Override
-      public void onCompletion(final RecordMetadata metadata, Exception exception) {
-        if (exception != null) {
-          callback.onFailure(exception);
-        } else {
-          callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
+    try {
+      byte[] recordBytes = serializeRecord(record);
+      return new WriteResponseFuture<>(this.producer.send(new ProducerRecord<String, byte[]>(topic, recordBytes), new Callback() {
+        @Override
+        public void onCompletion(final RecordMetadata metadata, Exception exception) {
+          if (exception != null) {
+            callback.onFailure(exception);
+          } else {
+            callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
+          }
         }
+      }), WRITE_RESPONSE_WRAPPER);
+    } catch (IOException e) {
+      log.warn("Error encoding record", e);
+      if (callback != null) {
+        callback.onFailure(e);
       }
-    }), WRITE_RESPONSE_WRAPPER);
+
+      return new FailureFuture<WriteResponse>(e);
+    }
+  }
+
+  private byte[] serializeRecord(D record) throws IOException {
+    byte[] recordBytes = this.valueSerializer.serialize(this.topic, record);
+
+    if (this.encoders.size() > 0) {
+      ByteArrayOutputStream byteOs = new ByteArrayOutputStream();
+      OutputStream encodedStream = byteOs;
+      for (StreamCodec e: encoders) {
+        encodedStream = e.wrapOutputStream(encodedStream);
+      }
+
+      encodedStream.write(recordBytes);
+      encodedStream.close();
+      recordBytes = byteOs.toByteArray();
+    }
+
+    return recordBytes;
   }
 
   @Override

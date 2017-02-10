@@ -17,12 +17,18 @@
 
 package gobblin.writer;
 
+import gobblin.capability.PartitioningCapabilityParser;
+import java.util.Map;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Optional;
 
+import gobblin.capability.Capability;
+import gobblin.capability.CapabilityAware;
 import gobblin.writer.partitioner.WriterPartitioner;
+
 
 
 /**
@@ -48,7 +54,7 @@ import gobblin.writer.partitioner.WriterPartitioner;
  *   * Different partitions should generate non-colliding writers.
  * </p>
  */
-public abstract class PartitionAwareDataWriterBuilder<S, D> extends DataWriterBuilder<S, D> {
+public abstract class PartitionAwareDataWriterBuilder<S, D> extends DataWriterBuilder<S, D> implements CapabilityAware {
 
   protected Optional<GenericRecord> partition = Optional.absent();
 
@@ -71,4 +77,19 @@ public abstract class PartitionAwareDataWriterBuilder<S, D> extends DataWriterBu
    *        this schema.
    */
   public abstract boolean validatePartitionSchema(Schema partitionSchema);
+
+  @Override
+  public boolean supportsCapability(Capability c, Map<String, Object> properties) {
+    if (!c.equals(Capability.PARTITIONED_WRITER)) {
+      return false;
+    }
+
+    // We only support partitioning if we can successfully validate the associated partition schema
+    Object schemaRaw = PartitioningCapabilityParser.getPartitioningSchema(properties);
+    if (schemaRaw == null) {
+      throw new IllegalStateException("Error retrieving required partitioning schema from properties");
+    }
+
+    return validatePartitionSchema((Schema)schemaRaw);
+  }
 }

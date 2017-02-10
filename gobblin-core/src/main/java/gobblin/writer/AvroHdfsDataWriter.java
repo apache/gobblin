@@ -19,6 +19,7 @@ package gobblin.writer;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.avro.Schema;
@@ -48,7 +49,7 @@ import gobblin.util.WriterUtils;
  *
  * @author Yinan Li
  */
-public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
+public class AvroHdfsDataWriter extends FileStreamBasedWriter<GenericRecord> {
 
   private final Schema schema;
   private final OutputStream stagingFileOutputStream;
@@ -58,8 +59,9 @@ public class AvroHdfsDataWriter extends FsDataWriter<GenericRecord> {
   // Number of records successfully written
   protected final AtomicLong count = new AtomicLong(0);
 
-  public AvroHdfsDataWriter(FsDataWriterBuilder<Schema, GenericRecord> builder, State state) throws IOException {
-    super(builder, state);
+  public AvroHdfsDataWriter(FsDataWriterBuilder<Schema, GenericRecord> builder, State state,
+      List<StreamCodec> encoders) throws IOException {
+    super(builder, state, encoders);
 
     CodecFactory codecFactory = WriterUtils.getCodecFactory(
         Optional.fromNullable(this.properties.getProp(ForkOperatorUtils

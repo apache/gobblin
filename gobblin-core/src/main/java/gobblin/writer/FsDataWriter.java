@@ -18,7 +18,6 @@
 package gobblin.writer;
 
 import java.io.IOException;
-import java.io.OutputStream;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -78,12 +77,14 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
 
   public FsDataWriter(FsDataWriterBuilder<?, D> builder, State properties)
       throws IOException {
+
     this.properties = properties;
     this.id = builder.getWriterId();
     this.numBranches = builder.getBranches();
     this.branchId = builder.getBranch();
-    this.fileName = builder.getFileName(properties);
     this.writerAttemptIdOptional = Optional.fromNullable(builder.getWriterAttemptId());
+
+    this.fileName = builder.getFileName(properties);
 
     Configuration conf = new Configuration();
     // Add all job configuration properties so they are picked up by Hadoop
@@ -136,18 +137,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
     this.bytesWritten = Optional.absent();
   }
 
-  /**
-   * Create the staging output file and an {@link OutputStream} to write to the file.
-   *
-   * @return an {@link OutputStream} to write to the staging file
-   * @throws IOException if it fails to create the file and the {@link OutputStream}
-   */
-  protected OutputStream createStagingFileOutputStream()
-      throws IOException {
-    return this.closer.register(this.fs
-        .create(this.stagingFile, this.filePermission, true, this.bufferSize, this.replicationFactor, this.blockSize,
-            null));
-  }
+
 
   /**
    * Set the group name of the staging output file.
@@ -167,9 +157,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
   public long bytesWritten()
       throws IOException {
     if (this.bytesWritten.isPresent()) {
-      return this.bytesWritten.get().longValue();
+      return this.bytesWritten.get();
     }
-    return 0l;
+    return 0L;
   }
 
   /**

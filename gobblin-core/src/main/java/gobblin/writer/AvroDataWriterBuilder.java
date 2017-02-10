@@ -17,13 +17,14 @@
 
 package gobblin.writer;
 
-import java.io.IOException;
-
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import gobblin.capability.Capability;
+import gobblin.capability.EncryptionCapabilityParser;
+import java.io.IOException;
+import java.util.Map;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
 
 
 /**
@@ -42,9 +43,22 @@ public class AvroDataWriterBuilder extends FsDataWriterBuilder<Schema, GenericRe
 
     switch (this.destination.getType()) {
       case HDFS:
-        return new AvroHdfsDataWriter(this, this.destination.getProperties());
+        return new AvroHdfsDataWriter(this, this.destination.getProperties(), getEncoders());
       default:
         throw new RuntimeException("Unknown destination type: " + this.destination.getType());
     }
+  }
+
+  @Override
+  public boolean supportsCapability(Capability c, Map<String, Object> properties) {
+    if (super.supportsCapability(c, properties)) {
+      return true;
+    }
+
+    String encryptionType = EncryptionCapabilityParser.getEncryptionType(properties);
+
+    // TODO Feels a little weird to hardcode AvroHdfsDataWriter here since we need to manually keep
+    // this block in-sync with the switch statement in build() - should refactor to be a little more generic
+    return c.equals(Capability.ENCRYPTION) && AvroHdfsDataWriter.SUPPORTED_ENCRYPTION_TYPES.contains(encryptionType);
   }
 }

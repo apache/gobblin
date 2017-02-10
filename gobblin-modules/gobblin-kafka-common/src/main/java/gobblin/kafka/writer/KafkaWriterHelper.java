@@ -18,6 +18,8 @@
 package gobblin.kafka.writer;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
@@ -26,12 +28,11 @@ import com.google.common.base.Throwables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import lombok.extern.slf4j.Slf4j;
-
 import gobblin.util.ConfigUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 import static gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
-import static gobblin.kafka.writer.KafkaWriterConfigurationKeys.CLIENT_ID_DEFAULT;
 
 
 /**
@@ -43,6 +44,9 @@ public class KafkaWriterHelper {
   static Properties getProducerProperties(Properties props)
   {
     Properties producerProperties = stripPrefix(props, KAFKA_PRODUCER_CONFIG_PREFIX);
+
+    // override the value serializer to ByteArraySerializer because we will serialize the record ourselves
+    producerProperties.setProperty(VALUE_SERIALIZER_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
 
     // Provide default properties if not set from above
     setDefaultIfUnset(producerProperties, KEY_SERIALIZER_CONFIG, DEFAULT_KEY_SERIALIZER);
@@ -88,5 +92,27 @@ public class KafkaWriterHelper {
     }
   }
 
+  public static <T> T getValueSerializer(Class<? extends T> clazz, Properties props) {
+    String key = KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX
+        + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG;
+    String kafkaSerializerClass = props.getProperty(key, KafkaWriterConfigurationKeys.DEFAULT_VALUE_SERIALIZER);
 
+    try {
+      // Build serializer
+      Object serializer = ConstructorUtils.invokeConstructor(Class.forName(kafkaSerializerClass));
+      if (!clazz.isInstance(serializer)) {
+        throw new ClassCastException(
+            String.format("Serializer %s specified in config is not instance of expected type %s",
+                serializer.getClass().getCanonicalName(), clazz.getCanonicalName()));
+      }
+
+      // Call configure(properties, isKey=false) on it
+      Method configureMethod = clazz.getMethod("configure", Map.class, boolean.class);
+      configureMethod.invoke(serializer, getProducerProperties(props), false);
+
+      return clazz.cast(serializer);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalArgumentException("Error instantiating serializer", e);
+    }
+  }
 }
