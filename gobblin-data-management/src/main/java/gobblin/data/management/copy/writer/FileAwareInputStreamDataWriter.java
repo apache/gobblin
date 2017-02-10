@@ -24,7 +24,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -123,7 +122,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
         ConfigurationKeys.LOCAL_FS_URI);
 
-    this.fs = FileSystem.get(URI.create(uri), new Configuration());
+    this.fs = FileSystem.get(URI.create(uri), WriterUtils.getFsConfiguration(state));
     this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
         .getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
         : WriterUtils.getWriterStagingDir(state, numBranches, branchId);

@@ -15,14 +15,16 @@
  * limitations under the License.
  */
 
+apply plugin: 'java'
+
 dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-azkaban')
-  compile project(':gobblin-modules:gobblin-compliance')
-  compile project(':gobblin-modules:gobblin-couchbase')
-  compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:google-ingestion')
-  compile project(':gobblin-modules:gobblin-helix')
-  compile project(':gobblin-modules:gobblin-azure-datalake')
+    runtime externalDependency.hadoopAdl
 }
 
+configurations {
+  compile {
+    transitive = false
+  }
+}
+
+ext.classification="library"
