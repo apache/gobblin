@@ -46,7 +46,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
   private final WorkUnitState _state;
   private final GoogleAdWordsExtractorIterator _iterator;
   private final DateTime _startDate;
-  private final DateTime _endDate;
+  private final DateTime _expectedEndDate;
   private JsonArray _schema;
   private final static DateTimeFormatter watermarkFormatter = DateTimeFormat.forPattern("yyyyMMddHHmmss");
   private final static HashMap<String, JsonElementConversionFactory.Type> typeConversionMap = new HashMap<>();
@@ -67,7 +67,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
     long lowWatermark = state.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
     _startDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));
     long highWatermark = state.getWorkunit().getExpectedHighWatermark(LongWatermark.class).getValue();
-    _endDate = watermarkFormatter.parseDateTime(Long.toString(highWatermark));
+    _expectedEndDate = watermarkFormatter.parseDateTime(Long.toString(highWatermark));
 
     GoogleAdWordsCredential credential = new GoogleAdWordsCredential(state);
     AdWordsSession.ImmutableAdWordsSession rootSession = credential.buildRootSession();
@@ -95,7 +95,7 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
 
     _iterator = new GoogleAdWordsExtractorIterator(
         new GoogleAdWordsReportDownloader(rootSession, _state, dateFormatter.print(_startDate),
-            dateFormatter.print(_endDate), reportType, dateRangeType, _schema),
+            dateFormatter.print(_expectedEndDate), reportType, dateRangeType, _schema),
         getConfiguredAccounts(rootSession, state));
   }
 
@@ -167,6 +167,12 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
 
   @Override
   public long getExpectedRecordCount() {
+    if (_successful) {
+      //Any positive number will be okay.
+      //Need to add this because of this commit:
+      //76ae45a by ibuenros on 12/20/16 at 11:34AM Query based source will reset to low watermark if previous run did not process any data for that table.
+      return 1;
+    }
     return 0;
   }
 
@@ -179,12 +185,14 @@ public class GoogleAdWordsExtractor implements Extractor<String, String[]> {
   public void close()
       throws IOException {
     if (_successful) {
-      log.info(String.format("Successfully finished fetching data from Google Search Console from %s to %s.",
-          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
-      _state.setActualHighWatermark(new LongWatermark(Long.parseLong(watermarkFormatter.print(_endDate.plusDays(1)))));
+      log.info(String
+          .format("Successfully downloaded %s reports for [%s, %s).", _state.getProp(GoogleAdWordsSource.KEY_REPORT),
+              dateFormatter.print(_startDate), dateFormatter.print(_expectedEndDate)));
+      _state.setActualHighWatermark(_state.getWorkunit().getExpectedHighWatermark(LongWatermark.class));
     } else {
-      log.error(String.format("Had problems fetching all data from Google Search Console from %s to %s.",
-          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
+      log.error(String
+          .format("Failed downloading %s reports for [%s, %s).", _state.getProp(GoogleAdWordsSource.KEY_REPORT),
+              dateFormatter.print(_startDate), dateFormatter.print(_expectedEndDate)));
     }
   }
 
