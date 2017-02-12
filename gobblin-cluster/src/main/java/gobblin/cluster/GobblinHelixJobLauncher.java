@@ -108,6 +108,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private volatile boolean jobSubmitted = false;
   private volatile boolean jobComplete = false;
   private final StateStores stateStores;
+  private final Config jobConfig;
 
   public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
       List<? extends Tag<?>> metadataTags)
@@ -130,7 +131,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
-    final Config jobConfig = ConfigUtils.propertiesToConfig(jobProps);
+    jobConfig = ConfigUtils.propertiesToConfig(jobProps);
 
     this.stateStores = new StateStores(jobConfig, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
@@ -215,7 +216,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         ConfigurationKeys.MAX_TASK_RETRIES_KEY, ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
     jobConfigBuilder.setFailureThreshold(workUnits.size());
     jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinTaskRunner.GOBBLIN_TASK_FACTORY_NAME);
-    jobConfigBuilder.setNumConcurrentTasksPerInstance(100);
+    jobConfigBuilder.setNumConcurrentTasksPerInstance(ConfigUtils.getInt(jobConfig,
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));
     return jobConfigBuilder;
   }
 
