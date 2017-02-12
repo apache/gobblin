@@ -242,7 +242,7 @@ public class GobblinTaskRunner {
   void connectHelixManager() {
     try {
       this.helixManager.connect();
-      this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
+      this.helixManager.getMessagingService().registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
           new ParticipantShutdownMessageHandlerFactory());
       this.helixManager.getMessagingService()
           .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
@@ -298,7 +298,7 @@ public class GobblinTaskRunner {
 
   /**
    * A custom {@link MessageHandlerFactory} for {@link ParticipantShutdownMessageHandler}s that handle messages
-   * of type {@link org.apache.helix.model.Message.MessageType#SHUTDOWN} for shutting down the participants.
+   * of type "SHUTDOWN" for shutting down the participants.
    */
   private class ParticipantShutdownMessageHandlerFactory implements MessageHandlerFactory {
 
@@ -309,7 +309,7 @@ public class GobblinTaskRunner {
 
     @Override
     public String getMessageType() {
-      return Message.MessageType.SHUTDOWN.toString();
+      return GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE;
     }
 
     @Override
@@ -333,7 +333,7 @@ public class GobblinTaskRunner {
         Preconditions
             .checkArgument(messageSubType.equalsIgnoreCase(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString()),
                 String
-                    .format("Unknown %s message subtype: %s", Message.MessageType.SHUTDOWN.toString(), messageSubType));
+                    .format("Unknown %s message subtype: %s", GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE, messageSubType));
 
         HelixTaskResult result = new HelixTaskResult();
 

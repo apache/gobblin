@@ -18,6 +18,7 @@
 package gobblin.cluster;
 
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.TaskFactory;
@@ -43,10 +44,10 @@ public class GobblinTaskStateModelFactory extends TaskStateModelFactory {
 
   private final HelixManager helixManager;
   private final Map<String, TaskFactory> taskFactoryRegistry;
-  private final TaskExecutor taskExecutor;
+  private final ScheduledExecutorService taskExecutor;
 
   public GobblinTaskStateModelFactory(HelixManager helixManager, Map<String, TaskFactory> taskFactoryRegistry,
-      TaskExecutor taskExecutor) {
+      ScheduledExecutorService taskExecutor) {
     super(helixManager, taskFactoryRegistry);
     this.taskExecutor = taskExecutor;
     this.helixManager = helixManager;

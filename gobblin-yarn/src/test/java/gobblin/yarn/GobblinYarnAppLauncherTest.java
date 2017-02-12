@@ -52,6 +52,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.cluster.GobblinHelixConstants;
 import gobblin.cluster.HelixMessageTestBase;
 import gobblin.cluster.HelixUtils;
 import gobblin.cluster.TestHelper;
@@ -226,7 +227,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   @Test(dependsOnMethods = "testCreateHelixCluster")
   public void testSendShutdownRequest() throws Exception {
     this.helixManager.connect();
-    this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
+    this.helixManager.getMessagingService().registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
         new TestShutdownMessageHandlerFactory(this));
 
     this.gobblinYarnAppLauncher.connectHelixManager();
@@ -268,7 +269,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   @Test(enabled = false)
   @Override
   public void assertMessageReception(Message message) {
-    Assert.assertEquals(message.getMsgType(), Message.MessageType.SHUTDOWN.toString());
+    Assert.assertEquals(message.getMsgType(), GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE);
     Assert.assertEquals(message.getMsgSubType(), HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
   }
 }
