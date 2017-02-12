@@ -26,6 +26,7 @@ import org.apache.helix.model.Message;
 
 
 /**
+ * #HELIX-0.6.7-WORKAROUND
  * The GobblinHelixMessagingService is a temporary workaround for missing messaging support for INSTANCES in helix 0.6.7
  */
 public class GobblinHelixMessagingService extends DefaultMessagingService {

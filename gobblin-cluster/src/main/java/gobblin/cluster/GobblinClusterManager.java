@@ -200,6 +200,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
             String jobName = TaskUtil.getDenamespacedJobName(queueName, namespacedJobName);
             LOGGER.info("job {} found for queue {} ", jobName, queueName);
 
+            // #HELIX-0.6.7-WORKAROUND
             // working around 0.6.7 delete job issue for queues with IN_PROGRESS state
             gobblinHelixTaskDriver.deleteJob(queueName, jobName);
             LOGGER.info("deleted job {} from queue {}", jobName, queueName);
@@ -422,6 +423,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
     criteria.setPartition("%");
     criteria.setPartitionState("%");
     criteria.setRecipientInstanceType(InstanceType.PARTICIPANT);
+    // #HELIX-0.6.7-WORKAROUND
     // Add this back when messaging to instances is ported to 0.6 branch
     //criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
     criteria.setSessionSpecific(true);
@@ -434,6 +436,7 @@ public class GobblinClusterManager implements ApplicationLauncher {
     // Wait for 5 minutes
     final int timeout = 300000;
 
+    // #HELIX-0.6.7-WORKAROUND
     // Temporarily bypass the default messaging service to allow upgrade to 0.6.7 which is missing support
     // for messaging to instances
     //int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest,

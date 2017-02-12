@@ -48,6 +48,7 @@ import org.apache.helix.task.WorkflowContext;
 import org.apache.log4j.Logger;
 
 /**
+ * #HELIX-0.6.7-WORKAROUND
  * Replacement TaskDriver methods to workaround bugs and changes in behavior for the 0.6.7 upgrade
  */
 public class GobblinHelixTaskDriver {
@@ -157,6 +158,7 @@ public class GobblinHelixTaskDriver {
       throw new IllegalStateException("Queue " + queueName + " does not have a valid work state!");
     }
 
+    // #HELIX-0.6.7-WORKAROUND
     // This check is removed to get the same behavior as 0.6.6-SNAPSHOT until new APIs to support delete are provided
     //String workflowState =
     //    (wCtx != null) ? wCtx.getWorkflowState().name() : TaskState.NOT_STARTED.name();

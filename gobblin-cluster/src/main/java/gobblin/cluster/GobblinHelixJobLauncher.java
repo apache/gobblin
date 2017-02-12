@@ -181,6 +181,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
+        // #HELIX-0.6.7-WORKAROUND
         // working around helix 0.6.7 job delete issue with custom taskDriver
         GobblinHelixTaskDriver taskDriver = new GobblinHelixTaskDriver(this.helixManager);
         taskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
@@ -214,7 +215,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         ConfigurationKeys.MAX_TASK_RETRIES_KEY, ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
     jobConfigBuilder.setFailureThreshold(workUnits.size());
     jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinTaskRunner.GOBBLIN_TASK_FACTORY_NAME);
-    jobConfigBuilder.setNumConcurrentTasksPerInstance(100); // Ineffective in the current Helix version
+    jobConfigBuilder.setNumConcurrentTasksPerInstance(100);
     return jobConfigBuilder;
   }
 

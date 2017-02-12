@@ -265,7 +265,9 @@ public class YarnAppSecurityManager extends AbstractIdleService {
     criteria.setPartition("%");
     criteria.setPartitionState("%");
     criteria.setRecipientInstanceType(instanceType);
-    /** Add back when LIVESTANCES messaging is ported to 0.6 branch
+    /**
+     * #HELIX-0.6.7-WORKAROUND
+     * Add back when LIVESTANCES messaging is ported to 0.6 branch
     if (instanceType == InstanceType.PARTICIPANT) {
       criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
     }
@@ -280,6 +282,7 @@ public class YarnAppSecurityManager extends AbstractIdleService {
       tokenFileUpdatedMessage.setTgtSessionId("*");
     }
 
+    // #HELIX-0.6.7-WORKAROUND
     // Temporarily bypass the default messaging service to allow upgrade to 0.6.7 which is missing support
     // for messaging to instances
     //int messagesSent = this.helixManager.getMessagingService().send(criteria, tokenFileUpdatedMessage);
