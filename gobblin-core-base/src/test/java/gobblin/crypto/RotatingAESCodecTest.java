@@ -26,6 +26,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.commons.io.IOUtils;
 import org.testng.Assert;
@@ -72,6 +73,46 @@ public class RotatingAESCodecTest {
     CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(body), inputCipher);
     byte[] decoded = IOUtils.toByteArray(cis);
     Assert.assertEquals(decoded, toWrite, "Expected decoded output to match encoded output");
+  }
+
+  @Test
+  public void testLotsOfData() throws Exception {
+    long bytesToWrite = 50*1000*1000;
+    byte[] buf = new byte[16384];
+    long bytesWritten = 0;
+    SimpleCredentialStore credStore = new SimpleCredentialStore();
+    RotatingAESCodec encryptor = new RotatingAESCodec(credStore);
+    ByteArrayOutputStream sink = new ByteArrayOutputStream();
+    ByteArrayOutputStream originalBytes = new ByteArrayOutputStream();
+    OutputStream encryptedStream = encryptor.encodeOutputStream(sink);
+    Random r = new Random();
+
+    while (bytesWritten < bytesToWrite) {
+      r.nextBytes(buf);
+      originalBytes.write(buf);
+      encryptedStream.write(buf);
+      bytesWritten += buf.length;
+    }
+
+    encryptedStream.close();
+
+    InputStream in = new ByteArrayInputStream(sink.toByteArray());
+    verifyKeyId(in, 1);
+
+    Integer ivLen = verifyIvLen(in);
+
+    byte[] ivBinary = verifyAndExtractIv(in, ivLen);
+
+    byte[] body = readAndBase64DecodeBody(in);
+
+    // feed back into cipheroutput stream
+    Cipher inputCipher =  Cipher.getInstance("AES/CBC/PKCS5Padding");
+    IvParameterSpec ivParameterSpec =  new IvParameterSpec(ivBinary);
+    inputCipher.init(Cipher.DECRYPT_MODE, credStore.getKey(), ivParameterSpec);
+
+    CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(body), inputCipher);
+    byte[] decoded = IOUtils.toByteArray(cis);
+    Assert.assertEquals(decoded, originalBytes.toByteArray(), "Expected decoded output to match encoded output");
   }
 
   private byte[] readAndBase64DecodeBody(InputStream in) throws IOException {

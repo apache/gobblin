@@ -27,8 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.commons.codec.binary.Base64OutputStream;
-
 import gobblin.writer.StreamCodec;
 
 import javax.crypto.Cipher;
@@ -67,7 +65,7 @@ public class RotatingAESCodec implements StreamCodec {
   }
 
   @Override
-  public OutputStream encodeOutputStream(OutputStream origStream) {
+  public OutputStream encodeOutputStream(OutputStream origStream) throws IOException {
     return new StreamInstance(selectRandomKey(), origStream).wrapOutputStream();
   }
 
@@ -149,15 +147,14 @@ public class RotatingAESCodec implements StreamCodec {
     private String base64Iv;
     private boolean headerWritten = false;
 
-
     StreamInstance(KeyRecord secretKey, OutputStream origStream) {
       this.secretKey = secretKey;
       this.origStream = origStream;
     }
 
-    OutputStream wrapOutputStream() {
+    OutputStream wrapOutputStream() throws IOException {
       initCipher();
-      final Base64OutputStream base64OutputStream = new Base64OutputStream(origStream, true, 0, null);
+      final OutputStream base64OutputStream = getBase64Stream(origStream);
       final CipherOutputStream encryptedStream = new CipherOutputStream(base64OutputStream, cipher);
 
       return new FilterOutputStream(origStream) {
@@ -184,6 +181,10 @@ public class RotatingAESCodec implements StreamCodec {
           encryptedStream.close();
         }
       };
+    }
+
+    private OutputStream getBase64Stream(OutputStream origStream) throws IOException {
+        return new Base64Codec().encodeOutputStream(origStream);
     }
 
     private void initCipher() {
