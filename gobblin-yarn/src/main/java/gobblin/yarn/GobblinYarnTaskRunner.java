@@ -18,6 +18,7 @@
 package gobblin.yarn;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
@@ -91,6 +92,10 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
     @Override
     public String getMessageType() {
       return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
     }
 
     @Override

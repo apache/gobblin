@@ -17,6 +17,9 @@
 
 package gobblin.yarn;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -122,6 +125,10 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     @Override
     public String getMessageType() {
       return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
     }
 
     @Override
