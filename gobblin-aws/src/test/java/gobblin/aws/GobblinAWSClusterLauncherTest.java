@@ -57,6 +57,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import gobblin.cluster.GobblinClusterConfigurationKeys;
+import gobblin.cluster.GobblinHelixConstants;
 import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.cluster.HelixMessageTestBase;
 import gobblin.cluster.HelixUtils;
@@ -220,7 +221,7 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
   public void testSendShutdownRequest() throws Exception {
     // Connect to Helix as Controller and register a shutdown request handler
     this.helixManager.connect();
-    this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
+    this.helixManager.getMessagingService().registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
         new TestShutdownMessageHandlerFactory(this));
 
     // Make Gobblin AWS Cluster launcher start a shutdown
@@ -260,7 +261,7 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
   @Test(enabled = false)
   @Override
   public void assertMessageReception(Message message) {
-    Assert.assertEquals(message.getMsgType(), Message.MessageType.SHUTDOWN.toString());
+    Assert.assertEquals(message.getMsgType(), GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE);
     Assert.assertEquals(message.getMsgSubType(), HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
   }
 

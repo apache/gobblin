@@ -42,7 +42,6 @@ GoogleWebmasterDataFetcher | GoogleWebmasterDataFetcher implements the features 
 GoogleWebmasterFilter | This is a util class providing enums and utility functions relevant to Google webmaster filters.
 GoogleWebMasterSource | This is an abstract class that extends Gobblin's standard QueryBasedSource. It provides basic checks and configuration processing for google-webmaster-pull configuration files.
 GoogleWebMasterSourceDaily | This implementation gives you the ability to do a daily extract from Google Search Console.
-GoogleWebMasterSourceWeekly | This implementation gives you the ability to do a weekly extract from Google Search Console. Due to the two to three days of delay by Google, the weekly extract will be scheduled to download the data from previous Friday to current Thursday. For example, if you run the service on Sunday,  it will download the data from last Friday to current Thursday. The Thursday will be the latest available Thursday data from Google Search Console, which means, if you run use this weekly extract on Thursday, Friday, and Saturday, then the Thursday will be more than a week ago, not current Thursday.
 GoogleWebmasterExtractor | An implementation of Gobblin's extractor. <p><br>It relies on a bunch of GoogleWebmasterExtractorIterator generated for each market to extract the data.</p>
 GoogleWebmasterExtractorIterator | The core piece used by GoogleWebmasterExtractor to iterate through the downloaded dataset.
 GoogleWebmasterDayPartitioner | The output partitioner that partitions output by the date of fetched data set

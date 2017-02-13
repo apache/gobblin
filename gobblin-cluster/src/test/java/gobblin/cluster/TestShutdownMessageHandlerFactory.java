@@ -46,7 +46,7 @@ public class TestShutdownMessageHandlerFactory implements MessageHandlerFactory 
 
   @Override
   public String getMessageType() {
-    return Message.MessageType.SHUTDOWN.toString();
+    return GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE;
   }
 
   @Override

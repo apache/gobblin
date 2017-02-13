@@ -90,7 +90,7 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
         .getZKHelixManager(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
             TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.PARTICIPANT, zkConnectionString);
     this.helixManager.connect();
-    this.helixManager.getMessagingService().registerMessageHandlerFactory(Message.MessageType.SHUTDOWN.toString(),
+    this.helixManager.getMessagingService().registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
         new TestShutdownMessageHandlerFactory(this));
 
     this.gobblinClusterManager =
@@ -178,7 +178,7 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
   @Test(enabled = false)
   @Override
   public void assertMessageReception(Message message) {
-    Assert.assertEquals(message.getMsgType(), Message.MessageType.SHUTDOWN.toString());
+    Assert.assertEquals(message.getMsgType(), GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE);
     Assert.assertEquals(message.getMsgSubType(), HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
   }
 }

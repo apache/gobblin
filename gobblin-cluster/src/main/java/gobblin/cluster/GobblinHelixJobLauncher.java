@@ -30,13 +30,7 @@ import java.util.concurrent.Callable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
-import org.apache.helix.IdealStateChangeListener;
-import org.apache.helix.NotificationContext;
-import org.apache.helix.model.HelixConfigScope;
-import org.apache.helix.model.IdealState;
-import org.apache.helix.model.builder.HelixConfigScopeBuilder;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
 import org.apache.helix.task.TaskConfig;
@@ -114,6 +108,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private volatile boolean jobSubmitted = false;
   private volatile boolean jobComplete = false;
   private final StateStores stateStores;
+  private final Config jobConfig;
 
   public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
       List<? extends Tag<?>> metadataTags)
@@ -136,7 +131,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
 
-    final Config jobConfig = ConfigUtils.propertiesToConfig(jobProps);
+    jobConfig = ConfigUtils.propertiesToConfig(jobProps);
 
     this.stateStores = new StateStores(jobConfig, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
@@ -147,42 +142,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.taskStateCollectorService = new TaskStateCollectorService(jobProps, this.jobContext.getJobState(),
         this.eventBus, this.stateStores.taskStateStore, outputTaskStateDir);
-
-
-
-    // HACK to fixup IDEAL state with a rebalancer that will rebalance running jobs as well
-    final String clusterName = ConfigUtils.getString(jobConfig, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, "");
-    if (!clusterName.isEmpty()) {
-      this.helixManager.addIdealStateChangeListener(new IdealStateChangeListener() {
-        @Override
-        public void onIdealStateChange(List<IdealState> list, NotificationContext notificationContext) {
-          HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
-          for (String resource : helixAdmin.getResourcesInCluster(clusterName)) {
-            IdealState idealState = helixAdmin.getResourceIdealState(clusterName, resource);
-            if (idealState != null) {
-              /**
-               * Commenting this out until we fix the rebalancer
-               final String rebalancerClassDesired = GobblinTaskRebalancer.class.getName();
-               if (!idealState.getRebalancerClassName().equals(rebalancerClassDesired)) {
-               idealState.setRebalancerClassName(rebalancerClassDesired);
-               helixAdmin.setResourceIdealState(clusterName, resource, idealState);
-               }
-               **/
-
-              // HACK to ensure that concurrent tasks per instance is set.
-              // TODO: Remove this when we upgrade to a fixed Helix version
-              final String taskResourceName = TaskUtil.getNamespacedJobName(jobContext.getJobName(), jobContext.getJobId());
-              int jobConcurrency = ConfigUtils.getInt(jobConfig, GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
-                  GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT);
-              HelixConfigScope resourceScope =
-                  new HelixConfigScopeBuilder(HelixConfigScope.ConfigScopeProperty.RESOURCE).forCluster(clusterName).forResource(taskResourceName).build();
-              helixManager.getConfigAccessor().set(resourceScope, JobConfig.NUM_CONCURRENT_TASKS_PER_INSTANCE, ""+jobConcurrency);
-            }
-          }
-        }
-      });
-    }
-
   }
 
   @Override
@@ -223,7 +182,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
-        this.helixTaskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
+        // #HELIX-0.6.7-WORKAROUND
+        // working around helix 0.6.7 job delete issue with custom taskDriver
+        GobblinHelixTaskDriver taskDriver = new GobblinHelixTaskDriver(this.helixManager);
+        taskDriver.deleteJob(this.helixQueueName, this.jobContext.getJobId());
       } catch (IllegalArgumentException e) {
         LOGGER.warn(String.format("Failed to cleanup job %s in Helix", this.jobContext.getJobId()), e);
       }
@@ -254,7 +216,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         ConfigurationKeys.MAX_TASK_RETRIES_KEY, ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
     jobConfigBuilder.setFailureThreshold(workUnits.size());
     jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinTaskRunner.GOBBLIN_TASK_FACTORY_NAME);
-    jobConfigBuilder.setNumConcurrentTasksPerInstance(100); // Ineffective in the current Helix version
+    jobConfigBuilder.setNumConcurrentTasksPerInstance(ConfigUtils.getInt(jobConfig,
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));
     return jobConfigBuilder;
   }
 
@@ -263,13 +227,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
     // Create one queue for each job with the job name being the queue name
-
-
-    JobQueue jobQueue = new JobQueue.Builder(this.helixQueueName).build();
-    try {
+    if (null == this.helixTaskDriver.getWorkflowConfig(this.helixManager, this.helixQueueName)) {
+      JobQueue jobQueue = new JobQueue.Builder(this.helixQueueName).build();
       this.helixTaskDriver.createQueue(jobQueue);
-    } catch (IllegalArgumentException iae) {
-      LOGGER.info(String.format("Job queue %s already exists", jobQueue.getName()));
+      LOGGER.info("Created job queue {}", this.helixQueueName);
+    } else {
+      LOGGER.info("Job queue {} already exists", this.helixQueueName);
     }
 
     // Put the job into the queue
@@ -292,7 +255,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     rawConfigMap.put(ConfigurationKeys.TASK_ID_KEY, workUnit.getId());
     rawConfigMap.put(GobblinClusterConfigurationKeys.TASK_SUCCESS_OPTIONAL_KEY, "true");
 
-    taskConfigMap.put(workUnit.getId(), TaskConfig.from(rawConfigMap));
+    taskConfigMap.put(workUnit.getId(), TaskConfig.Builder.from(rawConfigMap));
   }
 
   /**
@@ -327,7 +290,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private void waitForJobCompletion() throws InterruptedException {
     while (true) {
-      WorkflowContext workflowContext = TaskUtil.getWorkflowContext(this.helixManager, this.helixQueueName);
+      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(this.helixManager, this.helixQueueName);
       if (workflowContext != null) {
         org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(this.jobResourceName);
         if (helixJobState == org.apache.helix.task.TaskState.COMPLETED ||

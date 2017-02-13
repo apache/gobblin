@@ -60,25 +60,27 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
   private Queue<int[]> _positionMaps = new ArrayDeque<>();
 
   private final DateTime _startDate;
-  private final DateTime _endDate;
+  private final long _expectedHighWaterMark;
+  private final DateTime _expectedHighWaterMarkDate;
   private boolean _successful = false;
 
-  public GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long highWatermark,
+  public GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long expectedHighWaterMark,
       Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics)
       throws IOException {
-    this(wuState, lowWatermark, highWatermark, columnPositionMap, requestedDimensions, requestedMetrics,
+    this(wuState, lowWatermark, expectedHighWaterMark, columnPositionMap, requestedDimensions, requestedMetrics,
         new GoogleWebmasterDataFetcherImpl(wuState));
   }
 
   /**
    * For test only
    */
-  GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long highWatermark,
+  GoogleWebmasterExtractor(WorkUnitState wuState, long lowWatermark, long expectedHighWaterMark,
       Map<String, Integer> columnPositionMap, List<GoogleWebmasterFilter.Dimension> requestedDimensions,
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, GoogleWebmasterDataFetcher dataFetcher) {
     _startDate = watermarkFormatter.parseDateTime(Long.toString(lowWatermark));
-    _endDate = watermarkFormatter.parseDateTime(Long.toString(highWatermark));
+    _expectedHighWaterMark = expectedHighWaterMark;
+    _expectedHighWaterMarkDate = watermarkFormatter.parseDateTime(Long.toString(expectedHighWaterMark));
 
     _schema = wuState.getWorkunit().getProp(ConfigurationKeys.SOURCE_SCHEMA);
     _size = columnPositionMap.size();
@@ -96,7 +98,8 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       }
       GoogleWebmasterExtractorIterator iterator =
           new GoogleWebmasterExtractorIterator(dataFetcher, dateFormatter.print(_startDate),
-              dateFormatter.print(_endDate), actualDimensionRequests, requestedMetrics, filters, wuState);
+              dateFormatter.print(_expectedHighWaterMarkDate), actualDimensionRequests, requestedMetrics, filters,
+              wuState);
       //positionMapping is to address the problems that requested dimensions/metrics order might be different from the column order in source.schema
       int[] positionMapping = new int[actualDimensionRequests.size() + requestedMetrics.size()];
       int i = 0;
@@ -160,15 +163,18 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       _positionMaps.remove();
     }
 
-//    if (_currentDate.dayOfMonth().get() == 1) {
-//      throw new DataRecordException("Fail me!!! at " + _currentDate.toString());
-//    }
     _successful = true;
     return null;
   }
 
   @Override
   public long getExpectedRecordCount() {
+    if (_successful) {
+      //Any positive number will be okay.
+      //Need to add this because of this commit:
+      //76ae45a by ibuenros on 12/20/16 at 11:34AM Query based source will reset to low watermark if previous run did not process any data for that table.
+      return 1;
+    }
     return 0;
   }
 
@@ -182,12 +188,11 @@ public class GoogleWebmasterExtractor implements Extractor<String, String[]> {
       throws IOException {
     if (_successful) {
       log.info(String.format("Successfully finished fetching data from Google Search Console from %s to %s.",
-          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
-      _wuState
-          .setActualHighWatermark(new LongWatermark(Long.parseLong(watermarkFormatter.print(_endDate.plusDays(1)))));
+          dateFormatter.print(_startDate), dateFormatter.print(_expectedHighWaterMarkDate)));
+      _wuState.setActualHighWatermark(new LongWatermark(_expectedHighWaterMark));
     } else {
-      log.error(String.format("Had problems fetching all data from Google Search Console from %s to %s.",
-          dateFormatter.print(_startDate), dateFormatter.print(_endDate)));
+      log.error(String.format("Had problems fetching data from Google Search Console from %s to %s.",
+          dateFormatter.print(_startDate), dateFormatter.print(_expectedHighWaterMarkDate)));
     }
   }
 

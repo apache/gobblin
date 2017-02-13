@@ -33,7 +33,8 @@ public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
       List<GoogleWebmasterDataFetcher.Metric> requestedMetrics) throws IOException {
 
     long lowWatermark = state.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
-    return new GoogleWebmasterExtractor(state, lowWatermark, lowWatermark, columnPositionMap, requestedDimensions,
+    long expectedHighWatermark = state.getWorkunit().getExpectedHighWatermark(LongWatermark.class).getValue();
+    return new GoogleWebmasterExtractor(state, lowWatermark, expectedHighWatermark, columnPositionMap, requestedDimensions,
         requestedMetrics);
   }
 }

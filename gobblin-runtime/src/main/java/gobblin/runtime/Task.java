@@ -831,7 +831,7 @@ public class Task implements Runnable {
     }
 
     if (this.converter instanceof SpeculativeAttemptAwareConstruct) {
-      if (!((SpeculativeAttemptAwareConstruct) this.extractor).isSpeculativeAttemptSafe()) {
+      if (!((SpeculativeAttemptAwareConstruct) this.converter).isSpeculativeAttemptSafe()) {
         return false;
       }
     }
