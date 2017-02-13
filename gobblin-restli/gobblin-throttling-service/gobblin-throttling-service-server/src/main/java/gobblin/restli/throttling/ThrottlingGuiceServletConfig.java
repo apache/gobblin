@@ -37,11 +37,13 @@ import java.util.Enumeration;
 import java.util.Map;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * {@link GuiceServletContextListener} for creating an injector in a gobblin-throttling-server servlet.
  */
+@Slf4j
 public class ThrottlingGuiceServletConfig extends GuiceServletContextListener {
 
   private ServletContext _context;
@@ -49,7 +51,6 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener {
 
   @Override
   public void contextInitialized(ServletContextEvent servletContextEvent) {
-    super.contextInitialized(servletContextEvent);
     _context = servletContextEvent.getServletContext();
 
     Enumeration<String> parameters = _context.getInitParameterNames();
@@ -61,6 +62,8 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener {
       }
     }
     this._brokerConfig = ConfigFactory.parseMap(brokerConfigMap);
+
+    super.contextInitialized(servletContextEvent);
   }
 
   @Override

@@ -15,8 +15,23 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile project(":gobblin-runtime")
-  compile project(":gobblin-restli:gobblin-restli-utils")
-  compile project(':gobblin-utility')
+package gobblin.restli;
+
+import gobblin.broker.iface.SharedResourceKey;
+
+import lombok.AllArgsConstructor;
+
+
+/**
+ * {@link SharedResourceKey} for {@link SharedRestClientFactory}. Contains an identifier for type of service
+ * (e.g. throttling).
+ */
+@AllArgsConstructor
+public class SharedRestClientKey implements SharedResourceKey {
+  public final String serviceName;
+
+  @Override
+  public String toConfigurationKey() {
+    return this.serviceName;
+  }
 }
