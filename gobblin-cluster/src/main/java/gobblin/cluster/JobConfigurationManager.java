@@ -33,6 +33,7 @@ import com.typesafe.config.Config;
 import gobblin.annotation.Alpha;
 import gobblin.cluster.event.NewJobConfigArrivalEvent;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ConfigUtils;
 import gobblin.util.SchedulerUtils;
 
 
@@ -87,7 +88,7 @@ public class JobConfigurationManager extends AbstractIdleService {
 
       if (jobConfigDir.exists()) {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
-        Properties properties = new Properties();
+        Properties properties = ConfigUtils.configToProperties(this.config);
         properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, "file://" + jobConfigDir.getAbsolutePath());
         List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
