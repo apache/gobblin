@@ -119,4 +119,9 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
   public long bytesWritten() throws IOException {
     return this.bytesWritten;
   }
+
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    return this.writerAttemptIdOptional.isPresent() && this.getClass() == SimpleDataWriter.class;
+  }
 }
