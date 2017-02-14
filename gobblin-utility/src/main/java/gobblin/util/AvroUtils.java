@@ -52,6 +52,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
@@ -79,6 +80,13 @@ public class AvroUtils {
   private static final String FIELD_LOCATION_DELIMITER = ".";
 
   private static final String AVRO_SUFFIX = ".avro";
+
+  public static class AvroPathFilter implements PathFilter {
+    @Override
+    public boolean accept(Path path) {
+      return path.getName().endsWith(AVRO_SUFFIX);
+    }
+  }
 
   /**
    * Given a GenericRecord, this method will return the schema of the field specified by the path parameter. The
