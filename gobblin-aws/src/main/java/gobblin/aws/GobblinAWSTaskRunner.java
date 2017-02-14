@@ -107,6 +107,10 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
       return Message.MessageType.USER_DEFINE_MSG.toString();
     }
 
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
+    }
+
     @Override
     public void reset() {
 

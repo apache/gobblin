@@ -17,6 +17,9 @@
 
 package gobblin.cluster;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
@@ -47,6 +50,10 @@ public class TestShutdownMessageHandlerFactory implements MessageHandlerFactory 
   @Override
   public String getMessageType() {
     return GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE;
+  }
+
+  public List<String> getMessageTypes() {
+    return Collections.singletonList(getMessageType());
   }
 
   @Override

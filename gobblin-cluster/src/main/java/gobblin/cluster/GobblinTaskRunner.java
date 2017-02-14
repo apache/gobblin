@@ -20,6 +20,7 @@ package gobblin.cluster;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -312,6 +313,10 @@ public class GobblinTaskRunner {
       return GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE;
     }
 
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
+    }
+
     @Override
     public void reset() {
 
@@ -392,6 +397,10 @@ public class GobblinTaskRunner {
     @Override
     public String getMessageType() {
       return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
     }
 
     @Override

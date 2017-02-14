@@ -21,6 +21,7 @@ import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -484,6 +485,10 @@ public class GobblinClusterManager implements ApplicationLauncher {
       return GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE;
     }
 
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
+    }
+
     @Override
     public void reset() {
 
@@ -563,6 +568,10 @@ public class GobblinClusterManager implements ApplicationLauncher {
     @Override
     public String getMessageType() {
       return Message.MessageType.USER_DEFINE_MSG.toString();
+    }
+
+    public List<String> getMessageTypes() {
+      return Collections.singletonList(getMessageType());
     }
 
     @Override
