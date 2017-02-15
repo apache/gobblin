@@ -49,7 +49,7 @@ public abstract class Batch<D>{
   private static final Logger LOG = LoggerFactory.getLogger(Batch.class);
 
   public Batch () {
-    recordCount = 0;
+    recordCount = 0; 
     thunks = new ArrayList<>();
     id = identifier.incrementAndGet();
   }
