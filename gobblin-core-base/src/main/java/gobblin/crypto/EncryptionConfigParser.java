@@ -20,6 +20,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.password.PasswordManager;
@@ -28,6 +30,7 @@ import gobblin.password.PasswordManager;
 /**
  * Extract encryption related information from taskState
  */
+@Slf4j
 public class EncryptionConfigParser {
   /**
    * Encryption parameters for converters
@@ -47,6 +50,11 @@ public class EncryptionConfigParser {
     Map<String, Object> properties = extractPropertiesForBranch(taskState.getProperties(), ENCRYPT_PREFIX,
         numBranches, branch);
     if (properties.isEmpty()) {
+      return null;
+    }
+
+    if (getEncryptionType(properties) == null) {
+      log.warn("Encryption algorithm not specified; ignoring other encryption settings");
       return null;
     }
 
@@ -99,7 +107,14 @@ public class EncryptionConfigParser {
     for (Map.Entry<Object, Object> prop: properties.entrySet()) {
       String key = (String)prop.getKey();
       if (key.startsWith(prefix) && (branchSuffix.length() == 0 || key.endsWith(branchSuffix))) {
-        int strippedKeyStart =  Math.min(key.length(), prefix.length() + 1);
+        int strippedKeyStart = Math.min(key.length(), prefix.length() + 1);
+
+        // filter out subkeys that don't have a '.' -- eg writer.encrypted.foo shouldn't be returned
+        // if prefix is writer.encrypt
+        if (strippedKeyStart != key.length() && key.charAt(strippedKeyStart - 1) != '.') {
+          continue;
+        }
+
         int strippedKeyEnd = Math.max(strippedKeyStart, key.length() - branchSuffix.length());
         String strippedKey = key.substring(strippedKeyStart, strippedKeyEnd);
         ret.put(strippedKey, prop.getValue());
