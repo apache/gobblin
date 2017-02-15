@@ -93,6 +93,10 @@ public class EventhubBatch extends Batch<byte[]>{
      memory.append(object);
   }
 
+  public int getRecordSizeInByte (byte[] record) {
+    return record.length;
+  }
+
   public long getCurrentSizeInByte() {
     return memory.getByteSize();
   }

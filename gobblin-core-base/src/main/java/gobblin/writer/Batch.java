@@ -49,7 +49,7 @@ public abstract class Batch<D>{
   private static final Logger LOG = LoggerFactory.getLogger(Batch.class);
 
   public Batch () {
-    recordCount = 0;
+    recordCount = 0; 
     thunks = new ArrayList<>();
     id = identifier.incrementAndGet();
   }
@@ -70,18 +70,34 @@ public abstract class Batch<D>{
    */
   final private static class Thunk {
     final WriteCallback callback;
-
-    public Thunk(WriteCallback callback) {
+    final int sizeInBytes;
+    public Thunk(WriteCallback callback, int sizeInBytes) {
       this.callback = callback;
+      this.sizeInBytes = sizeInBytes;
     }
   }
 
   /**
    * After batch is sent and get acknowledged successfully, this method will be invoked
    */
-  public void onSuccess (WriteResponse response) {
-    for (Thunk thunk: this.thunks) {
-      thunk.callback.onSuccess(response);
+  public void onSuccess (final WriteResponse response) {
+    for (final Thunk thunk: this.thunks) {
+      thunk.callback.onSuccess(new WriteResponse() {
+        @Override
+        public Object getRawResponse() {
+          return response.getRawResponse();
+        }
+
+        @Override
+        public String getStringResponse() {
+          return response.getStringResponse();
+        }
+
+        @Override
+        public long bytesWritten() {
+          return thunk.sizeInBytes;
+        }
+      });
     }
   }
 
@@ -125,7 +141,10 @@ public abstract class Batch<D>{
    */
   public abstract void append (D record);
 
-
+  /**
+   * Get input record size in bytes
+   */
+  public abstract int getRecordSizeInByte(D record) ;
 
   /**
    * Try to add a record to this batch
@@ -148,7 +167,7 @@ public abstract class Batch<D>{
     }
 
     this.append(record);
-    thunks.add(new Thunk(callback));
+    thunks.add(new Thunk(callback, getRecordSizeInByte(record)));
     RecordFuture future = new RecordFuture(latch, recordCount);
     recordCount++;
     return future;
