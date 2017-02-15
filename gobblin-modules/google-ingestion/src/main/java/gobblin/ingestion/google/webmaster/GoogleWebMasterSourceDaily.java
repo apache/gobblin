@@ -25,6 +25,7 @@ import java.util.Objects;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.services.webmasters.WebmastersScopes;
+import com.google.common.base.Preconditions;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -58,8 +59,7 @@ public class GoogleWebMasterSourceDaily extends GoogleWebMasterSource {
 
   private static Credential getCredential(State wuState) {
     String scope = wuState.getProp(GoogleCommonKeys.API_SCOPES, WebmastersScopes.WEBMASTERS_READONLY);
-    com.google.api.client.repackaged.com.google.common.base.Preconditions.checkArgument(
-        Objects.equals(WebmastersScopes.WEBMASTERS_READONLY, scope) || Objects
+    Preconditions.checkArgument(Objects.equals(WebmastersScopes.WEBMASTERS_READONLY, scope) || Objects
             .equals(WebmastersScopes.WEBMASTERS, scope),
         "The scope for WebMaster must either be WEBMASTERS_READONLY or WEBMASTERS");
 
