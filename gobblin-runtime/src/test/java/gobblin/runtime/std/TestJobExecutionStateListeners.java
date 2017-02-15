@@ -42,9 +42,9 @@ public class TestJobExecutionStateListeners {
     JobExecutionStateListeners listeners = new JobExecutionStateListeners(log);
 
     JobSpec js1 = JobSpec.builder("gobblin:test/job")
-            .withConfig(ConfigFactory.empty()
-                    .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("TestJob")))
-            .build();
+        .withConfig(ConfigFactory.empty()
+            .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("TestJob")))
+        .build();
     JobExecutionUpdatable je1 = JobExecutionUpdatable.createFromJobSpec(js1);
 
     JobExecutionStateListener l1 = Mockito.mock(JobExecutionStateListener.class);

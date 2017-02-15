@@ -111,9 +111,7 @@ public class MysqlDatasetStateStoreTest {
 
   @Test(dependsOnMethods = "testPersistJobState")
   public void testGetJobState() throws IOException {
-    JobState jobState = dbJobStateStore.get(TEST_JOB_NAME,
-            StateStoreTableInfo.CURRENT_NAME,
-        TEST_JOB_ID);
+    JobState jobState = dbJobStateStore.get(TEST_JOB_NAME, StateStoreTableInfo.CURRENT_NAME, TEST_JOB_ID);
 
     Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
@@ -157,8 +155,7 @@ public class MysqlDatasetStateStoreTest {
 
   @Test(dependsOnMethods = "testPersistDatasetState")
   public void testGetDatasetState() throws IOException {
-    JobState.DatasetState datasetState =
-        dbDatasetStateStore.getLatestDatasetState(TEST_JOB_NAME, TEST_DATASET_URN);
+    JobState.DatasetState datasetState = dbDatasetStateStore.getLatestDatasetState(TEST_JOB_NAME, TEST_DATASET_URN);
 
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
