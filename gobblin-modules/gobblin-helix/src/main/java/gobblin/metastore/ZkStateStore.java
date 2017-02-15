@@ -395,7 +395,7 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
   private Id getId(String tableNamePrefix, String tableName) {
     String id = FilenameUtils.removeExtension(tableName);
-    if (Strings.isNullOrEmpty(tableNamePrefix)) {
+    if (!Strings.isNullOrEmpty(tableNamePrefix)) {
       id = id.substring(tableNamePrefix.length() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR.length() + 1);
     }
     return Id.parse(id);
