@@ -75,7 +75,7 @@ public class DatasetStateStoreUtils {
     Iterable<String> tableNames = stateStore.getTableNames(jobName, new Predicate<String>() {
       @Override
       public boolean apply(String input) {
-        return input.endsWith(DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
+        return input != null && input.endsWith(DatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX);
       }
     });
 
