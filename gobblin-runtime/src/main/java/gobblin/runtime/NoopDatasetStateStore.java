@@ -17,11 +17,6 @@
 
 package gobblin.runtime;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
-import gobblin.annotation.Alias;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.DatasetStateStore;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -29,8 +24,17 @@ import java.util.Map;
 
 import org.apache.hadoop.fs.FileSystem;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
+
+import gobblin.annotation.Alias;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.DatasetStateStore;
 
 
 /**
@@ -65,6 +69,21 @@ public class NoopDatasetStateStore extends FsDatasetStateStore {
   @Override
   public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName) throws IOException {
     return Maps.newHashMap();
+  }
+
+  @Override
+  public Map<Optional<String>, String> getLatestDatasetStateTablesByUrn(String jobName) throws IOException {
+    return Maps.newHashMap();
+  }
+
+  @Override
+  public JobState.DatasetState get(String storeName, String tableName, String stateId) throws IOException {
+    return null;
+  }
+
+  @Override
+  public List<String> getTableNames(String storeName, Predicate<String> predicate) throws IOException {
+    return Lists.newArrayList();
   }
 
   @Override

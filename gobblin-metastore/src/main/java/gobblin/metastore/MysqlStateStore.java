@@ -337,7 +337,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     }
   }
 
-  protected <R> R getAll(StatementBuilder builder, final ResultAccumulator<R, T> accumulator) throws IOException {
+  public <R> R getAll(StatementBuilder builder, final ResultAccumulator<R, T> accumulator) throws IOException {
     Preconditions.checkNotNull(builder, "Builder is null.");
     Preconditions.checkNotNull(accumulator, "Accumulator is null.");
 
@@ -474,11 +474,11 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     return queryStatement;
   }
 
-  protected interface StatementBuilder {
+  public interface StatementBuilder {
     PreparedStatement build(Connection connection) throws SQLException;
   }
 
-  protected interface ResultAccumulator<T, S> {
+  public interface ResultAccumulator<T, S> {
     void initialize();
 
     void add(@Nonnull ResultSet rs, S state) throws SQLException;

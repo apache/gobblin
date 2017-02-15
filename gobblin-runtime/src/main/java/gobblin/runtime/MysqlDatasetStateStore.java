@@ -22,19 +22,13 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 
@@ -43,9 +37,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.MysqlStateStore;
-import gobblin.metastore.util.StateStoreTableInfo;
-import gobblin.runtime.util.DatasetUrnSanitizer;
-import gobblin.util.Id;
+import gobblin.runtime.util.DatasetStateStoreUtils;
 
 
 /**
@@ -66,8 +58,6 @@ import gobblin.util.Id;
 public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetState>
     implements DatasetStateStore<JobState.DatasetState> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MysqlDatasetStateStore.class);
-
   private static final String SELECT_JOB_STATE_LATEST_BULK_TEMPLATE =
           "SELECT state, table_name FROM $TABLE$ WHERE store_name = ? and table_name IN (%s)";;
 
@@ -87,17 +77,17 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
    * @throws IOException if there's something wrong reading the {@link JobState.DatasetState}s
    */
   public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(final String jobName) throws IOException {
-    final Map<Optional<String>, String> latestDatasetStateTableNamesByUrns = getLatestDatasetStateTableNamesByUrns(jobName);
+    final Map<Optional<String>, String> latestDatasetStateTablesByUrn = getLatestDatasetStateTablesByUrn(jobName);
     StatementBuilder statementBuilder = new StatementBuilder() {
       @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE")
       @Override
       public PreparedStatement build(Connection connection) throws SQLException {
         int index = 1;
         String template = String.format(SELECT_JOB_STATE_LATEST_BULK_SQL,
-                getInPredicate(latestDatasetStateTableNamesByUrns.size()));
+                getInPredicate(latestDatasetStateTablesByUrn.size()));
         PreparedStatement queryStatement = connection.prepareStatement(template);
         queryStatement.setString(index++, jobName);
-        for (String tableName : latestDatasetStateTableNamesByUrns.values()) {
+        for (String tableName : latestDatasetStateTablesByUrn.values()) {
           queryStatement.setString(index++, tableName);
         }
         return queryStatement;
@@ -105,7 +95,7 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
     };
 
     Map<String, JobState.DatasetState> datasetStatesByTableName =
-            getAll(statementBuilder, new DatasetStatesByTableNameAccumulator());
+        getAll(statementBuilder, new DatasetStatesByTableNameAccumulator());
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
     for (Map.Entry<String, JobState.DatasetState> state : datasetStatesByTableName.entrySet()) {
       JobState.DatasetState previousDatasetState = state.getValue();
@@ -131,11 +121,7 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
    * @throws IOException
    */
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
-    Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
-    String tableName = (sanitizedDatasetUrn.isPresent() ?
-        sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + StateStoreTableInfo.CURRENT_NAME :
-        StateStoreTableInfo.CURRENT_NAME) + DATASET_STATE_STORE_TABLE_SUFFIX;
-    return get(storeName, tableName, datasetUrn);
+    return DatasetStateStoreUtils.getLatestDatasetState(this, storeName, datasetUrn);
   }
 
   /**
@@ -146,58 +132,11 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
    * @throws IOException if there's something wrong persisting the {@link JobState.DatasetState}
    */
   public void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState) throws IOException {
-    String jobName = datasetState.getJobName();
-    String jobId = datasetState.getJobId();
-
-    Optional<String> sanitizedDatasetUrn = DatasetUrnSanitizer.sanitize(datasetUrn);
-    String tableName = (sanitizedDatasetUrn.isPresent() ?
-        sanitizedDatasetUrn.get() + StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + jobId : jobId) +
-        DATASET_STATE_STORE_TABLE_SUFFIX;
-    LOGGER.info("Persisting " + tableName + " to the job state store");
-    put(jobName, tableName, datasetState);
+    DatasetStateStoreUtils.persistDatasetState(this, datasetUrn, datasetState);
   }
 
-  private Map<Optional<String>, String> getLatestDatasetStateTableNamesByUrns(String jobName) throws IOException {
-    List<String> tableNames = getTableNames(jobName, new Predicate<String>() {
-      @Override
-      public boolean apply(String tableName) {
-        return tableName.endsWith(DATASET_STATE_STORE_TABLE_SUFFIX);
-      }
-    });
-
-    String jobPrefix = StateStoreTableInfo.TABLE_PREFIX_SEPARATOR + Id.Job.create(jobName).toString();
-    Map<Optional<String>, String> datasetStateFilePathsByUrns = Maps.newHashMap();
-    for (String tableName : tableNames) {
-      int jobPrefixIndex = tableName.lastIndexOf(jobPrefix);
-      Optional<String> datasetUrn = Optional.absent();
-      if (jobPrefixIndex > 1) {
-        datasetUrn = DatasetUrnSanitizer.sanitize(tableName.substring(0, jobPrefixIndex));
-      }
-      if (!datasetStateFilePathsByUrns.containsKey(datasetUrn)) {
-        LOGGER.debug("Latest table for {} dataset set to {}", datasetUrn.or("DEFAULT"), tableName);
-        datasetStateFilePathsByUrns.put(datasetUrn, tableName);
-      } else {
-        String previousTableName = datasetStateFilePathsByUrns.get(datasetUrn);
-        Id currentJobId = getJobId(datasetUrn, tableName);
-        Id previousJobId = getJobId(datasetUrn, previousTableName);
-        if (currentJobId.getSequence().compareTo(previousJobId.getSequence()) > 0) {
-          LOGGER.debug("Latest table for {} dataset set to {} instead of {}", datasetUrn.or("DEFAULT"), tableName, previousTableName);
-          datasetStateFilePathsByUrns.put(datasetUrn, tableName);
-        } else {
-          LOGGER.debug("Latest table for {} dataset left as {}. Table {} is being ignored", datasetUrn.or("DEFAULT"), previousTableName, tableName);
-        }
-      }
-    }
-
-    return datasetStateFilePathsByUrns;
-  }
-
-  private Id getJobId(Optional<String> datasetUrn, String tableName) {
-    String jobId = FilenameUtils.removeExtension(tableName);
-    if (datasetUrn.isPresent()) {
-      jobId = jobId.substring(datasetUrn.get().length() + 1);
-    }
-    return Id.Job.parse(jobId);
+  public Map<Optional<String>, String> getLatestDatasetStateTablesByUrn(String jobName) throws IOException {
+    return DatasetStateStoreUtils.getLatestDatasetStateTablesByUrn(this, jobName);
   }
 
   private static String getInPredicate(int count) {

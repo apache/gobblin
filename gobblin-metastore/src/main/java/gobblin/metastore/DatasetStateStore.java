@@ -17,10 +17,14 @@
 
 package gobblin.metastore;
 
-import com.typesafe.config.Config;
-import gobblin.configuration.State;
 import java.io.IOException;
 import java.util.Map;
+
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
+import gobblin.configuration.State;
+
 
 public interface DatasetStateStore<T extends State> extends StateStore<T> {
   String DATASET_STATE_STORE_TABLE_SUFFIX = ".jst";
@@ -32,6 +36,8 @@ public interface DatasetStateStore<T extends State> extends StateStore<T> {
   Map<String, T> getLatestDatasetStatesByUrns(String jobName) throws IOException;
 
   T getLatestDatasetState(String storeName, String datasetUrn) throws IOException;
+
+  Map<Optional<String>, String> getLatestDatasetStateTablesByUrn(String jobName) throws IOException;
 
   void persistDatasetState(String datasetUrn, T datasetState) throws IOException;
 }
