@@ -36,7 +36,7 @@ public class FsStateStoreFactory implements StateStore.Factory {
     // Add all job configuration properties so they are picked up by Hadoop
     Configuration conf = new Configuration();
     for (Map.Entry<String, ConfigValue> entry : config.entrySet()) {
-      conf.set(entry.getKey(), entry.getValue().toString());
+      conf.set(entry.getKey(), entry.getValue().unwrapped().toString());
     }
 
     try {
