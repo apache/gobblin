@@ -123,7 +123,6 @@ public class EncryptionConfigParser {
       Properties properties, String prefix, String branchSuffix) {
 
     Map<String, Object> ret = new HashMap<>();
-    //String branchSuffix = (numBranches > 1) ? String.format(".%d", branch) : "";
 
     for (Map.Entry<Object, Object> prop: properties.entrySet()) {
       String key = (String)prop.getKey();
