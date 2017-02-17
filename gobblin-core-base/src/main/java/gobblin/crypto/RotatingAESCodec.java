@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import gobblin.type.ContentTypeUtils;
 import gobblin.writer.StreamCodec;
 
 import javax.crypto.Cipher;
@@ -50,10 +51,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class RotatingAESCodec implements StreamCodec {
   private static final int AES_KEY_LEN = 16;
+  private static final String TAG = "aes_rotating";
 
   private final Random random;
   private final CredentialStore credentialStore;
   private volatile List<KeyRecord> keyRecords_cache;
+
+  static {
+    // this class base64 encodes any potential binary data so it is guaranteed to output utf8
+    ContentTypeUtils.getInstance().registerCharsetMapping(TAG, "UTF-8");
+  }
 
   /**
    * Create a new encryptor
@@ -111,7 +118,7 @@ public class RotatingAESCodec implements StreamCodec {
 
   @Override
   public String getTag() {
-    return "aes_rotating";
+    return TAG;
   }
 
   /**

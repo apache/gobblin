@@ -22,6 +22,7 @@ package gobblin.converter;
 import java.util.HashMap;
 import java.util.Iterator;
 
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -34,16 +35,17 @@ import gobblin.type.RecordWithMetadata;
 
 
 @Test
-public class AnyToRecordWithMetadataConverterTest {
+public class AnyToJsonRecordWithMetadataConverterTest {
 
   @Test
   public void testFailures()
       throws DataConversionException {
-    AnyToRecordWithMetadataConverter converter = new AnyToRecordWithMetadataConverter();
+    AnyToJsonRecordWithMetadataConverter converter = new AnyToJsonRecordWithMetadataConverter();
     Object randomObject = new Object();
 
     try {
-      Iterator<RecordWithMetadata> recordWithMetadataIterator = converter.convertRecord("", randomObject, null).iterator();
+      Iterator<RecordWithMetadata<JsonElement>> recordWithMetadataIterator =
+          converter.convertRecord("", randomObject, null).iterator();
       Assert.fail("Should have thrown an exception");
     } catch (DataConversionException e) {
     } catch (Exception e) {
@@ -52,18 +54,19 @@ public class AnyToRecordWithMetadataConverterTest {
 
     randomObject = null;
     try {
-      Iterator<RecordWithMetadata> recordWithMetadataIterator = converter.convertRecord("", randomObject, null).iterator();
+      Iterator<RecordWithMetadata<JsonElement>> recordWithMetadataIterator =
+          converter.convertRecord("", randomObject, null).iterator();
       Assert.fail("Should have thrown an exception");
     } catch (DataConversionException e) {
     } catch (Exception e) {
       Assert.fail("Should only throw DataConversionException", e);
     }
-
-
   }
 
   @Test
   public void testSuccessWithJson() {
+
+    Schema randomAvroSchema = TestUtils.generateRandomAvroRecord().getSchema();
 
     HashMap<String, String> map = new HashMap<>();
     map.put("test", "test");
@@ -72,40 +75,29 @@ public class AnyToRecordWithMetadataConverterTest {
     Gson gson = new Gson();
 
     JsonElement jsonElement = gson.toJsonTree(map);
-    AnyToRecordWithMetadataConverter converter = new AnyToRecordWithMetadataConverter();
-
-
+    AnyToJsonRecordWithMetadataConverter converter = new AnyToJsonRecordWithMetadataConverter();
     try {
-      Iterator<RecordWithMetadata> recordWithMetadataIterator = converter.convertRecord("", jsonElement, null).iterator();
+      converter.convertSchema(randomAvroSchema, null);
+      Iterator<RecordWithMetadata<JsonElement>> recordWithMetadataIterator =
+          converter.convertRecord("", jsonElement, null).iterator();
       RecordWithMetadata recordWithMetadata = recordWithMetadataIterator.next();
       Assert.assertEquals(recordWithMetadata.getRecord(), jsonElement);
+      Assert.assertEquals(recordWithMetadata.getMetadata().get(RecordWithMetadata.RECORD_NAME), "test.name");
     } catch (Exception e) {
       Assert.fail("Should not have thrown an exception");
     }
-
-
   }
 
   @Test
-  public void testSuccessWithAvro() {
-
+  public void testSuccessWithAvro() throws DataConversionException {
     GenericRecord record = TestUtils.generateRandomAvroRecord();
-    AnyToRecordWithMetadataConverter converter = new AnyToRecordWithMetadataConverter();
+    AnyToJsonRecordWithMetadataConverter converter = new AnyToJsonRecordWithMetadataConverter();
 
-
-    try {
-      Iterator<RecordWithMetadata> recordWithMetadataIterator = converter.convertRecord("", record, null).iterator();
-      RecordWithMetadata recordWithMetadata = recordWithMetadataIterator.next();
-      // A Json Element has been created. Not testing if it is what we expect it to be
-      Assert.assertTrue(recordWithMetadata.getRecord() instanceof JsonElement);
-
-    } catch (Exception e) {
-      Assert.fail("Should not have thrown an exception");
-    }
-
-
+    Iterator<RecordWithMetadata<JsonElement>> recordWithMetadataIterator =
+        converter.convertRecord("", record, null).iterator();
+    RecordWithMetadata recordWithMetadata = recordWithMetadataIterator.next();
+    // A Json Element has been created. Not testing if it is what we expect it to be
+    Assert.assertTrue(recordWithMetadata.getRecord() instanceof JsonElement);
+    Assert.assertEquals(recordWithMetadata.getMetadata().get(RecordWithMetadata.RECORD_NAME), "test.name+json");
   }
-
-
-
 }

@@ -31,6 +31,8 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class RecordWithMetadata<D> {
+  public static final String RECORD_NAME = "recordName";
+
   private final D record;
   private final Map<String, Object> metadata;
 }
