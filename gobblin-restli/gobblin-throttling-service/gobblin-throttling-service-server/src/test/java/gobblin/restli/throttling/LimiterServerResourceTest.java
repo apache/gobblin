@@ -26,6 +26,7 @@ import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+import com.google.inject.name.Names;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.typesafe.config.ConfigFactory;
@@ -52,7 +53,7 @@ public class LimiterServerResourceTest {
     Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
-        binder.bind(SharedResourcesBroker.class).toInstance(broker);
+        binder.bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
       }
     });
 
@@ -89,7 +90,7 @@ public class LimiterServerResourceTest {
     Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
-        binder.bind(SharedResourcesBroker.class).toInstance(broker);
+        binder.bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
       }
     });
 

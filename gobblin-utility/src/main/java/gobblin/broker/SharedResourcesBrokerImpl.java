@@ -83,7 +83,11 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
     try {
       return this.brokerCache.getAutoScoped(factory, key, this);
     } catch (ExecutionException ee) {
-      throw new RuntimeException(ee);
+      Throwable cause = ee.getCause();
+      if (cause instanceof NotConfiguredException) {
+        throw (NotConfiguredException) cause;
+      }
+      throw new RuntimeException(cause);
     }
   }
 
