@@ -47,6 +47,9 @@ public class StreamCopier {
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private Meter copySpeedMeter;
   private Limiter bytesTransferredLimiter;
+  private MeteredStream inputMeter;
+  private MeteredStream outputMeter;
+
   private boolean closeChannelsOnComplete = false;
   private volatile boolean copied = false;
 
