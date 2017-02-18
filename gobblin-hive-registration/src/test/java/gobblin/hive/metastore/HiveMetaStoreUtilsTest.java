@@ -34,7 +34,7 @@ import gobblin.hive.HiveTable;
 
 public class HiveMetaStoreUtilsTest {
   @Test
-  public void testGetTable() {
+  public void testGetTableAvro() {
     final String databaseName = "testdb";
     final String tableName = "testtable";
 
@@ -68,5 +68,37 @@ public class HiveMetaStoreUtilsTest {
     FieldSchema fieldA = fields.get(0);
     Assert.assertEquals(fieldA.getName(), "a");
     Assert.assertEquals(fieldA.getType(), "int");
+  }
+
+  @Test
+  public void testGetTableAvroInvalidSchema() {
+    final String databaseName = "testdb";
+    final String tableName = "testtable";
+
+    HiveTable.Builder builder = new HiveTable.Builder();
+
+    builder.withDbName(databaseName).withTableName(tableName);
+
+    State serdeProps = new State();
+    serdeProps.setProp("avro.schema.literal", "invalid schema");
+    builder.withSerdeProps(serdeProps);
+
+    HiveTable hiveTable = builder.build();
+    hiveTable.setInputFormat(AvroContainerInputFormat.class.getName());
+    hiveTable.setOutputFormat(AvroContainerOutputFormat.class.getName());
+    hiveTable.setSerDeType(AvroSerDe.class.getName());
+
+    Table table = HiveMetaStoreUtils.getTable(hiveTable);
+    Assert.assertEquals(table.getDbName(), databaseName);
+    Assert.assertEquals(table.getTableName(), tableName);
+
+    StorageDescriptor sd = table.getSd();
+    Assert.assertEquals(sd.getInputFormat(), AvroContainerInputFormat.class.getName());
+    Assert.assertEquals(sd.getOutputFormat(), AvroContainerOutputFormat.class.getName());
+    Assert.assertNotNull(sd.getSerdeInfo());
+    Assert.assertEquals(sd.getSerdeInfo().getSerializationLib(), AvroSerDe.class.getName());
+
+    List<FieldSchema> fields = sd.getCols();
+    Assert.assertTrue(fields != null && fields.size() == 0);
   }
 }

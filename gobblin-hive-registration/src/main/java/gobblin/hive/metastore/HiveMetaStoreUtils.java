@@ -31,6 +31,7 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
@@ -333,35 +334,39 @@ public class HiveMetaStoreUtils {
     return fieldSchemas;
   }
 
+  /**
+   * Returns a Deserializer from HiveRegistrationUnit if present and successfully initialized. Else returns null.
+   */
   private static Deserializer getDeserializer(HiveRegistrationUnit unit) {
-    Deserializer deserializer = null;
-
     Optional<String> serdeClass = unit.getSerDeType();
-    if (serdeClass.isPresent()) {
-      String serde = serdeClass.get();
-      HiveConf hiveConf = new HiveConf();
+    if (!serdeClass.isPresent()) {
+      return null;
+    }
 
-      try {
-        deserializer = ReflectionUtils.newInstance(hiveConf.getClassByName(serde).asSubclass(Deserializer.class),
-            hiveConf);
-      } catch (ClassNotFoundException e) {
-        LOG.warn("Serde class " + serde + " not found!", e);
-      }
+    String serde = serdeClass.get();
+    HiveConf hiveConf = new HiveConf();
 
-      if (deserializer == null) {
-        return deserializer;
-      }
+    Deserializer deserializer;
+    try {
+      deserializer = ReflectionUtils.newInstance(hiveConf.getClassByName(serde).asSubclass(Deserializer.class),
+          hiveConf);
 
-      Properties props = new Properties();
-      props.putAll(unit.getProps().getProperties());
-      props.putAll(unit.getStorageProps().getProperties());
-      props.putAll(unit.getSerDeProps().getProperties());
+    } catch (ClassNotFoundException e) {
+      LOG.warn("Serde class " + serde + " not found!", e);
+      return null;
+    }
 
-      try {
-        SerDeUtils.initializeSerDe(deserializer, hiveConf, props, null);
-      } catch (SerDeException e) {
-        LOG.warn("Failed to initialize serde " + serde + " with properties " + props);
-      }
+    Properties props = new Properties();
+    props.putAll(unit.getProps().getProperties());
+    props.putAll(unit.getStorageProps().getProperties());
+    props.putAll(unit.getSerDeProps().getProperties());
+
+    try {
+      SerDeUtils.initializeSerDe(deserializer, hiveConf, props, null);
+    } catch (SerDeException e) {
+      LOG.warn("Failed to initialize serde " + serde + " with properties " + props + " for table " + unit.getDbName() +
+          "." + unit.getTableName());
+      return null;
     }
 
     return deserializer;
