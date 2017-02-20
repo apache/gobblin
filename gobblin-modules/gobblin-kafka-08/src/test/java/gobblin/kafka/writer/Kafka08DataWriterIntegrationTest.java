@@ -31,7 +31,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
 
-import junit.framework.Assert;
+import org.testng.Assert;
 import kafka.consumer.ConsumerIterator;
 import lombok.extern.slf4j.Slf4j;
 
