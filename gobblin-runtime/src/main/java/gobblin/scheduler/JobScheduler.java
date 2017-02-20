@@ -234,6 +234,14 @@ public class JobScheduler extends AbstractIdleService {
   }
 
   /**
+   * Submit a runnable to the {@link ExecutorService} of this {@link JobScheduler}.
+   * @param runnable the runnable to submit to the job executor
+   */
+  public void submitRunnableToExecutor(Runnable runnable) {
+    this.jobExecutor.execute(runnable);
+  }
+
+  /**
    * Schedule a job.
    *
    * <p>
