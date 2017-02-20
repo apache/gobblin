@@ -60,6 +60,7 @@ dependencies {
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
+  testCompile externalDependency.junit
   testCompile(externalDependency.kafka08Test){
     exclude group: "com.sun.jmx", module: "jmxri"
     exclude group: "com.sun.jdmk", module: "jmxtools"
