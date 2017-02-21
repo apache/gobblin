@@ -229,7 +229,7 @@ public class FSSpecStore implements SpecStore {
   protected Spec readSpecFromFile(Path path) throws IOException {
     Spec spec = null;
     FSDataInputStream fis = fs.open(path);
-    BufferedReader br = new BufferedReader(new InputStreamReader(fis));
+    BufferedReader br = new BufferedReader(new InputStreamReader(fis, Charset.forName("UTF-8")));
     try {
       spec = gson.fromJson(br, Spec.class);
     } finally {
