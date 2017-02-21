@@ -26,7 +26,7 @@ import java.util.Collection;
  * programmatically. Note that specs in a spec catalog can change from the outside. This is covered
  * by the base SpecCatalog interface.
  */
-public interface MutableSpecCatalog {
+public interface MutableSpecCatalog extends SpecCatalog {
   /**
    * Registers a new {@link Spec}. If a {@link Spec} with the same {@link Spec#getUri()} exists,
    * it will be replaced.
