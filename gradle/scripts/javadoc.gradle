@@ -58,6 +58,7 @@ subprojects {
     // Sometimes generating javadocs can lead to OOM. This may needs to be increased.
     // Also force javadocs to pick up system proxy settings if available
     javadoc {
+      options.encoding = 'UTF-8';
       options.jFlags('-Xmx256m', '-Djava.net.useSystemProxies=true');
     }
 
