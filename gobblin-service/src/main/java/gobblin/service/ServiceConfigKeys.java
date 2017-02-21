@@ -17,8 +17,7 @@
 
 package gobblin.service;
 
-import gobblin.runtime.api.SpecCatalog;
-import gobblin.runtime.api.SpecStore;
+import gobblin.runtime.spec_store.FSSpecStore;
 import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 
 
@@ -26,11 +25,13 @@ public class ServiceConfigKeys {
 
   // FlowSpec Store Keys
   public static final String GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY = "gobblin.service.flowSpec.store.class";
-  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS = SpecCatalog.class.getCanonicalName();
+  public static final String GOBBLIN_SERVICE_FLOWSPEC_STORE_DIR_KEY = "gobblin.service.flowSpec.store.dir";
+  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
   // TopologySpec Store Keys
   public static final String GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS_KEY = "gobblin.service.topologySpec.store.class";
-  public static final String DEFAULT_GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS = SpecStore.class.getCanonicalName();
+  public static final String GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_DIR_KEY = "gobblin.service.topologySpec.store.class";
+  public static final String DEFAULT_GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
   // Flow Compiler Keys
   public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = "gobblin.service.flowCompiler.class";

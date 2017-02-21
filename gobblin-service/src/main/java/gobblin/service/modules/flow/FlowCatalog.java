@@ -17,6 +17,10 @@
 
 package gobblin.service.modules.flow;
 
+import com.typesafe.config.ConfigValueFactory;
+import gobblin.config.ConfigBuilder;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.ConfigUtils;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -91,13 +95,18 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
     try {
+      Config newConfig = config;
+      if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC_STORE_DIR_KEY)) {
+        newConfig = config.withValue(ConfigurationKeys.SPECSTORE_FS_DIR_KEY,
+            config.getValue(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC_STORE_DIR_KEY));
+      }
       String specStoreClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS;
       if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY)) {
         specStoreClassName = config.getString(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY);
       }
       this.log.info("Using audit sink class name/alias " + specStoreClassName);
       this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
-          specStoreClassName)));
+          specStoreClassName)), newConfig);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new RuntimeException(e);
