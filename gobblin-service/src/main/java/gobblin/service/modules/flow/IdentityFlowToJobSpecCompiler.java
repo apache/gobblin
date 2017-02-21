@@ -59,11 +59,17 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler, SpecCatalogL
     String source = flowSpec.getConfig().getString(FLOW_SOURCE_IDENTIFIER_KEY);
     String destination = flowSpec.getConfig().getString(FLOW_DESTINATION_IDENTIFIER_KEY);
 
-    JobSpec jobSpec = JobSpec.builder(flowSpec.getUri())
+    JobSpec.Builder jobSpecBuilder = JobSpec.builder(flowSpec.getUri())
         .withConfig(flowSpec.getConfig())
-        .withTemplate(flowSpec.getTemplateURIs().get().iterator().next())
         .withDescription(flowSpec.getDescription())
-        .build();
+        .withVersion(flowSpec.getVersion());
+
+    if (flowSpec.getTemplateURIs().isPresent()) {
+      // Only first template uri will be honored for Identity
+      jobSpecBuilder = jobSpecBuilder.withTemplate(flowSpec.getTemplateURIs().get().iterator().next());
+    }
+
+    JobSpec jobSpec = jobSpecBuilder.build();
 
     for (TopologySpec topologySpec : topologySpecMap.values()) {
       try {
