@@ -17,13 +17,14 @@
 
 package gobblin.runtime.api;
 
+import java.io.Serializable;
 import java.net.URI;
 
 
 /**
  * A basic interface for an object with a {@link URI}, version, and description.
  */
-public interface Spec {
+public interface Spec extends Serializable {
   URI getUri();
   String getVersion();
   String getDescription();
