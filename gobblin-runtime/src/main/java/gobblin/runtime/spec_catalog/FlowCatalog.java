@@ -15,12 +15,26 @@
  * limitations under the License.
  */
 
-package gobblin.service.modules.flow;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import com.typesafe.config.ConfigValueFactory;
-import gobblin.config.ConfigBuilder;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ConfigUtils;
+package gobblin.runtime.spec_catalog;
+
+import gobblin.runtime.spec_store.FSSpecStore;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -38,6 +52,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.instrumented.Instrumented;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.annotation.Alpha;
@@ -49,13 +64,16 @@ import gobblin.runtime.api.SpecCatalog;
 import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.api.SpecStore;
-import gobblin.service.ServiceConfigKeys;
-import gobblin.service.modules.SpecCatalogListenersList;
 import gobblin.util.ClassAliasResolver;
 
 
 @Alpha
 public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog {
+
+  // FlowSpec Store Keys
+  public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
+  public static final String FLOWSPEC_STORE_DIR_KEY = "flowSpec.store.dir";
+  public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
   protected final Logger log;
@@ -96,13 +114,13 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
     try {
       Config newConfig = config;
-      if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC_STORE_DIR_KEY)) {
+      if (config.hasPath(FLOWSPEC_STORE_DIR_KEY)) {
         newConfig = config.withValue(ConfigurationKeys.SPECSTORE_FS_DIR_KEY,
-            config.getValue(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC_STORE_DIR_KEY));
+            config.getValue(FLOWSPEC_STORE_DIR_KEY));
       }
-      String specStoreClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS;
-      if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY)) {
-        specStoreClassName = config.getString(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY);
+      String specStoreClassName = DEFAULT_FLOWSPEC_STORE_CLASS;
+      if (config.hasPath(FLOWSPEC_STORE_CLASS_KEY)) {
+        specStoreClassName = config.getString(FLOWSPEC_STORE_CLASS_KEY);
       }
       this.log.info("Using audit sink class name/alias " + specStoreClassName);
       this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
