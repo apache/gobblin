@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 
-public interface SpecExecutorInstanceConsumer<V, T> {
+public interface SpecExecutorInstanceConsumer<V> extends SpecExecutorInstance {
 
   /** List of newly changed {@link Spec}s for execution on {@link SpecExecutorInstance}. */
   Future<? extends Map<Verb, V>> changedSpecs();

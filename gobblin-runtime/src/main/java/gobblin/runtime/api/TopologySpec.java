@@ -61,7 +61,7 @@ public class TopologySpec implements Configurable, Spec {
   final Properties configAsProperties;
 
   /** Underlying executor instance such as Gobblin cluster or Azkaban */
-  final SpecExecutorInstance specExecutorInstance;
+  final SpecExecutorInstanceProducer specExecutorInstanceProducer;
 
   public static TopologySpec.Builder builder(URI topologySpecUri) {
     return new TopologySpec.Builder(topologySpecUri);
@@ -127,7 +127,7 @@ public class TopologySpec implements Configurable, Spec {
     private String version = "1";
     private Optional<String> description = Optional.absent();
     private Optional<URI> topologyCatalogURI = Optional.absent();
-    private Optional<SpecExecutorInstance> specExecutorInstance = Optional.absent();
+    private Optional<SpecExecutorInstanceProducer> specExecutorInstanceProducer = Optional.absent();
 
     public Builder(URI topologySpecUri) {
       Preconditions.checkNotNull(topologySpecUri);
@@ -154,7 +154,7 @@ public class TopologySpec implements Configurable, Spec {
       Preconditions.checkNotNull(this.version);
 
       return new TopologySpec(getURI(), getVersion(), getDescription(), getConfig(),
-          getConfigAsProperties(), getSpecExceutorInstance());
+          getConfigAsProperties(), getSpecExceutorInstanceProducer());
     }
 
     /** The scheme and authority of the topology catalog URI are used to generate TopologySpec URIs from
@@ -277,17 +277,17 @@ public class TopologySpec implements Configurable, Spec {
       return this;
     }
 
-    public SpecExecutorInstance getSpecExceutorInstance() {
-      if (!this.specExecutorInstance.isPresent()) {
-        // TODO: Try to init SpecExecutorInstance from config if not initialized via builder.
-        throw new RuntimeException("SpecExecutorInstance not initialized.");
+    public SpecExecutorInstanceProducer getSpecExceutorInstanceProducer() {
+      if (!this.specExecutorInstanceProducer.isPresent()) {
+        // TODO: Try to init SpecExecutorInstanceProducer from config if not initialized via builder.
+        throw new RuntimeException("SpecExecutorInstanceProducer not initialized.");
       }
-      return this.specExecutorInstance.get();
+      return this.specExecutorInstanceProducer.get();
     }
 
-    public TopologySpec.Builder withSpecExecutorInstance(SpecExecutorInstance specExecutorInstance) {
-      Preconditions.checkNotNull(specExecutorInstance);
-      this.specExecutorInstance = Optional.of(specExecutorInstance);
+    public TopologySpec.Builder withSpecExecutorInstanceProducer(SpecExecutorInstanceProducer specExecutorInstanceProducer) {
+      Preconditions.checkNotNull(specExecutorInstanceProducer);
+      this.specExecutorInstanceProducer = Optional.of(specExecutorInstanceProducer);
       return this;
     }
   }

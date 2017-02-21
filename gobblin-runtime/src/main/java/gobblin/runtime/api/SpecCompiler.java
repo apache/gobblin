@@ -30,5 +30,5 @@ public interface SpecCompiler {
    * @param spec {@link Spec} to compile.
    * @return Map of materialized physical {@link Spec} and {@link SpecExecutorInstance}.
    */
-  Map<Spec, SpecExecutorInstance> compileFlow(Spec spec);
+  Map<Spec, SpecExecutorInstanceProducer> compileFlow(Spec spec);
 }

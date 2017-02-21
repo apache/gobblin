@@ -29,7 +29,7 @@ import gobblin.annotation.Alpha;
  * that can execute a {@link Spec}.
  */
 @Alpha
-public interface SpecExecutorInstanceProducer<V> {
+public interface SpecExecutorInstanceProducer<V> extends SpecExecutorInstance {
   /** Add a {@link Spec} for execution on {@link SpecExecutorInstance}. */
   Future<?> addSpec(V addedSpec);
 

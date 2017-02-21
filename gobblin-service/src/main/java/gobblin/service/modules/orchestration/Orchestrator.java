@@ -30,7 +30,7 @@ import com.typesafe.config.Config;
 
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.SpecCompiler;
-import gobblin.runtime.api.SpecExecutorInstance;
+import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalogListener;
@@ -89,7 +89,7 @@ public class Orchestrator implements SpecCatalogListener {
     }
 
     if (addedSpec instanceof FlowSpec) {
-      Map<Spec, SpecExecutorInstance> specExecutorInstanceMap = specCompiler.compileFlow(addedSpec);
+      Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = specCompiler.compileFlow(addedSpec);
 
       if (specExecutorInstanceMap.isEmpty()) {
         if (_log.isPresent()) {
@@ -99,7 +99,7 @@ public class Orchestrator implements SpecCatalogListener {
       }
 
       // Using the first mapping, we will evolve to be more fancy in selecting which executor to run on later
-      SpecExecutorInstance selectedExecutor = specExecutorInstanceMap.values().iterator().next();
+      SpecExecutorInstanceProducer selectedExecutor = specExecutorInstanceMap.values().iterator().next();
 
       // Run this spec on this executor
       try {

@@ -30,6 +30,7 @@ import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.runtime.api.SpecCompiler;
 import gobblin.runtime.api.SpecExecutorInstance;
+import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.service.ServiceConfigKeys;
 
@@ -47,11 +48,11 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler, SpecCatalogL
   }
 
   @Override
-  public Map<Spec, SpecExecutorInstance> compileFlow(Spec spec) {
+  public Map<Spec, SpecExecutorInstanceProducer> compileFlow(Spec spec) {
     Preconditions.checkNotNull(spec);
     Preconditions.checkArgument(spec instanceof FlowSpec, "IdentityFlowToJobSpecCompiler only converts FlowSpec to JobSpec");
 
-    Map<Spec, SpecExecutorInstance> specExecutorInstanceMap = Maps.newHashMap();
+    Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = Maps.newHashMap();
 
     FlowSpec flowSpec = (FlowSpec) spec;
     String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
@@ -71,10 +72,10 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler, SpecCatalogL
 
     for (TopologySpec topologySpec : topologySpecMap.values()) {
       try {
-        Map<String, String> capabilities = (Map<String, String>) topologySpec.getSpecExecutorInstance().getCapabilities().get();
+        Map<String, String> capabilities = (Map<String, String>) topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
         for (Map.Entry<String, String> capability : capabilities.entrySet()) {
           if (source.equals(capability.getKey()) && destination.equals(capability.getValue())) {
-            specExecutorInstanceMap.put(jobSpec, topologySpec.getSpecExecutorInstance());
+            specExecutorInstanceMap.put(jobSpec, topologySpec.getSpecExecutorInstanceProducer());
           }
         }
       } catch (InterruptedException | ExecutionException e) {
