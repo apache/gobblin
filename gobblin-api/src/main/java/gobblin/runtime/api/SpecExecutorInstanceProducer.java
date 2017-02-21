@@ -19,32 +19,26 @@ package gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Future;
-
-import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
 
 
 /**
- * Defines a SpecExecutorInstance (typically a standalone instance, cluster or Azkaban deployment)
+ * Defines a SpecExecutorInstanceProducer to produce jobs to {@link SpecExecutorInstance}
  * that can execute a {@link Spec}.
  */
 @Alpha
-public interface SpecExecutorInstance {
-  /** An URI identifying the SpecExecutorInstance. */
-  URI getUri();
+public interface SpecExecutorInstanceProducer<V> {
+  /** Add a {@link Spec} for execution on {@link SpecExecutorInstance}. */
+  Future<?> addSpec(V addedSpec);
 
-  /** Human-readable description of the SpecExecutorInstance .*/
-  Future<String> getDescription();
+  /** Update a {@link Spec} being executed on {@link SpecExecutorInstance}. */
+  Future<?> updateSpec(V updatedSpec);
 
-  /** SpecExecutorInstance config as a typesafe config object. */
-  Future<Config> getConfig();
+  /** Delete a {@link Spec} being executed on {@link SpecExecutorInstance}. */
+  Future<?> deleteSpec(URI deletedSpecURI);
 
-  /** Health of SpecExecutorInstance. */
-  Future<String> getHealth();
-
-  /** Source : Destination processing capabilities of SpecExecutorInstance. */
-  Future<? extends Map<String, String>> getCapabilities();
+  /** List all {@link Spec} being executed on {@link SpecExecutorInstance}. */
+  Future<? extends List<V>> listSpecs();
 }

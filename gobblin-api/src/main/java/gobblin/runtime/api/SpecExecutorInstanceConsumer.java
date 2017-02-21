@@ -17,34 +17,34 @@
 
 package gobblin.runtime.api;
 
-import java.net.URI;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
-import com.typesafe.config.Config;
 
-import gobblin.annotation.Alpha;
+public interface SpecExecutorInstanceConsumer<V, T> {
 
+  /** List of newly changed {@link Spec}s for execution on {@link SpecExecutorInstance}. */
+  Future<? extends Map<Verb, V>> changedSpecs();
 
-/**
- * Defines a SpecExecutorInstance (typically a standalone instance, cluster or Azkaban deployment)
- * that can execute a {@link Spec}.
- */
-@Alpha
-public interface SpecExecutorInstance {
-  /** An URI identifying the SpecExecutorInstance. */
-  URI getUri();
+  public static enum Verb {
+    ADD(1, "add"),
+    UPDATE(2, "update"),
+    DELETE(3, "delete");
 
-  /** Human-readable description of the SpecExecutorInstance .*/
-  Future<String> getDescription();
+    private int _id;
+    private String _verb;
 
-  /** SpecExecutorInstance config as a typesafe config object. */
-  Future<Config> getConfig();
+    Verb(int id, String verb) {
+      _id = id;
+      _verb = verb;
+    }
 
-  /** Health of SpecExecutorInstance. */
-  Future<String> getHealth();
+    public int getId() {
+      return _id;
+    }
 
-  /** Source : Destination processing capabilities of SpecExecutorInstance. */
-  Future<? extends Map<String, String>> getCapabilities();
+    public String geVerb() {
+      return _verb;
+    }
+  }
 }
