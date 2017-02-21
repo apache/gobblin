@@ -17,6 +17,7 @@
 
 package gobblin.service.modules.orchestration;
 
+import gobblin.runtime.spec_catalog.TopologyCatalog;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Map;
@@ -35,13 +36,12 @@ import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.service.ServiceConfigKeys;
-import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 import gobblin.util.ClassAliasResolver;
 
 
 /**
  * Orchestrator that is a {@link SpecCatalogListener}. It listens to changes
- * to {@link gobblin.service.modules.flow.FlowCatalog} and {@link gobblin.service.modules.topology.TopologyCatalog}
+ * to {@link gobblin.service.modules.flow.FlowCatalog} and {@link TopologyCatalog}
  * and:
  * If topology has changed: invokes FlowCompiler on all flows and provisions them on their respective executors
  * If flow has changed: invokes FlowCompiler on all that flow and provisions it on its respective executors

@@ -23,22 +23,17 @@ import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 
 public class ServiceConfigKeys {
 
-  // FlowSpec Store Keys
-  public static final String GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY = "gobblin.service.flowSpec.store.class";
-  public static final String GOBBLIN_SERVICE_FLOWSPEC_STORE_DIR_KEY = "gobblin.service.flowSpec.store.dir";
-  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
-
-  // TopologySpec Store Keys
-  public static final String GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS_KEY = "gobblin.service.topologySpec.store.class";
-  public static final String GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_DIR_KEY = "gobblin.service.topologySpec.store.class";
-  public static final String DEFAULT_GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
+  private static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
 
   // Flow Compiler Keys
-  public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = "gobblin.service.flowCompiler.class";
+  public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowCompiler.class";
   public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS = IdentityFlowToJobSpecCompiler.class.getCanonicalName();
 
   // Flow specific keys
   public static final String FLOW_SOURCE_IDENTIFIER_KEY = "gobblin.flow.sourceIdentifier";
   public static final String FLOW_DESTINATION_IDENTIFIER_KEY = "gobblin.flow.destinationIdentifier";
+
+  // Command line options
+  public static final String SERVICE_NAME_OPTION_NAME = "service_name";
 
 }
