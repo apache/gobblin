@@ -40,6 +40,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.typesafe.config.Config;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecNotFoundException;
@@ -57,7 +58,6 @@ import gobblin.util.PathUtils;
 @Slf4j
 public class FSSpecStore implements SpecStore {
 
-  private static final String FS_SPECSTORE_DIR_KEY = "fs.specStore.dir";
   private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
   protected final Config sysConfig;
@@ -72,10 +72,11 @@ public class FSSpecStore implements SpecStore {
 
   public FSSpecStore(Config sysConfig)
       throws IOException {
-    Preconditions.checkArgument(sysConfig.hasPath(FS_SPECSTORE_DIR_KEY), "FS SpecStore path must be specified.");
+    Preconditions.checkArgument(sysConfig.hasPath(ConfigurationKeys.SPECSTORE_FS_DIR_KEY),
+        "FS SpecStore path must be specified.");
 
     this.sysConfig = sysConfig;
-    this.fsSpecStoreDir = this.sysConfig.getString(FS_SPECSTORE_DIR_KEY);
+    this.fsSpecStoreDir = this.sysConfig.getString(ConfigurationKeys.SPECSTORE_FS_DIR_KEY);
     this.fsSpecStoreDirPath = new Path(this.fsSpecStoreDir);
     try {
       this.fs = this.fsSpecStoreDirPath.getFileSystem(new Configuration());

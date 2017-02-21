@@ -703,4 +703,9 @@ public class ConfigurationKeys {
    * Configuration properties related to Flows
    */
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
+
+  /***
+   * Configuration properties related to Spec Store
+   */
+  public static final String SPECSTORE_FS_DIR_KEY = "specStore.fs.dir";
 }
