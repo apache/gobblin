@@ -58,6 +58,7 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
   public static final String NAME = "limiter";
   public static final String LIMITER_CLASS_KEY = "class";
   public static final String FAIL_IF_NO_GLOBAL_LIMITER_KEY = "failIfNoGlobalLimiter";
+  public static final String FAIL_ON_UNKNOWN_RESOURCE_ID = "faiOnUnknownResourceId";
 
   private static final ClassAliasResolver<LimiterFactory> RESOLVER = new ClassAliasResolver<>(LimiterFactory.class);
 
@@ -74,7 +75,8 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
     Config config = configView.getConfig();
     SharedLimiterKey.GlobalLimiterPolicy globalLimiterPolicy = configView.getKey().getGlobalLimiterPolicy();
 
-    if (config.hasPath(FAIL_IF_NO_GLOBAL_LIMITER_KEY) && config.getBoolean(FAIL_IF_NO_GLOBAL_LIMITER_KEY)) {
+    if (config.hasPath(FAIL_IF_NO_GLOBAL_LIMITER_KEY) && config.getBoolean(FAIL_IF_NO_GLOBAL_LIMITER_KEY) &&
+        globalLimiterPolicy != SharedLimiterKey.GlobalLimiterPolicy.USE_GLOBAL) {
       // if user has specified FAIL_IF_NO_GLOBAL_LIMITER_KEY, promote the policy from USE_GLOBAL_IF_CONFIGURED to USE_GLOBAL
       // e.g. fail if no GLOBAL configuration is present
       SharedLimiterKey modifiedKey = new SharedLimiterKey(configView.getKey().getResourceLimited(),
@@ -104,6 +106,9 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
         throw new RuntimeException(roe);
       }
     } else {
+      if (config.hasPath(FAIL_ON_UNKNOWN_RESOURCE_ID) && config.getBoolean(FAIL_ON_UNKNOWN_RESOURCE_ID)) {
+        throw new NotConfiguredException();
+      }
       limiter = new NoopLimiter();
     }
 
