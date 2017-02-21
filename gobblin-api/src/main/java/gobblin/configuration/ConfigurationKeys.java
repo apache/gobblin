@@ -708,4 +708,9 @@ public class ConfigurationKeys {
    * Configuration properties related to Spec Store
    */
   public static final String SPECSTORE_FS_DIR_KEY = "specStore.fs.dir";
+
+  /***
+   * Configuration properties related to Spec Executor Instance
+   */
+  public static final String SPECEXECUTOR_INSTANCE_URI_KEY = "specExecInstance.uri";
 }
