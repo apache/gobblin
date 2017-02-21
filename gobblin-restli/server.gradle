@@ -76,3 +76,7 @@ afterEvaluate {
 artifacts {
   archives jar
 }
+
+war {
+  classifier "war"
+}
