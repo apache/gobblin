@@ -17,10 +17,12 @@
 
 package gobblin.service.modules.orchestration;
 
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
-
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
@@ -30,10 +32,10 @@ import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.SpecCompiler;
 import gobblin.runtime.api.SpecExecutorInstance;
 import gobblin.runtime.api.TopologySpec;
-import gobblin.util.ConfigUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalogListener;
+import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import gobblin.util.ClassAliasResolver;
 
 
 /**
@@ -45,15 +47,31 @@ import gobblin.runtime.api.SpecCatalogListener;
  */
 public class Orchestrator implements SpecCatalogListener {
   public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = "gobblin.service.flowCompiler.class";
-  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS = "gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler";
+  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS = IdentityFlowToJobSpecCompiler.class.getCanonicalName();
 
   protected final Optional<Logger> _log;
   protected final SpecCompiler specCompiler;
 
+  private final ClassAliasResolver<SpecCompiler> aliasResolver;
+
   public Orchestrator(Config config, Optional<Logger> log) {
     _log = log;
-    this.specCompiler = GobblinConstructorUtils.invokeConstructor(SpecCompiler.class, ConfigUtils.getString(config,
-        GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY, DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS));
+
+    this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
+    try {
+      String specCompilerClassName = DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
+      if (config.hasPath(GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
+        specCompilerClassName = config.getString(GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY);
+      }
+      if (_log.isPresent()) {
+        _log.get().info("Using specCompiler class name/alias " + specCompilerClassName);
+      }
+      this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
+          specCompilerClassName)));
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public Orchestrator(Config config, Logger log) {

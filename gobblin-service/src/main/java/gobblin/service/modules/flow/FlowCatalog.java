@@ -18,12 +18,14 @@
 package gobblin.service.modules.flow;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,21 +46,22 @@ import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.api.SpecStore;
 import gobblin.service.modules.SpecCatalogListenersList;
-import gobblin.util.ConfigUtils;
-import gobblin.util.reflection.GobblinConstructorUtils;
+import gobblin.util.ClassAliasResolver;
 
 
 @Alpha
 public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog {
 
   public static final String GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY = "gobblin.service.flowSpec.store.class";
-  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS = "gobblin.service.modules.flow.FsBasedFlowStore";
+  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS = SpecCatalog.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
   protected final Logger log;
   protected final MetricContext metricContext;
   protected final FlowCatalog.StandardMetrics metrics;
   protected final SpecStore specStore;
+
+  private final ClassAliasResolver<SpecStore> aliasResolver;
 
   public FlowCatalog(Config config) {
     this(config, Optional.<Logger>absent());
@@ -87,8 +90,20 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       this.metricContext = null;
       this.metrics = null;
     }
-    this.specStore = GobblinConstructorUtils.invokeConstructor(SpecStore.class, ConfigUtils.getString(config,
-        GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY, DEFAULT_GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS));
+
+    this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
+    try {
+      String specStoreClassName = DEFAULT_GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS;
+      if (config.hasPath(GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY)) {
+        specStoreClassName = config.getString(GOBBLIN_SERVICE_FLOWSPEC_STORE_CLASS_KEY);
+      }
+      this.log.info("Using audit sink class name/alias " + specStoreClassName);
+      this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
+          specStoreClassName)));
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /***************************************************
