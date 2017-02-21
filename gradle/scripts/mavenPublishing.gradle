@@ -163,11 +163,11 @@ subprojects {
             }
 
             repository(url: rootProject.artifactRepository) {
-              authentication(userName: ossrhUsername, password: ossrhPassword)
+              authentication(userName: rootProject.ext.ossrhUsername, password: rootProject.ext.ossrhPassword)
             }
 
             snapshotRepository(url: rootProject.artifactSnapshotRepository) {
-              authentication(userName: ossrhUsername, password: ossrhPassword)
+              authentication(userName: rootProject.ext.ossrhUsername, password: rootProject.ext.ossrhPassword)
             }
 
             pom.project pomAttributes
