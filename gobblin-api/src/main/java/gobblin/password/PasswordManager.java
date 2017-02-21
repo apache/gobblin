@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -110,9 +109,6 @@ public class PasswordManager {
 
   /**
    * Get an instance. The location of the master password file is provided via "encrypt.key.loc".
-   *
-   * Added a support on "encrypt.key.val" key will be fetched from state directly. This is to support a case
-   * to relieve burden of placing key file when plain text crypto key in job property can be safely protected.
    */
   public static PasswordManager getInstance(State state) {
     try {
@@ -195,12 +191,6 @@ public class PasswordManager {
   }
 
   private static Optional<String> getMasterPassword(State state) {
-    if (state.contains(ConfigurationKeys.ENCRYPT_KEY_VAL)) {
-      String cryptoKey = state.getProp(ConfigurationKeys.ENCRYPT_KEY_VAL);
-      Preconditions.checkArgument(!StringUtils.isBlank(cryptoKey), ConfigurationKeys.ENCRYPT_KEY_VAL + " should not be a blank");
-      return Optional.of(cryptoKey);
-    }
-
     if (!state.contains(ConfigurationKeys.ENCRYPT_KEY_LOC)) {
       LOG.warn(String.format("Property %s not set. Cannot decrypt any encrypted password.",
           ConfigurationKeys.ENCRYPT_KEY_LOC));
