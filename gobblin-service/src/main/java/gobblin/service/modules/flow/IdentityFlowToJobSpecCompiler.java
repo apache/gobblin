@@ -31,6 +31,7 @@ import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.runtime.api.SpecCompiler;
 import gobblin.runtime.api.SpecExecutorInstance;
 import gobblin.runtime.api.TopologySpec;
+import gobblin.service.ServiceConfigKeys;
 
 
 /***
@@ -38,9 +39,6 @@ import gobblin.runtime.api.TopologySpec;
  * and its mapping to {@link SpecExecutorInstance}.
  */
 public class IdentityFlowToJobSpecCompiler implements SpecCompiler, SpecCatalogListener {
-
-  public static final String FLOW_SOURCE_IDENTIFIER_KEY = "gobblin.flow.sourceIdentifier";
-  public static final String FLOW_DESTINATION_IDENTIFIER_KEY = "gobblin.flow.destinationIdentifier";
 
   private final Map<URI, TopologySpec> topologySpecMap;
 
@@ -56,8 +54,8 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler, SpecCatalogL
     Map<Spec, SpecExecutorInstance> specExecutorInstanceMap = Maps.newHashMap();
 
     FlowSpec flowSpec = (FlowSpec) spec;
-    String source = flowSpec.getConfig().getString(FLOW_SOURCE_IDENTIFIER_KEY);
-    String destination = flowSpec.getConfig().getString(FLOW_DESTINATION_IDENTIFIER_KEY);
+    String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
+    String destination = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
 
     JobSpec.Builder jobSpecBuilder = JobSpec.builder(flowSpec.getUri())
         .withConfig(flowSpec.getConfig())

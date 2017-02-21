@@ -46,15 +46,13 @@ import gobblin.runtime.api.SpecCatalog;
 import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.api.SpecStore;
+import gobblin.service.ServiceConfigKeys;
 import gobblin.service.modules.SpecCatalogListenersList;
 import gobblin.util.ClassAliasResolver;
 
 
 @Alpha
 public class TopologyCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog {
-
-  public static final String GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS_KEY = "gobblin.service.topologySpec.store.class";
-  public static final String DEFAULT_GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS = SpecStore.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
   protected final Logger log;
@@ -94,9 +92,9 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
 
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
     try {
-      String specStoreClassName = DEFAULT_GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS;
-      if (config.hasPath(GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS_KEY)) {
-        specStoreClassName = config.getString(GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS_KEY);
+      String specStoreClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS;
+      if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS_KEY)) {
+        specStoreClassName = config.getString(ServiceConfigKeys.GOBBLIN_SERVICE_TOPOLOGYSPEC_STORE_CLASS_KEY);
       }
       this.log.info("Using audit sink class name/alias " + specStoreClassName);
       this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(

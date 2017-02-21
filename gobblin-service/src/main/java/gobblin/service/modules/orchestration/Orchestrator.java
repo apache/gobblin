@@ -34,6 +34,7 @@ import gobblin.runtime.api.SpecExecutorInstance;
 import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalogListener;
+import gobblin.service.ServiceConfigKeys;
 import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 import gobblin.util.ClassAliasResolver;
 
@@ -46,9 +47,6 @@ import gobblin.util.ClassAliasResolver;
  * If flow has changed: invokes FlowCompiler on all that flow and provisions it on its respective executors
  */
 public class Orchestrator implements SpecCatalogListener {
-  public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = "gobblin.service.flowCompiler.class";
-  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS = IdentityFlowToJobSpecCompiler.class.getCanonicalName();
-
   protected final Optional<Logger> _log;
   protected final SpecCompiler specCompiler;
 
@@ -59,9 +57,9 @@ public class Orchestrator implements SpecCatalogListener {
 
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     try {
-      String specCompilerClassName = DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
-      if (config.hasPath(GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
-        specCompilerClassName = config.getString(GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY);
+      String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
+      if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
+        specCompilerClassName = config.getString(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY);
       }
       if (_log.isPresent()) {
         _log.get().info("Using specCompiler class name/alias " + specCompilerClassName);
