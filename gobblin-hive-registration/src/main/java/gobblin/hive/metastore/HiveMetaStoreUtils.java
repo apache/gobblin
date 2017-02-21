@@ -17,11 +17,13 @@
 
 package gobblin.hive.metastore;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.avro.SchemaParseException;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -31,10 +33,11 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -363,6 +366,17 @@ public class HiveMetaStoreUtils {
 
     try {
       SerDeUtils.initializeSerDe(deserializer, hiveConf, props, null);
+
+      // Temporary check that's needed until Gobblin is upgraded to Hive 1.1.0+, which includes the improved error
+      // handling in AvroSerDe added in HIVE-7868.
+      if (deserializer instanceof AvroSerDe) {
+        try {
+          AvroSerdeUtils.determineSchemaOrThrowException(props);
+        } catch (IOException | SchemaParseException e) {
+          LOG.warn("Failed to initialize AvroSerDe.");
+          throw new SerDeException(e);
+        }
+      }
     } catch (SerDeException e) {
       LOG.warn("Failed to initialize serde " + serde + " with properties " + props + " for table " + unit.getDbName() +
           "." + unit.getTableName());
