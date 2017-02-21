@@ -37,7 +37,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.sun.xml.internal.ws.util.CompletedFuture;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
@@ -54,6 +53,7 @@ import gobblin.runtime.api.SpecExecutorInstanceProducer;
 import gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import gobblin.source.extractor.extract.kafka.KafkaPartition;
 import gobblin.source.extractor.extract.kafka.KafkaTopic;
+import gobblin.util.CompletedFuture;
 import gobblin.util.ConfigUtils;
 import gobblin.writer.WriteCallback;
 
