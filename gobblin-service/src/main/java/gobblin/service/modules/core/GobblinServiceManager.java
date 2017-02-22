@@ -54,7 +54,6 @@ import gobblin.runtime.app.ApplicationException;
 import gobblin.runtime.app.ApplicationLauncher;
 import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.runtime.spec_catalog.FlowCatalog;
-import gobblin.scheduler.SchedulerService;
 import gobblin.service.FlowConfig;
 import gobblin.service.FlowConfigClient;
 import gobblin.service.FlowConfigsResource;
@@ -100,9 +99,6 @@ public class GobblinServiceManager implements ApplicationLauncher {
     this.serviceWorkDir = serviceWorkDirOptional.isPresent() ? serviceWorkDirOptional.get() :
         getServiceWorkDirPath(this.fs, serviceName, serviceId);
 
-    SchedulerService schedulerService = new SchedulerService(properties);
-    this.serviceLauncher.addService(schedulerService);
-
     // Initialize TopologyCatalog
     this.topologyCatalog = new TopologyCatalog(config, Optional.of(LOGGER));
     this.serviceLauncher.addService(topologyCatalog);
@@ -120,7 +116,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
       @Override
       public void configure(Binder binder) {
         binder.bind(FlowCatalog.class).toInstance(flowCatalog);
-        binder.bindConstant().annotatedWith(Names.named("inServiceManager")).to(true);
+        binder.bindConstant().annotatedWith(Names.named("inUnitTest")).to(true);
       }
     });
     this.restliServer = EmbeddedRestliServer.builder().resources(
