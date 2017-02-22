@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,13 +93,23 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
     LOG.info("Get called with flowGroup " + flowGroup + " flowName " + flowName);
 
     try {
-      FlowSpec spec = (FlowSpec) _flowCatalog.getSpec(new URI("/" + flowGroup  + "/" + flowName));
+      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
+      URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
+          "/" + flowGroup + "/" + flowName, null, null);
+      FlowSpec spec = (FlowSpec) _flowCatalog.getSpec(flowUri);
       FlowConfig flowConfig = new FlowConfig();
       Properties flowProps = spec.getConfigAsProperties();
 
-      flowConfig.setSchedule(flowProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
-      flowConfig.setTemplateUris(flowProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH));
-
+      if (flowProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+        flowConfig.setSchedule(flowProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
+      }
+      if (flowProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+        flowConfig.setTemplateUris(flowProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH));
+      } else if (spec.getTemplateURIs().isPresent()) {
+        flowConfig.setTemplateUris(StringUtils.join(spec.getTemplateURIs().get(), ","));
+      } else {
+        flowConfig.setTemplateUris("NA");
+      }
       if (flowProps.containsKey(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)) {
         flowConfig.setRunImmediately(Boolean.valueOf(flowProps.getProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)));
       }
@@ -131,7 +142,9 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
     ConfigBuilder configBuilder = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, flowConfig.getFlowGroup())
         .addPrimitive(ConfigurationKeys.JOB_NAME_KEY, flowConfig.getFlowName())
-        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, flowConfig.getSchedule());
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, flowConfig.getSchedule())
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, flowConfig.getFlowGroup())
+        .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, flowConfig.getFlowName());
 
     if (flowConfig.hasRunImmediately()) {
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, flowConfig.isRunImmediately());
@@ -164,7 +177,10 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
     }
 
     try {
-      URI flowUri = new URI("/" + flowConfig.getFlowGroup() + "/" + flowConfig.getFlowName());
+      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
+      URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
+          "/" + flowConfig.getFlowGroup() + "/" + flowConfig.getFlowName(), null, null);
+
       if (_flowCatalog.getSpec(flowUri) != null) {
         logAndThrowRestLiServiceException(HttpStatus.S_409_CONFLICT,
             "Flow with the same name already exists: " + flowUri, null);
@@ -190,7 +206,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
   public UpdateResponse update(ComplexResourceKey<FlowConfigId, EmptyRecord> key, FlowConfig flowConfig) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
-    String flowUriString = "/" + flowGroup  + "/" + flowName;
+    URI flowUri = null;
 
     LOG.info("Update called with flowGroup " + flowGroup + " flowName " + flowName);
 
@@ -200,7 +216,9 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
     }
 
     try {
-      URI flowUri = new URI(flowUriString);
+      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
+      flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
+          "/" + flowGroup + "/" + flowName, null, null);
       FlowSpec oldFlowSpec = (FlowSpec) _flowCatalog.getSpec(flowUri);
       FlowSpec newFlowSpec = createFlowSpecForConfig(flowConfig);
 
@@ -208,7 +226,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
 
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (URISyntaxException e) {
-      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUriString, e);
+      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUri, e);
     } catch (SpecNotFoundException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_404_NOT_FOUND, "Flow does not exist: flowGroup " + flowGroup +
           " flowName " + flowName, null);
@@ -226,19 +244,21 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
   public UpdateResponse delete(ComplexResourceKey<FlowConfigId, EmptyRecord> key) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
-    String flowUriString = "/" + flowGroup  + "/" + flowName;
+    URI flowUri = null;
 
     LOG.info("Delete called with flowGroup " + flowGroup + " flowName " + flowName);
 
     try {
-      URI flowUri = new URI(flowUriString);
+      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
+      flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
+          "/" + flowGroup + "/" + flowName, null, null);
       FlowSpec flowSpec = (FlowSpec) _flowCatalog.getSpec(flowUri);
 
       _flowCatalog.remove(flowUri);
 
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (URISyntaxException e) {
-      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUriString, e);
+      logAndThrowRestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUri, e);
     } catch (SpecNotFoundException e) {
       logAndThrowRestLiServiceException(HttpStatus.S_404_NOT_FOUND, "Flow does not exist: flowGroup " + flowGroup +
           " flowName " + flowName, null);

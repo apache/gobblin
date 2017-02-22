@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
 import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -53,6 +54,7 @@ public class FlowConfigTest {
   private EmbeddedRestliServer _server;
   private File _testDirectory;
 
+  private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigTest/";
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
   private static final String TEST_SCHEDULE = "";
@@ -66,7 +68,10 @@ public class FlowConfigTest {
 
     _testDirectory = Files.createTempDir();
 
-    configBuilder.addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath());
+    configBuilder
+        .addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath())
+        .addPrimitive(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, TEST_SPEC_STORE_DIR);
+    cleanUpDir(TEST_SPEC_STORE_DIR);
 
     Config config = configBuilder.build();
     final FlowCatalog flowCatalog = new FlowCatalog(config);
@@ -92,6 +97,13 @@ public class FlowConfigTest {
 
     _client =
         new FlowConfigClient(String.format("http://localhost:%s/", _server.getPort()));
+  }
+
+  private void cleanUpDir(String dir) throws Exception {
+    File specStoreDir = new File(dir);
+    if (specStoreDir.exists()) {
+      FileUtils.deleteDirectory(specStoreDir);
+    }
   }
 
   @Test
@@ -241,8 +253,13 @@ public class FlowConfigTest {
     }
     if (_server != null) {
       _server.stopAsync();
-      _server.awaitTerminated();    }
+      _server.awaitTerminated();
+    }
     _testDirectory.delete();
+    File specStoreDir = new File(TEST_SPEC_STORE_DIR);
+    if (specStoreDir.exists()) {
+      FileUtils.deleteDirectory(specStoreDir);
+    }
   }
 
   private static int chooseRandomPort() throws IOException {
