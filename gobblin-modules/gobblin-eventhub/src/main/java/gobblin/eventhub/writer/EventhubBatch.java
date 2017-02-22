@@ -21,7 +21,6 @@ package gobblin.eventhub.writer;
 import gobblin.annotation.Alpha;
 import gobblin.writer.Batch;
 
-import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -50,7 +49,7 @@ public class EventhubBatch extends Batch<byte[]>{
   }
 
   private long getInternalSize(byte[] record) {
-    return Base64.getEncoder().encodeToString(record).length() + this.OVERHEAD_SIZE_IN_BYTES;
+    return record.length + this.OVERHEAD_SIZE_IN_BYTES;
   }
 
   public  class RecordMemory {

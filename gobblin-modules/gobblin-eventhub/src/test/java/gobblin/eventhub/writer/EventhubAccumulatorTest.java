@@ -3,7 +3,6 @@ package gobblin.eventhub.writer;
 import java.io.IOException;
 import java.util.Iterator;
 
-import org.bouncycastle.util.encoders.Base64;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -20,7 +19,7 @@ public class EventhubAccumulatorTest {
     byte[] obj = new byte[8];
 
     // overhead has 15 bytes
-    long unit = Base64.encode(obj).length + EventhubBatch.OVERHEAD_SIZE_IN_BYTES;
+    long unit = obj.length + EventhubBatch.OVERHEAD_SIZE_IN_BYTES;
 
     // Assuming batch size is 256K bytes, and each record has (8 + 15) bytes
     // Adding {bytes/unit} records should not overflow the memory of first batch

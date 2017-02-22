@@ -51,8 +51,6 @@ import gobblin.writer.WriteResponse;
 import gobblin.writer.WriteResponseFuture;
 import gobblin.writer.WriteResponseMapper;
 
-import java.util.Base64;
-import java.util.Base64.Encoder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -70,8 +68,6 @@ import com.codahale.metrics.Timer;
  *
  * Also this class supports sending multiple records in a batch manner.
  *
- * This class use Base64 to encode any byte array, so the consumer side should use the corresponding
- * decoder to recover the original bytes.
  */
 @Slf4j
 public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDataWriter<byte[]> {
@@ -87,7 +83,6 @@ public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDat
   private final String targetURI;
   private final Timer timer = new Timer();
   private final Meter bytesWritten = new Meter();
-  private final Encoder encoder = Base64.getEncoder();
   private long postStartTimestamp = 0;
   private long sigExpireInMinute = 1;
   private String signature = "";
@@ -232,7 +227,7 @@ public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDat
 
 
     for (byte[] record: records) {
-      arrayList.add(new EventhubRequest(encoder.encodeToString(record)));
+      arrayList.add(new EventhubRequest(new String(record, Charsets.UTF_8)));
     }
     return mapper.writeValueAsString (arrayList);
   }
@@ -246,7 +241,7 @@ public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDat
     // Add new json object to an array and send the whole array to eventhub using REST api
     // Refer to https://docs.microsoft.com/en-us/rest/api/eventhub/send-batch-events
     ArrayList<EventhubRequest> arrayList = new ArrayList<>();
-    arrayList.add(new EventhubRequest(encoder.encodeToString(record)));
+    arrayList.add(new EventhubRequest(new String(record, Charsets.UTF_8)));
 
     return mapper.writeValueAsString (arrayList);
   }
