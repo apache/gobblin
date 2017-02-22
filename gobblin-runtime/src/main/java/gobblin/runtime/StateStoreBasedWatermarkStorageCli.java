@@ -107,6 +107,7 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
     log.info("Using zk address : {}", zkAddress);
 
     taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_TYPE_KEY, "zk");
+    taskState.setProp("state.store.zk.connectString", zkAddress);
 
     if (cli.hasOption(ROOT_DIR.getOpt())) {
       String rootDir = cli.getOptionValue(ROOT_DIR.getOpt());
