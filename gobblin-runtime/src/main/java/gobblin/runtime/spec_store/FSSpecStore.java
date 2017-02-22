@@ -177,7 +177,7 @@ public class FSSpecStore implements SpecStore {
     for (Spec spec : specs) {
       if (null == highestVersionSpec) {
         highestVersionSpec = spec;
-      } else if (spec.getVersion().compareTo(spec.getVersion()) > 0) {
+      } else if (null != spec.getVersion() && spec.getVersion().compareTo(spec.getVersion()) > 0) {
         highestVersionSpec = spec;
       }
     }
@@ -207,30 +207,42 @@ public class FSSpecStore implements SpecStore {
   public Collection<Spec> getAllVersionsOfSpec(URI specUri) throws IOException, SpecNotFoundException {
     Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
 
-    Collection<Spec> specs = Lists.newArrayList();
-    FileStatus[] fileStatuses = fs.listStatus(this.fsSpecStoreDirPath);
-    for (FileStatus fileStatus : fileStatuses) {
-      if (StringUtils.startsWith(fileStatus.getPath().getName(), specUri.toString())) {
-        specs.add(readSpecFromFile(fileStatus.getPath()));
+    Collection<Spec> specs = getSpecs();
+    Collection<Spec> filteredSpecs = Lists.newArrayList();
+    for (Spec spec : specs) {
+      if (spec.getUri().equals(specUri)) {
+        filteredSpecs.add(spec);
       }
     }
 
-    if (specs.size() == 0) {
+    if (filteredSpecs.size() == 0) {
       throw new SpecNotFoundException(specUri);
     }
 
-    return specs;
+    return filteredSpecs;
   }
 
   @Override
   public Collection<Spec> getSpecs() throws IOException {
     Collection<Spec> specs = Lists.newArrayList();
-    FileStatus[] fileStatuses = fs.listStatus(this.fsSpecStoreDirPath);
-    for (FileStatus fileStatus : fileStatuses) {
-      specs.add(readSpecFromFile(fileStatus.getPath()));
+    try {
+      getSpecs(this.fsSpecStoreDirPath, specs);
+    } catch (Exception e) {
+      throw new IOException(e);
     }
 
     return specs;
+  }
+
+  private void getSpecs(Path directory, Collection<Spec> specs) throws IOException {
+    FileStatus[] fileStatuses = fs.listStatus(directory);
+    for (FileStatus fileStatus : fileStatuses) {
+      if (fileStatus.isDirectory()) {
+        getSpecs(fileStatus.getPath(), specs);
+      } else {
+        specs.add(readSpecFromFile(fileStatus.getPath()));
+      }
+    }
   }
 
   /***
