@@ -17,7 +17,9 @@
 
 package gobblin.source.extractor.extract.kafka;
 
+import gobblin.source.workunit.MultiWorkUnit;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -156,7 +158,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
       int numOfMultiWorkunits =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
-      return KafkaWorkUnitPacker.getInstance(this, state).pack(workUnits, numOfMultiWorkunits);
+      List<WorkUnit> workUnitList = KafkaWorkUnitPacker.getInstance(this, state).pack(workUnits, numOfMultiWorkunits);
+      addTopicSpecificPropsToWorkUnits(workUnitList, topicSpecificStateMap);
+      return workUnitList;
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
       throw new RuntimeException(e);
     } finally {
@@ -167,6 +171,22 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       } catch (IOException e) {
         throw new RuntimeException("Exception closing kafkaConsumerClient");
       }
+    }
+  }
+
+  private void addTopicSpecificPropsToWorkUnits(List<WorkUnit> workUnits, Map<String, State> topicSpecificStateMap) {
+    for (WorkUnit workUnit : workUnits) {
+      addTopicSpecificPropsToWorkUnit(workUnit, topicSpecificStateMap);
+    }
+  }
+
+  private void addTopicSpecificPropsToWorkUnit(WorkUnit workUnit, Map<String, State> topicSpecificStateMap) {
+    if (workUnit instanceof MultiWorkUnit) {
+      for (WorkUnit wu : ((MultiWorkUnit) workUnit).getWorkUnits()) {
+        addTopicSpecificPropsToWorkUnit(wu, topicSpecificStateMap);
+      }
+    } else if (workUnit.contains(TOPIC_NAME)) {
+      workUnit.addAll(topicSpecificStateMap.get(workUnit.getProp(TOPIC_NAME)));
     }
   }
 
