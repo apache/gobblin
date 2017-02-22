@@ -17,7 +17,6 @@
 
 package gobblin.service;
 
-import gobblin.runtime.spec_store.FSSpecStore;
 import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 
 

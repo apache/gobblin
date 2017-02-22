@@ -30,7 +30,6 @@ import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.quartz.utils.FindbugsSuppressWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
