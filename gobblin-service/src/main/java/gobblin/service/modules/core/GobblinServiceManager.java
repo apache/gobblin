@@ -112,7 +112,8 @@ public class GobblinServiceManager implements ApplicationLauncher {
     this.serviceLauncher.addService(flowCatalog);
 
     // Initialize Orchestrator
-    this.orchestrator = new Orchestrator(config, Optional.of(LOGGER));
+    this.orchestrator = new Orchestrator(config, Optional.of(this.flowCatalog), Optional.of(this.topologyCatalog),
+        Optional.of(LOGGER));
 
     // Initialize RestLI
     Injector injector = Guice.createInjector(new Module() {
