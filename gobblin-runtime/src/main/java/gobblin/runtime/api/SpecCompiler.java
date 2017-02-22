@@ -17,13 +17,14 @@
 
 package gobblin.runtime.api;
 
+import java.net.URI;
 import java.util.Map;
 
 /***
  * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
  * and the mapping to {@link SpecExecutorInstance} that they can be run on.
  */
-public interface SpecCompiler {
+public interface SpecCompiler extends SpecCatalogListener{
   /***
    * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
    * and the mapping to {@link SpecExecutorInstance} that they can be run on.
@@ -31,4 +32,11 @@ public interface SpecCompiler {
    * @return Map of materialized physical {@link Spec} and {@link SpecExecutorInstance}.
    */
   Map<Spec, SpecExecutorInstanceProducer> compileFlow(Spec spec);
+
+  /***
+   * Map of {@link Spec} URI and {@link TopologySpec} the {@link SpecCompiler}
+   * is aware about.
+   * @return Map of {@link Spec} URI and {@link TopologySpec}
+   */
+  Map<URI, TopologySpec> getTopologySpecMap();
 }

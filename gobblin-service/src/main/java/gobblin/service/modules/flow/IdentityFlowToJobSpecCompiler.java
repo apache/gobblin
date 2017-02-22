@@ -21,13 +21,13 @@ import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.Spec;
-import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.runtime.api.SpecCompiler;
 import gobblin.runtime.api.SpecExecutorInstance;
 import gobblin.runtime.api.SpecExecutorInstanceProducer;
@@ -39,7 +39,7 @@ import gobblin.service.ServiceConfigKeys;
  * Take in a logical {@link Spec} ie flow and compile corresponding materialized job {@link Spec}
  * and its mapping to {@link SpecExecutorInstance}.
  */
-public class IdentityFlowToJobSpecCompiler implements SpecCompiler, SpecCatalogListener {
+public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
 
   private final Map<URI, TopologySpec> topologySpecMap;
 
@@ -84,6 +84,11 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler, SpecCatalogL
     }
 
     return specExecutorInstanceMap;
+  }
+
+  @Override
+  public Map<URI, TopologySpec> getTopologySpecMap() {
+    return this.topologySpecMap;
   }
 
   @Override
