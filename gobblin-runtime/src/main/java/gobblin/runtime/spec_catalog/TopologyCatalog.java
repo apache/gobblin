@@ -15,23 +15,6 @@
  * limitations under the License.
  */
 
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package gobblin.runtime.spec_catalog;
 
 import java.io.IOException;
@@ -73,9 +56,6 @@ import gobblin.util.ClassAliasResolver;
 @Alpha
 public class TopologyCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
 
-  // TopologySpec Store Keys
-  public static final String TOPOLOGYSPEC_STORE_CLASS_KEY = "topologySpec.store.class";
-  public static final String TOPOLOGYSPEC_STORE_DIR_KEY = "topologySpec.store.class";
   public static final String DEFAULT_TOPOLOGYSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
@@ -117,13 +97,13 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
     try {
       Config newConfig = config;
-      if (config.hasPath(TOPOLOGYSPEC_STORE_DIR_KEY)) {
+      if (config.hasPath(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY)) {
         newConfig = config.withValue(ConfigurationKeys.SPECSTORE_FS_DIR_KEY,
-            config.getValue(TOPOLOGYSPEC_STORE_DIR_KEY));
+            config.getValue(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY));
       }
       String specStoreClassName = DEFAULT_TOPOLOGYSPEC_STORE_CLASS;
-      if (config.hasPath(TOPOLOGYSPEC_STORE_CLASS_KEY)) {
-        specStoreClassName = config.getString(TOPOLOGYSPEC_STORE_CLASS_KEY);
+      if (config.hasPath(ConfigurationKeys.TOPOLOGYSPEC_STORE_CLASS_KEY)) {
+        specStoreClassName = config.getString(ConfigurationKeys.TOPOLOGYSPEC_STORE_CLASS_KEY);
       }
       this.log.info("Using SpecStore class name/alias " + specStoreClassName);
       this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(

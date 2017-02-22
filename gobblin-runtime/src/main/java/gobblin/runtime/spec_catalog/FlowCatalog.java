@@ -15,23 +15,6 @@
  * limitations under the License.
  */
 
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package gobblin.runtime.spec_catalog;
 
 import java.io.IOException;
@@ -72,9 +55,6 @@ import gobblin.util.ClassAliasResolver;
 @Alpha
 public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
 
-  // FlowSpec Store Keys
-  public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
-  public static final String FLOWSPEC_STORE_DIR_KEY = "flowSpec.store.dir";
   public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
@@ -116,13 +96,13 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
     try {
       Config newConfig = config;
-      if (config.hasPath(FLOWSPEC_STORE_DIR_KEY)) {
+      if (config.hasPath(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY)) {
         newConfig = config.withValue(ConfigurationKeys.SPECSTORE_FS_DIR_KEY,
-            config.getValue(FLOWSPEC_STORE_DIR_KEY));
+            config.getValue(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY));
       }
       String specStoreClassName = DEFAULT_FLOWSPEC_STORE_CLASS;
-      if (config.hasPath(FLOWSPEC_STORE_CLASS_KEY)) {
-        specStoreClassName = config.getString(FLOWSPEC_STORE_CLASS_KEY);
+      if (config.hasPath(ConfigurationKeys.FLOWSPEC_STORE_CLASS_KEY)) {
+        specStoreClassName = config.getString(ConfigurationKeys.FLOWSPEC_STORE_CLASS_KEY);
       }
       this.log.info("Using audit sink class name/alias " + specStoreClassName);
       this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
