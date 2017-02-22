@@ -164,7 +164,7 @@ public class Orchestrator implements SpecCatalogListener {
 
     try {
       if (topologyCatalog.isPresent()) {
-        Spec deletedSpec = topologyCatalog.get().getSpec(deletedSpecURI);
+        topologyCatalog.get().getSpec(deletedSpecURI);
         this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion);
         // TODO: Re-compile Flows. Since Topologies are immutable at the moment, we are not handling it.
       }
@@ -175,7 +175,7 @@ public class Orchestrator implements SpecCatalogListener {
 
     try {
       if (flowCatalog.isPresent()) {
-        Spec deletedSpec = flowCatalog.get().getSpec(deletedSpecURI);
+        flowCatalog.get().getSpec(deletedSpecURI);
         // If deleted Spec is of type Flow, remove it from all SpecExecutorInstances
         // (SpecExecutorInstances are expected to no-op if they do not have the URI scheduled on them)
         if (topologyCatalog.isPresent()) {
