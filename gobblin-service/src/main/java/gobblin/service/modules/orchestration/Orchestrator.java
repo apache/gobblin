@@ -37,6 +37,7 @@ import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.service.ServiceConfigKeys;
 import gobblin.util.ClassAliasResolver;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -47,13 +48,13 @@ import gobblin.util.ClassAliasResolver;
  * If flow has changed: invokes FlowCompiler on all that flow and provisions it on its respective executors
  */
 public class Orchestrator implements SpecCatalogListener {
-  protected final Optional<Logger> _log;
+  protected final Logger _log;
   protected final SpecCompiler specCompiler;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
   public Orchestrator(Config config, Optional<Logger> log) {
-    _log = log;
+    _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
 
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     try {
@@ -61,9 +62,8 @@ public class Orchestrator implements SpecCatalogListener {
       if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
         specCompilerClassName = config.getString(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY);
       }
-      if (_log.isPresent()) {
-        _log.get().info("Using specCompiler class name/alias " + specCompilerClassName);
-      }
+      _log.info("Using specCompiler class name/alias " + specCompilerClassName);
+
       this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
           specCompilerClassName)));
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
@@ -84,17 +84,14 @@ public class Orchestrator implements SpecCatalogListener {
   /** {@inheritDoc} */
   @Override
   public void onAddSpec(Spec addedSpec) {
-    if (_log.isPresent()) {
-      _log.get().info("New Spec detected: " + addedSpec);
-    }
+    _log.info("New Spec detected: " + addedSpec);
 
     if (addedSpec instanceof FlowSpec) {
       Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = specCompiler.compileFlow(addedSpec);
 
       if (specExecutorInstanceMap.isEmpty()) {
-        if (_log.isPresent()) {
-          _log.get().warn("Spec: " + addedSpec + " added, but cannot determine an executor to run on.");
-        }
+        _log.warn("Spec: " + addedSpec + " added, but cannot determine an executor to run on.");
+
         return;
       }
 
@@ -105,9 +102,7 @@ public class Orchestrator implements SpecCatalogListener {
       try {
         selectedExecutor.addSpec(addedSpec).get();
       } catch (InterruptedException | ExecutionException e) {
-        if (_log.isPresent()) {
-          _log.get().error("Cannot successfully setup spec: " + addedSpec + " on excutor: " + selectedExecutor);
-        }
+        _log.error("Cannot successfully setup spec: " + addedSpec + " on excutor: " + selectedExecutor);
       }
     } else if (addedSpec instanceof TopologySpec) {
       // TODO: Re-provision all jobs since topology has changed.
@@ -117,16 +112,12 @@ public class Orchestrator implements SpecCatalogListener {
   /** {@inheritDoc} */
   @Override
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
-    if (_log.isPresent()) {
-      _log.get().info("Spec deleted: " + deletedSpecURI + "/" + deletedSpecVersion);
-    }
+    _log.info("Spec deleted: " + deletedSpecURI + "/" + deletedSpecVersion);
   }
 
   /** {@inheritDoc} */
   @Override
   public void onUpdateSpec(Spec updatedSpec) {
-    if (_log.isPresent()) {
-      _log.get().info("Spec changed: " + updatedSpec);
-    }
+    _log.info("Spec changed: " + updatedSpec);
   }
 }
