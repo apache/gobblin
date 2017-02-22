@@ -44,8 +44,7 @@ import com.typesafe.config.Config;
 import gobblin.config.ConfigBuilder;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.restli.EmbeddedRestliServer;
-import gobblin.runtime.api.MutableJobCatalog;
-import gobblin.runtime.job_catalog.FSJobCatalog;
+import gobblin.runtime.spec_catalog.FlowCatalog;
 
 
 @Test(groups = { "gobblin.service" })
@@ -70,15 +69,15 @@ public class FlowConfigTest {
     configBuilder.addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath());
 
     Config config = configBuilder.build();
-    final FSJobCatalog jobCatalog = new FSJobCatalog(config);
+    final FlowCatalog flowCatalog = new FlowCatalog(config);
 
-    jobCatalog.startAsync();
-    jobCatalog.awaitRunning();
+    flowCatalog.startAsync();
+    flowCatalog.awaitRunning();
 
     Injector injector = Guice.createInjector(new Module() {
        @Override
        public void configure(Binder binder) {
-         binder.bind(MutableJobCatalog.class).toInstance(jobCatalog);
+         binder.bind(FlowCatalog.class).toInstance(flowCatalog);
          // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
          // been made
          binder.bindConstant().annotatedWith(Names.named("inUnitTest")).to(true);
@@ -139,8 +138,6 @@ public class FlowConfigTest {
     // Add this asssert back when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 1);
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
-    Assert.assertFalse(flowConfig.getProperties().containsKey("gobblin.fsJobCatalog.version"));
-    Assert.assertFalse(flowConfig.getProperties().containsKey("gobblin.fsJobCatalog.description"));
   }
 
   @Test (dependsOnMethods = "testGet")
