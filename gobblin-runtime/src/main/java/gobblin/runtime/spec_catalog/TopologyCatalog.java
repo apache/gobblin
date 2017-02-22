@@ -264,8 +264,8 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
       Preconditions.checkNotNull(uri);
 
       Spec spec = specStore.getSpec(uri);
-      specStore.deleteSpec(uri);
       this.listeners.onDeleteSpec(spec.getUri(), spec.getVersion());
+      specStore.deleteSpec(uri);
 
     } catch (IOException | SpecNotFoundException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
