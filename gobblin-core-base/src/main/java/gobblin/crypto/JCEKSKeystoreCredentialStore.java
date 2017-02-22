@@ -53,7 +53,7 @@ public class JCEKSKeystoreCredentialStore implements CredentialStore {
   /**
    * Options that can be used while instantiating a new keystore
    */
-  enum CreationOptions {
+  public enum CreationOptions {
     /**
      * Create an empty keystore if one can't be found. Otherwise an exception will be thrown.
      */
