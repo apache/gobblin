@@ -34,7 +34,6 @@
 
 package gobblin.runtime.spec_catalog;
 
-import gobblin.runtime.spec_store.FSSpecStore;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -43,6 +42,7 @@ import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
 
+import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,12 +63,14 @@ import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalog;
 import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.api.SpecSerDe;
 import gobblin.runtime.api.SpecStore;
+import gobblin.runtime.spec_store.FSSpecStore;
 import gobblin.util.ClassAliasResolver;
 
 
 @Alpha
-public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog {
+public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
 
   // FlowSpec Store Keys
   public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
@@ -124,7 +126,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       }
       this.log.info("Using audit sink class name/alias " + specStoreClassName);
       this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
-          specStoreClassName)), newConfig);
+          specStoreClassName)), newConfig, this);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new RuntimeException(e);
@@ -267,5 +269,15 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException | SpecNotFoundException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }
+  }
+
+  @Override
+  public byte[] serialize(Spec spec) {
+    return SerializationUtils.serialize(spec);
+  }
+
+  @Override
+  public Spec deserialize(byte[] spec) {
+    return SerializationUtils.deserialize(spec);
   }
 }

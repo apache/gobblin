@@ -17,15 +17,11 @@
 
 package gobblin.runtime.spec_store;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.util.Collection;
 
-import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -33,17 +29,19 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.typesafe.config.Config;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecNotFoundException;
+import gobblin.runtime.api.SpecSerDe;
 import gobblin.runtime.api.SpecStore;
 import gobblin.util.PathUtils;
 
@@ -55,33 +53,48 @@ import gobblin.util.PathUtils;
  * 2. This implementation does not performs implicit version management.
  *    For implicit version management, please use a wrapper FSSpecStore.
  */
-@Slf4j
 public class FSSpecStore implements SpecStore {
 
-  private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
+  protected final Logger log;
   protected final Config sysConfig;
   protected final FileSystem fs;
   protected final String fsSpecStoreDir;
   protected final Path fsSpecStoreDirPath;
+  protected final SpecSerDe specSerDe;
 
-  public FSSpecStore(GobblinInstanceEnvironment env)
+  public FSSpecStore(GobblinInstanceEnvironment env, SpecSerDe specSerDe)
       throws IOException {
-    this(env.getSysConfig().getConfig());
+    this(env.getSysConfig().getConfig(), specSerDe, Optional.<Logger>absent());
   }
 
-  public FSSpecStore(Config sysConfig)
+  public FSSpecStore(Config sysConfig, SpecSerDe specSerDe) throws IOException {
+    this(sysConfig, specSerDe, Optional.<Logger>absent());
+  }
+
+  public FSSpecStore(GobblinInstanceEnvironment env, SpecSerDe specSerDe, Optional<Logger> log)
+      throws IOException {
+    this(env.getSysConfig().getConfig(), specSerDe, log);
+  }
+
+  public FSSpecStore(Config sysConfig, SpecSerDe specSerDe, Optional<Logger> log)
       throws IOException {
     Preconditions.checkArgument(sysConfig.hasPath(ConfigurationKeys.SPECSTORE_FS_DIR_KEY),
         "FS SpecStore path must be specified.");
 
+    this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.sysConfig = sysConfig;
+    this.specSerDe = specSerDe;
     this.fsSpecStoreDir = this.sysConfig.getString(ConfigurationKeys.SPECSTORE_FS_DIR_KEY);
     this.fsSpecStoreDirPath = new Path(this.fsSpecStoreDir);
+    this.log.info("FSSpecStore directory is: " + this.fsSpecStoreDir);
     try {
       this.fs = this.fsSpecStoreDirPath.getFileSystem(new Configuration());
     } catch (IOException e) {
       throw new RuntimeException("Unable to detect job config directory file system: " + e, e);
+    }
+    if (!this.fs.exists(this.fsSpecStoreDirPath)) {
+      this.log.info("FSSpecStore directory: " + this.fsSpecStoreDir + " did not exist. Creating it.");
+      this.fs.mkdirs(this.fsSpecStoreDirPath);
     }
   }
 
@@ -229,12 +242,10 @@ public class FSSpecStore implements SpecStore {
   protected Spec readSpecFromFile(Path path) throws IOException {
     Spec spec = null;
     FSDataInputStream fis = fs.open(path);
-    BufferedReader br = new BufferedReader(new InputStreamReader(fis, Charset.forName("UTF-8")));
     try {
-      spec = gson.fromJson(br, Spec.class);
+      spec = this.specSerDe.deserialize(IOUtils.toByteArray(fis));
     } finally {
       fis.close();
-      br.close();
     }
 
     return spec;
@@ -251,7 +262,7 @@ public class FSSpecStore implements SpecStore {
       fs.delete(specPath, true);
     }
     FSDataOutputStream os = fs.create(specPath);
-    byte[] serializedSpec = gson.toJson(spec).getBytes(Charset.forName("UTF-8"));
+    byte[] serializedSpec = this.specSerDe.serialize(spec);
     try {
       os.write(serializedSpec);
     } finally {
