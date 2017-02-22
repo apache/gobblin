@@ -21,9 +21,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +33,8 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
@@ -63,11 +65,14 @@ public class SimpleKafkaSpecExecutorInstance implements SpecExecutorInstance,
                                                         Closeable {
   private static final String SPEC_KAFKA_TOPIC_KEY = "spec.kafka.topic.key";
   private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+  private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
+  private static final Splitter SPLIT_BY_COLON = Splitter.on(":").omitEmptyStrings().trimResults();
 
   // Executor Instance
   protected final Config _config;
   protected final Optional<Logger> _log;
   protected final URI _specExecutorInstanceUri;
+  protected final Map<String, String> _capabilities;
 
   // Producer
   protected final Kafka08DataWriter<String> _kafka08Producer;
@@ -91,6 +96,17 @@ public class SimpleKafkaSpecExecutorInstance implements SpecExecutorInstance,
           "NA"));
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
+    }
+    _capabilities = Maps.newHashMap();
+    if (config.hasPath(ConfigurationKeys.SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY)) {
+      String capabilitiesStr = config.getString(ConfigurationKeys.SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY);
+      List<String> capabilities = SPLIT_BY_COMMA.splitToList(capabilitiesStr);
+      for (String capability : capabilities) {
+        List<String> currentCapability = SPLIT_BY_COLON.splitToList(capability);
+        Preconditions.checkArgument(currentCapability.size() == 2, "Only one source:destination pair is supported "
+            + "per capability, found: " + currentCapability);
+        _capabilities.put(currentCapability.get(0), currentCapability.get(1));
+      }
     }
 
     // Producer
@@ -143,7 +159,7 @@ public class SimpleKafkaSpecExecutorInstance implements SpecExecutorInstance,
 
   @Override
   public Future<? extends Map<String, String>> getCapabilities() {
-    return new CompletedFuture<>(new HashMap<String, String>(), null);
+    return new CompletedFuture<>(_capabilities, null);
   }
 
   /**********************************************************************************
@@ -311,7 +327,7 @@ public class SimpleKafkaSpecExecutorInstance implements SpecExecutorInstance,
   }
 
   private SpecExecutorInstanceDataPacket decodeRecord(ByteArrayBasedKafkaRecord kafkaConsumerRecord) throws IOException {
-    return gson.fromJson(new String(kafkaConsumerRecord.getMessageBytes()), SpecExecutorInstanceDataPacket.class);
+    return gson.fromJson(new String(kafkaConsumerRecord.getMessageBytes(), Charset.forName("UTF-8")), SpecExecutorInstanceDataPacket.class);
   }
 
   /**********************************************************************************
