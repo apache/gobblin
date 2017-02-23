@@ -78,6 +78,11 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
   protected final String serviceId;
 
+  protected final boolean isTopologyCatalogEnabled;
+  protected final boolean isFlowCatalogEnabled;
+  protected final boolean isOrchestratorEnabled;
+  protected final boolean isRestLIServerEnabled;
+
   protected TopologyCatalog topologyCatalog;
   protected FlowCatalog flowCatalog;
   protected Orchestrator orchestrator;
@@ -100,32 +105,52 @@ public class GobblinServiceManager implements ApplicationLauncher {
         getServiceWorkDirPath(this.fs, serviceName, serviceId);
 
     // Initialize TopologyCatalog
-    this.topologyCatalog = new TopologyCatalog(config, Optional.of(LOGGER));
-    this.serviceLauncher.addService(topologyCatalog);
+    this.isTopologyCatalogEnabled = ConfigUtils.getBoolean(config,
+        ServiceConfigKeys.GOBBLIN_SERVICE_TOPOLOGY_CATALOG_ENABLED_KEY, true);
+    if (isTopologyCatalogEnabled) {
+      this.topologyCatalog = new TopologyCatalog(config, Optional.of(LOGGER));
+      this.serviceLauncher.addService(topologyCatalog);
+    }
 
     // Initialize FlowCatalog
-    this.flowCatalog = new FlowCatalog(config, Optional.of(LOGGER));
-    this.serviceLauncher.addService(flowCatalog);
+    this.isFlowCatalogEnabled = ConfigUtils.getBoolean(config,
+        ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_ENABLED_KEY, true);
+    if (isFlowCatalogEnabled) {
+      this.flowCatalog = new FlowCatalog(config, Optional.of(LOGGER));
+      this.serviceLauncher.addService(flowCatalog);
+    }
 
     // Initialize Orchestrator
-    this.orchestrator = new Orchestrator(config, Optional.of(this.flowCatalog), Optional.of(this.topologyCatalog),
-        Optional.of(LOGGER));
+    this.isOrchestratorEnabled = ConfigUtils.getBoolean(config,
+        ServiceConfigKeys.GOBBLIN_SERVICE_ORCHESTRATOR_ENABLED_KEY, true);
+    if (isOrchestratorEnabled) {
+      this.orchestrator = new Orchestrator(config, Optional.of(this.flowCatalog), Optional.of(this.topologyCatalog),
+          Optional.of(LOGGER));
+    }
 
     // Initialize RestLI
-    Injector injector = Guice.createInjector(new Module() {
-      @Override
-      public void configure(Binder binder) {
-        binder.bind(FlowCatalog.class).toInstance(flowCatalog);
-        binder.bindConstant().annotatedWith(Names.named("inUnitTest")).to(true);
-      }
-    });
-    this.restliServer = EmbeddedRestliServer.builder().resources(
-        Lists.<Class<? extends BaseResource>>newArrayList(FlowConfigsResource.class)).injector(injector).build();
-    this.serviceLauncher.addService(restliServer);
+    this.isRestLIServerEnabled = ConfigUtils.getBoolean(config,
+        ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, true);
+    if (isRestLIServerEnabled) {
+      Injector injector = Guice.createInjector(new Module() {
+        @Override
+        public void configure(Binder binder) {
+          binder.bind(FlowCatalog.class).toInstance(flowCatalog);
+          binder.bindConstant().annotatedWith(Names.named("inUnitTest")).to(true);
+        }
+      });
+      this.restliServer = EmbeddedRestliServer.builder()
+          .resources(Lists.<Class<? extends BaseResource>>newArrayList(FlowConfigsResource.class))
+          .injector(injector)
+          .build();
+      this.serviceLauncher.addService(restliServer);
+    }
 
     // Register Orchestrator to listen to changes in Topologies and Flows
-    topologyCatalog.addListener(orchestrator);
-    flowCatalog.addListener(orchestrator);
+    if (isOrchestratorEnabled) {
+      topologyCatalog.addListener(orchestrator);
+      flowCatalog.addListener(orchestrator);
+    }
   }
 
   private FileSystem buildFileSystem(Config config)
