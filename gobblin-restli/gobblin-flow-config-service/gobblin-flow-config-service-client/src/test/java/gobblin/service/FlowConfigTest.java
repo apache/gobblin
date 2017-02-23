@@ -256,10 +256,7 @@ public class FlowConfigTest {
       _server.awaitTerminated();
     }
     _testDirectory.delete();
-    File specStoreDir = new File(TEST_SPEC_STORE_DIR);
-    if (specStoreDir.exists()) {
-      FileUtils.deleteDirectory(specStoreDir);
-    }
+    cleanUpDir(TEST_SPEC_STORE_DIR);
   }
 
   private static int chooseRandomPort() throws IOException {

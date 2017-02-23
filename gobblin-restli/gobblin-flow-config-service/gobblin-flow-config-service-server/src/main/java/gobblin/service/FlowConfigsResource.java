@@ -116,8 +116,6 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
 
       // remove keys that were injected as part of flowSpec creation
       flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
-      flowProps.remove(ConfigurationKeys.JOB_NAME_KEY);
-      flowProps.remove(ConfigurationKeys.JOB_GROUP_KEY);
       flowProps.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
 
       StringMap flowPropsAsStringMap = new StringMap();
@@ -140,8 +138,6 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
    */
   private FlowSpec createFlowSpecForConfig(FlowConfig flowConfig) {
     ConfigBuilder configBuilder = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, flowConfig.getFlowGroup())
-        .addPrimitive(ConfigurationKeys.JOB_NAME_KEY, flowConfig.getFlowName())
         .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, flowConfig.getSchedule())
         .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, flowConfig.getFlowGroup())
         .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, flowConfig.getFlowName());

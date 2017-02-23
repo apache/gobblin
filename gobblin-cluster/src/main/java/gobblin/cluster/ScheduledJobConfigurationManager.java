@@ -38,6 +38,7 @@ import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecExecutorInstanceConsumer;
 import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
 
 
@@ -60,12 +61,8 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
     super(eventBus, config);
 
     this.jobSpecs = Maps.newHashMap();
-    if (config.hasPath(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL)) {
-      this.refreshIntervalInSeconds = config.getDuration(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL,
-          TimeUnit.SECONDS);
-    } else {
-      this.refreshIntervalInSeconds = DEFAULT_JOB_SPEC_REFRESH_INTERVAL;
-    }
+    this.refreshIntervalInSeconds = ConfigUtils.getLong(config, GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL,
+        DEFAULT_JOB_SPEC_REFRESH_INTERVAL);
 
     this.fetchJobSpecExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("FetchJobSpecExecutor")));

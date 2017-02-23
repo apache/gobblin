@@ -253,11 +253,9 @@ public class FSSpecStore implements SpecStore {
    */
   protected Spec readSpecFromFile(Path path) throws IOException {
     Spec spec = null;
-    FSDataInputStream fis = fs.open(path);
-    try {
+
+    try (FSDataInputStream fis = fs.open(path);) {
       spec = this.specSerDe.deserialize(IOUtils.toByteArray(fis));
-    } finally {
-      fis.close();
     }
 
     return spec;
@@ -273,14 +271,10 @@ public class FSSpecStore implements SpecStore {
     if (fs.exists(specPath)) {
       fs.delete(specPath, true);
     }
-    FSDataOutputStream os = fs.create(specPath);
+
     byte[] serializedSpec = this.specSerDe.serialize(spec);
-    try {
+    try (FSDataOutputStream os = fs.create(specPath)) {
       os.write(serializedSpec);
-    } finally {
-      if (null != os) {
-        os.close();
-      }
     }
   }
 

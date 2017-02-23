@@ -289,8 +289,8 @@ public class SimpleKafkaSpecExecutorInstance implements SpecExecutorInstance,
     try {
       int i=0;
       for (KafkaPartition kafkaPartition : _partitions) {
-        long earliestOffset = _kafka08Consumer.getLatestOffset(kafkaPartition);
-        _highWatermark.set(i, earliestOffset);
+        long latestOffset = _kafka08Consumer.getLatestOffset(kafkaPartition);
+        _highWatermark.set(i, latestOffset);
         i++;
       }
     } catch (KafkaOffsetRetrievalFailureException e) {

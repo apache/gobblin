@@ -111,14 +111,8 @@ public class GobblinServiceManagerTest {
     // Shutdown Service
     this.gobblinServiceManager.stop();
 
-    File specStoreDir = new File(SERVICE_WORK_DIR);
-    if (specStoreDir.exists()) {
-      FileUtils.deleteDirectory(specStoreDir);
-    }
-    specStoreDir = new File(SPEC_STORE_PARENT_DIR);
-    if (specStoreDir.exists()) {
-      FileUtils.deleteDirectory(specStoreDir);
-    }
+    cleanUpDir(SERVICE_WORK_DIR);
+    cleanUpDir(SPEC_STORE_PARENT_DIR);
   }
 
   @Test
