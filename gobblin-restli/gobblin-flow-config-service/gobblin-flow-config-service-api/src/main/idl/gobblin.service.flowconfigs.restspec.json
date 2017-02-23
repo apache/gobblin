@@ -13,13 +13,13 @@
     "supports" : [ "create", "delete", "get", "update" ],
     "methods" : [ {
       "method" : "create",
-      "doc" : "Put a new {@link JobSpec} based on flowConfig in the {@link MutableJobCatalog}"
+      "doc" : "Put a new {@link FlowSpec} based on flowConfig in the {@link FlowCatalog}"
     }, {
       "method" : "get",
       "doc" : "Retrieve the {@link FlowConfig} with the given key"
     }, {
       "method" : "update",
-      "doc" : "Update the {@link JobSpec} in the {@link MutableJobCatalog} based on the specified {@link FlowConfig}"
+      "doc" : "Update the {@link FlowSpec} in the {@link FlowCatalog} based on the specified {@link FlowConfig}"
     }, {
       "method" : "delete",
       "doc" : "delete a configured flow"

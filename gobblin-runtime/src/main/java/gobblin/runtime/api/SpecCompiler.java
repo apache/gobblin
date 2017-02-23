@@ -17,15 +17,26 @@
 
 package gobblin.runtime.api;
 
-import java.io.Serializable;
 import java.net.URI;
+import java.util.Map;
 
-
-/**
- * A basic interface for an object with a {@link URI}, version, and description.
+/***
+ * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
+ * and the mapping to {@link SpecExecutorInstance} that they can be run on.
  */
-public interface Spec extends Serializable {
-  URI getUri();
-  String getVersion();
-  String getDescription();
+public interface SpecCompiler extends SpecCatalogListener{
+  /***
+   * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
+   * and the mapping to {@link SpecExecutorInstance} that they can be run on.
+   * @param spec {@link Spec} to compile.
+   * @return Map of materialized physical {@link Spec} and {@link SpecExecutorInstance}.
+   */
+  Map<Spec, SpecExecutorInstanceProducer> compileFlow(Spec spec);
+
+  /***
+   * Map of {@link Spec} URI and {@link TopologySpec} the {@link SpecCompiler}
+   * is aware about.
+   * @return Map of {@link Spec} URI and {@link TopologySpec}
+   */
+  Map<URI, TopologySpec> getTopologySpecMap();
 }

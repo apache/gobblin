@@ -17,15 +17,24 @@
 
 package gobblin.runtime.api;
 
-import java.io.Serializable;
 import java.net.URI;
+import java.util.Collection;
 
 
 /**
- * A basic interface for an object with a {@link URI}, version, and description.
+ * A {@link SpecCatalog} that can have its {@link Collection} of {@link Spec}s modified
+ * programmatically. Note that specs in a spec catalog can change from the outside. This is covered
+ * by the base SpecCatalog interface.
  */
-public interface Spec extends Serializable {
-  URI getUri();
-  String getVersion();
-  String getDescription();
+public interface MutableSpecCatalog extends SpecCatalog {
+  /**
+   * Registers a new {@link Spec}. If a {@link Spec} with the same {@link Spec#getUri()} exists,
+   * it will be replaced.
+   * */
+  public void put(Spec spec);
+
+  /**
+   * Removes an existing {@link Spec} with the given URI. A no-op if such {@link Spec} does not exist.
+   */
+  void remove(URI uri);
 }

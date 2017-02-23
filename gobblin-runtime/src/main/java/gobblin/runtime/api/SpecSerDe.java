@@ -17,15 +17,21 @@
 
 package gobblin.runtime.api;
 
-import java.io.Serializable;
-import java.net.URI;
-
-
 /**
- * A basic interface for an object with a {@link URI}, version, and description.
+ * A Serializer / Deserializer for {@link Spec}.
  */
-public interface Spec extends Serializable {
-  URI getUri();
-  String getVersion();
-  String getDescription();
+public interface SpecSerDe {
+  /***
+   * Serializes the {@link Spec} into byte array.
+   * @param spec {@link Spec} to serialize.
+   * @return byte array of serialized {@link Spec}.
+   */
+  public byte[] serialize(Spec spec);
+
+  /***
+   * Deserialize byte array into a {@link Spec}.
+   * @param spec byte array to deserialize.
+   * @return deserialized {@link Spec}.
+   */
+  public Spec deserialize(byte[] spec);
 }

@@ -17,15 +17,28 @@
 
 package gobblin.runtime.api;
 
-import java.io.Serializable;
 import java.net.URI;
+import java.util.List;
+import java.util.concurrent.Future;
+
+import gobblin.annotation.Alpha;
 
 
 /**
- * A basic interface for an object with a {@link URI}, version, and description.
+ * Defines a SpecExecutorInstanceProducer to produce jobs to {@link SpecExecutorInstance}
+ * that can execute a {@link Spec}.
  */
-public interface Spec extends Serializable {
-  URI getUri();
-  String getVersion();
-  String getDescription();
+@Alpha
+public interface SpecExecutorInstanceProducer<V> extends SpecExecutorInstance {
+  /** Add a {@link Spec} for execution on {@link SpecExecutorInstance}. */
+  Future<?> addSpec(V addedSpec);
+
+  /** Update a {@link Spec} being executed on {@link SpecExecutorInstance}. */
+  Future<?> updateSpec(V updatedSpec);
+
+  /** Delete a {@link Spec} being executed on {@link SpecExecutorInstance}. */
+  Future<?> deleteSpec(URI deletedSpecURI);
+
+  /** List all {@link Spec} being executed on {@link SpecExecutorInstance}. */
+  Future<? extends List<V>> listSpecs();
 }

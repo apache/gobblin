@@ -106,6 +106,20 @@ public class ConfigurationKeys {
   public static final int DEFAULT_TASK_RETRY_THREAD_POOL_CORE_SIZE = 1;
 
   /**
+   * Common flow configuration properties.
+   */
+  public static final String FLOW_NAME_KEY = "flow.name";
+  public static final String FLOW_GROUP_KEY = "flow.group";
+  public static final String FLOW_DESCRIPTION_KEY = "flow.description";
+
+  /**
+   * Common topology configuration properties.
+   */
+  public static final String TOPOLOGY_NAME_KEY = "topology.name";
+  public static final String TOPOLOGY_GROUP_KEY = "topology.group";
+  public static final String TOPOLOGY_DESCRIPTION_KEY = "topology.description";
+
+  /**
    * Common job configuration properties.
    */
   public static final String JOB_NAME_KEY = "job.name";
@@ -678,4 +692,27 @@ public class ConfigurationKeys {
    * Configuration properties related to Flows
    */
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
+
+  /***
+   * Configuration properties related to Spec Store
+   */
+  public static final String SPECSTORE_FS_DIR_KEY = "specStore.fs.dir";
+
+  /***
+   * Configuration properties related to TopologySpec Store
+   */
+  public static final String TOPOLOGYSPEC_STORE_CLASS_KEY = "topologySpec.store.class";
+  public static final String TOPOLOGYSPEC_STORE_DIR_KEY = "topologySpec.store.dir";
+
+  /***
+   * Configuration properties related to FlowSpec Store
+   */
+  public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
+  public static final String FLOWSPEC_STORE_DIR_KEY = "flowSpec.store.dir";
+
+  /***
+   * Configuration properties related to Spec Executor Instance
+   */
+  public static final String SPECEXECUTOR_INSTANCE_URI_KEY = "specExecInstance.uri";
+  public static final String SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY = "specExecInstance.capabilities";
 }

@@ -17,15 +17,34 @@
 
 package gobblin.runtime.api;
 
-import java.io.Serializable;
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Future;
+
+import com.typesafe.config.Config;
+
+import gobblin.annotation.Alpha;
 
 
 /**
- * A basic interface for an object with a {@link URI}, version, and description.
+ * Defines a SpecExecutorInstance (typically a standalone instance, cluster or Azkaban deployment)
+ * that can execute a {@link Spec}.
  */
-public interface Spec extends Serializable {
+@Alpha
+public interface SpecExecutorInstance {
+  /** An URI identifying the SpecExecutorInstance. */
   URI getUri();
-  String getVersion();
-  String getDescription();
+
+  /** Human-readable description of the SpecExecutorInstance .*/
+  Future<String> getDescription();
+
+  /** SpecExecutorInstance config as a typesafe config object. */
+  Future<Config> getConfig();
+
+  /** Health of SpecExecutorInstance. */
+  Future<String> getHealth();
+
+  /** Source : Destination processing capabilities of SpecExecutorInstance. */
+  Future<? extends Map<String, String>> getCapabilities();
 }

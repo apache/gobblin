@@ -40,6 +40,7 @@ def modules = ['gobblin-admin',
                'gobblin-yarn',
                'gobblin-cluster',
                'gobblin-aws',
+               'gobblin-service',
                'gobblin-test-utils']
 
 // Disable jacoco for now as Kafka 0.8 is the default version and jacoco does not like the same classes

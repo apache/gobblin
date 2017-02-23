@@ -15,46 +15,54 @@
  * limitations under the License.
  */
 
-package gobblin.service;
+package gobblin.service.modules.core;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
-import com.google.common.io.Files;
-import com.google.inject.Binder;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.name.Names;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.client.RestLiResponseException;
-import com.linkedin.restli.server.resources.BaseResource;
-import com.typesafe.config.Config;
 
-import gobblin.config.ConfigBuilder;
 import gobblin.configuration.ConfigurationKeys;
-import gobblin.restli.EmbeddedRestliServer;
+import gobblin.runtime.api.FlowSpec;
+import gobblin.runtime.api.TopologySpec;
+import gobblin.runtime.app.ServiceBasedAppLauncher;
 import gobblin.runtime.spec_catalog.FlowCatalog;
+import gobblin.runtime.spec_catalog.TopologyCatalog;
+import gobblin.service.FlowConfig;
+import gobblin.service.FlowConfigClient;
+import gobblin.service.FlowConfigId;
+import gobblin.service.modules.orchestration.Orchestrator;
+import gobblin.util.ConfigUtils;
 
 
-@Test(groups = { "gobblin.service" })
-public class FlowConfigTest {
-  private FlowConfigClient _client;
-  private EmbeddedRestliServer _server;
-  private File _testDirectory;
+public class GobblinServiceManagerTest {
 
-  private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigTest/";
+  private static final Logger logger = LoggerFactory.getLogger(TopologyCatalog.class);
+  private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+  private static final String SERVICE_WORK_DIR = "/tmp/serviceWorkDir/";
+  private static final String SPEC_STORE_PARENT_DIR = "/tmp/serviceCore/";
+  private static final String SPEC_DESCRIPTION = "Test ServiceCore";
+  private static final String SPEC_VERSION = "1";
+  private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/serviceCore/topologyTestSpecStore";
+  private static final String FLOW_SPEC_STORE_DIR = "/tmp/serviceCore/flowTestSpecStore";
+
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
   private static final String TEST_SCHEDULE = "";
@@ -62,41 +70,33 @@ public class FlowConfigTest {
   private static final String TEST_DUMMY_GROUP_NAME = "dummyGroup";
   private static final String TEST_DUMMY_FLOW_NAME = "dummyFlow";
 
+  private ServiceBasedAppLauncher serviceLauncher;
+  private TopologyCatalog topologyCatalog;
+  private TopologySpec topologySpec;
+
+  private FlowCatalog flowCatalog;
+  private FlowSpec flowSpec;
+
+  private Orchestrator orchestrator;
+
+  private GobblinServiceManager gobblinServiceManager;
+  private FlowConfigClient flowConfigClient;
+
   @BeforeClass
-  public void setUp() throws Exception {
-    ConfigBuilder configBuilder = ConfigBuilder.create();
+  public void setup() throws Exception {
+    cleanUpDir(SERVICE_WORK_DIR);
+    cleanUpDir(SPEC_STORE_PARENT_DIR);
 
-    _testDirectory = Files.createTempDir();
+    Properties serviceCoreProperties = new Properties();
+    serviceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, TOPOLOGY_SPEC_STORE_DIR);
+    serviceCoreProperties.put(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, FLOW_SPEC_STORE_DIR);
 
-    configBuilder
-        .addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath())
-        .addPrimitive(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, TEST_SPEC_STORE_DIR);
-    cleanUpDir(TEST_SPEC_STORE_DIR);
+    this.gobblinServiceManager = new GobblinServiceManager("CoreService", "1",
+        ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
+    this.gobblinServiceManager.start();
 
-    Config config = configBuilder.build();
-    final FlowCatalog flowCatalog = new FlowCatalog(config);
-
-    flowCatalog.startAsync();
-    flowCatalog.awaitRunning();
-
-    Injector injector = Guice.createInjector(new Module() {
-       @Override
-       public void configure(Binder binder) {
-         binder.bind(FlowCatalog.class).toInstance(flowCatalog);
-         // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
-         // been made
-         binder.bindConstant().annotatedWith(Names.named("inUnitTest")).to(true);
-       }
-    });
-
-    _server = EmbeddedRestliServer.builder().resources(
-        Lists.<Class<? extends BaseResource>>newArrayList(FlowConfigsResource.class)).injector(injector).build();
-
-    _server.startAsync();
-    _server.awaitRunning();
-
-    _client =
-        new FlowConfigClient(String.format("http://localhost:%s/", _server.getPort()));
+    this.flowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",
+        this.gobblinServiceManager.restliServer.getPort()));
   }
 
   private void cleanUpDir(String dir) throws Exception {
@@ -104,6 +104,15 @@ public class FlowConfigTest {
     if (specStoreDir.exists()) {
       FileUtils.deleteDirectory(specStoreDir);
     }
+  }
+
+  @AfterClass
+  public void cleanUp() throws Exception {
+    // Shutdown Service
+    this.gobblinServiceManager.stop();
+
+    cleanUpDir(SERVICE_WORK_DIR);
+    cleanUpDir(SPEC_STORE_PARENT_DIR);
   }
 
   @Test
@@ -115,7 +124,9 @@ public class FlowConfigTest {
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setRunImmediately(true)
         .setProperties(new StringMap(flowProperties));
 
-    _client.createFlowConfig(flowConfig);
+    this.flowConfigClient.createFlowConfig(flowConfig);
+    Assert.assertTrue(this.gobblinServiceManager.flowCatalog.getSpecs().size() == 1, "Flow that was created is not "
+        + "reflecting in FlowCatalog");
   }
 
   @Test (dependsOnMethods = "testCreate")
@@ -127,7 +138,7 @@ public class FlowConfigTest {
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setProperties(new StringMap(flowProperties));
 
     try {
-      _client.createFlowConfig(flowConfig);
+      this.flowConfigClient.createFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.CONFLICT_409);
       return;
@@ -139,7 +150,7 @@ public class FlowConfigTest {
   @Test (dependsOnMethods = "testCreateAgain")
   public void testGet() throws Exception {
     FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
-    FlowConfig flowConfig = _client.getFlowConfig(flowConfigId);
+    FlowConfig flowConfig = this.flowConfigClient.getFlowConfig(flowConfigId);
 
     Assert.assertEquals(flowConfig.getFlowGroup(), TEST_GROUP_NAME);
     Assert.assertEquals(flowConfig.getFlowName(), TEST_FLOW_NAME);
@@ -163,9 +174,9 @@ public class FlowConfigTest {
     FlowConfig flowConfig = new FlowConfig().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setProperties(new StringMap(flowProperties));
 
-    _client.updateFlowConfig(flowConfig);
+    this.flowConfigClient.updateFlowConfig(flowConfig);
 
-    FlowConfig retrievedFlowConfig = _client.getFlowConfig(flowConfigId);
+    FlowConfig retrievedFlowConfig = this.flowConfigClient.getFlowConfig(flowConfigId);
 
     Assert.assertEquals(retrievedFlowConfig.getFlowGroup(), TEST_GROUP_NAME);
     Assert.assertEquals(retrievedFlowConfig.getFlowName(), TEST_FLOW_NAME);
@@ -183,14 +194,14 @@ public class FlowConfigTest {
     FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
 
     // make sure flow config exists
-    FlowConfig flowConfig = _client.getFlowConfig(flowConfigId);
+    FlowConfig flowConfig = this.flowConfigClient.getFlowConfig(flowConfigId);
     Assert.assertEquals(flowConfig.getFlowGroup(), TEST_GROUP_NAME);
     Assert.assertEquals(flowConfig.getFlowName(), TEST_FLOW_NAME);
 
-    _client.deleteFlowConfig(flowConfigId);
+    this.flowConfigClient.deleteFlowConfig(flowConfigId);
 
     try {
-      _client.getFlowConfig(flowConfigId);
+      this.flowConfigClient.getFlowConfig(flowConfigId);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
       return;
@@ -204,7 +215,7 @@ public class FlowConfigTest {
     FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
 
     try {
-      _client.getFlowConfig(flowConfigId);
+      this.flowConfigClient.getFlowConfig(flowConfigId);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
       return;
@@ -218,7 +229,7 @@ public class FlowConfigTest {
     FlowConfigId flowConfigId = new FlowConfigId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
 
     try {
-      _client.getFlowConfig(flowConfigId);
+      this.flowConfigClient.getFlowConfig(flowConfigId);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
       return;
@@ -237,37 +248,12 @@ public class FlowConfigTest {
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(TEST_SCHEDULE).setProperties(new StringMap(flowProperties));
 
     try {
-      _client.updateFlowConfig(flowConfig);
+      this.flowConfigClient.updateFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
       return;
     }
 
     Assert.fail("Get should have raised a 404 error");
-  }
-
-  @AfterClass(alwaysRun = true)
-  public void tearDown() throws Exception {
-    if (_client != null) {
-      _client.close();
-    }
-    if (_server != null) {
-      _server.stopAsync();
-      _server.awaitTerminated();
-    }
-    _testDirectory.delete();
-    cleanUpDir(TEST_SPEC_STORE_DIR);
-  }
-
-  private static int chooseRandomPort() throws IOException {
-    ServerSocket socket = null;
-    try {
-      socket = new ServerSocket(0);
-      return socket.getLocalPort();
-    } finally {
-      if (socket != null) {
-        socket.close();
-      }
-    }
   }
 }

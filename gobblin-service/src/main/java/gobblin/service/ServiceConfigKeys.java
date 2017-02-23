@@ -15,17 +15,24 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package gobblin.service;
 
-import java.io.Serializable;
-import java.net.URI;
+import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 
 
-/**
- * A basic interface for an object with a {@link URI}, version, and description.
- */
-public interface Spec extends Serializable {
-  URI getUri();
-  String getVersion();
-  String getDescription();
+public class ServiceConfigKeys {
+
+  private static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
+
+  // Flow Compiler Keys
+  public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowCompiler.class";
+  public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS = IdentityFlowToJobSpecCompiler.class.getCanonicalName();
+
+  // Flow specific keys
+  public static final String FLOW_SOURCE_IDENTIFIER_KEY = "gobblin.flow.sourceIdentifier";
+  public static final String FLOW_DESTINATION_IDENTIFIER_KEY = "gobblin.flow.destinationIdentifier";
+
+  // Command line options
+  public static final String SERVICE_NAME_OPTION_NAME = "service_name";
+
 }
