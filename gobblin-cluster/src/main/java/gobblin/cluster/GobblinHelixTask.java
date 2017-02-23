@@ -18,6 +18,7 @@
 package gobblin.cluster;
 
 import com.google.common.io.Closer;
+import gobblin.metastore.StateStore;
 import gobblin.runtime.util.StateStores;
 import java.io.IOException;
 import java.util.List;
@@ -95,6 +96,8 @@ public class GobblinHelixTask implements Task {
   private final FileSystem fs;
   private final StateStores stateStores;
 
+  private GobblinMultiTaskAttempt taskAttempt;
+
   public GobblinHelixTask(TaskCallbackContext taskCallbackContext, Optional<ContainerMetrics> containerMetrics,
       TaskExecutor taskExecutor, TaskStateTracker taskStateTracker, FileSystem fs, Path appWorkDir,
       StateStores stateStores)
@@ -159,8 +162,10 @@ public class GobblinHelixTask implements Task {
       SharedResourcesBroker<GobblinScopeTypes> jobBroker =
           globalBroker.newSubscopedBuilder(new JobScopeInstance(this.jobState.getJobName(), this.jobState.getJobId())).build();
 
-      GobblinMultiTaskAttempt.runWorkUnits(this.jobId, this.participantId, this.jobState, workUnits, this.taskStateTracker,
-          this.taskExecutor, this.stateStores.taskStateStore, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE, jobBroker);
+      this.taskAttempt = new GobblinMultiTaskAttempt(workUnits.iterator(), this.jobId, this.jobState, this.taskStateTracker,
+          this.taskExecutor, Optional.of(this.participantId), Optional.of(this.stateStores.taskStateStore), jobBroker);
+
+      this.taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
       return new TaskResult(TaskResult.Status.COMPLETED, String.format("completed tasks: %d", workUnits.size()));
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
@@ -181,7 +186,16 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public void cancel() {
-    LOGGER.warn("Asked to cancel task with jobId: {} but I'm ignoring", jobId);
-    // TODO: implement cancellation.
+    if (this.taskAttempt != null) {
+      try {
+        LOGGER.info("Task cancelled: Shutdown starting for tasks with jobId: {}", this.jobId);
+        this.taskAttempt.shutdownTasks();
+        LOGGER.info("Task cancelled: Shutdown complete for tasks with jobId: {}", this.jobId);
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Interrupted while shutting down task with jobId: " + this.jobId, e);
+      }
+    } else {
+      LOGGER.error("Task cancelled but taskAttempt is null, so ignoring.");
+    }
   }
 }

@@ -19,15 +19,20 @@ package gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.concurrent.Callable;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
+import org.apache.helix.IdealStateChangeListener;
+import org.apache.helix.NotificationContext;
+import org.apache.helix.model.IdealState;
+import org.apache.helix.task.GobblinJobRebalancer;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
 import org.apache.helix.task.TaskConfig;
@@ -48,8 +53,11 @@ import gobblin.metrics.Tag;
 import gobblin.metrics.event.TimingEvent;
 import gobblin.rest.LauncherTypeEnum;
 import gobblin.runtime.AbstractJobLauncher;
+import gobblin.runtime.ExecutionModel;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.JobState;
+import gobblin.runtime.Task;
+import gobblin.runtime.TaskConfigurationKeys;
 import gobblin.runtime.TaskState;
 import gobblin.runtime.TaskStateCollectorService;
 import gobblin.runtime.util.StateStores;
@@ -145,6 +153,36 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.taskStateCollectorService = new TaskStateCollectorService(jobProps, this.jobContext.getJobState(),
         this.eventBus, this.stateStores.taskStateStore, outputTaskStateDir);
+
+    if (Task.getExecutionModel(ConfigUtils.configToState(jobConfig)).equals(ExecutionModel.STREAMING)) {
+      // Fix-up Ideal State with a custom rebalancer that will re-balance long-running jobs
+      final String clusterName =
+          ConfigUtils.getString(jobConfig, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, "");
+      final String rebalancerToReplace = "org.apache.helix.task.JobRebalancer";
+      final String rebalancerClassDesired = GobblinJobRebalancer.class.getName();
+      final String jobResourceName = this.jobResourceName;
+
+      if (!clusterName.isEmpty()) {
+        this.helixManager.addIdealStateChangeListener(new IdealStateChangeListener() {
+          @Override
+          public void onIdealStateChange(List<IdealState> list, NotificationContext notificationContext) {
+            HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
+            for (String resource : helixAdmin.getResourcesInCluster(clusterName)) {
+              if (resource.equals(jobResourceName)) {
+                IdealState idealState = helixAdmin.getResourceIdealState(clusterName, resource);
+                if (idealState != null) {
+                  String rebalancerClassFound = idealState.getRebalancerClassName();
+                  if (rebalancerToReplace.equals(rebalancerClassFound)) {
+                    idealState.setRebalancerClassName(rebalancerClassDesired);
+                    helixAdmin.setResourceIdealState(clusterName, resource, idealState);
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
   }
 
   @Override
