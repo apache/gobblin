@@ -63,14 +63,17 @@ import com.codahale.metrics.Timer;
 /**
  * Data Writer for Eventhub.
  * This Data Writer use HttpClient internally and publish data to Eventhub via Post REST API
- * The synchronous model means after each data is sent through httpClient, we will have to wait
- * and consume the response.
+ * Synchronous model is used here that after each data is sent through httpClient, a response is consumed
+ * immediately. Also this class supports sending multiple records in a batch manner.
  *
- * Also this class supports sending multiple records in a batch manner.
+ * The String input needs to be Unicode based because it will convert to JSON format when using REST API
  *
+ * For batch sending, please refer to https://docs.microsoft.com/en-us/rest/api/eventhub/send-batch-events for sending batch records
+ * For unicode based json string, please refer to http://rfc7159.net/
  */
+
 @Slf4j
-public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDataWriter<byte[]> {
+public class EventhubDataWriter implements SyncDataWriter<String>, BatchAsyncDataWriter<String> {
 
   private static final Logger LOG = LoggerFactory.getLogger(EventhubDataWriter.class);
   private HttpClient httpclient;
@@ -136,7 +139,7 @@ public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDat
   /**
    * Write a whole batch to eventhub
    */
-  public Future<WriteResponse> write (Batch<byte[]> batch, WriteCallback callback) {
+  public Future<WriteResponse> write (Batch<String> batch, WriteCallback callback) {
     long before = System.nanoTime();
     int returnCode = 0;
 
@@ -159,7 +162,7 @@ public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDat
   /**
    * Write a single record to eventhub
    */
-  public WriteResponse write (byte[] record) throws IOException {
+  public WriteResponse write (String record) throws IOException {
     long before = System.nanoTime();
     String encoded = encodeRecord(record);
     bytesWritten.mark(encoded.getBytes(Charsets.UTF_8).length);
@@ -218,16 +221,16 @@ public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDat
    * Each record of batch is wrapped by a 'Body' json object
    * put this new object into an array, encode the whole array
    */
-  private String encodeBatch (Batch<byte[]> batch) throws IOException {
+  private String encodeBatch (Batch<String> batch) throws IOException {
     // Convert original json object to a new json object with format {"Body": "originalJson"}
     // Add new json object to an array and send the whole array to eventhub using REST api
     // Refer to https://docs.microsoft.com/en-us/rest/api/eventhub/send-batch-events
-    List<byte[]> records = batch.getRecords();
+    List<String> records = batch.getRecords();
     ArrayList<EventhubRequest> arrayList = new ArrayList<>();
 
 
-    for (byte[] record: records) {
-      arrayList.add(new EventhubRequest(new String(record, Charsets.UTF_8)));
+    for (String record: records) {
+      arrayList.add(new EventhubRequest(record));
     }
     return mapper.writeValueAsString (arrayList);
   }
@@ -236,12 +239,12 @@ public class EventhubDataWriter implements SyncDataWriter<byte[]>, BatchAsyncDat
    * A single record is wrapped by a 'Body' json object
    * encode this json object
    */
-  private String encodeRecord (byte[] record)throws  IOException {
+  private String encodeRecord (String record)throws  IOException {
     // Convert original json object to a new json object with format {"Body": "originalJson"}
     // Add new json object to an array and send the whole array to eventhub using REST api
     // Refer to https://docs.microsoft.com/en-us/rest/api/eventhub/send-batch-events
     ArrayList<EventhubRequest> arrayList = new ArrayList<>();
-    arrayList.add(new EventhubRequest(new String(record, Charsets.UTF_8)));
+    arrayList.add(new EventhubRequest(record));
 
     return mapper.writeValueAsString (arrayList);
   }

@@ -14,7 +14,7 @@ public class EventhubBatchTest {
     // Assume memory size has only 2 bytes
     EventhubBatch batch = new EventhubBatch(8, 3000);
 
-    byte[] record = new byte[8];
+    String record = "abcdefgh";
 
     // Record is larger than the memory size limit, the first append should fail
     Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY));
@@ -29,7 +29,7 @@ public class EventhubBatchTest {
     EventhubBatch batch = new EventhubBatch(200, 3000);
 
     // Add additional 15 bytes overhead, total size is 27 bytes
-    byte[] record = new byte[8];
+    String record = "abcdefgh";
 
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));

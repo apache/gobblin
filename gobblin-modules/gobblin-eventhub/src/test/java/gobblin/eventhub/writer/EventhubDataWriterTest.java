@@ -64,11 +64,11 @@ public class EventhubDataWriterTest {
     EventhubDataWriter eventhubDataWriter = Mockito.spy(new EventhubDataWriter(props, mockHttpClient));
     Mockito.doNothing().when(eventhubDataWriter).refreshSignature();
 
-    List<byte[]> records = new LinkedList<>();
+    List<String> records = new LinkedList<>();
     for (int i=0; i<50; ++i)
-      records.add(new byte[8]);
+      records.add(new String("abcdefgh"));
 
-    Batch<byte[]> batch = mock(Batch.class);
+    Batch<String> batch = mock(Batch.class);
     WriteCallback callback = mock(WriteCallback.class);
     Mockito.when(batch.getRecords()).thenReturn(records);
 
@@ -86,7 +86,7 @@ public class EventhubDataWriterTest {
     EventhubDataWriter eventhubDataWriter = Mockito.spy(new EventhubDataWriter(props, mockHttpClient));
     Mockito.doNothing().when(eventhubDataWriter).refreshSignature();
 
-    byte[] record = new byte[8];
+    String record = "abcdefgh";
     WriteResponse<Integer> writeResponse = eventhubDataWriter.write(record);
     int returnCode = writeResponse.getRawResponse();
     Assert.assertEquals(returnCode, 201);
