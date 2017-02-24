@@ -62,7 +62,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
   @Named("inUnitTest")
   private boolean inUnitTest;
 
-  FlowConfigsResource() {}
+  public FlowConfigsResource() {}
 
   /**
    * Logs message and throws Rest.li exception
