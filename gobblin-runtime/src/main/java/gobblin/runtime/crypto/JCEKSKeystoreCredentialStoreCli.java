@@ -67,6 +67,12 @@ public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
     action.run(Arrays.copyOfRange(args, 1, args.length));
   }
 
+  public static JCEKSKeystoreCredentialStore loadKeystore(String path) throws IOException {
+    char[] password = getPasswordFromConsole();
+
+    return new JCEKSKeystoreCredentialStore(path, String.valueOf(password));
+  }
+
   /**
    * Abstract class for any action of this tool
    */
@@ -148,10 +154,8 @@ public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
           return;
         }
 
-        char[] password = getPasswordFromConsole();
         String keystoreLocation = cli.getOptionValue(KEYSTORE_LOCATION.getOpt());
-        JCEKSKeystoreCredentialStore credentialStore =
-            new JCEKSKeystoreCredentialStore(cli.getOptionValue(KEYSTORE_LOCATION.getOpt()), String.valueOf(password));
+        JCEKSKeystoreCredentialStore credentialStore = loadKeystore(keystoreLocation);
 
         Map<String, byte[]> keys = credentialStore.getAllEncodedKeys();
         System.out.println("Keystore " + keystoreLocation + " has " + String.valueOf(keys.size()) + " keys.");

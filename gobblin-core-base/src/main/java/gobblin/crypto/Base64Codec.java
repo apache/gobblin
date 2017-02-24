@@ -21,11 +21,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 
+import org.apache.commons.codec.binary.Base64InputStream;
 import org.apache.commons.codec.binary.Base64OutputStream;
 
-import gobblin.writer.StreamCodec;
-
 import lombok.extern.slf4j.Slf4j;
+
+import gobblin.writer.StreamCodec;
 
 
 /**
@@ -37,16 +38,22 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class Base64Codec implements StreamCodec {
-  private final static Method java8GetEncoder;
-  private final static Method java8WrapStream;
+  private static Method java8GetEncoder;
+  private static Method java8WrapStreamEncode;
+  private static Method java8GetDecoder;
+  private static Method java8WrapStreamDecode;
+
+  private final static boolean foundJava8;
+
   private static boolean forceApacheBase64 = false;
 
   @Override
-  public OutputStream encodeOutputStream(OutputStream origStream) throws IOException {
+  public OutputStream encodeOutputStream(OutputStream origStream)
+      throws IOException {
     try {
       if (canUseJava8()) {
         Object encoder = java8GetEncoder.invoke(null);
-        return (OutputStream) java8WrapStream.invoke(encoder, origStream);
+        return (OutputStream) java8WrapStreamEncode.invoke(encoder, origStream);
       } else {
         return encodeOutputStreamWithApache(origStream);
       }
@@ -57,38 +64,51 @@ public class Base64Codec implements StreamCodec {
   }
 
   @Override
-  public InputStream decodeInputStream(InputStream origStream) throws IOException {
-    throw new UnsupportedOperationException("not implemented yet");
+  public InputStream decodeInputStream(InputStream origStream)
+      throws IOException {
+    try {
+      if (canUseJava8()) {
+        Object decoder = java8GetDecoder.invoke(null);
+        return (InputStream) java8WrapStreamDecode.invoke(decoder, origStream);
+      } else {
+        return decodeInputStreamWithApache(origStream);
+      }
+    } catch (ReflectiveOperationException e) {
+      log.warn("Error invoking java8 methods, falling back to Apache", e);
+      return decodeInputStreamWithApache(origStream);
+    }
   }
 
   static {
-    java8GetEncoder = getBase64EncoderMethod();
-    java8WrapStream = getBase64EncoderWrapMethod();
-    if (java8GetEncoder == null || java8WrapStream == null) {
-      log.info("Couldn't find java.util.Base64, falling back to Apache Commons");
+    boolean base64Found = false;
+    try {
+      Class.forName("java.util.Base64");
+
+      java8GetEncoder = getMethod("java.util.Base64", "getEncoder");
+      java8WrapStreamEncode = getMethod("java.util.Base64$Encoder", "wrap", OutputStream.class);
+      java8GetDecoder = getMethod("java.util.Base64", "getDecoder");
+      java8WrapStreamDecode = getMethod("java.util.Base64$Decoder", "wrap", InputStream.class);
+      base64Found = true;
+    } catch (ClassNotFoundException | NoSuchMethodException e) {
+      log.info("Couldn't find java.util.Base64 or methods, falling back to Apache Commons", e);
+      base64Found = false;
+    } finally {
+      foundJava8 = base64Found;
     }
   }
 
-  private static Method getBase64EncoderMethod() {
-    try {
-      Class<?> java8Base64 = Class.forName("java.util.Base64");
-      return java8Base64.getMethod("getEncoder");
-    } catch (ClassNotFoundException | NoSuchMethodException e) {
-      return null;
-    }
-  }
-
-  private static Method getBase64EncoderWrapMethod() {
-    try {
-      Class<?> java8Encoder = Class.forName("java.util.Base64$Encoder");
-      return java8Encoder.getMethod("wrap", OutputStream.class);
-    } catch (ClassNotFoundException | NoSuchMethodException e) {
-      return null;
-    }
+  private static Method getMethod(String className, String methodName, Class<?>... parameterTypes)
+      throws ClassNotFoundException, NoSuchMethodException {
+    Class<?> clazz = Class.forName(className);
+    return clazz.getMethod(methodName, parameterTypes);
   }
 
   private OutputStream encodeOutputStreamWithApache(OutputStream origStream) {
     return new Base64OutputStream(origStream, true, 0, null);
+  }
+
+  private InputStream decodeInputStreamWithApache(InputStream origStream) {
+    return new Base64InputStream(origStream);
   }
 
   // Force use of the Apache Base64 codec -- used only for benchmarking
@@ -97,7 +117,7 @@ public class Base64Codec implements StreamCodec {
   }
 
   private boolean canUseJava8() {
-    return !forceApacheBase64 && java8WrapStream != null && java8GetEncoder != null;
+    return !forceApacheBase64 && foundJava8;
   }
 
   @Override
