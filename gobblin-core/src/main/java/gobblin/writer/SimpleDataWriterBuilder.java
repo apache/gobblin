@@ -18,6 +18,15 @@
 package gobblin.writer;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import gobblin.compression.CompressionConfigParser;
+import gobblin.compression.CompressionFactory;
+import gobblin.configuration.State;
+import gobblin.crypto.EncryptionConfigParser;
+import gobblin.crypto.EncryptionFactory;
 
 
 /**
@@ -26,6 +35,12 @@ import java.io.IOException;
  * @author akshay@nerdwallet.com
  */
 public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]> {
+  private final List<StreamCodec> encoders;
+
+  public SimpleDataWriterBuilder() {
+    encoders = new ArrayList<>();
+  }
+
   /**
    * Build a {@link gobblin.writer.DataWriter}.
    *
@@ -34,7 +49,33 @@ public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]>
    */
   @Override
   public DataWriter<byte[]> build() throws IOException {
-    return new SimpleDataWriter(this, this.destination.getProperties());
+    buildEncoders();
+    return new SimpleDataWriter(this, encoders, this.destination.getProperties());
   }
 
+  private void buildEncoders() {
+    // Compress first since compressing encrypted data will give no benefit
+    Map<String, Object> compressionConfig =
+        CompressionConfigParser.getConfigForBranch(this.destination.getProperties(), this.branches, this.branch);
+    if (compressionConfig != null) {
+      encoders.add(CompressionFactory.buildStreamCompressor(compressionConfig));
+    }
+
+    Map<String, Object> encryptionConfig =
+        EncryptionConfigParser.getConfigForBranch(this.destination.getProperties(), this.branches, this.branch);
+    if (encryptionConfig != null) {
+      encoders.add(EncryptionFactory.buildStreamEncryptor(encryptionConfig));
+    }
+  }
+
+  @Override
+  public String getFileName(State properties) {
+    StringBuilder filenameBuilder = new StringBuilder(super.getFileName(properties));
+    for (StreamCodec codec : encoders) {
+      filenameBuilder.append('.');
+      filenameBuilder.append(codec.getTag());
+    }
+
+    return filenameBuilder.toString();
+  }
 }
