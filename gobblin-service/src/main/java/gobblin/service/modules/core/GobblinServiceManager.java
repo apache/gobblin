@@ -22,6 +22,8 @@ import java.net.URI;
 import java.util.Map;
 import java.util.Properties;
 
+import lombok.Getter;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -84,6 +86,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
   protected final boolean isRestLIServerEnabled;
 
   protected TopologyCatalog topologyCatalog;
+  @Getter
   protected FlowCatalog flowCatalog;
   protected Orchestrator orchestrator;
   protected EmbeddedRestliServer restliServer;
@@ -135,8 +138,8 @@ public class GobblinServiceManager implements ApplicationLauncher {
       Injector injector = Guice.createInjector(new Module() {
         @Override
         public void configure(Binder binder) {
-          binder.bind(FlowCatalog.class).toInstance(flowCatalog);
-          binder.bindConstant().annotatedWith(Names.named("inUnitTest")).to(true);
+          binder.bind(FlowCatalog.class).annotatedWith(Names.named("flowCatalog")).toInstance(flowCatalog);
+          binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
         }
       });
       this.restliServer = EmbeddedRestliServer.builder()
