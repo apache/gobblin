@@ -14,7 +14,7 @@ public class EventhubBatchTest {
     // Assume memory size has only 2 bytes
     EventhubBatch batch = new EventhubBatch(8, 3000);
 
-    byte[] record = new byte[8];
+    String record = "abcdefgh";
 
     // Record is larger than the memory size limit, the first append should fail
     Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY));
@@ -28,9 +28,8 @@ public class EventhubBatchTest {
     // Assume memory size has only 200 bytes
     EventhubBatch batch = new EventhubBatch(200, 3000);
 
-    // single record has 8 bytes, it converts to 12 bytes due to Base64 encoding
     // Add additional 15 bytes overhead, total size is 27 bytes
-    byte[] record = new byte[8];
+    String record = "abcdefgh";
 
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
@@ -38,12 +37,13 @@ public class EventhubBatchTest {
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
+    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
 
-    // Batch has room for 7th record
+    // Batch has room for 8th record
     Assert.assertEquals(batch.hasRoom(record), true);
     Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
 
-    // Batch has no room for 8th record
+    // Batch has no room for 9th record
     Assert.assertEquals(batch.hasRoom(record), false);
     Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY));
   }
