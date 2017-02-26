@@ -108,14 +108,17 @@ public class JobConfigurationManager extends AbstractIdleService {
   }
 
   protected void postNewJobConfigArrival(String jobName, Properties jobConfig) {
+    LOGGER.info(String.format("Posting new JobConfig with name: %s and config: %s", jobName, jobConfig));
     this.eventBus.post(new NewJobConfigArrivalEvent(jobName, jobConfig));
   }
 
   protected void postUpdateJobConfigArrival(String jobName, Properties jobConfig) {
+    LOGGER.info(String.format("Posting update JobConfig with name: %s and config: %s", jobName, jobConfig));
     this.eventBus.post(new UpdateJobConfigArrivalEvent(jobName, jobConfig));
   }
 
   protected void postDeleteJobConfigArrival(String jobName, Properties jobConfig) {
+    LOGGER.info(String.format("Posting delete JobConfig with name: %s and config: %s", jobName, jobConfig));
     this.eventBus.post(new DeleteJobConfigArrivalEvent(jobName, jobConfig));
   }
 }
