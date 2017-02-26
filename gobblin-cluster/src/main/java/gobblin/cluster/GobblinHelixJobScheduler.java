@@ -38,7 +38,9 @@ import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.scheduler.JobScheduler;
+import gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import gobblin.cluster.event.NewJobConfigArrivalEvent;
+import gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import gobblin.scheduler.SchedulerService;
 
 
@@ -117,14 +119,41 @@ public class GobblinHelixJobScheduler extends JobScheduler {
       jobConfig.putAll(this.properties);
       jobConfig.putAll(newJobArrival.getJobConfig());
       if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-        LOGGER.info("Scheduling new job " + newJobArrival.getJobName());
+        LOGGER.info("Scheduling job " + newJobArrival.getJobName());
         scheduleJob(jobConfig, null);
       } else {
-        LOGGER.info("No job schedule found, so running new job " + newJobArrival.getJobName());
+        LOGGER.info("No job schedule found, so running job " + newJobArrival.getJobName());
         this.jobExecutor.execute(new NonScheduledJobRunner(jobConfig, null));
       }
     } catch (JobException je) {
-      LOGGER.error("Failed to schedule or run job " + newJobArrival.getJobName());
+      LOGGER.error("Failed to schedule or run job " + newJobArrival.getJobName(), je);
+    }
+  }
+
+  @Subscribe
+  public void handleUpdateJobConfigArrival(UpdateJobConfigArrivalEvent updateJobArrival) {
+    LOGGER.info("Received update for job configuration of job " + updateJobArrival.getJobName());
+    try {
+      handleDeleteJobConfigArrival(new DeleteJobConfigArrivalEvent(updateJobArrival.getJobName(),
+          updateJobArrival.getJobConfig()));
+    } catch (Exception je) {
+      LOGGER.error("Failed to update job " + updateJobArrival.getJobName(), je);
+    }
+    try {
+      handleNewJobConfigArrival(new NewJobConfigArrivalEvent(updateJobArrival.getJobName(),
+          updateJobArrival.getJobConfig()));
+    } catch (Exception je) {
+      LOGGER.error("Failed to update job " + updateJobArrival.getJobName(), je);
+    }
+  }
+
+  @Subscribe
+  public void handleDeleteJobConfigArrival(DeleteJobConfigArrivalEvent deleteJobArrival) {
+    LOGGER.info("Received delete for job configuration of job " + deleteJobArrival.getJobName());
+    try {
+      unscheduleJob(deleteJobArrival.getJobName());
+    } catch (JobException je) {
+      LOGGER.error("Failed to unschedule job " + deleteJobArrival.getJobName());
     }
   }
 

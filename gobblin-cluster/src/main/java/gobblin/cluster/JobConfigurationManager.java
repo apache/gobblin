@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -31,7 +30,9 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
 import gobblin.annotation.Alpha;
+import gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import gobblin.cluster.event.NewJobConfigArrivalEvent;
+import gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ConfigUtils;
 import gobblin.util.SchedulerUtils;
@@ -108,5 +109,13 @@ public class JobConfigurationManager extends AbstractIdleService {
 
   protected void postNewJobConfigArrival(String jobName, Properties jobConfig) {
     this.eventBus.post(new NewJobConfigArrivalEvent(jobName, jobConfig));
+  }
+
+  protected void postUpdateJobConfigArrival(String jobName, Properties jobConfig) {
+    this.eventBus.post(new UpdateJobConfigArrivalEvent(jobName, jobConfig));
+  }
+
+  protected void postDeleteJobConfigArrival(String jobName, Properties jobConfig) {
+    this.eventBus.post(new DeleteJobConfigArrivalEvent(jobName, jobConfig));
   }
 }
