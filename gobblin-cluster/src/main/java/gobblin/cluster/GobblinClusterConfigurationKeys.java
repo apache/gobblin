@@ -69,5 +69,5 @@ public class GobblinClusterConfigurationKeys {
 
   public static final String JOB_SPEC_REFRESH_INTERVAL = GOBBLIN_CLUSTER_PREFIX + "job.spec.refresh.interval";
   public static final String SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS_KEY = GOBBLIN_CLUSTER_PREFIX + "specConsumer.class";
-  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS = "gobblin.service.SimpleKafkaSpecExecutorInstance";
+  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_CONSUMER_CLASS = "gobblin.service.SimpleKafkaSpecExecutorInstanceConsumer";
 }
