@@ -20,6 +20,7 @@ package gobblin.cluster;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -135,7 +136,7 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
 
         // Handle delete
         Spec anonymousSpec = (Spec) entry.getValue();
-        postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), null);
+        postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
         jobSpecs.remove(entry.getValue().getUri());
       }
     }
