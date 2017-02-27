@@ -14,30 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
-
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.SingleRecordIterable;
-
+package gobblin.compliance.purger;
 
 /**
- * A {@link Converter} to build compliance queries. Queries are added to the {@link ComplianceRecord}.
+ * Dummy class for schema corresponding to {@link PurgeableHivePartitionDataset}
  *
  * @author adsharma
  */
-public class HivePurgerConverter extends Converter<ComplianceRecordSchema, ComplianceRecordSchema, ComplianceRecord, ComplianceRecord> {
-
-  @Override
-  public ComplianceRecordSchema convertSchema(ComplianceRecordSchema schema, WorkUnitState state) {
-    return schema;
-  }
-
-  @Override
-  public Iterable<ComplianceRecord> convertRecord(ComplianceRecordSchema schema, ComplianceRecord record,
-      WorkUnitState state) {
-    record.setPurgeQueries(HivePurgerQueryTemplate.getPurgeQueries(record));
-    return new SingleRecordIterable<>(record);
-  }
+public class PurgeableHivePartitionDatasetSchema {
 }
-

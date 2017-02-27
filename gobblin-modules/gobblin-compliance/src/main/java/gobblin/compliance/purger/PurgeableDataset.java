@@ -14,33 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package gobblin.compliance.purger;
 
 import java.io.IOException;
-import java.sql.SQLException;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-
-import gobblin.util.WriterUtils;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import gobblin.data.management.dataset.Dataset;
 
 
-/**
- * Initializes {@link HivePurgerWriter} with {@link FileSystem} and {@link HivePurgerQueryExecutor}
- *
- * @author adsharma
- */
-public class HivePurgerWriterBuilder extends DataWriterBuilder<ComplianceRecordSchema, ComplianceRecord> {
-
-  @Override
-  public DataWriter<ComplianceRecord> build()
-      throws IOException {
-    try {
-      return new HivePurgerWriter(WriterUtils.getWriterFS(this.destination.getProperties(), this.branches, this.branch), new HivePurgerQueryExecutor());
-    } catch (IOException | SQLException e) {
-      throw new IOException(e);
-    }
-  }
+public interface PurgeableDataset extends Dataset {
+  void purge()
+      throws IOException;
 }

@@ -16,13 +16,20 @@
  */
 package gobblin.compliance;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
+import lombok.extern.slf4j.Slf4j;
+
+
 /**
  * Each Hive Dataset using gobblin-compliance for their compliance needs, must contain a dataset.descriptor property
  * in the tblproperties of a Hive Dataset.
  *
  * A dataset.descriptor is a description of a Hive dataset in the Json format.
  *
- * A compliance id is a column name in a Hive dataset to decide which records should be purged.
+ * A compliance field is a column name in a Hive dataset to decide which records should be purged.
  *
  * A dataset.descriptor must contain an identifier whose value corresponds the column name containing compliance id.
  *
@@ -30,11 +37,30 @@ package gobblin.compliance;
  * via property dataset.descriptor.identifier.
  *
  * Example : dataset.descriptor = {Database : Repos, Owner : GitHub, ComplianceInfo : {IdentifierType : GitHubId}}
- * If IdentifierType corresponds to the identifier and GithubId is the compliance id column name, then
+ * If IdentifierType corresponds to the identifier and GithubId is the compliance field, then
  * dataset.descriptor.identifier = ComplianceInfo.IdentifierType
  *
  * @author adsharma
  */
-public interface DatasetDescriptor {
-  public String getComplianceId();
+@Slf4j
+public abstract class DatasetDescriptor {
+  protected String descriptor;
+  protected Optional<String> complianceFieldPath;
+
+  public DatasetDescriptor(String descriptor, Optional<String> complianceFieldPath) {
+    checkValidJsonStr(descriptor);
+    this.descriptor = descriptor;
+    this.complianceFieldPath = complianceFieldPath;
+  }
+
+  protected void checkValidJsonStr(String jsonStr) {
+    try {
+      new JsonParser().parse(this.descriptor);
+    } catch (JsonParseException e) {
+      log.warn("Not a valid JSON String : " + jsonStr);
+      Throwables.propagate(e);
+    }
+  }
+
+  public abstract String getComplianceField();
 }
