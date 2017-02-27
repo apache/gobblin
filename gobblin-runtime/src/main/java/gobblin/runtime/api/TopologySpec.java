@@ -17,10 +17,18 @@
 
 package gobblin.runtime.api;
 
-
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
+import javax.annotation.concurrent.NotThreadSafe;
+
+import edu.umd.cs.findbugs.annotations.SuppressWarnings;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -30,9 +38,9 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
+import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
-
-import lombok.Data;
 
 
 /**
@@ -42,7 +50,14 @@ import lombok.Data;
  */
 @Alpha
 @Data
+@AllArgsConstructor
+@NotThreadSafe
 public class TopologySpec implements Configurable, Spec {
+  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER = InMemorySpecExecutorInstanceProducer.class.getCanonicalName();
+  public static final String SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY = "specExecutorInstanceProducer.class";
+
+  private static final long serialVersionUID = 6106269076155338046L;
+
   /** An URI identifying the topology. */
   final URI uri;
 
@@ -53,6 +68,7 @@ public class TopologySpec implements Configurable, Spec {
   final String description;
 
   /** Topology config as a typesafe config object*/
+  @SuppressWarnings(justification="No bug", value="SE_BAD_FIELD")
   final Config config;
 
   /** Topology config as a properties collection for backwards compatibility */
@@ -61,7 +77,28 @@ public class TopologySpec implements Configurable, Spec {
   final Properties configAsProperties;
 
   /** Underlying executor instance such as Gobblin cluster or Azkaban */
-  final SpecExecutorInstanceProducer specExecutorInstanceProducer;
+  @SuppressWarnings(justification="Initialization handled by getter", value="SE_TRANSIENT_FIELD_NOT_RESTORED")
+  transient SpecExecutorInstanceProducer specExecutorInstanceProducer;
+
+  public SpecExecutorInstanceProducer getSpecExecutorInstanceProducer() {
+    if (null == specExecutorInstanceProducer) {
+      String specExecutorInstanceProducerClass = DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER;
+      if (config.hasPath(SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY)) {
+        specExecutorInstanceProducerClass = config.getString(SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY);
+      }
+      try {
+        ClassAliasResolver<SpecExecutorInstanceProducer> _aliasResolver =
+            new ClassAliasResolver<>(SpecExecutorInstanceProducer.class);
+        specExecutorInstanceProducer = (SpecExecutorInstanceProducer) ConstructorUtils
+            .invokeConstructor(Class.forName(_aliasResolver
+                .resolve(specExecutorInstanceProducerClass)), config);
+      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+          | ClassNotFoundException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    return specExecutorInstanceProducer;
+  }
 
   public static TopologySpec.Builder builder(URI topologySpecUri) {
     return new TopologySpec.Builder(topologySpecUri);

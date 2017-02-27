@@ -23,6 +23,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.Future;
 
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.commons.lang3.SerializationUtils;
 import org.slf4j.Logger;
 
@@ -36,17 +37,15 @@ import gobblin.util.ConfigUtils;
 import gobblin.writer.WriteCallback;
 
 
+@NotThreadSafe
 public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExecutorInstance
     implements SpecExecutorInstanceProducer<Spec>, Closeable  {
 
   // Producer
-   protected final Kafka08DataWriter<byte[]> _kafka08Producer;
+  protected Kafka08DataWriter<byte[]> _kafka08Producer;
 
   public SimpleKafkaSpecExecutorInstanceProducer(Config config, Optional<Logger> log) {
     super(config, log);
-
-    // Producer
-     _kafka08Producer = new Kafka08DataWriter<byte[]>(ConfigUtils.configToProperties(config));
   }
 
   public SimpleKafkaSpecExecutorInstanceProducer(Config config, Logger log) {
@@ -62,21 +61,21 @@ public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExec
   public Future<?> addSpec(Spec addedSpec) {
     SpecExecutorInstanceDataPacket sidp = new SpecExecutorInstanceDataPacket(Verb.ADD,
         addedSpec.getUri(), addedSpec);
-     return _kafka08Producer.write(SerializationUtils.serialize(sidp), WriteCallback.EMPTY);
+     return getKafka08Producer().write(SerializationUtils.serialize(sidp), WriteCallback.EMPTY);
   }
 
   @Override
   public Future<?> updateSpec(Spec updatedSpec) {
     SpecExecutorInstanceDataPacket sidp = new SpecExecutorInstanceDataPacket(Verb.UPDATE,
         updatedSpec.getUri(), updatedSpec);
-     return _kafka08Producer.write(SerializationUtils.serialize(sidp), WriteCallback.EMPTY);
+     return getKafka08Producer().write(SerializationUtils.serialize(sidp), WriteCallback.EMPTY);
   }
 
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI) {
     SpecExecutorInstanceDataPacket sidp = new SpecExecutorInstanceDataPacket(Verb.DELETE,
         deletedSpecURI, null);
-     return _kafka08Producer.write(SerializationUtils.serialize(sidp), WriteCallback.EMPTY);
+     return getKafka08Producer().write(SerializationUtils.serialize(sidp), WriteCallback.EMPTY);
   }
 
   @Override
@@ -87,5 +86,12 @@ public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExec
   @Override
   public void close() throws IOException {
      _kafka08Producer.close();
+  }
+
+  private Kafka08DataWriter<byte[]> getKafka08Producer() {
+    if (null == _kafka08Producer) {
+      _kafka08Producer = new Kafka08DataWriter<byte[]>(ConfigUtils.configToProperties(_config));
+    }
+    return _kafka08Producer;
   }
 }
