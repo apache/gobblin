@@ -58,10 +58,10 @@ public class DecryptCli implements CliApplication {
 
       OutputStream out = new BufferedOutputStream(new FileOutputStream(cli.getOptionValue(OUTPUT_LOCATION.getOpt())));
 
-      IOUtils.copy(cipherStream, out);
+      long bytes = IOUtils.copyLarge(cipherStream, out);
       out.flush();
       out.close();
-
+      System.out.println("Copied " + String.valueOf(bytes) + " bytes.");
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
