@@ -94,6 +94,7 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
     FlowSpec flowSpec = (FlowSpec) spec;
     String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
     String destination = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
+    log.info(String.format("Compiling flow for source: %s and destination: %s", source, destination));
 
     JobSpec jobSpec;
     JobSpec.Builder jobSpecBuilder = JobSpec.builder(flowSpec.getUri())
@@ -119,6 +120,9 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
       try {
         Map<String, String> capabilities = (Map<String, String>) topologySpec.getSpecExecutorInstanceProducer().getCapabilities().get();
         for (Map.Entry<String, String> capability : capabilities.entrySet()) {
+          log.info(String.format("Evaluating current JobSpec: %s against TopologySpec: %s with "
+              + "capability of source: %s and destination: %s ", jobSpec.getUri(),
+              topologySpec.getUri(), capability.getKey(), capability.getValue()));
           if (source.equals(capability.getKey()) && destination.equals(capability.getValue())) {
             specExecutorInstanceMap.put(jobSpec, topologySpec.getSpecExecutorInstanceProducer());
           }
