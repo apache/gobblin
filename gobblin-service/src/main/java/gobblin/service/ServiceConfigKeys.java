@@ -17,7 +17,9 @@
 
 package gobblin.service;
 
+import gobblin.runtime.spec_executorInstance.InMemorySpecExecutorInstanceProducer;
 import gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import gobblin.service.modules.topology.ConfigBasedTopologySpecFactory;
 
 
 public class ServiceConfigKeys {
@@ -29,16 +31,33 @@ public class ServiceConfigKeys {
   public static final String GOBBLIN_SERVICE_FLOW_CATALOG_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "flowCatalog.enabled";
   public static final String GOBBLIN_SERVICE_ORCHESTRATOR_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "orchestrator.enabled";
   public static final String GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "restliServer.enabled";
+  public static final String GOBBLIN_SERVICE_TOPOLOGY_SPEC_FACTORY_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "topologySpecFactory.enabled";
 
   // Flow Compiler Keys
   public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowCompiler.class";
   public static final String DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS = IdentityFlowToJobSpecCompiler.class.getCanonicalName();
 
-  // Flow specific keys
+  // Flow specific Keys
   public static final String FLOW_SOURCE_IDENTIFIER_KEY = "gobblin.flow.sourceIdentifier";
   public static final String FLOW_DESTINATION_IDENTIFIER_KEY = "gobblin.flow.destinationIdentifier";
 
   // Command line options
   public static final String SERVICE_NAME_OPTION_NAME = "service_name";
+
+  // Topology Factory Keys (for overall factory)
+  public static final String TOPOLOGY_FACTORY_PREFIX = "topologySpecFactory.";
+  public static final String DEFAULT_TOPOLOGY_SPEC_FACTORY = ConfigBasedTopologySpecFactory.class.getCanonicalName();
+  public static final String TOPOLOGYSPEC_FACTORY_KEY = TOPOLOGY_FACTORY_PREFIX + "class";
+  public static final String TOPOLOGY_FACTORY_TOPOLOGY_NAMES_KEY = TOPOLOGY_FACTORY_PREFIX + "topologyNames";
+
+  // Topology Factory Keys (for individual topologies)
+  public static final String TOPOLOGYSPEC_DESCRIPTION_KEY = "description";
+  public static final String TOPOLOGYSPEC_VERSION_KEY = "version";
+  public static final String TOPOLOGYSPEC_URI_KEY = "uri";
+  public static final String DEFAULT_SPEC_EXECUTOR_INSTANCE_PRODUCER = InMemorySpecExecutorInstanceProducer.class.getCanonicalName();
+  public static final String SPEC_EXECUTOR_INSTANCE_PRODUCER_KEY = "specExecutorInstanceProducer.class";
+
+  // Template Catalog Keys
+  public static final String TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.fullyQualifiedPath";
 
 }

@@ -15,15 +15,20 @@
  * limitations under the License.
  */
 
-package gobblin.runtime.api;
+package gobblin.service.modules.topology;
 
-import java.util.Map;
-import java.util.concurrent.Future;
+import java.util.Collection;
+
+import gobblin.runtime.api.TopologySpec;
 
 
-public interface SpecExecutorInstanceConsumer<V> extends SpecExecutorInstance {
-
-  /** List of newly changed {@link Spec}s for execution on {@link SpecExecutorInstance}. */
-  Future<? extends Map<Verb, V>> changedSpecs();
-
+/***
+ * A {@link TopologySpec} Factory that creates or generates the {@link TopologySpec} to be used.
+ */
+public interface TopologySpecFactory {
+  /***
+   * Create or generate {@link TopologySpec}s.
+   * @return Collection of {@link TopologySpec}s.
+   */
+  Collection<TopologySpec> getTopologies();
 }

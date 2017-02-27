@@ -41,6 +41,7 @@ import gobblin.runtime.api.GobblinInstanceEnvironment;
 import gobblin.annotation.Alpha;
 import gobblin.metrics.MetricContext;
 import gobblin.metrics.Tag;
+import gobblin.runtime.api.FlowSpec;
 import gobblin.runtime.api.MutableSpecCatalog;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecCatalog;
@@ -223,6 +224,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
 
+      log.info(String.format("Adding TopologySpec with URI: %s and Config: %s", spec.getUri(),
+          ((FlowSpec) spec).getConfigAsProperties()));
       if (specStore.exists(spec.getUri())) {
         specStore.updateSpec(spec);
         this.listeners.onUpdateSpec(spec);
@@ -242,6 +245,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
 
+      log.info(String.format("Adding TopologySpec with URI: %s", uri));
       Spec spec = specStore.getSpec(uri);
       this.listeners.onDeleteSpec(spec.getUri(), spec.getVersion());
       specStore.deleteSpec(uri);

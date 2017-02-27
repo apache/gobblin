@@ -74,7 +74,7 @@ public class Orchestrator implements SpecCatalogListener {
       _log.info("Using specCompiler class name/alias " + specCompilerClassName);
 
       this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
-          specCompilerClassName)));
+          specCompilerClassName)), config);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new RuntimeException(e);
