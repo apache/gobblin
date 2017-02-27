@@ -48,7 +48,7 @@ import gobblin.util.ConfigUtils;
 
 
 /**
- * A {@link Source} implementation for a simple streaming kafka extractor.
+ * A {@link EventBasedSource} implementation for a simple streaming kafka extractor.
  *
  * @author Shrikanth Shankar
  *
@@ -70,8 +70,8 @@ public class KafkaSimpleStreamingSource<S, D> extends EventBasedSource<S, Record
   /**
    * Private config keys used to pass data into work unit state
    */
-  private static final String TOPIC_NAME = "gobblin.streaming.topicName";
-  private static final String PARTITION_ID = "gobblin.streaming.partitionId";
+  private static final String TOPIC_NAME = KafkaSource.TOPIC_NAME;
+  private static final String PARTITION_ID = KafkaSource.PARTITION_ID;
 
   public static String getTopicNameFromState(State s) {
     return s.getProp(TOPIC_NAME);
@@ -135,6 +135,7 @@ public class KafkaSimpleStreamingSource<S, D> extends EventBasedSource<S, Record
     }
     return workUnits;
   }
+
 
   @Override
   public Extractor getExtractor(WorkUnitState state)
