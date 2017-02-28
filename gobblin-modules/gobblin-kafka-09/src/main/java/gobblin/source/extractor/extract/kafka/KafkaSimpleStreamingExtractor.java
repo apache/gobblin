@@ -183,8 +183,9 @@ public class KafkaSimpleStreamingExtractor<S, D> extends EventBasedExtractor<S, 
   @Override
   public S getSchema() throws IOException {
     try {
-      if (_schemaRegistry.isPresent())
+      if (_schemaRegistry.isPresent()) {
         return _schemaRegistry.get().getLatestSchemaByTopic(this._partition.topic());
+      }
     } catch (SchemaRegistryException e) {
       throw new RuntimeException(e);
     }
