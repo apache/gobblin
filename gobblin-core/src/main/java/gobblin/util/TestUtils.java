@@ -21,6 +21,7 @@ import com.typesafe.config.ConfigFactory;
 
 import gobblin.broker.SharedResourcesBrokerFactory;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import gobblin.broker.gobblin_scopes.JobScopeInstance;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
 import gobblin.source.workunit.WorkUnit;
@@ -37,7 +38,8 @@ public class TestUtils {
    */
   public static WorkUnitState createTestWorkUnitState() {
     return new WorkUnitState(new WorkUnit(), new State(), SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
-        ConfigFactory.empty(), GobblinScopeTypes.GLOBAL.defaultScopeInstance()));
+        ConfigFactory.empty(), GobblinScopeTypes.GLOBAL.defaultScopeInstance()).
+        newSubscopedBuilder(new JobScopeInstance("jobName", "testJob")));
   }
 
 }

@@ -22,6 +22,7 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Set;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import com.linkedin.r2.transport.common.Client;
@@ -55,7 +56,7 @@ public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedRe
   }
 
   @Override
-  public ResourceInstance<RestClient> createResource(SharedResourcesBroker broker, ScopedConfigView<?, SharedRestClientKey> config)
+  public ResourceInstance<RestClient> createResource(SharedResourcesBroker<S> broker, ScopedConfigView<S, SharedRestClientKey> config)
       throws NotConfiguredException {
     try {
       String uriPrefix = resolveUriPrefix(config);
@@ -65,7 +66,7 @@ public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedRe
 
       return new ResourceInstance<>(new RestClient(r2Client,uriPrefix));
     } catch (URISyntaxException use) {
-      throw new RuntimeException("Could not create a rest client for key " + config.getKey().toConfigurationKey());
+      throw new RuntimeException("Could not create a rest client for key " + Optional.fromNullable(config.getKey().toConfigurationKey()).or("null"));
     }
   }
 
@@ -83,6 +84,6 @@ public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedRe
       return new URI(serverURI.getScheme(), serverURI.getAuthority(), null, null, null).toString() + "/";
     }
 
-    throw new RuntimeException("Could not parse URI prefix for key " + config.getKey().toConfigurationKey());
+    throw new RuntimeException("Could not parse URI prefix for key " + Optional.fromNullable(config.getKey().toConfigurationKey()).or("null"));
   }
 }

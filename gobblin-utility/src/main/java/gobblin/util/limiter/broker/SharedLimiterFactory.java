@@ -69,7 +69,7 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
 
   @Override
   public SharedResourceFactoryResponse<Limiter>
-    createResource(SharedResourcesBroker broker, ScopedConfigView<?, SharedLimiterKey> configView)
+    createResource(SharedResourcesBroker<S> broker, ScopedConfigView<S, SharedLimiterKey> configView)
       throws NotConfiguredException{
 
     Config config = configView.getConfig();
@@ -112,13 +112,13 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
       limiter = new NoopLimiter();
     }
 
-    ScopeType<?> scope = configView.getScope();
-    Collection<ScopeType<?>> parentScopes = (Collection<ScopeType<?>>) scope.parentScopes();
+    ScopeType<S> scope = configView.getScope();
+    Collection<S> parentScopes = scope.parentScopes();
     if (parentScopes != null) {
       try {
-        for (ScopeType<?> parentScope : parentScopes) {
+        for (S parentScope : parentScopes) {
           limiter = new MultiLimiter(limiter,
-              (Limiter) broker.<Limiter, SharedLimiterKey>getSharedResourceAtScope(this, configView.getKey(), parentScope));
+              broker.getSharedResourceAtScope(this, configView.getKey(), parentScope));
         }
       } catch (NoSuchScopeException nsse) {
         throw new RuntimeException("Could not get higher scope limiter. This is an error in code.", nsse);

@@ -79,8 +79,8 @@ public class RestliServiceBasedLimiterTest {
 
       RestClient restClient = new RestClient(r2Client, server.getURIPrefix());
 
-      RestliServiceBasedLimiter limiter =
-          new RestliServiceBasedLimiter(restClient, res1key.getResourceLimited(), "service");
+      RestliServiceBasedLimiter limiter = RestliServiceBasedLimiter.builder().restClient(restClient)
+          .resourceLimited(res1key.getResourceLimited()).serviceIdentifier("service").build();
 
       Assert.assertNotNull(limiter.acquirePermits(20));
       Assert.assertNotNull(limiter.acquirePermits(20));
