@@ -78,6 +78,7 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
   public static final boolean DEFAULT_SOURCE_OBTAIN_TABLE_PROPS_FROM_CONFIG_STORE = false;
   private static final String QUERY_BASED_SOURCE = "query_based_source";
   public static final String WORK_UNIT_STATE_VERSION_KEY = "source.querybased.workUnitState.version";
+  public static final String IS_LAST_WORK_UNIT = "is.last.work.unit";
   /**
    * WorkUnit Version 3:
    *    SOURCE_ENTITY = as specified in job config
@@ -223,6 +224,9 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       }
     }
     log.info("Total number of workunits for the current run: " + workUnits.size());
+
+    // Mark last work unit of the current run
+    workUnits.get(workUnits.size() - 1).setProp(IS_LAST_WORK_UNIT, true);
 
     List<WorkUnit> previousWorkUnits = this.getPreviousWorkUnitsForRetry(state);
     log.info("Total number of incomplete tasks from the previous run: " + previousWorkUnits.size());
