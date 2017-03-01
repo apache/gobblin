@@ -57,14 +57,7 @@ public class RestliServiceBasedLimiterTest {
             CountBasedLimiter.FACTORY_ALIAS)
         .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, CountBasedLimiter.Factory.COUNT_KEY), "50")
         .build();
-    final SharedResourcesBroker<SimpleScopeType> broker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
-        ConfigFactory.parseMap(configMap), SimpleScopeType.GLOBAL.defaultScopeInstance());
-    Injector injector = Guice.createInjector(new Module() {
-      @Override
-      public void configure(Binder binder) {
-        binder.bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
-      }
-    });
+    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.parseMap(configMap));
 
     EmbeddedRestliServer server = EmbeddedRestliServer.builder().resources(
         Lists.<Class<? extends BaseResource>>newArrayList(LimiterServerResource.class)).injector(injector).build();

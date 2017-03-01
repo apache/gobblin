@@ -69,14 +69,7 @@ public class ThrottlingClientTest {
         .put(BrokerConfigurationKeyGenerator.generateKey(factory, null, null, SharedLimiterFactory.FAIL_ON_UNKNOWN_RESOURCE_ID),
             "true")
         .build();
-    final SharedResourcesBroker<SimpleScopeType> broker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
-        ConfigFactory.parseMap(configMap), SimpleScopeType.GLOBAL.defaultScopeInstance());
-    Injector injector = Guice.createInjector(new Module() {
-      @Override
-      public void configure(Binder binder) {
-        binder.bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(broker);
-      }
-    });
+    Injector injector = ThrottlingGuiceServletConfig.getInjector(ConfigFactory.parseMap(configMap));
 
     EmbeddedRestliServer server = EmbeddedRestliServer.builder().resources(
         Lists.<Class<? extends BaseResource>>newArrayList(LimiterServerResource.class)).injector(injector).build();
