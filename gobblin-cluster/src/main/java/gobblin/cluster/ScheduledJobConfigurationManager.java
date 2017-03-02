@@ -20,6 +20,7 @@ package gobblin.cluster;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,14 +35,17 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
+import gobblin.annotation.Alpha;
 import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.Spec;
+import gobblin.runtime.api.SpecExecutorInstance;
 import gobblin.runtime.api.SpecExecutorInstanceConsumer;
 import gobblin.util.ClassAliasResolver;
 import gobblin.util.ConfigUtils;
 import gobblin.util.ExecutorsUtils;
 
 
+@Alpha
 public class ScheduledJobConfigurationManager extends JobConfigurationManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(ScheduledJobConfigurationManager.class);
 
@@ -103,20 +107,37 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
     }, 0, this.refreshIntervalInSeconds, TimeUnit.SECONDS);
   }
 
+  /***
+   * TODO: Change cluster code to handle Spec. Right now all job properties are needed to be in config and template is not honored
+   * TODO: Materialized JobSpec and make use of ResolvedJobSpec
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
   private void fetchJobSpecs() throws ExecutionException, InterruptedException {
-    Map<SpecExecutorInstanceConsumer.Verb, Spec> changedSpecs = (Map< SpecExecutorInstanceConsumer.Verb, Spec>)
-        this.specExecutorInstanceConsumer.changedSpecs().get();
-    for (Map.Entry<SpecExecutorInstanceConsumer.Verb, Spec> entry : changedSpecs.entrySet()) {
-      SpecExecutorInstanceConsumer.Verb verb = entry.getKey();
-      if (verb.equals(SpecExecutorInstanceConsumer.Verb.ADD)) {
-        // TODO: Change cluster code to handle Spec. Right now all job properties are needed to be in config
-        // .. and template is not honored
-        postNewJobConfigArrival(entry.getValue().getUri().toString(), ((JobSpec) entry.getValue()).getConfigAsProperties());
+    Map<SpecExecutorInstance.Verb, Spec> consumedEvent =
+        (Map<SpecExecutorInstance.Verb, Spec>) this.specExecutorInstanceConsumer.changedSpecs().get();
+
+    for (Map.Entry<SpecExecutorInstance.Verb, Spec> entry : consumedEvent.entrySet()) {
+
+      SpecExecutorInstance.Verb verb = entry.getKey();
+      if (verb.equals(SpecExecutorInstance.Verb.ADD)) {
+
+        // Handle addition
+        JobSpec jobSpec = (JobSpec) entry.getValue();
+        postNewJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
         jobSpecs.put(entry.getValue().getUri(), (JobSpec) entry.getValue());
       } else if (verb.equals(SpecExecutorInstanceConsumer.Verb.UPDATE)) {
+
         // Handle update
+        JobSpec jobSpec = (JobSpec) entry.getValue();
+        postUpdateJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
+        jobSpecs.put(entry.getValue().getUri(), (JobSpec) entry.getValue());
       } else if (verb.equals(SpecExecutorInstanceConsumer.Verb.DELETE)) {
+
         // Handle delete
+        Spec anonymousSpec = (Spec) entry.getValue();
+        postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
+        jobSpecs.remove(entry.getValue().getUri());
       }
     }
   }

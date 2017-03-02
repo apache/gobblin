@@ -116,6 +116,7 @@ public class FSSpecStore implements SpecStore {
   public void addSpec(Spec spec) throws IOException {
     Preconditions.checkArgument(null != spec, "Spec should not be null");
 
+    log.info(String.format("Adding Spec with URI: %s in FSSpecStore: %s", spec.getUri(), this.fsSpecStoreDirPath));
     Path specPath = getPathForURI(this.fsSpecStoreDirPath, spec.getUri(), spec.getVersion());
     writeSpecToFile(specPath, spec);
   }
@@ -144,6 +145,7 @@ public class FSSpecStore implements SpecStore {
     Preconditions.checkArgument(null != version, "Version should not be null");
 
     try {
+      log.info(String.format("Deleting Spec with URI: %s in FSSpecStore: %s", specUri, this.fsSpecStoreDirPath));
       Path specPath = getPathForURI(this.fsSpecStoreDirPath, specUri, version);
 
       if (fs.exists(specPath)) {
@@ -161,6 +163,7 @@ public class FSSpecStore implements SpecStore {
   public Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException {
     Preconditions.checkArgument(null != spec, "Spec should not be null");
 
+    log.info(String.format("Updating Spec with URI: %s in FSSpecStore: %s", spec.getUri(), this.fsSpecStoreDirPath));
     Path specPath = getPathForURI(this.fsSpecStoreDirPath, spec.getUri(), spec.getVersion());
     writeSpecToFile(specPath, spec);
 

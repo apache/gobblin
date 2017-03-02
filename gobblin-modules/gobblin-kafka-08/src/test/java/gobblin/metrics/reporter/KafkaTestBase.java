@@ -54,7 +54,7 @@ import kafka.zk.EmbeddedZookeeper;
 public class KafkaTestBase implements Closeable {
 
   private static int brokerId = 0;
-  static int kafkaPort = 0;
+  public static int kafkaPort = 0;
   static String zkConnect = "";
   static EmbeddedZookeeper zkServer = null;
   static ZkClient zkClient = null;

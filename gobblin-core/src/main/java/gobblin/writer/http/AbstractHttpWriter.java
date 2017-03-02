@@ -42,6 +42,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import gobblin.instrumented.writer.InstrumentedDataWriter;
+import gobblin.util.ExecutorsUtils;
 
 /**
  * Base class for HTTP writers. Defines the main extension points for different implementations.
@@ -94,12 +95,24 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
     }
   }
 
-  /** {@inheritDoc} */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void cleanup() throws IOException {
     this.client.close();
+    ExecutorsUtils.shutdownExecutorService(this.singleThreadPool, Optional.of(log));
   }
-
+ 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void close() throws IOException {
+    cleanup();
+    super.close();
+  }
+  
   /**
    * {@inheritDoc}
    */

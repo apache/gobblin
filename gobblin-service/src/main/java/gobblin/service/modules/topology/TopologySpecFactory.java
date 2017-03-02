@@ -15,23 +15,20 @@
  * limitations under the License.
  */
 
-apply plugin: 'java'
+package gobblin.service.modules.topology;
 
-dependencies {
-  compile project(":gobblin-core")
+import java.util.Collection;
 
-  compile externalDependency.googleAnalytics
-  compile externalDependency.googleApiClient
-  compile externalDependency.googleDrive
-  compile externalDependency.googleHttpClient
-  compile externalDependency.googleHttpClientGson
-  compile externalDependency.googleOauthClient
-  compile externalDependency.googleWebmasters
-  compile externalDependency.gson
-  compile externalDependency.guava
-  compile externalDependency.slf4j
-  compile externalDependency.junit
+import gobblin.runtime.api.TopologySpec;
 
-  testCompile externalDependency.mockito
-  testCompile externalDependency.testng
+
+/***
+ * A {@link TopologySpec} Factory that creates or generates the {@link TopologySpec} to be used.
+ */
+public interface TopologySpecFactory {
+  /***
+   * Create or generate {@link TopologySpec}s.
+   * @return Collection of {@link TopologySpec}s.
+   */
+  Collection<TopologySpec> getTopologies();
 }

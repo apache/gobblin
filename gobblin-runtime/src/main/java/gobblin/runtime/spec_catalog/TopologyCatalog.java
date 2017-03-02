@@ -49,6 +49,7 @@ import gobblin.runtime.api.SpecCatalogListener;
 import gobblin.runtime.api.SpecNotFoundException;
 import gobblin.runtime.api.SpecSerDe;
 import gobblin.runtime.api.SpecStore;
+import gobblin.runtime.api.TopologySpec;
 import gobblin.runtime.spec_store.FSSpecStore;
 import gobblin.util.ClassAliasResolver;
 
@@ -224,6 +225,8 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
       Preconditions.checkState(state() == Service.State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
 
+      log.info(String.format("Adding TopologySpec with URI: %s and Config: %s", spec.getUri(),
+          ((TopologySpec) spec).getConfigAsProperties()));
       if (specStore.exists(spec.getUri())) {
         specStore.updateSpec(spec);
         this.listeners.onUpdateSpec(spec);
@@ -243,6 +246,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
       Preconditions.checkState(state() == Service.State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(uri);
 
+      log.info(String.format("Removing TopologySpec with URI: %s", uri));
       Spec spec = specStore.getSpec(uri);
       this.listeners.onDeleteSpec(spec.getUri(), spec.getVersion());
       specStore.deleteSpec(uri);

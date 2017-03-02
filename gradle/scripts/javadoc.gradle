@@ -82,7 +82,7 @@ subprojects {
     // Add standard javadoc repositories so we can reference classes in them using @link
     tasks.javadoc.options.links "http://typesafehub.github.io/config/latest/api/",
         "https://docs.oracle.com/javase/7/docs/api/",
-        "http://docs.guava-libraries.googlecode.com/git-history/v15.0/javadoc/",
+        "http://google.github.io/guava/releases/15.0/api/docs/",
         "http://hadoop.apache.org/docs/r${rootProject.ext.hadoopVersion}/api/",
         "https://hive.apache.org/javadocs/r${rootProject.ext.hiveVersion}/api/",
         "http://avro.apache.org/docs/${avroVersion}/api/java/",

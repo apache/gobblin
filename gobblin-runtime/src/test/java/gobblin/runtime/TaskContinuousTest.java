@@ -307,8 +307,8 @@ public class TaskContinuousTest {
     // Let's try to shutdown the task
     task.shutdown();
     log.info("Shutting down task now");
-    boolean success = task.awaitShutdown(1000);
-    Assert.assertTrue(success, "Task should shutdown in 1 second");
+    boolean success = task.awaitShutdown(3000);
+    Assert.assertTrue(success, "Task should shutdown in 3 seconds");
     log.info("Task done waiting to shutdown {}", success);
 
     externalWatermarkStorage =
@@ -435,8 +435,8 @@ public class TaskContinuousTest {
     // Let's try to shutdown the task
     task.shutdown();
     log.info("Shutting down task now");
-    boolean success = task.awaitShutdown(1000);
-    Assert.assertTrue(success, "Task should shutdown in 1 second");
+    boolean success = task.awaitShutdown(3000);
+    Assert.assertTrue(success, "Task should shutdown in 3 seconds");
     log.info("Task done waiting to shutdown {}", success);
 
     // Ensure that committed watermarks match exactly the input rows because we shutdown in an orderly manner.

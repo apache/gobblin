@@ -26,25 +26,4 @@ public interface SpecExecutorInstanceConsumer<V> extends SpecExecutorInstance {
   /** List of newly changed {@link Spec}s for execution on {@link SpecExecutorInstance}. */
   Future<? extends Map<Verb, V>> changedSpecs();
 
-  public static enum Verb {
-    ADD(1, "add"),
-    UPDATE(2, "update"),
-    DELETE(3, "delete");
-
-    private int _id;
-    private String _verb;
-
-    Verb(int id, String verb) {
-      _id = id;
-      _verb = verb;
-    }
-
-    public int getId() {
-      return _id;
-    }
-
-    public String geVerb() {
-      return _verb;
-    }
-  }
 }

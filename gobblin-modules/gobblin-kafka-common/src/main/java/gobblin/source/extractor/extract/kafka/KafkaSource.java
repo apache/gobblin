@@ -185,7 +185,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       for (WorkUnit wu : ((MultiWorkUnit) workUnit).getWorkUnits()) {
         addTopicSpecificPropsToWorkUnit(wu, topicSpecificStateMap);
       }
-    } else if (workUnit.contains(TOPIC_NAME)) {
+    } else if (!workUnit.contains(TOPIC_NAME)) {
+      return;
+    } else if (topicSpecificStateMap == null) {
+      return;
+    } else if (!topicSpecificStateMap.containsKey(workUnit.getProp(TOPIC_NAME))) {
+      return;
+    } else {
       workUnit.addAll(topicSpecificStateMap.get(workUnit.getProp(TOPIC_NAME)));
     }
   }

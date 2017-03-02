@@ -54,15 +54,19 @@ import gobblin.runtime.spec_catalog.FlowCatalog;
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
 
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")
+  public static FlowCatalog _globalFlowCatalog;
+
   @Inject
+  @Named("flowCatalog")
   private FlowCatalog _flowCatalog;
 
   // For blocking use of this resource until it is ready
   @Inject
-  @Named("inUnitTest")
-  private boolean inUnitTest;
+  @Named("readyToUse")
+  private Boolean readyToUse = Boolean.FALSE;
 
-  FlowConfigsResource() {}
+  public FlowConfigsResource() {}
 
   /**
    * Logs message and throws Rest.li exception
@@ -96,7 +100,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
       URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
           "/" + flowGroup + "/" + flowName, null, null);
-      FlowSpec spec = (FlowSpec) _flowCatalog.getSpec(flowUri);
+      FlowSpec spec = (FlowSpec) getFlowCatalog().getSpec(flowUri);
       FlowConfig flowConfig = new FlowConfig();
       Properties flowProps = spec.getConfigAsProperties();
 
@@ -168,7 +172,10 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
   public CreateResponse create(FlowConfig flowConfig) {
     LOG.info("Create called with flowName " + flowConfig.getFlowName());
 
-    if (!inUnitTest) {
+    LOG.info("ReadyToUse is: " + readyToUse);
+    LOG.info("FlowCatalog is: " + getFlowCatalog());
+
+    if (!readyToUse && getFlowCatalog() == null) {
       throw new RuntimeException("Not ready for use.");
     }
 
@@ -177,7 +184,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
           "/" + flowConfig.getFlowGroup() + "/" + flowConfig.getFlowName(), null, null);
 
-      if (_flowCatalog.getSpec(flowUri) != null) {
+      if (getFlowCatalog().getSpec(flowUri) != null) {
         logAndThrowRestLiServiceException(HttpStatus.S_409_CONFLICT,
             "Flow with the same name already exists: " + flowUri, null);
       }
@@ -187,7 +194,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       // okay if flow does not exist
     }
 
-    _flowCatalog.put(createFlowSpecForConfig(flowConfig));
+    getFlowCatalog().put(createFlowSpecForConfig(flowConfig));
 
     return new CreateResponse(flowConfig.getFlowName(), HttpStatus.S_201_CREATED);
   }
@@ -215,10 +222,10 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
       flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
           "/" + flowGroup + "/" + flowName, null, null);
-      FlowSpec oldFlowSpec = (FlowSpec) _flowCatalog.getSpec(flowUri);
+      FlowSpec oldFlowSpec = (FlowSpec) getFlowCatalog().getSpec(flowUri);
       FlowSpec newFlowSpec = createFlowSpecForConfig(flowConfig);
 
-      _flowCatalog.put(newFlowSpec);
+      getFlowCatalog().put(newFlowSpec);
 
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (URISyntaxException e) {
@@ -248,9 +255,9 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
       URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
       flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
           "/" + flowGroup + "/" + flowName, null, null);
-      FlowSpec flowSpec = (FlowSpec) _flowCatalog.getSpec(flowUri);
+      FlowSpec flowSpec = (FlowSpec) getFlowCatalog().getSpec(flowUri);
 
-      _flowCatalog.remove(flowUri);
+      getFlowCatalog().remove(flowUri);
 
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (URISyntaxException e) {
@@ -261,6 +268,19 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowConfigId
     }
 
     return null;
+  }
+
+  /***
+   * This method is to workaround injection issues where Service has only one active global FlowCatalog
+   * .. and is not able to inject it via RestLI bootstrap. We should remove this and make injected
+   * .. FlowCatalog standard after injection works and recipe is documented here.
+   * @return FlowCatalog in use.
+   */
+  private FlowCatalog getFlowCatalog() {
+    if (null != _globalFlowCatalog) {
+      return _globalFlowCatalog;
+    }
+    return this._flowCatalog;
   }
 }
 

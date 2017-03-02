@@ -18,7 +18,6 @@
 package gobblin.runtime.api;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -47,4 +46,26 @@ public interface SpecExecutorInstance {
 
   /** Source : Destination processing capabilities of SpecExecutorInstance. */
   Future<? extends Map<String, String>> getCapabilities();
+
+  public static enum Verb {
+    ADD(1, "add"),
+    UPDATE(2, "update"),
+    DELETE(3, "delete");
+
+    private int _id;
+    private String _verb;
+
+    Verb(int id, String verb) {
+      _id = id;
+      _verb = verb;
+    }
+
+    public int getId() {
+      return _id;
+    }
+
+    public String geVerb() {
+      return _verb;
+    }
+  }
 }
