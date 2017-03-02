@@ -259,7 +259,7 @@ public class SimpleDataWriterTest {
 
     byte[] contents = IOUtils.toByteArray(in);
     Assert.assertEquals(contents, toWrite, "Expected gzip'd content to be written out");
-    Assert.assertTrue(outputFile.getName().endsWith(".gz"), "Expected gzip'd file to end in .gz");
+    Assert.assertTrue(outputFile.getName().endsWith(".gzip"), "Expected gzip'd file to end in .gzip");
   }
 
   @Test
@@ -280,7 +280,7 @@ public class SimpleDataWriterTest {
     writer.commit();
 
     File outputFile = new File(writer.getOutputFilePath());
-    Assert.assertTrue(outputFile.getName().endsWith(".gz.encrypted_insecure_shift"),
+    Assert.assertTrue(outputFile.getName().endsWith(".gzip.encrypted_insecure_shift"),
         "Expected compression & encryption in file name!");
 
     InputStream decryptedFile = new InsecureShiftCodec(Collections.<String, Object>emptyMap()).decodeInputStream(

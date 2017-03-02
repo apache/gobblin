@@ -25,7 +25,7 @@ public class CompressionFactory {
   public static StreamCodec buildStreamCompressor(Map<String, Object> properties) {
     String type = CompressionConfigParser.getCompressionType(properties);
     switch (type) {
-      case "gzip":
+      case GzipCodec.TAG:
         return new GzipCodec();
       default:
         throw new IllegalArgumentException("Can't build compressor of type " + type);

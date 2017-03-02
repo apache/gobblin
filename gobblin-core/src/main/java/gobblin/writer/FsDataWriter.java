@@ -78,21 +78,16 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
   protected final Closer closer = Closer.create();
   protected final Optional<String> writerAttemptIdOptional;
   protected Optional<Long> bytesWritten;
-  protected final List<StreamCodec> encoders;
+  private final List<StreamCodec> encoders;
 
-  public FsDataWriter(FsDataWriterBuilder<?, D> builder, State properties)
-      throws IOException {
-    this(builder, Collections.<StreamCodec>emptyList(), properties);
-  }
-
-  public FsDataWriter(FsDataWriterBuilder<?, D> builder, List<StreamCodec> encoders, State properties) throws IOException {
+  public FsDataWriter(FsDataWriterBuilder<?, D> builder, State properties) throws IOException {
     this.properties = properties;
     this.id = builder.getWriterId();
     this.numBranches = builder.getBranches();
     this.branchId = builder.getBranch();
     this.fileName = builder.getFileName(properties);
     this.writerAttemptIdOptional = Optional.fromNullable(builder.getWriterAttemptId());
-    this.encoders = encoders;
+    this.encoders = builder.getEncoders();
 
     Configuration conf = new Configuration();
     // Add all job configuration properties so they are picked up by Hadoop
@@ -159,7 +154,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
 
     // encoders need to be attached to the stream in reverse order since we should write to the
     // innermost encoder first
-    for (StreamCodec encoder : Lists.reverse(encoders)) {
+    for (StreamCodec encoder : Lists.reverse(getEncoders())) {
       out = encoder.encodeOutputStream(out);
     }
 
@@ -178,6 +173,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
     if (this.group.isPresent()) {
       HadoopUtils.setGroup(this.fs, this.stagingFile, this.group.get());
     }
+  }
+
+  protected List<StreamCodec> getEncoders() {
+    return encoders;
   }
 
   @Override

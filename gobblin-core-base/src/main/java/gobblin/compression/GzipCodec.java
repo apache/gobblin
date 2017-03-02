@@ -29,6 +29,8 @@ import gobblin.writer.StreamCodec;
  * Implement GZIP compression and decompression.
  */
 public class GzipCodec implements StreamCodec {
+  public static final String TAG = "gzip";
+
   @Override
   public OutputStream encodeOutputStream(OutputStream origStream)
       throws IOException {
@@ -43,6 +45,6 @@ public class GzipCodec implements StreamCodec {
 
   @Override
   public String getTag() {
-    return "gz";
+    return TAG;
   }
 }

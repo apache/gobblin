@@ -52,16 +52,15 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
 
   private final Optional<Byte> recordDelimiter; // optional byte to place between each record write
   private final boolean prependSize;
-  private final List<StreamCodec> encoders;
 
   private int recordsWritten;
   private int bytesWritten;
 
   private final OutputStream stagingFileOutputStream;
 
-  public SimpleDataWriter(SimpleDataWriterBuilder builder, List<StreamCodec> encoders, State properties)
+  public SimpleDataWriter(SimpleDataWriterBuilder builder, State properties)
       throws IOException {
-    super(builder, encoders, properties);
+    super(builder, properties);
     String delim;
     if ((delim = properties.getProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, null)) == null || delim.length() == 0) {
       this.recordDelimiter = Optional.absent();
@@ -72,7 +71,6 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
     this.prependSize = properties.getPropAsBoolean(ConfigurationKeys.SIMPLE_WRITER_PREPEND_SIZE, false);
     this.recordsWritten = 0;
     this.bytesWritten = 0;
-    this.encoders = encoders;
     this.stagingFileOutputStream = createStagingFileOutputStream();
 
     setStagingFileGroup();
