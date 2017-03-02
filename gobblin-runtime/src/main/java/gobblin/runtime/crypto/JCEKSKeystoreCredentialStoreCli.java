@@ -20,6 +20,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStoreException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -275,7 +277,9 @@ public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
           base64Keys.put(Integer.valueOf(e.getKey()), DatatypeConverter.printBase64Binary(e.getValue()));
         }
 
-        FileWriter fOs = new FileWriter(new File(cli.getOptionValue(OUTPUT_LOCATION.getOpt())));
+        OutputStreamWriter fOs = new OutputStreamWriter(
+            new FileOutputStream(new File(cli.getOptionValue(OUTPUT_LOCATION.getOpt()))),
+            StandardCharsets.UTF_8);
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         fOs.write(gson.toJson(base64Keys));
         fOs.flush();
