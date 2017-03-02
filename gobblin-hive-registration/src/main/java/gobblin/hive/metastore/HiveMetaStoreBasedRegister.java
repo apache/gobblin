@@ -208,7 +208,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       try {
         client.createTable(getTableWithCreateTimeNow(table));
         log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
-      } catch (TException e) {
+      } catch (AlreadyExistsException e) {
+        log.info("Table {} already exists in db {}.", tableName, dbName);
         try {
           HiveTable existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
           if (needToUpdateTable(existingTable, spec.getTable())) {
@@ -221,6 +222,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
               e2);
           throw e2;
         }
+      } catch (TException e) {
+        log.error(
+            String.format("Unable to create Hive table %s in db %s: " + e.getMessage(), tableName, dbName), e);
+        throw e;
       }
     }
   }
