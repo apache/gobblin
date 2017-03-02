@@ -45,8 +45,9 @@ import javax.xml.bind.DatatypeConverter;
 
 public class RotatingAESCodecTest {
   @Test
-  public void testStream() throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
-                           InvalidAlgorithmParameterException{
+  public void testStreams()
+      throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
+             InvalidAlgorithmParameterException {
     final byte[] toWrite = "hello world".getBytes();
 
     SimpleCredentialStore credStore = new SimpleCredentialStore();
@@ -55,73 +56,57 @@ public class RotatingAESCodecTest {
     OutputStream os = encryptor.encodeOutputStream(sink);
     os.write(toWrite);
     os.close();
+    byte[] encryptedBytes = sink.toByteArray();
 
-    InputStream in = new ByteArrayInputStream(sink.toByteArray());
-    verifyKeyId(in, 1);
+    manuallyDecodeAndVerifyBytes(toWrite, encryptedBytes, credStore);
 
-    Integer ivLen = verifyIvLen(in);
-
-    byte[] ivBinary = verifyAndExtractIv(in, ivLen);
-
-    byte[] body = readAndBase64DecodeBody(in);
-
-    // feed back into cipheroutput stream
-    Cipher inputCipher =  Cipher.getInstance("AES/CBC/PKCS5Padding");
-    IvParameterSpec ivParameterSpec =  new IvParameterSpec(ivBinary);
-    inputCipher.init(Cipher.DECRYPT_MODE, credStore.getKey(), ivParameterSpec);
-
-    CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(body), inputCipher);
-    byte[] decoded = IOUtils.toByteArray(cis);
+    // Try with stream
+    InputStream decoderIn = encryptor.decodeInputStream(new ByteArrayInputStream(encryptedBytes));
+    byte[] decoded = IOUtils.toByteArray(decoderIn);
     Assert.assertEquals(decoded, toWrite, "Expected decoded output to match encoded output");
   }
 
   @Test
-  public void testLotsOfData() throws Exception {
-    long bytesToWrite = 50*1000*1000;
+  public void testLotsOfData()
+      throws Exception {
+    long bytesToWrite = 50 * 1000 * 1000;
     byte[] buf = new byte[16384];
     long bytesWritten = 0;
     SimpleCredentialStore credStore = new SimpleCredentialStore();
     RotatingAESCodec encryptor = new RotatingAESCodec(credStore);
     ByteArrayOutputStream sink = new ByteArrayOutputStream();
-    ByteArrayOutputStream originalBytes = new ByteArrayOutputStream();
+    ByteArrayOutputStream originalBytesStream = new ByteArrayOutputStream();
     OutputStream encryptedStream = encryptor.encodeOutputStream(sink);
     Random r = new Random();
 
     while (bytesWritten < bytesToWrite) {
       r.nextBytes(buf);
-      originalBytes.write(buf);
+      originalBytesStream.write(buf);
       encryptedStream.write(buf);
       bytesWritten += buf.length;
     }
 
     encryptedStream.close();
+    byte[] originalBytes = originalBytesStream.toByteArray();
+    byte[] encryptedBytes = sink.toByteArray();
 
-    InputStream in = new ByteArrayInputStream(sink.toByteArray());
-    verifyKeyId(in, 1);
+    manuallyDecodeAndVerifyBytes(originalBytes, encryptedBytes, credStore);
 
-    Integer ivLen = verifyIvLen(in);
-
-    byte[] ivBinary = verifyAndExtractIv(in, ivLen);
-
-    byte[] body = readAndBase64DecodeBody(in);
-
-    // feed back into cipheroutput stream
-    Cipher inputCipher =  Cipher.getInstance("AES/CBC/PKCS5Padding");
-    IvParameterSpec ivParameterSpec =  new IvParameterSpec(ivBinary);
-    inputCipher.init(Cipher.DECRYPT_MODE, credStore.getKey(), ivParameterSpec);
-
-    CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(body), inputCipher);
-    byte[] decoded = IOUtils.toByteArray(cis);
-    Assert.assertEquals(decoded, originalBytes.toByteArray(), "Expected decoded output to match encoded output");
+    // Try with stream
+    InputStream decoderIn = encryptor.decodeInputStream(new ByteArrayInputStream(encryptedBytes));
+    byte[] decoded = IOUtils.toByteArray(decoderIn);
+    Assert.assertEquals(decoded, originalBytes, "Expected decoded output to match encoded output");
   }
 
-  private byte[] readAndBase64DecodeBody(InputStream in) throws IOException {
+  private byte[] readAndBase64DecodeBody(InputStream in)
+      throws IOException {
     byte[] body = IOUtils.toByteArray(in);
     body = DatatypeConverter.parseBase64Binary(new String(body, "UTF-8"));
     return body;
   }
 
-  private byte[] verifyAndExtractIv(InputStream in, Integer ivLen) throws IOException {
+  private byte[] verifyAndExtractIv(InputStream in, Integer ivLen)
+      throws IOException {
     int bytesRead;
     byte[] base64Iv = new byte[ivLen];
     bytesRead = in.read(base64Iv);
@@ -129,7 +114,8 @@ public class RotatingAESCodecTest {
     return DatatypeConverter.parseBase64Binary(new String(base64Iv, "UTF-8"));
   }
 
-  private Integer verifyIvLen(InputStream in) throws IOException {
+  private Integer verifyIvLen(InputStream in)
+      throws IOException {
     int bytesRead;
     byte[] ivLenBytes = new byte[3];
     bytesRead = in.read(ivLenBytes);
@@ -139,13 +125,38 @@ public class RotatingAESCodecTest {
     return ivLen;
   }
 
-  private void verifyKeyId(InputStream in, int expectedKeyId) throws IOException {
+  private void verifyKeyId(InputStream in, int expectedKeyId)
+      throws IOException {
     // Verify keyId is properly padded
     byte[] keyIdBytes = new byte[4];
     int bytesRead = in.read(keyIdBytes);
     Assert.assertEquals(bytesRead, keyIdBytes.length, "Expected to be able to read key id");
     String keyId = new String(keyIdBytes, "UTF-8");
     Assert.assertEquals(Integer.valueOf(keyId), Integer.valueOf(expectedKeyId), "Expected keyId to equal 1");
+  }
+
+  private void manuallyDecodeAndVerifyBytes(byte[] originalBytes, byte[] encryptedBytes,
+      SimpleCredentialStore credStore)
+      throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
+             InvalidAlgorithmParameterException {
+    // Manually decode
+    InputStream in = new ByteArrayInputStream(encryptedBytes);
+    verifyKeyId(in, 1);
+
+    Integer ivLen = verifyIvLen(in);
+
+    byte[] ivBinary = verifyAndExtractIv(in, ivLen);
+
+    byte[] body = readAndBase64DecodeBody(in);
+
+    // feed back into cipheroutput stream
+    Cipher inputCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+    IvParameterSpec ivParameterSpec = new IvParameterSpec(ivBinary);
+    inputCipher.init(Cipher.DECRYPT_MODE, credStore.getKey(), ivParameterSpec);
+
+    CipherInputStream cis = new CipherInputStream(new ByteArrayInputStream(body), inputCipher);
+    byte[] decoded = IOUtils.toByteArray(cis);
+    Assert.assertEquals(decoded, originalBytes, "Expected decoded output to match encoded output");
   }
 
   static class SimpleCredentialStore implements CredentialStore {

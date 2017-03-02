@@ -16,11 +16,15 @@
  */
 package gobblin.runtime.crypto;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.security.KeyStoreException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +38,10 @@ import org.apache.commons.cli.ParseException;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
+import javax.xml.bind.DatatypeConverter;
 import lombok.extern.slf4j.Slf4j;
 
 import gobblin.annotation.Alias;
@@ -46,7 +53,8 @@ import gobblin.runtime.cli.CliApplication;
 @Slf4j
 public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
   private static final Map<String, Action> actionMap = ImmutableMap
-      .of("generate_keys", new GenerateKeyAction(), "list_keys", new ListKeysAction(), "help", new HelpAction());
+      .of("generate_keys", new GenerateKeyAction(), "list_keys", new ListKeysAction(), "help", new HelpAction(),
+          "export", new ExportKeyAction());
 
   @Override
   public void run(String[] args) {
@@ -65,6 +73,13 @@ public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
     }
 
     action.run(Arrays.copyOfRange(args, 1, args.length));
+  }
+
+  public static JCEKSKeystoreCredentialStore loadKeystore(String path)
+      throws IOException {
+    char[] password = getPasswordFromConsole();
+
+    return new JCEKSKeystoreCredentialStore(path, String.valueOf(password));
   }
 
   /**
@@ -98,7 +113,7 @@ public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
       return parser.parse(getOptions(), args);
     }
 
-     private Options getOptions() {
+    private Options getOptions() {
       List<Option> options = getExtraOptions();
       Options optionList = new Options();
       optionList.addOption(HELP);
@@ -108,8 +123,7 @@ public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
 
       return optionList;
     }
-
- }
+  }
 
   static class HelpAction extends Action {
     @Override
@@ -148,10 +162,8 @@ public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
           return;
         }
 
-        char[] password = getPasswordFromConsole();
         String keystoreLocation = cli.getOptionValue(KEYSTORE_LOCATION.getOpt());
-        JCEKSKeystoreCredentialStore credentialStore =
-            new JCEKSKeystoreCredentialStore(cli.getOptionValue(KEYSTORE_LOCATION.getOpt()), String.valueOf(password));
+        JCEKSKeystoreCredentialStore credentialStore = loadKeystore(keystoreLocation);
 
         Map<String, byte[]> keys = credentialStore.getAllEncodedKeys();
         System.out.println("Keystore " + keystoreLocation + " has " + String.valueOf(keys.size()) + " keys.");
@@ -238,5 +250,41 @@ public class JCEKSKeystoreCredentialStoreCli implements CliApplication {
   private static char[] getPasswordFromConsole() {
     System.out.print("Please enter the keystore password: ");
     return System.console().readPassword();
+  }
+
+  static class ExportKeyAction extends Action {
+    private static final Option KEYSTORE_LOCATION =
+        Option.builder("i").longOpt("in").hasArg().required().desc("Keystore location").build();
+    private static final Option OUTPUT_LOCATION =
+        Option.builder("o").longOpt("out").hasArg().required().desc("Output location").build();
+
+    @Override
+    protected List<Option> getExtraOptions() {
+      return ImmutableList.of(KEYSTORE_LOCATION, OUTPUT_LOCATION);
+    }
+
+    @Override
+    void run(String[] args) {
+      try {
+        CommandLine cli = parseOptions(args);
+        JCEKSKeystoreCredentialStore credStore = loadKeystore(cli.getOptionValue(KEYSTORE_LOCATION.getOpt()));
+        Map<Integer, String> base64Keys = new HashMap<>();
+
+        Map<String, byte[]> keys = credStore.getAllEncodedKeys();
+        for (Map.Entry<String, byte[]> e: keys.entrySet()) {
+          base64Keys.put(Integer.valueOf(e.getKey()), DatatypeConverter.printBase64Binary(e.getValue()));
+        }
+
+        FileWriter fOs = new FileWriter(new File(cli.getOptionValue(OUTPUT_LOCATION.getOpt())));
+        Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+        fOs.write(gson.toJson(base64Keys));
+        fOs.flush();
+        fOs.close();
+      } catch (ParseException e) {
+        printUsage();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 }
