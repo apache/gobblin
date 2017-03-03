@@ -21,6 +21,9 @@ import java.util.Map;
 import gobblin.writer.StreamCodec;
 
 
+/**
+ * This class has logic to create compression stream codecs based on configuration parameters.
+ */
 public class CompressionFactory {
   public static StreamCodec buildStreamCompressor(Map<String, Object> properties) {
     String type = CompressionConfigParser.getCompressionType(properties);

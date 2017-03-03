@@ -110,9 +110,11 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
 
   /**
    * Build and cache encoders for the writer based on configured options as encoder
-   * construction can potentially be expensive
+   * construction can potentially be expensive.
    */
   protected List<StreamCodec> buildEncoders() {
+    // Should be overridden by subclasses if their associated writers are
+    // encoder aware
     return Collections.emptyList();
   }
  }
