@@ -18,12 +18,15 @@ package gobblin.compression;
 
 import java.util.Map;
 
+import gobblin.annotation.Alpha;
 import gobblin.writer.StreamCodec;
 
 
 /**
  * This class has logic to create compression stream codecs based on configuration parameters.
+ * Note: Interface will likely change to support dynamic registration of compression codecs
  */
+@Alpha
 public class CompressionFactory {
   public static StreamCodec buildStreamCompressor(Map<String, Object> properties) {
     String type = CompressionConfigParser.getCompressionType(properties);

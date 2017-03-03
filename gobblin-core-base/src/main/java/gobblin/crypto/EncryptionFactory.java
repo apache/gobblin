@@ -22,6 +22,7 @@ import java.util.Set;
 
 import com.google.common.collect.ImmutableSet;
 
+import gobblin.annotation.Alpha;
 import gobblin.writer.StreamCodec;
 
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +30,11 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Helper and factory methods for encryption algorithms.
+ *
+ * Note: Interface will likely change to support registration of algorithms
  */
 @Slf4j
+@Alpha
 public class EncryptionFactory {
   private final static Set<String> SUPPORTED_STREAMING_ALGORITHMS =
       ImmutableSet.of("insecure_shift", "aes_rotating", EncryptionConfigParser.ENCRYPTION_TYPE_ANY);
