@@ -53,6 +53,8 @@ public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]>
 
     List<StreamCodec> encoders = new ArrayList<>();
 
+    // TODO: refactor this when capability support comes back in
+
     // Compress first since compressing encrypted data will give no benefit
     Map<String, Object> compressionConfig =
         CompressionConfigParser.getConfigForBranch(this.destination.getProperties(), this.branches, this.branch);
