@@ -122,7 +122,7 @@ public class TaskContext {
           throw new IllegalArgumentException("The Limiter used with an Extractor should be an instance of "
               + NonRefillableLimiter.class.getSimpleName());
         }
-        return new LimitingExtractorDecorator<>(this.rawSourceExtractor, limiter);
+        return new LimitingExtractorDecorator<>(this.rawSourceExtractor, limiter, this.taskState);
       }
       return this.rawSourceExtractor;
     } catch (IOException ioe) {
