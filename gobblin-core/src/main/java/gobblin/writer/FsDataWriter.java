@@ -38,6 +38,7 @@ import com.google.common.io.Closer;
 import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
+import gobblin.metadata.types.GlobalMetadata;
 import gobblin.util.FinalState;
 import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
@@ -66,6 +67,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
   protected final String fileName;
   protected final FileSystem fs;
   protected final Path stagingFile;
+  private final GlobalMetadata defaultMetadata;
   protected Path outputFile;
   protected final String allOutputFilesPropName;
   protected final boolean shouldIncludeRecordCountInFileName;
@@ -138,6 +140,11 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
     // Create the parent directory of the output file if it does not exist
     WriterUtils.mkdirsWithRecursivePermission(this.fs, this.outputFile.getParent(), this.dirPermission);
     this.bytesWritten = Optional.absent();
+
+    this.defaultMetadata = new GlobalMetadata();
+    for (StreamCodec c : getEncoders()) {
+      this.defaultMetadata.addTransferEncoding(c.getTag());
+    }
   }
 
   /**
@@ -177,6 +184,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
 
   protected List<StreamCodec> getEncoders() {
     return encoders;
+  }
+
+  protected GlobalMetadata getDefaultMetadata() {
+    return defaultMetadata;
   }
 
   @Override
@@ -227,6 +238,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Spec
     }
 
     HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile);
+
+    String propName =
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_METADATA_KEY, numBranches, branchId);
+    this.properties.setProp(propName, getDefaultMetadata().toJson());
   }
 
   /**

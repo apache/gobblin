@@ -39,10 +39,13 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableList;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.crypto.EncryptionConfigParser;
 import gobblin.crypto.InsecureShiftCodec;
+import gobblin.metadata.types.GlobalMetadata;
 
 
 /**
@@ -289,6 +292,10 @@ public class SimpleDataWriterTest {
 
     byte[] contents = IOUtils.toByteArray(uncompressedFile);
     Assert.assertEquals(contents, toWrite, "expected to decode same contents");
+
+    String serializedMetadata = properties.getProp(ConfigurationKeys.WRITER_METADATA_KEY);
+    GlobalMetadata md = GlobalMetadata.fromJson(serializedMetadata);
+    Assert.assertEquals(md.getTransferEncoding(), ImmutableList.of("gzip", "encrypted_insecure_shift"));
  }
 
   /**
