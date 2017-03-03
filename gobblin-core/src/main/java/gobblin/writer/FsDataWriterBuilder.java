@@ -17,6 +17,9 @@
 
 package gobblin.writer;
 
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
@@ -43,6 +46,7 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
       ConfigurationKeys.WRITER_PREFIX + ".include.partition.in.file.names";
   public static final String WRITER_REPLACE_PATH_SEPARATORS_IN_PARTITIONS =
       ConfigurationKeys.WRITER_PREFIX + ".replace.path.separators.in.partitions";
+  private List<StreamCodec> encoders;
 
   /**
    * Get the file name to be used by the writer. If a {@link gobblin.writer.partitioner.WriterPartioner} is used,
@@ -56,6 +60,17 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
 
     if (this.partition.isPresent()) {
       fileName = getPartitionedFileName(properties, fileName);
+    }
+
+    List<StreamCodec> encoders = getEncoders();
+    if (!encoders.isEmpty()) {
+      StringBuilder filenameBuilder = new StringBuilder(fileName);
+      for (StreamCodec codec : encoders) {
+        filenameBuilder.append('.');
+        filenameBuilder.append(codec.getTag());
+      }
+
+      fileName = filenameBuilder.toString();
     }
 
     return fileName;
@@ -81,4 +96,25 @@ public abstract class FsDataWriterBuilder<S, D> extends PartitionAwareDataWriter
   public boolean validatePartitionSchema(Schema partitionSchema) {
     return true;
   }
-}
+
+  /**
+   * Get list of encoders configured for the writer.
+   */
+  public synchronized List<StreamCodec> getEncoders() {
+    if (encoders == null) {
+      encoders = buildEncoders();
+    }
+
+    return encoders;
+  }
+
+  /**
+   * Build and cache encoders for the writer based on configured options as encoder
+   * construction can potentially be expensive.
+   */
+  protected List<StreamCodec> buildEncoders() {
+    // Should be overridden by subclasses if their associated writers are
+    // encoder aware
+    return Collections.emptyList();
+  }
+ }

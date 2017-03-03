@@ -18,6 +18,16 @@
 package gobblin.writer;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import com.google.common.base.Preconditions;
+
+import gobblin.compression.CompressionConfigParser;
+import gobblin.compression.CompressionFactory;
+import gobblin.crypto.EncryptionConfigParser;
+import gobblin.crypto.EncryptionFactory;
 
 
 /**
@@ -37,4 +47,27 @@ public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]>
     return new SimpleDataWriter(this, this.destination.getProperties());
   }
 
+  @Override
+  protected List<StreamCodec> buildEncoders() {
+    Preconditions.checkNotNull(this.destination, "Destination must be set before building encoders");
+
+    List<StreamCodec> encoders = new ArrayList<>();
+
+    // TODO: refactor this when capability support comes back in
+
+    // Compress first since compressing encrypted data will give no benefit
+    Map<String, Object> compressionConfig =
+        CompressionConfigParser.getConfigForBranch(this.destination.getProperties(), this.branches, this.branch);
+    if (compressionConfig != null) {
+      encoders.add(CompressionFactory.buildStreamCompressor(compressionConfig));
+    }
+
+    Map<String, Object> encryptionConfig =
+        EncryptionConfigParser.getConfigForBranch(this.destination.getProperties(), this.branches, this.branch);
+    if (encryptionConfig != null) {
+      encoders.add(EncryptionFactory.buildStreamEncryptor(encryptionConfig));
+    }
+
+    return encoders;
+  }
 }

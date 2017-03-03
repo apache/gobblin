@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -57,7 +58,8 @@ public class SimpleDataWriter extends FsDataWriter<byte[]> {
 
   private final OutputStream stagingFileOutputStream;
 
-  public SimpleDataWriter(SimpleDataWriterBuilder builder, State properties) throws IOException {
+  public SimpleDataWriter(SimpleDataWriterBuilder builder, State properties)
+      throws IOException {
     super(builder, properties);
     String delim;
     if ((delim = properties.getProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, null)) == null || delim.length() == 0) {
