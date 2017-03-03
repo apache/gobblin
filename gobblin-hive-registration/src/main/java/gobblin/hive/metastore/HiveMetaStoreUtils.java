@@ -17,13 +17,16 @@
 
 package gobblin.hive.metastore;
 
-import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.avro.SchemaParseException;
+import org.apache.commons.lang.reflect.MethodUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -42,7 +45,9 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
@@ -70,7 +75,8 @@ public class HiveMetaStoreUtils {
   private static final TableType DEFAULT_TABLE_TYPE = TableType.EXTERNAL_TABLE;
   private static final String EXTERNAL = "EXTERNAL";
 
-  private HiveMetaStoreUtils() {}
+  private HiveMetaStoreUtils() {
+  }
 
   /**
    * Convert a {@link HiveTable} into a {@link Table}.
@@ -157,9 +163,10 @@ public class HiveMetaStoreUtils {
     State partitionProps = getPartitionProps(partition);
     State storageProps = getStorageProps(partition.getSd());
     State serDeProps = getSerDeProps(partition.getSd().getSerdeInfo());
-    HivePartition hivePartition = new HivePartition.Builder().withDbName(partition.getDbName())
-        .withTableName(partition.getTableName()).withPartitionValues(partition.getValues()).withProps(partitionProps)
-        .withStorageProps(storageProps).withSerdeProps(serDeProps).build();
+    HivePartition hivePartition =
+        new HivePartition.Builder().withDbName(partition.getDbName()).withTableName(partition.getTableName())
+            .withPartitionValues(partition.getValues()).withProps(partitionProps).withStorageProps(storageProps)
+            .withSerdeProps(serDeProps).build();
     if (partition.getCreateTime() > 0) {
       hivePartition.setCreateTime(partition.getCreateTime());
     }
@@ -279,8 +286,9 @@ public class HiveMetaStoreUtils {
       storageProps.setProp(HiveConstants.NUM_BUCKETS, sd.getNumBuckets());
     }
     if (sd.isSetBucketCols()) {
-      for (String bucketColumn : sd.getBucketCols())
+      for (String bucketColumn : sd.getBucketCols()) {
         storageProps.appendToListProp(HiveConstants.BUCKET_COLUMNS, bucketColumn);
+      }
     }
     if (sd.isSetStoredAsSubDirectories()) {
       storageProps.setProp(HiveConstants.STORED_AS_SUB_DIRS, sd.isStoredAsSubDirectories());
@@ -351,9 +359,8 @@ public class HiveMetaStoreUtils {
 
     Deserializer deserializer;
     try {
-      deserializer = ReflectionUtils.newInstance(hiveConf.getClassByName(serde).asSubclass(Deserializer.class),
-          hiveConf);
-
+      deserializer =
+          ReflectionUtils.newInstance(hiveConf.getClassByName(serde).asSubclass(Deserializer.class), hiveConf);
     } catch (ClassNotFoundException e) {
       LOG.warn("Serde class " + serde + " not found!", e);
       return null;
@@ -371,8 +378,8 @@ public class HiveMetaStoreUtils {
       // handling in AvroSerDe added in HIVE-7868.
       if (deserializer instanceof AvroSerDe) {
         try {
-          AvroSerdeUtils.determineSchemaOrThrowException(props);
-        } catch (IOException | SchemaParseException e) {
+          inVokeDetermineSchemaOrThrowExceptionMethod(props, new Configuration());
+        } catch (SchemaParseException | InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
           LOG.warn("Failed to initialize AvroSerDe.");
           throw new SerDeException(e);
         }
@@ -384,5 +391,24 @@ public class HiveMetaStoreUtils {
     }
 
     return deserializer;
+  }
+
+  @VisibleForTesting
+  protected static void inVokeDetermineSchemaOrThrowExceptionMethod(Properties props, Configuration conf)
+      throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+    String methodName = "determineSchemaOrThrowException";
+    Method method = MethodUtils.getAccessibleMethod(AvroSerdeUtils.class, methodName, Properties.class);
+    boolean withConf = false;
+    if (method == null) {
+      method = MethodUtils
+          .getAccessibleMethod(AvroSerdeUtils.class, methodName, new Class[]{Configuration.class, Properties.class});
+      withConf = true;
+    }
+    Preconditions.checkNotNull(method, "Cannot find matching " + methodName);
+    if (!withConf) {
+      MethodUtils.invokeStaticMethod(AvroSerdeUtils.class, methodName, props);
+    } else {
+      MethodUtils.invokeStaticMethod(AvroSerdeUtils.class, methodName, new Object[]{conf, props});
+    }
   }
 }
