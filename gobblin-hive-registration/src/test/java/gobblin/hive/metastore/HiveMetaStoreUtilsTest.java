@@ -18,7 +18,9 @@
 package gobblin.hive.metastore;
 
 import java.util.List;
+import java.util.Properties;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -44,8 +46,7 @@ public class HiveMetaStoreUtilsTest {
 
     State serdeProps = new State();
     serdeProps.setProp("avro.schema.literal", "{\"type\": \"record\", \"name\": \"TestEvent\","
-        + " \"namespace\": \"test.namespace\", \"fields\": [{\"name\":\"a\","
-        + " \"type\": \"int\"}]}");
+        + " \"namespace\": \"test.namespace\", \"fields\": [{\"name\":\"a\"," + " \"type\": \"int\"}]}");
     builder.withSerdeProps(serdeProps);
 
     HiveTable hiveTable = builder.build();
@@ -100,5 +101,14 @@ public class HiveMetaStoreUtilsTest {
 
     List<FieldSchema> fields = sd.getCols();
     Assert.assertTrue(fields != null && fields.size() == 0);
+  }
+
+  @Test
+  public void testInVokeDetermineSchemaOrThrowExceptionMethod() {
+    try {
+      HiveMetaStoreUtils.inVokeDetermineSchemaOrThrowExceptionMethod(new Properties(), new Configuration());
+    } catch (Exception e) {
+      Assert.assertFalse(e instanceof NoSuchMethodException);
+    }
   }
 }
