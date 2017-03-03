@@ -17,6 +17,7 @@
 
 package gobblin.source.extractor.extract;
 
+import com.google.common.annotations.VisibleForTesting;
 import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.exception.ExtractPrepareException;
@@ -68,11 +69,11 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   private S outputSchema;
   private long sourceRecordCount = 0;
   private long highWatermark;
-  private long estimatedActualHighWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
 
   private Iterator<D> iterator;
   protected final List<String> columnList = new ArrayList<>();
-  private final List<Predicate> predicateList = new ArrayList<>();
+  @VisibleForTesting
+  protected final List<Predicate> predicateList = new ArrayList<>();
 
   private S getOutputSchema() {
     return this.outputSchema;
@@ -149,7 +150,6 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
         if (shouldRemoveDataPullUpperBounds()) {
           this.removeDataPullUpperBounds();
-          this.setEstimatedActualHighWatermark();
         }
         this.iterator = this.getIterator();
       }
@@ -174,8 +174,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   /**
    * Check if it's appropriate to remove data pull upper bounds in the last work unit, fetching as much data as possible
    * from the source. As between the time when data query was created and that was executed, there might be some
-   * new data generated in the source. Removing the upper bounds will help us grab the new data. It might result in a
-   * conservative high watermark, which is mitigated by {@link #setEstimatedActualHighWatermark()}
+   * new data generated in the source. Removing the upper bounds will help us grab the new data.
    *
    * Note: It's expected that there might be some duplicate data between runs because of removing the upper bounds
    *
@@ -187,14 +186,16 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
       return false;
     }
 
-    // Don't remove if the run is for 'APPEND'
-    if (!this.isFullDump()) {
-      return false;
-    }
-
     // Don't remove if user specifies one or is recorded in previous run
     if (this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE) != null ||
         this.workUnitState.getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY) != null) {
+      return false;
+    }
+
+    ExtractType extractType =
+        ExtractType.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
+    // Don't remove if the run is for "APPEND"
+    if (extractType != ExtractType.SNAPSHOT) {
       return false;
     }
 
@@ -213,27 +214,6 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
         log.info("Remove predicate: " + predicate.condition);
         it.remove();
       }
-    }
-  }
-
-  /**
-   * Set an estimated actual high watermark when the work unit is the last one
-   * and its upper bounds to fetch data are removed
-   */
-  private void setEstimatedActualHighWatermark() {
-    String watermarkType = this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "TIMESTAMP");
-    WatermarkType wmType = WatermarkType.valueOf(watermarkType.toUpperCase());
-    switch (wmType) {
-      case TIMESTAMP:
-      case DATE:
-      case HOUR:
-        String timeZone = this.workUnitState.getProp(ConfigurationKeys.SOURCE_TIMEZONE);
-        this.estimatedActualHighWatermark = Long.parseLong(
-            Utils.dateTimeToString(Utils.getCurrentTime(timeZone), "yyyyMMddHHmmss", timeZone));
-        break;
-      case SIMPLE:
-        this.estimatedActualHighWatermark = this.highWatermark;
-        break;
     }
   }
 
@@ -282,13 +262,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
    */
   @Override
   public void close() {
-    long actualHighWatermark = this.estimatedActualHighWatermark;
-    if (actualHighWatermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE) {
-      actualHighWatermark = this.highWatermark;
-    }
-
-    log.info("Updating the current state high water mark with " + actualHighWatermark);
-    this.workUnitState.setActualHighWatermark(new LongWatermark(actualHighWatermark));
+    log.info("Updating the current state high water mark with " + this.highWatermark);
+    this.workUnitState.setActualHighWatermark(new LongWatermark(this.highWatermark));
     try {
       this.closeConnection();
     } catch (Exception e) {
