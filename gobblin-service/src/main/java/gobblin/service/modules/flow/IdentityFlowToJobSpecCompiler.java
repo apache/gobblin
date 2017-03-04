@@ -89,7 +89,7 @@ public class IdentityFlowToJobSpecCompiler implements SpecCompiler {
     Preconditions.checkNotNull(spec);
     Preconditions.checkArgument(spec instanceof FlowSpec, "IdentityFlowToJobSpecCompiler only converts FlowSpec to JobSpec");
 
-    Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = Maps.newHashMap();
+    Map<Spec, SpecExecutorInstanceProducer> specExecutorInstanceMap = Maps.newLinkedHashMap();
 
     FlowSpec flowSpec = (FlowSpec) spec;
     String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);

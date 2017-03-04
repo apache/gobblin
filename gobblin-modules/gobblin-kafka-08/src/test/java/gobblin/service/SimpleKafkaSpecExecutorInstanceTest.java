@@ -18,11 +18,13 @@
 package gobblin.service;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
@@ -87,10 +89,10 @@ public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
 
     _seic = _closer.register(new SimpleKafkaSpecExecutorInstanceConsumer(ConfigUtils.propertiesToConfig(_properties)));
 
-    Map<SpecExecutorInstance.Verb, Spec> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.entrySet().iterator().next();
+    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
     Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.ADD), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(addedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
@@ -109,10 +111,10 @@ public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    Map<SpecExecutorInstance.Verb, Spec> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.entrySet().iterator().next();
+    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
     Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.UPDATE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(updatedSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
@@ -130,10 +132,10 @@ public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
       Thread.currentThread().interrupt();
     }
 
-    Map<SpecExecutorInstance.Verb, Spec> consumedEvent = _seic.changedSpecs().get();
+    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
 
-    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.entrySet().iterator().next();
+    Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
     Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.DELETE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(deletedSpecUriString), "Expected URI did not match");
     Assert.assertFalse(consumedSpecAction.getValue() instanceof JobSpec, "Expected anonymous class implementation of Spec");
@@ -144,7 +146,7 @@ public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
     SimpleKafkaSpecExecutorInstanceConsumer seic = _closer
         .register(new SimpleKafkaSpecExecutorInstanceConsumer(ConfigUtils.propertiesToConfig(_properties)));
 
-    Map<SpecExecutorInstance.Verb, Spec> consumedEvent = seic.changedSpecs().get();
+    List<Pair<SpecExecutorInstance.Verb, Spec>> consumedEvent = seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 3, "Consumption was reset, we should see all events");
   }
 

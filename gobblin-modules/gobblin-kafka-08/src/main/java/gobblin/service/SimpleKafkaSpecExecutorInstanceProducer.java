@@ -61,6 +61,7 @@ public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExec
   public Future<?> addSpec(Spec addedSpec) {
     SpecExecutorInstanceDataPacket sidp = new SpecExecutorInstanceDataPacket(Verb.ADD,
         addedSpec.getUri(), addedSpec);
+    _log.info("Adding Spec: " + addedSpec + " using Kafka.");
      return getKafka08Producer().write(SerializationUtils.serialize(sidp), WriteCallback.EMPTY);
   }
 
@@ -68,6 +69,7 @@ public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExec
   public Future<?> updateSpec(Spec updatedSpec) {
     SpecExecutorInstanceDataPacket sidp = new SpecExecutorInstanceDataPacket(Verb.UPDATE,
         updatedSpec.getUri(), updatedSpec);
+    _log.info("Updating Spec: " + updatedSpec + " using Kafka.");
      return getKafka08Producer().write(SerializationUtils.serialize(sidp), WriteCallback.EMPTY);
   }
 
@@ -75,6 +77,7 @@ public class SimpleKafkaSpecExecutorInstanceProducer extends SimpleKafkaSpecExec
   public Future<?> deleteSpec(URI deletedSpecURI) {
     SpecExecutorInstanceDataPacket sidp = new SpecExecutorInstanceDataPacket(Verb.DELETE,
         deletedSpecURI, null);
+    _log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
      return getKafka08Producer().write(SerializationUtils.serialize(sidp), WriteCallback.EMPTY);
   }
 

@@ -17,13 +17,14 @@
 
 package gobblin.runtime.api;
 
-import java.util.Map;
+import java.util.List;
 import java.util.concurrent.Future;
+import org.apache.commons.lang3.tuple.Pair;
 
 
 public interface SpecExecutorInstanceConsumer<V> extends SpecExecutorInstance {
 
   /** List of newly changed {@link Spec}s for execution on {@link SpecExecutorInstance}. */
-  Future<? extends Map<Verb, V>> changedSpecs();
+  Future<? extends List<Pair<Verb, V>>> changedSpecs();
 
 }
