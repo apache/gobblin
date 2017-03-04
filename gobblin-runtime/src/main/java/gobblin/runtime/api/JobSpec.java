@@ -16,6 +16,7 @@
  */
 package gobblin.runtime.api;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
@@ -31,6 +32,7 @@ import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobState;
 import gobblin.util.ConfigUtils;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 
@@ -43,21 +45,24 @@ import lombok.Data;
  */
 @Alpha
 @Data
+@AllArgsConstructor
 public class JobSpec implements Configurable, Spec {
+  private static final long serialVersionUID = 6074793380396465963L;
+
   /** An URI identifying the job. */
-  final URI uri;
+  URI uri;
   /** The implementation-defined version of this spec. */
-  final String version;
+  String version;
   /** Human-readable description of the job spec */
-  final String description;
+  String description;
   /** Job config as a typesafe config object*/
-  final Config config;
+  Config config;
   /** Job config as a properties collection for backwards compatibility */
   // Note that this property is not strictly necessary as it can be generated from the typesafe
   // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
-  final Properties configAsProperties;
-  /** URI of {@link gobblin.util.JobTemplate} to use. */
-  final Optional<URI> templateURI;
+  Properties configAsProperties;
+  /** URI of {@link gobblin.runtime.api.JobTemplate} to use. */
+  Optional<URI> templateURI;
 
   public static Builder builder(URI jobSpecUri) {
     return new Builder(jobSpecUri);
@@ -294,4 +299,22 @@ public class JobSpec implements Configurable, Spec {
     return this.uri;
   }
 
+  private void writeObject(java.io.ObjectOutputStream stream)
+      throws IOException {
+    stream.writeObject(uri);
+    stream.writeObject(version);
+    stream.writeObject(description);
+    stream.writeObject(templateURI.isPresent() ? templateURI.get() : null);
+    stream.writeObject(configAsProperties);
+  }
+
+  private void readObject(java.io.ObjectInputStream stream)
+      throws IOException, ClassNotFoundException {
+    uri = (URI) stream.readObject();
+    version = (String) stream.readObject();
+    description = (String) stream.readObject();
+    templateURI = Optional.fromNullable((URI) stream.readObject());
+    configAsProperties = (Properties) stream.readObject();
+    config = ConfigUtils.propertiesToConfig(configAsProperties);
+  }
 }
