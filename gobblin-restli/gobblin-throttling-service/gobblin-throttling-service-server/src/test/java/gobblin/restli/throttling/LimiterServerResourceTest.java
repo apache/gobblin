@@ -23,22 +23,15 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.codahale.metrics.Timer;
-import com.google.inject.Binder;
-import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.name.Names;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.server.RestLiServiceException;
 import com.typesafe.config.ConfigFactory;
 
 import gobblin.broker.BrokerConfigurationKeyGenerator;
-import gobblin.broker.SharedResourcesBrokerFactory;
-import gobblin.broker.SimpleScopeType;
-import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.metrics.MetricContext;
-import gobblin.metrics.broker.MetricContextFactory;
-import gobblin.metrics.broker.MetricContextKey;
 import gobblin.util.limiter.CountBasedLimiter;
 import gobblin.util.limiter.broker.SharedLimiterFactory;
 import gobblin.util.limiter.broker.SharedLimiterKey;
@@ -100,13 +93,25 @@ public class LimiterServerResourceTest {
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(20));
-    // out of permits
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits(), new Long(0));
+
+    try {
+      // out of permits
+      limiterServer.get(new ComplexResourceKey<>(res1request, new EmptyRecord())).getPermits();
+      Assert.fail();
+    } catch (RestLiServiceException exc) {
+      Assert.assertEquals(exc.getStatus(), HttpStatus.S_403_FORBIDDEN);
+    }
 
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(20));
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(20));
     // out of permits
-    Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits(), new Long(0));
+    try {
+      // out of permits
+      limiterServer.get(new ComplexResourceKey<>(res2request, new EmptyRecord())).getPermits();
+      Assert.fail();
+    } catch (RestLiServiceException exc) {
+      Assert.assertEquals(exc.getStatus(), HttpStatus.S_403_FORBIDDEN);
+    }
 
     // No limit
     Assert.assertEquals(limiterServer.get(new ComplexResourceKey<>(res3request, new EmptyRecord())).getPermits(), res3request.getPermits());
