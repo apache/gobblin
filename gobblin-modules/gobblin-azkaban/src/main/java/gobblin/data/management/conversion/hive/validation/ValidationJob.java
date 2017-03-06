@@ -16,6 +16,7 @@
  */
 package gobblin.data.management.conversion.hive.validation;
 
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.ResultSet;
@@ -348,7 +349,7 @@ public class ValidationJob extends AbstractJob {
               log.debug(String.format("Not validating partition: %s as updateTime: %s is not in range of max look back: %s " + "and skip recent than: %s",
                   sourcePartition.getCompleteName(), updateTime, this.maxLookBackTime, this.skipRecentThanTime));
             }
-          } catch (UpdateNotFoundException e) {
+          } catch (UncheckedExecutionException e) {
             log.warn(String.format("Not validating partition: %s as update time was not found. %s", sourcePartition.getCompleteName(), e.getMessage()));
           }
         }

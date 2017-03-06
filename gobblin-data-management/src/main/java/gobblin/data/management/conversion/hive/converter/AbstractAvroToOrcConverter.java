@@ -19,6 +19,7 @@ package gobblin.data.management.conversion.hive.converter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -126,6 +127,12 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * The dataset being converted.
    */
   protected ConvertibleHiveDataset hiveDataset;
+
+  /**
+   * If the property is set to true then in the destination dir permissions, group won't be explicitly set.
+   */
+  public static final String HIVE_DATASET_DESTINATION_SKIP_SETGROUP = "hive.dataset.destination.skip.setGroup";
+  public static final boolean DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP = false;
 
   /**
    * Subclasses can convert the {@link Schema} if required.
@@ -244,8 +251,11 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
       } else {
         this.fs.setPermission(new Path(getConversionConfig().getDestinationDataPath()), sourceDataPermission);
         // Set the same group as source
-        this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), null,
-            sourceDataFileStatus.getGroup());
+        if (!workUnit.getPropAsBoolean(HIVE_DATASET_DESTINATION_SKIP_SETGROUP,
+            DEFAULT_HIVE_DATASET_DESTINATION_SKIP_SETGROUP)) {
+          this.fs.setOwner(new Path(getConversionConfig().getDestinationDataPath()), null,
+              sourceDataFileStatus.getGroup());
+        }
         log.info(String.format("Created %s with permissions %s and group %s", new Path(getConversionConfig()
             .getDestinationDataPath()), sourceDataPermission, sourceDataFileStatus.getGroup()));
       }
@@ -269,7 +279,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             workUnit.getWorkunit().getProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY)));
 
     // Create DDL statement for table
-    Map<String, String> hiveColumns = new HashMap<>();
+    Map<String, String> hiveColumns = new LinkedHashMap<>();
     String createStagingTableDDL =
         HiveAvroORCQueryGenerator.generateCreateTableDDL(outputAvroSchema,
             orcStagingTableName,
