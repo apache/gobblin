@@ -23,7 +23,6 @@ import java.io.ByteArrayInputStream;
 import java.util.Random;
 
 import org.testng.Assert;
-import org.testng.annotations.ExpectedExceptions;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.mock;
@@ -43,7 +42,8 @@ public class CopyHelperTest {
 
     Object copy = new Object();
     when(c.copy()).thenReturn(copy);
-    Assert.assertEquals(CopyHelper.copy(c), copy);
+    Assert.assertEquals(CopyHelper.copy(c, 0), copy);
+    Assert.assertEquals(CopyHelper.copy(c, 1), copy);
 
   }
 
@@ -57,8 +57,11 @@ public class CopyHelperTest {
 
     Assert.assertTrue(CopyHelper.isCopyable(bytes));
 
-    byte[] copiedBytes = (byte[]) CopyHelper.copy(bytes);
-    Assert.assertTrue(copiedBytes != bytes, "Copied bytes reference should be different");
+    byte[] copiedBytes = (byte[]) CopyHelper.copy(bytes, 0);
+    Assert.assertTrue(copiedBytes == bytes, "Copied bytes reference should be same for the first copy");
+
+    copiedBytes = (byte[]) CopyHelper.copy(bytes, 1);
+    Assert.assertTrue(copiedBytes != bytes, "Copied bytes reference should be different for every copy after that");
     Assert.assertEquals(copiedBytes, bytes, "Copied bytes value should be the same");
   }
 
@@ -81,16 +84,29 @@ public class CopyHelperTest {
 
     for (Object immutable : immutables) {
       Assert.assertTrue(CopyHelper.isCopyable(immutable));
-      Object copiedObject = CopyHelper.copy(immutable);
-      Assert.assertEquals(copiedObject, immutable);
+      for (int i=0; i < 2; ++i) {
+        Object copiedObject = CopyHelper.copy(immutable, i);
+        Assert.assertEquals(copiedObject, immutable);
+      }
     }
   }
 
-  @Test(expectedExceptions = CopyNotSupportedException.class)
+  @Test
   public void testUnsupportedTypes()
       throws CopyNotSupportedException {
     Object foobar = mock(ByteArrayInputStream.class);
-    CopyHelper.copy(foobar);
+    try {
+      CopyHelper.copy(foobar, 0);
+    } catch (CopyNotSupportedException cnse) {
+      Assert.fail("Should not throw exception");
+    }
+    try {
+      CopyHelper.copy(foobar, 1);
+      Assert.fail("Should throw exception");
+    } catch (CopyNotSupportedException cnse) {
+    } catch (Exception e) {
+      Assert.fail("Should not throw any exception other than CopyNotSupportedException. ", e);
+    }
   }
 
 }

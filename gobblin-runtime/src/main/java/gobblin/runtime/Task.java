@@ -647,21 +647,24 @@ public class Task implements Runnable {
     }
 
     boolean needToCopy = inMultipleBranches(forkedRecords);
-    // we only copy a record if it needs to go into multiple forks
+    // we only have to copy a record if it needs to go into multiple forks
     if (needToCopy && !(CopyHelper.isCopyable(convertedRecord))) {
       throw new CopyNotSupportedException(convertedRecord.getClass().getName() + " is not copyable");
     }
 
-    // Put the record into the record queue of each fork. A put may timeout and return a false, in which
-    // case the put is retried until it is successful.
+
     int branch = 0;
+    int copyInstance = 0;
     for (Optional<Fork> fork : this.forks.keySet()) {
       if (fork.isPresent() && forkedRecords.get(branch)) {
-        Object recordForFork = needToCopy ? CopyHelper.copy(convertedRecord) : convertedRecord;
+        Object recordForFork = CopyHelper.copy(convertedRecord, copyInstance);
+        copyInstance++;
         if (isStreamingTask()) {
           // Send the record, watermark pair down the fork
           recordForFork = new AcknowledgableRecordEnvelope<>(recordForFork, watermark.incrementAck());
         }
+        // Put the record into the record queue of each fork. A put may timeout and return a false, in which
+        // case the put is retried until it is successful.
         boolean succeeded = false;
         while (!succeeded) {
           succeeded = fork.get().putRecord(recordForFork);
