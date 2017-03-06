@@ -302,8 +302,8 @@ public class TaskContext {
    * @return a {@link DataWriterBuilder}
    */
   public DataWriterBuilder getDataWriterBuilder(int branches, int index) {
-    log.debug("TaskState properties = {}", this.taskState.getProperties());
-    String writerBuilderPropertyName = ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index);
+    String writerBuilderPropertyName = ForkOperatorUtils
+        .getPropertyNameForBranch(ConfigurationKeys.WRITER_BUILDER_CLASS, branches, index);
     log.debug("Using property {} to get a writer builder for branches:{}, index:{}", writerBuilderPropertyName,
         branches, index);
 
