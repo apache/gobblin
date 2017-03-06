@@ -20,6 +20,7 @@ package gobblin.writer;
 import java.io.IOException;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -31,6 +32,7 @@ import lombok.Getter;
  * @author Yinan Li
  */
 @Getter
+@Slf4j
 public abstract class DataWriterBuilder<S, D> {
 
   protected Destination destination;
@@ -49,6 +51,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> writeTo(Destination destination) {
     this.destination = destination;
+    log.debug("For destination: {}", destination);
     return this;
   }
 
@@ -60,6 +63,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> writeInFormat(WriterOutputFormat format) {
     this.format = format;
+    log.debug("writeInFormat : {}", this.format);
     return this;
   }
 
@@ -71,6 +75,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> withWriterId(String writerId) {
     this.writerId = writerId;
+    log.debug("withWriterId : {}", this.writerId);
     return this;
   }
 
@@ -82,6 +87,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> withSchema(S schema) {
     this.schema = schema;
+    log.debug("withSchema : {}", this.schema);
     return this;
   }
 
@@ -93,6 +99,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> withBranches(int branches) {
     this.branches = branches;
+    log.debug("With branches: {}", this.branches);
     return this;
   }
 
@@ -104,6 +111,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> forBranch(int branch) {
     this.branch = branch;
+    log.debug("For branch: {}", this.branch);
     return this;
   }
 
@@ -113,6 +121,7 @@ public abstract class DataWriterBuilder<S, D> {
    */
   public DataWriterBuilder<S, D> withAttemptId(String attemptId) {
     this.writerAttemptId = attemptId;
+    log.debug("With writerAttemptId: {}", this.writerAttemptId);
     return this;
   }
 

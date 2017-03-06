@@ -174,9 +174,12 @@ public class TaskContext {
     String writerOutputFormatValue = this.taskState.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, branches, index),
         WriterOutputFormat.OTHER.name());
+    log.debug("Found writer output format value = {}", writerOutputFormatValue);
 
-    return Enums.getIfPresent(WriterOutputFormat.class, writerOutputFormatValue.toUpperCase())
+    WriterOutputFormat wof = Enums.getIfPresent(WriterOutputFormat.class, writerOutputFormatValue.toUpperCase())
         .or(WriterOutputFormat.OTHER);
+    log.debug("Returning writer output format = {}", wof);
+    return wof;
   }
 
   /**

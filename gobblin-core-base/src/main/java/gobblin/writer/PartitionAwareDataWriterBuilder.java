@@ -22,6 +22,8 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Optional;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.writer.partitioner.WriterPartitioner;
 
 
@@ -48,6 +50,7 @@ import gobblin.writer.partitioner.WriterPartitioner;
  *   * Different partitions should generate non-colliding writers.
  * </p>
  */
+@Slf4j
 public abstract class PartitionAwareDataWriterBuilder<S, D> extends DataWriterBuilder<S, D> {
 
   protected Optional<GenericRecord> partition = Optional.absent();
@@ -59,6 +62,7 @@ public abstract class PartitionAwareDataWriterBuilder<S, D> extends DataWriterBu
    */
   public PartitionAwareDataWriterBuilder<S, D> forPartition(GenericRecord partition) {
     this.partition = Optional.fromNullable(partition);
+    log.debug("For partition {}", this.partition);
     return this;
   }
 
