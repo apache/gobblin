@@ -31,6 +31,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
 import gobblin.metrics.Tag;
@@ -53,6 +55,7 @@ import gobblin.util.JobLauncherUtils;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class LocalJobLauncher extends AbstractJobLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalJobLauncher.class);
@@ -72,6 +75,7 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
   public LocalJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
     super(jobProps, ImmutableList.<Tag<?>> of(), instanceBroker);
+    log.debug("Local job launched with properties: {}", jobProps);
 
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.JOB_LOCAL_SETUP);
 

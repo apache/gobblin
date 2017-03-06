@@ -45,6 +45,7 @@ import gobblin.commit.SpeculativeAttemptAwareConstruct;
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.WorkUnitState;
 import gobblin.converter.Converter;
+import gobblin.fork.CopyHelper;
 import gobblin.fork.CopyNotSupportedException;
 import gobblin.fork.Copyable;
 import gobblin.fork.ForkOperator;
@@ -311,7 +312,7 @@ public class Task implements Runnable {
                 branches));
       }
 
-      if (inMultipleBranches(forkedSchemas) && !(schema instanceof Copyable)) {
+      if (inMultipleBranches(forkedSchemas) && !(CopyHelper.isCopyable(schema))) {
         throw new CopyNotSupportedException(schema + " is not copyable");
       }
 
@@ -645,17 +646,18 @@ public class Task implements Runnable {
               branches));
     }
 
-    if (inMultipleBranches(forkedRecords) && !(convertedRecord instanceof Copyable)) {
-      throw new CopyNotSupportedException(convertedRecord + " is not copyable");
+    // we only copy a record if it needs to go into multiple forks
+    if (inMultipleBranches(forkedRecords) && !(CopyHelper.isCopyable(convertedRecord))) {
+      throw new CopyNotSupportedException(convertedRecord.getClass().getName() + " is not copyable");
     }
 
     // Put the record into the record queue of each fork. A put may timeout and return a false, in which
     // case the put is retried until it is successful.
     int branch = 0;
+    int copyInstance = 0; // keep track of instances, we don't copy the first one
     for (Optional<Fork> fork : this.forks.keySet()) {
       if (fork.isPresent() && forkedRecords.get(branch)) {
-        Object recordForFork =
-            convertedRecord instanceof Copyable ? ((Copyable<?>) convertedRecord).copy() : convertedRecord;
+        Object recordForFork = (copyInstance > 0)? CopyHelper.copy(convertedRecord) : convertedRecord;
         if (isStreamingTask()) {
           // Send the record, watermark pair down the fork
           recordForFork = new AcknowledgableRecordEnvelope<>(recordForFork, watermark.incrementAck());
@@ -664,8 +666,9 @@ public class Task implements Runnable {
         while (!succeeded) {
           succeeded = fork.get().putRecord(recordForFork);
         }
-        branch++;
+        copyInstance++;
       }
+      branch++;
     }
     if (watermark != null) {
       watermark.ack();
