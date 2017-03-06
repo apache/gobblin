@@ -110,6 +110,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     setEnv("JAVA_HOME", javaHome);
 
     final YarnConfiguration clusterConf = new YarnConfiguration();
+    clusterConf.set("yarn.resourcemanager.connect.max-wait.ms", "10000");
 
     MiniYARNCluster miniYARNCluster = this.closer.register(new MiniYARNCluster("TestCluster", 1, 1, 1));
     miniYARNCluster.init(clusterConf);
