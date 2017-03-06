@@ -51,9 +51,6 @@ import gobblin.util.executors.ScalingThreadPoolExecutor;
  */
 public abstract class ComplianceJob implements Closeable, Instrumentable {
 
-  public static final String MAX_CONCURRENT_DATASETS =
-      ComplianceConfigurationKeys.COMPLIANCE_PREFIX + ".max.concurrent.datasets";
-  public static final String DEFAULT_MAX_CONCURRENT_DATASETS = "100";
   protected Properties properties;
   protected Optional<CountDownLatch> finishCleanSignal;
   protected final ListeningExecutorService service;
@@ -68,7 +65,7 @@ public abstract class ComplianceJob implements Closeable, Instrumentable {
   public ComplianceJob(Properties properties) {
     this.properties = properties;
     ExecutorService executor = ScalingThreadPoolExecutor.newScalingThreadPool(0,
-        Integer.parseInt(properties.getProperty(MAX_CONCURRENT_DATASETS, DEFAULT_MAX_CONCURRENT_DATASETS)), 100,
+        Integer.parseInt(properties.getProperty(ComplianceConfigurationKeys.MAX_CONCURRENT_DATASETS, ComplianceConfigurationKeys.DEFAULT_MAX_CONCURRENT_DATASETS)), 100,
         ExecutorsUtils.newThreadFactory(Optional.<Logger>absent(), Optional.of("complaince-job-pool-%d")));
     this.service = MoreExecutors.listeningDecorator(executor);
     this.closer = Closer.create();

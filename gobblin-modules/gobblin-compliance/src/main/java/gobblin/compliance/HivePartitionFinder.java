@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
@@ -54,7 +55,8 @@ public class HivePartitionFinder implements DatasetsFinder<HivePartitionDataset>
 
   private static List<HiveDataset> getHiveDatasets(FileSystem fs, State state)
       throws IOException {
-    Preconditions.checkArgument(state.contains(ComplianceConfigurationKeys.COMPLIANCE_DATASET_WHITELIST));
+    Preconditions.checkArgument(state.contains(ComplianceConfigurationKeys.COMPLIANCE_DATASET_WHITELIST),
+        "Missing required property " + ComplianceConfigurationKeys.COMPLIANCE_DATASET_WHITELIST);
     Properties prop = new Properties();
     prop.setProperty(ComplianceConfigurationKeys.HIVE_DATASET_WHITELIST,
         state.getProp(ComplianceConfigurationKeys.COMPLIANCE_DATASET_WHITELIST));
@@ -111,6 +113,6 @@ public class HivePartitionFinder implements DatasetsFinder<HivePartitionDataset>
   @Override
   public Path commonDatasetRoot() {
     // Not implemented by this method
-    return null;
+    throw new NotImplementedException();
   }
 }

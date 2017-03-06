@@ -23,6 +23,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,50 +54,59 @@ import gobblin.util.HostUtils;
 @Slf4j
 @SuppressWarnings
 public class HiveProxyQueryExecutor implements QueryExecutor, Closeable {
-  private static final String HIVE_SERVER2_PROXY_USER = "hive.server2.proxy.user=";
-  private static final String HIVE_JDBC_URL = ComplianceConfigurationKeys.COMPLIANCE_PREFIX + ".hive.jdbc.url";
   private static final String DEFAULT = "default";
-  private static final String HIVE_SETTINGS = ComplianceConfigurationKeys.COMPLIANCE_PREFIX + ".hive.settings";
   private static final Splitter SC_SPLITTER = Splitter.on(";").omitEmptyStrings().trimResults();
   private Map<String, HiveConnection> connectionMap = new HashMap<>();
   private Map<String, Statement> statementMap = new HashMap<>();
   private State state;
   private List<String> settings = new ArrayList<>();
 
+  /**
+   * Instantiates a new Hive proxy query executor.
+   *
+   * @param state the state
+   * @param proxies the proxies
+   * @throws IOException the io exception
+   */
   public HiveProxyQueryExecutor(State state, List<String> proxies)
       throws IOException {
     try {
-      this.state = new State();
-      this.state.addAll(state.getProperties());
+      this.state = new State(state);
       setHiveSettings(state);
-      setProxiedConnection(proxies);
-    } catch (InterruptedException | TException e) {
+      if (proxies.isEmpty()) {
+        setConnection();
+      } else {
+        setProxiedConnection(proxies);
+      }
+    } catch (InterruptedException | TException | ClassNotFoundException | SQLException e) {
       throw new IOException(e);
     }
   }
 
+  /**
+   * Instantiates a new Hive proxy query executor.
+   *
+   * @param state the state
+   * @throws IOException the io exception
+   */
   public HiveProxyQueryExecutor(State state)
       throws IOException {
-    this.state = new State();
-    this.state.addAll(state.getProperties());
-    setHiveSettings(state);
-    try {
-      if (!this.state.getPropAsBoolean(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SHOULD_PROXY,
-          ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_DEFAULT_SHOULD_PROXY)) {
-        setConnection();
-        return;
-      }
-      Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_PROXY_USER),
-          "Missing required property " + ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_PROXY_USER);
-      Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SUPER_USER),
-          "Missing required property " + ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SUPER_USER);
-      List<String> proxies = new ArrayList<>();
-      proxies.add(this.state.getProp(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_PROXY_USER));
-      proxies.add(this.state.getProp(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SUPER_USER));
-      setProxiedConnection(proxies);
-    } catch (ClassNotFoundException | SQLException | InterruptedException | TException e) {
-      throw new IOException(e);
+    this(state, getProxiesFromState(state));
+  }
+
+  private static List<String> getProxiesFromState(State state) {
+    if (!state.getPropAsBoolean(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SHOULD_PROXY,
+        ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_DEFAULT_SHOULD_PROXY)) {
+      return Collections.emptyList();
     }
+    Preconditions.checkArgument(state.contains(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_PROXY_USER),
+        "Missing required property " + ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_PROXY_USER);
+    Preconditions.checkArgument(state.contains(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SUPER_USER),
+        "Missing required property " + ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SUPER_USER);
+    List<String> proxies = new ArrayList<>();
+    proxies.add(state.getProp(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_PROXY_USER));
+    proxies.add(state.getProp(ComplianceConfigurationKeys.GOBBLIN_COMPLIANCE_SUPER_USER));
+    return proxies;
   }
 
   private synchronized void setProxiedConnection(final List<String> proxies)
@@ -113,7 +123,7 @@ public class HiveProxyQueryExecutor implements QueryExecutor, Closeable {
       public Void run()
           throws MetaException, SQLException, ClassNotFoundException {
         for (String proxy : proxies) {
-          HiveConnection hiveConnection = getHiveConnection(proxy);
+          HiveConnection hiveConnection = getHiveConnection(Optional.fromNullable(proxy));
           Statement statement = hiveConnection.createStatement();
           statementMap.put(proxy, statement);
           connectionMap.put(proxy, hiveConnection);
@@ -128,7 +138,7 @@ public class HiveProxyQueryExecutor implements QueryExecutor, Closeable {
 
   private synchronized void setConnection()
       throws ClassNotFoundException, SQLException {
-    HiveConnection hiveConnection = getHiveConnection();
+    HiveConnection hiveConnection = getHiveConnection(Optional.<String>absent());
     Statement statement = hiveConnection.createStatement();
     this.statementMap.put(DEFAULT, statement);
     this.connectionMap.put(DEFAULT, hiveConnection);
@@ -137,37 +147,36 @@ public class HiveProxyQueryExecutor implements QueryExecutor, Closeable {
     }
   }
 
-  private HiveConnection getHiveConnection(String proxyUser)
+  private HiveConnection getHiveConnection(Optional<String> proxyUser)
       throws ClassNotFoundException, SQLException {
     Class.forName("org.apache.hive.jdbc.HiveDriver");
-    Preconditions.checkArgument(this.state.contains(HIVE_JDBC_URL), "Missing required property " + HIVE_JDBC_URL);
-    String url = this.state.getProp(HIVE_JDBC_URL);
-    url = url + HIVE_SERVER2_PROXY_USER + proxyUser;
-    return (HiveConnection) DriverManager.getConnection(url);
-  }
-
-  private HiveConnection getHiveConnection()
-      throws ClassNotFoundException, SQLException {
-    Class.forName("org.apache.hive.jdbc.HiveDriver");
-    Preconditions.checkArgument(this.state.contains(HIVE_JDBC_URL), "Missing required property " + HIVE_JDBC_URL);
-    String url = this.state.getProp(HIVE_JDBC_URL);
+    Preconditions.checkArgument(this.state.contains(ComplianceConfigurationKeys.HIVE_JDBC_URL), "Missing required property " + ComplianceConfigurationKeys.HIVE_JDBC_URL);
+    String url = this.state.getProp(ComplianceConfigurationKeys.HIVE_JDBC_URL);
+    if (proxyUser.isPresent()) {
+      url = url + ComplianceConfigurationKeys.HIVE_SERVER2_PROXY_USER + proxyUser;
+    }
     return (HiveConnection) DriverManager.getConnection(url);
   }
 
   @Override
   public void executeQueries(List<String> queries)
       throws SQLException {
-    Optional<String> proxy = Optional.absent();
-    executeQueries(queries, proxy);
+    executeQueries(queries, Optional.<String>absent());
   }
 
   @Override
   public void executeQuery(String query)
       throws SQLException {
-    Optional<String> proxy = Optional.absent();
-    executeQuery(query, proxy);
+    executeQuery(query, Optional.<String>absent());
   }
 
+  /**
+   * Execute queries.
+   *
+   * @param queries the queries
+   * @param proxy the proxy
+   * @throws SQLException the sql exception
+   */
   public void executeQueries(List<String> queries, Optional<String> proxy)
       throws SQLException {
     Preconditions.checkArgument(!this.statementMap.isEmpty(), "No hive connection. Unable to execute queries");
@@ -181,18 +190,16 @@ public class HiveProxyQueryExecutor implements QueryExecutor, Closeable {
     }
   }
 
+  /**
+   * Execute query.
+   *
+   * @param query the query
+   * @param proxy the proxy
+   * @throws SQLException the sql exception
+   */
   public void executeQuery(String query, Optional<String> proxy)
       throws SQLException {
-    Preconditions.checkArgument(!this.statementMap.isEmpty(), "No hive connection. Unable to execute queries");
-    if (!proxy.isPresent()) {
-      Preconditions.checkArgument(this.statementMap.size() == 1, "Multiple Hive connections. Please specify a user");
-      proxy = Optional.fromNullable(this.statementMap.keySet().iterator().next());
-    }
-    Statement statement = this.statementMap.get(proxy.get());
-    for (String setting : this.settings) {
-      statement.execute(setting);
-    }
-    statement.execute(query);
+    executeQueries(Collections.singletonList(query), proxy);
   }
 
   @Override
@@ -215,8 +222,8 @@ public class HiveProxyQueryExecutor implements QueryExecutor, Closeable {
   }
 
   private void setHiveSettings(State state) {
-    if (state.contains(HIVE_SETTINGS)) {
-      String queryString = state.getProp(HIVE_SETTINGS);
+    if (state.contains(ComplianceConfigurationKeys.HIVE_SETTINGS)) {
+      String queryString = state.getProp(ComplianceConfigurationKeys.HIVE_SETTINGS);
       this.settings = SC_SPLITTER.splitToList(queryString);
     }
   }

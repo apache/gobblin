@@ -34,6 +34,12 @@ public class ComplianceConfigurationKeys {
   public static final int TIME_STAMP_LENGTH = 13;
   public static final String DBNAME_SEPARATOR = "@";
 
+  public static final String MAX_CONCURRENT_DATASETS = COMPLIANCE_PREFIX + ".max.concurrent.datasets";
+  public static final String DEFAULT_MAX_CONCURRENT_DATASETS = "100";
+  public static final String HIVE_SERVER2_PROXY_USER = "hive.server2.proxy.user=";
+  public static final String HIVE_JDBC_URL = COMPLIANCE_PREFIX + ".hive.jdbc.url";
+  public static final String HIVE_SETTINGS = COMPLIANCE_PREFIX + ".hive.settings";
+
   public static final String REAPER_RETENTION_DAYS = COMPLIANCE_PREFIX + ".reaper.retention.days";
   public static final String CLEANER_BACKUP_RETENTION_VERSIONS =
       COMPLIANCE_PREFIX + ".cleaner.backup.retention.versions";
