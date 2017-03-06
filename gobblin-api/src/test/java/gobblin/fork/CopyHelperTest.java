@@ -19,9 +19,11 @@
 
 package gobblin.fork;
 
+import java.io.ByteArrayInputStream;
 import java.util.Random;
 
 import org.testng.Assert;
+import org.testng.annotations.ExpectedExceptions;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.mock;
@@ -61,32 +63,34 @@ public class CopyHelperTest {
   }
 
   @Test
-  public void testInteger()
+  public void testImmutables()
       throws CopyNotSupportedException {
+
+    Object nullObject = null;
 
     Integer integer = RANDOM.nextInt(200);
 
-    Assert.assertTrue(CopyHelper.isCopyable(integer));
-
-    Integer copiedInteger = (Integer) CopyHelper.copy(integer);
-    Assert.assertEquals(copiedInteger, integer, "Copied integer value should be the same");
-
-  }
-
-  @Test
-  public void testString()
-      throws CopyNotSupportedException {
-
-    int length = RANDOM.nextInt(200);
-    byte[] bytes = new byte[length];
+    byte[] bytes = new byte[integer];
     RANDOM.nextBytes(bytes);
 
     String string = new String(bytes);
-    Assert.assertTrue(CopyHelper.isCopyable(string));
 
-    String copiedString = (String) CopyHelper.copy(string);
-    Assert.assertEquals(copiedString, string, "Copied string value should be the same");
+    Long longNum = RANDOM.nextLong();
+
+    Object[] immutables = new Object[]{nullObject, integer, string, longNum};
+
+    for (Object immutable : immutables) {
+      Assert.assertTrue(CopyHelper.isCopyable(immutable));
+      Object copiedObject = CopyHelper.copy(immutable);
+      Assert.assertEquals(copiedObject, immutable);
+    }
   }
 
+  @Test(expectedExceptions = CopyNotSupportedException.class)
+  public void testUnsupportedTypes()
+      throws CopyNotSupportedException {
+    Object foobar = mock(ByteArrayInputStream.class);
+    CopyHelper.copy(foobar);
+  }
 
 }

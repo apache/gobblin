@@ -26,17 +26,15 @@ package gobblin.fork;
 public class CopyHelper {
 
   /**
-   *
+   * Check if an object is copyable using the {@link #copy(Object)} method.
    * @param thing: the object that needs to be copied
-   * @return: true if CopyHelper can copy this thing, false otherwise
+   * @return: true if {@link CopyHelper} can copy this thing, false otherwise
    */
   public static boolean isCopyable(Object thing) {
     if (
         (thing instanceof Copyable)
-        || (thing instanceof byte[])
-        || (thing instanceof String)
-        || (thing instanceof Integer)
-        || (thing instanceof Long)
+            || (thing instanceof byte[])
+            || (isImmutableType(thing))
         ) {
       return true;
     }
@@ -44,7 +42,20 @@ public class CopyHelper {
   }
 
   /**
-   *
+   * Contains a collection of supported immutable types for copying.
+   * Only keep the types that are worth supporting as record types.
+   * @param thing: an Object being checked
+   * @return true if supported immutable type, false otherwise
+   */
+  private static boolean isImmutableType(Object thing) {
+    return ((thing == null)
+        || (thing instanceof String)
+        || (thing instanceof Integer)
+        || (thing instanceof Long));
+  }
+
+  /**
+   * Copy this object if possible.
    * @param thing: this object that needs to be copied
    * @return: a copied instance
    * @throws CopyNotSupportedException if thing cannot be copied
@@ -64,13 +75,8 @@ public class CopyHelper {
       return copy;
     }
 
-    if (thing instanceof String
-        || thing instanceof Integer
-        || thing instanceof Long) {
-      // These are immutable so don't need to copy
-      return thing;
-    }
-    throw new CopyNotSupportedException(thing.getClass().getName() + " cannot be copied.");
+    // Assume that everything other type is immutable, not checking this again
+    return thing;
   }
 
 }
