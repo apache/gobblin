@@ -196,9 +196,9 @@ public class MRCompactorJobPropCreator {
               dataset.outputPath()));
       dataset.setJobProps(jobProps);
       return Optional.of(dataset);
+    } else {
+      return obtainDatasetWithJobProps (jobProps, dataset);
     }
-
-    return obtainDatasetWithJobProps (jobProps, dataset);
   }
 
   private void addInputLateFilesForFirstTimeCompaction(State jobProps, Dataset dataset) throws IOException {
@@ -227,7 +227,6 @@ public class MRCompactorJobPropCreator {
       addInputLateFilesForFirstTimeCompaction(jobProps, dataset);
     } else {
       Set<Path> newDataFiles = new HashSet<>();
-      Set<Path> newDataFilesInLatePath = new HashSet<>();
 
       if (renameSourceDirEnabled) {
         Set<Path> newUnrenamedDirs = MRCompactor.getDeepestLevelUnrenamedDirsWithFileExistence(this.fs, dataset.inputPaths());
@@ -235,17 +234,18 @@ public class MRCompactorJobPropCreator {
           LOG.info ("[{}] doesn't have unprocessed directories", dataset.getDatasetName());
           return Optional.absent();
         }
-        if (getAllFilePathsRecursively(newUnrenamedDirs).isEmpty()) {
+        Set<Path> allFiles = getAllFilePathsRecursively(newUnrenamedDirs);
+        if (allFiles.isEmpty()) {
           LOG.info ("[{}] has unprocessed directories but all empty: {}", dataset.getDatasetName(), newUnrenamedDirs);
           return Optional.absent();
         }
 
         dataset.setRenamePaths(newUnrenamedDirs);
-        newDataFiles.addAll(getAllFilePathsRecursively (newUnrenamedDirs));
+        newDataFiles.addAll(allFiles);
         LOG.info ("[{}] has unprocessed directories: {}", dataset.getDatasetName(), newUnrenamedDirs);
       } else {
         newDataFiles = getNewDataInFolder(dataset.inputPaths(), dataset.outputPath());
-        newDataFilesInLatePath = getNewDataInFolder(dataset.inputLatePaths(), dataset.outputPath());
+        Set<Path> newDataFilesInLatePath = getNewDataInFolder(dataset.inputLatePaths(), dataset.outputPath());
         newDataFiles.addAll(newDataFilesInLatePath);
         if (newDataFiles.isEmpty()) {
           return Optional.absent();

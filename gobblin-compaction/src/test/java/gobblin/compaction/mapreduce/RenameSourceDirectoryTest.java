@@ -77,6 +77,8 @@ public class RenameSourceDirectoryTest  {
         fs.delete(new Path(RENAME_SRC_DIR_RUN1_FILE), false);
         unRenamed = MRCompactor.getDeepestLevelUnrenamedDirsWithFileExistence(fs, inputPaths);
         Assert.assertEquals(unRenamed.size(), 4);
+
+        fs.delete(new Path(RENAME_SRC_DIR), true);
     }
 
     @Test
@@ -102,6 +104,8 @@ public class RenameSourceDirectoryTest  {
         fs.delete(new Path(RENAME_SRC_DIR_RUN1_FILE), false);
         renamed = MRCompactor.getDeepestLevelRenamedDirsWithFileExistence(fs, inputPaths);
         Assert.assertEquals(renamed.size(), 2);
+
+        fs.delete(new Path(RENAME_SRC_DIR), true);
     }
 
 
@@ -132,5 +136,7 @@ public class RenameSourceDirectoryTest  {
         Assert.assertEquals(fs.exists(new Path(RENAME_SRC_DIR_RUN1_DIR + "_COMPLETE/dummy")), true);
         Assert.assertEquals(fs.exists(new Path(RENAME_SRC_DIR_RUN2_DIR + "_COMPLETE/dummy")), true);
         Assert.assertEquals(fs.exists(new Path(RENAME_SRC_DIR_RUN3_DIR + "_COMPLETE/dummy")), true);
+
+        fs.delete(new Path(RENAME_SRC_DIR), true);
     }
 }
