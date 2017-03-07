@@ -140,13 +140,18 @@ public class Orchestrator implements SpecCatalogListener {
       }
 
       // Using the first mapping, we will evolve to be more fancy in selecting which executor to run on later
-      SpecExecutorInstanceProducer selectedExecutor = specExecutorInstanceMap.values().iterator().next();
-
-      // Run this spec on this executor
-      try {
-        selectedExecutor.addSpec(addedSpec).get();
-      } catch (InterruptedException | ExecutionException e) {
-        _log.error("Cannot successfully setup spec: " + addedSpec + " on executor: " + selectedExecutor);
+      // Schedule all compiled JobSpecs on their respective Executor
+      for (Map.Entry<Spec, SpecExecutorInstanceProducer> specsToExecute : specExecutorInstanceMap.entrySet()) {
+        // Run this spec on selected executor
+        SpecExecutorInstanceProducer producer = null;
+        try {
+          producer = specsToExecute.getValue();
+          Spec jobSpec = specsToExecute.getKey();
+          producer.addSpec(jobSpec);
+          // selectedExecutor.addSpec(addedSpec).get();
+        } catch(Exception e){
+          _log.error("Cannot successfully setup spec: " + addedSpec + " on executor: " + producer);
+        }
       }
     } else if (addedSpec instanceof TopologySpec) {
       this.specCompiler.onAddSpec(addedSpec);

@@ -36,7 +36,9 @@ public class DeleteJobConfigArrivalEvent {
   public DeleteJobConfigArrivalEvent(String jobName, Properties jobConfig) {
     this.jobName = jobName;
     this.jobConfig = new Properties();
-    this.jobConfig.putAll(jobConfig);
+    if (null != jobConfig) {
+      this.jobConfig.putAll(jobConfig);
+    }
   }
 
   /**

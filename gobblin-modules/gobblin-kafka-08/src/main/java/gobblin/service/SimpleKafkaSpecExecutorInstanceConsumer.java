@@ -20,19 +20,20 @@ package gobblin.service;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import gobblin.kafka.client.ByteArrayBasedKafkaRecord;
@@ -85,8 +86,8 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
   }
 
   @Override
-  public Future<? extends Map<Verb, Spec>> changedSpecs() {
-    Map<Verb, Spec> verbSpecMap = Maps.newHashMap();
+  public Future<? extends List<Pair<Verb, Spec>>> changedSpecs() {
+    List<Pair<Verb, Spec>> changesSpecs = new ArrayList<>();
     initializeWatermarks();
     this.currentPartitionIdx = -1;
     while (!allPartitionsFinished()) {
@@ -135,7 +136,8 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
                     + " or DecodeableKafkaRecord");
           }
           if (null == record._spec) {
-            verbSpecMap.put(record._verb, new Spec() {
+            changesSpecs.add(new ImmutablePair<Verb, Spec>(
+              record._verb, new Spec() {
               @Override
               public URI getUri() {
                 return record._uri;
@@ -150,9 +152,9 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
               public String getDescription() {
                 throw new UnsupportedOperationException();
               }
-            });
+            }));
           } else {
-            verbSpecMap.put(record._verb, record._spec);
+            changesSpecs.add(new ImmutablePair<Verb, Spec>(record._verb, record._spec));
           }
         } catch (Throwable t) {
           throw new RuntimeException(t);
@@ -160,7 +162,7 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
       }
     }
 
-    return new CompletedFuture(verbSpecMap, null);
+    return new CompletedFuture(changesSpecs, null);
   }
 
   private void initializeWatermarks() {

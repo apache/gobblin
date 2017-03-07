@@ -21,6 +21,7 @@ import java.io.File;
 import java.util.List;
 import java.util.Properties;
 
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,7 +118,7 @@ public class JobConfigurationManager extends AbstractIdleService {
     this.eventBus.post(new UpdateJobConfigArrivalEvent(jobName, jobConfig));
   }
 
-  protected void postDeleteJobConfigArrival(String jobName, Properties jobConfig) {
+  protected void postDeleteJobConfigArrival(String jobName, @Nullable Properties jobConfig) {
     LOGGER.info(String.format("Posting delete JobConfig with name: %s and config: %s", jobName, jobConfig));
     this.eventBus.post(new DeleteJobConfigArrivalEvent(jobName, jobConfig));
   }

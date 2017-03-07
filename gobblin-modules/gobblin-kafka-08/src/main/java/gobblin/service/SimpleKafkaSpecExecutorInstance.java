@@ -109,5 +109,10 @@ public class SimpleKafkaSpecExecutorInstance implements SpecExecutorInstance {
       _uri = uri;
       _spec = spec;
     }
+
+    @Override
+    public String toString() {
+      return String.format("Verb: %s, URI: %s, Spec: %s", _verb, _uri, _spec);
+    }
   }
 }

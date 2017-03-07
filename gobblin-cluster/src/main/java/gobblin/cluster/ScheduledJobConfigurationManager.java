@@ -19,6 +19,7 @@ package gobblin.cluster;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -27,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,10 +116,10 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
    * @throws InterruptedException
    */
   private void fetchJobSpecs() throws ExecutionException, InterruptedException {
-    Map<SpecExecutorInstance.Verb, Spec> consumedEvent =
-        (Map<SpecExecutorInstance.Verb, Spec>) this.specExecutorInstanceConsumer.changedSpecs().get();
+    List<Pair<SpecExecutorInstance.Verb, Spec>> changesSpecs =
+        (List<Pair<SpecExecutorInstance.Verb, Spec>>) this.specExecutorInstanceConsumer.changedSpecs().get();
 
-    for (Map.Entry<SpecExecutorInstance.Verb, Spec> entry : consumedEvent.entrySet()) {
+    for (Pair<SpecExecutorInstance.Verb, Spec> entry : changesSpecs) {
 
       SpecExecutorInstance.Verb verb = entry.getKey();
       if (verb.equals(SpecExecutorInstance.Verb.ADD)) {
