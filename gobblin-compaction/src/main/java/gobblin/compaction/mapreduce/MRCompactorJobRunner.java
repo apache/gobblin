@@ -142,6 +142,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   protected final boolean outputDeduplicated;
   protected final boolean recompactFromDestPaths;
   protected final boolean recompactAllData;
+  protected final boolean renameSourceDir;
   protected final boolean usePrimeReducers;
   protected final EventSubmitter eventSubmitter;
   private final RecordCountProvider inputRecordCountProvider;
@@ -164,6 +165,9 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         MRCompactor.COMPACTION_RECOMPACT_FROM_DEST_PATHS, MRCompactor.DEFAULT_COMPACTION_RECOMPACT_FROM_DEST_PATHS);
     this.recompactAllData = this.dataset.jobProps().getPropAsBoolean(
         MRCompactor.COMPACTION_RECOMPACT_ALL_DATA, MRCompactor.DEFAULT_COMPACTION_RECOMPACT_ALL_DATA);
+    this.renameSourceDir = this.dataset.jobProps().getPropAsBoolean(
+        MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED, MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
+
     Preconditions.checkArgument(this.dataset.jobProps().contains(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE),
         String.format("Missing property %s for dataset %s", MRCompactor.COMPACTION_SHOULD_DEDUPLICATE, this.dataset));
     this.shouldDeduplicate = this.dataset.jobProps().getPropAsBoolean(MRCompactor.COMPACTION_SHOULD_DEDUPLICATE);
@@ -274,7 +278,11 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
           return;
         }
       }
-      this.markOutputDirAsCompleted(compactionTimestamp);
+      if (renameSourceDir) {
+        MRCompactor.renameSourceDirAsCompactionCompete (this.fs, this.dataset);
+      } else {
+        this.markOutputDirAsCompleted(compactionTimestamp);
+      }
       this.submitRecordsCountsEvent();
     } catch (Throwable t) {
       throw Throwables.propagate(t);
