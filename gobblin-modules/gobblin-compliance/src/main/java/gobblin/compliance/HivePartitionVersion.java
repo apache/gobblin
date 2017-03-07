@@ -16,31 +16,31 @@
  */
 package gobblin.compliance;
 
-import java.io.IOException;
-import java.sql.SQLException;
+import org.apache.hadoop.hive.ql.metadata.Partition;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-
-import gobblin.util.WriterUtils;
-import gobblin.writer.DataWriter;
-import gobblin.writer.DataWriterBuilder;
+import gobblin.data.management.version.DatasetVersion;
 
 
 /**
- * Initializes {@link HivePurgerWriter} with {@link FileSystem} and {@link HivePurgerQueryExecutor}
+ * A class to represent version of a {@link HivePartitionDataset}
  *
  * @author adsharma
  */
-public class HivePurgerWriterBuilder extends DataWriterBuilder<ComplianceRecordSchema, ComplianceRecord> {
+public abstract class HivePartitionVersion extends HivePartitionDataset implements DatasetVersion, Comparable<HivePartitionVersion> {
+
+  public HivePartitionVersion(Partition partition) {
+    super(partition);
+  }
+
+  public HivePartitionVersion(HivePartitionDataset hivePartitionDataset) {
+    super(hivePartitionDataset);
+  }
 
   @Override
-  public DataWriter<ComplianceRecord> build()
-      throws IOException {
-    try {
-      return new HivePurgerWriter(WriterUtils.getWriterFS(this.destination.getProperties(), this.branches, this.branch), new HivePurgerQueryExecutor());
-    } catch (IOException | SQLException e) {
-      throw new IOException(e);
-    }
+  public String getVersion() {
+    return datasetURN();
   }
+
+  @Override
+  public abstract int compareTo(HivePartitionVersion hivePartitionDatasetVersion);
 }

@@ -14,17 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance.validation;
 
-apply plugin: 'java'
+import gobblin.dataset.Dataset;
 
-dependencies {
-  compile project(":gobblin-data-management")
-  compile project(":gobblin-modules:gobblin-azkaban")
+
+/**
+ * @author adsharma
+ */
+public interface ValidableDataset extends Dataset {
+  void validate();
 }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"
-

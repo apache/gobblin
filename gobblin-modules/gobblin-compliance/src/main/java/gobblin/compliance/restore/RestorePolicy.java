@@ -14,17 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance.restore;
 
-apply plugin: 'java'
+import java.io.IOException;
 
-dependencies {
-  compile project(":gobblin-data-management")
-  compile project(":gobblin-modules:gobblin-azkaban")
+
+/**
+ * @author adsharma
+ */
+public interface RestorePolicy<T> {
+  T getDatasetToRestore(T dataset)
+      throws IOException;
 }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"
-

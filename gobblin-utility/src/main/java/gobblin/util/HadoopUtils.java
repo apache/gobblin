@@ -29,25 +29,12 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.Properties;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Queues;
-import com.google.common.io.BaseEncoding;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValue;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -62,6 +49,19 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Queues;
+import com.google.common.io.BaseEncoding;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
@@ -871,5 +871,45 @@ public class HadoopUtils {
    */
   public static Path sanitizePath(Path path, String substitute) {
     return new Path(sanitizePath(path.toString(), substitute));
+  }
+
+  /**
+   * Try to set owner and permissions for the path. Will not throw exception.
+   */
+  public static void setPermissions(Path location, Optional<String> owner, Optional<String> group, FileSystem fs,
+      FsPermission permission) {
+    try {
+      if (!owner.isPresent()) {
+        return;
+      }
+      if (!group.isPresent()) {
+        return;
+      }
+      fs.setOwner(location, owner.get(), group.get());
+      fs.setPermission(location, permission);
+      if (!fs.isDirectory(location)) {
+        return;
+      }
+      for (FileStatus fileStatus : fs.listStatus(location)) {
+        setPermissions(fileStatus.getPath(), owner, group, fs, permission);
+      }
+    } catch (IOException e) {
+      log.warn("Exception occurred while trying to change permissions : " + e.getMessage());
+    }
+  }
+
+  public static boolean hasContent(FileSystem fs, Path path)
+      throws IOException {
+    if (!fs.isDirectory(path)) {
+      return true;
+    }
+    boolean content = false;
+    for (FileStatus fileStatus : fs.listStatus(path)) {
+      content = content || hasContent(fs, fileStatus.getPath());
+      if (content) {
+        break;
+      }
+    }
+    return content;
   }
 }

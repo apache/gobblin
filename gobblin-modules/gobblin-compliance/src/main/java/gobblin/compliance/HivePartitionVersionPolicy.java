@@ -16,41 +16,20 @@
  */
 package gobblin.compliance;
 
-import java.util.Collection;
-
 import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.publisher.DataPublisher;
 
 
 /**
- * The Publisher moves COMMITTED WorkUnitState to SUCCESSFUL, otherwise FAILED.
+ * Abstract class for selection policies corresponding to {@link HivePartitionVersion}
  *
  * @author adsharma
  */
-public class HivePurgerPublisher extends DataPublisher {
-  public HivePurgerPublisher(State state) {
-    super(state);
-  }
+public abstract class HivePartitionVersionPolicy implements Policy<HivePartitionVersion> {
+  protected State state;
+  protected HivePartitionDataset dataset;
 
-  public void initialize() {
-  }
-
-  @Override
-  public void publishData(Collection<? extends WorkUnitState> states) {
-    for (WorkUnitState state : states) {
-      if (state.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL) {
-        state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-      } else {
-        state.setWorkingState(WorkUnitState.WorkingState.FAILED);
-      }
-    }
-  }
-
-  public void publishMetadata(Collection<? extends WorkUnitState> states) {
-  }
-
-  @Override
-  public void close() {
+  public HivePartitionVersionPolicy(State state, HivePartitionDataset dataset) {
+    this.state = new State(state);
+    this.dataset = dataset;
   }
 }

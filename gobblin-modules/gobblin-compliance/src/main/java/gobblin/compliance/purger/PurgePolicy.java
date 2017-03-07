@@ -14,17 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance.purger;
 
-apply plugin: 'java'
-
-dependencies {
-  compile project(":gobblin-data-management")
-  compile project(":gobblin-modules:gobblin-azkaban")
+/**
+ * @author adsharma
+ */
+public interface PurgePolicy<T> {
+  boolean shouldPurge(T dataset);
 }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"
-

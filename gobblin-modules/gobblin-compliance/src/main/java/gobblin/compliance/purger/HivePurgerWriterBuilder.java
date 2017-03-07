@@ -14,35 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package gobblin.compliance.purger;
 
-import java.sql.SQLException;
-import java.util.List;
+import java.io.IOException;
 
-import gobblin.util.HiveJdbcConnector;
+import gobblin.writer.DataWriter;
+import gobblin.writer.DataWriterBuilder;
 
 
 /**
- * This class is responsible for executing Hive queries by initializing {@link HiveJdbcConnector}
+ * Initializes {@link HivePurgerWriter}
  *
  * @author adsharma
  */
-public class HivePurgerQueryExecutor {
-  private final HiveJdbcConnector hiveJdbcConnector;
-  private static final int HIVE_SERVER_VERSION = 2;
-
-  public HivePurgerQueryExecutor()
-      throws SQLException {
-    this.hiveJdbcConnector = HiveJdbcConnector.newEmbeddedConnector(HIVE_SERVER_VERSION);
-  }
-
-  public void executeQueries(List<String> queries)
-      throws SQLException {
-    this.hiveJdbcConnector.executeStatements(queries.toArray(new String[queries.size()]));
-  }
-
-  public void executeQuery(String query)
-      throws SQLException {
-    this.hiveJdbcConnector.executeStatements(query);
+public class HivePurgerWriterBuilder extends DataWriterBuilder<PurgeableHivePartitionDatasetSchema, PurgeableHivePartitionDataset> {
+  @Override
+  public DataWriter<PurgeableHivePartitionDataset> build()
+      throws IOException {
+    return new HivePurgerWriter();
   }
 }

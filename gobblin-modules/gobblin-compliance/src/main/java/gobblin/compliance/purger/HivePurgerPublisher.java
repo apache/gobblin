@@ -14,29 +14,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package gobblin.compliance.purger;
 
-import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.Test;
+import java.util.Collection;
 
+import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
+import gobblin.publisher.DataPublisher;
 
 
-@Test
-public class HivePurgerConverterTest {
-  private WorkUnitState stateMock = Mockito.mock(WorkUnitState.class);
-  private ComplianceRecordSchema schemaMock = Mockito.mock(ComplianceRecordSchema.class);
-  private HivePurgerConverter hivePurgerConverterMock = Mockito.mock(HivePurgerConverter.class);
-  private ComplianceRecord recordMock = Mockito.mock(ComplianceRecord.class);
-
-  @BeforeTest
-  public void initialize() {
-    Mockito.doCallRealMethod().when(this.hivePurgerConverterMock).convertSchema(this.schemaMock, this.stateMock);
+/**
+ * The Publisher moves COMMITTED WorkUnitState to SUCCESSFUL, otherwise FAILED.
+ *
+ * @author adsharma
+ */
+public class HivePurgerPublisher extends DataPublisher {
+  public HivePurgerPublisher(State state) {
+    super(state);
   }
 
-  public void convertSchemaTest() {
-    Assert.assertNotNull(this.hivePurgerConverterMock.convertSchema(this.schemaMock, this.stateMock));
+  public void initialize() {
+  }
+
+  @Override
+  public void publishData(Collection<? extends WorkUnitState> states) {
+    for (WorkUnitState state : states) {
+      if (state.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL) {
+        state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+      } else {
+        state.setWorkingState(WorkUnitState.WorkingState.FAILED);
+      }
+    }
+  }
+
+  public void publishMetadata(Collection<? extends WorkUnitState> states) {
+  }
+
+  @Override
+  public void close() {
   }
 }

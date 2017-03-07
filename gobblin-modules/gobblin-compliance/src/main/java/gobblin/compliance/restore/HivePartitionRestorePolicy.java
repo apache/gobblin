@@ -14,17 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance.restore;
 
-apply plugin: 'java'
+import gobblin.compliance.HivePartitionDataset;
+import gobblin.configuration.State;
 
-dependencies {
-  compile project(":gobblin-data-management")
-  compile project(":gobblin-modules:gobblin-azkaban")
+
+/**
+ * An abstract class for Restore policy for {@link HivePartitionDataset}
+ *
+ * @author adsharma
+ */
+public abstract class HivePartitionRestorePolicy implements RestorePolicy<HivePartitionDataset> {
+  protected State state;
+
+  public HivePartitionRestorePolicy(State state) {
+    this.state = new State(state);
+  }
 }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"
-

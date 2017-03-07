@@ -14,17 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance;
 
-apply plugin: 'java'
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.List;
 
-dependencies {
-  compile project(":gobblin-data-management")
-  compile project(":gobblin-modules:gobblin-azkaban")
+
+/**
+ * @author adsharma
+ */
+public interface QueryExecutor {
+  void executeQuery(String query)
+      throws IOException, SQLException;
+
+  void executeQueries(List<String> query)
+      throws IOException, SQLException;
 }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"
-
