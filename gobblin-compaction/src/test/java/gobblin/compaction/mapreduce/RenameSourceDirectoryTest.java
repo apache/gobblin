@@ -22,7 +22,7 @@ import java.util.Set;
  * Test for directory renaming strategy
  * {@link MRCompactor#getDeepestLevelRenamedDirsWithFileExistence(FileSystem, Set)}
  * {@link MRCompactor#getDeepestLevelUnrenamedDirsWithFileExistence(FileSystem, Set)}
- * {@link MRCompactor#renameSourceDirAsCompactionCompete(FileSystem, Dataset)}
+ * {@link MRCompactor#renameSourceDirAsCompactionComplete(FileSystem, Dataset)}
  */
 @Test(groups = { "gobblin.compaction.mapreduce" })
 public class RenameSourceDirectoryTest  {
@@ -131,7 +131,7 @@ public class RenameSourceDirectoryTest  {
         Set<Path> unrenamed = MRCompactor.getDeepestLevelUnrenamedDirsWithFileExistence(fs, inputPaths);
         Assert.assertEquals(unrenamed.size(), 3);
         when(dataset.getRenamePaths()).thenReturn(unrenamed);
-        MRCompactor.renameSourceDirAsCompactionCompete(fs, dataset);
+        MRCompactor.renameSourceDirAsCompactionComplete(fs, dataset);
 
         Assert.assertEquals(fs.exists(new Path(RENAME_SRC_DIR_RUN1_DIR + "_COMPLETE/dummy")), true);
         Assert.assertEquals(fs.exists(new Path(RENAME_SRC_DIR_RUN2_DIR + "_COMPLETE/dummy")), true);

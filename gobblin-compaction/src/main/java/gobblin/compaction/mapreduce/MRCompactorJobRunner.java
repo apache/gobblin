@@ -279,7 +279,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         }
       }
       if (renameSourceDir) {
-        MRCompactor.renameSourceDirAsCompactionCompete (this.fs, this.dataset);
+        MRCompactor.renameSourceDirAsCompactionComplete (this.fs, this.dataset);
       } else {
         this.markOutputDirAsCompleted(compactionTimestamp);
       }

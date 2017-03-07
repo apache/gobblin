@@ -574,7 +574,7 @@ public class MRCompactor implements Compactor {
   /**
    * Rename all the source directories for a specific dataset
    */
-  public static void renameSourceDirAsCompactionCompete (FileSystem fs, Dataset dataset) {
+  public static void renameSourceDirAsCompactionComplete (FileSystem fs, Dataset dataset) {
     try {
       for (Path path: dataset.getRenamePaths()) {
         Path newPath = new Path (path.getParent(), path.getName() + MRCompactor.COMPACTION_RENAME_SOURCE_DIR_SUFFIX);
@@ -608,13 +608,13 @@ public class MRCompactor implements Compactor {
    *    {@link MRCompactor#COMPACTION_RENAME_SOURCE_DIR_SUFFIX}.
    */
   private static boolean checkAlreadyCompactedBasedOnSourceDirName (FileSystem fs, Dataset dataset) {
-      try {
-        Set<Path> renamedDirs = getDeepestLevelRenamedDirsWithFileExistence(fs, dataset.inputPaths());
-        return !renamedDirs.isEmpty();
-      } catch (IOException e) {
-        LOG.error("Failed to get deepest directories from source", e);
-        return false;
-      }
+    try {
+      Set<Path> renamedDirs = getDeepestLevelRenamedDirsWithFileExistence(fs, dataset.inputPaths());
+      return !renamedDirs.isEmpty();
+    } catch (IOException e) {
+      LOG.error("Failed to get deepest directories from source", e);
+      return false;
+    }
   }
 
  /**
