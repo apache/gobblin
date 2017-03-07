@@ -19,9 +19,19 @@ package gobblin.converter.serde;
 
 import java.io.IOException;
 
+import java.util.List;
+import org.apache.avro.Schema;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.ql.io.IOConstants;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.io.Writable;
 
 import com.google.common.base.Throwables;
@@ -74,8 +84,9 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
     try {
       this.serializer = HiveSerDeWrapper.getSerializer(state).getSerDe();
       this.deserializer = HiveSerDeWrapper.getDeserializer(state).getSerDe();
-      this.serializer.initialize(conf, state.getProperties());
       this.deserializer.initialize(conf, state.getProperties());
+      setColumnsIfPossible(state);
+      this.serializer.initialize(conf, state.getProperties());
     } catch (IOException e) {
       log.error("Failed to instantiate serializer and deserializer", e);
       throw Throwables.propagate(e);
@@ -85,6 +96,17 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
     }
 
     return this;
+  }
+
+  private void setColumnsIfPossible(WorkUnitState state)
+      throws SerDeException {
+    AvroObjectInspectorGenerator aoig = new AvroObjectInspectorGenerator(
+        AvroSerdeUtils.determineSchemaOrReturnErrorSchema(state.getProperties()));
+    List<String> columnNames = aoig.getColumnNames();
+    List<TypeInfo> columnTypes = aoig.getColumnTypes();
+
+    state.setProp(IOConstants.COLUMNS, StringUtils.join(columnNames, ","));
+    state.setProp(IOConstants.COLUMNS_TYPES, StringUtils.join(columnTypes, ","));
   }
 
   @Override

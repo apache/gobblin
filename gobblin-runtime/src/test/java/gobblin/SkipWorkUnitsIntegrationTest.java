@@ -16,16 +16,12 @@
  */
 package gobblin;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
 
-import org.apache.commons.io.FileUtils;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
-
-import gobblin.runtime.local.LocalJobLauncher;
 
 
 /**
@@ -33,33 +29,13 @@ import gobblin.runtime.local.LocalJobLauncher;
  *
  * Created by adsharma on 11/22/16.
  */
-public class GobblinRuntimeTest {
-  private static final String RESOURCE_DIR = "./gobblin-runtime/src/test/resources/runtime_test/";
-
-  public void invokeLocalJobLauncher(Properties properties)
-      throws Exception {
-    try (LocalJobLauncher localJobLauncher = new LocalJobLauncher(properties)) {
-      localJobLauncher.launchJob(null);
-    }
-  }
-
-  public Properties getJobProperties(String fileProperties)
-      throws IOException {
-    Properties jobProperties = new Properties();
-    jobProperties.load(getClass().getClassLoader().getResourceAsStream(fileProperties));
-    return jobProperties;
-  }
+public class SkipWorkUnitsIntegrationTest {
 
   @BeforeTest
   @AfterTest
   public void cleanDir()
       throws IOException {
-    FileUtils.forceMkdir(new File(RESOURCE_DIR + "state_store"));
-    FileUtils.forceMkdir(new File(RESOURCE_DIR + "writer_staging"));
-    FileUtils.forceMkdir(new File(RESOURCE_DIR + "writer_output"));
-    FileUtils.cleanDirectory(new File(RESOURCE_DIR + "state_store"));
-    FileUtils.cleanDirectory(new File(RESOURCE_DIR + "writer_staging"));
-    FileUtils.cleanDirectory(new File(RESOURCE_DIR + "writer_output"));
+    GobblinLocalJobLauncherUtils.cleanDir();
   }
 
   /**
@@ -69,9 +45,10 @@ public class GobblinRuntimeTest {
   @Test
   public void testSkippedWorkUnitsAvoidPublisher()
       throws Exception {
-    Properties jobProperties = getJobProperties("runtime_test/skip_workunits_test.properties");
+    Properties jobProperties =
+        GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
     jobProperties.setProperty("data.publisher.type", "gobblin.TestSkipWorkUnitsPublisher");
-    invokeLocalJobLauncher(jobProperties);
+    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
   }
 
   /**
@@ -81,9 +58,10 @@ public class GobblinRuntimeTest {
   @Test
   public void testJobSuccessOnFullCommit()
       throws Exception {
-    Properties jobProperties = getJobProperties("runtime_test/skip_workunits_test.properties");
+    Properties jobProperties =
+        GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
     jobProperties.setProperty("job.commit.policy", "full");
-    invokeLocalJobLauncher(jobProperties);
+    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
   }
 
   /**
@@ -93,9 +71,10 @@ public class GobblinRuntimeTest {
   @Test
   public void testSkippedWorkUnitsPersistenceInStateStore()
       throws Exception {
-    Properties jobProperties = getJobProperties("runtime_test/skip_workunits_test.properties");
-    invokeLocalJobLauncher(jobProperties);
+    Properties jobProperties =
+        GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
+    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
     jobProperties.setProperty("test.workunit.persistence", "true");
-    invokeLocalJobLauncher(jobProperties);
+    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
   }
 }

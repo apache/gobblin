@@ -65,6 +65,7 @@ dependencies {
   compile externalDependency.kafka08
   compile externalDependency.scala
   compile externalDependency.guavaretrying
+  compile externalDependency.hiveExec
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile externalDependency.calciteCore
