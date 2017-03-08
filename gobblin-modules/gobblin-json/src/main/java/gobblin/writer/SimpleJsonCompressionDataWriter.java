@@ -24,6 +24,8 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -45,6 +47,8 @@ public class SimpleJsonCompressionDataWriter extends FsDataWriter<JsonElement> {
   private int recordsWritten;
   private int bytesWritten;
   private Optional<String> codecName;
+  static final Charset CHARSET = StandardCharsets.UTF_8;
+
 
   private final OutputStream stagingFileOutputStream;
 
@@ -92,7 +96,7 @@ public class SimpleJsonCompressionDataWriter extends FsDataWriter<JsonElement> {
     Preconditions.checkNotNull(record);
 
     byte[] toWrite;
-    byte[] recordBytes = record.toString().getBytes();
+    byte[] recordBytes = record.toString().getBytes(CHARSET);
 
     if (this.recordDelimiter.isPresent()) {
       toWrite = Arrays.copyOf(recordBytes, recordBytes.length + 1);

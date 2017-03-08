@@ -44,7 +44,7 @@ public class TimeBasedJsonWriterPartitioner extends TimeBasedWriterPartitioner<J
 
   private final Optional<List<String>> partitionColumns;
   private final boolean isUnixTimestamp;
-  private final int UNIX_TIMESTAMP_MULTIPLIER = 1000;
+  private final static int UNIX_TIMESTAMP_MULTIPLIER = 1000;
 
   public TimeBasedJsonWriterPartitioner(State state) {
     this(state, 1, 0);
