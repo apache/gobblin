@@ -165,17 +165,6 @@ public interface StateStore<T extends State> {
       throws IOException;
 
   /**
-   * Create an alias for an existing table.
-   *
-   * @param storeName store name
-   * @param original original table name
-   * @param alias alias table name
-   * @throws IOException
-   */
-  public void createAlias(String storeName, String original, String alias)
-      throws IOException;
-
-  /**
    * Delete a table from a store.
    *
    * @param storeName store name

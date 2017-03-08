@@ -25,6 +25,7 @@ import gobblin.metastore.MysqlStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.metastore.testing.ITestMetastoreDatabase;
 import gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.util.Map;
@@ -105,16 +106,12 @@ public class MysqlDatasetStateStoreTest {
       jobState.addTaskState(taskState);
     }
 
-    dbJobStateStore.put(TEST_JOB_NAME,
-        MysqlDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + MysqlDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
-        jobState);
+    dbJobStateStore.put(TEST_JOB_NAME, "TestJob0", jobState);
   }
 
   @Test(dependsOnMethods = "testPersistJobState")
   public void testGetJobState() throws IOException {
-    JobState jobState = dbJobStateStore.get(TEST_JOB_NAME,
-        dbDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + dbDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
-        TEST_JOB_ID);
+    JobState jobState = dbJobStateStore.get(TEST_JOB_NAME, StateStoreTableInfo.CURRENT_NAME, TEST_JOB_ID);
 
     Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
@@ -158,8 +155,7 @@ public class MysqlDatasetStateStoreTest {
 
   @Test(dependsOnMethods = "testPersistDatasetState")
   public void testGetDatasetState() throws IOException {
-    JobState.DatasetState datasetState =
-        dbDatasetStateStore.getLatestDatasetState(TEST_JOB_NAME, TEST_DATASET_URN);
+    JobState.DatasetState datasetState = dbDatasetStateStore.getLatestDatasetState(TEST_JOB_NAME, TEST_DATASET_URN);
 
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
@@ -197,18 +193,14 @@ public class MysqlDatasetStateStoreTest {
 
   @Test(dependsOnMethods = "testGetPreviousDatasetStatesByUrns")
   public void testDeleteJobState() throws IOException {
-    JobState jobState = dbJobStateStore.get(TEST_JOB_NAME,
-        dbDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + dbDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
-        TEST_JOB_ID);
+    JobState jobState = dbJobStateStore.get(TEST_JOB_NAME, StateStoreTableInfo.CURRENT_NAME, TEST_JOB_ID);
 
     Assert.assertNotNull(jobState);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
 
     dbJobStateStore.delete(TEST_JOB_NAME);
 
-    jobState = dbJobStateStore.get(TEST_JOB_NAME,
-        dbDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + dbDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
-        TEST_JOB_ID);
+    jobState = dbJobStateStore.get(TEST_JOB_NAME, StateStoreTableInfo.CURRENT_NAME, TEST_JOB_ID);
 
     Assert.assertNull(jobState);
   }
@@ -216,8 +208,7 @@ public class MysqlDatasetStateStoreTest {
   @Test(dependsOnMethods = "testGetPreviousDatasetStatesByUrns")
   public void testDeleteDatasetJobState() throws IOException {
     JobState.DatasetState datasetState = dbDatasetStateStore.get(TEST_JOB_NAME,
-        TEST_DATASET_URN + "-" + dbDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX +
-            dbDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX, TEST_DATASET_URN);
+        TEST_DATASET_URN + "-" + StateStoreTableInfo.CURRENT_NAME, TEST_DATASET_URN);
 
     Assert.assertNotNull(datasetState);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
@@ -225,8 +216,7 @@ public class MysqlDatasetStateStoreTest {
     dbDatasetStateStore.delete(TEST_JOB_NAME);
 
     datasetState = dbDatasetStateStore.get(TEST_JOB_NAME,
-        TEST_DATASET_URN + "-" + dbDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX +
-            dbDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX, TEST_DATASET_URN);
+        TEST_DATASET_URN + "-" + StateStoreTableInfo.CURRENT_NAME, TEST_DATASET_URN);
 
     Assert.assertNull(datasetState);
   }

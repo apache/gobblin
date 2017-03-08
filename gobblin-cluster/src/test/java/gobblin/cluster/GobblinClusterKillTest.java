@@ -22,6 +22,7 @@ import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.testing.AssertWithBackoff;
 import java.io.File;
 import java.io.IOException;
@@ -107,9 +108,11 @@ public class GobblinClusterKillTest {
    */
   private void setupManager(int id) throws Exception {
     _clusterManagers[id] =
-        new GobblinClusterManager(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_APPLICATION_ID,
-            _config.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
-                ConfigValueFactory.fromAnyRef("Manager_" + id)),
+        new GobblinClusterManager(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_APPLICATION_ID, _config
+            .withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+                ConfigValueFactory.fromAnyRef("Manager_" + id))
+            .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
+                ConfigValueFactory.fromAnyRef(_testDirPath)),
             Optional.of(new Path(_config.getString("gobblin.cluster.work.dir"))));
 
     _clusterManagers[id].start();
@@ -147,7 +150,7 @@ public class GobblinClusterKillTest {
 
     _config = ConfigFactory.parseURL(url)
         .withValue("gobblin.cluster.zk.connection.string",
-                   ConfigValueFactory.fromAnyRef(_testingZKServer.getConnectString()))
+             ConfigValueFactory.fromAnyRef(_testingZKServer.getConnectString()))
         .resolve();
 
     String zkConnectionString = _config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);

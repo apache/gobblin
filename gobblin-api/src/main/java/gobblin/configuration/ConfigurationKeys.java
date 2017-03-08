@@ -198,6 +198,12 @@ public class ConfigurationKeys {
   public static final String DATASET_URN_KEY = "dataset.urn";
   public static final String DEFAULT_DATASET_URN = "";
 
+  // The unique id of the dataset state file
+  public static final String DATASET_STATE_ID_KEY = "dataset.state.id";
+  public static final String DEFAULT_DATASET_STATE_ID = "";
+
+  public static final String PREVIOUS_STATE_ID_KEY = "previous.state.id";
+
   /**
    * Work unit related configuration properties.
    */

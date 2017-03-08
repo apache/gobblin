@@ -24,7 +24,10 @@ import static org.mockito.Mockito.verify;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
+import gobblin.configuration.ConfigurationKeys;
 import gobblin.runtime.JobState.RunningState;
 import gobblin.runtime.api.JobExecutionState;
 import gobblin.runtime.api.JobExecutionStateListener;
@@ -37,8 +40,14 @@ import gobblin.runtime.api.JobSpec;
 public class TestFilteredJobLifecycleListener {
 
   @Test public void testSimple() {
-    JobSpec js1_1 = JobSpec.builder("gobblin:/testSimple/job1").withVersion("1").build();
-    JobSpec js1_2 = JobSpec.builder("gobblin:/testSimple/job1").withVersion("2").build();
+    JobSpec js1_1 = JobSpec.builder("gobblin:/testSimple/job1").withVersion("1")
+        .withConfig(ConfigFactory.empty()
+            .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("TestJob")))
+        .build();
+    JobSpec js1_2 = JobSpec.builder("gobblin:/testSimple/job1").withVersion("2")
+        .withConfig(ConfigFactory.empty()
+            .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("TestJob")))
+        .build();
 
     JobLifecycleListener mockListener = mock(JobLifecycleListener.class);
 

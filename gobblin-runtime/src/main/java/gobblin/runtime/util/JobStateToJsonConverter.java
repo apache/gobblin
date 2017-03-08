@@ -44,6 +44,7 @@ import com.google.gson.stream.JsonWriter;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metastore.StateStore;
+import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.runtime.FsDatasetStateStore;
 import gobblin.runtime.JobState;
 import gobblin.util.JobConfigurationUtils;
@@ -57,8 +58,6 @@ import gobblin.util.JobConfigurationUtils;
 public class JobStateToJsonConverter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobStateToJsonConverter.class);
-
-  private static final String JOB_STATE_STORE_TABLE_SUFFIX = ".jst";
 
   private final StateStore<? extends JobState> jobStateStore;
   private final boolean keepConfig;
@@ -82,7 +81,7 @@ public class JobStateToJsonConverter {
    * @throws IOException
    */
   public void convert(String jobName, String jobId, Writer writer) throws IOException {
-    List<? extends JobState> jobStates = this.jobStateStore.getAll(jobName, jobId + JOB_STATE_STORE_TABLE_SUFFIX);
+    List<? extends JobState> jobStates = this.jobStateStore.getAll(jobName, StateStoreTableInfo.CURRENT_NAME);
     if (jobStates.isEmpty()) {
       LOGGER.warn(String.format("No job state found for job with name %s and id %s", jobName, jobId));
       return;

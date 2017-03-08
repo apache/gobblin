@@ -27,9 +27,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -43,9 +43,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
+import com.google.common.util.concurrent.AbstractIdleService;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.HadoopUtils;
 
 
 /**
@@ -54,7 +56,7 @@ import gobblin.util.ExecutorsUtils;
  *
  * @author Yinan Li
  */
-public class StateStoreCleaner implements Closeable {
+public class StateStoreCleaner extends AbstractIdleService implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(StateStoreCleaner.class);
 
@@ -64,12 +66,16 @@ public class StateStoreCleaner implements Closeable {
   private static final String DEFAULT_STATE_STORE_CLEANER_RETENTION_TIMEUNIT = TimeUnit.DAYS.toString();
   private static final String STATE_STORE_CLEANER_EXECUTOR_THREADS_KEY = "state.store.cleaner.executor.threads";
   private static final String DEFAULT_STATE_STORE_CLEANER_EXECUTOR_THREADS = "50";
+  private static final String STATE_STORE_CLEANER_INTERVAL_IN_MINUTES_KEY = "state.store.cleaner.interval.minutes";
+  private static final String DEFAULT_STATE_STORE_CLEANER_INTERVAL_IN_MINUTES = "15";
 
+  private final ScheduledExecutorService scheduledExecutor;
   private final Path stateStoreRootDir;
   private final long retention;
   private final TimeUnit retentionTimeUnit;
   private final ExecutorService cleanerRunnerExecutor;
   private final FileSystem fs;
+  private final long cleanerIntervalInMinutes;
 
   public StateStoreCleaner(Properties properties) throws IOException {
     Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY),
@@ -82,6 +88,11 @@ public class StateStoreCleaner implements Closeable {
     this.retentionTimeUnit = TimeUnit.valueOf(properties.getProperty(STATE_STORE_CLEANER_RETENTION_TIMEUNIT_KEY,
         DEFAULT_STATE_STORE_CLEANER_RETENTION_TIMEUNIT).toUpperCase());
 
+    this.cleanerIntervalInMinutes = Long.parseLong(properties.getProperty(
+            STATE_STORE_CLEANER_INTERVAL_IN_MINUTES_KEY, DEFAULT_STATE_STORE_CLEANER_INTERVAL_IN_MINUTES));
+    this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor(
+        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("StateStoreCleanerScheduler")));
+
     this.cleanerRunnerExecutor = Executors.newFixedThreadPool(
         Integer.parseInt(properties.getProperty(
             STATE_STORE_CLEANER_EXECUTOR_THREADS_KEY, DEFAULT_STATE_STORE_CLEANER_EXECUTOR_THREADS)),
@@ -89,7 +100,30 @@ public class StateStoreCleaner implements Closeable {
 
     URI fsUri = URI.create(properties.getProperty(
         ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
-    this.fs = FileSystem.get(fsUri, new Configuration());
+    this.fs = FileSystem.get(fsUri, HadoopUtils.getConfFromProperties(properties));
+  }
+
+  @Override
+  protected void startUp() throws Exception {
+    LOGGER.info("Starting the " + StateStoreCleaner.class.getSimpleName());
+    LOGGER.info(String.format("Scheduling the state store cleaner task with an interval of %d minute(s)",
+        this.cleanerIntervalInMinutes));
+
+    this.scheduledExecutor.scheduleAtFixedRate(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          StateStoreCleaner.this.run();
+        } catch (IOException | ExecutionException e) {
+          LOGGER.error("Failed to cleanup state store", e);
+        }
+      }
+    }, 0, this.cleanerIntervalInMinutes, TimeUnit.MINUTES);
+  }
+
+  @Override
+  protected void shutDown() throws Exception {
+    this.close();
   }
 
   /**
@@ -97,33 +131,36 @@ public class StateStoreCleaner implements Closeable {
    * @throws ExecutionException
    */
   public void run() throws IOException, ExecutionException {
-    FileStatus[] stateStoreDirs = this.fs.listStatus(this.stateStoreRootDir);
-    if (stateStoreDirs == null || stateStoreDirs.length == 0) {
-      LOGGER.warn("The state store root directory does not exist or is empty");
-      return;
-    }
+    if (this.fs.exists(this.stateStoreRootDir)) {
+      FileStatus[] stateStoreDirs = this.fs.listStatus(this.stateStoreRootDir);
+      if (stateStoreDirs == null || stateStoreDirs.length == 0) {
+        LOGGER.warn("The state store root directory does not exist or is empty");
+        return;
+      }
 
-    List<Future<?>> futures = Lists.newArrayList();
+      List<Future<?>> futures = Lists.newArrayList();
 
-    for (FileStatus stateStoreDir : stateStoreDirs) {
-      futures.add(this.cleanerRunnerExecutor.submit(new CleanerRunner(this.fs, stateStoreDir.getPath(), this.retention,
-          this.retentionTimeUnit)));
-    }
+      for (FileStatus stateStoreDir : stateStoreDirs) {
+        futures.add(this.cleanerRunnerExecutor.submit(new CleanerRunner(this.fs, stateStoreDir.getPath(), this.retention,
+            this.retentionTimeUnit)));
+      }
 
-    for (Future<?> future : futures) {
-      try {
-        future.get();
-      } catch (InterruptedException e) {
-        throw new ExecutionException("Thread interrupted", e);
+      for (Future<?> future : futures) {
+        try {
+          future.get();
+        } catch (InterruptedException e) {
+          throw new ExecutionException("Thread interrupted", e);
+        }
       }
     }
-
-    ExecutorsUtils.shutdownExecutorService(cleanerRunnerExecutor, Optional.of(LOGGER), 60, TimeUnit.SECONDS);
   }
 
   @Override
   public void close() throws IOException {
-    this.cleanerRunnerExecutor.shutdown();
+      LOGGER.info("Closing the " + StateStoreCleaner.class.getSimpleName());
+
+      ExecutorsUtils.shutdownExecutorService(this.scheduledExecutor, Optional.of(LOGGER), 60, TimeUnit.SECONDS);
+      ExecutorsUtils.shutdownExecutorService(this.cleanerRunnerExecutor, Optional.of(LOGGER), 60, TimeUnit.SECONDS);
   }
 
   private static class StateStoreFileFilter implements PathFilter {

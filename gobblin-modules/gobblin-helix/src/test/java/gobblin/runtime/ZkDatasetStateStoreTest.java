@@ -24,6 +24,7 @@ import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.StateStore;
 import gobblin.metastore.ZkStateStore;
 import gobblin.metastore.ZkStateStoreConfigurationKeys;
+import gobblin.metastore.util.StateStoreTableInfo;
 import gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.util.Map;
@@ -56,7 +57,8 @@ public class ZkDatasetStateStoreTest {
   public void setUp() throws Exception {
     ConfigBuilder configBuilder = ConfigBuilder.create();
     testingServer = new TestingServer(-1);
-    zkJobStateStore = new ZkStateStore<>(testingServer.getConnectString(), "/STATE_STORE/TEST", false, JobState.class);
+    zkJobStateStore = new ZkStateStore<>(testingServer.getConnectString(), "/STATE_STORE/TEST", false,
+            JobState.class);
 
     configBuilder.addPrimitive(ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY,
         testingServer.getConnectString());
@@ -93,16 +95,12 @@ public class ZkDatasetStateStoreTest {
       jobState.addTaskState(taskState);
     }
 
-    zkJobStateStore.put(TEST_JOB_NAME,
-        ZkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + ZkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
-        jobState);
+    zkJobStateStore.put(TEST_JOB_NAME, "TestJob0", jobState);
   }
 
   @Test(dependsOnMethods = "testPersistJobState")
   public void testGetJobState() throws IOException {
-    JobState jobState = zkJobStateStore.get(TEST_JOB_NAME,
-        zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + zkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
-        TEST_JOB_ID);
+    JobState jobState = zkJobStateStore.get(TEST_JOB_NAME, StateStoreTableInfo.CURRENT_NAME, TEST_JOB_ID);
 
     Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
@@ -185,18 +183,14 @@ public class ZkDatasetStateStoreTest {
 
   @Test(dependsOnMethods = "testGetPreviousDatasetStatesByUrns")
   public void testDeleteJobState() throws IOException {
-    JobState jobState = zkJobStateStore.get(TEST_JOB_NAME,
-        zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + zkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
-        TEST_JOB_ID);
+    JobState jobState = zkJobStateStore.get(TEST_JOB_NAME, StateStoreTableInfo.CURRENT_NAME, TEST_JOB_ID);
 
     Assert.assertNotNull(jobState);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
 
     zkJobStateStore.delete(TEST_JOB_NAME);
 
-    jobState = zkJobStateStore.get(TEST_JOB_NAME,
-        zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + zkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
-        TEST_JOB_ID);
+    jobState = zkJobStateStore.get(TEST_JOB_NAME, StateStoreTableInfo.CURRENT_NAME, TEST_JOB_ID);
 
     Assert.assertNull(jobState);
   }
@@ -204,8 +198,7 @@ public class ZkDatasetStateStoreTest {
   @Test(dependsOnMethods = "testGetPreviousDatasetStatesByUrns")
   public void testDeleteDatasetJobState() throws IOException {
     JobState.DatasetState datasetState = zkDatasetStateStore.get(TEST_JOB_NAME,
-        TEST_DATASET_URN + "-" + zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX +
-            zkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX, TEST_DATASET_URN);
+        TEST_DATASET_URN + "-" + StateStoreTableInfo.CURRENT_NAME, TEST_DATASET_URN);
 
     Assert.assertNotNull(datasetState);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
@@ -213,8 +206,7 @@ public class ZkDatasetStateStoreTest {
     zkDatasetStateStore.delete(TEST_JOB_NAME);
 
     datasetState = zkDatasetStateStore.get(TEST_JOB_NAME,
-        TEST_DATASET_URN + "-" + zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX +
-            zkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX, TEST_DATASET_URN);
+        TEST_DATASET_URN + "-" + StateStoreTableInfo.CURRENT_NAME, TEST_DATASET_URN);
 
     Assert.assertNull(datasetState);
   }

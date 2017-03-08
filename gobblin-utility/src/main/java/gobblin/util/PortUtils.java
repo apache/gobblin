@@ -19,6 +19,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Maps;
 
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
@@ -41,6 +42,20 @@ public class PortUtils {
   PortUtils(PortLocator locator) {
     this.portLocator = locator;
     this.assignedPorts = Maps.newConcurrentMap();
+  }
+
+  /**
+   * Gets a free port.
+   *
+   * @return The free port
+   * @throws IOException If a free port could not be found
+   */
+  public int getPort() throws IOException {
+    Optional<Integer> port = takePort(Optional.<Integer>absent(), Optional.<Integer>absent());
+    if (!port.isPresent()) {
+      throw new IOException("Could not find a free port.");
+    }
+    return port.get();
   }
 
   /**
@@ -98,7 +113,7 @@ public class PortUtils {
   }
 
   /**
-   * Finds an open port. {@param portStart} and {@param portEnd} can be absent
+   * Finds an free port. {@param portStart} and {@param portEnd} can be absent
    *
    * ______________________________________________________
    * | portStart | portEnd  | takenPort                   |
@@ -111,7 +126,7 @@ public class PortUtils {
    *
    * @param portStart the inclusive starting port
    * @param portEnd the inclusive ending port
-   * @return The selected open port.
+   * @return The selected free port.
    */
   private synchronized Optional<Integer> takePort(Optional<Integer> portStart, Optional<Integer> portEnd) {
     if (!portStart.isPresent() && !portEnd.isPresent()) {

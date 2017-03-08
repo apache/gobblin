@@ -16,7 +16,10 @@
  */
 package gobblin.admin;
 
-import gobblin.configuration.ConfigurationKeys;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Properties;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -26,19 +29,22 @@ import org.apache.http.util.EntityUtils;
 
 import org.testng.annotations.*;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.Properties;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.util.PortUtils;
 
 import static org.testng.AssertJUnit.*;
 
 
 public class AdminWebServerTest {
   private AdminWebServer server;
-  private final String portNumber = "54320";
+  private final String portNumber;
+
+  public AdminWebServerTest() throws IOException {
+    portNumber = Integer.toString(new PortUtils().getPort());
+  }
 
   @BeforeTest
-  public void startServer() {
+  public void startServer() throws IOException {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.ADMIN_SERVER_PORT_KEY, this.portNumber);
     this.server = new AdminWebServer(properties, URI.create("http://foobar:3333"));

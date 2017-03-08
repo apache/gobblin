@@ -17,34 +17,30 @@
 
 package gobblin.runtime;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValue;
-import gobblin.metastore.DatasetStateStore;
-import gobblin.util.ConfigUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import com.google.common.base.CharMatcher;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
 
 import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.DatasetStateStore;
 import gobblin.metastore.FsStateStore;
+import gobblin.runtime.util.DatasetStateStoreUtils;
+import gobblin.util.ConfigUtils;
 
 
 /**
@@ -65,8 +61,6 @@ import gobblin.metastore.FsStateStore;
  */
 public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
     implements DatasetStateStore<JobState.DatasetState> {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(FsDatasetStateStore.class);
 
   protected static DatasetStateStore<JobState.DatasetState> createStateStore(Config config, String className) {
     // Add all job configuration properties so they are picked up by Hadoop
@@ -90,13 +84,12 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
       throw new RuntimeException("Failed to instantiate " + className, e);
     }
   }
-
   public FsDatasetStateStore(String fsUri, String storeRootDir) throws IOException {
     super(fsUri, storeRootDir, JobState.DatasetState.class);
     this.useTmpFileForPut = false;
   }
 
-  public FsDatasetStateStore(FileSystem fs, String storeRootDir) {
+  public FsDatasetStateStore(FileSystem fs, String storeRootDir) throws IOException {
     super(fs, storeRootDir, JobState.DatasetState.class);
     this.useTmpFileForPut = false;
   }
@@ -108,8 +101,12 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
 
   @Override
   public JobState.DatasetState get(String storeName, String tableName, String stateId) throws IOException {
-    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-    if (!this.fs.exists(tablePath)) {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(stateId), "State id is null or empty.");
+
+    Path tablePath = getTablePath(storeName, tableName);
+    if (tablePath == null || !this.fs.exists(tablePath)) {
       return null;
     }
 
@@ -139,10 +136,13 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
 
   @Override
   public List<JobState.DatasetState> getAll(String storeName, String tableName) throws IOException {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(storeName), "Store name is null or empty.");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName), "Table name is null or empty.");
+
     List<JobState.DatasetState> states = Lists.newArrayList();
 
-    Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-    if (!this.fs.exists(tablePath)) {
+    Path tablePath = getTablePath(storeName, tableName);
+    if (tablePath == null || !this.fs.exists(tablePath)) {
       return states;
     }
 
@@ -170,11 +170,6 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
     return states;
   }
 
-  @Override
-  public List<JobState.DatasetState> getAll(String storeName) throws IOException {
-    return super.getAll(storeName);
-  }
-
   /**
    * Get a {@link Map} from dataset URNs to the latest {@link JobState.DatasetState}s.
    *
@@ -183,39 +178,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
    * @throws IOException if there's something wrong reading the {@link JobState.DatasetState}s
    */
   public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName) throws IOException {
-    Path stateStorePath = new Path(this.storeRootDir, jobName);
-    if (!this.fs.exists(stateStorePath)) {
-      return ImmutableMap.of();
-    }
-
-    FileStatus[] stateStoreFileStatuses = this.fs.listStatus(stateStorePath, new PathFilter() {
-      @Override
-      public boolean accept(Path path) {
-        return path.getName().endsWith(CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX);
-      }
-    });
-
-    if (stateStoreFileStatuses == null || stateStoreFileStatuses.length == 0) {
-      return ImmutableMap.of();
-    }
-
-    Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
-    for (FileStatus stateStoreFileStatus : stateStoreFileStatuses) {
-      List<JobState.DatasetState> previousDatasetStates = getAll(jobName, stateStoreFileStatus.getPath().getName());
-      if (!previousDatasetStates.isEmpty()) {
-        // There should be a single dataset state on the list if the list is not empty
-        JobState.DatasetState previousDatasetState = previousDatasetStates.get(0);
-        datasetStatesByUrns.put(previousDatasetState.getDatasetUrn(), previousDatasetState);
-      }
-    }
-
-    // The dataset (job) state from the deprecated "current.jst" will be read even though
-    // the job has transitioned to the new dataset-based mechanism
-    if (datasetStatesByUrns.size() > 1) {
-      datasetStatesByUrns.remove(ConfigurationKeys.DEFAULT_DATASET_URN);
-    }
-
-    return datasetStatesByUrns;
+    return DatasetStateStoreUtils.getLatestDatasetStatesByUrns(this, jobName);
   }
 
   /**
@@ -227,10 +190,7 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
    * @throws IOException
    */
   public JobState.DatasetState getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
-    String alias =
-        Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-            : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
-    return get(storeName, alias, datasetUrn);
+    return DatasetStateStoreUtils.getLatestDatasetState(this, storeName, datasetUrn);
   }
 
   /**
@@ -241,19 +201,10 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState>
    * @throws IOException if there's something wrong persisting the {@link JobState.DatasetState}
    */
   public void persistDatasetState(String datasetUrn, JobState.DatasetState datasetState) throws IOException {
-    String jobName = datasetState.getJobName();
-    String jobId = datasetState.getJobId();
-
-    datasetUrn = CharMatcher.is(':').replaceFrom(datasetUrn, '.');
-    String tableName = Strings.isNullOrEmpty(datasetUrn) ? jobId + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + jobId + DATASET_STATE_STORE_TABLE_SUFFIX;
-    LOGGER.info("Persisting " + tableName + " to the job state store");
-    put(jobName, tableName, datasetState);
-    createAlias(jobName, tableName, getAliasName(datasetUrn));
+    DatasetStateStoreUtils.persistDatasetState(this, datasetUrn, datasetState);
   }
 
-  private static String getAliasName(String datasetUrn) {
-    return Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-        : datasetUrn + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
+  public Map<Optional<String>, String> getLatestDatasetStateTablesByUrn(String jobName) throws IOException {
+    return DatasetStateStoreUtils.getLatestDatasetStateTablesByUrn(this, jobName);
   }
 }
