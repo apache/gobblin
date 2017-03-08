@@ -19,6 +19,7 @@ apply plugin: 'java'
 
 dependencies {
     compile project(":gobblin-config-management:gobblin-config-core")
+    compile project(":gobblin-utility")
 
     compile externalDependency.guava
     compile externalDependency.lombok

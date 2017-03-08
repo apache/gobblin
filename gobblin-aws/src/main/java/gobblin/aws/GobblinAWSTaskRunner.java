@@ -47,6 +47,7 @@ import gobblin.cluster.GobblinHelixTask;
 import gobblin.cluster.GobblinHelixTaskFactory;
 import gobblin.cluster.GobblinTaskRunner;
 import gobblin.cluster.HelixMessageSubTypes;
+import gobblin.util.JvmUtils;
 
 
 /**
@@ -179,6 +180,8 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
 
       Log4jConfigHelper.updateLog4jConfiguration(GobblinTaskRunner.class,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE);
+
+      LOGGER.info(JvmUtils.getJvmInputArguments());
 
       final String applicationName = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME);
       final String helixInstanceName = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);

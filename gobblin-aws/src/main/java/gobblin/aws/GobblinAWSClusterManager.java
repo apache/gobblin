@@ -45,6 +45,7 @@ import gobblin.cluster.GobblinClusterManager;
 import gobblin.cluster.GobblinHelixJobScheduler;
 import gobblin.cluster.HelixMessageSubTypes;
 import gobblin.cluster.JobConfigurationManager;
+import gobblin.util.JvmUtils;
 
 
 /**
@@ -164,6 +165,8 @@ public class GobblinAWSClusterManager extends GobblinClusterManager {
 
       Log4jConfigHelper.updateLog4jConfiguration(GobblinAWSClusterManager.class,
           GobblinAWSConfigurationKeys.GOBBLIN_AWS_LOG4J_CONFIGURATION_FILE);
+
+      LOGGER.info(JvmUtils.getJvmInputArguments());
 
       // Note: Application id is required param for {@link GobblinClusterManager} super class
       // .. but has not meaning in AWS cluster context, so defaulting to a fixed value

@@ -22,16 +22,18 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import gobblin.runtime.fork.Fork;
 import org.apache.hadoop.conf.Configuration;
+import org.slf4j.MDC;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.metrics.GobblinMetrics;
+import gobblin.runtime.fork.Fork;
 import gobblin.util.ExecutorsUtils;
 
 
@@ -44,14 +46,15 @@ import gobblin.util.ExecutorsUtils;
 public abstract class AbstractTaskStateTracker extends AbstractIdleService implements TaskStateTracker {
 
   // This is used to schedule and run task metrics updaters
-  private final ScheduledThreadPoolExecutor taskMetricsUpdaterExecutor;
+  private final ListeningScheduledExecutorService taskMetricsUpdaterExecutor;
 
   private final Logger logger;
 
   public AbstractTaskStateTracker(int coreThreadPoolSize, Logger logger) {
     Preconditions.checkArgument(coreThreadPoolSize > 0, "Thread pool size should be positive");
-    this.taskMetricsUpdaterExecutor = new ScheduledThreadPoolExecutor(coreThreadPoolSize,
-        ExecutorsUtils.newThreadFactory(Optional.of(logger), Optional.of("TaskStateTracker-%d")));
+    this.taskMetricsUpdaterExecutor = ExecutorsUtils.loggingDecorator(
+            new ScheduledThreadPoolExecutor(coreThreadPoolSize,
+        ExecutorsUtils.newThreadFactory(Optional.of(logger), Optional.of("TaskStateTracker-%d"))));
     this.logger = logger;
   }
 
@@ -105,6 +108,7 @@ public abstract class AbstractTaskStateTracker extends AbstractIdleService imple
 
     @Override
     public void run() {
+      MDC.put(ConfigurationKeys.TASK_KEY_KEY, task.getTaskKey());
       updateTaskMetrics();
       // Log record queue stats/metrics of each fork
       for (Optional<Fork> fork : this.task.getForks()) {

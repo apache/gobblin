@@ -65,8 +65,8 @@ public class RootMetricContext extends MetricContext {
     super(ROOT_METRIC_CONTEXT, null, tags, true);
     this.innerMetricContexts = Sets.newConcurrentHashSet();
     this.referenceQueue = new ReferenceQueue<>();
-    this.referenceQueueExecutorService = MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1,
-        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("GobblinMetrics-ReferenceQueue"))));
+    this.referenceQueueExecutorService = ExecutorsUtils.loggingDecorator(MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1,
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("GobblinMetrics-ReferenceQueue")))));
     this.referenceQueueExecutorService.scheduleWithFixedDelay(new CheckReferenceQueue(), 0, 2, TimeUnit.SECONDS);
 
     this.reporters = Sets.newConcurrentHashSet();

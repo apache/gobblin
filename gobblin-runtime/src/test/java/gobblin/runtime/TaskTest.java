@@ -40,7 +40,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,7 +57,6 @@ import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.WorkUnit;
-import gobblin.util.ConfigUtils;
 import gobblin.writer.DataWriter;
 import gobblin.writer.DataWriterBuilder;
 
@@ -72,8 +70,10 @@ public class TaskTest {
 
   TaskState getEmptyTestTaskState(String taskId) {
     // Create a TaskState
-    TaskState taskState = new TaskState(new WorkUnitState(WorkUnit.create(
-        new Extract(Extract.TableType.SNAPSHOT_ONLY, this.getClass().getName(), this.getClass().getSimpleName()))));
+    WorkUnit workUnit = WorkUnit.create(
+            new Extract(Extract.TableType.SNAPSHOT_ONLY, this.getClass().getName(), this.getClass().getSimpleName()));
+    workUnit.setProp(ConfigurationKeys.TASK_KEY_KEY, "taskKey");
+    TaskState taskState = new TaskState(new WorkUnitState(workUnit));
     taskState.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(false));
     taskState.setTaskId(taskId);
     taskState.setJobId("1234");

@@ -33,7 +33,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 
 import gobblin.compaction.dataset.Dataset;
 import gobblin.configuration.ConfigurationKeys;
@@ -84,7 +83,7 @@ public class DataCompletenessVerifier implements Closeable {
   }
 
   private ListeningExecutorService getExecutorService() {
-    return MoreExecutors.listeningDecorator(
+    return ExecutorsUtils.loggingDecorator(
         ScalingThreadPoolExecutor.newScalingThreadPool(0, this.threadPoolSize, TimeUnit.SECONDS.toMillis(10)));
   }
 

@@ -61,7 +61,7 @@ public class JobLauncherTestHelper {
 
   public void runTest(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
     JobContext jobContext = null;
@@ -95,7 +95,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithPullLimit(Properties jobProps, long limit) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
     Closer closer = Closer.create();
@@ -122,7 +122,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithCancellation(final Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
     Closer closer = Closer.create();
@@ -157,7 +157,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithFork(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
     try (JobLauncher jobLauncher = JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps)) {
@@ -192,7 +192,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithMultipleDatasets(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
     jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, MultiDatasetTestSource.class.getName());
 
@@ -224,7 +224,7 @@ public class JobLauncherTestHelper {
 
   public void runTestWithCommitSuccessfulTasksPolicy(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
     jobProps.setProperty(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.FALSE.toString());
     jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "successful");
@@ -258,7 +258,7 @@ public class JobLauncherTestHelper {
   public void runTestWithMultipleDatasetsAndFaultyExtractor(Properties jobProps, boolean usePartialCommitPolicy)
       throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
     jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, MultiDatasetTestSourceWithFaultyExtractor.class.getName());
     jobProps.setProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");

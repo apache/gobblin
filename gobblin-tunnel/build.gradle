@@ -19,10 +19,10 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
+  compile project(":gobblin-utility")
 
   compile externalDependency.slf4j
 
-  runtime externalDependency.slf4jLog4j
   runtime externalDependency.mysqlConnector
 
   testCompile externalDependency.mockserver

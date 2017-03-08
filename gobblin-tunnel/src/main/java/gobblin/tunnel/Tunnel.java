@@ -29,6 +29,8 @@ import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gobblin.util.ExecutorsUtils;
+
 
 /**
  * This class implements a tunnel through a proxy to resource on the internet. Frequently data stores to be accessed by
@@ -136,7 +138,7 @@ public class Tunnel {
     public void run() {
       try {
         Tunnel.this.server.register(this.selector, SelectionKey.OP_ACCEPT,
-            new AcceptHandler(Tunnel.this.server, this.selector, Tunnel.this.config));
+            ExecutorsUtils.loggingDecorator(new AcceptHandler(Tunnel.this.server, this.selector, Tunnel.this.config)));
 
         while (!Thread.interrupted()) {
 

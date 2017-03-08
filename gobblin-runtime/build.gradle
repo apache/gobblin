@@ -54,7 +54,6 @@ dependencies {
   compile externalDependency.javaxInject
   compile externalDependency.jodaTime
   compile externalDependency.log4j
-  compile externalDependency.log4jextras
   compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm

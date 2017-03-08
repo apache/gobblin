@@ -52,6 +52,7 @@ import gobblin.runtime.AbstractJobLauncher;
 import gobblin.runtime.JobState;
 import gobblin.runtime.TaskExecutor;
 import gobblin.source.workunit.WorkUnit;
+import gobblin.util.Id;
 import gobblin.util.SerializationUtils;
 import gobblin.writer.AvroDataWriterBuilder;
 import gobblin.writer.Destination;
@@ -109,7 +110,7 @@ public class GobblinHelixTaskTest {
         new Path(appWorkDir, TestHelper.TEST_JOB_ID + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
     JobState jobState = new JobState();
     jobState.setJobName(TestHelper.TEST_JOB_NAME);
-    jobState.setJobId(TestHelper.TEST_JOB_ID);
+    jobState.setJobId(TestHelper.TEST_JOB_ID.toString());
     SerializationUtils.serializeState(this.localFs, jobStateFilePath, jobState);
 
     // Prepare the WorkUnit
@@ -125,7 +126,7 @@ public class GobblinHelixTaskTest {
     // expected path is appWorkDir/_workunits/job_id/job_id.wu
     Path workUnitDirPath = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
     FsStateStore<WorkUnit> wuStateStore = new FsStateStore<>(this.localFs, workUnitDirPath.toString(), WorkUnit.class);
-    Path workUnitFilePath = new Path(new Path(workUnitDirPath, TestHelper.TEST_JOB_ID),
+    Path workUnitFilePath = new Path(new Path(workUnitDirPath, TestHelper.TEST_JOB_ID.toString()),
         TestHelper.TEST_JOB_NAME + ".wu");
     wuStateStore.put(TestHelper.TEST_JOB_ID, TestHelper.TEST_JOB_NAME + ".wu", workUnit);
 
@@ -134,7 +135,9 @@ public class GobblinHelixTaskTest {
     // Prepare the GobblinHelixTask
     Map<String, String> taskConfigMap = Maps.newHashMap();
     taskConfigMap.put(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH, workUnitFilePath.toString());
+    taskConfigMap.put(ConfigurationKeys.JOB_NAME_KEY, TestHelper.TEST_JOB_NAME);
     taskConfigMap.put(ConfigurationKeys.JOB_ID_KEY, TestHelper.TEST_JOB_ID);
+    taskConfigMap.put(ConfigurationKeys.TASK_KEY_KEY, Long.toString(Id.parse(TestHelper.TEST_JOB_ID).getSequence()));
 
     TaskConfig taskConfig = new TaskConfig("", taskConfigMap, true);
     TaskCallbackContext taskCallbackContext = Mockito.mock(TaskCallbackContext.class);
@@ -175,6 +178,7 @@ public class GobblinHelixTaskTest {
 
   private void prepareWorkUnit(WorkUnit workUnit) {
     workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, TestHelper.TEST_TASK_ID);
+    workUnit.setProp(ConfigurationKeys.TASK_KEY_KEY, Long.toString(Id.parse(TestHelper.TEST_TASK_ID).getSequence()));
     workUnit.setProp(ConfigurationKeys.SOURCE_CLASS_KEY, SimpleJsonSource.class.getName());
     workUnit.setProp(ConfigurationKeys.CONVERTER_CLASSES_KEY, SimpleJsonConverter.class.getName());
     workUnit.setProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, WriterOutputFormat.AVRO.toString());
