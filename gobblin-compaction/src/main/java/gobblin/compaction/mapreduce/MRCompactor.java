@@ -83,6 +83,7 @@ import gobblin.util.DatasetFilterUtils;
 import gobblin.util.ExecutorsUtils;
 import gobblin.util.HadoopUtils;
 import gobblin.util.ClusterNameTags;
+import gobblin.util.FileListUtils;
 import gobblin.util.recordcount.CompactionRecordCountProvider;
 import gobblin.util.recordcount.IngestionRecordCountProvider;
 import gobblin.util.reflection.GobblinConstructorUtils;
@@ -140,6 +141,14 @@ public class MRCompactor implements Compactor {
   // Dataset finder to find datasets for compaction.
   public static final String COMPACTION_DATASETS_FINDER = COMPACTION_PREFIX + "datasets.finder";
   public static final String DEFAULT_COMPACTION_DATASETS_FINDER = TimeBasedSubDirDatasetsFinder.class.getName();
+
+
+  // Rename source directories as a compaction complete indication
+  // Compaction jobs using this completion mode can't share input sources
+  public static final String COMPACTION_RENAME_SOURCE_DIR_ENABLED = COMPACTION_PREFIX + "rename.source.dir.enabled";
+  public static final boolean DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED = false;
+  public static final String COMPACTION_RENAME_SOURCE_DIR_SUFFIX = "_COMPLETE";
+
 
   //The provider that provides event counts for the compaction input files.
   public static final String COMPACTION_INPUT_RECORD_COUNT_PROVIDER = COMPACTION_PREFIX + "input.record.count.provider";
@@ -521,16 +530,98 @@ public class MRCompactor implements Compactor {
    * A {@link Dataset} should be verified if its not already compacted, and it satisfies the blacklist and whitelist.
    */
   private boolean shouldVerifyCompletenessForDataset(Dataset dataset, List<Pattern> blacklist,
-      List<Pattern> whitelist) {
-    return !datasetAlreadyCompacted(this.fs, dataset)
+    List<Pattern> whitelist) {
+    boolean renamingRequired = this.state.getPropAsBoolean(COMPACTION_RENAME_SOURCE_DIR_ENABLED, DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
+
+    LOG.info ("Should verify completeness with renaming source dir : " + renamingRequired);
+
+    return !datasetAlreadyCompacted(this.fs, dataset, renamingRequired)
         && DatasetFilterUtils.survived(dataset.getName(), blacklist, whitelist);
   }
 
   /**
-   * A {@link Dataset} is considered already compacted if there is a file named
-   * {@link MRCompactor#COMPACTION_COMPLETE_FILE_NAME} in its {@link Dataset#outputPath()}.
+   * Get all the renamed directories from the given paths
+   * They are deepest level containing directories whose name has a suffix {@link MRCompactor#COMPACTION_RENAME_SOURCE_DIR_SUFFIX}
+   * Also each directory needs to contain at least one file so empty directories will be excluded from the result
    */
-  public static boolean datasetAlreadyCompacted(FileSystem fs, Dataset dataset) {
+  public static Set<Path> getDeepestLevelRenamedDirsWithFileExistence (FileSystem fs, Set<Path> paths) throws IOException {
+    Set<Path> renamedDirs = Sets.newHashSet();
+    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, paths)) {
+      if (fileStatus.getPath().getParent().toString().endsWith(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_SUFFIX)) {
+        renamedDirs.add(fileStatus.getPath().getParent());
+      }
+    }
+
+    return renamedDirs;
+  }
+
+    /**
+     * Get all the unrenamed directories from the given paths
+     * They are deepest level containing directories whose name doesn't have a suffix {@link MRCompactor#COMPACTION_RENAME_SOURCE_DIR_SUFFIX}
+     * Also each directory needs to contain at least one file so empty directories will be excluded from the result
+     */
+  public static Set<Path> getDeepestLevelUnrenamedDirsWithFileExistence (FileSystem fs, Set<Path> paths) throws IOException {
+    Set<Path> unrenamed = Sets.newHashSet();
+    for (FileStatus fileStatus : FileListUtils.listFilesRecursively(fs, paths)) {
+      if (!fileStatus.getPath().getParent().toString().endsWith(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_SUFFIX)) {
+        unrenamed.add(fileStatus.getPath().getParent());
+      }
+    }
+
+    return unrenamed;
+  }
+
+  /**
+   * Rename all the source directories for a specific dataset
+   */
+  public static void renameSourceDirAsCompactionComplete (FileSystem fs, Dataset dataset) {
+    try {
+      for (Path path: dataset.getRenamePaths()) {
+        Path newPath = new Path (path.getParent(), path.getName() + MRCompactor.COMPACTION_RENAME_SOURCE_DIR_SUFFIX);
+        LOG.info("[{}] Renaming {} to {}", dataset.getDatasetName(), path, newPath);
+        fs.rename(path, newPath);
+      }
+    } catch (Exception e) {
+      LOG.error ("Rename input path failed", e);
+    }
+  }
+
+  /**
+   * A {@link Dataset} is considered already compacted if either condition is true:
+   * 1) When completion file strategy is used, a compaction completion means there is a file named
+   *    {@link MRCompactor#COMPACTION_COMPLETE_FILE_NAME} in its {@link Dataset#outputPath()}.
+   * 2) When renaming source directory strategy is used, a compaction completion means source directories
+   *    {@link Dataset#inputPaths()} contains at least one directory which has been renamed to something with
+   *    {@link MRCompactor#COMPACTION_RENAME_SOURCE_DIR_SUFFIX}.
+   */
+  public static boolean datasetAlreadyCompacted(FileSystem fs, Dataset dataset, boolean renameSourceEnable) {
+    if (renameSourceEnable) {
+      return checkAlreadyCompactedBasedOnSourceDirName (fs, dataset);
+    } else {
+      return checkAlreadyCompactedBasedOnCompletionFile(fs, dataset);
+    }
+  }
+
+
+  /**  When renaming source directory strategy is used, a compaction completion means source directories
+   *    {@link Dataset#inputPaths()} contains at least one directory which has been renamed to something with
+   *    {@link MRCompactor#COMPACTION_RENAME_SOURCE_DIR_SUFFIX}.
+   */
+  private static boolean checkAlreadyCompactedBasedOnSourceDirName (FileSystem fs, Dataset dataset) {
+    try {
+      Set<Path> renamedDirs = getDeepestLevelRenamedDirsWithFileExistence(fs, dataset.inputPaths());
+      return !renamedDirs.isEmpty();
+    } catch (IOException e) {
+      LOG.error("Failed to get deepest directories from source", e);
+      return false;
+    }
+  }
+
+ /**
+  *  When completion file strategy is used, a compaction completion means there is a file named
+  *    {@link MRCompactor#COMPACTION_COMPLETE_FILE_NAME} in its {@link Dataset#outputPath()}.
+  */
+  private static boolean checkAlreadyCompactedBasedOnCompletionFile(FileSystem fs, Dataset dataset) {
     Path filePath = new Path(dataset.outputPath(), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
     try {
       return fs.exists(filePath);
