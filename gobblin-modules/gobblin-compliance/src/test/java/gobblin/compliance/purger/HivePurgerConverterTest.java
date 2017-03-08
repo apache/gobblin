@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package gobblin.compliance.purger;
 
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -27,16 +27,23 @@ import gobblin.configuration.WorkUnitState;
 @Test
 public class HivePurgerConverterTest {
   private WorkUnitState stateMock = Mockito.mock(WorkUnitState.class);
-  private ComplianceRecordSchema schemaMock = Mockito.mock(ComplianceRecordSchema.class);
+  private PurgeableHivePartitionDatasetSchema schemaMock = Mockito.mock(PurgeableHivePartitionDatasetSchema.class);
   private HivePurgerConverter hivePurgerConverterMock = Mockito.mock(HivePurgerConverter.class);
-  private ComplianceRecord recordMock = Mockito.mock(ComplianceRecord.class);
+  private PurgeableHivePartitionDataset datasetMock = Mockito.mock(PurgeableHivePartitionDataset.class);
 
   @BeforeTest
   public void initialize() {
     Mockito.doCallRealMethod().when(this.hivePurgerConverterMock).convertSchema(this.schemaMock, this.stateMock);
+    Mockito.doCallRealMethod().when(this.hivePurgerConverterMock)
+        .convertRecord(this.schemaMock, this.datasetMock, this.stateMock);
   }
 
   public void convertSchemaTest() {
     Assert.assertNotNull(this.hivePurgerConverterMock.convertSchema(this.schemaMock, this.stateMock));
+  }
+
+  public void convertRecordTest() {
+    this.hivePurgerConverterMock.convertRecord(this.schemaMock, this.datasetMock, this.stateMock);
+    Mockito.verify(this.datasetMock).setPurgeQueries(Mockito.anyListOf(String.class));
   }
 }

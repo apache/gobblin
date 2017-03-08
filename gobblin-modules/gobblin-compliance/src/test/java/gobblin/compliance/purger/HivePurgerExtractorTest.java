@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package gobblin.compliance.purger;
 
 import java.io.IOException;
 
@@ -23,15 +23,9 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.source.workunit.WorkUnit;
-
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.when;
-
 
 public class HivePurgerExtractorTest {
-  private ComplianceRecord recordMock = Mockito.mock(ComplianceRecord.class);
+  private PurgeableHivePartitionDataset datasetMock = Mockito.mock(PurgeableHivePartitionDataset.class);
   private HivePurgerExtractor extractorMock = Mockito.mock(HivePurgerExtractor.class);
 
   @BeforeTest
@@ -40,8 +34,8 @@ public class HivePurgerExtractorTest {
     Mockito.doCallRealMethod().when(this.extractorMock).getSchema();
     Mockito.doCallRealMethod().when(this.extractorMock).readRecord(null);
     Mockito.doCallRealMethod().when(this.extractorMock).getExpectedRecordCount();
-    Mockito.doCallRealMethod().when(this.extractorMock).setRecord(this.recordMock);
-    this.extractorMock.setRecord(this.recordMock);
+    Mockito.doCallRealMethod().when(this.extractorMock).setRecord(this.datasetMock);
+    this.extractorMock.setRecord(this.datasetMock);
   }
 
   @Test

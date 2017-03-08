@@ -14,23 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package gobblin.compliance.purger;
 
-import java.util.List;
-
-import org.apache.hadoop.hive.ql.metadata.Partition;
-
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import com.google.common.base.Preconditions;
 
 
 /**
- * Record corresponding to a hive partition. It also contains a list of queries to be executed on this partition.
+ * This commit policy checks if the lastModified time before and start of purging is same or not.
+ *
+ * @author adsharma
  */
-@Getter
-@Setter
-public abstract class QueryBaseHivePartitionRecord {
-  protected Partition hivePartition;
-  protected List<String> queries;
+public class HivePurgerCommitPolicy implements CommitPolicy<PurgeableHivePartitionDataset> {
+  public boolean shouldCommit(PurgeableHivePartitionDataset dataset) {
+    Preconditions
+        .checkNotNull(dataset.getStartTime(), "Start time for purger is not set for dataset " + dataset.datasetURN());
+    Preconditions
+        .checkNotNull(dataset.getEndTime(), "End time for purger is not set for dataset " + dataset.datasetURN());
+    return dataset.getStartTime() == dataset.getEndTime();
+  }
 }
