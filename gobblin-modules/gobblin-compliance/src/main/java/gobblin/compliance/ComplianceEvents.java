@@ -14,17 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance;
 
-apply plugin: 'java'
+/**
+ * Class for event namespaces for gobblin-compliance
+ *
+ * @author adsharma
+ */
+public class ComplianceEvents {
+  public static final String NAMESPACE = "gobblin.compliance";
+  public static final String DATASET_URN_METADATA_KEY = "datasetUrn";
+  // Value for this key will be a stacktrace of any exception caused
+  public static final String FAILURE_CONTEXT_METADATA_KEY = "failureContext";
 
-dependencies {
-  compile project(":gobblin-data-management")
-  compile project(":gobblin-modules:gobblin-azkaban")
+  public static class Retention {
+    public static final String FAILED_EVENT_NAME = "RetentionFailed";
+  }
+
+  public static class Validation {
+    public static final String FAILED_EVENT_NAME = "ValidationFailed";
+  }
+
+  public static class Restore {
+    public static final String FAILED_EVENT_NAME = "RestoreFailed";
+  }
 }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"
-

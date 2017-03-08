@@ -14,17 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance;
 
-apply plugin: 'java'
+import java.util.List;
 
-dependencies {
-  compile project(":gobblin-data-management")
-  compile project(":gobblin-modules:gobblin-azkaban")
+
+public interface Policy<T> {
+  boolean shouldSelect(T dataset);
+
+  List<T> selectedList(List<T> datasets);
 }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"
-

@@ -14,17 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance;
 
-apply plugin: 'java'
+import gobblin.configuration.State;
 
-dependencies {
-  compile project(":gobblin-data-management")
-  compile project(":gobblin-modules:gobblin-azkaban")
+
+/**
+ * Abstract class for selection policies corresponding to {@link HivePartitionVersion}
+ *
+ * @author adsharma
+ */
+public abstract class HivePartitionVersionPolicy implements Policy<HivePartitionVersion> {
+  protected State state;
+  protected HivePartitionDataset dataset;
+
+  public HivePartitionVersionPolicy(State state, HivePartitionDataset dataset) {
+    this.state = new State(state);
+    this.dataset = dataset;
+  }
 }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"
-

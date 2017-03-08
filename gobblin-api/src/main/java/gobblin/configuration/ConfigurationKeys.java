@@ -662,6 +662,12 @@ public class ConfigurationKeys {
   public static final String FS_PROXY_AS_USER_TOKEN_FILE = "fs.proxy.as.user.token.file";
   public static final String SUPER_USER_NAME_TO_PROXY_AS_OTHERS = "super.user.name.to.proxy.as.others";
   public static final String SUPER_USER_KEY_TAB_LOCATION = "super.user.key.tab.location";
+  public static final String TOKEN_AUTH = "TOKEN";
+  public static final String KERBEROS_AUTH = "KERBEROS";
+  public static final String FS_PROXY_AUTH_METHOD = "fs.proxy.auth.method";
+  public static final String DEFAULT_FS_PROXY_AUTH_METHOD = TOKEN_AUTH;
+  public static final String KERBEROS_REALM = "kerberos.realm";
+
 
   /**
    * Azkaban properties.

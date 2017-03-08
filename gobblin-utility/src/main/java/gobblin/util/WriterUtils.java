@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.ExecutionException;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.hadoop.conf.Configuration;
@@ -30,9 +28,13 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.token.Token;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+
+import lombok.extern.slf4j.Slf4j;
+
 import gobblin.configuration.ConfigurationKeys;
 import gobblin.configuration.State;
 import gobblin.configuration.WorkUnitState;
@@ -262,7 +264,8 @@ public class WriterUtils {
     }
   }
 
-  public static FileSystem getWriterFS(State state, int numBranches, int branchId) throws IOException {
+  public static FileSystem getWriterFS(State state, int numBranches, int branchId)
+      throws IOException {
     URI uri = URI.create(state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
         ConfigurationKeys.LOCAL_FS_URI));
@@ -270,23 +273,60 @@ public class WriterUtils {
     Configuration hadoopConf = getFsConfiguration(state);
     if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
-      // Initialize file system as a proxy user.
-      try {
-        String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
-        Optional<Token<?>> token = ProxiedFileSystemUtils.getTokenFromSeqFile(user,
-            new Path(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE)));
-        if (!token.isPresent()) {
-          throw new IOException("No token found for user " + user);
-        }
-        return ProxiedFileSystemCache.fromToken().userNameToken(token.get())
-            .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri)
-            .conf(hadoopConf).build();
-      } catch (ExecutionException e) {
-        throw new IOException(e);
+      // Initialize file system for a proxy user.
+      String authMethod =
+          state.getProp(ConfigurationKeys.FS_PROXY_AUTH_METHOD, ConfigurationKeys.DEFAULT_FS_PROXY_AUTH_METHOD);
+      if (authMethod.equalsIgnoreCase(ConfigurationKeys.TOKEN_AUTH)) {
+        return getWriterFsUsingToken(state, uri);
+      } else if (authMethod.equalsIgnoreCase(ConfigurationKeys.KERBEROS_AUTH)) {
+        return getWriterFsUsingKeytab(state, uri);
       }
     }
     // Initialize file system as the current user.
     return FileSystem.get(uri, hadoopConf);
+  }
+
+  public static FileSystem getWriterFs(State state)
+      throws IOException {
+    return getWriterFS(state, 1, 0);
+  }
+
+  private static FileSystem getWriterFsUsingToken(State state, URI uri)
+      throws IOException {
+    try {
+      String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+      Optional<Token<?>> token = ProxiedFileSystemUtils
+          .getTokenFromSeqFile(user, new Path(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE)));
+      if (!token.isPresent()) {
+        throw new IOException("No token found for user " + user);
+      }
+      return ProxiedFileSystemCache.fromToken().userNameToken(token.get())
+          .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri)
+          .conf(HadoopUtils.newConfiguration()).build();
+    } catch (ExecutionException e) {
+      throw new IOException(e);
+    }
+  }
+
+  private static FileSystem getWriterFsUsingKeytab(State state, URI uri)
+      throws IOException {
+    FileSystem fs = FileSystem.newInstance(uri, new Configuration());
+    try {
+      Preconditions.checkArgument(state.contains(ConfigurationKeys.FS_PROXY_AS_USER_NAME),
+          "Missing required property " + ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+      Preconditions.checkArgument(state.contains(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS),
+          "Missing required property " + ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS);
+      Preconditions.checkArgument(state.contains(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION),
+          "Missing required property " + ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION);
+      String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
+      String superUser = state.getProp(ConfigurationKeys.SUPER_USER_NAME_TO_PROXY_AS_OTHERS);
+      Path keytabLocation = new Path(state.getProp(ConfigurationKeys.SUPER_USER_KEY_TAB_LOCATION));
+      return ProxiedFileSystemCache.fromKeytab().userNameToProxyAs(user).fsURI(uri)
+          .superUserKeytabLocation(keytabLocation).superUserName(superUser).conf(HadoopUtils.newConfiguration())
+          .referenceFS(fs).build();
+    } catch (ExecutionException e) {
+      throw new IOException(e);
+    }
   }
 
   public static Configuration getFsConfiguration(State state) {

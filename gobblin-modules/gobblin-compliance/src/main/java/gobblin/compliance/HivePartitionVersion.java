@@ -14,17 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package gobblin.compliance;
 
-apply plugin: 'java'
+import org.apache.hadoop.hive.ql.metadata.Partition;
 
-dependencies {
-  compile project(":gobblin-data-management")
-  compile project(":gobblin-modules:gobblin-azkaban")
+import gobblin.data.management.version.DatasetVersion;
+
+
+/**
+ * A class to represent version of a {@link HivePartitionDataset}
+ *
+ * @author adsharma
+ */
+public abstract class HivePartitionVersion extends HivePartitionDataset implements DatasetVersion, Comparable<HivePartitionVersion> {
+
+  public HivePartitionVersion(Partition partition) {
+    super(partition);
+  }
+
+  public HivePartitionVersion(HivePartitionDataset hivePartitionDataset) {
+    super(hivePartitionDataset);
+  }
+
+  @Override
+  public String getVersion() {
+    return datasetURN();
+  }
+
+  @Override
+  public abstract int compareTo(HivePartitionVersion hivePartitionDatasetVersion);
 }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"
-
