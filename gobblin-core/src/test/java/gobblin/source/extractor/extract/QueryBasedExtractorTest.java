@@ -67,9 +67,9 @@ public class QueryBasedExtractorTest {
     testExtractor.setRangePredicates(1, 3);
     this.verify(testExtractor, 3);
 
-    // It's a last work unit but it's an "APPEND"
+    // It's a last work unit but it has SOURCE_QUERYBASED_APPEND_MAX_WATERMARK_LIMIT
     workUnit.removeProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY);
-    workUnit.setProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE, "APPEND_DAILY");
+    workUnit.setProp(ConfigurationKeys.SOURCE_QUERYBASED_APPEND_MAX_WATERMARK_LIMIT, "CURRENT_DATE-3");
     testExtractor.reset();
     testExtractor.setRangePredicates(1, 3);
     this.verify(testExtractor, 3);

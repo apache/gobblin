@@ -188,14 +188,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
     // Don't remove if user specifies one or is recorded in previous run
     if (this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE) != null ||
+        this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_APPEND_MAX_WATERMARK_LIMIT) != null ||
         this.workUnitState.getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY) != null) {
-      return false;
-    }
-
-    ExtractType extractType =
-        ExtractType.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE).toUpperCase());
-    // Don't remove if the run is for "APPEND"
-    if (extractType != ExtractType.SNAPSHOT) {
       return false;
     }
 
