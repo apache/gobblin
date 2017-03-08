@@ -14,9 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+plugins {
+  id "com.commercehub.gradle.plugin.avro-base" version "0.9.0"
+}
 
 apply plugin: 'java'
 apply plugin: 'me.champeau.gradle.jmh'
+apply plugin: "com.commercehub.gradle.plugin.avro-base"
+
+avro {
+  stringType = "string"
+}
+
+task generateAvro(type: com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask) {
+  source("src/main/avro")
+  outputDir = file("src/main/gen-java")
+}
+
+compileJava {
+  dependsOn tasks.generateAvro
+}
 
 dependencies {
   compile project(":gobblin-admin")
@@ -110,6 +127,17 @@ configurations {
     compile {
         transitive = false
     }
+}
+
+sourceSets {
+  main {
+    java {
+      srcDir 'src/main/gen-java'
+    }
+    resources {
+      srcDir 'src/main/avro'
+    }
+  }
 }
 
 artifacts {

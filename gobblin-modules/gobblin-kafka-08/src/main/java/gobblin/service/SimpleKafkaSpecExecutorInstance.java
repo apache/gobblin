@@ -51,6 +51,8 @@ public class SimpleKafkaSpecExecutorInstance implements SpecExecutorInstance {
   protected final URI _specExecutorInstanceUri;
   protected final Map<String, String> _capabilities;
 
+  protected static final String VERB_KEY = "Verb";
+
   public SimpleKafkaSpecExecutorInstance(Config config, Optional<Logger> log) {
     _config = config;
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());

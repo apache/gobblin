@@ -17,17 +17,24 @@
 
 package gobblin.service;
 
+import java.io.ByteArrayInputStream;
 import java.io.Closeable;
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.SerializationUtils;
+import org.apache.avro.io.BinaryDecoder;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -41,13 +48,16 @@ import gobblin.kafka.client.DecodeableKafkaRecord;
 import gobblin.kafka.client.GobblinKafkaConsumerClient;
 import gobblin.kafka.client.Kafka08ConsumerClient;
 import gobblin.kafka.client.KafkaConsumerRecord;
+import gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
+import gobblin.metrics.reporter.util.SchemaVersionWriter;
+import gobblin.runtime.api.JobSpec;
 import gobblin.runtime.api.Spec;
 import gobblin.runtime.api.SpecExecutorInstanceConsumer;
+import gobblin.runtime.job_spec.AvroJobSpec;
 import gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import gobblin.source.extractor.extract.kafka.KafkaPartition;
 import gobblin.source.extractor.extract.kafka.KafkaTopic;
 import gobblin.util.CompletedFuture;
-
 
 public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExecutorInstance
     implements SpecExecutorInstanceConsumer<Spec>, Closeable {
@@ -63,6 +73,10 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
   private int currentPartitionIdx = -1;
   private boolean isFirstRun = true;
 
+  private final BinaryDecoder _decoder;
+  private final SpecificDatumReader<AvroJobSpec> _reader;
+  private final SchemaVersionWriter<?> _versionWriter;
+
   public SimpleKafkaSpecExecutorInstanceConsumer(Config config, Optional<Logger> log) {
     super(config, log);
 
@@ -74,6 +88,11 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
     _lowWatermark = Lists.newArrayList(Collections.nCopies(_partitions.size(), 0L));
     _nextWatermark = Lists.newArrayList(Collections.nCopies(_partitions.size(), 0L));
     _highWatermark = Lists.newArrayList(Collections.nCopies(_partitions.size(), 0L));
+
+    InputStream dummyInputStream = new ByteArrayInputStream(new byte[0]);
+    _decoder = DecoderFactory.get().binaryDecoder(dummyInputStream, null);
+    _reader = new SpecificDatumReader<AvroJobSpec>(AvroJobSpec.SCHEMA$);
+    _versionWriter = new FixedSchemaVersionWriter();
   }
 
   public SimpleKafkaSpecExecutorInstanceConsumer(Config config, Logger log) {
@@ -125,39 +144,36 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
 
         _nextWatermark.set(this.currentPartitionIdx, nextValidMessage.getNextOffset());
         try {
-          final SpecExecutorInstanceDataPacket record;
+          final AvroJobSpec record;
+
           if (nextValidMessage instanceof ByteArrayBasedKafkaRecord) {
             record = decodeRecord((ByteArrayBasedKafkaRecord)nextValidMessage);
           } else if (nextValidMessage instanceof DecodeableKafkaRecord){
-            record = ((DecodeableKafkaRecord<?, SpecExecutorInstanceDataPacket>) nextValidMessage).getValue();
+            record = ((DecodeableKafkaRecord<?, AvroJobSpec>) nextValidMessage).getValue();
           } else {
             throw new IllegalStateException(
                 "Unsupported KafkaConsumerRecord type. The returned record can either be ByteArrayBasedKafkaRecord"
                     + " or DecodeableKafkaRecord");
           }
-          if (null == record._spec) {
-            changesSpecs.add(new ImmutablePair<Verb, Spec>(
-              record._verb, new Spec() {
-              @Override
-              public URI getUri() {
-                return record._uri;
-              }
 
-              @Override
-              public String getVersion() {
-                throw new UnsupportedOperationException();
-              }
+          JobSpec.Builder jobSpecBuilder = JobSpec.builder(record.getUri());
 
-              @Override
-              public String getDescription() {
-                throw new UnsupportedOperationException();
-              }
-            }));
-          } else {
-            changesSpecs.add(new ImmutablePair<Verb, Spec>(record._verb, record._spec));
+          Properties props = new Properties();
+          props.putAll(record.getProperties());
+          jobSpecBuilder.withJobCatalogURI(record.getUri()).withVersion(record.getVersion())
+              .withDescription(record.getDescription()).withConfigAsProperties(props);
+
+          if (!record.getTemplateUri().isEmpty()) {
+            jobSpecBuilder.withTemplate(new URI(record.getTemplateUri()));
           }
+
+          String verbName = record.getMetadata().get(VERB_KEY);
+          Verb verb = Verb.valueOf(verbName);
+
+          changesSpecs.add(new ImmutablePair<Verb, Spec>(verb, jobSpecBuilder.build()));
         } catch (Throwable t) {
-          throw new RuntimeException(t);
+          _log.error("Could not decode record at partition " + this.currentPartitionIdx +
+              " offset " + nextValidMessage.getOffset());
         }
       }
     }
@@ -229,8 +245,13 @@ public class SimpleKafkaSpecExecutorInstanceConsumer extends SimpleKafkaSpecExec
         _nextWatermark.get(this.currentPartitionIdx), _highWatermark.get(this.currentPartitionIdx));
   }
 
-  private SpecExecutorInstanceDataPacket decodeRecord(ByteArrayBasedKafkaRecord kafkaConsumerRecord) throws IOException {
-    return SerializationUtils.deserialize(kafkaConsumerRecord.getMessageBytes());
+  private AvroJobSpec decodeRecord(ByteArrayBasedKafkaRecord kafkaConsumerRecord) throws IOException {
+    InputStream is = new ByteArrayInputStream(kafkaConsumerRecord.getMessageBytes());
+    _versionWriter.readSchemaVersioningInformation(new DataInputStream(is));
+
+    Decoder decoder = DecoderFactory.get().binaryDecoder(is, _decoder);
+
+    return _reader.read(null, decoder);
   }
 
   @Override
