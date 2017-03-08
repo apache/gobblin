@@ -61,7 +61,7 @@ public class JobLauncherTestHelper {
 
   public void runTest(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    String jobId = JobLauncherUtils.newJobId(jobName).toString();
+    String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
     JobContext jobContext = null;

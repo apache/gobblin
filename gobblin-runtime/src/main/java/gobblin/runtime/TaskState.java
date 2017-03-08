@@ -102,7 +102,7 @@ public class TaskState extends WorkUnitState {
     addAll(workUnitState);
     this.jobId = workUnitState.getProp(ConfigurationKeys.JOB_ID_KEY);
     this.taskId = workUnitState.getProp(ConfigurationKeys.TASK_ID_KEY);
-    this.taskKey = workUnitState.getProp(ConfigurationKeys.TASK_KEY_KEY);
+    this.taskKey = workUnitState.getProp(ConfigurationKeys.TASK_KEY_KEY, "unknown_task_key");
     this.taskAttemptId = Optional.fromNullable(workUnitState.getProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY));
     this.setId(this.taskId);
   }

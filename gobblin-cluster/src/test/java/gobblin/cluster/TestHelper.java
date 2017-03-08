@@ -55,7 +55,7 @@ public class TestHelper {
   public static final String TEST_TASK_RUNNER_ID = "1";
 
   public static final String TEST_JOB_NAME = "TestJob";
-  static final String TEST_JOB_ID = JobLauncherUtils.newJobId(TEST_JOB_NAME);
+  public static final String TEST_JOB_ID = JobLauncherUtils.newJobId(TEST_JOB_NAME);
   public static final int TEST_TASK_KEY = 0;
   public static final String TEST_TASK_ID = JobLauncherUtils.newTaskId(TEST_JOB_ID, TEST_TASK_KEY);
 

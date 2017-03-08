@@ -16,6 +16,7 @@
  */
 package gobblin.data.management.conversion.hive;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -54,6 +56,11 @@ public class LocalHiveMetastoreTestUtils {
   private IMetaStoreClient localMetastoreClient;
 
   private LocalHiveMetastoreTestUtils() throws IOException {
+    try {
+      FileUtils.deleteDirectory(new File("metastore_db"));
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
     this.localMetastoreClient =
         HiveMetastoreClientPool.get(new Properties(), Optional.<String>absent()).getClient().get();
   }
@@ -64,6 +71,8 @@ public class LocalHiveMetastoreTestUtils {
       instance = new LocalHiveMetastoreTestUtils();
     } catch (IOException e) {
       throw new RuntimeException("Exception occurred in initializing ConversionHiveUtils", e);
+    } catch (Throwable t) {
+      throw new RuntimeException("Exception occurred in initializing ConversionHiveUtils", t);
     }
   }
 

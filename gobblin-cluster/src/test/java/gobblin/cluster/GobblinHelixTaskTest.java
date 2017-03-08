@@ -110,7 +110,7 @@ public class GobblinHelixTaskTest {
         new Path(appWorkDir, TestHelper.TEST_JOB_ID + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
     JobState jobState = new JobState();
     jobState.setJobName(TestHelper.TEST_JOB_NAME);
-    jobState.setJobId(TestHelper.TEST_JOB_ID.toString());
+    jobState.setJobId(TestHelper.TEST_JOB_ID);
     SerializationUtils.serializeState(this.localFs, jobStateFilePath, jobState);
 
     // Prepare the WorkUnit
@@ -126,7 +126,7 @@ public class GobblinHelixTaskTest {
     // expected path is appWorkDir/_workunits/job_id/job_id.wu
     Path workUnitDirPath = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
     FsStateStore<WorkUnit> wuStateStore = new FsStateStore<>(this.localFs, workUnitDirPath.toString(), WorkUnit.class);
-    Path workUnitFilePath = new Path(new Path(workUnitDirPath, TestHelper.TEST_JOB_ID.toString()),
+    Path workUnitFilePath = new Path(new Path(workUnitDirPath, TestHelper.TEST_JOB_ID),
         TestHelper.TEST_JOB_NAME + ".wu");
     wuStateStore.put(TestHelper.TEST_JOB_ID, TestHelper.TEST_JOB_NAME + ".wu", workUnit);
 
