@@ -17,10 +17,10 @@
 
 package gobblin.util;
 
-import java.util.Collection;
-
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.hadoop.fs.Path;
+
+import java.util.Collection;
 
 
 /**
@@ -37,7 +37,7 @@ public abstract class RecordCountProvider {
    * Convert a {@link Path} from another {@link RecordCountProvider} so that it can be used
    * in {@link #getRecordCount(Path)} of this {@link RecordCountProvider}.
    */
-  public Path convertPath(Path path, RecordCountProvider src) {
+  public Path convertPath(Path path, String extension, RecordCountProvider src) {
     if (this.getClass().equals(src.getClass())) {
       return path;
     }
