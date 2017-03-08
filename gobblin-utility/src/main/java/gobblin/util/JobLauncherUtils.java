@@ -73,7 +73,7 @@ public class JobLauncherUtils {
    * @return new task ID
    */
   public static String newTaskId(String jobId, int sequence) {
-    return Id.Task.create(Id.parse(jobId).getName(), sequence).toString();
+    return Id.Task.create(Id.parse(jobId).get(Id.Parts.INSTANCE_NAME), sequence).toString();
   }
 
   /**
@@ -85,7 +85,7 @@ public class JobLauncherUtils {
    * @return new multi-task ID
    */
   public static String newMultiTaskId(String jobId, int sequence) {
-    return Id.MultiTask.create(Id.parse(jobId).getName(), sequence).toString();
+    return Id.MultiTask.create(Id.parse(jobId).get(Id.Parts.INSTANCE_NAME), sequence).toString();
   }
 
   /**
