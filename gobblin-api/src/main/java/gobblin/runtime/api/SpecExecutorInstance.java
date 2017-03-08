@@ -64,7 +64,7 @@ public interface SpecExecutorInstance {
       return _id;
     }
 
-    public String geVerb() {
+    public String getVerb() {
       return _verb;
     }
   }

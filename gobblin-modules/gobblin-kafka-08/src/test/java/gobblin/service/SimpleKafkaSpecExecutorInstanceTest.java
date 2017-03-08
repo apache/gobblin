@@ -138,7 +138,7 @@ public class SimpleKafkaSpecExecutorInstanceTest extends KafkaTestBase {
     Map.Entry<SpecExecutorInstance.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
     Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutorInstance.Verb.DELETE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(deletedSpecUriString), "Expected URI did not match");
-    Assert.assertFalse(consumedSpecAction.getValue() instanceof JobSpec, "Expected anonymous class implementation of Spec");
+    Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
   @Test (dependsOnMethods = "testDeleteSpec")
