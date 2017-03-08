@@ -34,4 +34,9 @@ public interface ScopeInstance<S extends ScopeType<S>> {
    * @return type of {@link ScopeType}.
    */
   S getType();
+
+  /**
+   * @return a String identifying this scope.
+   */
+  String getScopeId();
 }

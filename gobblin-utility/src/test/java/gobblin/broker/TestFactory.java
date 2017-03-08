@@ -57,7 +57,7 @@ public class TestFactory<S extends ScopeType<S>> implements SharedResourceFactor
 
   @Override
   public SharedResourceFactoryResponse<SharedResource>
-      createResource(SharedResourcesBroker broker, ScopedConfigView<?, TestResourceKey> config) {
+      createResource(SharedResourcesBroker<S> broker, ScopedConfigView<S, TestResourceKey> config) {
     return new ResourceInstance<>(new SharedResource(config.getKey().getKey(), config.getConfig()));
   }
 

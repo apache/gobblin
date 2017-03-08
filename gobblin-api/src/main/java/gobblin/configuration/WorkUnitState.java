@@ -31,6 +31,7 @@ import com.google.gson.JsonParser;
 
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.broker.iface.SubscopedBrokerBuilder;
 import gobblin.source.extractor.Watermark;
 import gobblin.source.workunit.Extract;
 import gobblin.source.workunit.ImmutableWorkUnit;
@@ -116,13 +117,22 @@ public class WorkUnitState extends State {
    * instead.
    */
   public WorkUnitState(WorkUnit workUnit, State jobState) {
-    this(workUnit, jobState, null);
+    this(workUnit, jobState, buildTaskBroker(null, jobState, workUnit));
+  }
+
+  public WorkUnitState(WorkUnit workUnit, State jobState, SubscopedBrokerBuilder<GobblinScopeTypes, ?> taskBrokerBuilder) {
+    this(workUnit, jobState, buildTaskBroker(taskBrokerBuilder, jobState, workUnit));
   }
 
   public WorkUnitState(WorkUnit workUnit, State jobState, SharedResourcesBroker<GobblinScopeTypes> taskBroker) {
     this.workUnit = workUnit;
     this.jobState = jobState;
     this.taskBroker = taskBroker;
+  }
+
+  private static SharedResourcesBroker<GobblinScopeTypes> buildTaskBroker(
+      SubscopedBrokerBuilder<GobblinScopeTypes, ?> taskBrokerBuilder, State jobState, WorkUnit workUnit) {
+    return taskBrokerBuilder == null ? null : taskBrokerBuilder.build();
   }
 
   /**

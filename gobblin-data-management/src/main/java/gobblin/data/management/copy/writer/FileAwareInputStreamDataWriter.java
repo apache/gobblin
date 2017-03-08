@@ -215,7 +215,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
         StreamCopierSharedLimiterKey key =
             new StreamCopierSharedLimiterKey(copyableFile.getOrigin().getPath().toUri(), this.fs.makeQualified(writeAt).toUri());
-        log.info("Acquiring a limiter for stream copier with key " + key.toConfigurationKey());
+        log.info("Acquiring a limiter for stream copier with key " + Optional.fromNullable(key.toConfigurationKey()).or("null"));
         try {
           Limiter limiter = this.taskBroker.getSharedResource(new SharedLimiterFactory<GobblinScopeTypes>(), key);
           copier.withBytesTransferedLimiter(limiter);

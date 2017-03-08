@@ -26,6 +26,8 @@ import gobblin.broker.iface.ScopeType;
 import gobblin.broker.iface.ScopedConfigView;
 import gobblin.broker.iface.SharedResourceFactory;
 import gobblin.broker.iface.SharedResourcesBroker;
+import gobblin.metrics.broker.MetricContextFactory;
+import gobblin.metrics.broker.MetricContextKey;
 import gobblin.restli.SharedRestClientFactory;
 import gobblin.restli.SharedRestClientKey;
 import gobblin.util.limiter.broker.SharedLimiterKey;
@@ -48,16 +50,20 @@ public class RestliLimiterFactory<S extends ScopeType<S>>
   }
 
   @Override
-  public ResourceInstance<RestliServiceBasedLimiter> createResource(SharedResourcesBroker broker,
-      ScopedConfigView<?, SharedLimiterKey> config) throws NotConfiguredException {
+  public ResourceInstance<RestliServiceBasedLimiter> createResource(SharedResourcesBroker<S> broker,
+      ScopedConfigView<S, SharedLimiterKey> config) throws NotConfiguredException {
 
     String serviceIdentifier = config.getConfig().hasPath(SERVICE_IDENTIFIER_KEY) ?
         config.getConfig().getString(SERVICE_IDENTIFIER_KEY) : "UNKNOWN";
 
-    RestClient restClient = (RestClient)
-        broker.getSharedResource(new SharedRestClientFactory(), new SharedRestClientKey(RESTLI_SERVICE_NAME));
+    RestClient restClient = broker.getSharedResource(new SharedRestClientFactory<S>(), new SharedRestClientKey(RESTLI_SERVICE_NAME));
 
-    return new ResourceInstance<>(new RestliServiceBasedLimiter(restClient, config.getKey().getResourceLimited(), serviceIdentifier));
+    return new ResourceInstance<>(
+        RestliServiceBasedLimiter.builder().restClient(restClient).resourceLimited(config.getKey().getResourceLimited())
+            .serviceIdentifier(serviceIdentifier)
+            .metricContext(broker.getSharedResource(new MetricContextFactory<S>(), new MetricContextKey()))
+            .build()
+    );
   }
 
   @Override

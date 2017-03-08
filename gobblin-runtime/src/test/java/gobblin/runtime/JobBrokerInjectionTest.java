@@ -216,7 +216,8 @@ public class JobBrokerInjectionTest {
     }
 
     @Override
-    public ResourceInstance<MySharedObject> createResource(SharedResourcesBroker broker, ScopedConfigView<?, MySharedKey> config) {
+    public ResourceInstance<MySharedObject> createResource(SharedResourcesBroker<GobblinScopeTypes> broker,
+        ScopedConfigView<GobblinScopeTypes, MySharedKey> config) {
       return new ResourceInstance<>(new MySharedObject());
     }
 
