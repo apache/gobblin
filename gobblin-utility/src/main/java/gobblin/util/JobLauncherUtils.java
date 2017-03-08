@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -67,6 +68,28 @@ public class JobLauncherUtils {
     String jobId = String.format("job_%s_%d", jobName, System.currentTimeMillis());
     return jobId;
   }
+
+  /**
+   * Create a new job id if required and place it in jobProps before returning.
+   * @param jobProps the job properties to check and update
+   * @return job id from job properties
+   */
+  public static String getAndSetJobId(Properties jobProps) {
+    if (!jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY)) {
+      jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtils.newJobId(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)));
+    }
+
+    return jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+  }
+
+  /**
+   * Remove job id from properties
+   * @param jobProps the job properties to update
+   */
+  public static void removeJobId(Properties jobProps) {
+    jobProps.remove(ConfigurationKeys.JOB_ID_KEY);
+  }
+
 
   /**
    * Create a new task ID for the job with the given job ID.

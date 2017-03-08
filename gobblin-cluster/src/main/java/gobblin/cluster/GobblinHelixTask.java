@@ -52,6 +52,7 @@ import gobblin.util.JobLauncherUtils;
 import gobblin.util.SerializationUtils;
 import gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import gobblin.broker.gobblin_scopes.JobScopeInstance;
+import gobblin.util.logs.Log4jConfigurationHelper;
 
 
 /**
@@ -120,6 +121,9 @@ public class GobblinHelixTask implements Task {
   public TaskResult run() {
     SharedResourcesBroker<GobblinScopeTypes> globalBroker = null;
     try {
+      // set mdc with job id to distinguish log entries for this job
+      Log4jConfigurationHelper.setMdc(this.jobId);
+
       Path workUnitFilePath =
           new Path(this.taskConfig.getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH));
 
@@ -167,6 +171,8 @@ public class GobblinHelixTask implements Task {
           LOGGER.error("Could not close shared resources broker.", ioe);
         }
       }
+
+      Log4jConfigurationHelper.removeMdc();
     }
   }
 

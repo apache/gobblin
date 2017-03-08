@@ -29,6 +29,7 @@ import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.slf4j.MDC;
 
 import gobblin.annotation.Alpha;
 import gobblin.configuration.ConfigurationKeys;
@@ -37,6 +38,8 @@ import gobblin.runtime.JobException;
 import gobblin.runtime.JobLauncher;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.scheduler.JobScheduler;
+import gobblin.util.JobLauncherUtils;
+import gobblin.util.logs.Log4jConfigurationHelper;
 
 
 /**
@@ -62,11 +65,18 @@ public class GobblinHelixJob implements Job {
     List<? extends Tag<?>> eventMetadata = (List<? extends Tag<?>>) dataMap.get(GobblinHelixJobScheduler.METADATA_TAGS);
 
     try {
-      final JobLauncher jobLauncher = new GobblinHelixJobLauncher(jobProps, helixManager, appWorkDir, eventMetadata);
+      // make copy of jobProps to modify
+      final Properties modifiedJobProps = new Properties();
+      modifiedJobProps.putAll(jobProps);
 
-      if (Boolean.valueOf(jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD,
+      // generate job id if required and set it in the mdc for extra logging context
+      Log4jConfigurationHelper.setMdc(JobLauncherUtils.getAndSetJobId(modifiedJobProps));
+      final JobLauncher jobLauncher = new GobblinHelixJobLauncher(modifiedJobProps, helixManager, appWorkDir,
+          eventMetadata);
+
+      if (Boolean.valueOf(modifiedJobProps.getProperty(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD,
           Boolean.toString(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT)))) {
-        jobScheduler.runJob(jobProps, jobListener, jobLauncher);
+        jobScheduler.runJob(modifiedJobProps, jobListener, jobLauncher);
       } else {
         // if not executing in the scheduling thread then submit a runnable to the job scheduler's ExecutorService
         // for asynchronous execution.
@@ -74,9 +84,9 @@ public class GobblinHelixJob implements Job {
           @Override
           public void run() {
             try {
-              jobScheduler.runJob(jobProps, jobListener, jobLauncher);
+              jobScheduler.runJob(modifiedJobProps, jobListener, jobLauncher);
             } catch (JobException je) {
-              log.error("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
+              log.error("Failed to run job " + modifiedJobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
             }
           }
         };
@@ -85,6 +95,8 @@ public class GobblinHelixJob implements Job {
       }
     } catch (Throwable t) {
       throw new JobExecutionException(t);
+    } finally {
+      Log4jConfigurationHelper.removeMdc();
     }
   }
 }

@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 import java.util.Properties;
 
 import org.apache.log4j.LogManager;
+import org.apache.log4j.MDC;
 import org.apache.log4j.PropertyConfigurator;
 
 import com.google.common.io.Closer;
@@ -35,6 +36,7 @@ import com.google.common.io.Closer;
  * @author Yinan Li
  */
 public class Log4jConfigurationHelper {
+  static final String mdcKeyName = "gobblinMdcKey";
 
   /**
    * Update the log4j configuration.
@@ -66,5 +68,20 @@ public class Log4jConfigurationHelper {
     } finally {
       closer.close();
     }
+  }
+
+  /**
+   * Set the vaue in the mapped diagnostics context
+   * @param mdcValue the value to associate with the Gobblin MDC key
+   */
+  public static void setMdc(String mdcValue) {
+    MDC.put(mdcKeyName, mdcValue);
+  }
+
+  /**
+   * Remove the value for the gobblin MDC key
+   */
+  public static void removeMdc() {
+    MDC.remove(mdcKeyName);
   }
 }

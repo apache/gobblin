@@ -42,6 +42,8 @@ import gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import gobblin.cluster.event.NewJobConfigArrivalEvent;
 import gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import gobblin.scheduler.SchedulerService;
+import gobblin.util.JobLauncherUtils;
+import gobblin.util.logs.Log4jConfigurationHelper;
 
 
 /**
@@ -99,10 +101,19 @@ public class GobblinHelixJobScheduler extends JobScheduler {
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
-      JobLauncher jobLauncher = buildGobblinHelixJobLauncher(jobProps);
-      runJob(jobProps, jobListener, jobLauncher);
+      // make copy of jobProps to modify
+      Properties modifiedJobProps = new Properties();
+      modifiedJobProps.putAll(jobProps);
+
+      // generate job id if required and set it in the mdc for extra logging context
+      Log4jConfigurationHelper.setMdc(JobLauncherUtils.getAndSetJobId(modifiedJobProps));
+
+      JobLauncher jobLauncher = buildGobblinHelixJobLauncher(modifiedJobProps);
+      runJob(modifiedJobProps, jobListener, jobLauncher);
     } catch (Exception e) {
       throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+    } finally {
+      Log4jConfigurationHelper.removeMdc();
     }
   }
 
