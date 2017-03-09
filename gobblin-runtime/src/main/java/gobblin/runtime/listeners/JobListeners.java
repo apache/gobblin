@@ -186,6 +186,9 @@ public class JobListeners {
           } catch (IOException e) {
             if (exception == null) {
               exception = e;
+            } else {
+              LOGGER.warn("JobListener failed while calling close.  Suppressed exception beyond first.", e);
+              exception.addSuppressed(e);
             }
           }
         }
