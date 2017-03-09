@@ -28,13 +28,16 @@ import gobblin.compliance.HivePartitionDataset;
 /**
  * A policy class to determine if a dataset should be purged or not.
  */
-@AllArgsConstructor
 @Slf4j
 public class HivePurgerPolicy implements PurgePolicy<HivePartitionDataset> {
   private String watermark;
 
+  public HivePurgerPolicy(String watermark) {
+    Preconditions.checkNotNull(watermark, "Watermark should not be null");
+    this.watermark = watermark;
+  }
+
   public boolean shouldPurge(HivePartitionDataset dataset) {
-    Preconditions.checkNotNull(this.watermark, "Watermark is set to null in HivePurgerPolicy");
     if (!dataset.getTableParams().containsKey(ComplianceConfigurationKeys.DATASET_DESCRIPTOR_KEY)) {
       return false;
     }

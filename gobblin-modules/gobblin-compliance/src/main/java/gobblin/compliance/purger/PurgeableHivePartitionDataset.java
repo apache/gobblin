@@ -18,8 +18,12 @@ package gobblin.compliance.purger;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
@@ -96,8 +100,8 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
       CommitPolicy<PurgeableHivePartitionDataset> commitPolicy =
           GobblinConstructorUtils.invokeConstructor(CommitPolicy.class, commitPolicyString);
       if (!commitPolicy.shouldCommit(this)) {
-        log.info("Last modified time before start of execution : " + this.startTime);
-        log.info("Last modified time after execution of purge queries : " + this.endTime);
+        log.error("Last modified time before start of execution : " + this.startTime);
+        log.error("Last modified time after execution of purge queries : " + this.endTime);
         throw new RuntimeException("Failed to commit. File modified during job run.");
       }
       queryExecutor
@@ -136,7 +140,7 @@ public class PurgeableHivePartitionDataset extends HivePartitionDataset implemen
   }
 
   public String getStagingTableLocation() {
-    return getTableLocation() + "/" + this.timeStamp + "/";
+    return StringUtils.join(Arrays.asList(getTableLocation(), this.timeStamp), '/');
   }
 
   public String getStagingPartitionLocation() {

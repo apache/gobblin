@@ -79,7 +79,7 @@ public class HivePurgerQueryTemplate {
    */
   public static String getInsertQuery(PurgeableHivePartitionDataset dataset) {
     return "INSERT OVERWRITE" + " TABLE " + dataset.getCompleteStagingTableName() + " PARTITION (" + PartitionUtils
-        .getPartitionSpecString(dataset.getSpec()) + ")" + " SELECT /*+MAPJOIN(b) */ " + getCommaSeperatedColumnNames(
+        .getPartitionSpecString(dataset.getSpec()) + ")" + " SELECT /*+MAPJOIN(b) */ " + getCommaSeparatedColumnNames(
         dataset.getCols(), "a.") + " FROM " + dataset.getDbName() + "." + dataset.getTableName() + " a LEFT JOIN "
         + dataset.getComplianceIdTable() + " b" + " ON a." + dataset.getComplianceField() + "=b." + dataset
         .getComplianceId() + " WHERE b." + dataset.getComplianceId() + " IS NULL AND " + getWhereClauseForPartition(
@@ -179,7 +179,7 @@ public class HivePurgerQueryTemplate {
     return sb.toString();
   }
 
-  public static String getCommaSeperatedColumnNames(List<FieldSchema> cols, String prefix) {
+  public static String getCommaSeparatedColumnNames(List<FieldSchema> cols, String prefix) {
     StringBuilder sb = new StringBuilder();
     for (FieldSchema fs : cols) {
       if (!sb.toString().isEmpty()) {

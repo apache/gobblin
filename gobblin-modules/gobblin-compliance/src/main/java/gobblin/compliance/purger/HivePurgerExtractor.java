@@ -41,11 +41,13 @@ import gobblin.util.reflection.GobblinConstructorUtils;
  */
 public class HivePurgerExtractor implements Extractor<PurgeableHivePartitionDatasetSchema, PurgeableHivePartitionDataset> {
   private PurgeableHivePartitionDataset record;
-  private boolean read = false;
+  private State state;
+  private boolean read;
 
   public HivePurgerExtractor(WorkUnitState state)
       throws IOException {
-    this.record = createPurgeableHivePartitionDataset(state);
+    this.read = false;
+    this.state = new State(state);
   }
 
   @Override
@@ -60,10 +62,13 @@ public class HivePurgerExtractor implements Extractor<PurgeableHivePartitionData
   @Override
   public PurgeableHivePartitionDataset readRecord(PurgeableHivePartitionDataset record)
       throws IOException {
-    if (read) {
+    if (this.read) {
       return null;
     }
-    read = true;
+    this.read = true;
+    if (this.record == null) {
+      this.record = createPurgeableHivePartitionDataset(this.state);
+    }
     return this.record;
   }
 
@@ -90,10 +95,10 @@ public class HivePurgerExtractor implements Extractor<PurgeableHivePartitionData
     this.record = record;
   }
 
-  private PurgeableHivePartitionDataset createPurgeableHivePartitionDataset(WorkUnitState state)
+  private PurgeableHivePartitionDataset createPurgeableHivePartitionDataset(State state)
       throws IOException {
     HivePartitionDataset hivePartitionDataset =
-        HivePartitionFinder.findDataset(state.getWorkunit().getProp(ComplianceConfigurationKeys.PARTITION_NAME), state);
+        HivePartitionFinder.findDataset(state.getProp(ComplianceConfigurationKeys.PARTITION_NAME), state);
     Preconditions.checkArgument(state.contains(ComplianceConfigurationKeys.COMPLIANCEID_KEY),
         "Missing property " + ComplianceConfigurationKeys.COMPLIANCEID_KEY);
     Preconditions.checkArgument(state.contains(ComplianceConfigurationKeys.COMPLIANCE_ID_TABLE_KEY),
@@ -119,7 +124,7 @@ public class HivePurgerExtractor implements Extractor<PurgeableHivePartitionData
     return dataset;
   }
 
-  private String getComplianceField(WorkUnitState state, HivePartitionDataset dataset) {
+  private String getComplianceField(State state, HivePartitionDataset dataset) {
     Map<String, String> partitionParameters = dataset.getTableParams();
     Preconditions.checkArgument(partitionParameters.containsKey(ComplianceConfigurationKeys.DATASET_DESCRIPTOR_KEY),
         "Missing table property " + ComplianceConfigurationKeys.DATASET_DESCRIPTOR_KEY);

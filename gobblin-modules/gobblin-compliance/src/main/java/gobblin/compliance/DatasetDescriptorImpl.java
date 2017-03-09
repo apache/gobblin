@@ -16,13 +16,16 @@
  */
 package gobblin.compliance;
 
+import java.util.List;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
-import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -54,7 +57,7 @@ public class DatasetDescriptorImpl extends DatasetDescriptor {
         descriptorObject = descriptorObject.getAsJsonObject(list.get(i));
       }
       this.complianceField = descriptorObject.get(list.get(list.size() - 1)).getAsString();
-    } catch (Exception e) {
+    } catch (JsonParseException | NullPointerException e) {
       log.warn("Compliance field not found at path " + this.complianceFieldPath.get() + " in the descriptor "
           + this.descriptor);
       Throwables.propagate(e);

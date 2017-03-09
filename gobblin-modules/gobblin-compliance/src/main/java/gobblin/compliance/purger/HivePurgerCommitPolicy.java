@@ -20,11 +20,14 @@ import com.google.common.base.Preconditions;
 
 
 /**
- * This commit policy checks if the lastModified time before and start of purging is same or not.
+ * Default commit policy for purger.
  *
  * @author adsharma
  */
 public class HivePurgerCommitPolicy implements CommitPolicy<PurgeableHivePartitionDataset> {
+  /**
+   * @return true if the last modified time does not change during the execution of the job.
+   */
   public boolean shouldCommit(PurgeableHivePartitionDataset dataset) {
     Preconditions
         .checkNotNull(dataset.getStartTime(), "Start time for purger is not set for dataset " + dataset.datasetURN());
