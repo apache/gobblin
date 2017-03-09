@@ -310,6 +310,9 @@ public class ConfigurationKeys {
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
 
+  // Internal use only - used to send metadata to publisher
+  public static final String WRITER_METADATA_KEY = WRITER_PREFIX + "._internal.metadata";
+
   /**
    * Writer configuration properties used internally.
    */
@@ -351,8 +354,18 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_PREFIX = "data.publisher";
 
   /**
+   * Metadata configuration
+   *
+   * PUBLISH_WRITER_METADATA_KEY: Whether or not to publish writer-generated metadata
+   * PUBLISH_WRITER_METADATA_MERGER_NAME_KEY: Class to use to merge writer-generated metadata.
+   */
+  public static final String DATA_PUBLISH_WRITER_METADATA_KEY = DATA_PUBLISHER_PREFIX + ".metadata.publish.writer";
+  public static final String DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_KEY = DATA_PUBLISHER_PREFIX + ".metadata.publish.writer.merger.class";
+
+  /**
    * Metadata configuration properties used internally
    */
+  public static final String DATA_PUBLISH_WRITER_METADATA_MERGER_NAME_DEFAULT = "gobblin.metadata.types.GlobalMetadataJsonMerger";
   public static final String DATA_PUBLISHER_METADATA_OUTPUT_DIR =  DATA_PUBLISHER_PREFIX + ".metadata.output.dir";
   //Metadata String in the configuration file
   public static final String DATA_PUBLISHER_METADATA_STR = DATA_PUBLISHER_PREFIX + ".metadata.string";
