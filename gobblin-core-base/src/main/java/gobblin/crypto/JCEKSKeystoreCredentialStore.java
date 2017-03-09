@@ -45,11 +45,12 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class JCEKSKeystoreCredentialStore implements CredentialStore {
+  public final static String TAG = "java";
+
   private final KeyStore ks;
   private final char[] password;
   private final Path path;
   private final FileSystem fs;
-
   /**
    * Options that can be used while instantiating a new keystore
    */

@@ -46,6 +46,9 @@ public class EncryptionConfigParser {
   public static final String ENCRYPTION_KEYSTORE_PATH_KEY = "keystore_path";
   public static final String ENCRYPTION_KEYSTORE_PASSWORD_KEY = "keystore_password";
 
+  public static final String ENCRYPTION_KEYSTORE_TYPE_KEY = "keystore_type";
+  public static final String ENCRYPTION_KEYSTORE_TYPE_KEY_DEFAULT = "java";
+
   public static final String ENCRYPTION_TYPE_ANY = "any";
 
   /**
@@ -99,6 +102,18 @@ public class EncryptionConfigParser {
 
   public static String getKeystorePassword(Map<String, Object> properties) {
     return (String)properties.get(ENCRYPTION_KEYSTORE_PASSWORD_KEY);
+  }
+
+  /**
+   * Get the type of keystore to instantiate
+   */
+  public static String getKeystoreType(Map<String, Object> parameters) {
+    String type = (String)parameters.get(ENCRYPTION_KEYSTORE_TYPE_KEY);
+    if (type == null) {
+      type = ENCRYPTION_KEYSTORE_TYPE_KEY_DEFAULT;
+    }
+
+    return type;
   }
 
   /**
