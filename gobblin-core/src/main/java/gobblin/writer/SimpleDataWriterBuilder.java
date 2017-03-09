@@ -24,6 +24,7 @@ import java.util.Map;
 
 import com.google.common.base.Preconditions;
 
+import gobblin.codec.StreamCodec;
 import gobblin.compression.CompressionConfigParser;
 import gobblin.compression.CompressionFactory;
 import gobblin.crypto.EncryptionConfigParser;
@@ -65,7 +66,7 @@ public class SimpleDataWriterBuilder extends FsDataWriterBuilder<String, byte[]>
     Map<String, Object> encryptionConfig =
         EncryptionConfigParser.getConfigForBranch(this.destination.getProperties(), this.branches, this.branch);
     if (encryptionConfig != null) {
-      encoders.add(EncryptionFactory.buildStreamEncryptor(encryptionConfig));
+      encoders.add(EncryptionFactory.buildStreamCryptoProvider(encryptionConfig));
     }
 
     return encoders;

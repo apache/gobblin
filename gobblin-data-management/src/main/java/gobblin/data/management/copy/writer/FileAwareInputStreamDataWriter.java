@@ -207,7 +207,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       OutputStream os =
           this.fs.create(writeAt, true, this.fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
       if (encryptionConfig != null) {
-        os = EncryptionFactory.buildStreamEncryptor(encryptionConfig).encodeOutputStream(os);
+        os = EncryptionFactory.buildStreamCryptoProvider(encryptionConfig).encodeOutputStream(os);
       }
       try {
 

@@ -16,94 +16,57 @@
  */
 package gobblin.crypto;
 
-import java.io.IOException;
 import java.util.Map;
-import java.util.Set;
-
-import com.google.common.collect.ImmutableSet;
-
-import gobblin.annotation.Alpha;
-import gobblin.writer.StreamCodec;
+import java.util.ServiceLoader;
 
 import lombok.extern.slf4j.Slf4j;
 
+import gobblin.codec.StreamCodec;
+
 
 /**
- * Helper and factory methods for encryption algorithms.
- *
- * Note: Interface will likely change to support registration of algorithms
+ * This class knows how to build encryption algorithms based on configuration parameters. To add your own
+ * encryption implementation, please add another implementation of {@link gobblin.crypto.EncryptionProvider}
+ * in Gobblin's classpath as well as referencing the new implementation in META-INF/services/gobblin.crypto.EncryptionProvider
+ * of the containing JAR. (See {@link java.util.ServiceLoader} documentation for more details).
  */
 @Slf4j
-@Alpha
 public class EncryptionFactory {
-  private final static Set<String> SUPPORTED_STREAMING_ALGORITHMS =
-      ImmutableSet.of("insecure_shift", "aes_rotating", EncryptionConfigParser.ENCRYPTION_TYPE_ANY);
+  private static ServiceLoader<EncryptionProvider> encryptionProviderLoader = ServiceLoader.load(EncryptionProvider.class);
 
   /**
-   * Return a set of streaming algorithms (StreamEncoders) that this factory knows how to build
-   * @return Set of streaming algorithms the factory knows how to build
+   * Build a StreamCodec with the given config parameters. The type will be extracted from the parameters.
+   * See {@link gobblin.crypto.EncryptionConfigParser} for a set of standard configuration parameters, although
+   * each encryption provider may have its own arbitrary set.
+   * @return A StreamCodec for the given parameters
+   * @throws IllegalArgumentException If no provider exists that can build the requested encryption codec
    */
-  public static Set<String> supportedStreamingAlgorithms() {
-    return SUPPORTED_STREAMING_ALGORITHMS;
-  }
-
-  /**
-   * Return a StreamEncryptor for the given parameters. The algorithm type to use will be extracted
-   * from the parameters object.
-   * @param parameters Configured parameters for algorithm.
-   * @return A StreamCodec for the requested algorithm
-   * @throws IllegalArgumentException If the given algorithm/parameter pair cannot be built
-   */
-  public static StreamCodec buildStreamEncryptor(Map<String, Object> parameters) {
+  public static StreamCodec buildStreamCryptoProvider(Map<String, Object> parameters) {
     String encryptionType = EncryptionConfigParser.getEncryptionType(parameters);
     if (encryptionType == null) {
       throw new IllegalArgumentException("Encryption type not present in parameters!");
     }
 
-    return buildStreamEncryptor(encryptionType, parameters);
+    return buildStreamCryptoProvider(encryptionType, parameters);
   }
 
   /**
    * Return a StreamEncryptor for the given algorithm and with appropriate parameters.
-   * @param algorithm ALgorithm to build
+   * @param algorithm Algorithm to build
    * @param parameters Parameters for algorithm
-   * @return A SreamEncoder for that algorithm
+   * @return A StreamCodec for that algorithm
    * @throws IllegalArgumentException If the given algorithm/parameter pair cannot be built
    */
-  public static StreamCodec buildStreamEncryptor(String algorithm, Map<String, Object> parameters) {
-    /* TODO - Ideally this would dynamically discover plugins somehow which would let us move
-     * move crypto algorithms into gobblin-modules and just keep the factory in core. (The factory
-     * would fail to build anything if the corresponding gobblin-modules aren't included).
-     */
-    switch (algorithm) {
-      case "insecure_shift":
-        return new InsecureShiftCodec(parameters);
-      case EncryptionConfigParser.ENCRYPTION_TYPE_ANY:
-      case "aes_rotating":
-        CredentialStore cs = buildCredentialStore(parameters);
-        if (cs == null) {
-          throw new IllegalArgumentException("Failed to build credential store; can't instantiate AES");
-        }
-
-        return new RotatingAESCodec(cs);
-      default:
-        throw new IllegalArgumentException("Do not support encryption type " + algorithm);
+  public static StreamCodec buildStreamCryptoProvider(String algorithm, Map<String, Object> parameters) {
+    for (EncryptionProvider provider: encryptionProviderLoader) {
+      log.debug("Looking for algorithm {} in provider {}", algorithm, provider.getClass().getName());
+      StreamCodec codec = provider.buildStreamCryptoProvider(algorithm, parameters);
+      if (codec != null) {
+        log.debug("Found algorithm {} in provider {}", algorithm, provider.getClass().getName());
+        return codec;
+      }
     }
-  }
 
-  private static CredentialStore buildCredentialStore(Map<String, Object> parameters) {
-    String ks_path = EncryptionConfigParser.getKeystorePath(parameters);
-    String ks_password = EncryptionConfigParser.getKeystorePassword(parameters);
-
-    try {
-      return new JCEKSKeystoreCredentialStore(ks_path, ks_password);
-    } catch (IOException e) {
-      log.error("Error building credential store, returning null", e);
-      return null;
-    }
-  }
-
-  private EncryptionFactory() {
-    // helper functions only, can't instantiate
+    throw new IllegalArgumentException("Could not find a provider to build algorithm " + algorithm);
   }
 }
