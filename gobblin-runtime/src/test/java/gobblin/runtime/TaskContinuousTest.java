@@ -366,8 +366,11 @@ public class TaskContinuousTest {
   }
 
   private TaskState getStreamingTaskState() {
-    TaskState taskState = new TaskState(new WorkUnitState(WorkUnit.create(
-        new Extract(Extract.TableType.SNAPSHOT_ONLY, this.getClass().getName(), this.getClass().getSimpleName()))));
+    WorkUnitState workUnitState = new WorkUnitState(WorkUnit.create(
+        new Extract(Extract.TableType.SNAPSHOT_ONLY, this.getClass().getName(), this.getClass().getSimpleName())));
+    workUnitState.setProp(ConfigurationKeys.TASK_KEY_KEY, "1234");
+
+    TaskState taskState = new TaskState(workUnitState);
     taskState.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(false));
     taskState.setProp(TaskConfigurationKeys.TASK_EXECUTION_MODE, ExecutionModel.STREAMING.name());
     taskState.setJobId("1234");

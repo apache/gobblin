@@ -41,15 +41,14 @@ import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
-import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.UnableToInterruptJobException;
-import org.quartz.impl.StdSchedulerFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -70,9 +69,7 @@ import gobblin.runtime.listeners.EmailNotificationJobListener;
 import gobblin.runtime.listeners.JobListener;
 import gobblin.runtime.listeners.RunOnceJobListener;
 import gobblin.util.ExecutorsUtils;
-import gobblin.util.JobLauncherUtils;
 import gobblin.util.SchedulerUtils;
-import gobblin.util.filesystem.PathAlterationListener;
 import gobblin.util.filesystem.PathAlterationDetector;
 
 
@@ -131,7 +128,6 @@ public class JobScheduler extends AbstractIdleService {
 
   // A period of time for scheduler to wait until jobs are finished
   private final boolean waitForJobCompletion;
-
 
   public JobScheduler(Properties properties, SchedulerService scheduler)
       throws Exception {
@@ -385,9 +381,6 @@ public class JobScheduler extends AbstractIdleService {
       return;
     }
 
-    // Populate the assigned job ID
-    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtils.newJobId(jobName));
-
     // Launch the job
     try (Closer closer = Closer.create()) {
       closer.register(jobLauncher).launchJob(jobListener);
@@ -478,10 +471,9 @@ public class JobScheduler extends AbstractIdleService {
    */
   @DisallowConcurrentExecution
   @Slf4j
-  public static class GobblinJob implements InterruptableJob {
-
+  public static class GobblinJob extends BaseGobblinJob implements InterruptableJob {
     @Override
-    public void execute(JobExecutionContext context)
+    public void executeImpl(JobExecutionContext context)
         throws JobExecutionException {
       LOG.info("Starting job " + context.getJobDetail().getKey());
       JobDataMap dataMap = context.getJobDetail().getJobDataMap();
@@ -500,7 +492,6 @@ public class JobScheduler extends AbstractIdleService {
     public void interrupt()
         throws UnableToInterruptJobException {
       log.info("Job was interrupted");
-
     }
   }
 

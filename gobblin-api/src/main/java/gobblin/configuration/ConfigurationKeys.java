@@ -180,7 +180,9 @@ public class ConfigurationKeys {
    * Configuration properties used internally.
    */
   public static final String JOB_ID_KEY = "job.id";
+  public static final String JOB_KEY_KEY = "job.key";
   public static final String TASK_ID_KEY = "task.id";
+  public static final String TASK_KEY_KEY = "task.key";
   public static final String TASK_ATTEMPT_ID_KEY = "task.AttemptId";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";

@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
@@ -72,6 +73,7 @@ import gobblin.source.workunit.MultiWorkUnit;
 import gobblin.source.workunit.WorkUnit;
 import gobblin.util.ClusterNameTags;
 import gobblin.util.ExecutorsUtils;
+import gobblin.util.Id;
 import gobblin.util.JobLauncherUtils;
 import gobblin.util.ParallelRunner;
 import gobblin.writer.initializer.WriterInitializerFactory;
@@ -306,6 +308,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     JobState jobState = this.jobContext.getJobState();
 
     try {
+      MDC.put(ConfigurationKeys.JOB_NAME_KEY, this.jobContext.getJobName());
+      MDC.put(ConfigurationKeys.JOB_KEY_KEY, this.jobContext.getJobKey());
       TimingEvent launchJobTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.FULL_JOB_EXECUTION);
 
       try (Closer closer = Closer.create()) {
@@ -463,6 +467,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
         JobMetrics.remove(jobState);
       }
+      MDC.remove(ConfigurationKeys.JOB_NAME_KEY);
+      MDC.remove(ConfigurationKeys.JOB_KEY_KEY);
     }
   }
 
@@ -600,6 +606,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       String taskId = JobLauncherUtils.newTaskId(this.jobContext.getJobId(), taskIdSequence++);
       workUnit.setId(taskId);
       workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+      workUnit.setProp(ConfigurationKeys.TASK_KEY_KEY, Long.toString(Id.Task.parse(taskId).getSequence()));
       jobState.incrementTaskCount();
       // Pre-add a task state so if the task fails and no task state is written out,
       // there is still task state for the task when job/task states are persisted.

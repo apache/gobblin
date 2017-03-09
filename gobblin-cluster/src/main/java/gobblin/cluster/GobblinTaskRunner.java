@@ -30,7 +30,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import gobblin.util.JvmUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -79,6 +78,7 @@ import gobblin.runtime.TaskStateTracker;
 import gobblin.runtime.services.JMXReportingService;
 import gobblin.util.ConfigUtils;
 import gobblin.util.HadoopUtils;
+import gobblin.util.JvmUtils;
 import gobblin.util.logs.Log4jConfigurationHelper;
 
 

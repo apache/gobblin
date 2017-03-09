@@ -60,7 +60,7 @@ public class IteratorExecutor<T> {
   public IteratorExecutor(Iterator<Callable<T>> runnableIterator, int numThreads, ThreadFactory threadFactory) {
     this.numThreads = numThreads;
     this.iterator = runnableIterator;
-    this.executor = Executors.newFixedThreadPool(numThreads, threadFactory);
+    this.executor = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(numThreads, threadFactory));
     this.completionService = new ExecutorCompletionService<>(this.executor);
     this.executed = false;
   }
