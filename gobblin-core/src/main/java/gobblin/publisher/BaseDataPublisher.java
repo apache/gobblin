@@ -17,15 +17,20 @@
 
 package gobblin.publisher;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import com.github.rholder.retry.*;
+import com.google.common.base.Optional;
+import com.google.common.collect.*;
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import gobblin.config.ConfigBuilder;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.util.ForkOperatorUtils;
 import gobblin.util.HadoopUtils;
+import gobblin.util.ParallelRunner;
+import gobblin.util.WriterUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -35,19 +40,14 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.io.Closer;
+import java.io.IOException;
+import java.net.URI;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
-import gobblin.configuration.State;
-import gobblin.configuration.WorkUnitState;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.util.ForkOperatorUtils;
-import gobblin.util.ParallelRunner;
-import gobblin.util.WriterUtils;
+import static gobblin.retry.RetryerFactory.*;
 
 
 /**
@@ -85,6 +85,23 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final int parallelRunnerThreads;
   protected final Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
   protected final Set<Path> publisherOutputDirs = Sets.newHashSet();
+
+  static final String PUBLISH_RETRY_PREFIX = ConfigurationKeys.DATA_PUBLISHER_PREFIX + "retry.";
+
+  static final Config PUBLISH_RETRY_DEFAULTS;
+  static {
+    Map<String, Object> configMap =
+        ImmutableMap.<String, Object>builder()
+            .put(RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(2L))   //Overall retry for 2 minutes
+            .put(RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(5L)) //Try to retry 5 seconds
+            .put(RETRY_MULTIPLIER, 2L) // Muliply by 2 every attempt
+            .put(RETRY_TYPE, RetryType.EXPONENTIAL.name())
+            .build();
+    PUBLISH_RETRY_DEFAULTS = ConfigFactory.parseMap(configMap);
+  };
+
+  protected final Config retrierConfig;
+
 
   public BaseDataPublisher(State state) throws IOException {
     super(state);
@@ -131,6 +148,11 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     this.parallelRunnerThreads =
         state.getPropAsInt(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY, ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS);
     this.parallelRunnerCloser = Closer.create();
+
+    this.retrierConfig = ConfigBuilder.create()
+        .loadProps(state.getProperties(), PUBLISH_RETRY_PREFIX)
+        .build()
+        .withFallback(PUBLISH_RETRY_DEFAULTS);
   }
 
   @Override
@@ -161,8 +183,29 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
    * This method publishes output data for a single task based on the given {@link WorkUnitState}.
    * Output data from other tasks won't be published even if they are in the same folder.
    */
-  private void publishSingleTaskData(WorkUnitState state, int branchId) throws IOException {
-    publishData(state, branchId, true, new HashSet<Path>());
+  private void publishSingleTaskData(final WorkUnitState state, final int branchId) throws IOException {
+    Callable<Void> yourTask = new Callable<Void>() {
+      public Void call() throws Exception {
+        publishData(state, branchId, true, new HashSet<Path>());
+        return null;
+      }
+    };
+
+    Retryer<Void> retrier = RetryerBuilder.<Void> newBuilder()
+        .retryIfExceptionOfType(IOException.class)
+        .withWaitStrategy(WaitStrategies.exponentialWait(retrierConfig.getLong(RETRY_MULTIPLIER),
+            retrierConfig.getLong(RETRY_INTERVAL_MS),
+            TimeUnit.MILLISECONDS))
+        .withStopStrategy(StopStrategies.stopAfterDelay(retrierConfig.getLong(RETRY_TIME_OUT_MS), TimeUnit.MILLISECONDS))
+        .build();
+
+    try {
+      retrier.call(yourTask);
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    } catch (RetryException e) {
+      throw new IOException(e);
+    }
   }
 
   @Override
@@ -192,9 +235,30 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
    * This method publishes task output data for the given {@link WorkUnitState}, but if there are output data of
    * other tasks in the same folder, it may also publish those data.
    */
-  private void publishMultiTaskData(WorkUnitState state, int branchId, Set<Path> writerOutputPathsMoved)
+  private void publishMultiTaskData(final WorkUnitState state, final int branchId, final Set<Path> writerOutputPathsMoved)
       throws IOException {
-    publishData(state, branchId, false, writerOutputPathsMoved);
+
+    Callable<Void> publishTask = new Callable<Void>() {
+      public Void call() throws Exception {
+        publishData(state, branchId, false, writerOutputPathsMoved);
+        return null;
+      }
+    };
+    Retryer<Void> retrier = RetryerBuilder.<Void> newBuilder()
+        .retryIfExceptionOfType(IOException.class)
+        .withWaitStrategy(WaitStrategies.exponentialWait(retrierConfig.getLong(RETRY_MULTIPLIER),
+            retrierConfig.getLong(RETRY_INTERVAL_MS),
+            TimeUnit.MILLISECONDS))
+        .withStopStrategy(StopStrategies.stopAfterDelay(retrierConfig.getLong(RETRY_TIME_OUT_MS), TimeUnit.MILLISECONDS))
+        .build();
+
+    try {
+      retrier.call(publishTask);
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    } catch (RetryException e) {
+      throw new IOException(e);
+    }
   }
 
   protected void publishData(WorkUnitState state, int branchId, boolean publishSingleTaskData,
@@ -204,6 +268,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
     // The directory where the workUnitState wrote its output data.
     Path writerOutputDir = WriterUtils.getWriterOutputDir(state, this.numBranches, branchId);
+    LOG.info("Publishing to output dir: " + writerOutputDir.toString());
 
     if (!this.writerFileSystemByBranches.get(branchId).exists(writerOutputDir)) {
       LOG.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, state.getId()));

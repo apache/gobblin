@@ -17,10 +17,13 @@
 
 package gobblin.util;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.concurrent.ExecutionException;
-
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.configuration.State;
+import gobblin.configuration.WorkUnitState;
+import gobblin.source.workunit.WorkUnit;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.hadoop.conf.Configuration;
@@ -28,10 +31,13 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.token.Token;
+import org.apache.log4j.Logger;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URI;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,6 +52,7 @@ import gobblin.source.workunit.WorkUnit;
  */
 @Slf4j
 public class WriterUtils {
+  private static final Logger LOG = Logger.getLogger(WriterUtils.class);
 
   public static final String WRITER_ENCRYPTED_CONFIG_PATH = ConfigurationKeys.WRITER_PREFIX + ".encrypted";
 
@@ -248,6 +255,9 @@ public class WriterUtils {
    * @throws IOException if failing to create dir or set permission.
    */
   public static void mkdirsWithRecursivePermission(FileSystem fs, Path path, FsPermission perm) throws IOException {
+    int maxRetry = 20;
+    int current = 0;
+
     if (fs.exists(path)) {
       return;
     }
@@ -258,10 +268,26 @@ public class WriterUtils {
       throw new IOException(String.format("Unable to mkdir %s with permission %s", path, perm));
     }
 
+    //Wait until file is there as it can happen the file is not exists right away on eventual consistent fs like Amazon S3
+    while (!fs.exists(path) && current < maxRetry) {
+      try {
+        LOG.warn("Path "+path+" does not exist. Will retry after 5 second. Attempt: "+ current);
+        current++;
+        TimeUnit.SECONDS.sleep(5);
+      } catch (InterruptedException e) {
+        throw new IOException(e);
+      }
+    }
+
+    if (maxRetry <= current) {
+      throw new IOException("Path " + path + "failed to create in " + maxRetry*5+" seconds");
+    }
+
     // Double check permission, since fs.mkdirs() may not guarantee to set the permission correctly
     if (!fs.getFileStatus(path).getPermission().equals(perm)) {
       fs.setPermission(path, perm);
     }
+
   }
 
   public static FileSystem getWriterFS(State state, int numBranches, int branchId)

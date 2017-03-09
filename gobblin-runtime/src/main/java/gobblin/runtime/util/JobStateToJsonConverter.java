@@ -17,36 +17,24 @@
 
 package gobblin.runtime.util;
 
-import java.io.BufferedWriter;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.StringWriter;
-import java.io.Writer;
-import java.util.List;
-import java.util.Properties;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import com.google.common.io.Closer;
+import com.google.gson.stream.JsonWriter;
+import com.typesafe.config.Config;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metastore.DatasetStateStore;
+import gobblin.metastore.StateStore;
+import gobblin.runtime.JobState;
+import gobblin.util.ClassAliasResolver;
+import gobblin.util.ConfigUtils;
+import gobblin.util.JobConfigurationUtils;
+import org.apache.commons.cli.*;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.io.Closer;
-import com.google.gson.stream.JsonWriter;
-
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metastore.StateStore;
-import gobblin.runtime.FsDatasetStateStore;
-import gobblin.runtime.JobState;
-import gobblin.util.JobConfigurationUtils;
+import java.io.*;
+import java.util.List;
+import java.util.Properties;
 
 
 /**
@@ -63,15 +51,43 @@ public class JobStateToJsonConverter {
   private final StateStore<? extends JobState> jobStateStore;
   private final boolean keepConfig;
 
+  @SuppressWarnings("unchecked")
   public JobStateToJsonConverter(Properties props, String storeUrl, boolean keepConfig) throws IOException {
     Configuration conf = new Configuration();
     JobConfigurationUtils.putPropertiesIntoConfiguration(props, conf);
-    Path storePath = new Path(storeUrl);
-    FileSystem fs = storePath.getFileSystem(conf);
-    String storeRootDir = storePath.toUri().getPath();
-    this.jobStateStore = new FsDatasetStateStore(fs, storeRootDir);
+
+    this.jobStateStore = (StateStore) createStateStore(ConfigUtils.propertiesToConfig(props));
     this.keepConfig = keepConfig;
   }
+
+
+  protected DatasetStateStore createStateStore(Config jobConfig) throws IOException {
+    boolean stateStoreEnabled = !jobConfig.hasPath(ConfigurationKeys.STATE_STORE_ENABLED)
+        || jobConfig.getBoolean(ConfigurationKeys.STATE_STORE_ENABLED);
+
+    String stateStoreType;
+
+    if (!stateStoreEnabled) {
+      stateStoreType = ConfigurationKeys.STATE_STORE_TYPE_NOOP;
+    } else {
+      stateStoreType = ConfigUtils.getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY,
+          ConfigurationKeys.DEFAULT_STATE_STORE_TYPE);
+    }
+
+    ClassAliasResolver<DatasetStateStore.Factory> resolver =
+        new ClassAliasResolver<>(DatasetStateStore.Factory.class);
+
+    try {
+      DatasetStateStore.Factory stateStoreFactory =
+          resolver.resolveClass(stateStoreType).newInstance();
+      return stateStoreFactory.createStateStore(jobConfig);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
+  }
+
 
   /**
    * Convert a single {@link JobState} of the given job instance.

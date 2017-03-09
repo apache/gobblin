@@ -17,24 +17,28 @@
 
 package gobblin.compaction.mapreduce;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
+import gobblin.compaction.dataset.Dataset;
+import gobblin.compaction.dataset.DatasetHelper;
+import gobblin.compaction.event.CompactionSlaEventHelper;
+import gobblin.configuration.ConfigurationKeys;
+import gobblin.metrics.GobblinMetrics;
+import gobblin.metrics.event.EventSubmitter;
+import gobblin.util.*;
+import gobblin.util.executors.ScalingThreadPoolExecutor;
+import gobblin.util.recordcount.LateFileRecordCountProvider;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.primes.Primes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.filecache.DistributedCache;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -44,32 +48,11 @@ import org.joda.time.DateTimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.primitives.Ints;
-
-import gobblin.compaction.dataset.Dataset;
-import gobblin.compaction.dataset.DatasetHelper;
-import gobblin.compaction.event.CompactionSlaEventHelper;
-import gobblin.configuration.ConfigurationKeys;
-import gobblin.metrics.GobblinMetrics;
-import gobblin.metrics.event.EventSubmitter;
-import gobblin.util.ExecutorsUtils;
-import gobblin.util.FileListUtils;
-import gobblin.util.HadoopUtils;
-import gobblin.util.RecordCountProvider;
-import gobblin.util.WriterUtils;
-import gobblin.util.executors.ScalingThreadPoolExecutor;
-import gobblin.util.recordcount.LateFileRecordCountProvider;
-
-
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.*;
 
 /**
  * This class is responsible for configuring and running a single MR job.
@@ -151,6 +134,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private final LateFileRecordCountProvider lateOutputRecordCountProvider;
   private final DatasetHelper datasetHelper;
   private final int copyLateDataThreadPoolSize;
+  private final String outputExtension;
 
   private volatile Policy policy = Policy.DO_NOT_PUBLISH_DATA;
   private volatile Status status = Status.RUNNING;
@@ -203,6 +187,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     this.applicablePathCache = CacheBuilder.newBuilder().maximumSize(2000).build();
     this.datasetHelper = new DatasetHelper(this.dataset, this.fs, this.getApplicableFileExtensions());
 
+    this.outputExtension = this.dataset.jobProps().getProp(MRCompactor.COMPACTION_FILE_EXTENSION, ".avro");
   }
 
   @Override
@@ -325,6 +310,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         public Void call() throws Exception {
           Path convertedFilePath = MRCompactorJobRunner.this.outputRecordCountProvider.convertPath(
               LateFileRecordCountProvider.restoreFilePath(filePath),
+              MRCompactorJobRunner.this.outputExtension,
               MRCompactorJobRunner.this.inputRecordCountProvider);
           String targetFileName = convertedFilePath.getName();
           Path outPath = MRCompactorJobRunner.this.lateOutputRecordCountProvider.constructLateFilePath(targetFileName,
@@ -514,11 +500,30 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   }
 
   private void moveTmpPathToOutputPath() throws IOException {
+    int maxRetry = 20;
+    int current = 0;
+
     LOG.info(String.format("Moving %s to %s", this.dataset.outputTmpPath(), this.dataset.outputPath()));
 
     this.fs.delete(this.dataset.outputPath(), true);
 
     WriterUtils.mkdirsWithRecursivePermission(this.fs, this.dataset.outputPath().getParent(), this.perm);
+
+    while (!fs.exists(this.dataset.outputTmpPath()) && current < maxRetry) {
+      try {
+        LOG.warn("Path "+this.dataset.outputTmpPath()+" does not exist. Will retry after 5 second. Attempt: "+ current);
+        current++;
+        TimeUnit.SECONDS.sleep(5);
+      } catch (InterruptedException e) {
+        throw new IOException(e);
+      }
+    }
+
+    if (maxRetry <= current) {
+      throw new IOException("Path " + this.dataset.outputTmpPath() + "still does not exists after " + maxRetry*5+" seconds");
+    }
+
+
     if (!this.fs.rename(this.dataset.outputTmpPath(), this.dataset.outputPath())) {
       throw new IOException(
           String.format("Unable to move %s to %s", this.dataset.outputTmpPath(), this.dataset.outputPath()));
