@@ -22,6 +22,7 @@ import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.Extractor;
 import gobblin.source.extractor.exception.ExtractPrepareException;
 import gobblin.source.extractor.exception.HighWatermarkException;
+import gobblin.source.extractor.partition.Partitioner;
 import gobblin.source.extractor.schema.ArrayDataType;
 import gobblin.source.extractor.schema.DataType;
 import gobblin.source.extractor.schema.EnumDataType;
@@ -187,8 +188,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
     }
 
     // Don't remove if user specifies one or is recorded in previous run
-    if (this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE) != null ||
-        this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_APPEND_MAX_WATERMARK_LIMIT) != null ||
+    if (this.workUnit.getPropAsBoolean(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK) ||
         this.workUnitState.getProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY) != null) {
       return false;
     }

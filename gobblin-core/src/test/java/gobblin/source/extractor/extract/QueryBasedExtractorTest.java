@@ -7,6 +7,7 @@ import gobblin.source.extractor.DataRecordException;
 import gobblin.source.extractor.exception.HighWatermarkException;
 import gobblin.source.extractor.exception.RecordCountException;
 import gobblin.source.extractor.exception.SchemaException;
+import gobblin.source.extractor.partition.Partitioner;
 import gobblin.source.extractor.watermark.Predicate;
 import gobblin.source.extractor.watermark.WatermarkPredicate;
 import gobblin.source.extractor.watermark.WatermarkType;
@@ -53,23 +54,16 @@ public class QueryBasedExtractorTest {
     testExtractor.setRangePredicates(1, 3);
     this.verify(testExtractor, 3);
 
-    // It's a last work unit but user specifies SOURCE_QUERYBASED_END_VALUE
+    // It's a last work unit but user specifies high watermark
     workUnit.setProp(QueryBasedSource.IS_LAST_WORK_UNIT, true);
-    workUnit.setProp(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE, "3");
+    workUnit.setProp(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK, true);
     testExtractor.reset();
     testExtractor.setRangePredicates(1, 3);
     this.verify(testExtractor, 3);
 
     // It's a last work unit but it has WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY on record
-    workUnit.removeProp(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE);
+    workUnit.removeProp(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK);
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY, "3");
-    testExtractor.reset();
-    testExtractor.setRangePredicates(1, 3);
-    this.verify(testExtractor, 3);
-
-    // It's a last work unit but it has SOURCE_QUERYBASED_APPEND_MAX_WATERMARK_LIMIT
-    workUnit.removeProp(ConfigurationKeys.WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY);
-    workUnit.setProp(ConfigurationKeys.SOURCE_QUERYBASED_APPEND_MAX_WATERMARK_LIMIT, "CURRENT_DATE-3");
     testExtractor.reset();
     testExtractor.setRangePredicates(1, 3);
     this.verify(testExtractor, 3);

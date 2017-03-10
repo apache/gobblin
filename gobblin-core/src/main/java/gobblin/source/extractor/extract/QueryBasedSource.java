@@ -18,11 +18,11 @@
 package gobblin.source.extractor.extract;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -49,6 +49,7 @@ import gobblin.configuration.WorkUnitState;
 import gobblin.configuration.WorkUnitState.WorkingState;
 import gobblin.source.extractor.JobCommitPolicy;
 import gobblin.source.extractor.WatermarkInterval;
+import gobblin.source.extractor.partition.Partition;
 import gobblin.source.extractor.partition.Partitioner;
 import gobblin.source.extractor.utils.Utils;
 import gobblin.source.workunit.Extract;
@@ -199,8 +200,8 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         combinedState.setProp(ConfigurationKeys.SOURCE_QUERYBASED_END_VALUE, previousWatermark);
       }
 
-      Map<Long, Long> sortedPartitions = Maps.newTreeMap();
-      sortedPartitions.putAll(new Partitioner(combinedState).getPartitions(previousWatermark));
+      List<Partition> partitions = new Partitioner(combinedState).getPartitionList(previousWatermark);
+      Collections.sort(partitions, Partitioner.getAscendingComparator());
 
       // {@link ConfigurationKeys.EXTRACT_TABLE_NAME_KEY} specify the output path for Extract
       String outputTableName = sourceEntity.getDestTableName();
@@ -213,21 +214,25 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
         extract.setFullTrue(System.currentTimeMillis());
       }
 
-      for (Entry<Long, Long> entry : sortedPartitions.entrySet()) {
+      for (Partition partition : partitions) {
         WorkUnit workunit = WorkUnit.create(extract);
         workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, sourceEntity.getSourceEntityName());
         workunit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, sourceEntity.getDestTableName());
         workunit.setWatermarkInterval(
-            new WatermarkInterval(new LongWatermark(entry.getKey()), new LongWatermark(entry.getValue())));
+            new WatermarkInterval(
+                new LongWatermark(partition.getLowWatermark()), new LongWatermark(partition.getHighWatermark())));
         workunit.setProp(WORK_UNIT_STATE_VERSION_KEY, CURRENT_WORK_UNIT_STATE_VERSION);
+        if (partition.getHasUserSpecifiedHighWatermark()) {
+          workunit.setProp(Partitioner.HAS_USER_SPECIFIED_HIGH_WATERMARK, true);
+        }
         workUnits.add(workunit);
       }
+
+      // Mark last work unit of the current source entity
+      workUnits.get(workUnits.size() - 1).setProp(IS_LAST_WORK_UNIT, true);
     }
+
     log.info("Total number of workunits for the current run: " + workUnits.size());
-
-    // Mark last work unit of the current run
-    workUnits.get(workUnits.size() - 1).setProp(IS_LAST_WORK_UNIT, true);
-
     List<WorkUnit> previousWorkUnits = this.getPreviousWorkUnitsForRetry(state);
     log.info("Total number of incomplete tasks from the previous run: " + previousWorkUnits.size());
     workUnits.addAll(previousWorkUnits);
