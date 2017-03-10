@@ -69,7 +69,7 @@ public class RotatingAESCodecTest {
   @Test
   public void testLotsOfData()
       throws Exception {
-    long bytesToWrite = 50 * 1000 * 1000;
+    long bytesToWrite = 20 * 1000 * 1000;
     byte[] buf = new byte[16384];
     long bytesWritten = 0;
     SimpleCredentialStore credStore = new SimpleCredentialStore();
