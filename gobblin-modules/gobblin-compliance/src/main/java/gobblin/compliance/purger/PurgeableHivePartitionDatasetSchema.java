@@ -14,23 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
-
-import java.util.List;
-
-import org.apache.hadoop.hive.ql.metadata.Partition;
-
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-
+package gobblin.compliance.purger;
 
 /**
- * Record corresponding to a hive partition. It also contains a list of queries to be executed on this partition.
+ * Dummy class for schema corresponding to {@link PurgeableHivePartitionDataset}
+ *
+ * @author adsharma
  */
-@Getter
-@Setter
-public abstract class QueryBaseHivePartitionRecord {
-  protected Partition hivePartition;
-  protected List<String> queries;
+public class PurgeableHivePartitionDatasetSchema {
 }

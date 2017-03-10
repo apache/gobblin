@@ -14,30 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package gobblin.compliance;
+package gobblin.compliance.purger;
 
-import gobblin.configuration.WorkUnitState;
-import gobblin.converter.Converter;
-import gobblin.converter.SingleRecordIterable;
+import com.google.common.base.Preconditions;
 
 
 /**
- * A {@link Converter} to build compliance queries. Queries are added to the {@link ComplianceRecord}.
+ * Default commit policy for purger.
  *
  * @author adsharma
  */
-public class HivePurgerConverter extends Converter<ComplianceRecordSchema, ComplianceRecordSchema, ComplianceRecord, ComplianceRecord> {
-
-  @Override
-  public ComplianceRecordSchema convertSchema(ComplianceRecordSchema schema, WorkUnitState state) {
-    return schema;
-  }
-
-  @Override
-  public Iterable<ComplianceRecord> convertRecord(ComplianceRecordSchema schema, ComplianceRecord record,
-      WorkUnitState state) {
-    record.setPurgeQueries(HivePurgerQueryTemplate.getPurgeQueries(record));
-    return new SingleRecordIterable<>(record);
+public class HivePurgerCommitPolicy implements CommitPolicy<PurgeableHivePartitionDataset> {
+  /**
+   * @return true if the last modified time does not change during the execution of the job.
+   */
+  public boolean shouldCommit(PurgeableHivePartitionDataset dataset) {
+    Preconditions
+        .checkNotNull(dataset.getStartTime(), "Start time for purger is not set for dataset " + dataset.datasetURN());
+    Preconditions
+        .checkNotNull(dataset.getEndTime(), "End time for purger is not set for dataset " + dataset.datasetURN());
+    return dataset.getStartTime() == dataset.getEndTime();
   }
 }
-

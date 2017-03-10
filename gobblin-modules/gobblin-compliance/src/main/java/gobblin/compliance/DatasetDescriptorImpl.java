@@ -18,38 +18,54 @@ package gobblin.compliance;
 
 import java.util.List;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * This is the default implementation of {@link DatasetDescriptor}
  *
+ * Descriptor is the JsonString corresponding to the value of dataset.descriptor.
+ * ComplianceFieldPath is the path to the complianceField in the dataset.descriptor.
+ * ComplianceFieldPath must not contain array element as it is not supported.
+ *
  * @author adsharma
  */
-public class DatasetDescriptorImpl implements DatasetDescriptor {
+@Slf4j
+public class DatasetDescriptorImpl extends DatasetDescriptor {
   private static final Splitter DOT_SPLITTER = Splitter.on(".").omitEmptyStrings().trimResults();
-  private String complianceId;
+  private String complianceField;
 
-  /**
-   *
-   * @param descriptor is the JsonString corresponding to the value of dataset.descriptor.
-   * @param identifierField is the path to the identifier in the dataset.descriptor.
-   */
-  public DatasetDescriptorImpl(String descriptor, String identifierField) {
-    JsonObject descriptorObject = new JsonParser().parse(descriptor).getAsJsonObject();
-    List<String> list = DOT_SPLITTER.splitToList(identifierField);
-    for (int i = 0; i < list.size() - 1; i++) {
-      descriptorObject = descriptorObject.getAsJsonObject(list.get(i));
-    }
-    this.complianceId = descriptorObject.get(list.get(list.size() - 1)).getAsString();
+  public DatasetDescriptorImpl(String descriptor, Optional<String> complianceFieldPath) {
+    super(descriptor, complianceFieldPath);
+    setComplianceField();
   }
 
-  /**
-   * Array is not supported
-   */
-  public String getComplianceId() {
-    return this.complianceId;
+  private void setComplianceField() {
+    Preconditions.checkArgument(this.complianceFieldPath.isPresent());
+    try {
+      JsonObject descriptorObject = new JsonParser().parse(this.descriptor).getAsJsonObject();
+      List<String> list = DOT_SPLITTER.splitToList(this.complianceFieldPath.get());
+      for (int i = 0; i < list.size() - 1; i++) {
+        descriptorObject = descriptorObject.getAsJsonObject(list.get(i));
+      }
+      this.complianceField = descriptorObject.get(list.get(list.size() - 1)).getAsString();
+    } catch (JsonParseException | NullPointerException e) {
+      log.warn("Compliance field not found at path " + this.complianceFieldPath.get() + " in the descriptor "
+          + this.descriptor);
+      Throwables.propagate(e);
+    }
+  }
+
+  @Override
+  public String getComplianceField() {
+    return this.complianceField;
   }
 }
