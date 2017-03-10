@@ -268,8 +268,9 @@ public class SimpleDataWriterTest {
   @Test
   public void testSupportsGzipAndEncryption() throws IOException {
     final String ENCRYPTION_TYPE = "insecure_shift";
+    final String COMPRESSION_TYPE = "gzip";
 
-    properties.setProp(ConfigurationKeys.WRITER_CODEC_TYPE, "gzip");
+    properties.setProp(ConfigurationKeys.WRITER_CODEC_TYPE, COMPRESSION_TYPE);
     properties.setProp(EncryptionConfigParser.ENCRYPT_PREFIX + "." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY,
         ENCRYPTION_TYPE);
     properties.setProp(ConfigurationKeys.SIMPLE_WRITER_DELIMITER, "");
@@ -285,7 +286,7 @@ public class SimpleDataWriterTest {
     writer.commit();
 
     File outputFile = new File(writer.getOutputFilePath());
-    Assert.assertTrue(outputFile.getName().endsWith(".gzip.insecure_shift"),
+    Assert.assertTrue(outputFile.getName().endsWith("." + COMPRESSION_TYPE + "." + ENCRYPTION_TYPE),
         "Expected compression & encryption in file name!");
 
     InputStream decryptedFile =
@@ -298,7 +299,7 @@ public class SimpleDataWriterTest {
 
     String serializedMetadata = properties.getProp(ConfigurationKeys.WRITER_METADATA_KEY);
     GlobalMetadata md = GlobalMetadata.fromJson(serializedMetadata);
-    Assert.assertEquals(md.getTransferEncoding(), ImmutableList.of("gzip", "insecure_shift"));
+    Assert.assertEquals(md.getTransferEncoding(), ImmutableList.of(COMPRESSION_TYPE, ENCRYPTION_TYPE));
  }
 
   /**

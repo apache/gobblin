@@ -21,10 +21,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import gobblin.annotation.Alpha;
+
 
 /**
  * Interface for an object that can encrypt a bytestream.
  */
+@Alpha
 public interface StreamCodec {
   /**
    * Wrap a bytestream and return a new stream that encodes the bytes written to it and writes
